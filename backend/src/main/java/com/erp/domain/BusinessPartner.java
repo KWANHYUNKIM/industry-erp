@@ -32,6 +32,11 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private PartnerType type;
 
+    /** 사용자 정의 거래처그룹. 미지정 허용. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_group_id")
+    private PartnerGroup partnerGroup;
+
     /** 사업자등록번호 */
     @Column(length = 20)
     private String bizRegNo;
