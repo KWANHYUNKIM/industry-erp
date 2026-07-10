@@ -31,6 +31,21 @@ export default function CompanyInfoPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  /** 주소검색 모달 (외부 우편번호 API 미연동 — 직접 입력해 폼에 반영한다) */
+  const [addrOpen, setAddrOpen] = useState(false)
+  const [addrZip, setAddrZip] = useState('')
+  const [addrRoad, setAddrRoad] = useState('')
+
+  const openAddrSearch = () => {
+    setAddrZip(form.zipcode)
+    setAddrRoad(form.address)
+    setAddrOpen(true)
+  }
+
+  const applyAddr = () => {
+    setForm((f) => ({ ...f, zipcode: addrZip.trim(), address: addrRoad.trim() }))
+    setAddrOpen(false)
+  }
 
   async function load() {
     setLoading(true)
@@ -117,7 +132,7 @@ export default function CompanyInfoPage() {
                 <th style={thStyle}>우편번호</th>
                 <td style={tdStyle} colSpan={3}>
                   <input className="ec-input" value={form.zipcode} onChange={(e) => set('zipcode', e.target.value)} style={{ width: 100 }} />
-                  <button className="ec-btn" style={{ marginLeft: 6 }} onClick={() => alert('주소검색 (우편번호 API 연동 예정)')}>주소검색</button>
+                  <button type="button" className="ec-btn" style={{ marginLeft: 6 }} onClick={openAddrSearch}>주소검색</button>
                 </td>
               </tr>
               <tr>
@@ -135,6 +150,38 @@ export default function CompanyInfoPage() {
             <button className="ec-btn" onClick={load} disabled={saving}>되돌리기</button>
           </div>
         </>
+      )}
+
+      {addrOpen && (
+        <div
+          onClick={() => setAddrOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>주소검색</span>
+              <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 400, color: '#8a929c' }}>우편번호 API 미연동 · 직접 입력</span>
+              <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setAddrOpen(false)}>닫기</button>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5 }}>
+              <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>우편번호</span>
+                <input className="ec-input" value={addrZip} onChange={(e) => setAddrZip(e.target.value)} style={{ width: 120 }} placeholder="06236" />
+              </label>
+              <label style={{ display: 'block' }}>
+                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>도로명주소</span>
+                <input className="ec-input" value={addrRoad} onChange={(e) => setAddrRoad(e.target.value)} style={{ width: 300 }} placeholder="서울특별시 강남구 테헤란로 123" />
+              </label>
+              <div style={{ display: 'flex', gap: 6, marginTop: 14, justifyContent: 'flex-end' }}>
+                <button type="button" className="ec-btn ec-btn-primary" onClick={applyAddr} disabled={!addrZip.trim() && !addrRoad.trim()}>적용</button>
+                <button type="button" className="ec-btn" onClick={() => setAddrOpen(false)}>취소</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

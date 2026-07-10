@@ -27,6 +27,11 @@ public class ShipmentLine {
     @JoinColumn(name = "item_id", nullable = false)
     private Item item;
 
+    /** 근거 주문 라인. 주문 없이 직접 등록한 출하는 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_line_id")
+    private SalesOrderLine orderLine;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
 

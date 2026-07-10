@@ -27,9 +27,14 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "work_order_id")
     private WorkOrder workOrder;
 
-    /** 공정명 (공정 마스터명과 매칭) */
+    /** 입력된 공정명. 자유입력을 허용하므로 마스터에 없는 값도 들어올 수 있다. */
     @Column(nullable = false, length = 100)
     private String process;
+
+    /** 공정명이 공정 마스터와 일치하면 연결된다. 마스터에 없는 자유입력이면 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "process_id")
+    private ProductionProcess processMaster;
 
     /** 작업자 */
     @Column(length = 50)

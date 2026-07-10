@@ -1,10 +1,12 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.domain.ProductionProcess;
 import com.erp.domain.WorkOrder;
 import com.erp.domain.WorkResult;
 import com.erp.dto.WorkResultDtos.CreateWorkResultRequest;
 import com.erp.dto.WorkResultDtos.WorkResultResponse;
+import com.erp.repository.ProcessRepository;
 import com.erp.repository.WorkOrderRepository;
 import com.erp.repository.WorkResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class WorkResultService {
 
     private final WorkResultRepository workResultRepository;
     private final WorkOrderRepository workOrderRepository;
+    private final ProcessRepository processRepository;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -37,9 +40,13 @@ public class WorkResultService {
                     .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + req.workOrderId()));
         }
 
+        // 입력한 공정명이 공정 마스터에 있으면 실제 관계로 연결한다(자유입력이면 문자열만 남는다)
+        ProductionProcess processMaster = processRepository.findByName(req.process()).orElse(null);
+
         WorkResult wr = WorkResult.builder()
                 .workOrder(workOrder)
                 .process(req.process())
+                .processMaster(processMaster)
                 .worker(req.worker())
                 .goodQty(req.goodQty() != null ? req.goodQty() : BigDecimal.ZERO)
                 .defectQty(req.defectQty() != null ? req.defectQty() : BigDecimal.ZERO)

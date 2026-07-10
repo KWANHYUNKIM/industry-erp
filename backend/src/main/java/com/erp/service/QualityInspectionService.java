@@ -2,11 +2,13 @@ package com.erp.service;
 
 import com.erp.common.ApiException;
 import com.erp.domain.Item;
+import com.erp.domain.Lot;
 import com.erp.domain.QualityInspection;
 import com.erp.domain.QualityResult;
 import com.erp.dto.QualityDtos.CreateInspectionRequest;
 import com.erp.dto.QualityDtos.InspectionResponse;
 import com.erp.repository.ItemRepository;
+import com.erp.repository.LotRepository;
 import com.erp.repository.QualityInspectionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ public class QualityInspectionService {
 
     private final QualityInspectionRepository inspectionRepository;
     private final ItemRepository itemRepository;
+    private final LotRepository lotRepository;
 
     @Transactional(readOnly = true)
     public List<InspectionResponse> findAll() {
@@ -45,12 +48,18 @@ public class QualityInspectionService {
         QualityResult result = req.result() != null ? req.result() : autoResult(req.inspectedQty(), defect);
         String inspector = (req.inspector() != null && !req.inspector().isBlank()) ? req.inspector() : username;
 
+        // 입력한 로트No.가 등록된 로트면 실제 관계로 연결한다(미등록이면 문자열만 남는다)
+        Lot lot = (req.lotNo() != null && !req.lotNo().isBlank())
+                ? lotRepository.findByLotNo(req.lotNo()).orElse(null)
+                : null;
+
         QualityInspection q = QualityInspection.builder()
                 .inspectionNo(generateNo(date))
                 .inspectionDate(date)
                 .type(req.type())
                 .item(item)
                 .lotNo(req.lotNo())
+                .lot(lot)
                 .inspectedQty(req.inspectedQty())
                 .defectQty(defect)
                 .result(result)

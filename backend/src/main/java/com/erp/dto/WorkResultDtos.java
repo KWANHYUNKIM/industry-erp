@@ -24,7 +24,10 @@ public final class WorkResultDtos {
     public record WorkResultResponse(
             Long id,
             Long workOrderId, String workOrderNo,
-            String process, String worker,
+            String process,
+            /** 공정 마스터와 연결된 경우의 공정 id. 자유입력이면 null. */
+            Long processId,
+            String worker,
             BigDecimal goodQty, BigDecimal defectQty, Integer workTimeMin,
             LocalDate workDate, String note
     ) {
@@ -33,7 +36,9 @@ public final class WorkResultDtos {
                     wr.getId(),
                     wr.getWorkOrder() != null ? wr.getWorkOrder().getId() : null,
                     wr.getWorkOrder() != null ? wr.getWorkOrder().getOrderNo() : null,
-                    wr.getProcess(), wr.getWorker(),
+                    wr.getProcess(),
+                    wr.getProcessMaster() != null ? wr.getProcessMaster().getId() : null,
+                    wr.getWorker(),
                     wr.getGoodQty(), wr.getDefectQty(), wr.getWorkTimeMin(),
                     wr.getWorkDate(), wr.getNote());
         }

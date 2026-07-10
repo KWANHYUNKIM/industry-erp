@@ -10,6 +10,8 @@ const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#
 interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; amount: number }
 interface Shipment {
   id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
+  /** 미출하현황에서 생성한 출하면 근거 주문이 실려온다. 직접 등록한 출하는 null. */
+  salesOrderId: number | null; salesOrderNo: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
   remark: string | null; createdBy: string | null; lines: ShipLine[]
 }
@@ -172,18 +174,21 @@ export default function ShipmentOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>출하번호 ▼</th><th>출하일 ▼</th><th>거래처 ▼</th><th>품목</th>
+            <th>출하번호 ▼</th><th style={{ width: 130 }}>근거주문</th><th>출하일 ▼</th><th>거래처 ▼</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{s.shipNo}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
+                {s.salesOrderNo ?? '직접등록'}
+              </td>
               <td>{s.shipDate}</td>
               <td>{s.partnerName}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>

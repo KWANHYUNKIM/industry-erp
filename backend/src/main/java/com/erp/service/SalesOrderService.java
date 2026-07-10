@@ -5,8 +5,6 @@ import com.erp.domain.*;
 import com.erp.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.dto.SalesOrderDtos.SalesOrderResponse;
-import com.erp.dto.SalesOrderDtos.ShipLineRequest;
-import com.erp.dto.SalesOrderDtos.ShipRequest;
 import com.erp.dto.SalesOrderDtos.UnshippedLineResponse;
 import com.erp.repository.BusinessPartnerRepository;
 import com.erp.repository.ItemRepository;
@@ -38,7 +36,7 @@ public class SalesOrderService {
                 .toList();
     }
 
-    /** 미출하현황: 접수·진행중 주문의 라인들(완료·취소 제외). 현 모델은 부분출하 미추적 → 미출하잔량 = 주문수량 */
+    /** 미출하현황: 접수·진행중 주문의 라인들(완료·취소 제외). 미출하잔량 = 주문수량 − 누적 출하완료수량 */
     @Transactional(readOnly = true)
     public List<UnshippedLineResponse> findUnshipped() {
         List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);

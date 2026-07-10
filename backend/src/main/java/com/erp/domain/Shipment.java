@@ -33,6 +33,11 @@ public class Shipment extends BaseTimeEntity {
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner partner;
 
+    /** 근거 주문(수주). 주문 없이 직접 등록한 출하는 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sales_order_id")
+    private SalesOrder salesOrder;
+
     @Column(nullable = false)
     private LocalDate shipDate;
 

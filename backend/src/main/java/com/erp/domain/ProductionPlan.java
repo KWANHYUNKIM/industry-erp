@@ -45,9 +45,10 @@ public class ProductionPlan extends BaseTimeEntity {
     @Builder.Default
     private ProductionPlanStatus status = ProductionPlanStatus.REVIEW;
 
-    /** 생성된 작업지시번호 (지시완료 시) */
-    @Column(length = 30)
-    private String workOrderNo;
+    /** 이 계획에서 생성된 작업지시 (지시완료 시). 미지시 상태면 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_order_id")
+    private WorkOrder workOrder;
 
     @Column(length = 300)
     private String remark;

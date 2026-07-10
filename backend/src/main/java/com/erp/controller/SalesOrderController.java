@@ -2,10 +2,13 @@ package com.erp.controller;
 
 import com.erp.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.dto.SalesOrderDtos.SalesOrderResponse;
+import com.erp.dto.SalesOrderDtos.ShipRequest;
 import com.erp.dto.SalesOrderDtos.UnshippedLineResponse;
 import com.erp.dto.SalesOrderDtos.UpdateStatusRequest;
+import com.erp.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.security.UserPrincipal;
 import com.erp.service.SalesOrderService;
+import com.erp.service.ShipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,7 @@ import java.util.List;
 public class SalesOrderController {
 
     private final SalesOrderService salesOrderService;
+    private final ShipmentService shipmentService;
 
     @GetMapping
     public List<SalesOrderResponse> list() {
@@ -42,5 +46,14 @@ public class SalesOrderController {
     @PatchMapping("/{id}/status")
     public SalesOrderResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req) {
         return salesOrderService.updateStatus(id, req.status());
+    }
+
+    /** 주문에서 출하지시 생성. body의 lines를 비우면 남은 잔량 전체를 출하한다. */
+    @PostMapping("/{id}/ship")
+    public ResponseEntity<ShipmentResponse> ship(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) ShipRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(shipmentService.createFromOrder(id, req, principal.getUsername()));
     }
 }
