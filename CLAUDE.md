@@ -198,7 +198,56 @@ List<WorkOrder> findAllWithRefs();
 
 ---
 
-## 7. DTO
+## 7. 스키마 관리 (Flyway)
+
+**스키마 변경은 `backend/src/main/resources/db/migration/`의 `V*.sql`로만 합니다.**
+
+`spring.jpa.hibernate.ddl-auto: validate`입니다. Hibernate는 스키마를 만들거나 고치지 않고,
+엔티티와 실제 테이블이 어긋나면 **앱 기동을 실패시킵니다.** 이건 버그가 아니라 드리프트 감지 장치입니다.
+
+### 7.1 규칙
+
+- **`V1__baseline_schema.sql`은 절대 수정하지 마세요.** 2026-07-10 시점 운영 스키마를 `pg_dump -s`로
+  캡처한 기준선입니다. 기존 DB에는 `baseline-on-migrate: true` 때문에 '적용됨' 표시만 되고 실행되지 않습니다.
+  이 파일을 고쳐도 기존 DB에는 아무 일도 일어나지 않고, 새 DB만 달라져서 환경이 갈라집니다.
+- 새 변경은 다음 번호로 파일을 추가합니다: `V3__add_item_barcode.sql`, `V4__...`
+- **엔티티 변경과 마이그레이션은 같은 커밋에 넣습니다.** 하나만 커밋하면 다른 사람의 앱이 `validate`에서 죽습니다.
+- `CREATE INDEX IF NOT EXISTS` 같은 방어 구문을 쓰지 마세요. Flyway가 버전별로 정확히 한 번만 실행하므로
+  불필요하고, 실패해야 할 상황을 조용히 넘깁니다. (기존 `V2`도 쓰지 않습니다.)
+- **FK 컬럼에는 인덱스를 직접 만듭니다.** PostgreSQL은 `FOREIGN KEY`를 만들어도 참조하는 쪽 컬럼에
+  인덱스를 자동 생성하지 않습니다. 없으면 자식 조회가 순차 스캔이 되고, 부모 행을 지울 때 자식 테이블을
+  전부 훑습니다. `V2__index_foreign_keys.sql`이 이 작업을 한 번 했으니, **새 `@ManyToOne`을 추가하면
+  해당 FK 컬럼 인덱스도 같은 마이그레이션에 추가하세요.**
+
+### 7.2 데이터가 있는 테이블에 NOT NULL 컬럼 추가
+
+한 번에 하면 실패합니다. 세 단계로 나눕니다.
+
+```sql
+ALTER TABLE items ADD COLUMN barcode varchar(50);        -- 1) nullable 로 추가
+UPDATE items SET barcode = '' WHERE barcode IS NULL;      -- 2) 기존 행 백필
+ALTER TABLE items ALTER COLUMN barcode SET NOT NULL;      -- 3) 제약 부여
+```
+
+과거 `ddl-auto: update`를 쓸 때 이 작업이 **WARN만 남기고 조용히 실패**했습니다.
+`validate`로 바꾼 이유가 이것입니다. `update`로 되돌리지 마세요.
+
+### 7.3 기동이 `validate`에서 실패할 때
+
+엔티티와 스키마가 어긋났다는 뜻입니다. **`ddl-auto`를 `update`로 바꿔서 넘기지 마세요.**
+빠진 마이그레이션을 찾아 추가하는 것이 유일한 해법입니다.
+
+로컬 DB를 처음부터 다시 만들려면(개발 데이터는 전부 사라집니다):
+
+```bash
+docker compose down -v && docker compose up -d
+```
+
+새 빈 DB에서는 `V1`이 실제로 실행되어 전체 스키마를 만들고, 이어서 `V2`부터 순서대로 적용됩니다.
+
+---
+
+## 8. DTO
 
 - 요청/응답 DTO는 자기 모듈의 `dto/` 아래 둡니다.
 - 여러 DTO를 한 파일에 중첩 record로 묶는 기존 패턴(`ItemDtos`, `ProductionDtos`)을 유지합니다.
@@ -207,13 +256,16 @@ List<WorkOrder> findAllWithRefs();
 
 ---
 
-## 8. 빌드
+## 9. 빌드
 
 ```bash
 cd backend
 rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 ./mvnw spring-boot:run                 # 실행 (포트 8081)
 ```
+
+기동하면 Flyway가 먼저 미적용 마이그레이션을 실행하고, 그다음 Hibernate가 엔티티와 스키마를
+대조합니다(`validate`). 따라서 **DB가 떠 있어야 앱이 뜹니다** (`docker compose up -d`).
 
 `./mvnw clean`은 오프라인에서 실패합니다(`maven-clean-plugin`이 로컬 저장소에 없음).
 `rm -rf target`으로 대체하세요.
@@ -224,7 +276,7 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 
 ---
 
-## 9. 패키지 이동을 실제로 실행할 때
+## 10. 패키지 이동을 실제로 실행할 때
 
 아직 이동하지 않았습니다. 실행 시점에 확인한 전제조건입니다.
 
@@ -234,7 +286,9 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
   ```
 - `@EntityScan` / `@EnableJpaRepositories` / `@ComponentScan` 하드코딩이 없습니다. 수정할 필요 없습니다.
 - **DB 마이그레이션은 필요 없습니다.** 테이블·컬럼명은 `@Table`/`@JoinColumn`에 고정돼 있고,
-  패키지 이동은 `import` 문만 바꿉니다.
+  패키지 이동은 `import` 문만 바꿉니다. 단 `ddl-auto: validate`이므로, 이동 중 실수로
+  `@Table(name=...)`이나 `@Column(name=...)`을 건드리면 **앱이 기동에서 죽습니다.**
+  매핑 애노테이션은 한 글자도 손대지 마세요.
 - 가장 위험한 지점은 **지금 같은 패키지라서 `import` 없이 참조되던 클래스들**입니다.
   모듈로 갈라지는 순간 전부 컴파일 오류가 됩니다. 이동 후 `rm -rf target && ./mvnw -o compile`로 검증하고,
   컴파일이 통과해도 앱을 실제로 기동해서 Bean 스캔과 JPA 매핑을 확인하세요.
