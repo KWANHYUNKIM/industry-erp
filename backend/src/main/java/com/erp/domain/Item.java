@@ -42,6 +42,11 @@ public class Item extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private ItemCategory category;
 
+    /** 사용자 정의 품목그룹. 미지정 허용. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_group_id")
+    private ItemGroup itemGroup;
+
     /** 표준 단가 */
     @Column(nullable = false, precision = 18, scale = 2)
     @Builder.Default
