@@ -1,7 +1,14 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
-import com.erp.domain.*;
+import com.erp.domain.BusinessPartner;
+import com.erp.domain.Item;
+import com.erp.domain.SalesOrder;
+import com.erp.domain.SalesOrderLine;
+import com.erp.domain.SalesOrderStatus;
+import com.erp.domain.Shipment;
+import com.erp.domain.ShipmentLine;
+import com.erp.domain.ShipmentStatus;
 import com.erp.dto.SalesOrderDtos;
 import com.erp.dto.SalesOrderDtos.ShipRequest;
 import com.erp.dto.ShipmentDtos.CreateShipmentRequest;
