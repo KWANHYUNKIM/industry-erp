@@ -1,6 +1,10 @@
 package com.erp.dto;
 
-import com.erp.domain.*;
+import com.erp.domain.ApprovalDocument;
+import com.erp.domain.ApprovalFormType;
+import com.erp.domain.ApprovalLine;
+import com.erp.domain.ApprovalLineStatus;
+import com.erp.domain.ApprovalStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

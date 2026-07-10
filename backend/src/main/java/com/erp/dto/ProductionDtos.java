@@ -1,6 +1,9 @@
 package com.erp.dto;
 
-import com.erp.domain.*;
+import com.erp.domain.Production;
+import com.erp.domain.ProductionMaterial;
+import com.erp.domain.WorkOrder;
+import com.erp.domain.WorkOrderStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

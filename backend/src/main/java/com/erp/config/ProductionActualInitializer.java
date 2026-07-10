@@ -1,8 +1,21 @@
 package com.erp.config;
 
-import com.erp.domain.*;
+import com.erp.domain.Bom;
+import com.erp.domain.BomLine;
+import com.erp.domain.Item;
+import com.erp.domain.MaterialIssue;
+import com.erp.domain.StockTransactionType;
+import com.erp.domain.Warehouse;
+import com.erp.domain.WorkOrder;
+import com.erp.domain.WorkOrderStatus;
+import com.erp.domain.WorkResult;
 import com.erp.dto.ProductionDtos.CreateProductionRequest;
-import com.erp.repository.*;
+import com.erp.repository.BomRepository;
+import com.erp.repository.ItemRepository;
+import com.erp.repository.MaterialIssueRepository;
+import com.erp.repository.WarehouseRepository;
+import com.erp.repository.WorkOrderRepository;
+import com.erp.repository.WorkResultRepository;
 import com.erp.service.ProductionService;
 import com.erp.service.StockService;
 import lombok.RequiredArgsConstructor;
