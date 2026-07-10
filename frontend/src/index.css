@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/* ===== 이카운트 실제 테마 토큰 (theme-blue #1f48d4) ===== */
+:root {
+  --ec-blue: #1f48d4;         /* --theme-blue / --primary */
+  --ec-blue-dark: #183185;    /* --theme-deepblue */
+  --ec-blue-hover: #1b3da1;   /* --primary-hover */
+  --ec-blue-light: #d3daf7;   /* --primary-light */
+  --ec-lightblue: #668fe7;    /* --theme-lightblue */
+  --ec-bookmark-bg: #f4f6f9;
+  --ec-border: #d5dbe2;
+  --ec-body-bg: #eef1f5;
+  --ec-text: #142444;         /* --text (진네이비) */
+  font-family: "DM Sans", "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-size: 12px;
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--ec-body-bg);
+  color: var(--ec-text);
+  font-size: 12px;
+}
+
+/* 이카운트풍 조밀한 표 (Bootstrap table-striped/table-bordered 느낌) */
+.ec-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #fff;
+}
+.ec-grid th {
+  background: #f2f5f8;
+  border: 1px solid var(--ec-border);
+  padding: 5px 8px;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+}
+.ec-grid td {
+  border: 1px solid var(--ec-border);
+  padding: 4px 8px;
+}
+.ec-grid tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+.ec-grid tbody tr:hover {
+  background: var(--ec-blue-light);
+}
+
+/* 이카운트풍 버튼 */
+.ec-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  border: 1px solid #b8c0cc;
+  background: linear-gradient(#ffffff, #f1f3f6);
+  color: #333;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ec-btn:hover {
+  background: #eef2f7;
+}
+.ec-btn-primary {
+  border-color: var(--ec-blue-dark);
+  background: linear-gradient(var(--ec-blue), var(--ec-blue-dark));
+  color: #fff;
+}
+.ec-btn-primary:hover {
+  background: var(--ec-blue-dark);
+}
+
+/* 입력칸 */
+.ec-input {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid #c3cad4;
+  border-radius: 2px;
+  font-size: 12px;
+  background: #fff;
+  outline: none;
+}
+.ec-input:focus {
+  border-color: var(--ec-blue);
+  box-shadow: 0 0 0 2px rgba(31, 72, 212, 0.18);
+}
+
+/* ============================================================
+   전역 이카운트화 오버라이드 — 기존 Tailwind 페이지를 이카운트풍으로
+   ============================================================ */
+
+/* 데이터 테이블: 격자 테두리 + 헤더배경 + hover (이카운트 목록 화면 느낌) */
+main table,
+.ec-body table,
+[data-ec-body] table,
+#root table:not(.no-ec) {
+  border-collapse: collapse;
+}
+#root table:not(.no-ec) thead th {
+  background: #f2f5f8 !important;
+  border: 1px solid var(--ec-border) !important;
+  color: #3a4453 !important;
+  padding: 5px 8px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+#root table:not(.no-ec) tbody td {
+  border: 1px solid var(--ec-border) !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+}
+#root table:not(.no-ec) tbody tr:hover {
+  background: var(--ec-blue-light) !important;
+}
+
+/* 패널을 각지고 평평하게 (이카운트 위젯/카드 느낌) */
+#root .rounded-2xl,
+#root .rounded-xl,
+#root .rounded-lg {
+  border-radius: 3px !important;
+}
+#root .shadow-sm,
+#root .shadow,
+#root .shadow-lg {
+  box-shadow: none !important;
+}
+
+/* indigo(보라) → 이카운트 파랑 통일 */
+#root .bg-indigo-600 { background-color: var(--ec-blue) !important; }
+#root .hover\:bg-indigo-700:hover { background-color: var(--ec-blue-hover) !important; }
+#root .text-indigo-600 { color: var(--ec-blue) !important; }
+#root .text-indigo-700 { color: var(--ec-blue-dark) !important; }
+#root .border-indigo-500,
+#root .border-indigo-600,
+#root .border-indigo-200 { border-color: var(--ec-blue) !important; }
+#root .bg-indigo-50 { background-color: var(--ec-blue-light) !important; }
+#root .focus\:border-indigo-500:focus { border-color: var(--ec-blue) !important; }
+#root .focus\:ring-indigo-200:focus { --tw-ring-color: rgba(31, 72, 212, 0.22) !important; }
+/* 탭 활성 밑줄 */
+#root .border-indigo-600 { border-color: var(--ec-blue) !important; }
+
+/* 입력폼도 살짝 각지게 */
+#root input,
+#root select,
+#root textarea {
+  border-radius: 2px !important;
+}
