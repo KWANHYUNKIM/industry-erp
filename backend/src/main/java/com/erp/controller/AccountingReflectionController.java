@@ -1,0 +1,35 @@
+package com.erp.controller;
+
+import com.erp.dto.AccountingReflectionDtos.ReflectRequest;
+import com.erp.dto.AccountingReflectionDtos.ReflectResult;
+import com.erp.dto.AccountingReflectionDtos.SlipKind;
+import com.erp.dto.AccountingReflectionDtos.SlipResponse;
+import com.erp.service.AccountingReflectionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/accounting-reflection")
+@RequiredArgsConstructor
+public class AccountingReflectionController {
+
+    private final AccountingReflectionService service;
+
+    /** 판매/구매 전표의 회계반영 현황 (onlyUnreflected=true 면 미반영만) */
+    @GetMapping
+    public List<SlipResponse> list(
+            @RequestParam SlipKind kind,
+            @RequestParam(defaultValue = "false") boolean onlyUnreflected) {
+        return service.list(kind, onlyUnreflected);
+    }
+
+    /** 선택 전표 일괄 회계반영 */
+    @PostMapping("/reflect")
+    public ResponseEntity<ReflectResult> reflect(@Valid @RequestBody ReflectRequest req) {
+        return ResponseEntity.ok(service.reflect(req));
+    }
+}

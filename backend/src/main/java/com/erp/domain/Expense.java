@@ -1,0 +1,54 @@
+package com.erp.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+/**
+ * 비용(지출) 내역. (회계 > 비용관리)
+ */
+@Entity
+@Table(name = "expenses")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class Expense extends BaseTimeEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDate expenseDate;
+
+    /** 지출 계정과목 */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
+
+    /** 적요 */
+    @Column(length = 300)
+    private String content;
+
+    /** 거래처(자유입력) */
+    @Column(length = 200)
+    private String partnerName;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal amount;
+
+    /** 결제수단 (법인카드/계좌이체/현금 등) */
+    @Column(length = 30)
+    private String paymentMethod;
+
+    /** 부서 */
+    @Column(length = 50)
+    private String department;
+
+    @Column(length = 50)
+    private String createdBy;
+}
