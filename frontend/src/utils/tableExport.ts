@@ -66,9 +66,18 @@ export function tableToMatrix(table: HTMLTableElement): TableMatrix {
   // 그룹 헤더가 있는 경우 마지막 행이 실제 컬럼명이다
   const headRows = Array.from(table.querySelectorAll('thead tr'))
   const headerCells = headRows.length
-    ? Array.from(headRows[headRows.length - 1].querySelectorAll('th, td'))
+    ? (Array.from(headRows[headRows.length - 1].querySelectorAll('th, td')) as HTMLTableCellElement[])
     : []
-  const headers = headerCells.map((th) =>
+
+  // 헤더에 data-export-skip="true"가 붙은 열은 통째로 제외한다(행 선택 체크박스 열 등)
+  const skipped = new Set<number>()
+  headerCells.forEach((th, i) => {
+    if (th.dataset.exportSkip === 'true') skipped.add(i)
+  })
+
+  const keep = <T,>(arr: T[]) => arr.filter((_, i) => !skipped.has(i))
+
+  const headers = keep(headerCells).map((th) =>
     (th.textContent ?? '').replace(SORT_MARKS, '').replace(/\s+/g, ' ').trim(),
   )
 
@@ -85,7 +94,7 @@ export function tableToMatrix(table: HTMLTableElement): TableMatrix {
     // "불러오는 중…" / "표시할 자료가 없습니다" 같은 colSpan 안내행은 제외
     if (cells.length === 1 && cells[0].colSpan > 1) continue
 
-    rows.push(cells.map((td) => coerce(extractCell(td))))
+    rows.push(keep(cells).map((td) => coerce(extractCell(td))))
   }
 
   return { headers, rows }

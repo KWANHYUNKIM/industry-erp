@@ -12,12 +12,14 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
 
     @Query("select distinct s from Shipment s " +
             "join fetch s.partner " +
+            "left join fetch s.salesOrder " +
             "join fetch s.lines l join fetch l.item " +
             "order by s.shipDate desc, s.id desc")
     List<Shipment> findAllWithLines();
 
     @Query("select distinct s from Shipment s " +
             "join fetch s.partner " +
+            "left join fetch s.salesOrder " +
             "join fetch s.lines l join fetch l.item " +
             "where s.status = :status " +
             "order by s.shipDate desc, s.id desc")

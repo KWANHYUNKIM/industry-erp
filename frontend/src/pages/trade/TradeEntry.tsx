@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, PurchaseDoc, SalesDoc, Warehouse } from '../../api/types'
+import { exportTableToXlsx } from '../../utils/excel'
+import { printTable } from '../../utils/print'
+import { findDataTable } from '../../utils/tableExport'
 
 type Mode = 'sales' | 'purchase'
 
@@ -41,6 +44,27 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [docs, setDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  const [notice, setNotice] = useState('')  // Excel/인쇄 안내 문구
+  const [helpOpen, setHelpOpen] = useState(false)
+  const gridRef = useRef<HTMLDivElement>(null)  // 명세 그리드 표만 내보내기 대상으로 잡는다
+
+  const flash = (msg: string) => {
+    setNotice(msg)
+    window.setTimeout(() => setNotice(''), 2500)
+  }
+
+  // 편집형 명세 그리드를 .xlsx/인쇄로 내보낸다. tableToMatrix가 input/select 현재값을 읽는다.
+  async function doExcel() {
+    const table = findDataTable(gridRef.current)
+    if (!table) return flash('내보낼 표가 없습니다.')
+    const okExport = await exportTableToXlsx(table, cfg.title)
+    if (!okExport) flash('내보낼 품목이 없습니다.')
+  }
+  function doPrint() {
+    const table = findDataTable(gridRef.current)
+    if (!table) return flash('인쇄할 표가 없습니다.')
+    if (!printTable(table, cfg.title)) flash('인쇄할 품목이 없습니다.')
+  }
 
   const [partnerId, setPartnerId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
@@ -151,7 +175,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => { setLines([emptyLine()]); setRemark(''); setOk(''); setError('') }}>초기화</button>
-          <button type="button" className="ec-btn">도움말</button>
+          <button type="button" className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
         </div>
       </div>
 
@@ -187,7 +211,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         </tbody>
       </table>
 
-      {/* 엑셀형 명세 그리드 */}
+      {/* 엑셀형 명세 그리드 (ref로 감싸 내보내기 대상으로 지정) */}
+      <div ref={gridRef}>
       <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
         <thead>
           <tr>
@@ -206,7 +231,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           {lines.map((l, idx) => {
             const it = itemById.get(l.itemId)
             return (
-              <tr key={idx}>
+              // 빈 입력행은 내보내기/인쇄에서 제외
+              <tr key={idx} data-export-skip={l.itemId ? undefined : 'true'}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.itemId ? idx + 1 : ''}</td>
                 <td>
                   <select className={cellInput} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)} style={{ width: '100%' }}>
@@ -237,6 +263,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           </tr>
         </tfoot>
       </table>
+      </div>
 
       <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12.5, color: '#5a626e', fontWeight: 600, width: 40 }}>비고</span>
@@ -244,14 +271,15 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </div>
       <div style={{ marginTop: 4, fontSize: 11, color: '#9aa1ab' }}>※ 품목을 선택하면 단가가 자동 입력되고 다음 행이 추가됩니다.</div>
 
+      {notice && <p style={{ marginTop: 10, background: '#eef5ff', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, border: '1px solid #cfe0f5' }}>{notice}</p>}
       {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {ok && <p style={{ marginTop: 10, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {/* 하단 저장 툴바 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
         <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-        <button type="button" className="ec-btn">인쇄</button>
-        <button type="button" className="ec-btn">Excel</button>
+        <button type="button" className="ec-btn" onClick={doPrint}>인쇄</button>
+        <button type="button" className="ec-btn" onClick={doExcel}>Excel</button>
       </div>
 
       {/* 최근 전표 */}
@@ -286,6 +314,35 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           ))}
         </tbody>
       </table>
+
+      {/* 도움말 모달 (EcListShell과 동일 패턴) */}
+      {helpOpen && (
+        <div
+          onClick={() => setHelpOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 4, width: 440, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}
+          >
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>{cfg.title} · 도움말</span>
+              <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+              <ul style={{ paddingLeft: 16, margin: 0 }}>
+                <li>{cfg.partnerLabel}·창고·일자를 고르고, 아래 그리드에 품목·수량·단가를 입력합니다.</li>
+                <li>품목을 선택하면 단가가 자동으로 채워지고 다음 입력행이 추가됩니다.</li>
+                <li><b>저장(F8)</b>으로 전표를 저장하면 재고와 {mode === 'sales' ? '채권' : '채무'}에 반영됩니다.</li>
+                <li><b>Excel·인쇄</b>는 지금 입력한 명세 그리드를 그대로 내보냅니다.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

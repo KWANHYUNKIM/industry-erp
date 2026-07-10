@@ -1,5 +1,6 @@
 package com.erp.dto;
 
+import com.erp.domain.SalesOrder;
 import com.erp.domain.Shipment;
 import com.erp.domain.ShipmentLine;
 import com.erp.domain.ShipmentStatus;
@@ -35,18 +36,23 @@ public final class ShipmentDtos {
 
     public record ShipLineResponse(
             Long itemId, String itemCode, String itemName, String unit,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
+            /** 근거 주문 라인. 직접 등록한 출하면 null. */
+            Long orderLineId
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getQuantity(), l.getUnitPrice(), l.getAmount());
+                    l.getQuantity(), l.getUnitPrice(), l.getAmount(),
+                    l.getOrderLine() != null ? l.getOrderLine().getId() : null);
         }
     }
 
     public record ShipmentResponse(
             Long id, String shipNo,
             Long partnerId, String partnerName,
+            /** 근거 주문. 직접 등록한 출하면 null. */
+            Long salesOrderId, String salesOrderNo,
             LocalDate shipDate,
             ShipmentStatus status, String statusName,
             BigDecimal totalQuantity, BigDecimal totalAmount,
@@ -54,9 +60,12 @@ public final class ShipmentDtos {
             List<ShipLineResponse> lines
     ) {
         public static ShipmentResponse from(Shipment s) {
+            SalesOrder order = s.getSalesOrder();
             return new ShipmentResponse(
                     s.getId(), s.getShipNo(),
                     s.getPartner().getId(), s.getPartner().getName(),
+                    order != null ? order.getId() : null,
+                    order != null ? order.getOrderNo() : null,
                     s.getShipDate(),
                     s.getStatus(), s.getStatus().getDisplayName(),
                     s.getTotalQuantity(), s.getTotalAmount(),

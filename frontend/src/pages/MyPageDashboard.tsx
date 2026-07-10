@@ -29,18 +29,23 @@ interface WidgetDef {
 }
 
 /** 이카운트 위젯 패널 (제목바 + 우측 아이콘 + 본문). 편집모드면 이동/삭제 컨트롤 표시 */
-function Widget({ def, edit, onMove, onRemove, children }: {
+function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, children }: {
   def: WidgetDef
   edit: boolean
+  busy: boolean
+  refreshable: boolean
+  onRefresh: () => void
   onMove: (dir: -1 | 1) => void
   onRemove: () => void
   children: ReactNode
 }) {
+  // ⋮ 옵션 드롭다운 (숨기기·좌우 이동) — 편집모드가 아니어도 위젯 단위로 조작
+  const [menuOpen, setMenuOpen] = useState(false)
   return (
     <div style={{ background: '#fff', border: edit ? '1px dashed var(--ec-blue)' : '1px solid var(--ec-border)', borderRadius: 3, display: 'flex', flexDirection: 'column', minHeight: 120 }}>
       <div style={{ display: 'flex', alignItems: 'center', height: 34, padding: '0 10px', borderBottom: '1px solid #eef1f5', background: edit ? '#f5f8ff' : undefined }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-text)' }}>{def.title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, color: '#aab0b8', fontSize: 12 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, color: '#aab0b8', fontSize: 12, position: 'relative' }}>
           {edit ? (
             <>
               <span title="왼쪽으로" style={{ cursor: 'pointer' }} onClick={() => onMove(-1)}>◀</span>
@@ -50,8 +55,49 @@ function Widget({ def, edit, onMove, onRemove, children }: {
           ) : (
             <>
               {def.to && <Link to={def.to} title="이동" style={{ color: '#aab0b8', textDecoration: 'none' }}>↗</Link>}
-              <span title="새로고침" style={{ cursor: 'pointer' }}>⟳</span>
-              <span title="옵션" style={{ cursor: 'pointer' }}>⋮</span>
+              <span
+                title={refreshable ? '새로고침' : '새로고침할 데이터가 없는 위젯입니다'}
+                onClick={() => { if (refreshable && !busy) onRefresh() }}
+                style={{
+                  cursor: refreshable ? 'pointer' : 'default',
+                  color: refreshable ? (busy ? 'var(--ec-blue)' : '#aab0b8') : '#d5d9de',
+                  display: 'inline-block',
+                  transition: 'transform .6s',
+                  transform: busy ? 'rotate(360deg)' : undefined,
+                }}
+              >⟳</span>
+              <span title="옵션" style={{ cursor: 'pointer' }} onClick={() => setMenuOpen((v) => !v)}>⋮</span>
+              {menuOpen && (
+                <>
+                  <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                  <div style={{
+                    position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41,
+                    background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+                    boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 130, padding: 4, color: '#3a4453',
+                  }}>
+                    {[
+                      { label: '⟳ 새로고침', run: () => { if (refreshable) onRefresh() }, disabled: !refreshable },
+                      { label: '◀ 왼쪽으로 이동', run: () => onMove(-1) },
+                      { label: '▶ 오른쪽으로 이동', run: () => onMove(1) },
+                      { label: '✕ 위젯 숨기기', run: onRemove, danger: true },
+                    ].map((m) => (
+                      <button
+                        key={m.label}
+                        disabled={m.disabled}
+                        onClick={() => { setMenuOpen(false); m.run() }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
+                          fontSize: 12, background: 'none', border: 0,
+                          cursor: m.disabled ? 'default' : 'pointer',
+                          color: m.disabled ? '#c0c5cc' : m.danger ? '#c60a2e' : '#3a4453',
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -249,15 +295,32 @@ export default function MyPageDashboard() {
 
   const [order, setOrder] = useState<string[]>(loadOrder)
   const [edit, setEdit] = useState(false)
+  const [busy, setBusy] = useState<Set<string>>(new Set())  // 새로고침 중인 위젯 id
+
+  // 위젯 id별 데이터 재조회 함수 — ⟳/⋮ 새로고침이 이 맵을 재사용한다
+  const loaders = useMemo<Record<string, () => Promise<void>>>(() => ({
+    stock: () => api.get<StockRow[]>('/stock').then((r) => setStock(r.data)),
+    balances: () => api.get<PartnerBalance[]>('/ledger/partner-balances').then((r) => setBalances(r.data)),
+    vat: () => api.get<VatSummary>('/accounting/vat-summary').then((r) => setVat(r.data)),
+    profit: () => api.get<ProfitSummary>('/accounting/profit-summary').then((r) => setProfit(r.data)),
+    sales: () => api.get<SalesDoc[]>('/sales').then((r) => setSales(r.data)),
+    purchases: () => api.get<PurchaseDoc[]>('/purchases').then((r) => setPurchases(r.data)),
+  }), [])
 
   useEffect(() => {
-    api.get<StockRow[]>('/stock').then((r) => setStock(r.data)).catch(() => {})
-    api.get<PartnerBalance[]>('/ledger/partner-balances').then((r) => setBalances(r.data)).catch(() => {})
-    api.get<VatSummary>('/accounting/vat-summary').then((r) => setVat(r.data)).catch(() => {})
-    api.get<ProfitSummary>('/accounting/profit-summary').then((r) => setProfit(r.data)).catch(() => {})
-    api.get<SalesDoc[]>('/sales').then((r) => setSales(r.data)).catch(() => {})
-    api.get<PurchaseDoc[]>('/purchases').then((r) => setPurchases(r.data)).catch(() => {})
-  }, [])
+    Object.values(loaders).forEach((fn) => fn().catch(() => {}))
+  }, [loaders])
+
+  // 개별 위젯 새로고침: 잠시 busy 표시 후 해당 엔드포인트만 재조회
+  async function refreshWidget(id: string) {
+    const fn = loaders[id]
+    if (!fn) return
+    setBusy((s) => new Set(s).add(id))
+    try { await fn() } catch { /* 위젯 단위 실패는 조용히 무시 */ }
+    finally {
+      setBusy((s) => { const n = new Set(s); n.delete(id); return n })
+    }
+  }
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(order))
@@ -330,7 +393,16 @@ export default function MyPageDashboard() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {placed.map((w) => (
-            <Widget key={w.id} def={w} edit={edit} onMove={(dir) => move(w.id, dir)} onRemove={() => removeWidget(w.id)}>
+            <Widget
+              key={w.id}
+              def={w}
+              edit={edit}
+              busy={busy.has(w.id)}
+              refreshable={!!loaders[w.id]}
+              onRefresh={() => refreshWidget(w.id)}
+              onMove={(dir) => move(w.id, dir)}
+              onRemove={() => removeWidget(w.id)}
+            >
               {w.render(data)}
             </Widget>
           ))}

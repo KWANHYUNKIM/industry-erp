@@ -31,6 +31,8 @@ public final class QualityDtos {
             QualityInspectionType type, String typeName,
             Long itemId, String itemCode, String itemName, String unit,
             String lotNo,
+            /** 등록된 로트와 연결된 경우의 로트 id. 미등록 로트면 null. */
+            Long lotId,
             BigDecimal inspectedQty, BigDecimal defectQty, BigDecimal goodQty, BigDecimal defectRate,
             QualityResult result, String resultName,
             String inspector, String remark
@@ -46,6 +48,7 @@ public final class QualityDtos {
                     q.getType(), q.getType().getDisplayName(),
                     q.getItem().getId(), q.getItem().getCode(), q.getItem().getName(), q.getItem().getUnit(),
                     q.getLotNo(),
+                    q.getLot() != null ? q.getLot().getId() : null,
                     q.getInspectedQty(), q.getDefectQty(), good, rate,
                     q.getResult(), q.getResult().getDisplayName(),
                     q.getInspector(), q.getRemark());

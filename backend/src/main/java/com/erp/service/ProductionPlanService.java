@@ -10,6 +10,7 @@ import com.erp.repository.ItemRepository;
 import com.erp.repository.ProductionPlanRepository;
 import com.erp.repository.StockRepository;
 import com.erp.repository.WarehouseRepository;
+import com.erp.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class ProductionPlanService {
     private final StockRepository stockRepository;
     private final WarehouseRepository warehouseRepository;
     private final WorkOrderService workOrderService;
+    private final WorkOrderRepository workOrderRepository;
 
     @Transactional(readOnly = true)
     public List<PlanResponse> findAll() {
@@ -66,8 +68,8 @@ public class ProductionPlanService {
     @Transactional
     public PlanResponse generateWorkOrder(Long id, String username) {
         ProductionPlan plan = getPlan(id);
-        if (plan.getWorkOrderNo() != null) {
-            throw ApiException.badRequest("이미 작업지시가 생성된 계획입니다: " + plan.getWorkOrderNo());
+        if (plan.getWorkOrder() != null) {
+            throw ApiException.badRequest("이미 작업지시가 생성된 계획입니다: " + plan.getWorkOrder().getOrderNo());
         }
         if (plan.getPlanQty().signum() <= 0) {
             throw ApiException.badRequest("계획수량이 0이면 작업지시를 생성할 수 없습니다.");
@@ -79,7 +81,8 @@ public class ProductionPlanService {
                 plan.getProduct().getId(), warehouse.getId(), plan.getPlanQty(),
                 LocalDate.now(), null, "생산계획 " + plan.getPlanWeek() + " 자동생성"), username);
 
-        plan.setWorkOrderNo(wo.orderNo());
+        plan.setWorkOrder(workOrderRepository.findById(wo.id())
+                .orElseThrow(() -> ApiException.notFound("생성된 작업지시를 찾을 수 없습니다. id=" + wo.id())));
         plan.setStatus(ProductionPlanStatus.ORDERED);
         return PlanResponse.from(plan, currentStockByItem().getOrDefault(plan.getProduct().getId(), BigDecimal.ZERO));
     }

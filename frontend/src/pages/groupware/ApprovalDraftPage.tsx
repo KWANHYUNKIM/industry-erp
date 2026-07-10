@@ -1,7 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { exportTableToXlsx } from '../../utils/excel'
+import { printTable } from '../../utils/print'
+import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalFormType, MemberOption } from '../../api/types'
+
+const TITLE = '기안서작성'
+// 글꼴 select 표시명 → 실제 CSS font-family 매핑
+const FONT_FAMILY: Record<string, string> = {
+  돋움: 'Dotum, 돋움, sans-serif',
+  '맑은 고딕': '"Malgun Gothic", 맑은 고딕, sans-serif',
+}
 
 /** 전자결재 > 기안서작성 — 좌측 결재양식 목록 + 선택 시 우측 기안 편집기 (실제 상신 연동) */
 const FORMS: { label: string; type: ApprovalFormType }[] = [
@@ -41,6 +51,53 @@ export default function ApprovalDraftPage() {
   const [pick, setPick] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // 양식목록 검색/내보내기 직접 배선 + 도움말·옵션
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [search, setSearch] = useState('')
+  const [optionOpen, setOptionOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  // 본문 글꼴 상태 — textarea 전체에 실제로 반영한다(execCommand 미사용)
+  const [fontFamily, setFontFamily] = useState('돋움')
+  const [fontSize, setFontSize] = useState('10')
+  const [bold, setBold] = useState(false)
+  const [italic, setItalic] = useState(false)
+  const [underline, setUnderline] = useState(false)
+
+  const flash = (msg: string) => {
+    setNotice(msg)
+    window.setTimeout(() => setNotice(''), 2500)
+  }
+
+  // 좌측 양식목록에서 입력한 낱말이 포함된 행만 남긴다
+  const filterRows = (q: string) => {
+    const table = findDataTable(bodyRef.current)
+    if (!table) return
+    const needle = q.trim().toLowerCase()
+    let hit = 0
+    table.querySelectorAll('tbody tr').forEach((tr) => {
+      const row = tr as HTMLTableRowElement
+      if (row.cells.length === 1 && row.cells[0].colSpan > 1) return
+      const match = !needle || (row.textContent ?? '').toLowerCase().includes(needle)
+      row.style.display = match ? '' : 'none'
+      if (match) hit += 1
+    })
+    if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
+  }
+
+  async function doExcel() {
+    const table = findDataTable(bodyRef.current)
+    if (!table) return flash('이 화면에는 내보낼 표가 없습니다.')
+    if (!(await exportTableToXlsx(table, TITLE))) flash('내보낼 자료가 없습니다.')
+  }
+
+  function doPrint() {
+    const table = findDataTable(bodyRef.current)
+    if (!table) return flash('이 화면에는 인쇄할 표가 없습니다.')
+    if (!printTable(table, TITLE)) flash('인쇄할 자료가 없습니다.')
+  }
 
   useEffect(() => {
     api.get<MemberOption[]>('/meta/users').then((r) => setMembers(r.data)).catch(() => {})
@@ -90,17 +147,40 @@ export default function ApprovalDraftPage() {
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>기안서작성</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          <input className="ec-input" placeholder="양식검색" style={{ width: 140 }} />
-          <button className="ec-btn ec-btn-primary">Search(F3)</button>
-          <button className="ec-btn">Option</button>
-          <button className="ec-btn">도움말</button>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+          <input
+            className="ec-input"
+            placeholder="양식검색"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); filterRows(e.target.value) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
+            style={{ width: 140 }}
+          />
+          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
+          <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+          <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
+
+          {optionOpen && (
+            <>
+              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
+                {[
+                  { label: 'Excel 내려받기', run: () => { void doExcel() } },
+                  { label: '인쇄', run: () => doPrint() },
+                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
+                ].map((m) => (
+                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
+      <div ref={bodyRef} style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
         {/* 좌측 양식 목록 */}
         <div style={{ width: 260, border: '1px solid var(--ec-border)', background: '#fff', flexShrink: 0, overflow: 'auto' }}>
           <table className="w-full text-left">
@@ -178,16 +258,28 @@ export default function ApprovalDraftPage() {
                 </tbody>
               </table>
 
-              {/* 글꼴 툴바(시각 재현) */}
+              {/* 글꼴 툴바 — select/버튼이 아래 textarea 전체 글꼴에 실제 반영된다 */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', border: '1px solid var(--ec-border)', borderBottom: 'none', padding: '4px 8px', background: '#f5f7fa', fontSize: 12 }}>
-                <select className="ec-input" style={{ height: 22 }}><option>돋움</option><option>맑은 고딕</option></select>
-                <select className="ec-input" style={{ height: 22, width: 54 }}><option>10</option><option>12</option></select>
-                <span style={{ fontWeight: 700, cursor: 'pointer' }}>B</span>
-                <span style={{ fontStyle: 'italic', cursor: 'pointer' }}>I</span>
-                <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>U</span>
+                <select className="ec-input" style={{ height: 22 }} value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
+                  <option>돋움</option><option>맑은 고딕</option>
+                </select>
+                <select className="ec-input" style={{ height: 22, width: 54 }} value={fontSize} onChange={(e) => setFontSize(e.target.value)}>
+                  <option>10</option><option>12</option>
+                </select>
+                {/* B/I/U 토글 — 활성 시 배경으로 상태를 표시 */}
+                <span onClick={() => setBold((v) => !v)} title="굵게" style={{ fontWeight: 700, cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: bold ? 'var(--ec-blue-light)' : undefined, color: bold ? 'var(--ec-blue-dark)' : undefined }}>B</span>
+                <span onClick={() => setItalic((v) => !v)} title="기울임" style={{ fontStyle: 'italic', cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: italic ? 'var(--ec-blue-light)' : undefined, color: italic ? 'var(--ec-blue-dark)' : undefined }}>I</span>
+                <span onClick={() => setUnderline((v) => !v)} title="밑줄" style={{ textDecoration: 'underline', cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: underline ? 'var(--ec-blue-light)' : undefined, color: underline ? 'var(--ec-blue-dark)' : undefined }}>U</span>
               </div>
               <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="내용을 입력하세요."
-                style={{ width: '100%', height: 220, border: '1px solid var(--ec-border)', padding: 10, fontSize: 13, resize: 'vertical', outline: 'none' }} />
+                style={{
+                  width: '100%', height: 220, border: '1px solid var(--ec-border)', padding: 10, resize: 'vertical', outline: 'none',
+                  fontFamily: FONT_FAMILY[fontFamily] ?? undefined,
+                  fontSize: Number(fontSize) || 13,
+                  fontWeight: bold ? 700 : 400,
+                  fontStyle: italic ? 'italic' : 'normal',
+                  textDecoration: underline ? 'underline' : 'none',
+                }} />
 
               <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
                 <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '상신 중…' : '상신(F8)'}</button>
@@ -197,6 +289,25 @@ export default function ApprovalDraftPage() {
           )}
         </div>
       </div>
+
+      {helpOpen && (
+        <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>{TITLE} · 도움말</span>
+              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+              <ul style={{ paddingLeft: 16, margin: 0 }}>
+                <li>좌측 목록에서 <b>결재양식</b>을 고르면 우측에 기안 편집기가 열립니다.</li>
+                <li><b>Search(F3)</b> — 양식명에 입력한 낱말이 포함된 항목만 좌측 목록에서 추립니다.</li>
+                <li><b>결재선</b>은 선택한 순서대로 순차 결재로 진행됩니다.</li>
+                <li>글꼴 툴바의 <b>글꼴·크기·B/I/U</b>는 본문 입력창에 바로 반영되며, <b>상신(F8)</b>으로 문서를 올립니다.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

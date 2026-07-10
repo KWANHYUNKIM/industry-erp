@@ -39,6 +39,9 @@ export default function WmsPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [zone, setZone] = useState('전체')
+  const [putawayOpen, setPutawayOpen] = useState(false)  // 입고배치(Putaway) 모달
+  const [pickOpen, setPickOpen] = useState(false)        // 피킹지시 모달
+  const [placements, setPlacements] = useState<Record<string, string>>({})  // 임시 배치 로케이션(미연동)
 
   async function load() {
     setLoading(true)
@@ -93,6 +96,28 @@ export default function WmsPage() {
     .filter((r) => zone === '전체' || r.zone === zone)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword) || r.location.includes(keyword) || r.lotNo.includes(keyword))
   const zones = Array.from(new Set(rows.map((r) => r.zone)))
+  // 로케이션이 지정되지 않은(창고에 location이 없는) 재고 = 입고배치 대상 후보
+  const putawayTargets = rows.filter((r) => r.location === '-')
+
+  // 피킹지시서를 인쇄용 창으로 띄운다 (print.ts의 서식 패턴을 페이지 내부에서 재구성)
+  function printPickSheet() {
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
+    const win = window.open('', '_blank', 'width=1024,height=768')
+    if (!win) { alert('팝업이 차단되어 인쇄창을 열 수 없습니다.'); return }
+    const body = shown.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.zone)}</td><td>${esc(r.location)}</td><td>${esc(r.itemName)} (${esc(r.itemCode)})</td><td>${esc(r.lotNo)}</td><td class="num">${r.qty.toLocaleString()} ${esc(r.unit)}</td><td style="width:80px"></td></tr>`).join('')
+    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>피킹지시서</title><style>
+      body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;margin:24px;color:#1f2733}
+      h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#6b7480;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #c9d1da;padding:4px 6px;text-align:left}
+      th{background:#eff3f8;font-weight:700;text-align:center}td.num{text-align:right}@page{size:A4 landscape;margin:12mm}
+    </style></head><body>
+      <h1>피킹지시서 (Picking List)</h1>
+      <div class="meta">출력일시 ${esc(new Date().toLocaleString('ko-KR'))} · 대상 ${shown.length}건${zone !== '전체' ? ` · 창고 ${esc(zone)}` : ''}</div>
+      <table><thead><tr><th>No</th><th>Zone</th><th>로케이션</th><th>품목</th><th>로트No.</th><th>지시수량</th><th>피킹확인</th></tr></thead><tbody>${body}</tbody></table>
+    </body></html>`)
+    win.document.close()
+    win.onload = () => { win.focus(); win.print() }
+  }
 
   return (
     <EcListShell
@@ -100,7 +125,7 @@ export default function WmsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: '입고배치(Putaway)' }, { label: '피킹지시' }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load }, { label: '입고배치(Putaway)', onClick: () => setPutawayOpen(true) }, { label: '피킹지시', onClick: () => setPickOpen(true) }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -150,6 +175,75 @@ export default function WmsPage() {
           ))}
         </tbody>
       </table>
+
+      {putawayOpen && (
+        <div onClick={() => setPutawayOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 620, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>입고배치 (Putaway)</span>
+              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setPutawayOpen(false)}>닫기</button>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
+              <p style={{ margin: '0 0 8px', color: '#5a626e' }}>로케이션이 지정되지 않은 재고를 창고 내 특정 위치로 배치하는 작업입니다. 대상 <b style={{ color: 'var(--ec-blue-dark)' }}>{putawayTargets.length}</b>건.</p>
+              {putawayTargets.length === 0 ? (
+                <div style={{ padding: 16, textAlign: 'center', color: '#9aa1ab', border: '1px dashed var(--ec-border)', borderRadius: 3 }}>모든 재고에 로케이션(창고 위치)이 지정되어 있어 배치 대상이 없습니다.</div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead><tr><th style={{ width: 70 }}>Zone</th><th>품목</th><th style={{ width: 90, textAlign: 'right' }}>수량</th><th style={{ width: 150 }}>배치 로케이션</th></tr></thead>
+                  <tbody>
+                    {putawayTargets.map((r) => (
+                      <tr key={r.key}>
+                        <td style={{ fontWeight: 700, textAlign: 'center' }}>{r.zone}</td>
+                        <td>{r.itemName} <span style={{ color: '#9aa1ab', fontSize: 11.5 }}>({r.itemCode})</span></td>
+                        <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()} {r.unit}</td>
+                        <td><input className="ec-input" placeholder="예: A-01-03" value={placements[r.key] ?? ''} onChange={(e) => setPlacements((p) => ({ ...p, [r.key]: e.target.value }))} style={{ width: '100%' }} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="ec-btn" disabled title="로케이션 배치 저장 API 미구현" style={{ opacity: .55, cursor: 'default' }}>배치 확정 (백엔드 미연동)</button>
+                <span style={{ fontSize: 11.5, color: '#c07a00' }}>* 로케이션 마스터/배치 저장 API가 없어 입력값은 서버에 반영되지 않습니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pickOpen && (
+        <div onClick={() => setPickOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 640, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>피킹지시</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                <button className="ec-btn ec-btn-primary" onClick={printPickSheet}>🖨 피킹지시서 인쇄</button>
+                <button className="ec-btn" onClick={() => setPickOpen(false)}>닫기</button>
+              </div>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
+              <p style={{ margin: '0 0 8px', color: '#5a626e' }}>현재 조회된 재고 <b style={{ color: 'var(--ec-blue-dark)' }}>{shown.length}</b>건을 기준으로 피킹 대상 목록을 만들었습니다{zone !== '전체' ? ` (창고 ${zone})` : ''}. 인쇄하여 현장 지시서로 사용할 수 있습니다.</p>
+              <table className="w-full text-left">
+                <thead><tr><th style={{ width: 34 }}>No</th><th style={{ width: 70 }}>Zone</th><th style={{ width: 130 }}>로케이션</th><th>품목</th><th style={{ width: 100, textAlign: 'right' }}>지시수량</th></tr></thead>
+                <tbody>
+                  {shown.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>피킹 대상이 없습니다.</td></tr>
+                  ) : shown.map((r, i) => (
+                    <tr key={r.key}>
+                      <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700 }}>{r.zone}</td>
+                      <td style={{ fontFamily: 'monospace' }}>{r.location}</td>
+                      <td>{r.itemName} <span style={{ color: '#9aa1ab', fontSize: 11.5 }}>({r.itemCode})</span></td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.qty.toLocaleString()} {r.unit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#c07a00' }}>* 피킹지시 전표 생성/출고 반영은 백엔드 미연동입니다. 현재는 지시서 조회·인쇄만 제공합니다.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </EcListShell>
   )
 }

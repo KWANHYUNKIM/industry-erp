@@ -41,6 +41,11 @@ public class QualityInspection extends BaseTimeEntity {
     @Column(length = 50)
     private String lotNo;
 
+    /** 입력한 lotNo가 등록된 로트와 일치하면 연결된다. 미등록 로트면 null이고 lotNo 문자열만 남는다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lot_id")
+    private Lot lot;
+
     /** 검사수량 */
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal inspectedQty;

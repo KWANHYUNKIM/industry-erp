@@ -94,20 +94,67 @@ const BOOKMARKS: { label: string; to: string }[] = [
   { label: '거래처별채무', to: '/sales/ledger' },
 ]
 
-// 우측 세로 앱바 아이콘 (시각 재현용)
-const APPS = ['🌙', '🤖', '🔍', '🎧', '➕', '📄', '🔔', '💬', '📨', '🖨️', '🔖', '📊', '🕒', '📌', '⚙️']
+// 우측 세로 앱바 아이콘. to가 있으면 라우트 이동, print면 화면 인쇄, 나머지는 안내 문구
+interface AppIcon { icon: string; title: string; to?: string; print?: boolean }
+const APPS: AppIcon[] = [
+  { icon: '🌙', title: '테마' },
+  { icon: '🤖', title: 'AI 도우미' },
+  { icon: '🔍', title: '통합검색' },
+  { icon: '🎧', title: '고객지원' },
+  { icon: '➕', title: '빠른등록' },
+  { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
+  { icon: '🔔', title: '알림' },
+  { icon: '💬', title: '메신저' },
+  { icon: '📨', title: '쪽지' },
+  { icon: '🖨️', title: '화면 인쇄', print: true },
+  { icon: '🔖', title: '즐겨찾기' },
+  { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
+  { icon: '🕒', title: '최근 사용' },
+  { icon: '📌', title: '화면 고정' },
+  { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
+]
+
+// 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록
+interface FlatItem { label: string; to: string; path: string }
+const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
+  m.groups.flatMap((g) =>
+    g.items.filter((it) => it.to).map((it) => ({ label: it.label, to: it.to!, path: `${m.label} > ${g.label}` })),
+  ),
+)
 
 export default function EcountLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [openIdx, setOpenIdx] = useState<number | null>(null)
+  const [menuQuery, setMenuQuery] = useState('')      // 메뉴검색 입력값
+  const [sitemapOpen, setSitemapOpen] = useState(false) // 사이트맵 모달
+  const [appNotice, setAppNotice] = useState('')      // 앱바 안내 토스트
 
   function go(item: Depth3, e: React.MouseEvent) {
     e.preventDefault()
     setOpenIdx(null)
     if (item.to) navigate(item.to)
     else alert(`[${item.label}] 메뉴는 준비 중입니다.`)
+  }
+
+  // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개)
+  const menuMatches = menuQuery.trim()
+    ? FLAT_MENU.filter((x) => x.label.toLowerCase().includes(menuQuery.trim().toLowerCase())).slice(0, 12)
+    : []
+
+  function gotoMenu(to: string) {
+    setMenuQuery('')
+    setSitemapOpen(false)
+    navigate(to)
+  }
+
+  // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
+  function onApp(app: AppIcon) {
+    if (app.to) return navigate(app.to)
+    if (app.print) return window.print()
+    setAppNotice(`${app.title} 기능은 준비 중입니다.`)
+    window.setTimeout(() => setAppNotice(''), 2200)
   }
 
   // 현재 경로가 이 대메뉴에 속하는지(활성 표시)
@@ -120,8 +167,42 @@ export default function EcountLayout() {
       {/* ===== 최상단 북마크바 ===== */}
       <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid #eef0f3', fontSize: 12, gap: 2 }}>
         <span style={{ color: '#8a929c', marginRight: 4 }}>🔍</span>
-        <input className="ec-input" placeholder="메뉴검색" style={{ height: 22, width: 110, border: '1px solid #e2e6eb' }} />
-        <button className="ec-btn" style={{ height: 22, marginRight: 8 }}>사이트맵</button>
+        <div style={{ position: 'relative' }}>
+          <input
+            className="ec-input"
+            placeholder="메뉴검색"
+            value={menuQuery}
+            onChange={(e) => setMenuQuery(e.target.value)}
+            onBlur={() => window.setTimeout(() => setMenuQuery(''), 150)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && menuMatches[0]) gotoMenu(menuMatches[0].to) }}
+            style={{ height: 22, width: 110, border: '1px solid #e2e6eb' }}
+          />
+          {menuMatches.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 60,
+              background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+              boxShadow: '0 6px 18px rgba(0,0,0,.14)', minWidth: 210, maxHeight: 320, overflowY: 'auto', padding: 4,
+            }}>
+              {menuMatches.map((x, i) => (
+                // onMouseDown로 input의 onBlur보다 먼저 이동을 처리한다
+                <button
+                  key={`${x.to}-${i}`}
+                  onMouseDown={(e) => { e.preventDefault(); gotoMenu(x.to) }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                    background: 'none', border: 0, cursor: 'pointer', borderRadius: 3,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ec-blue-light)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                >
+                  <span style={{ fontSize: 12.5, color: '#2a3242' }}>{x.label}</span>
+                  <span style={{ fontSize: 10.5, color: '#9aa1ab', marginLeft: 6 }}>{x.path}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => setSitemapOpen(true)}>사이트맵</button>
         {BOOKMARKS.map((b, i) => (
           <NavLink key={i} to={b.to} style={({ isActive }) => ({
             padding: '0 10px', height: 24, display: 'flex', alignItems: 'center', textDecoration: 'none',
@@ -205,9 +286,76 @@ export default function EcountLayout() {
 
         {/* 우측 세로 앱바 */}
         <div style={{ width: 44, background: '#fff', borderLeft: '1px solid #e6e9ee', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 12, fontSize: 16, color: '#6b7280' }}>
-          {APPS.map((a, i) => <span key={i} title="앱" style={{ cursor: 'pointer' }}>{a}</span>)}
+          {APPS.map((a, i) => (
+            <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer' }}>{a.icon}</span>
+          ))}
         </div>
       </div>
+
+      {/* 앱바 안내 토스트 */}
+      {appNotice && (
+        <div style={{
+          position: 'fixed', right: 56, bottom: 20, zIndex: 70,
+          background: '#2b3444', color: '#fff', fontSize: 12.5, padding: '8px 12px',
+          borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,.22)',
+        }}>
+          {appNotice}
+        </div>
+      )}
+
+      {/* 사이트맵 모달: 전체 메뉴 트리 */}
+      {sitemapOpen && (
+        <div
+          onClick={() => setSitemapOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 80,
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 16px', overflow: 'auto',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 5, width: 960, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
+          >
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e6eaef', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ec-text)' }}>사이트맵 · 전체 메뉴</span>
+              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
+            </div>
+            <div style={{
+              padding: 16, display: 'grid', gap: 16,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            }}>
+              {MENU.map((m) => (
+                <div key={m.label}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
+                    {m.label}
+                  </div>
+                  {m.groups.map((g) => (
+                    <div key={g.label} style={{ marginBottom: 8 }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--ec-blue-dark)', margin: '4px 0 2px' }}>{g.label}</div>
+                      {g.items.map((it) => (
+                        <button
+                          key={it.label}
+                          disabled={!it.to}
+                          onClick={() => it.to && gotoMenu(it.to)}
+                          style={{
+                            display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px',
+                            fontSize: 12, background: 'none', border: 0, borderRadius: 3,
+                            cursor: it.to ? 'pointer' : 'default', color: it.to ? '#3a4453' : '#b3b8bf',
+                          }}
+                          onMouseEnter={(e) => { if (it.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                        >
+                          {it.label}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

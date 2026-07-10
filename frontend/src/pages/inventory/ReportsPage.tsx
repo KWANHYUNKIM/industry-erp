@@ -28,6 +28,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ name: string; data: Preview } | null>(null)
+  const [formMgmtOpen, setFormMgmtOpen] = useState(false)  // 양식 관리 모달
 
   async function load() {
     setLoading(true)
@@ -134,7 +135,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <EcListShell title="출력물 (장표)" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리' }]}>
+    <EcListShell title="출력물 (장표)" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
@@ -197,6 +198,35 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {formMgmtOpen && (
+        <div onClick={() => setFormMgmtOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 620, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <span>양식 관리 · 장표 양식 목록</span>
+              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setFormMgmtOpen(false)}>닫기</button>
+            </div>
+            <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
+              <p style={{ margin: '0 0 8px', color: '#5a626e' }}>이 화면에서 제공하는 장표(출력 양식) <b>{reports.length}</b>종입니다. 분류별로 어떤 양식이 있고 현재 출력 가능한 대상 건수가 얼마인지 확인할 수 있습니다.</p>
+              <table className="w-full text-left">
+                <thead><tr><th style={{ width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
+                <tbody>
+                  {reports.map((r, i) => (
+                    <tr key={r.id}>
+                      <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                      <td style={{ color: catColor(r.category), fontWeight: 700 }}>{r.category}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td style={{ color: '#5a626e' }}>{r.desc}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: r.count > 0 ? 'var(--ec-blue-dark)' : '#9aa1ab' }}>{r.count.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#c07a00' }}>* 양식 신규 추가·레이아웃 편집·머리글/로고 커스터마이징은 백엔드 미연동입니다. 현재는 기본 제공 양식의 조회·미리보기·인쇄만 지원합니다.</p>
+            </div>
           </div>
         </div>
       )}
