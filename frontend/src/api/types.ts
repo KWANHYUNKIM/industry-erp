@@ -288,12 +288,44 @@ export interface ProfitSummary {
 
 // ===== 그룹웨어: 전자결재 =====
 
-export type ApprovalFormType =
-  | 'LEAVE' | 'BIZ_TRIP' | 'TRIP_REPORT' | 'EXPENSE' | 'PURCHASE_REQ' | 'GENERAL'
+/** 양식코드. 양식은 approval_form_templates 마스터가 정하므로 열린 문자열이다. */
+export type ApprovalFormType = string
 
 export type ApprovalStatus = 'DRAFTING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED'
 
 export type ApprovalLineStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export type ApprovalParticipantRole = 'REFERENCE' | 'SHARE'
+
+/** 양식별 입력 항목 정의. 백엔드 field_schema(jsonb)를 그대로 받는다. */
+export type ApprovalFieldType = 'text' | 'textarea' | 'date' | 'datetime' | 'number' | 'table'
+
+export interface ApprovalFieldColumn {
+  key: string
+  label: string
+  type?: 'text' | 'number' | 'date'
+}
+
+export interface ApprovalField {
+  key: string
+  label: string
+  type: ApprovalFieldType
+  required?: boolean
+  /** type='table' 전용 */
+  columns?: ApprovalFieldColumn[]
+  defaultRows?: Record<string, unknown>[]
+  /** 이 컬럼을 합계 낸다 (예: 여비 총계) */
+  totalOf?: string
+  totalLabel?: string
+}
+
+export interface ApprovalFormTemplate {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
+  fieldSchema: ApprovalField[]
+}
 
 export interface ApprovalLine {
   id: number
@@ -306,22 +338,48 @@ export interface ApprovalLine {
   actedAt: string | null
 }
 
+export interface ApprovalParticipant {
+  userId: number
+  userName: string
+  role: ApprovalParticipantRole
+  roleName: string
+}
+
+export interface ApprovalVoucher {
+  id: number
+  voucherType: 'SALES' | 'PURCHASE' | 'EXPENSE'
+  voucherId: number
+  voucherNo: string
+}
+
 export interface ApprovalDoc {
   id: number
+  /** 기안서No. */
   docNo: string
+  /** 기안No. (2026/07/10-2) */
+  draftNo: string
+  formTemplateId: number
   formType: ApprovalFormType
   formTypeName: string
   title: string
   content: string
+  formData: Record<string, unknown>
   drafterId: number
   drafterName: string
   draftDate: string
+  department: string | null
+  projectId: number | null
+  projectName: string | null
   status: ApprovalStatus
   statusName: string
   currentStep: number
   reference: string | null
+  deleted: boolean
   currentApproverName: string | null
+  voucherCount: number
   lines: ApprovalLine[]
+  participants: ApprovalParticipant[]
+  vouchers: ApprovalVoucher[]
 }
 
 // ===== 그룹웨어: 업무일지 =====
