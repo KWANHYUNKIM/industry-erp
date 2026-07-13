@@ -41,4 +41,16 @@ public class SalesController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(salesService.create(req, principal.getUsername()));
     }
+
+    /** 판매조회의 '확인' */
+    @PostMapping("/{id}/confirm")
+    public SalesResponse confirm(@PathVariable Long id) {
+        return salesService.confirm(id);
+    }
+
+    /** 판매조회의 '확인취소' */
+    @PostMapping("/{id}/unconfirm")
+    public SalesResponse unconfirm(@PathVariable Long id) {
+        return salesService.unconfirm(id);
+    }
 }

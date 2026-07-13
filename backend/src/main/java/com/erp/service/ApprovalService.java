@@ -10,6 +10,8 @@ import com.erp.domain.ApprovalParticipant;
 import com.erp.domain.ApprovalParticipantRole;
 import com.erp.domain.ApprovalStatus;
 import com.erp.domain.Project;
+import com.erp.domain.Sales;
+import com.erp.domain.SalesConfirmStatus;
 import com.erp.domain.User;
 import com.erp.dto.ApprovalDtos.ApprovalActionRequest;
 import com.erp.dto.ApprovalDtos.ApprovalResponse;
@@ -154,7 +156,15 @@ public class ApprovalService {
         }
         doc.setStatus(ApprovalStatus.IN_PROGRESS);
         doc.setCurrentStep(1);
+        linkedSales(doc).forEach(Sales::markInApproval);
         return ApprovalResponse.from(doc);
+    }
+
+    /** 이 기안서에 걸린 판매전표들 */
+    private java.util.stream.Stream<Sales> linkedSales(ApprovalDocument doc) {
+        return doc.getVouchers().stream()
+                .map(ApprovalDocumentVoucher::getSales)
+                .filter(java.util.Objects::nonNull);
     }
 
     @Transactional
@@ -169,6 +179,8 @@ public class ApprovalService {
         int maxStep = doc.getLines().stream().mapToInt(ApprovalLine::getStepOrder).max().orElse(1);
         if (doc.getCurrentStep() >= maxStep) {
             doc.setStatus(ApprovalStatus.APPROVED);
+            // 마지막 결재까지 끝났으므로 걸려 있던 판매전표를 '확인' 으로 넘긴다.
+            linkedSales(doc).forEach(Sales::markConfirmed);
         } else {
             doc.setCurrentStep(doc.getCurrentStep() + 1);
         }
@@ -184,6 +196,8 @@ public class ApprovalService {
         line.setComment(req == null ? null : req.comment());
         line.setActedAt(LocalDateTime.now());
         doc.setStatus(ApprovalStatus.REJECTED);
+        // 반려되면 걸려 있던 판매전표는 미확인으로 되돌린다.
+        linkedSales(doc).forEach(Sales::markUnconfirmed);
         return ApprovalResponse.from(doc);
     }
 
@@ -197,6 +211,10 @@ public class ApprovalService {
         if (doc.getStatus() == ApprovalStatus.APPROVED) {
             throw ApiException.badRequest("결재가 완료된 기안서는 삭제할 수 없습니다.");
         }
+        // 삭제된 기안서에 매달린 판매전표가 '결재중' 으로 영영 잠기지 않게 풀어준다.
+        linkedSales(doc)
+                .filter(s -> s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL)
+                .forEach(Sales::markUnconfirmed);
         doc.markDeleted();
     }
 
@@ -231,16 +249,27 @@ public class ApprovalService {
         }
 
         doc.addVoucher(voucher);
+        // 이미 상신된 기안서에 판매전표를 걸면 그 전표는 곧바로 결재중이 된다.
+        if (voucher.getSales() != null && doc.getStatus() == ApprovalStatus.IN_PROGRESS) {
+            voucher.getSales().markInApproval();
+        }
         return ApprovalResponse.from(doc);
     }
 
     @Transactional
     public ApprovalResponse unlinkVoucher(Long docId, Long voucherId) {
         ApprovalDocument doc = getDocument(docId);
-        boolean removed = doc.getVouchers().removeIf(v -> v.getId().equals(voucherId));
-        if (!removed) {
-            throw ApiException.notFound("연결된 전표를 찾을 수 없습니다. id=" + voucherId);
+        ApprovalDocumentVoucher target = doc.getVouchers().stream()
+                .filter(v -> v.getId().equals(voucherId))
+                .findFirst()
+                .orElseThrow(() -> ApiException.notFound("연결된 전표를 찾을 수 없습니다. id=" + voucherId));
+
+        // 결재중이라 잠겨 있던 판매전표를 풀어준다. 이미 확인된 전표는 건드리지 않는다.
+        Sales sales = target.getSales();
+        if (sales != null && sales.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            sales.markUnconfirmed();
         }
+        doc.getVouchers().remove(target);
         return ApprovalResponse.from(doc);
     }
 

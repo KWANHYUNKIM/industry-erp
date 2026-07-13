@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.Sales;
+import com.erp.domain.SalesConfirmStatus;
 import com.erp.domain.SalesLine;
 import com.erp.domain.StockTransactionType;
 import com.erp.domain.Warehouse;
@@ -37,6 +38,33 @@ public class SalesService {
     private final WarehouseRepository warehouseRepository;
     private final ItemRepository itemRepository;
     private final StockService stockService;
+
+    /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
+    @Transactional
+    public SalesResponse confirm(Long id) {
+        Sales s = getSales(id);
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표입니다. 결재가 끝나면 확인 처리됩니다.");
+        }
+        s.markConfirmed();
+        return SalesResponse.from(s);
+    }
+
+    /** 확인취소. 결재로 확인된 전표도 되돌릴 수 있다(이카운트의 '확인취소'). */
+    @Transactional
+    public SalesResponse unconfirm(Long id) {
+        Sales s = getSales(id);
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 확인취소할 수 없습니다.");
+        }
+        s.markUnconfirmed();
+        return SalesResponse.from(s);
+    }
+
+    private Sales getSales(Long id) {
+        return salesRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("판매전표를 찾을 수 없습니다. id=" + id));
+    }
 
     @Transactional(readOnly = true)
     public List<SalesResponse> findAll() {

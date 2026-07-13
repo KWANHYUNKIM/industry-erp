@@ -1,6 +1,7 @@
 package com.erp.dto;
 
 import com.erp.domain.Sales;
+import com.erp.domain.SalesConfirmStatus;
 import com.erp.domain.SalesLine;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class SalesDtos {
@@ -56,6 +58,8 @@ public final class SalesDtos {
             LocalDate saleDate,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
+            SalesConfirmStatus confirmStatus, String confirmStatusName, LocalDateTime confirmedAt,
+            boolean accountingReflected,
             List<SalesLineResponse> lines
     ) {
         public static SalesResponse from(Sales s) {
@@ -66,6 +70,8 @@ public final class SalesDtos {
                     s.getSaleDate(),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
                     s.getRemark(), s.getCreatedBy(),
+                    s.getConfirmStatus(), s.getConfirmStatus().getDisplayName(), s.getConfirmedAt(),
+                    s.isAccountingReflected(),
                     s.getLines().stream().map(SalesLineResponse::from).toList());
         }
     }

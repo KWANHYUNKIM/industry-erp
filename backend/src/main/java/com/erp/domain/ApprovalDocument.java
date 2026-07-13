@@ -44,8 +44,9 @@ public class ApprovalDocument extends BaseTimeEntity {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Lob
-    @Column(nullable = false)
+    // @Lob 을 쓰면 PostgreSQL 에서 oid(large object)로 매핑돼 본문이 테이블 밖에 저장된다.
+    // 행을 지워도 large object 가 남아 새는 문제가 있어 V15 에서 text 로 옮겼다.
+    @Column(nullable = false, columnDefinition = "text")
     private String content;
 
     /** 양식별 입력값. 키는 양식 마스터의 field_schema 가 정의한다. */

@@ -1,86 +1,310 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
 /** 이카운트 v5 실제 레이아웃 재현:
- *  [최상단 북마크바] → [흰 메인메뉴(로고+가로메뉴+아바타)] + [우측 세로 앱바] → [본문] */
-interface Depth3 { label: string; to?: string }
-interface Depth2 { label: string; items: Depth3[] }
-interface Depth1 { label: string; groups: Depth2[] }
+ *  [최상단 북마크바]
+ *  [흰 메인메뉴: 로고 + 대메뉴(Depth1) + 아바타]
+ *  [탭바: 활성 대메뉴의 탭(Depth2)]
+ *  [좌측 사이드바: 활성 탭의 트리(Depth3 그룹 / Depth4 리프)] + [본문] + [우측 세로 앱바]
+ */
+interface Leaf { label: string; to?: string }
+interface Group { label: string; children: Leaf[] }
+type SideNode = Leaf | Group
+interface Tab { label: string; nodes: SideNode[] }
+interface TopMenu { label: string; tabs: Tab[] }
 
-const MENU: Depth1[] = [
-  { label: 'MyPage', groups: [{ label: '기본그룹', items: [{ label: '대시보드', to: '/' }] }] },
+const isGroup = (n: SideNode): n is Group => 'children' in n
+
+/** 대메뉴 > 탭 > (그룹 >) 리프.
+ *  회계 I·회계 II·관리·세무·그룹웨어·재고 II·데이터센터의 탭 구성은 이카운트 사이트맵을 따랐고,
+ *  실제 페이지가 있는 메뉴만 실었다. MyPage·Self-Customizing·재고 I 은 이카운트 트리 자료가 없어
+ *  기존 그룹을 탭으로 그대로 승격만 해두었다. */
+const MENU: TopMenu[] = [
+  {
+    label: 'MyPage',
+    tabs: [{ label: 'MyPage', nodes: [{ label: '대시보드', to: '/' }] }],
+  },
   {
     label: 'Self-Customizing',
-    groups: [
-      { label: '정보관리', items: [{ label: '회사정보관리', to: '/settings/company' }] },
-      { label: '사용자관리', items: [{ label: '사용자등록', to: '/users' }] },
-      { label: '환경설정', items: [{ label: '환경설정', to: '/settings/preferences' }] },
-      { label: '기타관리시스템', items: [{ label: '기타관리시스템', to: '/settings/etc' }] },
-      { label: '보안관리', items: [{ label: '보안관리', to: '/settings/security' }] },
-      { label: '다운로드', items: [{ label: '다운로드', to: '/settings/download' }] },
+    tabs: [
+      { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
+      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }] },
+      { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
+      { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }] },
+      { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
+      { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },
     ],
   },
   {
     label: '재고 I',
-    groups: [
-      { label: '기초등록', items: [{ label: '품목등록', to: '/inventory/items' }, { label: '창고등록', to: '/inventory/warehouses' }, { label: '거래처등록', to: '/sales/partners' }, { label: '관리항목등록', to: '/inventory/manage-items' }, { label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '거래처특별단가그룹', to: '/inventory/special-price-group' }] },
-      { label: '영업관리', items: [{ label: '오더관리(수주)', to: '/sales/orders' }, { label: '판매입력', to: '/sales/sell' }, { label: '판매조회', to: '/sales/sales-list' }, { label: '판매현황', to: '/sales/sales-status' }, { label: '판매할인현황', to: '/sales/sales-discount' }, { label: '출하지시서', to: '/sales/shipment-order' }, { label: '출하현황', to: '/sales/shipment' }, { label: '미출하현황', to: '/sales/unshipped' }, { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' }, { label: '거래처중심입력', to: '/sales/partner-entry' }, { label: '거래명세서인쇄', to: '/sales/statement' }, { label: '수금현황', to: '/sales/collection' }, { label: '결제내역조회', to: '/sales/payment-history' }, { label: '결제내역자료비교', to: '/sales/payment-compare' }, { label: '거래처별채권', to: '/sales/ledger' }, { label: '거래처관리대장', to: '/sales/partner-ledger' }] },
-      { label: '구매관리', items: [{ label: '구매입력', to: '/sales/buy' }, { label: '구매조회', to: '/sales/purchase-list' }, { label: '구매현황', to: '/sales/purchase-status' }, { label: '구매할인현황', to: '/sales/purchase-discount' }, { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' }, { label: '지급현황', to: '/sales/payment' }, { label: '거래처별채무', to: '/sales/ledger' }] },
-      { label: '재고관리', items: [{ label: '재고현황', to: '/inventory/current' }, { label: '입출고', to: '/inventory/stock-io' }] },
-      { label: '생산/외주', items: [{ label: 'BOM(소요량)조회', to: '/production/bom' }, { label: '공정등록', to: '/production/process' }, { label: '자원등록', to: '/production/resource' }, { label: '작업소요시간(BOR)', to: '/production/bor' }, { label: '소요시간계산', to: '/production/time-calc' }, { label: '작업지시', to: '/production/work-orders' }, { label: '작업지시서현황', to: '/production/wo-status' }, { label: '작업지시서별진행현황', to: '/production/wo-progress' }, { label: '작업지시서효율현황', to: '/production/wo-efficiency' }, { label: '생산불출', to: '/production/issue' }, { label: '생산불출현황', to: '/production/issue-status' }, { label: '작업내역입력', to: '/production/work-result' }, { label: '작업내역현황', to: '/production/work-result-status' }, { label: '생산입고', to: '/production/result' }, { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' }, { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' }, { label: '생산입고조회', to: '/production/receipt-inquiry' }, { label: '생산입고현황', to: '/production/receipt-status' }, { label: '생산입고 소모현황', to: '/production/consume-status' }] },
-      { label: '기타이동', items: [{ label: '기타이동', to: '/inventory/transfer' }] },
-      { label: '쇼핑몰관리', items: [{ label: '쇼핑몰관리', to: '/sales/mall' }] },
-      { label: '출력물', items: [{ label: '출력물', to: '/inventory/reports' }] },
+    tabs: [
+      {
+        label: '기초등록',
+        nodes: [
+          { label: '품목등록', to: '/inventory/items' },
+          { label: '창고등록', to: '/inventory/warehouses' },
+          { label: '거래처등록', to: '/sales/partners' },
+          { label: '관리항목등록', to: '/inventory/manage-items' },
+          { label: '단가적용순서설정', to: '/inventory/price-order' },
+          { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
+        ],
+      },
+      {
+        label: '영업관리',
+        nodes: [
+          { label: '판매입력', to: '/sales/sell' },
+          { label: '판매조회', to: '/sales/sales-list' },
+          { label: '판매현황', to: '/sales/sales-status' },
+          { label: '판매할인현황', to: '/sales/sales-discount' },
+          { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
+          { label: '거래처중심입력', to: '/sales/partner-entry' },
+          { label: '거래명세서인쇄', to: '/sales/statement' },
+          { label: '출하지시서', to: '/sales/shipment-order' },
+          { label: '출하현황', to: '/sales/shipment' },
+          { label: '미출하현황', to: '/sales/unshipped' },
+          { label: '수금현황', to: '/sales/collection' },
+          { label: '수금/지급', to: '/sales/settlement' },
+          { label: '결제내역조회', to: '/sales/payment-history' },
+          { label: '결제내역자료비교', to: '/sales/payment-compare' },
+          { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
+          { label: '채권·채무현황', to: '/sales/ledger' },
+          { label: '거래처관리대장', to: '/sales/partner-ledger' },
+        ],
+      },
+      {
+        label: '구매관리',
+        nodes: [
+          { label: '구매입력', to: '/sales/buy' },
+          { label: '구매조회', to: '/sales/purchase-list' },
+          { label: '구매현황', to: '/sales/purchase-status' },
+          { label: '구매할인현황', to: '/sales/purchase-discount' },
+          { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
+          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+          { label: '지급현황', to: '/sales/payment' },
+        ],
+      },
+      {
+        label: '재고관리',
+        nodes: [
+          { label: '재고현황', to: '/inventory/current' },
+          { label: '입출고', to: '/inventory/stock-io' },
+        ],
+      },
+      {
+        label: '생산/외주',
+        nodes: [
+          { label: 'BOM(소요량)등록', to: '/production/bom' },
+          { label: '공정등록', to: '/production/process' },
+          { label: '자원등록', to: '/production/resource' },
+          { label: '작업소요시간(BOR)', to: '/production/bor' },
+          { label: '소요시간계산', to: '/production/time-calc' },
+          { label: '작업지시', to: '/production/work-orders' },
+          { label: '작업지시서현황', to: '/production/wo-status' },
+          { label: '작업지시서별진행현황', to: '/production/wo-progress' },
+          { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
+          { label: '생산불출', to: '/production/issue' },
+          { label: '생산불출현황', to: '/production/issue-status' },
+          { label: '작업내역입력', to: '/production/work-result' },
+          { label: '작업내역현황', to: '/production/work-result-status' },
+          { label: '생산실적', to: '/production/result' },
+          { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },
+          { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' },
+          { label: '생산입고조회', to: '/production/receipt-inquiry' },
+          { label: '생산입고현황', to: '/production/receipt-status' },
+          { label: '생산입고 소모현황', to: '/production/consume-status' },
+        ],
+      },
+      { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }] },
+      { label: '쇼핑몰관리', nodes: [{ label: '쇼핑몰관리', to: '/sales/mall' }] },
+      { label: '출력물', nodes: [{ label: '출력물', to: '/inventory/reports' }] },
     ],
   },
   {
     label: '재고 II',
-    groups: [
-      { label: 'A/S관리', items: [{ label: 'A/S관리', to: '/quality/as' }] },
-      { label: '시리얼/로트No.', items: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }] },
-      { label: '품질관리', items: [{ label: '품질관리', to: '/quality/inspection' }] },
-      { label: '계획관리', items: [{ label: '생산계획(MPS)', to: '/production/planning' }, { label: '생산계획(MRP)리스트', to: '/production/mrp' }] },
-      { label: '이익관리', items: [{ label: '품목별원가/이익', to: '/accounting/item-cost' }, { label: '손익요약', to: '/accounting/profit' }, { label: '월별이익현황', to: '/accounting/monthly-profit' }, { label: '일별이익현황', to: '/accounting/daily-profit' }] },
-      { label: '오더관리', items: [{ label: '오더관리', to: '/sales/orders' }, { label: '오더관리유형리스트', to: '/sales/order-types' }, { label: '오더관리진행단계', to: '/sales/order-stages' }] },
-      { label: '수출관리', items: [{ label: '수출관리', to: '/sales/export' }] },
-      { label: 'WMS', items: [{ label: 'WMS', to: '/inventory/wms' }] },
+    tabs: [
+      { label: 'A/S관리', nodes: [{ label: 'A/S관리', to: '/quality/as' }] },
+      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }] },
+      { label: '품질관리', nodes: [{ label: '품질관리', to: '/quality/inspection' }] },
+      {
+        label: '계획관리',
+        nodes: [
+          { label: '생산계획(MPS)', to: '/production/planning' },
+          { label: '생산계획(MRP)리스트', to: '/production/mrp' },
+        ],
+      },
+      {
+        label: '이익관리',
+        nodes: [
+          { label: '손익요약', to: '/accounting/profit' },
+          { label: '품목별원가/이익', to: '/accounting/item-cost' },
+          {
+            label: '월별이익',
+            children: [
+              { label: '원가생성/수정', to: '/accounting/cost-build' },
+              { label: '표준원가현황', to: '/accounting/standard-cost' },
+              { label: '실제원가현황', to: '/accounting/actual-cost' },
+              { label: '원가차이분석', to: '/accounting/variance' },
+              { label: '월별이익현황', to: '/accounting/monthly-profit' },
+            ],
+          },
+          { label: '일별이익', children: [{ label: '일별이익현황', to: '/accounting/daily-profit' }] },
+        ],
+      },
+      {
+        label: '오더관리',
+        nodes: [
+          { label: '오더관리(수주)', to: '/sales/orders' },
+          { label: '오더관리유형리스트', to: '/sales/order-types' },
+          { label: '오더관리진행단계', to: '/sales/order-stages' },
+        ],
+      },
+      { label: '수출관리', nodes: [{ label: '수출관리', to: '/sales/export' }] },
+      { label: 'WMS', nodes: [{ label: 'WMS 로케이션', to: '/inventory/wms' }] },
     ],
   },
   {
     label: '회계 I',
-    groups: [
-      { label: '기초등록', items: [{ label: '계정과목등록', to: '/accounting/accounts' }] },
-      { label: '원가관리', items: [{ label: '원가생성/수정', to: '/accounting/cost-build' }, { label: '표준원가현황', to: '/accounting/standard-cost' }, { label: '실제원가현황', to: '/accounting/actual-cost' }, { label: '원가차이분석', to: '/accounting/variance' }] },
-      { label: '출력물', items: [{ label: '매입매출·부가세', to: '/accounting/vat' }] },
+    tabs: [
+      {
+        label: '기초등록',
+        nodes: [
+          { label: '거래처등록', to: '/sales/partners' },
+          { label: '계정과목등록', to: '/accounting/accounts' },
+        ],
+      },
     ],
   },
-  { label: '회계 II', groups: [{ label: '비용관리', items: [{ label: '비용관리', to: '/accounting/expense' }, { label: '비용내역현황', to: '/accounting/expense-detail' }] }] },
+  {
+    label: '회계 II',
+    tabs: [
+      {
+        label: '채권관리',
+        nodes: [
+          { label: '채권·채무현황', to: '/sales/ledger' },
+          { label: '거래처관리대장', to: '/sales/partner-ledger' },
+        ],
+      },
+      {
+        label: '비용관리',
+        nodes: [
+          { label: '기본사항등록', children: [{ label: '비용등록', to: '/accounting/expense' }] },
+          { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
+        ],
+      },
+    ],
+  },
   {
     label: '관리',
-    groups: [
-      { label: '근태관리', items: [{ label: '근태입력', to: '/hr/attendance-input' }, { label: '근태조회', to: '/hr/attendance-list' }, { label: '근태현황', to: '/hr/attendance-status' }, { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
-      { label: '휴가관리', items: [{ label: '휴가사용실적현황', to: '/hr/vacation-use' }, { label: '휴가잔여일수현황', to: '/hr/vacation-remain' }] },
+    tabs: [
+      {
+        label: '근태관리',
+        nodes: [
+          {
+            label: '근태',
+            children: [
+              { label: '근태입력', to: '/hr/attendance-input' },
+              { label: '근태조회', to: '/hr/attendance-list' },
+              { label: '근태현황', to: '/hr/attendance-status' },
+            ],
+          },
+          { label: '출/퇴근(사원)', children: [{ label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+          {
+            label: '출력물',
+            children: [
+              { label: '휴가잔여일수현황', to: '/hr/vacation-remain' },
+              { label: '휴가사용실적현황', to: '/hr/vacation-use' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    label: '세무',
+    tabs: [
+      {
+        label: '부가세',
+        nodes: [{ label: '신고전검토자료', children: [{ label: '매입매출·부가세', to: '/accounting/vat' }] }],
+      },
     ],
   },
   {
     label: '그룹웨어',
-    groups: [
-      { label: '전자결재', items: [{ label: '기안서작성', to: '/groupware/approval/draft' }, { label: '내결재관리', to: '/groupware/approval/my' }, { label: '기안서통합관리', to: '/groupware/approval/all' }] },
-      { label: '업무관리', items: [{ label: 'WORK', to: '/groupware/work' }, { label: '업무일지', to: '/groupware/worklog' }, { label: 'ECDrive', to: '/groupware/drive' }, { label: '업무관리게시판', to: '/groupware/board' }] },
-      { label: '근태관리', items: [{ label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
-      { label: '공유정보', items: [{ label: '공유정보', to: '/groupware/shared' }] },
-      { label: '고객관리', items: [{ label: '고객관리', to: '/groupware/crm' }] },
-      { label: '프로젝트', items: [{ label: '프로젝트', to: '/groupware/project' }] },
-      { label: '정보/일정', items: [{ label: '공지사항', to: '/groupware/notice' }, { label: '일정관리', to: '/groupware/schedule' }, { label: '설문조사', to: '/groupware/survey' }, { label: '설문조사입력', to: '/groupware/survey-input' }, { label: '설문조사현황', to: '/groupware/survey-status' }, { label: '공용품관리', to: '/groupware/supplies' }] },
-      { label: '일정/공정표', items: [{ label: 'SW개발일정관리', to: '/groupware/dev-schedule' }, { label: '건설예정공정표', to: '/groupware/construction-schedule' }] },
+    tabs: [
+      {
+        label: '공유정보',
+        nodes: [
+          { label: '주요전달사항', to: '/groupware/shared' },
+          { label: '게시판', children: [{ label: '공지사항', to: '/groupware/notice' }] },
+          {
+            label: '사내관리',
+            children: [
+              { label: '일정관리', to: '/groupware/schedule' },
+              { label: '공용품관리', to: '/groupware/supplies' },
+            ],
+          },
+          {
+            label: '설문조사',
+            children: [
+              { label: '설문조사입력', to: '/groupware/survey-input' },
+              { label: '설문조사조회', to: '/groupware/survey' },
+              { label: '설문조사현황', to: '/groupware/survey-status' },
+            ],
+          },
+        ],
+      },
+      {
+        label: '전자결재',
+        nodes: [
+          { label: '기안서작성', to: '/groupware/approval/draft' },
+          { label: '내결재관리', to: '/groupware/approval/my' },
+          { label: '기안서통합관리', to: '/groupware/approval/all' },
+        ],
+      },
+      {
+        label: '업무관리',
+        nodes: [
+          { label: 'ECDrive', to: '/groupware/drive' },
+          {
+            label: '업무관리게시판',
+            children: [
+              { label: '업무관리게시판', to: '/groupware/board' },
+              { label: 'WORK', to: '/groupware/work' },
+            ],
+          },
+          { label: '업무일지', to: '/groupware/worklog' },
+          { label: '출/퇴근', children: [{ label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+        ],
+      },
+      {
+        label: '고객관리',
+        nodes: [
+          { label: '거래처등록', to: '/sales/partners' },
+          { label: '고객관리', to: '/groupware/crm' },
+          { label: '거래처중심입력', to: '/sales/partner-entry' },
+        ],
+      },
+      {
+        label: '프로젝트',
+        nodes: [
+          { label: '프로젝트', to: '/groupware/project' },
+          {
+            label: '진척관리',
+            children: [
+              { label: '건설예정공정표', to: '/groupware/construction-schedule' },
+              { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
     label: '데이터센터',
-    groups: [
-      { label: '데이터수집', items: [{ label: '데이터수집', to: '/datacenter/collect' }] },
-      { label: '데이터내보내기', items: [{ label: '데이터내보내기', to: '/datacenter/export' }] },
+    tabs: [
+      { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }] },
+      { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }] },
     ],
   },
 ]
@@ -90,8 +314,8 @@ const BOOKMARKS: { label: string; to: string }[] = [
   { label: '거래처등록', to: '/sales/partners' },
   { label: '구매입력', to: '/sales/buy' },
   { label: '판매입력', to: '/sales/sell' },
-  { label: '거래처별채권', to: '/sales/ledger' },
-  { label: '거래처별채무', to: '/sales/ledger' },
+  { label: '채권·채무현황', to: '/sales/ledger' },
+  { label: '거래처관리대장', to: '/sales/partner-ledger' },
 ]
 
 // 우측 세로 앱바 아이콘. to가 있으면 라우트 이동, print면 화면 인쇄, 나머지는 안내 문구
@@ -114,11 +338,46 @@ const APPS: AppIcon[] = [
   { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
 ]
 
+const tabLeaves = (tab: Tab): Leaf[] => tab.nodes.flatMap((n) => (isGroup(n) ? n.children : [n]))
+const firstTabRoute = (tab: Tab) => tabLeaves(tab).find((l) => l.to)?.to
+const firstTopRoute = (m: TopMenu) => m.tabs.map(firstTabRoute).find(Boolean)
+
+/** 경로가 메뉴 항목에 해당하면 그 항목의 길이(구체성)를, 아니면 0을 돌려준다.
+ *  세그먼트 경계로 끊어야 '/'가 모든 경로를, '/sales/pay'가 '/sales/payment'를 삼키지 않는다. */
+function matchLength(to: string, pathname: string): number {
+  if (to === '/') return pathname === '/' ? 1 : 0
+  return pathname === to || pathname.startsWith(`${to}/`) ? to.length : 0
+}
+
+/** 현재 경로를 담은 [대메뉴, 탭] 인덱스. 가장 구체적으로 일치하는 리프를 고른다. */
+function resolveActive(pathname: string): [number, number] {
+  let best = 0
+  let found: [number, number] = [0, 0]
+  MENU.forEach((m, mi) =>
+    m.tabs.forEach((tab, ti) =>
+      tabLeaves(tab).forEach((leaf) => {
+        const len = leaf.to ? matchLength(leaf.to, pathname) : 0
+        if (len > best) {
+          best = len
+          found = [mi, ti]
+        }
+      }),
+    ),
+  )
+  return found
+}
+
 // 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록
 interface FlatItem { label: string; to: string; path: string }
 const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
-  m.groups.flatMap((g) =>
-    g.items.filter((it) => it.to).map((it) => ({ label: it.label, to: it.to!, path: `${m.label} > ${g.label}` })),
+  m.tabs.flatMap((tab) =>
+    tab.nodes.flatMap((n) =>
+      isGroup(n)
+        ? n.children.filter((c) => c.to).map((c) => ({ label: c.label, to: c.to!, path: `${m.label} > ${tab.label} > ${n.label}` }))
+        : n.to
+          ? [{ label: n.label, to: n.to, path: `${m.label} > ${tab.label}` }]
+          : [],
+    ),
   ),
 )
 
@@ -126,17 +385,16 @@ export default function EcountLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [openIdx, setOpenIdx] = useState<number | null>(null)
-  const [menuQuery, setMenuQuery] = useState('')      // 메뉴검색 입력값
-  const [sitemapOpen, setSitemapOpen] = useState(false) // 사이트맵 모달
-  const [appNotice, setAppNotice] = useState('')      // 앱바 안내 토스트
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
+  const [menuQuery, setMenuQuery] = useState('')                // 메뉴검색 입력값
+  const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
+  const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
+  const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
 
-  function go(item: Depth3, e: React.MouseEvent) {
-    e.preventDefault()
-    setOpenIdx(null)
-    if (item.to) navigate(item.to)
-    else alert(`[${item.label}] 메뉴는 준비 중입니다.`)
-  }
+  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
+  const activeTop = MENU[topIdx]
+  const activeTab = activeTop.tabs[tabIdx]
 
   // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개)
   const menuMatches = menuQuery.trim()
@@ -146,7 +404,13 @@ export default function EcountLayout() {
   function gotoMenu(to: string) {
     setMenuQuery('')
     setSitemapOpen(false)
+    setHoverIdx(null)
     navigate(to)
+  }
+
+  function openLeaf(leaf: Leaf) {
+    if (leaf.to) gotoMenu(leaf.to)
+    else alert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
   }
 
   // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
@@ -157,9 +421,55 @@ export default function EcountLayout() {
     window.setTimeout(() => setAppNotice(''), 2200)
   }
 
-  // 현재 경로가 이 대메뉴에 속하는지(활성 표시)
-  function isActiveTop(m: Depth1) {
-    return m.groups.some((g) => g.items.some((it) => it.to && location.pathname.startsWith(it.to)))
+  function tabBar(menu: TopMenu, activeTabIdx: number | null, floating: boolean) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 2, height: 34, padding: '0 8px',
+        background: '#fff',
+        ...(floating
+          ? { border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 8px 22px rgba(20,36,68,0.16)' }
+          : { borderBottom: '1px solid #e6e9ee' }),
+      }}>
+        {menu.tabs.map((tab, i) => {
+          const on = i === activeTabIdx
+          return (
+            <button
+              key={tab.label}
+              onClick={() => { const to = firstTabRoute(tab); if (to) gotoMenu(to) }}
+              style={{
+                height: '100%', padding: '0 12px', background: 'none', border: 0, cursor: 'pointer',
+                fontSize: 12.5, whiteSpace: 'nowrap',
+                color: on ? 'var(--ec-blue)' : '#4a5260', fontWeight: on ? 700 : 400,
+                borderBottom: on && !floating ? '2px solid var(--ec-blue)' : '2px solid transparent',
+              }}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function sidebarLeaf(leaf: Leaf, nested: boolean) {
+    const on = !!leaf.to && matchLength(leaf.to, location.pathname) > 0
+    return (
+      <button
+        key={leaf.label}
+        onClick={() => openLeaf(leaf)}
+        style={{
+          display: 'block', width: '100%', textAlign: 'left', border: 0, cursor: 'pointer',
+          padding: nested ? '6px 10px 6px 24px' : '6px 10px 6px 12px',
+          fontSize: 12.5, borderRadius: 0,
+          color: on ? 'var(--ec-blue)' : leaf.to ? '#3a4453' : '#b3b8bf',
+          background: on ? 'var(--ec-blue-light)' : 'transparent',
+          fontWeight: on ? 700 : 400,
+          borderLeft: on ? '3px solid var(--ec-blue)' : '3px solid transparent',
+        }}
+      >
+        {leaf.label}
+      </button>
+    )
   }
 
   return (
@@ -181,7 +491,7 @@ export default function EcountLayout() {
             <div style={{
               position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 60,
               background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
-              boxShadow: '0 6px 18px rgba(0,0,0,.14)', minWidth: 210, maxHeight: 320, overflowY: 'auto', padding: 4,
+              boxShadow: '0 6px 18px rgba(0,0,0,.14)', minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 4,
             }}>
               {menuMatches.map((x, i) => (
                 // onMouseDown로 input의 onBlur보다 먼저 이동을 처리한다
@@ -202,7 +512,7 @@ export default function EcountLayout() {
             </div>
           )}
         </div>
-        <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => setSitemapOpen(true)}>사이트맵</button>
+        <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
         {BOOKMARKS.map((b, i) => (
           <NavLink key={i} to={b.to} style={({ isActive }) => ({
             padding: '0 10px', height: 24, display: 'flex', alignItems: 'center', textDecoration: 'none',
@@ -214,12 +524,12 @@ export default function EcountLayout() {
         <span style={{ marginLeft: 'auto', color: '#b6bcc4' }}>📌</span>
       </div>
 
-      {/* ===== 메인 영역: [메뉴+본문] + [우측 세로 앱바] ===== */}
+      {/* ===== 메인 영역: [메뉴+탭바+사이드바+본문] + [우측 세로 앱바] ===== */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* 흰 메인메뉴 (로고 + 가로메뉴 + 아바타) */}
+          {/* 흰 메인메뉴 (로고 + 대메뉴 + 아바타) */}
           <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px 0 16px', borderBottom: '1px solid #e6e9ee', position: 'relative', zIndex: 30 }}
-               onMouseLeave={() => setOpenIdx(null)}>
+               onMouseLeave={() => setHoverIdx(null)}>
             <Link to="/" style={{ display: 'flex', alignItems: 'baseline', gap: 0, textDecoration: 'none', marginRight: 18 }}>
               <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--ec-blue)', letterSpacing: -0.5 }}>제조</span>
               <span style={{ fontSize: 20, fontWeight: 900, color: '#222', letterSpacing: -0.5 }}>ERP</span>
@@ -227,39 +537,25 @@ export default function EcountLayout() {
 
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', alignItems: 'center', height: '100%' }}>
               {MENU.map((m, idx) => {
-                const active = isActiveTop(m)
+                const active = idx === topIdx
                 return (
-                  <li key={m.label} onMouseEnter={() => setOpenIdx(idx)} style={{ position: 'relative', height: '100%' }}>
-                    <div style={{
-                      padding: '0 14px', height: '100%', display: 'flex', alignItems: 'center', cursor: 'pointer',
-                      fontSize: 14, fontWeight: active || openIdx === idx ? 700 : 500,
-                      color: active || openIdx === idx ? 'var(--ec-blue)' : '#2a3242',
-                      borderBottom: active ? '2px solid var(--ec-blue)' : '2px solid transparent',
-                    }}>
+                  <li key={m.label} onMouseEnter={() => setHoverIdx(idx)} style={{ position: 'relative', height: '100%' }}>
+                    <div
+                      onClick={() => { const to = firstTopRoute(m); if (to) gotoMenu(to) }}
+                      style={{
+                        padding: '0 14px', height: '100%', display: 'flex', alignItems: 'center', cursor: 'pointer',
+                        fontSize: 14, fontWeight: active || hoverIdx === idx ? 700 : 500,
+                        color: active || hoverIdx === idx ? 'var(--ec-blue)' : '#2a3242',
+                        borderBottom: active ? '2px solid var(--ec-blue)' : '2px solid transparent',
+                      }}
+                    >
                       {m.label}
                     </div>
 
-                    {openIdx === idx && (
-                      <div style={{
-                        position: 'absolute', top: 52, left: 0, background: '#fff',
-                        border: '1px solid var(--ec-border)', boxShadow: '0 8px 22px rgba(20,36,68,0.16)',
-                        display: 'flex', padding: 12, gap: 4, minWidth: 170,
-                      }}>
-                        {m.groups.map((g) => (
-                          <div key={g.label} style={{ minWidth: 148, padding: '0 8px' }}>
-                            <div style={{ fontWeight: 700, color: 'var(--ec-blue-dark)', fontSize: 12.5, padding: '2px 6px 6px', borderBottom: '1px solid #eef1f5', marginBottom: 5 }}>
-                              {g.label}
-                            </div>
-                            {g.items.map((it) => (
-                              <a key={it.label} href={it.to ?? '#'} onClick={(e) => go(it, e)}
-                                 style={{ display: 'block', padding: '5px 6px', fontSize: 12.5, color: it.to ? '#333' : '#b3b8bf', textDecoration: 'none', borderRadius: 3 }}
-                                 onMouseEnter={(e) => { if (it.to) { e.currentTarget.style.background = 'var(--ec-blue-light)'; e.currentTarget.style.color = 'var(--ec-blue-dark)' } }}
-                                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = it.to ? '#333' : '#b3b8bf' }}>
-                                {it.label}
-                              </a>
-                            ))}
-                          </div>
-                        ))}
+                    {/* 다른 대메뉴를 호버하면 그 메뉴의 탭바를 띄운다 */}
+                    {hoverIdx === idx && idx !== topIdx && (
+                      <div style={{ position: 'absolute', top: 52, left: 0, zIndex: 40 }}>
+                        {tabBar(m, null, true)}
                       </div>
                     )}
                   </li>
@@ -278,9 +574,38 @@ export default function EcountLayout() {
             </div>
           </div>
 
-          {/* 본문 */}
-          <div style={{ flex: 1, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
-            <Outlet />
+          {/* 활성 대메뉴의 탭바 */}
+          {tabBar(activeTop, tabIdx, false)}
+
+          {/* 좌측 사이드바 + 본문 */}
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <aside style={{ width: 180, flexShrink: 0, background: '#fff', borderRight: '1px solid #e6e9ee', padding: '8px 0', overflowY: 'auto' }}>
+              {activeTab.nodes.map((node) => {
+                if (!isGroup(node)) return sidebarLeaf(node, false)
+                const key = `${topIdx}/${tabIdx}/${node.label}`
+                const open = !collapsed[key]
+                return (
+                  <div key={node.label}>
+                    <button
+                      onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 4, width: '100%', textAlign: 'left',
+                        padding: '7px 10px 5px 12px', background: 'none', border: 0, cursor: 'pointer',
+                        fontSize: 12, fontWeight: 700, color: '#5b6472',
+                      }}
+                    >
+                      <span style={{ fontSize: 9, color: '#9aa1ab' }}>{open ? '▼' : '▶'}</span>
+                      {node.label}
+                    </button>
+                    {open && node.children.map((c) => sidebarLeaf(c, true))}
+                  </div>
+                )
+              })}
+            </aside>
+
+            <div style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
+              <Outlet />
+            </div>
           </div>
         </div>
 
@@ -303,7 +628,7 @@ export default function EcountLayout() {
         </div>
       )}
 
-      {/* 사이트맵 모달: 전체 메뉴 트리 */}
+      {/* 사이트맵 모달: 좌측 대메뉴 레일 + 선택한 메뉴의 탭 컬럼 */}
       {sitemapOpen && (
         <div
           onClick={() => setSitemapOpen(false)}
@@ -314,44 +639,81 @@ export default function EcountLayout() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 5, width: 960, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
+            style={{ background: '#fff', borderRadius: 5, width: 1040, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
           >
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #e6eaef', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ec-text)' }}>사이트맵 · 전체 메뉴</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
             </div>
-            <div style={{
-              padding: 16, display: 'grid', gap: 16,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            }}>
-              {MENU.map((m) => (
-                <div key={m.label}>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
+
+            <div style={{ display: 'flex', minHeight: 380 }}>
+              {/* 좌측 대메뉴 레일 */}
+              <div style={{ width: 168, flexShrink: 0, borderRight: '1px solid #e6eaef', padding: '8px 0', background: '#fafbfc' }}>
+                {MENU.map((m, i) => (
+                  <button
+                    key={m.label}
+                    onMouseEnter={() => setSitemapIdx(i)}
+                    onClick={() => setSitemapIdx(i)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                      background: i === sitemapIdx ? '#fff' : 'none', border: 0, cursor: 'pointer', fontSize: 13,
+                      color: i === sitemapIdx ? 'var(--ec-blue)' : '#3a4453',
+                      fontWeight: i === sitemapIdx ? 800 : 400,
+                      borderLeft: i === sitemapIdx ? '3px solid var(--ec-blue)' : '3px solid transparent',
+                    }}
+                  >
                     {m.label}
-                  </div>
-                  {m.groups.map((g) => (
-                    <div key={g.label} style={{ marginBottom: 8 }}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--ec-blue-dark)', margin: '4px 0 2px' }}>{g.label}</div>
-                      {g.items.map((it) => (
+                  </button>
+                ))}
+              </div>
+
+              {/* 선택한 대메뉴의 탭 → 그룹 → 리프 */}
+              <div style={{
+                flex: 1, padding: 16, display: 'grid', gap: 16, alignContent: 'start',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+              }}>
+                {MENU[sitemapIdx].tabs.map((tab) => (
+                  <div key={tab.label}>
+                    <div style={{ fontWeight: 800, fontSize: 12.5, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
+                      {tab.label}
+                    </div>
+                    {tab.nodes.map((node) =>
+                      isGroup(node) ? (
+                        <div key={node.label} style={{ marginBottom: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 11.5, color: '#8a929c', margin: '4px 0 2px' }}>{node.label}</div>
+                          {node.children.map((c) => (
+                            <button
+                              key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px 3px 12px',
+                                fontSize: 12, background: 'none', border: 0, borderRadius: 3,
+                                cursor: c.to ? 'pointer' : 'default', color: c.to ? '#3a4453' : '#b3b8bf',
+                              }}
+                              onMouseEnter={(e) => { if (c.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                            >
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
                         <button
-                          key={it.label}
-                          disabled={!it.to}
-                          onClick={() => it.to && gotoMenu(it.to)}
+                          key={node.label} disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}
                           style={{
                             display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px',
                             fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                            cursor: it.to ? 'pointer' : 'default', color: it.to ? '#3a4453' : '#b3b8bf',
+                            cursor: node.to ? 'pointer' : 'default', color: node.to ? '#3a4453' : '#b3b8bf',
                           }}
-                          onMouseEnter={(e) => { if (it.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
+                          onMouseEnter={(e) => { if (node.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
                         >
-                          {it.label}
+                          {node.label}
                         </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ))}
+                      ),
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
