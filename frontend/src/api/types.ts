@@ -548,3 +548,104 @@ export interface DriveDocument {
   trashed: boolean
   updatedAt: string | null
 }
+
+// ===== 회계전표(복식부기) =====
+
+export type JournalSourceType = 'SALES' | 'PURCHASE' | 'EXPENSE' | 'MANUAL'
+export type AccountDivision = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+
+export interface JournalLine {
+  id: number
+  lineNo: number
+  accountId: number
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description: string | null
+}
+
+export interface JournalEntry {
+  id: number
+  docNo: string
+  entryDate: string
+  description: string | null
+  partnerId: number | null
+  partnerName: string | null
+  sourceType: JournalSourceType
+  sourceTypeName: string
+  sourceId: number | null
+  totalDebit: number
+  totalCredit: number
+  balanced: boolean
+  lines: JournalLine[]
+}
+
+export interface LedgerRow {
+  entryDate: string
+  docNo: string
+  description: string | null
+  partnerName: string | null
+  debit: number
+  credit: number
+  balance: number
+}
+
+export interface AccountLedger {
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  totalDebit: number
+  totalCredit: number
+  closingBalance: number
+  rows: LedgerRow[]
+}
+
+export interface TrialBalanceRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  debit: number
+  credit: number
+  balance: number
+}
+
+export interface TrialBalance {
+  from: string
+  to: string
+  totalDebit: number
+  totalCredit: number
+  balanced: boolean
+  rows: TrialBalanceRow[]
+}
+
+export interface StatementRow {
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  amount: number
+}
+
+export interface BalanceSheet {
+  asOf: string
+  assets: StatementRow[]
+  totalAssets: number
+  liabilities: StatementRow[]
+  totalLiabilities: number
+  equity: StatementRow[]
+  totalEquity: number
+  netIncome: number
+  balanced: boolean
+}
+
+export interface IncomeStatement {
+  from: string
+  to: string
+  revenues: StatementRow[]
+  totalRevenue: number
+  expenses: StatementRow[]
+  totalExpense: number
+  netIncome: number
+}

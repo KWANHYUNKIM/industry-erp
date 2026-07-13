@@ -173,6 +173,32 @@ const MENU: TopMenu[] = [
           { label: '계정과목등록', to: '/accounting/accounts' },
         ],
       },
+      {
+        label: '회계거래관리',
+        nodes: [
+          { label: '회계전표조회', to: '/accounting/journals' },
+          { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
+        ],
+      },
+      {
+        label: '출력물',
+        nodes: [
+          {
+            label: '장부',
+            children: [
+              { label: '계정별원장', to: '/accounting/ledger-book' },
+              { label: '합계잔액시산표', to: '/accounting/trial-balance' },
+            ],
+          },
+          {
+            label: '재무제표',
+            children: [
+              { label: '재무상태표', to: '/accounting/balance-sheet' },
+              { label: '손익계산서', to: '/accounting/income-statement' },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
