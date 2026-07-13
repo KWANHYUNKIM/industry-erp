@@ -87,6 +87,8 @@ import AttendanceListPage from './pages/hr/AttendanceListPage'
 import AttendanceStatusPage from './pages/hr/AttendanceStatusPage'
 import VacationUsePage from './pages/hr/VacationUsePage'
 import VacationRemainPage from './pages/hr/VacationRemainPage'
+import EmployeePage from './pages/hr/EmployeePage'
+import PayrollPage from './pages/hr/PayrollPage'
 import NoticePage from './pages/groupware/NoticePage'
 import SchedulePage from './pages/groupware/SchedulePage'
 import SurveyPage from './pages/groupware/SurveyPage'
@@ -272,6 +274,8 @@ export default function App() {
         <Route path="/hr/attendance-status" element={<AttendanceStatusPage />} />
         <Route path="/hr/vacation-use" element={<VacationUsePage />} />
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
+        <Route path="/hr/employees" element={<EmployeePage />} />
+        <Route path="/hr/payroll" element={<PayrollPage />} />
 
         <Route path="/users" element={<UsersPage />} />
       </Route>
