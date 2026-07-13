@@ -2,12 +2,19 @@ package com.erp.controller;
 
 import com.erp.dto.JournalDtos.AccountLedgerResponse;
 import com.erp.dto.JournalDtos.BalanceSheetResponse;
+import com.erp.dto.JournalDtos.CashTxnRequest;
+import com.erp.dto.JournalDtos.CreateJournalRequest;
 import com.erp.dto.JournalDtos.IncomeStatementResponse;
 import com.erp.dto.JournalDtos.JournalEntryResponse;
 import com.erp.dto.JournalDtos.TrialBalanceResponse;
+import com.erp.security.UserPrincipal;
 import com.erp.service.JournalQueryService;
+import com.erp.service.JournalService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,6 +30,32 @@ import java.util.List;
 public class JournalController {
 
     private final JournalQueryService service;
+    private final JournalService journalService;
+
+    /** 일반전표 직접입력 */
+    @PostMapping
+    public ResponseEntity<JournalEntryResponse> createManual(
+            @Valid @RequestBody CreateJournalRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var entry = journalService.createManual(req, principal.getUsername());
+        return ResponseEntity.ok(JournalEntryResponse.from(entry));
+    }
+
+    /** 현금거래 간편입력 */
+    @PostMapping("/cash")
+    public ResponseEntity<JournalEntryResponse> createCash(
+            @Valid @RequestBody CashTxnRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var entry = journalService.createCashTxn(req, principal.getUsername());
+        return ResponseEntity.ok(JournalEntryResponse.from(entry));
+    }
+
+    /** 수동전표 삭제 (업무전표 생성분은 회계반영취소로만) */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        journalService.deleteManual(id);
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping
     public List<JournalEntryResponse> entries(

@@ -174,6 +174,14 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: 'FastEntry',
+        nodes: [
+          { label: '일반전표입력', to: '/accounting/journal-entry' },
+          { label: '현금예금입금', to: '/accounting/cash-deposit' },
+          { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+        ],
+      },
+      {
         label: '전자(세금)계산서',
         nodes: [
           { label: '매출세금계산서', to: '/accounting/tax-invoice-sales' },
