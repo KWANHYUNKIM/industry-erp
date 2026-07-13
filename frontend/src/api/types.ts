@@ -672,3 +672,45 @@ export interface TaxInvoice {
   remark: string | null
   createdBy: string | null
 }
+
+// ===== 급여관리 =====
+
+export type PayslipStatus = 'DRAFT' | 'CONFIRMED'
+export type PayslipLineKind = 'ALLOWANCE' | 'DEDUCTION'
+
+export interface EmployeeMaster {
+  id: number
+  code: string
+  name: string
+  department: string
+  jobTitle: string
+  baseSalary: number
+}
+
+export interface PayslipLine {
+  id: number
+  lineNo: number
+  kind: PayslipLineKind
+  kindName: string
+  name: string
+  amount: number
+  auto: boolean
+}
+
+export interface Payslip {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string | null
+  payMonth: string
+  baseSalary: number
+  allowanceTotal: number
+  deductionTotal: number
+  grossPay: number
+  netPay: number
+  status: PayslipStatus
+  statusName: string
+  remark: string | null
+  lines: PayslipLine[]
+}

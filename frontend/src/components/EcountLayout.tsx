@@ -231,6 +231,13 @@ const MENU: TopMenu[] = [
     label: '관리',
     tabs: [
       {
+        label: '급여관리',
+        nodes: [
+          { label: '기본사항등록', children: [{ label: '사원등록', to: '/hr/employees' }] },
+          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }] },
+        ],
+      },
+      {
         label: '근태관리',
         nodes: [
           {
