@@ -144,6 +144,8 @@ export interface TradeLine {
   vatAmount: number
 }
 
+export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+
 export interface SalesDoc {
   id: number
   docNo: string
@@ -157,6 +159,10 @@ export interface SalesDoc {
   totalAmount: number
   remark: string | null
   createdBy: string | null
+  confirmStatus: SalesConfirmStatus
+  confirmStatusName: string
+  confirmedAt: string | null
+  accountingReflected: boolean
   lines: TradeLine[]
 }
 

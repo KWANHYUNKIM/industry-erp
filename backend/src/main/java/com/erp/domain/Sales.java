@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +66,15 @@ public class Sales extends BaseTimeEntity {
     @Builder.Default
     private boolean accountingReflected = false;
 
+    /** 확인상태. 전자결재 상신/완료/반려에 따라 움직인다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confirm_status", nullable = false, length = 20)
+    @Builder.Default
+    private SalesConfirmStatus confirmStatus = SalesConfirmStatus.UNCONFIRMED;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     @OneToMany(mappedBy = "sales", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<SalesLine> lines = new ArrayList<>();
@@ -72,5 +82,23 @@ public class Sales extends BaseTimeEntity {
     public void addLine(SalesLine line) {
         line.setSales(this);
         this.lines.add(line);
+    }
+
+    /** 전자결재 상신 시 */
+    public void markInApproval() {
+        this.confirmStatus = SalesConfirmStatus.IN_APPROVAL;
+        this.confirmedAt = null;
+    }
+
+    /** 결재 완료 또는 수동 확인 */
+    public void markConfirmed() {
+        this.confirmStatus = SalesConfirmStatus.CONFIRMED;
+        this.confirmedAt = LocalDateTime.now();
+    }
+
+    /** 반려 또는 확인취소 */
+    public void markUnconfirmed() {
+        this.confirmStatus = SalesConfirmStatus.UNCONFIRMED;
+        this.confirmedAt = null;
     }
 }

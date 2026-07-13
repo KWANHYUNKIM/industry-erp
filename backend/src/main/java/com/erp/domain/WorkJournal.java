@@ -40,7 +40,7 @@ public class WorkJournal extends BaseTimeEntity {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Lob
-    @Column(nullable = false)
+    // @Lob 은 PostgreSQL 에서 oid(large object)로 매핑된다. V15 에서 text 로 옮겼다.
+    @Column(nullable = false, columnDefinition = "text")
     private String content;
 }
