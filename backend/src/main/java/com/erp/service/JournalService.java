@@ -2,13 +2,18 @@ package com.erp.service;
 
 import com.erp.common.ApiException;
 import com.erp.domain.Account;
+import com.erp.domain.BusinessPartner;
 import com.erp.domain.Expense;
 import com.erp.domain.JournalEntry;
 import com.erp.domain.JournalLine;
 import com.erp.domain.JournalSourceType;
 import com.erp.domain.Purchase;
 import com.erp.domain.Sales;
+import com.erp.dto.JournalDtos.CashTxnRequest;
+import com.erp.dto.JournalDtos.CreateJournalRequest;
+import com.erp.dto.JournalDtos.ManualLineInput;
 import com.erp.repository.AccountRepository;
+import com.erp.repository.BusinessPartnerRepository;
 import com.erp.repository.JournalEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 회계전표(분개) 생성. 판매/매입/지출 업무전표를 복식부기 분개로 옮긴다.
@@ -34,6 +40,82 @@ public class JournalService {
 
     private final JournalEntryRepository entryRepository;
     private final AccountRepository accountRepository;
+    private final BusinessPartnerRepository partnerRepository;
+
+    /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
+    @Transactional
+    public JournalEntry createManual(CreateJournalRequest req, String username) {
+        List<ManualLineInput> inputs = req.lines();
+        if (inputs == null || inputs.size() < 2) {
+            throw ApiException.badRequest("분개는 차변·대변 최소 2줄이 필요합니다.");
+        }
+        LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        JournalEntry e = newEntry(JournalSourceType.MANUAL, null, date,
+                req.description(), resolvePartner(req.partnerId()), username);
+
+        for (ManualLineInput in : inputs) {
+            BigDecimal debit = nz(in.debit());
+            BigDecimal credit = nz(in.credit());
+            boolean hasDebit = debit.signum() > 0;
+            boolean hasCredit = credit.signum() > 0;
+            if (hasDebit == hasCredit) {   // 둘 다 있거나 둘 다 없음
+                throw ApiException.badRequest("각 라인은 차변 또는 대변 한쪽만 입력하세요.");
+            }
+            e.addLine(JournalLine.builder()
+                    .account(account(in.accountId())).debit(debit).credit(credit)
+                    .description(in.description()).build());
+        }
+        return save(e);
+    }
+
+    /** 현금거래 간편입력. 입금 → 차)현금·대)상대계정, 출금 → 차)상대계정·대)현금. */
+    @Transactional
+    public JournalEntry createCashTxn(CashTxnRequest req, String username) {
+        if (nz(req.amount()).signum() <= 0) {
+            throw ApiException.badRequest("금액은 0보다 커야 합니다.");
+        }
+        LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        Account cash = account("101");
+        Account counter = account(req.counterAccountId());
+        String desc = req.description() != null ? req.description()
+                : (req.deposit() ? "현금입금" : "현금출금");
+
+        JournalEntry e = newEntry(JournalSourceType.MANUAL, null, date, desc,
+                resolvePartner(req.partnerId()), username);
+        if (Boolean.TRUE.equals(req.deposit())) {
+            e.addLine(line(cash, req.amount(), BigDecimal.ZERO, desc));
+            e.addLine(line(counter, BigDecimal.ZERO, req.amount(), desc));
+        } else {
+            e.addLine(line(counter, req.amount(), BigDecimal.ZERO, desc));
+            e.addLine(line(cash, BigDecimal.ZERO, req.amount(), desc));
+        }
+        return save(e);
+    }
+
+    /** 수동전표 삭제. 업무전표에서 자동생성된 전표는 회계반영취소로만 지운다. */
+    @Transactional
+    public void deleteManual(Long id) {
+        JournalEntry e = entryRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        if (e.getSourceType() != JournalSourceType.MANUAL) {
+            throw ApiException.badRequest("업무전표에서 생성된 회계전표는 회계반영 취소로만 삭제할 수 있습니다.");
+        }
+        entryRepository.delete(e);
+    }
+
+    private JournalLine line(Account account, BigDecimal debit, BigDecimal credit, String desc) {
+        return JournalLine.builder().account(account).debit(debit).credit(credit).description(desc).build();
+    }
+
+    private BusinessPartner resolvePartner(Long id) {
+        if (id == null) return null;
+        return partnerRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
+    }
 
     /** 판매 → 분개. 차)외상매출금 / 대)상품매출·부가세예수금 */
     @Transactional
@@ -136,6 +218,11 @@ public class JournalService {
     private Account account(String code) {
         return accountRepository.findByCode(code)
                 .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + code + " (계정과목등록 필요)"));
+    }
+
+    private Account account(Long id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + id));
     }
 
     private static boolean isPositive(BigDecimal v) {
