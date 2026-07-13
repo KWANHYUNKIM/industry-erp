@@ -22,6 +22,11 @@ import ProfitSummaryPage from './pages/accounting/ProfitSummaryPage'
 import ItemCostPage from './pages/accounting/ItemCostPage'
 import VatSummaryPage from './pages/accounting/VatSummaryPage'
 import AccountsPage from './pages/accounting/AccountsPage'
+import JournalListPage from './pages/accounting/JournalListPage'
+import AccountLedgerPage from './pages/accounting/AccountLedgerPage'
+import TrialBalancePage from './pages/accounting/TrialBalancePage'
+import BalanceSheetPage from './pages/accounting/BalanceSheetPage'
+import IncomeStatementPage from './pages/accounting/IncomeStatementPage'
 import ExpensePage from './pages/accounting/ExpensePage'
 import QualityInspectionPage from './pages/quality/QualityInspectionPage'
 import SerialLotPage from './pages/quality/SerialLotPage'
@@ -202,6 +207,11 @@ export default function App() {
         <Route path="/accounting/item-cost" element={<ItemCostPage />} />
         <Route path="/accounting/vat" element={<VatSummaryPage />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
+        <Route path="/accounting/journals" element={<JournalListPage />} />
+        <Route path="/accounting/ledger-book" element={<AccountLedgerPage />} />
+        <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
+        <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
+        <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
         <Route path="/accounting/standard-cost" element={<StandardCostPage />} />
