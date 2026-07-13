@@ -174,6 +174,13 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '전자(세금)계산서',
+        nodes: [
+          { label: '매출세금계산서', to: '/accounting/tax-invoice-sales' },
+          { label: '매입세금계산서', to: '/accounting/tax-invoice-purchase' },
+        ],
+      },
+      {
         label: '회계거래관리',
         nodes: [
           { label: '회계전표조회', to: '/accounting/journals' },

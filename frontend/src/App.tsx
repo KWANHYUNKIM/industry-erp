@@ -27,6 +27,7 @@ import AccountLedgerPage from './pages/accounting/AccountLedgerPage'
 import TrialBalancePage from './pages/accounting/TrialBalancePage'
 import BalanceSheetPage from './pages/accounting/BalanceSheetPage'
 import IncomeStatementPage from './pages/accounting/IncomeStatementPage'
+import TaxInvoicePage from './pages/accounting/TaxInvoicePage'
 import ExpensePage from './pages/accounting/ExpensePage'
 import QualityInspectionPage from './pages/quality/QualityInspectionPage'
 import SerialLotPage from './pages/quality/SerialLotPage'
@@ -212,6 +213,8 @@ export default function App() {
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
+        <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />
+        <Route path="/accounting/tax-invoice-purchase" element={<TaxInvoicePage type="PURCHASE" />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
         <Route path="/accounting/standard-cost" element={<StandardCostPage />} />
