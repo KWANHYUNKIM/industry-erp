@@ -40,6 +40,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
+  // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
+  const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
 
   function load() {
     setError('')
@@ -71,6 +73,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     }
   }
 
+  async function issueTaxInvoice(d: NormalDoc) {
+    try {
+      await api.post('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
+      setTaxIssued((s) => new Set(s).add(d.id))
+      alert(`${d.docNo} 세금계산서를 발행했습니다. (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
     .filter((d) => !from || d.date >= from)
@@ -83,8 +95,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   const totals = shown.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, vat: a.vat + d.vatAmount, total: a.total + d.totalAmount }), { supply: 0, vat: 0, total: 0 })
 
-  // 판매조회에만 확인상태·확인버튼 컬럼 2개가 더 붙는다.
-  const colCount = isSales ? 11 : 9
+  // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
+  const colCount = (isSales ? 11 : 9) + 1
 
   return (
     <EcListShell title={cfg.title} search={keyword} onSearchChange={setKeyword} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
@@ -119,6 +131,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th><th>창고</th>
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th><th>담당</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
+            <th style={{ textAlign: 'center' }}>세금계산서</th>
           </tr>
         </thead>
         <tbody>
@@ -152,6 +165,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     </td>
                   </>
                 )}
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  {taxIssued.has(d.id) ? (
+                    <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>발행됨</span>
+                  ) : (
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
+                  )}
+                </td>
               </tr>
               {openId === d.id && (
                 <tr className="no-ec">
@@ -187,7 +207,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
             <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
             <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
-            <td colSpan={isSales ? 3 : 1}></td>
+            <td colSpan={(isSales ? 3 : 1) + 1}></td>
           </tr>
         </tfoot>
       </table>

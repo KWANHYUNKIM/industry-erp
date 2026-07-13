@@ -649,3 +649,26 @@ export interface IncomeStatement {
   totalExpense: number
   netIncome: number
 }
+
+// ===== 전자(세금)계산서 =====
+
+export type TaxInvoiceType = 'SALES' | 'PURCHASE'
+export type TaxInvoiceStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'APPROVED'
+
+export interface TaxInvoice {
+  id: number
+  invoiceNo: string
+  invoiceType: TaxInvoiceType
+  invoiceTypeName: string
+  status: TaxInvoiceStatus
+  statusName: string
+  issueDate: string
+  partnerId: number
+  partnerName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  sourceDocNo: string | null
+  remark: string | null
+  createdBy: string | null
+}
