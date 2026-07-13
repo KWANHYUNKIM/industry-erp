@@ -3,6 +3,7 @@ package com.erp.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -39,6 +40,11 @@ public class Employee extends BaseTimeEntity {
 
     /** 입사일 */
     private LocalDate hireDate;
+
+    /** 월 기본급. 급여명세 생성 시 기본값으로 복사된다. */
+    @Column(name = "base_salary", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal baseSalary = BigDecimal.ZERO;
 
     @Column(nullable = false)
     @Builder.Default
