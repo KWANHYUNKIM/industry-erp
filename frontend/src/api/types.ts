@@ -483,6 +483,96 @@ export interface StockTransfer {
   createdBy: string | null
 }
 
+// ===== FastEntry 간편전표 (지출결의서·입금보고서·가지급금정산서) =====
+
+export type FastVoucherType = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT'
+export type PaymentMethod = 'CASH' | 'BANK' | 'CREDIT'
+
+export interface VoucherLine {
+  id: number
+  lineNo: number
+  accountId: number
+  accountCode: string
+  accountName: string
+  amount: number
+  description: string | null
+}
+
+export interface FastVoucher {
+  id: number
+  voucherNo: string
+  type: FastVoucherType
+  typeName: string
+  voucherDate: string
+  method: PaymentMethod
+  methodName: string
+  bankAccountId: number | null
+  bankAccountName: string | null
+  partnerId: number | null
+  partnerName: string | null
+  advanceAmount: number | null
+  totalAmount: number
+  /** 가지급금정산서: 가지급금 − 실사용액 (양수 반납, 음수 추가지급) */
+  balance: number | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+  lines: VoucherLine[]
+}
+
+// ===== 고정자산 (회계 I) =====
+
+export type DepreciationMethod = 'STRAIGHT_LINE' | 'DECLINING_BALANCE'
+export type AssetStatus = 'IN_USE' | 'DISPOSED'
+
+export interface FixedAsset {
+  id: number
+  assetNo: string
+  name: string
+  assetAccountId: number
+  assetAccountCode: string
+  assetAccountName: string
+  acquisitionDate: string
+  acquisitionCost: number
+  salvageValue: number
+  usefulLifeYears: number
+  method: DepreciationMethod
+  methodName: string
+  declineRate: number | null
+  accumulatedDepreciation: number
+  bookValue: number
+  status: AssetStatus
+  statusName: string
+  disposalDate: string | null
+  disposalAmount: number | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface DepreciationRow {
+  id: number
+  assetId: number
+  assetNo: string
+  assetName: string
+  period: string
+  depreciationDate: string
+  amount: number
+  accumulatedAfter: number
+  bookValueAfter: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+}
+
+export interface DepreciationRun {
+  period: string
+  assetCount: number
+  totalAmount: number
+  skippedCount: number
+  rows: DepreciationRow[]
+}
+
 // ===== 계좌/카드 (회계 I) =====
 
 export type CardType = 'CORPORATE' | 'PERSONAL'
@@ -961,6 +1051,38 @@ export interface WithholdingReceipt {
   totalWithheld: number
   socialInsurance: number
   months: ReceiptMonth[]
+}
+
+// ===== 어음거래 =====
+
+export type NoteType = 'RECEIVABLE' | 'PAYABLE'
+export type NoteStatus = 'HELD' | 'SETTLED' | 'DISCOUNTED' | 'DISHONORED'
+
+export interface PromissoryNote {
+  id: number
+  noteNo: string
+  type: NoteType
+  typeName: string
+  partnerId: number
+  partnerName: string
+  issueDate: string
+  dueDate: string
+  amount: number
+  status: NoteStatus
+  statusName: string
+  closedDate: string | null
+  discountFee: number | null
+  bankName: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface NoteSummary {
+  receivableHeld: number
+  payableHeld: number
+  receivableDueSoon: number
+  payableDueSoon: number
+  notes: PromissoryNote[]
 }
 
 // ===== 전자근로계약 =====

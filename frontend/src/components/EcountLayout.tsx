@@ -175,6 +175,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '거래처등록', to: '/sales/partners' },
           { label: '계정과목등록', to: '/accounting/accounts' },
+          { label: '계좌/카드', to: '/accounting/bank-cards' },
         ],
       },
       {
@@ -183,7 +184,21 @@ const MENU: TopMenu[] = [
           { label: '일반전표입력', to: '/accounting/journal-entry' },
           { label: '현금예금입금', to: '/accounting/cash-deposit' },
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+          { label: '지출결의서', to: '/accounting/vouchers' },
+          { label: '입금보고서', to: '/accounting/vouchers' },
+          { label: '가지급금정산서', to: '/accounting/vouchers' },
         ],
+      },
+      {
+        label: '어음거래',
+        nodes: [
+          { label: '어음등록(수취/발행)', to: '/accounting/notes' },
+          { label: '어음현황', to: '/accounting/notes' },
+        ],
+      },
+      {
+        label: '고정자산',
+        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }],
       },
       {
         label: '전자(세금)계산서',

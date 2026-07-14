@@ -534,6 +534,244 @@ async function scenarioBankCard() {
   }, '이미 등록된 계좌번호')
 }
 
+/** 고정자산 — 취득 → 월별 감가상각(자동 분개) → 처분(처분손익) */
+async function scenarioFixedAsset() {
+  section('■ 시나리오 11. 고정자산 (취득 → 감가상각 → 처분)')
+
+  const accounts = await must('GET', '/accounts')
+  const machine = accounts.find((a) => a.code === '206')   // 기계장치
+
+  // 1,200만 · 5년 정액법 → 월 상각 20만
+  const asset = await must('POST', '/fixed-assets', {
+    name: `${P}CNC선반`, assetAccountId: machine.id, acquisitionDate: '2026-01-15',
+    acquisitionCost: 12_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  })
+  eq('신규 자산은 사용중', asset.statusName, '사용중')
+  eq('취득 직후 장부가액 = 취득가액', Number(asset.bookValue), 12_000_000)
+  eq('취득 직후 상각누계액 0', Number(asset.accumulatedDepreciation), 0)
+
+  await rejects('잔존가액이 취득가액 이상이면 거부', 'POST', '/fixed-assets', {
+    name: `${P}불량자산`, assetAccountId: machine.id, acquisitionDate: '2026-01-15',
+    acquisitionCost: 1_000_000, salvageValue: 1_000_000, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  }, '잔존가액')
+
+  await rejects('정률법인데 상각률이 없으면 거부', 'POST', '/fixed-assets', {
+    name: `${P}정률자산`, assetAccountId: machine.id, acquisitionDate: '2026-01-15',
+    acquisitionCost: 1_000_000, usefulLifeYears: 5, method: 'DECLINING_BALANCE',
+  }, '상각률')
+
+  const run = await must('POST', '/fixed-assets/depreciate', { period: '2026-06' })
+  const mine = run.rows.find((r) => r.assetId === asset.id)
+  eq('정액법 월 상각액 = (취득가-잔존가)/내용연수/12', Number(mine.amount), 200_000)
+  eq('상각 후 장부가액 = 취득가 - 누계액', Number(mine.bookValueAfter), 11_800_000)
+  eq('상각에 회계전표가 붙음', String(mine.journalDocNo).startsWith('GL-'), 'true')
+
+  const entry = await must('GET', `/journals/${mine.journalEntryId}`)
+  const expense = entry.lines.find((l) => l.accountCode === '818')
+  const accumulated = entry.lines.find((l) => l.accountCode === '203')
+  eq('상각 분개 차변은 감가상각비', Number(expense.debit), 200_000)
+  eq('상각 분개 대변은 감가상각누계액', Number(accumulated.credit), 200_000)
+
+  const again = await must('POST', '/fixed-assets/depreciate', { period: '2026-06' })
+  eq('같은 달 재실행은 이중 상각하지 않음', again.rows.filter((r) => r.assetId === asset.id).length, 0)
+
+  await rejects('귀속월 형식이 틀리면 거부', 'POST', '/fixed-assets/depreciate', { period: '2026-13' }, '귀속월')
+
+  // 장부가 11,800,000 을 12,000,000 에 처분 → 처분이익 200,000
+  const disposed = await must('POST', `/fixed-assets/${asset.id}/dispose`, {
+    disposalDate: '2026-07-14', disposalAmount: 12_000_000,
+  })
+  eq('처분 후 상태는 처분', disposed.statusName, '처분')
+
+  const journals = await must('GET', '/journals?from=2026-07-01&to=2026-07-31')
+  const disposal = journals.find((j) => j.sourceType === 'DISPOSAL' && j.sourceId === asset.id)
+  const gain = disposal.lines.find((l) => l.accountCode === '914')
+  eq('처분이익 = 처분가액 - 장부가액', Number(gain.credit), 200_000)
+  eq('처분 분개가 대차평형', Number(disposal.totalDebit), Number(disposal.totalCredit))
+
+  await rejects('처분된 자산 재처분은 거부', 'POST', `/fixed-assets/${asset.id}/dispose`,
+    { disposalDate: '2026-07-15', disposalAmount: 0 }, '이미 처분')
+}
+
+async function scenarioNote(f) {
+  section('■ 시나리오 12. 어음 — 수취/발행 → 만기결제 · 할인 · 부도')
+
+  // 결제·할인 대금이 오갈 계좌 (기타 시나리오와 섞이지 않게 어음 전용 계좌를 쓴다)
+  const accountNo = `${P}110-999-000002`
+  const bank = (await must('GET', '/bank-cards/accounts')).find((a) => a.accountNo === accountNo)
+    ?? await must('POST', '/bank-cards/accounts', {
+      bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 1_000_000,
+    })
+  const balanceOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance)
+  // 어음 전표는 수취분만 sourceId 로 연결되고, 할인료·부도 전표는 적요의 어음번호로 찾는다.
+  const journalsOf = async (noteNo) =>
+    (await must('GET', '/journals?from=2026-01-01&to=2026-12-31'))
+      .filter((j) => j.sourceType === 'NOTE' && String(j.description).includes(noteNo))
+
+  // ── 받을어음: 수취 → 만기결제
+  const recv = await must('POST', '/notes', {
+    type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-09-14',
+    amount: 500000, bankName: 'QA은행',
+  })
+  eq('신규 어음 상태는 보유', recv.statusName, '보유')
+  eq('받을어음 번호는 BN- 접두어', recv.noteNo.startsWith('BN-'), true)
+
+  const issueEntries = await journalsOf(recv.noteNo)
+  eq('수취 시 분개가 생성됨', issueEntries.length >= 1, true)
+  const issue = issueEntries[0]
+  eq('받을어음 수취 분개 차변은 받을어음(110)', issue.lines.find((l) => Number(l.debit) > 0).accountCode, '110')
+  eq('받을어음 수취 분개 대변은 외상매출금(108)', issue.lines.find((l) => Number(l.credit) > 0).accountCode, '108')
+
+  const beforeSettle = await balanceOf()
+  const settled = await must('POST', `/notes/${recv.id}/settle`, { bankAccountId: bank.id, settleDate: '2026-09-14' })
+  eq('만기결제 후 상태는 결제완료', settled.statusName, '결제완료')
+  eq('만기결제로 계좌 잔액이 어음 금액만큼 증가', await balanceOf(), beforeSettle + 500000)
+
+  await rejects('결제된 어음 재결제는 거부', 'POST', `/notes/${recv.id}/settle`, { bankAccountId: bank.id }, '이미')
+
+  // ── 받을어음: 할인 (할인료는 매출채권처분손실)
+  const disc = await must('POST', '/notes', {
+    type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-10-14', amount: 300000,
+  })
+  const beforeDiscount = await balanceOf()
+  const discounted = await must('POST', `/notes/${disc.id}/discount`, {
+    bankAccountId: bank.id, discountFee: 12000, discountDate: '2026-08-01',
+  })
+  eq('할인 후 상태는 할인', discounted.statusName, '할인')
+  eq('할인 입금액 = 어음금액 - 할인료', await balanceOf(), beforeDiscount + 300000 - 12000)
+
+  const feeEntry = (await journalsOf(disc.noteNo)).find((j) => j.lines.some((l) => l.accountCode === '936'))
+  eq('할인료가 매출채권처분손실(936)로 분개', Boolean(feeEntry), true)
+  eq('할인료 분개가 대차평형', Number(feeEntry.totalDebit), Number(feeEntry.totalCredit))
+
+  const tooCheap = await must('POST', '/notes', {
+    type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-12-01', amount: 10000,
+  })
+  await rejects('할인료가 어음 금액 이상이면 거부', 'POST', `/notes/${tooCheap.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 10000 }, '할인료가 어음 금액 이상')
+
+  // ── 받을어음: 부도 → 외상매출금 환원
+  const bad = await must('POST', '/notes', {
+    type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-11-14', amount: 200000,
+  })
+  const beforeDishonor = await balanceOf()
+  const dishonored = await must('POST', `/notes/${bad.id}/dishonor`, { dishonorDate: '2026-11-15' })
+  eq('부도 후 상태는 부도', dishonored.statusName, '부도')
+  eq('부도는 현금이 오가지 않음', await balanceOf(), beforeDishonor)
+
+  const dishonorEntry = (await journalsOf(bad.noteNo)).find((j) => j.description.includes('부도'))
+  eq('부도 분개 차변은 외상매출금(108)', dishonorEntry.lines.find((l) => Number(l.debit) > 0).accountCode, '108')
+  eq('부도 분개 대변은 받을어음(110)', dishonorEntry.lines.find((l) => Number(l.credit) > 0).accountCode, '110')
+
+  // ── 지급어음: 발행 → 만기결제(출금)
+  const pay = await must('POST', '/notes', {
+    type: 'PAYABLE', partnerId: f.supplier.id, issueDate: '2026-07-14', dueDate: '2026-09-30', amount: 150000,
+  })
+  const payIssue = (await journalsOf(pay.noteNo))[0]
+  eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '251')
+  eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '252')
+
+  // 할인·부도는 받을어음 전용 (보유 상태에서 확인해야 상태 검증이 아닌 유형 검증에 걸린다)
+  await rejects('지급어음은 할인 불가', 'POST', `/notes/${pay.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 0 }, '받을어음만')
+  await rejects('지급어음은 부도 처리 불가', 'POST', `/notes/${pay.id}/dishonor`, {}, '받을어음만')
+
+  const beforePay = await balanceOf()
+  await must('POST', `/notes/${pay.id}/settle`, { bankAccountId: bank.id, settleDate: '2026-09-30' })
+  eq('지급어음 결제로 계좌 잔액이 감소', await balanceOf(), beforePay - 150000)
+
+  // ── 요약: 보유 어음만 집계
+  const summary = await must('GET', '/notes')
+  const held = summary.notes.filter((n) => n.status === 'HELD')
+  eq('보유 어음 합계 = 받을 + 지급 잔액',
+    Number(summary.receivableHeld) + Number(summary.payableHeld),
+    held.reduce((s, n) => s + Number(n.amount), 0))
+  await rejects('만기일이 발행일보다 빠르면 거부', 'POST', '/notes', {
+    type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-07-01', amount: 1000,
+  }, '만기일')
+}
+
+/** FastEntry 간편전표 — 지출결의서 · 입금보고서 · 가지급금정산서 */
+async function scenarioFastVoucher() {
+  section('■ 시나리오 13. FastEntry (지출결의서 · 입금보고서 · 가지급금정산서)')
+
+  const accounts = await must('GET', '/accounts')
+  const byCode = (c) => accounts.find((a) => a.code === c)
+  const welfare = byCode('811')      // 복리후생비
+  const travel = byCode('812')       // 여비교통비
+  const revenue = byCode('401')      // 상품매출
+
+  const accountNo = `${P}220-888-000002`
+  const banks = await must('GET', '/bank-cards/accounts')
+  const bank = banks.find((b) => b.accountNo === accountNo)
+    ?? await must('POST', '/bank-cards/accounts', {
+      bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 1_000_000,
+    })
+  const balanceOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === bank.id).balance)
+  const before = await balanceOf()
+
+  // 지출결의서 — 현금, 두 줄
+  const expense = await must('POST', '/vouchers', {
+    type: 'EXPENSE_REPORT', method: 'CASH', voucherDate: '2026-07-14',
+    lines: [{ accountId: welfare.id, amount: 30_000 }, { accountId: travel.id, amount: 20_000 }],
+  })
+  eq('지출결의서 합계 = 라인 합', Number(expense.totalAmount), 50_000)
+  eq('지출결의서에 회계전표가 붙음', String(expense.journalDocNo).startsWith('GL-'), 'true')
+
+  const expenseEntry = await must('GET', `/journals/${expense.journalEntryId}`)
+  eq('지출 분개 차변에 비용 2줄', expenseEntry.lines.filter((l) => Number(l.debit) > 0).length, 2)
+  eq('지출 분개 대변은 현금 총액',
+    Number(expenseEntry.lines.find((l) => l.accountCode === '101').credit), 50_000)
+  eq('지출 분개가 대차평형', Number(expenseEntry.totalDebit), Number(expenseEntry.totalCredit))
+
+  // 지출결의서 — 계좌 결제는 잔액도 깎는다
+  await must('POST', '/vouchers', {
+    type: 'EXPENSE_REPORT', method: 'BANK', bankAccountId: bank.id, voucherDate: '2026-07-14',
+    lines: [{ accountId: travel.id, amount: 100_000 }],
+  })
+  eq('계좌 지출은 계좌 잔액을 깎음', await balanceOf(), before - 100_000)
+
+  // 입금보고서 — 계좌 입금
+  const deposit = await must('POST', '/vouchers', {
+    type: 'DEPOSIT_REPORT', method: 'BANK', bankAccountId: bank.id, voucherDate: '2026-07-14',
+    lines: [{ accountId: revenue.id, amount: 500_000 }],
+  })
+  eq('계좌 입금은 계좌 잔액을 늘림', await balanceOf(), before - 100_000 + 500_000)
+
+  const depositEntry = await must('GET', `/journals/${deposit.journalEntryId}`)
+  eq('입금 분개 차변은 예금계정',
+    Number(depositEntry.lines.find((l) => l.accountCode === '103').debit), 500_000)
+  eq('입금 분개 대변은 매출', Number(depositEntry.lines.find((l) => l.accountCode === '401').credit), 500_000)
+
+  // 가지급금정산서 — 20만 지급, 15만 사용 → 5만 반납
+  const settle = await must('POST', '/vouchers', {
+    type: 'ADVANCE_SETTLEMENT', method: 'CASH', advanceAmount: 200_000, voucherDate: '2026-07-14',
+    lines: [{ accountId: travel.id, amount: 150_000 }],
+  })
+  eq('정산 잔액 = 가지급금 − 사용액', Number(settle.balance), 50_000)
+
+  const settleEntry = await must('GET', `/journals/${settle.journalEntryId}`)
+  eq('정산 분개 대변은 가지급금 전액',
+    Number(settleEntry.lines.find((l) => l.accountCode === '134').credit), 200_000)
+  eq('반납액은 현금 차변으로 돌아옴',
+    Number(settleEntry.lines.find((l) => l.accountCode === '101').debit), 50_000)
+  eq('정산 분개가 대차평형', Number(settleEntry.totalDebit), Number(settleEntry.totalCredit))
+
+  await rejects('가지급금 없이 정산서는 거부', 'POST', '/vouchers', {
+    type: 'ADVANCE_SETTLEMENT', method: 'CASH',
+    lines: [{ accountId: travel.id, amount: 1_000 }],
+  }, '가지급금')
+
+  await rejects('계좌 결제인데 계좌 미선택이면 거부', 'POST', '/vouchers', {
+    type: 'EXPENSE_REPORT', method: 'BANK',
+    lines: [{ accountId: travel.id, amount: 1_000 }],
+  }, '계좌를 선택')
+
+  await rejects('내역이 없으면 거부', 'POST', '/vouchers', {
+    type: 'EXPENSE_REPORT', method: 'CASH', lines: [],
+  }, '내역')
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -563,6 +801,9 @@ async function main() {
   await scenarioAdjustment(fixtures)
   await scenarioWithholding()
   await scenarioBankCard()
+  await scenarioFixedAsset()
+  await scenarioNote(fixtures)
+  await scenarioFastVoucher()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
