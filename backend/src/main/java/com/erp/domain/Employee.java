@@ -42,6 +42,10 @@ public class Employee extends BaseTimeEntity {
     /** 입사일 */
     private LocalDate hireDate;
 
+    /** 퇴사일. 재직 중이면 null */
+    @Column(name = "resign_date")
+    private LocalDate resignDate;
+
     /** 월 기본급. 급여명세 생성 시 기본값으로 복사된다. */
     @Column(name = "base_salary", nullable = false, precision = 18, scale = 2)
     @Builder.Default

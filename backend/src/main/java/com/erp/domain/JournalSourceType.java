@@ -7,6 +7,9 @@ public enum JournalSourceType {
     EXPENSE("지출"),
     BANK("계좌입출금"),
     CARD("카드사용"),
+    NOTE("어음"),
+    DEPRECIATION("감가상각"),
+    DISPOSAL("자산처분"),
     MANUAL("수동입력");
 
     private final String displayName;

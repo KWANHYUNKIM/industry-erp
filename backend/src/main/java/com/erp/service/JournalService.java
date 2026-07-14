@@ -207,6 +207,122 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 어음 → 분개. 어음의 현재 상태에 맞는 분개를 만든다.
+     *   수취/발행  받을어음: 차)받을어음 / 대)외상매출금   지급어음: 차)외상매입금 / 대)지급어음
+     *   결제       받을어음: 차)예금     / 대)받을어음     지급어음: 차)지급어음   / 대)예금
+     *   할인       차)예금·매출채권처분손실 / 대)받을어음   (받을어음 전용)
+     *   부도       차)외상매출금 / 대)받을어음              (받을어음 전용, 채권으로 환원)
+     *
+     * @param settleAccount 결제·할인 시 입출금될 예금 계정. null 이면 보통예금(103).
+     */
+    @Transactional
+    public JournalEntry createFromNote(com.erp.domain.PromissoryNote n,
+                                       NoteEvent event,
+                                       Account settleAccount) {
+        boolean receivable = n.getType().isReceivable();
+        LocalDate date = event == NoteEvent.ISSUE ? n.getIssueDate() : n.getClosedDate();
+        String desc = n.getType().getDisplayName() + " " + event.getDisplayName() + " " + n.getNoteNo();
+        JournalEntry e = newEntry(JournalSourceType.NOTE, n.getId(), date, desc, n.getPartner(), n.getCreatedBy());
+
+        Account bank = settleAccount != null ? settleAccount : account("103");
+
+        switch (event) {
+            case ISSUE -> {
+                if (receivable) {
+                    addDebit(e, "110", n.getAmount(), "받을어음");
+                    addCredit(e, "108", n.getAmount(), "외상매출금 회수");
+                } else {
+                    addDebit(e, "251", n.getAmount(), "외상매입금 결제");
+                    addCredit(e, "252", n.getAmount(), "지급어음");
+                }
+            }
+            case SETTLE -> {
+                if (receivable) {
+                    addDebitAccount(e, bank, n.getAmount(), "어음 만기결제 입금");
+                    addCredit(e, "110", n.getAmount(), "받을어음");
+                } else {
+                    addDebit(e, "252", n.getAmount(), "지급어음");
+                    e.addLine(JournalLine.builder()
+                            .account(bank).debit(BigDecimal.ZERO).credit(n.getAmount())
+                            .description("어음 만기결제 출금").build());
+                }
+            }
+            case DISCOUNT -> {
+                BigDecimal fee = nz(n.getDiscountFee());
+                addDebitAccount(e, bank, n.getAmount().subtract(fee), "어음할인 입금");
+                if (isPositive(fee)) {
+                    addDebit(e, "936", fee, "매출채권처분손실(할인료)");
+                }
+                addCredit(e, "110", n.getAmount(), "받을어음");
+            }
+            case DISHONOR -> {
+                addDebit(e, "108", n.getAmount(), "부도어음 → 외상매출금 환원");
+                addCredit(e, "110", n.getAmount(), "받을어음");
+            }
+        }
+        return save(e);
+    }
+
+    /** 어음 처리 단계. 분개 모양이 단계마다 다르다. */
+    public enum NoteEvent {
+        ISSUE("수취/발행"), SETTLE("만기결제"), DISCOUNT("할인"), DISHONOR("부도");
+
+        private final String displayName;
+
+        NoteEvent(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
+    /** 감가상각 → 분개. 차)감가상각비 / 대)감가상각누계액 */
+    @Transactional
+    public JournalEntry createFromDepreciation(com.erp.domain.Depreciation d) {
+        com.erp.domain.FixedAsset asset = d.getAsset();
+        String desc = "감가상각 " + d.getPeriod() + " " + asset.getName();
+
+        JournalEntry e = newEntry(JournalSourceType.DEPRECIATION, asset.getId(), d.getDepreciationDate(),
+                desc, null, d.getCreatedBy());
+        addDebit(e, "818", d.getAmount(), "감가상각비");
+        addCredit(e, "203", d.getAmount(), "감가상각누계액");
+        return save(e);
+    }
+
+    /**
+     * 고정자산 처분 → 분개.
+     * 차)감가상각누계액·현금(처분가)·유형자산처분손실 / 대)자산계정·유형자산처분이익
+     * 처분손익 = 처분가액 - 장부가액.
+     */
+    @Transactional
+    public JournalEntry createFromDisposal(com.erp.domain.FixedAsset asset) {
+        BigDecimal cost = asset.getAcquisitionCost();
+        BigDecimal accumulated = asset.getAccumulatedDepreciation();
+        BigDecimal proceeds = asset.getDisposalAmount();
+        BigDecimal gain = proceeds.subtract(cost.subtract(accumulated));   // 처분가 - 장부가
+        String desc = "자산처분 " + asset.getAssetNo() + " " + asset.getName();
+
+        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, asset.getId(), asset.getDisposalDate(),
+                desc, null, asset.getCreatedBy());
+        if (isPositive(accumulated)) {
+            addDebit(e, "203", accumulated, "감가상각누계액 제거");
+        }
+        if (isPositive(proceeds)) {
+            addDebit(e, "101", proceeds, "처분대금");
+        }
+        if (gain.signum() < 0) {
+            addDebit(e, "970", gain.negate(), "유형자산처분손실");
+        }
+        addCreditAccount(e, asset.getAssetAccount(), cost, "자산 제거");
+        if (gain.signum() > 0) {
+            addCredit(e, "914", gain, "유형자산처분이익");
+        }
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {
@@ -240,8 +356,12 @@ public class JournalService {
     }
 
     private void addCredit(JournalEntry e, String code, BigDecimal amount, String desc) {
+        addCreditAccount(e, account(code), amount, desc);
+    }
+
+    private void addCreditAccount(JournalEntry e, Account account, BigDecimal amount, String desc) {
         e.addLine(JournalLine.builder()
-                .account(account(code)).debit(BigDecimal.ZERO).credit(amount).description(desc).build());
+                .account(account).debit(BigDecimal.ZERO).credit(amount).description(desc).build());
     }
 
     private JournalEntry save(JournalEntry e) {
