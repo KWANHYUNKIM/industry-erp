@@ -1293,3 +1293,23 @@ export interface OtherWithholdingSummary {
   byIncomeType: IncomeTypeSummary[]
   rows: OtherWithholding[]
 }
+
+// ===== 명함관리 =====
+
+export interface BusinessCard {
+  id: number
+  name: string
+  partnerId: number | null
+  partnerName: string | null
+  companyName: string | null
+  department: string | null
+  jobTitle: string | null
+  phone: string | null
+  mobile: string | null
+  email: string | null
+  address: string | null
+  ownerUserId: number | null
+  ownerName: string | null
+  tags: string[]
+  memo: string | null
+}

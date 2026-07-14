@@ -394,6 +394,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '거래처등록', to: '/sales/partners' },
           { label: '고객관리', to: '/groupware/crm' },
+          { label: '명함관리', to: '/groupware/cards' },
           { label: '거래처중심입력', to: '/sales/partner-entry' },
         ],
       },

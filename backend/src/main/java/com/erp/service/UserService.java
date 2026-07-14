@@ -82,6 +82,12 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    /** 다른 서비스가 사용자 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public User get(Long id) {
+        return getUser(id);
+    }
+
     private User getUser(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다. id=" + id));
