@@ -39,6 +39,14 @@ public class PayslipLine {
     @Builder.Default
     private boolean auto = false;
 
+    /**
+     * 과세 대상 수당인지. 식대 같은 비과세 수당은 4대보험·소득세 기준(과세소득)에서 빠진다.
+     * 공제 라인에서는 의미가 없다(기본 true 로 두고 쓰지 않는다).
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean taxable = true;
+
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;
