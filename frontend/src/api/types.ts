@@ -1189,3 +1189,107 @@ export interface OtherWithholdingSummary {
   byIncomeType: IncomeTypeSummary[]
   rows: OtherWithholding[]
 }
+
+// ===== 회계 II: 예산관리 · 자금계획 =====
+
+export interface Account {
+  id: number
+  code: string
+  name: string
+  division: AccountDivision
+  divisionName: string
+  detailCategory: string | null
+  active: boolean
+}
+
+export interface BudgetRow {
+  id: number
+  period: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  amount: number
+  actual: number
+  remaining: number
+  executionRate: number
+  over: boolean
+  remark: string | null
+}
+
+export interface BudgetStatus {
+  period: string
+  totalBudget: number
+  totalActual: number
+  totalRemaining: number
+  executionRate: number
+  rows: BudgetRow[]
+}
+
+export type CashFlowType = 'INFLOW' | 'OUTFLOW'
+
+export interface CashPlanRow {
+  id: number
+  period: string
+  type: CashFlowType
+  typeName: string
+  category: string
+  amount: number
+  remark: string | null
+}
+
+export interface CashPlanStatus {
+  period: string
+  plannedInflow: number
+  plannedOutflow: number
+  plannedNet: number
+  actualInflow: number
+  actualOutflow: number
+  actualNet: number
+  inflowDiff: number
+  outflowDiff: number
+  plans: CashPlanRow[]
+}
+
+// ===== 기타원천세 =====
+
+export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND'
+
+export interface OtherWithholding {
+  id: number
+  docNo: string
+  payDate: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  partnerId: number | null
+  payeeName: string
+  payeeRegNo: string | null
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  incomeTax: number
+  localIncomeTax: number
+  netAmount: number
+  description: string | null
+  createdBy: string | null
+}
+
+export interface IncomeTypeSummary {
+  incomeType: IncomeType
+  incomeTypeName: string
+  count: number
+  grossAmount: number
+  incomeTax: number
+  localIncomeTax: number
+}
+
+export interface OtherWithholdingSummary {
+  month: string
+  count: number
+  totalGross: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalNet: number
+  byIncomeType: IncomeTypeSummary[]
+  rows: OtherWithholding[]
+}
