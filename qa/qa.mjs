@@ -1645,6 +1645,201 @@ async function scenarioPerformance(f) {
   eq('담당자 매입액이 증가', Number(afterBuy.purchaseAmount) >= Number(buy.totalAmount), true)
 }
 
+/** 현금거래 세분류 — 계좌간이동 · 법인카드 대금결제 */
+async function scenarioCashDetail() {
+  section('■ 시나리오 25. 현금거래 세분류 (계좌간이동 · 카드대금결제)')
+
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')   // 복리후생비
+
+  const ensureBank = async (no, opening) =>
+    (await must('GET', '/bank-cards/accounts')).find((b) => b.accountNo === no)
+      ?? await must('POST', '/bank-cards/accounts', {
+        bankName: 'QA은행', accountNo: no, holder: 'QA법인', openingBalance: opening,
+      })
+  const from = await ensureBank(`${P}550-111-000005`, 10_000_000)
+  const to = await ensureBank(`${P}550-222-000006`, 0)
+  const balanceOf = async (id) => Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === id).balance)
+
+  const fromBefore = await balanceOf(from.id)
+  const toBefore = await balanceOf(to.id)
+
+  // ── 계좌간이동: 손익에 영향이 없고 예금계정끼리만 움직인다
+  const transfer = await must('POST', '/cash-details/account-transfers', {
+    fromAccountId: from.id, toAccountId: to.id, amount: 500_000, transferDate: '2026-07-14',
+  })
+  eq('출금 계좌에서 이동액만큼 빠짐', await balanceOf(from.id), fromBefore - 500_000)
+  eq('입금 계좌에 이동액만큼 들어옴', await balanceOf(to.id), toBefore + 500_000)
+
+  const entry = await must('GET', `/journals/${transfer.journalEntryId}`)
+  eq('이동 분개는 예금계정 차변 하나·대변 하나', entry.lines.length, 2)
+  eq('이동 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
+  // 손익계정(수익·비용)이 끼면 회사 안에서 돈을 옮겼을 뿐인데 이익이 생긴 것처럼 보인다
+  const divisionOf = (code) => accounts.find((a) => a.code === code).division
+  eq('이동은 손익계정을 건드리지 않음 (자산계정끼리만)',
+    entry.lines.every((l) => divisionOf(l.accountCode) === 'ASSET'), true)
+
+  await rejects('같은 계좌로는 이동 불가', 'POST', '/cash-details/account-transfers',
+    { fromAccountId: from.id, toAccountId: from.id, amount: 1_000 }, '같을 수 없습니다')
+  await rejects('잔액보다 많은 이동은 거부', 'POST', '/cash-details/account-transfers',
+    { fromAccountId: from.id, toAccountId: to.id, amount: 999_999_999 }, '잔액이 부족')
+
+  // ── 카드대금 결제: 카드사용 때 잡은 미지급금을 결제계좌에서 갚는다
+  const cardNo = `${P}5310-****-****-0002`
+  const card = (await must('GET', '/bank-cards/cards')).find((c) => c.cardNo === cardNo)
+    ?? await must('POST', '/bank-cards/cards', {
+      cardName: 'QA결제카드', cardCompany: 'QA카드', cardNo, type: 'CORPORATE',
+      settlementAccountId: from.id, settlementDay: 25,
+    })
+
+  // 미결제 사용건을 하나 만든다
+  const usage = await must('POST', '/bank-cards/usages', {
+    cardId: card.id, merchant: 'QA가맹점', expenseAccountId: welfare.id,
+    supplyAmount: 100_000, usageDate: '2026-07-14',
+  })
+  const unpaid = await must('GET', `/cash-details/card-payments/unpaid?cardId=${card.id}`)
+  eq('새 카드사용은 미결제 목록에 잡힘', unpaid.some((u) => u.id === usage.id), true)
+
+  const payFrom = await balanceOf(from.id)
+  const payment = await must('POST', '/cash-details/card-payments', {
+    cardId: card.id, paymentDate: '2026-07-25', cardUsageIds: [usage.id],
+  })
+  eq('결제금액 = 카드사용 합계', Number(payment.amount), Number(usage.totalAmount))
+  eq('결제계좌를 비우면 카드 등록계좌로 결제', payment.bankAccountId, from.id)
+  eq('결제하면 계좌에서 그만큼 빠짐', await balanceOf(from.id), payFrom - Number(payment.amount))
+
+  const payEntry = await must('GET', `/journals/${payment.journalEntryId}`)
+  eq('결제 분개 차변은 미지급금(253)',
+    Number(payEntry.lines.find((l) => l.accountCode === '253').debit), Number(payment.amount))
+  eq('결제 분개가 대차평형', Number(payEntry.totalDebit), Number(payEntry.totalCredit))
+
+  eq('결제한 사용건은 미결제 목록에서 빠짐',
+    (await must('GET', `/cash-details/card-payments/unpaid?cardId=${card.id}`)).some((u) => u.id === usage.id),
+    false)
+
+  await rejects('같은 사용건 재결제는 거부', 'POST', '/cash-details/card-payments',
+    { cardId: card.id, cardUsageIds: [usage.id] }, '미결제 사용내역이 없습니다')
+}
+
+/** 우측 앱바 위젯 — 통합검색 · 알림 · E Note(개인 메모) */
+async function scenarioWorkspace(f) {
+  section('■ 시나리오 26. 앱바 위젯 (통합검색 · 알림 · E Note)')
+
+  // ── 통합검색: 품목·거래처·전표를 한 번에 찾고, 결과에 이동 경로가 실린다
+  const found = await must('GET', `/workspace/search?q=${encodeURIComponent(f.customer.name)}`)
+  const partners = found.groups.find((g) => g.type === 'PARTNER')
+  eq('거래처명으로 거래처를 찾는다', partners.hits.some((h) => h.title.includes(f.customer.name)), true)
+  eq('검색 결과에 이동 경로가 실린다', partners.hits[0].to, '/sales/partners')
+
+  const byCode = await must('GET', `/workspace/search?q=${encodeURIComponent(f.product.code)}`)
+  eq('품목코드로 품목을 찾는다',
+    byCode.groups.find((g) => g.type === 'ITEM').hits.some((h) => h.title.includes(f.product.code)), true)
+
+  const noHit = await must('GET', '/workspace/search?q=ZZZ_NO_SUCH_KEYWORD_ZZZ')
+  eq('일치하는 게 없으면 0건', noHit.total, 0)
+
+  await rejects('검색어가 비면 거부', 'GET', '/workspace/search?q=', undefined, '검색어')
+
+  // ── 알림: 지금 손봐야 할 일만 담는다
+  const alerts = await must('GET', '/workspace/notifications')
+  eq('알림 건수와 목록 길이가 같다', alerts.total, alerts.notifications.length)
+  eq('모든 알림에 이동 경로가 있다', alerts.notifications.every((n) => Boolean(n.to)), true)
+  eq('알림 건수는 0보다 크다(미출고·안전재고 등)', alerts.total > 0, true)
+
+  // 미출고 수주 알림의 건수는 실제 미출고 목록과 일치해야 한다
+  const unshipped = alerts.notifications.find((n) => n.type === 'UNSHIPPED')
+  if (unshipped) {
+    eq('미출고 알림 건수 = 실제 미출고 라인 수',
+      unshipped.count, (await must('GET', '/sales-orders/unshipped')).length)
+  }
+
+  // ── E Note: 본인 것만 보이고 본인만 고친다
+  const note = await must('POST', '/workspace/notes', { content: `${P}메모 내용`, pinned: true })
+  eq('메모가 저장됨', note.content, `${P}메모 내용`)
+  eq('고정 플래그가 저장됨', note.pinned, true)
+
+  const mine = await must('GET', '/workspace/notes')
+  eq('내 메모 목록에 잡힘', mine.some((n) => n.id === note.id), true)
+
+  const updated = await must('PUT', `/workspace/notes/${note.id}`, { content: `${P}수정됨`, pinned: false })
+  eq('메모 수정됨', updated.content, `${P}수정됨`)
+  eq('고정 해제됨', updated.pinned, false)
+
+  // 다른 사용자로는 남의 메모가 보이지도, 지워지지도 않는다
+  const other = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  if (other.ok) {
+    const otherToken = other.data.token
+    const saved = token
+    token = otherToken
+    const otherNotes = await must('GET', '/workspace/notes')
+    eq('남의 메모는 목록에 보이지 않음', otherNotes.some((n) => n.id === note.id), false)
+    await rejects('남의 메모는 삭제할 수 없음', 'DELETE', `/workspace/notes/${note.id}`, undefined, '찾을 수 없습니다')
+    token = saved
+  }
+
+  await must('DELETE', `/workspace/notes/${note.id}`)
+  eq('내 메모는 삭제됨',
+    (await must('GET', '/workspace/notes')).some((n) => n.id === note.id), false)
+}
+
+async function scenarioCreatedByFk() {
+  section('■ 시나리오 27. created_by 무결성 (작성 이력이 있는 계정은 못 지운다)')
+
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')
+  const PERIOD = '2026-02'
+  const UNAME = `${P.toLowerCase()}deluser`
+
+  // 이전 실행의 잔재 정리 (예산 → 사용자 순으로 지워야 FK 에 걸리지 않는다)
+  const stale = (await must('GET', '/users')).find((u) => u.username === UNAME)
+  if (stale) {
+    for (const b of (await must('GET', `/budgets?period=${PERIOD}`)).rows) {
+      await must('DELETE', `/budgets/${b.id}`)
+    }
+    await must('DELETE', `/users/${stale.id}`)
+  }
+
+  const user = await must('POST', '/users', {
+    username: UNAME, password: 'qa-pass-1234', name: 'QA삭제테스트',
+    roleNames: ['STAFF'],
+  })
+  eq('신규 사용자 생성', user.username, UNAME)
+
+  // 이력이 없으면 지울 수 있다
+  await must('DELETE', `/users/${user.id}`)
+  eq('작성 이력이 없으면 삭제됨',
+    (await must('GET', '/users')).some((u) => u.username === UNAME), false)
+
+  // 다시 만들고, 그 사용자로 로그인해 전표를 하나 남긴다
+  const user2 = await must('POST', '/users', {
+    username: UNAME, password: 'qa-pass-1234', name: 'QA삭제테스트',
+    roleNames: ['MANAGER'],
+  })
+
+  const adminToken = token
+  const asUser = await call('POST', '/auth/login', { username: UNAME, password: 'qa-pass-1234' })
+  eq('신규 사용자로 로그인됨', asUser.ok, true)
+  token = asUser.data.token
+
+  const budget = await must('POST', '/budgets', {
+    period: PERIOD, accountId: welfare.id, amount: 500_000, remark: 'QA created_by FK',
+  })
+  token = adminToken
+
+  const rows = (await must('GET', `/budgets?period=${PERIOD}`)).rows
+  eq('예산의 작성자가 그 사용자로 남음', rows.find((b) => b.id === budget.id) !== undefined, true)
+
+  // 이제는 못 지운다 — DB FK(ON DELETE RESTRICT)가 막고, 서버가 이유를 말해준다
+  await rejects('작성 이력이 있는 사용자는 삭제 거부', 'DELETE', `/users/${user2.id}`,
+    undefined, '작성한 전표·문서가 있는 사용자는 삭제할 수 없습니다')
+
+  // 이력을 지우면 다시 지울 수 있다
+  await must('DELETE', `/budgets/${budget.id}`)
+  await must('DELETE', `/users/${user2.id}`)
+  eq('이력을 지운 뒤에는 삭제됨',
+    (await must('GET', '/users')).some((u) => u.username === UNAME), false)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1685,11 +1880,14 @@ async function main() {
   await scenarioPrintSign()
   await scenarioGroupwareShared()
   await scenarioPerformance(fixtures)
+  await scenarioCreatedByFk()
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()
   await scenarioApprovalSetting()
   await scenarioPaySetting()
+  await scenarioCashDetail()
+  await scenarioWorkspace(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
