@@ -809,3 +809,25 @@ export interface PurchaseOrder {
   createdBy: string | null
   lines: PurchaseOrderLine[]
 }
+
+export interface Department {
+  id: number
+  code: string
+  name: string
+  parentId: number | null
+  parentName: string | null
+  sortOrder: number
+  active: boolean
+  employeeCount: number
+}
+
+/** 사원 마스터 (/api/employees). 로그인 User 와는 별개다. */
+export interface EmployeeMaster {
+  id: number
+  code: string
+  name: string
+  departmentId: number | null
+  department: string
+  jobTitle: string
+  baseSalary: number
+}

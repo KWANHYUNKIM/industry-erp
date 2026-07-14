@@ -53,7 +53,8 @@ public final class PayrollDtos {
         public static PayslipResponse from(Payslip p) {
             return new PayslipResponse(
                     p.getId(), p.getEmployee().getId(), p.getEmployee().getCode(),
-                    p.getEmployee().getName(), p.getEmployee().getDepartment(),
+                    p.getEmployee().getName(),
+                    p.getEmployee().getDepartment() != null ? p.getEmployee().getDepartment().getName() : "",
                     p.getPayMonth(),
                     p.getBaseSalary(), p.getAllowanceTotal(), p.getDeductionTotal(),
                     p.grossPay(), p.getNetPay(),

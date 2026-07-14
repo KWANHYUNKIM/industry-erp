@@ -45,6 +45,7 @@ const MENU: TopMenu[] = [
           { label: '품목등록', to: '/inventory/items' },
           { label: '창고등록', to: '/inventory/warehouses' },
           { label: '거래처등록', to: '/sales/partners' },
+          { label: '부서등록', to: '/groupware/org' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
           { label: '단가적용순서설정', to: '/inventory/price-order' },
           { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
@@ -295,6 +296,7 @@ const MENU: TopMenu[] = [
         label: '공유정보',
         nodes: [
           { label: '주요전달사항', to: '/groupware/shared' },
+          { label: '조직도관리', to: '/groupware/org' },
           { label: '게시판', children: [{ label: '공지사항', to: '/groupware/notice' }] },
           {
             label: '사내관리',
