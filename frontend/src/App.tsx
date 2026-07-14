@@ -40,6 +40,7 @@ import BankCardPage from './pages/accounting/BankCardPage'
 import FixedAssetPage from './pages/accounting/FixedAssetPage'
 import FastVoucherPage from './pages/accounting/FastVoucherPage'
 import ExpensePage from './pages/accounting/ExpensePage'
+import IncomePage from './pages/accounting/IncomePage'
 import QualityInspectionPage from './pages/quality/QualityInspectionPage'
 import SerialLotPage from './pages/quality/SerialLotPage'
 import AsManagePage from './pages/quality/AsManagePage'
@@ -253,6 +254,7 @@ export default function App() {
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
+        <Route path="/accounting/income" element={<IncomePage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
         <Route path="/accounting/standard-cost" element={<StandardCostPage />} />
         <Route path="/accounting/actual-cost" element={<ActualCostPage />} />

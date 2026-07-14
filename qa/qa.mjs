@@ -1041,6 +1041,135 @@ async function scenarioCheck(f) {
   }, '당좌계좌')
 }
 
+/** 계약관리 · 전자계약 — 작성 → 서명요청 → 전자서명 → 해지 */
+async function scenarioContract(f) {
+  section('■ 시나리오 18. 계약관리 · 전자계약')
+
+  const contract = await must('POST', '/contracts', {
+    title: `${P}연간 공급계약`, type: 'SALES', partnerId: f.customer.id,
+    startDate: '2026-07-01', endDate: '2026-12-31', amount: 50_000_000,
+    paymentTerms: '월말 마감 익월 10일 지급',
+  })
+  eq('신규 계약 상태는 작성', contract.statusName, '작성')
+  eq('계약번호는 CT- 접두어', String(contract.contractNo).startsWith('CT-'), 'true')
+  isNull('작성 단계에는 서명 기록이 없음', contract.signedAt)
+
+  await rejects('작성 상태에서 바로 서명은 거부', 'POST', `/contracts/${contract.id}/sign`,
+    { signerName: '김대표', agreement: '동의합니다.' }, '서명요청 상태에서만')
+
+  eq('서명요청 후 상태는 서명요청',
+    (await must('POST', `/contracts/${contract.id}/send`)).statusName, '서명요청')
+
+  const signed = await must('POST', `/contracts/${contract.id}/sign`, {
+    signerName: '김대표', agreement: '본 계약 내용에 동의합니다.',
+  })
+  eq('전자서명 후 상태는 서명완료', signed.statusName, '서명완료')
+  eq('서명자가 기록됨', signed.signerName, '김대표')
+  eq('동의문구가 그대로 보관됨', signed.agreement, '본 계약 내용에 동의합니다.')
+  eq('서명일시가 남음', typeof signed.signedAt, 'string')
+
+  await rejects('서명완료 계약 재서명은 거부', 'POST', `/contracts/${contract.id}/sign`,
+    { signerName: 'X', agreement: 'Y' }, '서명요청 상태에서만')
+
+  const terminated = await must('POST', `/contracts/${contract.id}/terminate`, {
+    reason: '합의 해지', terminatedDate: '2026-07-14',
+  })
+  eq('해지 후 상태는 해지', terminated.statusName, '해지')
+  eq('해지 사유가 기록됨', terminated.terminationReason, '합의 해지')
+
+  await rejects('해지된 계약 재해지는 거부', 'POST', `/contracts/${contract.id}/terminate`,
+    { reason: '또 해지' }, '서명완료 상태에서만')
+
+  await rejects('종료일이 시작일보다 빠르면 거부', 'POST', '/contracts', {
+    title: `${P}잘못된 계약`, type: 'SALES', partnerId: f.customer.id,
+    startDate: '2026-08-01', endDate: '2026-07-01', amount: 1_000,
+  }, '종료일')
+
+  // 서명 전 계약은 해지 대상이 아니다 — 그냥 두면 된다
+  const draft = await must('POST', '/contracts', {
+    title: `${P}미서명 계약`, type: 'PURCHASE', partnerId: f.supplier.id,
+    startDate: '2026-07-01', endDate: '2026-09-30', amount: 1_000_000,
+  })
+  await rejects('서명 전 계약은 해지할 수 없음', 'POST', `/contracts/${draft.id}/terminate`,
+    { reason: '취소' }, '서명완료 상태에서만')
+}
+
+async function scenarioIncome() {
+  section('■ 시나리오 19. 수입비용 (수입등록 자동분개 · 수입비용현황)')
+
+  const FROM = '2026-04-01'
+  const TO = '2026-04-30'
+  const accounts = await must('GET', '/accounts')
+  const interest = accounts.find((a) => a.code === '901')     // 이자수익 (수익)
+  const welfare = accounts.find((a) => a.code === '811')      // 복리후생비 (비용)
+
+  eq('수입용 영업외수익 계정이 시드됨', Boolean(interest), true)
+
+  await rejects('수익 계정이 아니면 수입 등록 거부', 'POST', '/incomes', {
+    incomeDate: FROM, accountId: welfare.id, content: 'QA 잘못된 계정', amount: 1000, receiptMethod: 'CASH',
+  }, '수익 계정에만')
+
+  await rejects('계좌입금인데 계좌 미지정이면 거부', 'POST', '/incomes', {
+    incomeDate: FROM, accountId: interest.id, content: 'QA 계좌 미지정', amount: 1000, receiptMethod: 'BANK',
+  }, '계좌를 선택')
+
+  // ── 현금 수입: 차)현금 / 대)이자수익
+  const before = await must('GET', `/incomes/status?from=${FROM}&to=${TO}`)
+  const cash = await must('POST', '/incomes', {
+    incomeDate: FROM, accountId: interest.id, content: 'QA 예금이자', amount: 50_000, receiptMethod: 'CASH',
+  })
+  eq('현금 수입에 회계전표가 붙음', typeof cash.journalDocNo, 'string')
+
+  const journal = await must('GET', `/journals/${cash.journalEntryId}`)
+  eq('현금 수입 분개 차변은 현금(101)', journal.lines.find((l) => Number(l.debit) > 0).accountCode, '101')
+  eq('현금 수입 분개 대변은 이자수익(901)', journal.lines.find((l) => Number(l.credit) > 0).accountCode, '901')
+  eq('분개가 대차평형', Number(journal.totalDebit), Number(journal.totalCredit))
+
+  // ── 계좌 수입: 계좌 잔액이 함께 오른다
+  const accountNo = `${P}110-999-000003`
+  const bank = (await must('GET', '/bank-cards/accounts')).find((a) => a.accountNo === accountNo)
+    ?? await must('POST', '/bank-cards/accounts', {
+      bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 0,
+    })
+  const balanceBefore = Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance)
+
+  const banked = await must('POST', '/incomes', {
+    incomeDate: FROM, accountId: interest.id, content: 'QA 계좌이자', amount: 30_000,
+    receiptMethod: 'BANK', bankAccountId: bank.id,
+  })
+  eq('계좌 수입만큼 잔액 증가',
+    Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance),
+    balanceBefore + 30_000)
+  eq('계좌 수입에도 전표가 붙음', typeof banked.journalDocNo, 'string')
+
+  await rejects('계좌입금 수입은 삭제 불가(잔액이 이미 움직임)', 'DELETE', `/incomes/${banked.id}`,
+    undefined, '삭제할 수 없습니다')
+
+  // ── 외상 수입: 차)외상매출금 / 대)수익
+  const credit = await must('POST', '/incomes', {
+    incomeDate: FROM, accountId: interest.id, content: 'QA 미수이자', amount: 20_000, receiptMethod: 'CREDIT',
+  })
+  const creditJournal = await must('GET', `/journals/${credit.journalEntryId}`)
+  eq('외상 수입 분개 차변은 외상매출금(108)',
+    creditJournal.lines.find((l) => Number(l.debit) > 0).accountCode, '108')
+
+  // ── 수입비용현황
+  const status = await must('GET', `/incomes/status?from=${FROM}&to=${TO}`)
+  eq('수입 합계가 등록분만큼 늘어남',
+    Number(status.totalIncome), Number(before.totalIncome) + 100_000)
+  eq('순수지 = 수입 - 비용', Number(status.net), Number(status.totalIncome) - Number(status.totalExpense))
+  eq('계정별 합계가 총합과 일치',
+    status.incomeByAccount.reduce((s, r) => s + Number(r.amount), 0), Number(status.totalIncome))
+
+  const row = status.incomeByAccount.find((r) => r.accountCode === '901')
+  eq('구성비 = 계정금액 / 총수입 × 100', Number(row.ratio),
+    Math.round(Number(row.amount) / Number(status.totalIncome) * 1000) / 10)
+
+  await must('DELETE', `/incomes/${cash.id}`)
+  eq('현금 수입은 삭제 가능',
+    (await must('GET', `/incomes?from=${FROM}&to=${TO}`)).some((i) => i.id === cash.id), false)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1076,7 +1205,9 @@ async function main() {
   await scenarioNonCash()
   await scenarioBudget()
   await scenarioMail()
+  await scenarioIncome()
   await scenarioCheck(fixtures)
+  await scenarioContract(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
