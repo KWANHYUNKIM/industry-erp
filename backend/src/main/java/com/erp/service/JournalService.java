@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.Account;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Expense;
@@ -21,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -36,8 +36,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JournalService {
 
-    private static final DateTimeFormatter DOC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
 
+    private final DocumentNoGenerator docNoGenerator;
     private final JournalEntryRepository entryRepository;
     private final AccountRepository accountRepository;
     private final BusinessPartnerRepository partnerRepository;
@@ -419,9 +419,10 @@ public class JournalService {
 
     private JournalEntry newEntry(JournalSourceType type, Long sourceId, LocalDate date,
                                   String desc, com.erp.domain.BusinessPartner partner, String createdBy) {
-        int seq = entryRepository.maxSeq(date) + 1;
         return JournalEntry.builder()
-                .docNo("GL-" + date.format(DOC_DATE) + "-" + String.format("%04d", seq))
+                // 채번은 공용 DocumentNoGenerator 에 맡긴다. 여기서 직접 max+1 을 하면
+                // 동시에 전표를 만드는 두 트랜잭션이 같은 번호를 받아 unique 제약에서 터진다.
+                .docNo(docNoGenerator.next("GL-", "journal_entries", "doc_no", "entry_date", date))
                 .entryDate(date)
                 .description(desc)
                 .partner(partner)
