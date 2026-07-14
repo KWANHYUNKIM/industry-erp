@@ -977,12 +977,24 @@ async function scenarioCheck(f) {
   const balanceOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === bank.id).balance)
   const before = await balanceOf()
 
-  const stamp = String(before).slice(-6)   // 재실행해도 수표번호가 겹치지 않게
+  // 수표번호는 유니크다. 계좌 잔액에서 뽑으면(입금 후 출금으로 되돌아와) 매 실행 같은 번호가 나와
+  // 두 번째 실행부터 중복으로 막힌다. 이미 쓴 번호를 보고 빈 번호를 잡는다.
+  const usedNos = new Set((await must('GET', '/checks')).map((c) => c.checkNo))
+  const freeNo = (kind) => {
+    let i = 1
+    let no
+    do { no = `${P}${kind}-${String(i).padStart(6, '0')}`; i++ } while (usedNos.has(no))
+    usedNos.add(no)
+    return no
+  }
+  const receivedNo = freeNo('R')
+  const dishonorNo = freeNo('D')
+  const issuedNo = freeNo('I')
   const linesOf = async (id) => (await must('GET', `/journals/${id}`)).lines
 
   // 받은수표 수취 → 차)받을수표 / 대)외상매출금
   const received = await must('POST', '/checks', {
-    type: 'RECEIVED', checkNo: `${P}R-${stamp}`, amount: 500_000,
+    type: 'RECEIVED', checkNo: receivedNo, amount: 500_000,
     bankName: 'QA은행', issueDate: '2026-07-14', partnerId: f.customer.id,
   })
   eq('신규 수표 상태는 보유', received.statusName, '보유')
@@ -1006,7 +1018,7 @@ async function scenarioCheck(f) {
 
   // 부도 → 현금 없이 외상매출금으로 환원
   const dishonored = await must('POST', '/checks', {
-    type: 'RECEIVED', checkNo: `${P}D-${stamp}`, amount: 200_000, issueDate: '2026-07-14',
+    type: 'RECEIVED', checkNo: dishonorNo, amount: 200_000, issueDate: '2026-07-14',
   })
   const balanceBeforeDishonor = await balanceOf()
   await must('POST', `/checks/${dishonored.id}/dishonor`, { settledDate: '2026-07-14' })
@@ -1017,7 +1029,7 @@ async function scenarioCheck(f) {
 
   // 발행수표 → 끊는 순간 예금이 빠진다
   const issued = await must('POST', '/checks', {
-    type: 'ISSUED', checkNo: `${P}I-${stamp}`, amount: 300_000,
+    type: 'ISSUED', checkNo: issuedNo, amount: 300_000,
     bankAccountId: bank.id, issueDate: '2026-07-14', partnerId: f.supplier.id,
   })
   eq('발행하면 계좌 잔액이 수표 금액만큼 감소', await balanceOf(), before + 500_000 - 300_000)
@@ -1034,10 +1046,10 @@ async function scenarioCheck(f) {
   await rejects('발행수표는 부도 처리할 수 없음', 'POST', `/checks/${issued.id}/dishonor`, {}, '받은수표만')
   await rejects('받은수표는 결제 확인 대상이 아님', 'POST', `/checks/${dishonored.id}/settle`, {}, '발행수표만')
   await rejects('중복 수표번호는 거부', 'POST', '/checks', {
-    type: 'RECEIVED', checkNo: `${P}R-${stamp}`, amount: 1_000,
+    type: 'RECEIVED', checkNo: receivedNo, amount: 1_000,
   }, '이미 등록된 수표번호')
   await rejects('발행수표에 계좌가 없으면 거부', 'POST', '/checks', {
-    type: 'ISSUED', checkNo: `${P}X-${stamp}`, amount: 1_000,
+    type: 'ISSUED', checkNo: freeNo('X'), amount: 1_000,
   }, '당좌계좌')
 }
 
@@ -1170,6 +1182,52 @@ async function scenarioIncome() {
     (await must('GET', `/incomes?from=${FROM}&to=${TO}`)).some((i) => i.id === cash.id), false)
 }
 
+/** 외화 — 통화 마스터 · 일자별 고시환율 · 원화 환산 */
+async function scenarioCurrency() {
+  section('■ 시나리오 20. 외화 (통화 · 고시환율 · 원화 환산)')
+
+  const currencies = await must('GET', '/currencies')
+  const usd = currencies.find((c) => c.code === 'USD')
+  const jpy = currencies.find((c) => c.code === 'JPY')
+  eq('기본 통화(USD)가 시드됨', Boolean(usd), true)
+  eq('엔화 고시단위는 100', jpy.unit, 100)
+
+  await rejects('원화(KRW)는 외화로 등록 불가', 'POST', '/currencies',
+    { code: 'KRW', name: '원화', unit: 1 }, '기준통화')
+  await rejects('중복 통화코드는 거부', 'POST', '/currencies',
+    { code: 'USD', name: '중복', unit: 1 }, '이미 등록된 통화')
+
+  // 고시환율 등록 (이미 있으면 그대로 쓴다 — 재실행 안전)
+  const rateDate = '2026-07-10'
+  const rates = await must('GET', '/currencies/rates')
+  const hasUsd = rates.some((r) => r.currencyId === usd.id && r.rateDate === rateDate)
+  if (!hasUsd) {
+    await must('POST', '/currencies/rates', { currencyId: usd.id, rateDate, rate: 1385.5 })
+  }
+  const hasJpy = rates.some((r) => r.currencyId === jpy.id && r.rateDate === rateDate)
+  if (!hasJpy) {
+    await must('POST', '/currencies/rates', { currencyId: jpy.id, rateDate, rate: 950 })
+  }
+
+  await rejects('같은 통화·같은 날 환율 중복 등록은 거부', 'POST', '/currencies/rates',
+    { currencyId: usd.id, rateDate, rate: 1400 }, '이미 등록된 환율')
+
+  // 환산: 기준일에 고시가 없으면 직전 고시를 쓴다
+  const conv = await must('GET', `/currencies/convert?currencyId=${usd.id}&amount=1000&baseDate=2026-07-14`)
+  eq('기준일 고시가 없으면 직전 고시 적용', conv.appliedRateDate, rateDate)
+  eq('USD 1,000 → 1,385,500원', Number(conv.krwAmount), 1_385_500)
+
+  // 고시단위 100인 통화는 단위로 나눠 환산한다
+  const jpyConv = await must('GET', `/currencies/convert?currencyId=${jpy.id}&amount=10000&baseDate=2026-07-14`)
+  eq('JPY 10,000 → 95,000원 (단위 100 반영)', Number(jpyConv.krwAmount), 95_000)
+
+  await rejects('고시 이전 날짜는 환산 불가', 'GET',
+    `/currencies/convert?currencyId=${usd.id}&amount=100&baseDate=2026-01-01`, undefined, '고시환율이 없습니다')
+
+  const latest = (await must('GET', '/currencies')).find((c) => c.id === usd.id)
+  eq('통화 목록에 최근 고시환율이 실림', Number(latest.latestRate), 1385.5)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1208,6 +1266,7 @@ async function main() {
   await scenarioIncome()
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
+  await scenarioCurrency()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

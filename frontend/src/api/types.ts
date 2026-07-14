@@ -483,6 +483,124 @@ export interface StockTransfer {
   createdBy: string | null
 }
 
+// ===== 외화 (통화 마스터 · 고시환율) =====
+
+export interface Currency {
+  id: number
+  code: string
+  name: string
+  symbol: string | null
+  /** 고시 단위 (JPY는 100) */
+  unit: number
+  active: boolean
+  latestRate: number | null
+  latestRateDate: string | null
+}
+
+export interface ExchangeRate {
+  id: number
+  currencyId: number
+  currencyCode: string
+  currencyName: string
+  unit: number
+  rateDate: string
+  rate: number
+  /** 1 통화당 원화 (rate / unit) */
+  ratePerUnit: number
+  createdBy: string | null
+}
+
+export interface CurrencyConversion {
+  currencyId: number
+  currencyCode: string
+  baseDate: string
+  appliedRateDate: string
+  appliedRate: number
+  unit: number
+  foreignAmount: number
+  krwAmount: number
+}
+
+// ===== 계약관리 · 전자계약 (회계 II) =====
+
+export type BusinessContractType = 'SALES' | 'PURCHASE' | 'OTHER'
+export type BusinessContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'TERMINATED'
+
+export interface BusinessContract {
+  id: number
+  contractNo: string
+  title: string
+  type: BusinessContractType
+  typeName: string
+  status: BusinessContractStatus
+  statusName: string
+  partnerId: number
+  partnerName: string
+  startDate: string
+  endDate: string
+  amount: number
+  paymentTerms: string | null
+  content: string | null
+  sentAt: string | null
+  signerName: string | null
+  signedAt: string | null
+  agreement: string | null
+  terminatedDate: string | null
+  terminationReason: string | null
+  /** 오늘 기준 만료까지 남은 일수 */
+  daysToExpiry: number
+  createdBy: string | null
+}
+
+// ===== 수표관리 (회계 II) =====
+
+export type CheckType = 'RECEIVED' | 'ISSUED'
+export type CheckStatus = 'HELD' | 'DEPOSITED' | 'PAID' | 'DISHONORED'
+
+export interface BankCheck {
+  id: number
+  checkNo: string
+  type: CheckType
+  typeName: string
+  status: CheckStatus
+  statusName: string
+  issueDate: string
+  amount: number
+  bankName: string | null
+  partnerId: number | null
+  partnerName: string | null
+  bankAccountId: number | null
+  bankAccountName: string | null
+  settledDate: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+// ===== 비현금거래 (대체전표) =====
+
+export type NonCashType = 'OFFSET' | 'BAD_DEBT' | 'ACCRUAL' | 'TRANSFER'
+
+export interface NonCashTxn {
+  id: number
+  txnNo: string
+  type: NonCashType
+  typeName: string
+  txnDate: string
+  debitAccountId: number
+  debitAccountCode: string
+  debitAccountName: string
+  creditAccountId: number
+  creditAccountCode: string
+  creditAccountName: string
+  amount: number
+  partnerId: number | null
+  partnerName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
 // ===== FastEntry 간편전표 (지출결의서·입금보고서·가지급금정산서) =====
 
 export type FastVoucherType = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT'
@@ -1147,49 +1265,6 @@ export interface DailyWorkSummary {
   rows: DailyWork[]
 }
 
-// ===== 기타원천세 =====
-
-export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND'
-
-export interface OtherWithholding {
-  id: number
-  docNo: string
-  payDate: string
-  incomeType: IncomeType
-  incomeTypeName: string
-  partnerId: number | null
-  payeeName: string
-  payeeRegNo: string | null
-  grossAmount: number
-  expenseAmount: number
-  taxableAmount: number
-  incomeTax: number
-  localIncomeTax: number
-  netAmount: number
-  description: string | null
-  createdBy: string | null
-}
-
-export interface IncomeTypeSummary {
-  incomeType: IncomeType
-  incomeTypeName: string
-  count: number
-  grossAmount: number
-  incomeTax: number
-  localIncomeTax: number
-}
-
-export interface OtherWithholdingSummary {
-  month: string
-  count: number
-  totalGross: number
-  totalIncomeTax: number
-  totalLocalIncomeTax: number
-  totalNet: number
-  byIncomeType: IncomeTypeSummary[]
-  rows: OtherWithholding[]
-}
-
 // ===== 회계 II: 예산관리 · 자금계획 =====
 
 export interface Account {
@@ -1422,4 +1497,50 @@ export interface IncomeExpenseStatus {
   net: number
   incomeByAccount: AccountSummaryRow[]
   expenseByAccount: AccountSummaryRow[]
+}
+
+// ===== WMS (로케이션) =====
+
+export interface WarehouseLocation {
+  id: number
+  warehouseId: number
+  warehouseName: string
+  code: string
+  zone: string | null
+  rack: string | null
+  level: string | null
+  description: string | null
+  active: boolean
+}
+
+export interface LocationStock {
+  id: number
+  locationId: number
+  locationCode: string
+  warehouseId: number
+  warehouseName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+}
+
+/** (품목, 창고)별 배치 현황: 창고 재고 = 배치 + 미배치 */
+export interface AllocationRow {
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  stockQuantity: number
+  allocatedQuantity: number
+  unallocatedQuantity: number
+}
+
+export interface WmsOverview {
+  locations: WarehouseLocation[]
+  locationStocks: LocationStock[]
+  allocations: AllocationRow[]
 }
