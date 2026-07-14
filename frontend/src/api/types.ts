@@ -1055,6 +1055,65 @@ export interface Payslip {
   lines: PayslipLine[]
 }
 
+// ===== 급여 설정 (수당·공제 항목/그룹) · 급여이체 =====
+// PayslipLineKind 는 위 급여관리 블록에 이미 있다.
+
+export interface PayItem {
+  id: number
+  code: string
+  name: string
+  kind: PayslipLineKind
+  kindName: string
+  /** 비과세 수당이면 false — 4대보험·소득세 기준에서 빠진다 */
+  taxable: boolean
+  defaultAmount: number
+  active: boolean
+}
+
+export interface PayGroupLine {
+  payItemId: number
+  code: string
+  name: string
+  kind: PayslipLineKind
+  kindName: string
+  taxable: boolean
+  amount: number
+}
+
+export interface PayGroup {
+  id: number
+  name: string
+  remark: string | null
+  active: boolean
+  allowanceTotal: number
+  deductionTotal: number
+  lines: PayGroupLine[]
+}
+
+export interface PayrollTransferLine {
+  payslipId: number
+  employeeId: number
+  employeeName: string
+  department: string | null
+  netPay: number
+}
+
+export interface PayrollTransfer {
+  id: number
+  transferNo: string
+  payMonth: string
+  transferDate: string
+  bankAccountId: number
+  bankAccountName: string
+  totalPay: number
+  totalDeduction: number
+  netPay: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+  lines: PayrollTransferLine[]
+}
+
 // ===== 견적서 =====
 
 export type QuotationStatus = 'DRAFT' | 'SENT' | 'CONVERTED' | 'CANCELLED'
@@ -1728,6 +1787,47 @@ export interface ProjectProfitSummary {
   unassignedRevenue: number
   unassignedCost: number
   rows: ProjectProfitRow[]
+}
+
+// ===== 익명게시판 · 외근조회 =====
+
+export interface BoardPost {
+  id: number
+  title: string
+  category: string | null
+  author: string | null
+  anonymous: boolean
+  views: number
+  createdAt: string
+}
+
+export interface BoardPostDetail extends BoardPost {
+  content: string | null
+}
+
+export type FieldWorkStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED'
+
+export interface FieldWork {
+  id: number
+  userId: number
+  userName: string
+  department: string | null
+  workDate: string
+  startTime: string | null
+  endTime: string | null
+  destination: string
+  purpose: string
+  status: FieldWorkStatus
+  statusName: string
+  approverName: string | null
+  rejectReason: string | null
+}
+
+export interface FieldWorkSummary {
+  requestedCount: number
+  approvedCount: number
+  rejectedCount: number
+  rows: FieldWork[]
 }
 
 // ===== 공통코드 =====
