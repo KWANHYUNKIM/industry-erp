@@ -1114,3 +1114,35 @@ export interface EmploymentContract {
   remark: string | null
   createdBy: string | null
 }
+
+// ===== 일용근로급여 =====
+
+export interface DailyWork {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  workDate: string
+  workHours: number
+  dailyWage: number
+  incomeTax: number
+  localIncomeTax: number
+  netPay: number
+  paid: boolean
+  paidDate: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface DailyWorkSummary {
+  month: string
+  headcount: number
+  workDays: number
+  totalWage: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalNetPay: number
+  unpaidNetPay: number
+  rows: DailyWork[]
+}

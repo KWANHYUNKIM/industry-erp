@@ -102,6 +102,7 @@ import EmployeePage from './pages/hr/EmployeePage'
 import PayrollPage from './pages/hr/PayrollPage'
 import HrRecordPage from './pages/hr/HrRecordPage'
 import ContractPage from './pages/hr/ContractPage'
+import DailyWagePage from './pages/hr/DailyWagePage'
 import NoticePage from './pages/groupware/NoticePage'
 import SchedulePage from './pages/groupware/SchedulePage'
 import SurveyPage from './pages/groupware/SurveyPage'
@@ -303,6 +304,7 @@ export default function App() {
         <Route path="/hr/payroll" element={<PayrollPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
         <Route path="/hr/contracts" element={<ContractPage />} />
+        <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
         <Route path="/users" element={<UsersPage />} />
       </Route>
