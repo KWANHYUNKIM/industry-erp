@@ -5,7 +5,9 @@ import com.erp.dto.EmployeeDtos.AssignmentResponse;
 import com.erp.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.dto.EmployeeDtos.EmployeeResponse;
 import com.erp.dto.EmployeeDtos.UpdateSalaryRequest;
+import com.erp.dto.EmployeePerformanceDtos.PerformanceSummary;
 import com.erp.security.UserPrincipal;
+import com.erp.service.EmployeePerformanceService;
 import com.erp.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -25,6 +30,15 @@ import java.util.List;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final EmployeePerformanceService performanceService;
+
+    /** 담당자별 실적: 전표에 붙은 담당 사원으로 판매·구매를 집계한다(입력 계정이 아니다). */
+    @GetMapping("/performance")
+    public PerformanceSummary performance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return performanceService.performance(from, to);
+    }
 
     @GetMapping
     public List<EmployeeResponse> list() {

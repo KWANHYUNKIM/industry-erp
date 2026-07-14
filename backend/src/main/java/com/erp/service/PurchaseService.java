@@ -31,6 +31,7 @@ import java.util.List;
 public class PurchaseService {
 
     private final ProjectService projectService;
+    private final EmployeeService employeeService;
 
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
@@ -95,6 +96,7 @@ public class PurchaseService {
                 .createdBy(username)
                 .remark(req.remark())
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
+                .employee(req.employeeId() != null ? employeeService.get(req.employeeId()) : null)
                 .build();
 
         BigDecimal totalSupply = BigDecimal.ZERO;

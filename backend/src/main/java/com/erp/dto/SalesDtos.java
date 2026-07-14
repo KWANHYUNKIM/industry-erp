@@ -32,6 +32,8 @@ public final class SalesDtos {
             String remark,
             /** 귀속 프로젝트 (선택). 프로젝트별 손익 집계의 재료가 된다. */
             Long projectId,
+            /** 담당 사원 (선택). 입력 계정(createdBy)이 아니라 실적이 붙을 사람이다. */
+            Long employeeId,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<SalesLineRequest> lines
     ) {}
 
@@ -63,6 +65,7 @@ public final class SalesDtos {
             SalesConfirmStatus confirmStatus, String confirmStatusName, LocalDateTime confirmedAt,
             boolean accountingReflected,
             Long projectId, String projectName,
+            Long employeeId, String employeeName,
             List<SalesLineResponse> lines
     ) {
         public static SalesResponse from(Sales s) {
@@ -77,6 +80,8 @@ public final class SalesDtos {
                     s.isAccountingReflected(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
+                    s.getEmployee() != null ? s.getEmployee().getId() : null,
+                    s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getLines().stream().map(SalesLineResponse::from).toList());
         }
     }

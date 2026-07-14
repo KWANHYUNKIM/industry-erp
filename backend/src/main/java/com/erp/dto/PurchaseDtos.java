@@ -29,6 +29,8 @@ public final class PurchaseDtos {
             String remark,
             /** 귀속 프로젝트 (선택) */
             Long projectId,
+            /** 담당 사원 (선택). 실적이 붙을 사람이다. */
+            Long employeeId,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<PurchaseLineRequest> lines
     ) {}
 
@@ -58,6 +60,7 @@ public final class PurchaseDtos {
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
             Long projectId, String projectName,
+            Long employeeId, String employeeName,
             List<PurchaseLineResponse> lines
     ) {
         public static PurchaseResponse from(Purchase p) {
@@ -70,6 +73,8 @@ public final class PurchaseDtos {
                     p.getRemark(), p.getCreatedBy(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
+                    p.getEmployee() != null ? p.getEmployee().getId() : null,
+                    p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getLines().stream().map(PurchaseLineResponse::from).toList());
         }
     }

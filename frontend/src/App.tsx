@@ -117,6 +117,7 @@ import VacationUsePage from './pages/hr/VacationUsePage'
 import VacationRemainPage from './pages/hr/VacationRemainPage'
 import EmployeePage from './pages/hr/EmployeePage'
 import PayrollPage from './pages/hr/PayrollPage'
+import EmployeePerformancePage from './pages/hr/EmployeePerformancePage'
 import PaySettingPage from './pages/hr/PaySettingPage'
 import HrRecordPage from './pages/hr/HrRecordPage'
 import LaborContractPage from './pages/hr/ContractPage'
@@ -337,6 +338,7 @@ export default function App() {
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
         <Route path="/hr/employees" element={<EmployeePage />} />
         <Route path="/hr/payroll" element={<PayrollPage />} />
+        <Route path="/hr/performance" element={<EmployeePerformancePage />} />
         <Route path="/hr/pay-settings" element={<PaySettingPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
         <Route path="/hr/contracts" element={<LaborContractPage />} />

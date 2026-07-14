@@ -62,6 +62,11 @@ public class Purchase extends BaseTimeEntity {
     @JoinColumn(name = "project_id")
     private Project project;
 
+    /** 담당 사원. createdBy(입력 계정)와 다르다 — 실적은 담당자에게 붙는다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
+
     /** 회계반영 여부 (구매 전표 → 회계 분개 반영 완료) */
     @Column(nullable = false)
     @Builder.Default

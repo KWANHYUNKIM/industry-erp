@@ -14,6 +14,8 @@ public enum JournalSourceType {
     NONCASH("비현금거래"),
     CHECK("수표"),
     PAYROLL("급여이체"),
+    ACCOUNT_TRANSFER("계좌간이동"),
+    CARD_PAYMENT("카드대금결제"),
     MANUAL("수동입력");
 
     private final String displayName;

@@ -163,6 +163,8 @@ export interface SalesDoc {
   confirmStatusName: string
   confirmedAt: string | null
   accountingReflected: boolean
+  employeeId: number | null
+  employeeName: string | null
   lines: TradeLine[]
 }
 
@@ -179,6 +181,8 @@ export interface PurchaseDoc {
   totalAmount: number
   remark: string | null
   createdBy: string | null
+  employeeId: number | null
+  employeeName: string | null
   lines: TradeLine[]
 }
 
@@ -580,6 +584,50 @@ export interface BusinessContract {
   /** 오늘 기준 만료까지 남은 일수 */
   daysToExpiry: number
   createdBy: string | null
+}
+
+// ===== 현금거래 세분류 (계좌간이동 · 법인카드 대금결제) =====
+
+export interface AccountTransfer {
+  id: number
+  transferNo: string
+  transferDate: string
+  fromAccountId: number
+  fromAccountName: string
+  fromBalanceAfter: number
+  toAccountId: number
+  toAccountName: string
+  toBalanceAfter: number
+  amount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+export interface CardPaymentLine {
+  cardUsageId: number
+  usageNo: string
+  usageDate: string
+  merchant: string
+  expenseAccountName: string
+  amount: number
+}
+
+export interface CardPayment {
+  id: number
+  paymentNo: string
+  paymentDate: string
+  cardId: number
+  cardName: string
+  cardCompany: string
+  bankAccountId: number
+  bankAccountName: string
+  amount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+  lines: CardPaymentLine[]
 }
 
 // ===== 수표관리 (회계 II) =====
@@ -1851,4 +1899,26 @@ export interface CodeGroup {
   system: boolean
   active: boolean
   codes: CommonCode[]
+}
+
+// ===== 담당자별 실적 =====
+
+export interface PerformanceRow {
+  employeeId: number | null
+  employeeCode: string
+  employeeName: string
+  department: string | null
+  salesCount: number
+  salesAmount: number
+  purchaseCount: number
+  purchaseAmount: number
+  salesShare: number
+}
+
+export interface PerformanceSummary {
+  from: string
+  to: string
+  totalSales: number
+  totalPurchase: number
+  rows: PerformanceRow[]
 }
