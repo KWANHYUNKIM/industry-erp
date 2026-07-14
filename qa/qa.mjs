@@ -901,6 +901,146 @@ async function scenarioBudget() {
   eq('계획 3건이 목록에 있음', cash.plans.length, 3)
 }
 
+async function scenarioMail() {
+  section('■ 시나리오 16. 공용메일 (사내메일 · 공용메일함 배정→처리)')
+
+  const users = await must('GET', '/users')
+  const me = users.find((u) => u.username === USER)
+  const other = users.find((u) => u.id !== me.id)
+  if (!other) {
+    console.log('  ⏭  사용자가 1명뿐이라 사내메일 발송을 건너뜁니다.')
+  } else {
+    const mail = await must('POST', '/mails', {
+      recipientId: other.id, subject: 'QA 사내메일', body: '테스트 본문',
+    })
+    eq('발송 직후 상태는 미읽음', mail.statusName, '미읽음')
+    eq('발신함에 내가 보낸 메일이 있음',
+      (await must('GET', '/mails/sent')).some((m) => m.id === mail.id), true)
+    eq('내 수신함에는 없음(남에게 보낸 메일)',
+      (await must('GET', '/mails/inbox')).some((m) => m.id === mail.id), false)
+
+    await rejects('받는 사람이 아니면 읽음 처리 불가', 'POST', `/mails/${mail.id}/read`, undefined, '받는 사람만')
+    await rejects('공용메일이 아니면 담당자 배정 불가', 'POST', `/mails/${mail.id}/assign`,
+      { assigneeId: me.id }, '공용메일만')
+  }
+
+  await rejects('자기 자신에게는 보낼 수 없음', 'POST', '/mails', {
+    recipientId: me.id, subject: 'QA 자기발송', body: '',
+  }, '자기 자신')
+
+  // ── 공용메일함: 수신등록 → 담당자 배정 → 처리
+  const pendingBefore = (await must('GET', '/mails/shared')).pendingCount
+
+  const shared = await must('POST', '/mails/shared', {
+    fromAddress: 'buyer@qa-partner.co.kr', subject: 'QA 견적 문의', body: '견적 부탁드립니다.',
+  })
+  eq('공용메일 등록 직후 상태는 미읽음', shared.statusName, '미읽음')
+  isNull('등록 직후 담당자 없음', shared.assigneeId)
+  eq('미처리 건수가 1 늘어남', (await must('GET', '/mails/shared')).pendingCount, pendingBefore + 1)
+
+  await rejects('담당자 없이 처리 완료는 거부', 'POST', `/mails/${shared.id}/handle`,
+    { note: '처리' }, '담당자가 배정되지')
+
+  if (other) {
+    await must('POST', `/mails/${shared.id}/assign`, { assigneeId: other.id })
+    await rejects('배정된 담당자가 아니면 처리 불가', 'POST', `/mails/${shared.id}/handle`,
+      { note: '남의 메일 처리' }, '배정된 담당자')
+  }
+
+  const assigned = await must('POST', `/mails/${shared.id}/assign`, { assigneeId: me.id })
+  eq('배정 후 상태는 처리중', assigned.statusName, '처리중')
+  eq('담당자가 연결됨', assigned.assigneeId, me.id)
+
+  const handled = await must('POST', `/mails/${shared.id}/handle`, { note: 'QA 견적서 회신 완료' })
+  eq('처리 후 상태는 처리완료', handled.statusName, '처리완료')
+  eq('처리 메모가 남음', handled.handleNote, 'QA 견적서 회신 완료')
+  eq('처리 시각이 기록됨', typeof handled.handledAt, 'string')
+
+  await rejects('처리완료된 메일 재처리는 거부', 'POST', `/mails/${shared.id}/handle`,
+    { note: '재처리' }, '이미 처리완료')
+  await rejects('처리완료된 메일 재배정은 거부', 'POST', `/mails/${shared.id}/assign`,
+    { assigneeId: me.id }, '이미 처리완료')
+
+  eq('처리 후 미처리 건수가 원래대로', (await must('GET', '/mails/shared')).pendingCount, pendingBefore)
+}
+
+/** 수표관리 — 받은수표(수취 → 입금/부도) · 발행수표(발행 → 결제확인) */
+async function scenarioCheck(f) {
+  section('■ 시나리오 17. 수표관리 (받은수표 · 발행수표)')
+
+  const accountNo = `${P}330-777-000003`
+  const banks = await must('GET', '/bank-cards/accounts')
+  const bank = banks.find((b) => b.accountNo === accountNo)
+    ?? await must('POST', '/bank-cards/accounts', {
+      bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 1_000_000,
+    })
+  const balanceOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === bank.id).balance)
+  const before = await balanceOf()
+
+  const stamp = String(before).slice(-6)   // 재실행해도 수표번호가 겹치지 않게
+  const linesOf = async (id) => (await must('GET', `/journals/${id}`)).lines
+
+  // 받은수표 수취 → 차)받을수표 / 대)외상매출금
+  const received = await must('POST', '/checks', {
+    type: 'RECEIVED', checkNo: `${P}R-${stamp}`, amount: 500_000,
+    bankName: 'QA은행', issueDate: '2026-07-14', partnerId: f.customer.id,
+  })
+  eq('신규 수표 상태는 보유', received.statusName, '보유')
+
+  const journals = await must('GET', '/journals?from=2026-07-01&to=2026-07-31')
+  const receiptEntry = journals.find((j) => j.sourceType === 'CHECK' && j.sourceId === received.id)
+  eq('수취 분개 차변은 받을수표(104)',
+    Number(receiptEntry.lines.find((l) => l.accountCode === '104').debit), 500_000)
+  eq('수취 분개 대변은 외상매출금(108)',
+    Number(receiptEntry.lines.find((l) => l.accountCode === '108').credit), 500_000)
+
+  // 입금 → 예금 증가, 받을수표 소멸
+  const deposited = await must('POST', `/checks/${received.id}/deposit`, {
+    bankAccountId: bank.id, depositDate: '2026-07-14',
+  })
+  eq('입금 후 상태는 입금완료', deposited.statusName, '입금완료')
+  eq('입금하면 계좌 잔액이 수표 금액만큼 증가', await balanceOf(), before + 500_000)
+
+  await rejects('입금된 수표 재입금은 거부', 'POST', `/checks/${received.id}/deposit`,
+    { bankAccountId: bank.id }, '이미')
+
+  // 부도 → 현금 없이 외상매출금으로 환원
+  const dishonored = await must('POST', '/checks', {
+    type: 'RECEIVED', checkNo: `${P}D-${stamp}`, amount: 200_000, issueDate: '2026-07-14',
+  })
+  const balanceBeforeDishonor = await balanceOf()
+  await must('POST', `/checks/${dishonored.id}/dishonor`, { settledDate: '2026-07-14' })
+  eq('부도는 계좌 잔액을 건드리지 않음', await balanceOf(), balanceBeforeDishonor)
+
+  const after = await must('GET', '/checks')
+  eq('부도 후 상태는 부도', after.find((c) => c.id === dishonored.id).statusName, '부도')
+
+  // 발행수표 → 끊는 순간 예금이 빠진다
+  const issued = await must('POST', '/checks', {
+    type: 'ISSUED', checkNo: `${P}I-${stamp}`, amount: 300_000,
+    bankAccountId: bank.id, issueDate: '2026-07-14', partnerId: f.supplier.id,
+  })
+  eq('발행하면 계좌 잔액이 수표 금액만큼 감소', await balanceOf(), before + 500_000 - 300_000)
+
+  const issueLines = await linesOf(
+    (await must('GET', '/journals?from=2026-07-01&to=2026-07-31'))
+      .find((j) => j.sourceType === 'CHECK' && j.sourceId === issued.id).id)
+  eq('발행 분개 차변은 외상매입금(251)',
+    Number(issueLines.find((l) => l.accountCode === '251').debit), 300_000)
+
+  eq('결제 확인 후 상태는 결제완료',
+    (await must('POST', `/checks/${issued.id}/settle`, { settledDate: '2026-07-15' })).statusName, '결제완료')
+
+  await rejects('발행수표는 부도 처리할 수 없음', 'POST', `/checks/${issued.id}/dishonor`, {}, '받은수표만')
+  await rejects('받은수표는 결제 확인 대상이 아님', 'POST', `/checks/${dishonored.id}/settle`, {}, '발행수표만')
+  await rejects('중복 수표번호는 거부', 'POST', '/checks', {
+    type: 'RECEIVED', checkNo: `${P}R-${stamp}`, amount: 1_000,
+  }, '이미 등록된 수표번호')
+  await rejects('발행수표에 계좌가 없으면 거부', 'POST', '/checks', {
+    type: 'ISSUED', checkNo: `${P}X-${stamp}`, amount: 1_000,
+  }, '당좌계좌')
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -935,6 +1075,8 @@ async function main() {
   await scenarioFastVoucher()
   await scenarioNonCash()
   await scenarioBudget()
+  await scenarioMail()
+  await scenarioCheck(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

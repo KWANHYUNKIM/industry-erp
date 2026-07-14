@@ -58,6 +58,7 @@ import CrmPage from './pages/groupware/CrmPage'
 import BusinessCardPage from './pages/groupware/BusinessCardPage'
 import ProjectPage from './pages/groupware/ProjectPage'
 import SharedInfoPage from './pages/groupware/SharedInfoPage'
+import MailPage from './pages/groupware/MailPage'
 import OrgChartPage from './pages/groupware/OrgChartPage'
 import SalesOrderPage from './pages/trade/SalesOrderPage'
 import QuotationPage from './pages/trade/QuotationPage'
@@ -286,6 +287,7 @@ export default function App() {
         <Route path="/groupware/cards" element={<BusinessCardPage />} />
         <Route path="/groupware/project" element={<ProjectPage />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
+        <Route path="/groupware/mail" element={<MailPage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
