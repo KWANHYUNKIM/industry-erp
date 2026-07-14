@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.domain.Attendance;
 import com.erp.domain.User;
 import com.erp.domain.VacationRequest;
+import com.erp.domain.enums.VacationStatus;
 import com.erp.dto.HrDtos.AttendanceInputRequest;
 import com.erp.dto.HrDtos.AttendanceRow;
 import com.erp.dto.HrDtos.AttendanceSummaryRow;
@@ -39,7 +40,6 @@ public class HrService {
 
     /** 기본 연차 부여 일수 */
     private static final BigDecimal DEFAULT_ANNUAL_DAYS = BigDecimal.valueOf(15);
-    private static final Set<String> VALID_STATUS = Set.of("대기", "승인", "반려");
 
     private final AttendanceRepository attendanceRepository;
     private final VacationRepository vacationRepository;
@@ -131,16 +131,14 @@ public class HrService {
                 .endDate(req.endDate())
                 .days(req.days())
                 .reason(req.reason())
-                .status("대기")
+                .status(VacationStatus.PENDING)
                 .build();
         return VacationRow.from(vacationRepository.save(v));
     }
 
+    /** 상태 전이는 enum 이 강제한다 — 잘못된 값은 요청 역직렬화에서 이미 걸린다. */
     @Transactional
-    public VacationRow updateVacationStatus(Long id, String status) {
-        if (!VALID_STATUS.contains(status)) {
-            throw ApiException.badRequest("올바른 상태값이 아닙니다: " + status);
-        }
+    public VacationRow updateVacationStatus(Long id, VacationStatus status) {
         VacationRequest v = vacationRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("휴가 신청을 찾을 수 없습니다. id=" + id));
         v.setStatus(status);

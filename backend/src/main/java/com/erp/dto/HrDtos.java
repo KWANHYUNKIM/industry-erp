@@ -3,6 +3,7 @@ package com.erp.dto;
 import com.erp.domain.Attendance;
 import com.erp.domain.User;
 import com.erp.domain.VacationRequest;
+import com.erp.domain.enums.VacationStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -130,7 +131,8 @@ public final class HrDtos {
             LocalDate endDate,
             BigDecimal days,
             String reason,
-            String status
+            VacationStatus status,
+            String statusName
     ) {
         public static VacationRow from(VacationRequest v) {
             return new VacationRow(
@@ -142,7 +144,8 @@ public final class HrDtos {
                     v.getEndDate(),
                     v.getDays(),
                     v.getReason(),
-                    v.getStatus());
+                    v.getStatus(),
+                    v.getStatus().getDisplayName());
         }
     }
 
@@ -157,7 +160,7 @@ public final class HrDtos {
     ) {}
 
     public record UpdateVacationStatusRequest(
-            @NotBlank(message = "상태를 입력하세요.") String status
+            @NotNull(message = "상태를 선택하세요.") VacationStatus status
     ) {}
 
     /** 사원별 휴가 잔여 (휴가잔여일수현황) */

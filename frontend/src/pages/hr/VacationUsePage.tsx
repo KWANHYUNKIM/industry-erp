@@ -12,13 +12,18 @@ interface Row {
   endDate: string
   days: number
   reason: string | null
-  status: string
+  /** PENDING / APPROVED / REJECTED */
+  status: VacationStatus
+  /** 대기 / 승인 / 반려 (표시용) */
+  statusName: string
 }
 
+type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
 const mono = { fontFamily: 'monospace' as const }
-function statusColor(s: string) {
-  if (s === '승인') return '#1c7c3c'
-  if (s === '반려') return '#c60a2e'
+function statusColor(s: VacationStatus) {
+  if (s === 'APPROVED') return '#1c7c3c'
+  if (s === 'REJECTED') return '#c60a2e'
   return '#c07a00'
 }
 
@@ -42,7 +47,7 @@ export default function VacationUsePage() {
 
   useEffect(() => { load() }, [])
 
-  async function changeStatus(r: Row, status: string) {
+  async function changeStatus(r: Row, status: VacationStatus) {
     try {
       await api.put(`/hr/vacations/${r.id}/status`, { status })
       load()
@@ -93,12 +98,12 @@ export default function VacationUsePage() {
               <td style={mono}>{r.endDate}</td>
               <td style={{ textAlign: 'right' }}>{r.days.toLocaleString()}</td>
               <td>{r.reason ?? ''}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
-                {r.status === '대기' ? (
+                {r.status === 'PENDING' ? (
                   <>
-                    <button onClick={() => changeStatus(r, '승인')} style={{ color: '#1c7c3c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>승인</button>
-                    <button onClick={() => changeStatus(r, '반려')} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
+                    <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: '#1c7c3c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>승인</button>
+                    <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
                   </>
                 ) : null}
               </td>

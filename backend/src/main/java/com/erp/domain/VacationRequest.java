@@ -1,5 +1,6 @@
 package com.erp.domain;
 
+import com.erp.domain.enums.VacationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -44,8 +45,9 @@ public class VacationRequest extends BaseTimeEntity {
     @Column(length = 200)
     private String reason;
 
-    /** 결재 상태: 대기/승인/반려 */
-    @Column(nullable = false, length = 10)
+    /** 결재 상태 */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     @Builder.Default
-    private String status = "대기";
+    private VacationStatus status = VacationStatus.PENDING;
 }
