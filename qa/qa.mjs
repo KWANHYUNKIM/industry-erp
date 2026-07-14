@@ -92,6 +92,11 @@ async function seed() {
   })
   console.log(`  거래처 ${customer.code} (id=${customer.id})`)
 
+  const supplier = await ensure('/partners', 'code', `${P}SUPP`, null, {
+    code: `${P}SUPP`, name: 'QA매입처', type: 'SUPPLIER',
+  })
+  console.log(`  매입처 ${supplier.code} (id=${supplier.id})`)
+
   const product = await ensure('/items', 'code', `${P}PROD`, null, {
     code: `${P}PROD`, name: 'QA완제품', spec: '표준', unit: 'EA',
     category: 'FINISHED', unitPrice: 10000, safetyStock: 0,
@@ -124,7 +129,7 @@ async function seed() {
   }
   console.log(`  로트 ${lot.lotNo} (id=${lot.id})`)
 
-  return { warehouse, customer, product, material, process, lot }
+  return { warehouse, customer, supplier, product, material, process, lot }
 }
 
 // ── 시나리오 ────────────────────────────────────────────────────────────────
@@ -294,6 +299,113 @@ async function scenarioQuotation(f) {
   await rejects('취소된 견적은 수주전환 불가', 'POST', `/quotations/${dead.id}/convert`, undefined, '취소')
 }
 
+async function scenarioPurchaseOrder(f) {
+  section('■ 시나리오 7. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환')
+
+  const stockOf = async (itemId) => {
+    const rows = await must('GET', '/stock')
+    const r = rows.find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const before = await stockOf(f.material.id)
+
+  // 단가 미입력 → 품목 기준단가(1000)로 채워진다
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-14', dueDate: '2026-07-20', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 30 }],
+  })
+  eq('신규 발주 상태는 발주요청', po.statusName, '발주요청')
+  eq('단가 미입력 시 품목 기준단가로 채움', Number(po.lines[0].unitPrice), 1000)
+  isNull('전환 전에는 구매전표 연결 없음', po.convertedPurchaseId)
+
+  await rejects('발주요청 상태에서 바로 입고 불가', 'POST', `/purchase-orders/${po.id}/receive`,
+    { warehouseId: f.warehouse.id }, '발주확정')
+
+  eq('발주계획 확정 후 상태는 발주계획',
+    (await must('POST', `/purchase-orders/${po.id}/plan`, { dueDate: '2026-07-25' })).statusName, '발주계획')
+
+  const priced = await must('POST', `/purchase-orders/${po.id}/prices`, {
+    lines: [{ lineId: po.lines[0].id, unitPrice: 1200 }],
+  })
+  eq('단가확정 후 상태는 단가확정', priced.statusName, '단가확정')
+  eq('확정단가로 공급가액 재계산', Number(priced.supplyAmount), 36000)
+  eq('부가세 10% 재계산', Number(priced.vatAmount), 3600)
+  eq('합계 = 공급가액 + 부가세', Number(priced.totalAmount), 39600)
+
+  eq('발주확정 후 상태는 발주확정',
+    (await must('POST', `/purchase-orders/${po.id}/confirm`)).statusName, '발주확정')
+
+  const purchase = await must('POST', `/purchase-orders/${po.id}/receive`, {
+    warehouseId: f.warehouse.id, purchaseDate: '2026-07-14',
+  })
+  eq('입고 전환 시 구매전표 생성', purchase.docNo.startsWith('PO-'), true)
+  eq('구매전표에 발주 매입처가 승계됨', purchase.partnerId, f.supplier.id)
+  eq('구매전표 합계가 발주 합계와 일치', Number(purchase.totalAmount), 39600)
+  eq('입고전환으로 재고가 발주수량만큼 증가', await stockOf(f.material.id), before + 30)
+
+  const received = (await must('GET', '/purchase-orders')).find((x) => x.id === po.id)
+  eq('전환 후 발주 상태는 입고전환', received.statusName, '입고전환')
+  eq('발주에 생성된 구매전표가 FK로 연결됨', received.convertedPurchaseId, purchase.id)
+
+  await rejects('입고된 발주 재입고는 거부', 'POST', `/purchase-orders/${po.id}/receive`,
+    { warehouseId: f.warehouse.id }, '이미')
+  await rejects('입고된 발주는 취소 불가', 'POST', `/purchase-orders/${po.id}/cancel`, undefined, '취소할 수 없습니다')
+
+  const dead = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 900 }],
+  })
+  await must('POST', `/purchase-orders/${dead.id}/cancel`)
+  await rejects('취소된 발주는 입고 불가', 'POST', `/purchase-orders/${dead.id}/receive`,
+    { warehouseId: f.warehouse.id }, '취소')
+
+  await rejects('매출처에는 발주 불가', 'POST', '/purchase-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-14',
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 100 }],
+  }, '매입처가 아닌')
+}
+
+/** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
+async function scenarioAdjustment(f) {
+  section('■ 시나리오 8. 기타이동 (자가사용 · 불량처리 · 재고조정)')
+
+  const stockOf = async () => {
+    const rows = await must('GET', '/stock')
+    const r = rows.find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const adjust = (type, body) => must('POST', '/stock-adjustments', {
+    type, itemId: f.material.id, warehouseId: f.warehouse.id, adjustDate: '2026-07-14', ...body,
+  })
+
+  const before = await stockOf()
+
+  const selfUse = await adjust('SELF_USE', { quantity: 5, reason: 'QA 자가사용' })
+  eq('자가사용은 음수 변동', Number(selfUse.quantityChange), -5)
+  eq('자가사용 처리 전 잔량이 기록됨', Number(selfUse.beforeQty), before)
+  eq('자가사용만큼 재고 차감', await stockOf(), before - 5)
+
+  const defect = await adjust('DEFECT', { quantity: 3, reason: 'QA 불량' })
+  eq('불량처리는 음수 변동', Number(defect.quantityChange), -3)
+  eq('불량처리만큼 재고 차감', await stockOf(), before - 8)
+
+  const target = before - 20
+  const counted = await adjust('ADJUST', { actualQty: target, reason: 'QA 실사' })
+  eq('재고조정 변동량 = 실사수량 - 현재고', Number(counted.quantityChange), -12)
+  eq('재고조정 후 잔량 = 실사수량', await stockOf(), target)
+  eq('처리 후 잔량이 전표에 기록됨', Number(counted.afterQty), target)
+
+  await rejects('현재고보다 많은 자가사용은 거부', 'POST', '/stock-adjustments', {
+    type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: target + 1,
+  }, '재고가 부족')
+  await rejects('실사수량이 현재고와 같으면 거부', 'POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id, actualQty: target,
+  }, '차이가 없습니다')
+
+  eq('기타이동 목록에 3건이 남음',
+    (await must('GET', '/stock-adjustments')).filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -319,6 +431,8 @@ async function main() {
   await scenarioRelations(fixtures)
   await scenarioSettings()
   await scenarioQuotation(fixtures)
+  await scenarioPurchaseOrder(fixtures)
+  await scenarioAdjustment(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
