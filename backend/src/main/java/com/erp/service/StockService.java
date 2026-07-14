@@ -103,6 +103,23 @@ public class StockService {
         return transactionRepository.save(tx);
     }
 
+    /**
+     * 실사수량(targetQty)에 맞춰 잔량을 조정한다. 차이 계산과 반영을 같은 잠금 안에서 하므로
+     * 조회 시점과 반영 시점 사이에 다른 전표가 끼어들어 조정량이 어긋나는 일이 없다.
+     */
+    @Transactional
+    public StockTransaction adjustTo(Item item, Warehouse warehouse, BigDecimal targetQty,
+                                     LocalDate date, String note, String username) {
+        BigDecimal current = stockRepository.findForUpdate(item.getId(), warehouse.getId())
+                .map(Stock::getQuantity)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal delta = targetQty.subtract(current);
+        if (delta.signum() == 0) {
+            throw ApiException.badRequest("실사수량이 현재고(" + current.toPlainString() + ")와 같아 조정할 차이가 없습니다.");
+        }
+        return applyDelta(item, warehouse, delta, StockTransactionType.ADJUST, null, date, note, username);
+    }
+
     /** 유형과 방향으로 실제 증감량(부호 있음) 계산 */
     private BigDecimal resolveDelta(StockTransactionRequest req) {
         BigDecimal qty = req.quantity().abs();
