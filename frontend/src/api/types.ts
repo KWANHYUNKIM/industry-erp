@@ -1667,3 +1667,46 @@ export interface MallOverview {
   byMall: MallSummary[]
   orders: MallOrder[]
 }
+
+// ===== 쇼핑몰관리 =====
+
+export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
+
+export interface MallOrder {
+  id: number
+  mall: string
+  mallOrderNo: string
+  orderDate: string
+  status: MallOrderStatus
+  statusName: string
+  buyerName: string
+  buyerPhone: string | null
+  address: string | null
+  productName: string
+  itemId: number | null
+  itemCode: string | null
+  itemName: string | null
+  quantity: number
+  unitPrice: number
+  totalAmount: number
+  salesId: number | null
+  salesDocNo: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface MallSummary {
+  mall: string
+  orderCount: number
+  totalAmount: number
+  unconverted: number
+}
+
+export interface MallOverview {
+  totalOrders: number
+  totalAmount: number
+  unmapped: number
+  unconverted: number
+  byMall: MallSummary[]
+  orders: MallOrder[]
+}
