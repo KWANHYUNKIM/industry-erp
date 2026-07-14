@@ -208,24 +208,25 @@ public class JournalService {
     }
 
     /**
-     * 어음 → 분개. 어음의 현재 상태에 맞는 분개를 만든다.
-     *   수취/발행  받을어음: 차)받을어음 / 대)외상매출금   지급어음: 차)외상매입금 / 대)지급어음
-     *   결제       받을어음: 차)예금     / 대)받을어음     지급어음: 차)지급어음   / 대)예금
-     *   할인       차)예금·매출채권처분손실 / 대)받을어음   (받을어음 전용)
-     *   부도       차)외상매출금 / 대)받을어음              (받을어음 전용, 채권으로 환원)
+     * 어음 → 분개. 현금이 오가지 않는 단계만 여기서 만든다.
+     *   수취/발행  받을어음: 차)받을어음 / 대)외상매출금    지급어음: 차)외상매입금 / 대)지급어음
+     *   할인료     차)매출채권처분손실 / 대)받을어음        (예금 입금분은 계좌 입출금이 따로 분개한다)
+     *   부도       차)외상매출금 / 대)받을어음              (어음채권을 외상매출금으로 환원)
      *
-     * @param settleAccount 결제·할인 시 입출금될 예금 계정. null 이면 보통예금(103).
+     * 만기결제와 할인 입금은 계좌 잔액이 함께 움직이므로 BankCardService 의 입출금을 거친다
+     * (그쪽이 잔액 잠금·부족 검증을 소유한다). 그래서 여기에는 예금 분개가 없다.
      */
     @Transactional
-    public JournalEntry createFromNote(com.erp.domain.PromissoryNote n,
-                                       NoteEvent event,
-                                       Account settleAccount) {
+    public JournalEntry createFromNote(com.erp.domain.PromissoryNote n, NoteEvent event) {
         boolean receivable = n.getType().isReceivable();
         LocalDate date = event == NoteEvent.ISSUE ? n.getIssueDate() : n.getClosedDate();
         String desc = n.getType().getDisplayName() + " " + event.getDisplayName() + " " + n.getNoteNo();
-        JournalEntry e = newEntry(JournalSourceType.NOTE, n.getId(), date, desc, n.getPartner(), n.getCreatedBy());
 
-        Account bank = settleAccount != null ? settleAccount : account("103");
+        // (source_type, source_id) 는 유니크다 — 한 업무전표에 회계전표는 하나라는 규칙이다.
+        // 어음은 수취/발행 이후에도 할인료·부도로 전표가 더 붙으므로, 어음을 대표하는 수취 전표에만
+        // sourceId 를 건다. 나머지는 계좌입출금 전표와 같이 적요의 어음번호로 추적한다.
+        Long sourceId = event == NoteEvent.ISSUE ? n.getId() : null;
+        JournalEntry e = newEntry(JournalSourceType.NOTE, sourceId, date, desc, n.getPartner(), n.getCreatedBy());
 
         switch (event) {
             case ISSUE -> {
@@ -237,24 +238,10 @@ public class JournalService {
                     addCredit(e, "252", n.getAmount(), "지급어음");
                 }
             }
-            case SETTLE -> {
-                if (receivable) {
-                    addDebitAccount(e, bank, n.getAmount(), "어음 만기결제 입금");
-                    addCredit(e, "110", n.getAmount(), "받을어음");
-                } else {
-                    addDebit(e, "252", n.getAmount(), "지급어음");
-                    e.addLine(JournalLine.builder()
-                            .account(bank).debit(BigDecimal.ZERO).credit(n.getAmount())
-                            .description("어음 만기결제 출금").build());
-                }
-            }
-            case DISCOUNT -> {
+            case DISCOUNT_FEE -> {
                 BigDecimal fee = nz(n.getDiscountFee());
-                addDebitAccount(e, bank, n.getAmount().subtract(fee), "어음할인 입금");
-                if (isPositive(fee)) {
-                    addDebit(e, "936", fee, "매출채권처분손실(할인료)");
-                }
-                addCredit(e, "110", n.getAmount(), "받을어음");
+                addDebit(e, "936", fee, "매출채권처분손실(할인료)");
+                addCredit(e, "110", fee, "받을어음");
             }
             case DISHONOR -> {
                 addDebit(e, "108", n.getAmount(), "부도어음 → 외상매출금 환원");
@@ -264,9 +251,9 @@ public class JournalService {
         return save(e);
     }
 
-    /** 어음 처리 단계. 분개 모양이 단계마다 다르다. */
+    /** 어음 처리 단계 중 현금이 오가지 않는 것들. */
     public enum NoteEvent {
-        ISSUE("수취/발행"), SETTLE("만기결제"), DISCOUNT("할인"), DISHONOR("부도");
+        ISSUE("수취/발행"), DISCOUNT_FEE("할인료"), DISHONOR("부도");
 
         private final String displayName;
 
@@ -321,6 +308,47 @@ public class JournalService {
             addCredit(e, "914", gain, "유형자산처분이익");
         }
         return save(e);
+    }
+
+    /**
+     * FastEntry 간편전표 → 분개.
+     *   지출결의서       차)비용라인들 / 대)결제수단(현금·예금·미지급금)
+     *   입금보고서       차)입금수단(현금·예금·외상매출금) / 대)수입라인들
+     *   가지급금정산서   차)사용비용라인들 (+반납액) / 대)가지급금 (+추가지급액)
+     * settlement 은 결제수단이 실제로 서는 계정(현금 101 / 계좌의 예금계정 / 253·108)이다.
+     */
+    @Transactional
+    public JournalEntry createFromVoucher(com.erp.domain.FastVoucher v, Account settlement) {
+        String desc = v.getDescription() != null ? v.getDescription()
+                : v.getType().getDisplayName() + " " + v.getVoucherNo();
+        JournalEntry e = newEntry(JournalSourceType.VOUCHER, null, v.getVoucherDate(),
+                desc, v.getPartner(), v.getCreatedBy());
+
+        switch (v.getType()) {
+            case EXPENSE_REPORT -> {
+                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                addCreditAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+            }
+            case DEPOSIT_REPORT -> {
+                addDebitAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+                v.getLines().forEach(l -> addCreditAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+            }
+            case ADVANCE_SETTLEMENT -> {
+                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                BigDecimal balance = v.getAdvanceAmount().subtract(v.getTotalAmount());
+                if (balance.signum() > 0) {                 // 덜 썼다 → 잔액 반납
+                    addDebitAccount(e, settlement, balance, "가지급금 반납");
+                } else if (balance.signum() < 0) {          // 더 썼다 → 추가 지급
+                    addCreditAccount(e, settlement, balance.negate(), "추가 지급");
+                }
+                addCredit(e, "134", v.getAdvanceAmount(), "가지급금 정산");
+            }
+        }
+        return save(e);
+    }
+
+    private static String lineDesc(com.erp.domain.FastVoucherLine l) {
+        return l.getDescription() != null ? l.getDescription() : l.getAccount().getName();
     }
 
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */

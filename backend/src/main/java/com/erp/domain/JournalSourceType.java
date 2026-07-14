@@ -10,6 +10,7 @@ public enum JournalSourceType {
     NOTE("어음"),
     DEPRECIATION("감가상각"),
     DISPOSAL("자산처분"),
+    VOUCHER("간편전표"),
     MANUAL("수동입력");
 
     private final String displayName;
