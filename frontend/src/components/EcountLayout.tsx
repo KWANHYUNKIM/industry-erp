@@ -335,6 +335,12 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '법인세',
+        nodes: [
+          { label: '법인세 신고서', to: '/accounting/corporate-tax' },
+        ],
+      },
+      {
         label: '부가세',
         nodes: [{ label: '신고전검토자료', children: [{ label: '매입매출·부가세', to: '/accounting/vat' }] }],
       },
