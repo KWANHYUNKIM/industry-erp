@@ -2,6 +2,7 @@ package com.erp.repository;
 
 import com.erp.domain.SalesOrder;
 import com.erp.domain.SalesOrderStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +22,14 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
             "where o.status in :statuses " +
             "order by o.dueDate asc, o.orderDate desc, o.id desc")
     List<SalesOrder> findByStatusesWithLines(@Param("statuses") List<SalesOrderStatus> statuses);
+
+    /** 통합검색: 수주번호·거래처명 부분일치 상위 N건 */
+    @Query("select o from SalesOrder o join fetch o.partner p " +
+           "where lower(o.orderNo) like :q or lower(p.name) like :q " +
+           "order by o.orderDate desc, o.id desc")
+    List<SalesOrder> searchTop(@Param("q") String q, Pageable pageable);
+
+    @Query("select count(o) from SalesOrder o where lower(o.orderNo) like :q or lower(o.partner.name) like :q")
+    long searchCount(@Param("q") String q);
+
 }

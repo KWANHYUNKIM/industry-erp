@@ -16,7 +16,14 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
 
     Optional<JournalEntry> findBySourceTypeAndSourceId(JournalSourceType sourceType, Long sourceId);
 
-    @Query("select distinct e from JournalEntry e left join fetch e.partner " +
+    /**
+     * 전표조회: 라인과 계정까지 한 번에 가져온다.
+     * 라인을 fetch join 하지 않으면 응답을 만들면서 전표마다 라인을, 라인마다 계정을 다시 조회한다(N+1).
+     */
+    @Query("select distinct e from JournalEntry e " +
+            "left join fetch e.partner " +
+            "left join fetch e.lines l " +
+            "left join fetch l.account " +
             "where e.entryDate between :from and :to " +
             "order by e.entryDate desc, e.id desc")
     List<JournalEntry> findByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
