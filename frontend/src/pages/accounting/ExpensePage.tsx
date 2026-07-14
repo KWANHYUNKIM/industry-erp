@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import type { Project } from '../../api/types'
+import type { CommonCode, Project } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
-const PAYMENTS = ['법인카드', '계좌이체', '현금']
+// 결제수단은 공통코드(PAYMENT_METHOD)에서 가져온다. 화면에 하드코딩하면 항목 하나 늘릴 때마다 배포해야 한다.
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Expense {
@@ -33,11 +33,13 @@ export default function ExpensePage() {
     expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', paymentMethod: '법인카드', department: '', projectId: '',
   })
   const [projects, setProjects] = useState<Project[]>([])
+  const [payments, setPayments] = useState<CommonCode[]>([])
 
   async function load() {
     setLoading(true)
     try {
       api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
+      api.get<CommonCode[]>('/codes/PAYMENT_METHOD').then((r) => setPayments(r.data)).catch(() => {})
       const [e, a] = await Promise.all([
         api.get<Expense[]>('/expenses'),
         api.get<Account[]>('/accounts'),
@@ -125,7 +127,7 @@ export default function ExpensePage() {
               <input className="ec-input text-right" type="number" step="any" value={form.amount} onChange={(e) => set('amount', e.target.value)} style={{ width: 120 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>결제수단</div>
               <select className="ec-input" value={form.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)} style={{ width: 100 }}>
-                {PAYMENTS.map((p) => <option key={p}>{p}</option>)}
+                {payments.map((p) => <option key={p.id}>{p.name}</option>)}
               </select></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>부서</div>
               <input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} style={{ width: 100 }} /></label>

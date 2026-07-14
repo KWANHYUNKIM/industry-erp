@@ -39,4 +39,12 @@ public class BoardPost extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private int views = 0;
+
+    /**
+     * 익명글 여부. 익명이어도 작성자는 DB 에 남는다 — 본인 확인 없이 삭제를 허용할 수 없고,
+     * 문제가 생기면 추적할 수 있어야 한다. 가리는 것은 API 응답이다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean anonymous = false;
 }
