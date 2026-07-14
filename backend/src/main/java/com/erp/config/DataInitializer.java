@@ -89,6 +89,7 @@ public class DataInitializer implements CommandLineRunner {
         ensureAccount("102", "당좌예금", AccountDivision.ASSET, "유동자산");
         ensureAccount("103", "보통예금", AccountDivision.ASSET, "유동자산");
         ensureAccount("108", "외상매출금", AccountDivision.ASSET, "매출채권");
+        ensureAccount("104", "받을수표", AccountDivision.ASSET, "유동자산");
         ensureAccount("134", "가지급금", AccountDivision.ASSET, "유동자산");
         ensureAccount("146", "상품", AccountDivision.ASSET, "재고자산");
         ensureAccount("203", "감가상각누계액", AccountDivision.ASSET, "유형자산");   // 자산 차감계정
