@@ -41,6 +41,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProductionActualInitializer implements CommandLineRunner {
 
+    // 데모 시드가 만든 행에는 작성자가 없다(createdBy = null). "system" 같은 가짜 사용자명을 넣으면
+    // created_by → users(username) FK(V95)에 걸린다 — 없는 사람이 만든 전표가 되기 때문이다.
+
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final WorkOrderRepository workOrderRepository;
@@ -92,7 +95,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
     private void stockIn(Item item, Warehouse wh, long qty) {
         stockService.applyDelta(item, wh, BigDecimal.valueOf(qty),
                 StockTransactionType.INBOUND, item.getUnitPrice(), LocalDate.of(2026, 6, 30),
-                "생산 데모 초기재고", "system");
+                "생산 데모 초기재고", null);
     }
 
     /** 제품별 BOM(자재명세서)을 시딩한다. */
@@ -128,9 +131,9 @@ public class ProductionActualInitializer implements CommandLineRunner {
         saveWorkOrder(items.get("ITM-0004"), wh, 150, LocalDate.of(2026, 7, 4), LocalDate.of(2026, 7, 22), 4);
 
         // 생산실적 등록(BOM 소요 자재 출고 + 완제품 입고 + 작업지시 진척 갱신)
-        productionService.create(new CreateProductionRequest(wo1.getId(), BigDecimal.valueOf(100), LocalDate.of(2026, 7, 5), null), "system");
-        productionService.create(new CreateProductionRequest(wo2.getId(), BigDecimal.valueOf(120), LocalDate.of(2026, 7, 6), null), "system");
-        productionService.create(new CreateProductionRequest(wo3.getId(), BigDecimal.valueOf(50), LocalDate.of(2026, 7, 7), null), "system");
+        productionService.create(new CreateProductionRequest(wo1.getId(), BigDecimal.valueOf(100), LocalDate.of(2026, 7, 5), null), null);
+        productionService.create(new CreateProductionRequest(wo2.getId(), BigDecimal.valueOf(120), LocalDate.of(2026, 7, 6), null), null);
+        productionService.create(new CreateProductionRequest(wo3.getId(), BigDecimal.valueOf(50), LocalDate.of(2026, 7, 7), null), null);
     }
 
     private WorkOrder saveWorkOrder(Item product, Warehouse wh, long plannedQty,
@@ -143,7 +146,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
                 .orderDate(orderDate)
                 .dueDate(dueDate)
                 .status(WorkOrderStatus.PLANNED)
-                .createdBy("system")
+                .createdBy(null)
                 .build();
         return workOrderRepository.save(wo);
     }

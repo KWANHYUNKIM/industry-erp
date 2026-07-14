@@ -9,6 +9,7 @@ import com.erp.dto.UserDtos.UserResponse;
 import com.erp.repository.RoleRepository;
 import com.erp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -76,10 +77,23 @@ public class UserService {
         return UserResponse.from(user);
     }
 
+    /**
+     * 사용자 삭제. 작성 이력이 있으면 지울 수 없다.
+     *
+     * created_by 가 users(username) 에 FK(ON DELETE RESTRICT)로 묶여 있어(V95), 전표·문서를 하나라도
+     * 작성한 계정은 DB 가 삭제를 거부한다. 그 예외를 그대로 흘려보내면 사용자에게 500 이 보이므로
+     * 여기서 무슨 일이 일어났는지 말해준다 — 이력을 지우는 것보다 계정을 사용중지로 내리는 것이 맞다.
+     */
     @Transactional
     public void delete(Long id) {
         User user = getUser(id);
-        userRepository.delete(user);
+        try {
+            userRepository.delete(user);
+            userRepository.flush();   // FK 위반을 트랜잭션 커밋이 아니라 여기서 잡는다
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.conflict("작성한 전표·문서가 있는 사용자는 삭제할 수 없습니다: "
+                    + user.getUsername() + " (사용중지로 내리세요)");
+        }
     }
 
     /** 다른 서비스가 사용자 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
