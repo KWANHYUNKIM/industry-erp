@@ -2,6 +2,8 @@ package com.erp.service;
 
 import com.erp.common.ApiException;
 import com.erp.domain.Employee;
+import com.erp.domain.PayGroup;
+import com.erp.domain.PayGroupLine;
 import com.erp.domain.Payslip;
 import com.erp.domain.PayslipLine;
 import com.erp.domain.PayslipLineKind;
@@ -10,6 +12,7 @@ import com.erp.dto.PayrollDtos.CreatePayslipRequest;
 import com.erp.dto.PayrollDtos.LineInput;
 import com.erp.dto.PayrollDtos.PayslipResponse;
 import com.erp.repository.EmployeeRepository;
+import com.erp.repository.PayGroupRepository;
 import com.erp.repository.PayslipRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,7 @@ public class PayrollService {
 
     private final PayslipRepository payslipRepository;
     private final EmployeeRepository employeeRepository;
+    private final PayGroupRepository payGroupRepository;
     private final WithholdingTaxCalculator taxCalculator;
 
     @Transactional(readOnly = true)
@@ -77,20 +81,41 @@ public class PayrollService {
                 .createdBy(username)
                 .build();
 
-        // 1) 사용자 입력 수당·수동공제
+        // 1) 수당/공제 그룹 적용 — 직군·직급별로 매달 똑같이 붙는 항목들
+        if (req.payGroupId() != null) {
+            PayGroup group = payGroupRepository.findById(req.payGroupId())
+                    .orElseThrow(() -> ApiException.notFound("수당/공제 그룹을 찾을 수 없습니다. id=" + req.payGroupId()));
+            if (!group.isActive()) {
+                throw ApiException.badRequest("사용중지된 그룹입니다: " + group.getName());
+            }
+            for (PayGroupLine gl : group.getLines()) {
+                p.addLine(PayslipLine.builder()
+                        .kind(gl.getPayItem().getKind())
+                        .name(gl.getPayItem().getName())
+                        .amount(gl.resolveAmount())
+                        .taxable(gl.getPayItem().isTaxable())
+                        .auto(false)
+                        .build());
+            }
+        }
+
+        // 2) 사용자 입력 수당·수동공제 (그룹에 없는 이번 달만의 항목)
         if (req.lines() != null) {
             for (LineInput in : req.lines()) {
                 if (in.amount() == null || in.amount().signum() < 0) {
                     throw ApiException.badRequest("금액은 0 이상이어야 합니다: " + in.name());
                 }
                 p.addLine(PayslipLine.builder()
-                        .kind(in.kind()).name(in.name()).amount(in.amount()).auto(false).build());
+                        .kind(in.kind()).name(in.name()).amount(in.amount())
+                        .taxable(in.taxable() == null || in.taxable())
+                        .auto(false).build());
             }
         }
 
-        // 2) 4대보험 자동 공제 (과세소득 = 기본급 + 수당합)
+        // 3) 4대보험 자동 공제.
+        //    과세소득 = 기본급 + '과세' 수당합. 식대 같은 비과세 수당은 여기서 빠진다.
         BigDecimal taxableIncome = baseSalary.add(p.getLines().stream()
-                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE)
+                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.isTaxable())
                 .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
 
         BigDecimal pension = round(taxableIncome.multiply(NATIONAL_PENSION));

@@ -408,6 +408,25 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 급여이체 → 분개.
+     *   차) 급여(801) 지급총액
+     *   대) 예수금(254) 공제합계   — 4대보험·소득세는 회사가 떼어 두었다가 나중에 납부한다
+     *   대) 예금계정 실지급액       — 계좌에서 실제로 나가는 금액
+     */
+    @Transactional
+    public JournalEntry createFromPayrollTransfer(com.erp.domain.PayrollTransfer t) {
+        String desc = "급여이체 " + t.getPayMonth() + " " + t.getTransferNo();
+
+        JournalEntry e = newEntry(JournalSourceType.PAYROLL, null, t.getTransferDate(), desc, null, t.getCreatedBy());
+        addDebit(e, "801", t.getTotalPay(), "급여");
+        if (isPositive(t.getTotalDeduction())) {
+            addCredit(e, "254", t.getTotalDeduction(), "예수금 (4대보험·소득세)");
+        }
+        addCreditAccount(e, t.getBankAccount().getGlAccount(), t.getNetPay(), "실지급액");
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, Payslip } from '../../api/types'
+import type { EmployeeMaster, PayGroup, Payslip } from '../../api/types'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => new Date().toISOString().slice(0, 7)
@@ -11,6 +11,9 @@ export default function PayrollPage() {
   const [month, setMonth] = useState(thisMonth())
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [payslips, setPayslips] = useState<Payslip[]>([])
+  const [groups, setGroups] = useState<PayGroup[]>([])
+  // 급여계산 시 적용할 수당/공제 그룹. 비우면 기본급 + 4대보험만 계산한다.
+  const [payGroupId, setPayGroupId] = useState('')
   const [detail, setDetail] = useState<Payslip | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -21,6 +24,7 @@ export default function PayrollPage() {
     setError('')
     api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch((e) => setError(extractErrorMessage(e)))
     api.get<Payslip[]>('/payslips', { params: { month } }).then((r) => setPayslips(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<PayGroup[]>('/pay-settings/groups').then((r) => setGroups(r.data.filter((g) => g.active))).catch(() => {})
   }
 
   useEffect(() => {
@@ -32,7 +36,7 @@ export default function PayrollPage() {
 
   async function calc(emp: EmployeeMaster) {
     try {
-      await api.post('/payslips', { employeeId: emp.id, payMonth: month, lines: [] })
+      await api.post('/payslips', { employeeId: emp.id, payMonth: month, payGroupId: payGroupId ? Number(payGroupId) : undefined, lines: [] })
       flash(`${emp.name} 급여명세를 생성했습니다.`)
       load()
     } catch (err) {
@@ -45,7 +49,7 @@ export default function PayrollPage() {
     if (targets.length === 0) return flash('모든 사원의 급여명세가 이미 있습니다.')
     if (!window.confirm(`미작성 ${targets.length}명의 급여명세를 일괄 생성할까요?`)) return
     for (const e of targets) {
-      try { await api.post('/payslips', { employeeId: e.id, payMonth: month, lines: [] }) } catch { /* 개별 실패 무시 */ }
+      try { await api.post('/payslips', { employeeId: e.id, payMonth: month, payGroupId: payGroupId ? Number(payGroupId) : undefined, lines: [] }) } catch { /* 개별 실패 무시 */ }
     }
     flash(`${targets.length}명 급여계산 완료`)
     load()
@@ -72,6 +76,11 @@ export default function PayrollPage() {
         <span>귀속월</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
+        <span style={{ marginLeft: 8 }}>수당/공제 그룹</span>
+        <select className="ec-input" value={payGroupId} onChange={(e) => setPayGroupId(e.target.value)} style={{ width: 180 }}>
+          <option value="">적용 안함</option>
+          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
         <button className="ec-btn" onClick={calcAll}>미작성 일괄계산</button>
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>사원 {employees.length}명 · 작성 {payslips.length}건 · 4대보험 자동공제</span>
       </div>
