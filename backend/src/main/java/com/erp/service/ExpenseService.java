@@ -18,6 +18,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ExpenseService {
 
+    private final ProjectService projectService;
+
     private final ExpenseRepository expenseRepository;
     private final AccountRepository accountRepository;
 
@@ -41,6 +43,7 @@ public class ExpenseService {
                 .amount(req.amount())
                 .paymentMethod(req.paymentMethod())
                 .department(req.department())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .createdBy(username)
                 .build();
         return ExpenseResponse.from(expenseRepository.save(e));

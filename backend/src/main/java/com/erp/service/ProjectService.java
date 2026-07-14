@@ -45,6 +45,13 @@ public class ProjectService {
         return ProjectResponse.from(projectRepository.save(p));
     }
 
+    /** 다른 서비스가 프로젝트 엔티티를 얻는 진입점 (전표에 붙이기 위해). */
+    @Transactional(readOnly = true)
+    public Project get(Long id) {
+        return projectRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + id));
+    }
+
     @Transactional
     public ProjectResponse update(Long id, UpdateProjectRequest req) {
         Project p = projectRepository.findById(id)

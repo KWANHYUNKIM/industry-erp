@@ -1685,3 +1685,47 @@ export interface SignLine {
   remark: string | null
   slots: SignSlot[]
 }
+
+// ===== 프로젝트 (기초등록 마스터) · 프로젝트별 손익 =====
+
+export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
+
+export interface Project {
+  id: number
+  code: string
+  name: string
+  manager: string | null
+  startDate: string
+  endDate: string | null
+  progress: number
+  status: ProjectStatus
+  statusName: string
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface ProjectProfitRow {
+  projectId: number
+  projectCode: string
+  projectName: string
+  status: string | null
+  revenue: number
+  purchaseCost: number
+  expense: number
+  profit: number
+  marginRate: number
+  salesCount: number
+  purchaseCount: number
+  expenseCount: number
+}
+
+export interface ProjectProfitSummary {
+  from: string
+  to: string
+  totalRevenue: number
+  totalCost: number
+  totalProfit: number
+  unassignedRevenue: number
+  unassignedCost: number
+  rows: ProjectProfitRow[]
+}

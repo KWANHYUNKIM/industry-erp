@@ -30,6 +30,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PurchaseService {
 
+    private final ProjectService projectService;
+
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final PurchaseRepository purchaseRepository;
@@ -92,6 +94,7 @@ public class PurchaseService {
                 .purchaseDate(purchaseDate)
                 .createdBy(username)
                 .remark(req.remark())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .build();
 
         BigDecimal totalSupply = BigDecimal.ZERO;

@@ -141,6 +141,7 @@ public class MallOrderService {
                 o.getOrderDate(),
                 req.taxable() != null ? req.taxable() : Boolean.TRUE,
                 o.getMall() + " 주문 " + o.getMallOrderNo() + " (" + o.getBuyerName() + ")",
+                null,   // 몰 주문에는 프로젝트 개념이 없다
                 List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice()))
         ), username);
 

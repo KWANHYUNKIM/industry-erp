@@ -16,12 +16,12 @@
 |------|------|-------------|
 | `common` | 공통 기반. 다른 모듈을 몰라야 함 | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
 | `auth` | 사용자·역할·인증 | `User`, `Role` |
-| `inventory` | 품목·창고·재고 (마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem` |
+| `inventory` | 품목·창고·재고·프로젝트 (기초 마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem`, `Project` |
 | `trade` | 판매·구매·거래처·정산·출하 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment` |
 | `production` | BOM·작업지시·생산실적·생산계획 | `Bom`, `WorkOrder`, `Production`, `ProductionPlan`, `MaterialIssue` |
 | `accounting` | 계정·비용·원가·손익 | `Account`, `Expense`, `ItemCost` |
 | `quality` | 품질검사·A/S | `QualityInspection`, `AsRequest` |
-| `groupware` | 전자결재·업무일지·근태·게시판·CRM·프로젝트 | `ApprovalDocument`, `WorkJournal`, `Attendance`, `Project` |
+| `groupware` | 전자결재·업무일지·근태·게시판·CRM | `ApprovalDocument`, `WorkJournal`, `Attendance` |
 | `settings` | Self-Customizing (회사정보·환경설정·보안정책) | `CompanyInfo`, `Preference`, `SecurityPolicy` |
 
 새 클래스는 **자신이 다루는 주 엔티티가 속한 모듈**에 둡니다.
@@ -89,8 +89,11 @@ controller  →  service  →  repository  →  domain
 | `production` | `inventory` |
 | `quality` | `inventory`, `trade` |
 | `accounting` | `inventory`, `trade` |
-| `groupware` | `auth`, `trade` |
+| `groupware` | `auth`, `trade`, `inventory` |
 
+- `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
+  (`trade` → `groupware`) `groupware → trade` 와 맞물려 순환이 되므로 기초 마스터(`inventory`)로 옮겼습니다.
+  프로젝트별 손익은 이 연결을 집계합니다. 진척관리 화면은 그대로 그룹웨어에 있습니다.
 - `inventory`와 `auth`는 **아무 모듈에도 의존하지 않는 기반층입니다.**
   여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
 - `common`은 모두가 의존하고 아무것도 의존하지 않습니다.
