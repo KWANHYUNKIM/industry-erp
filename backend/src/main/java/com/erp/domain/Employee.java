@@ -30,9 +30,10 @@ public class Employee extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
-    /** 소속 부서 */
-    @Column(length = 100)
-    private String department;
+    /** 소속 부서. 미배치면 null */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     /** 직위. 컬럼명이 position 이면 SQL 예약어와 부딪히므로 job_title 을 쓴다. */
     @Column(name = "job_title", length = 100)

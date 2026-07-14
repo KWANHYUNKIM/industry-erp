@@ -49,6 +49,7 @@ import AttendancePage from './pages/groupware/AttendancePage'
 import CrmPage from './pages/groupware/CrmPage'
 import ProjectPage from './pages/groupware/ProjectPage'
 import SharedInfoPage from './pages/groupware/SharedInfoPage'
+import OrgChartPage from './pages/groupware/OrgChartPage'
 import SalesOrderPage from './pages/trade/SalesOrderPage'
 import QuotationPage from './pages/trade/QuotationPage'
 import PurchaseOrderPage from './pages/trade/PurchaseOrderPage'
@@ -264,6 +265,7 @@ export default function App() {
         <Route path="/groupware/crm" element={<CrmPage />} />
         <Route path="/groupware/project" element={<ProjectPage />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
+        <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
         <Route path="/groupware/survey" element={<SurveyPage />} />

@@ -2,6 +2,7 @@ package com.erp.repository;
 
 import com.erp.domain.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,4 +17,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     List<Employee> findByName(String name);
 
     List<Employee> findByActiveTrueOrderByNameAsc();
+
+    /** 목록에서 부서명을 함께 쓰므로 fetch join 으로 가져온다 (N+1 방지). */
+    @Query("select e from Employee e left join fetch e.department where e.active = true order by e.name asc")
+    List<Employee> findActiveWithDepartment();
+
+    long countByDepartmentId(Long departmentId);
+
+    List<Employee> findByDepartmentId(Long departmentId);
 }
