@@ -170,6 +170,43 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 계좌 입출금 → 분개.
+     * 입금: 차)예금계정 / 대)상대계정, 출금: 차)상대계정 / 대)예금계정.
+     * 전표번호가 아직 없는(저장 전) 거래를 받으므로 sourceId 는 채우지 않고, 호출부가 연결을 건다.
+     */
+    @Transactional
+    public JournalEntry createFromBankTxn(com.erp.domain.BankTransaction t) {
+        Account bank = t.getBankAccount().getGlAccount();
+        Account counter = t.getCounterAccount();
+        String desc = t.getDescription() != null ? t.getDescription()
+                : (t.isDeposit() ? "계좌입금" : "계좌출금") + " " + t.getTxnNo();
+
+        JournalEntry e = newEntry(JournalSourceType.BANK, null, t.getTxnDate(), desc, t.getPartner(), t.getCreatedBy());
+        if (t.isDeposit()) {
+            e.addLine(line(bank, t.getAmount(), BigDecimal.ZERO, desc));
+            e.addLine(line(counter, BigDecimal.ZERO, t.getAmount(), desc));
+        } else {
+            e.addLine(line(counter, t.getAmount(), BigDecimal.ZERO, desc));
+            e.addLine(line(bank, BigDecimal.ZERO, t.getAmount(), desc));
+        }
+        return save(e);
+    }
+
+    /** 카드사용 → 분개. 차)비용계정·부가세대급금 / 대)미지급금 (결제일에 계좌에서 빠질 때까지 미지급금) */
+    @Transactional
+    public JournalEntry createFromCardUsage(com.erp.domain.CardUsage u) {
+        String desc = u.getMerchant() + (u.getDescription() != null ? " " + u.getDescription() : "");
+        JournalEntry e = newEntry(JournalSourceType.CARD, null, u.getUsageDate(), desc, null, u.getCreatedBy());
+
+        addDebitAccount(e, u.getExpenseAccount(), u.getSupplyAmount(), desc);
+        if (isPositive(u.getVatAmount())) {
+            addDebit(e, "135", u.getVatAmount(), "부가세대급금");
+        }
+        addCredit(e, "253", u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {

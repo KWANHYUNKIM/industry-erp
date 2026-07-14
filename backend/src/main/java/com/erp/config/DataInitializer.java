@@ -87,6 +87,7 @@ public class DataInitializer implements CommandLineRunner {
     private void seedAccounts() {
         ensureAccount("101", "현금", AccountDivision.ASSET, "유동자산");
         ensureAccount("102", "당좌예금", AccountDivision.ASSET, "유동자산");
+        ensureAccount("103", "보통예금", AccountDivision.ASSET, "유동자산");
         ensureAccount("108", "외상매출금", AccountDivision.ASSET, "매출채권");
         ensureAccount("146", "상품", AccountDivision.ASSET, "재고자산");
         ensureAccount("251", "외상매입금", AccountDivision.LIABILITY, "매입채무");

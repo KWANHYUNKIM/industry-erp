@@ -5,6 +5,8 @@ public enum JournalSourceType {
     SALES("판매"),
     PURCHASE("구매"),
     EXPENSE("지출"),
+    BANK("계좌입출금"),
+    CARD("카드사용"),
     MANUAL("수동입력");
 
     private final String displayName;
