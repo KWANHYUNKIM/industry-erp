@@ -1544,3 +1544,49 @@ export interface WmsOverview {
   locationStocks: LocationStock[]
   allocations: AllocationRow[]
 }
+
+// ===== WMS (로케이션) =====
+
+export interface WarehouseLocation {
+  id: number
+  warehouseId: number
+  warehouseName: string
+  code: string
+  zone: string | null
+  rack: string | null
+  level: string | null
+  description: string | null
+  active: boolean
+}
+
+export interface LocationStock {
+  id: number
+  locationId: number
+  locationCode: string
+  warehouseId: number
+  warehouseName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+}
+
+/** (품목, 창고)별 배치 현황: 창고 재고 = 배치 + 미배치 */
+export interface AllocationRow {
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  stockQuantity: number
+  allocatedQuantity: number
+  unallocatedQuantity: number
+}
+
+export interface WmsOverview {
+  locations: WarehouseLocation[]
+  locationStocks: LocationStock[]
+  allocations: AllocationRow[]
+}
