@@ -411,6 +411,12 @@ const MENU: TopMenu[] = [
           },
         ],
       },
+      {
+        label: '공용메일',
+        nodes: [
+          { label: '메일함(사내·공용)', to: '/groupware/mail' },
+        ],
+      },
     ],
   },
   {

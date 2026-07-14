@@ -1313,3 +1313,33 @@ export interface BusinessCard {
   tags: string[]
   memo: string | null
 }
+
+// ===== 그룹웨어: 공용메일 =====
+
+export type MailType = 'INTERNAL' | 'SHARED'
+export type MailStatus = 'UNREAD' | 'READ' | 'IN_PROGRESS' | 'HANDLED'
+
+export interface Mail {
+  id: number
+  type: MailType
+  typeName: string
+  senderId: number | null
+  senderName: string | null
+  fromAddress: string | null
+  recipientId: number | null
+  recipientName: string | null
+  subject: string
+  body: string | null
+  sentAt: string
+  status: MailStatus
+  statusName: string
+  assigneeId: number | null
+  assigneeName: string | null
+  handledAt: string | null
+  handleNote: string | null
+}
+
+export interface SharedMailBox {
+  pendingCount: number
+  mails: Mail[]
+}
