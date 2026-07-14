@@ -39,6 +39,10 @@ import CashTxnPage from './pages/accounting/CashTxnPage'
 import BankCardPage from './pages/accounting/BankCardPage'
 import FixedAssetPage from './pages/accounting/FixedAssetPage'
 import FastVoucherPage from './pages/accounting/FastVoucherPage'
+import NonCashPage from './pages/accounting/NonCashPage'
+import CheckPage from './pages/accounting/CheckPage'
+import ContractPage from './pages/accounting/ContractPage'
+import CurrencyPage from './pages/settings/CurrencyPage'
 import ExpensePage from './pages/accounting/ExpensePage'
 import IncomePage from './pages/accounting/IncomePage'
 import QualityInspectionPage from './pages/quality/QualityInspectionPage'
@@ -52,8 +56,11 @@ import PrintSignLinePage from './pages/settings/PrintSignLinePage'
 import ApprovalDraftPage from './pages/groupware/ApprovalDraftPage'
 import MyApprovalPage from './pages/groupware/MyApprovalPage'
 import ApprovalAllPage from './pages/groupware/ApprovalAllPage'
+import ApprovalSettingPage from './pages/groupware/ApprovalSettingPage'
 import EcDrivePage from './pages/groupware/EcDrivePage'
 import BoardPage from './pages/groupware/BoardPage'
+import AnonymousBoardPage from './pages/groupware/AnonymousBoardPage'
+import FieldWorkPage from './pages/groupware/FieldWorkPage'
 import WorkPage from './pages/groupware/WorkPage'
 import WorkLogPage from './pages/groupware/WorkLogPage'
 import AttendancePage from './pages/groupware/AttendancePage'
@@ -110,8 +117,9 @@ import VacationUsePage from './pages/hr/VacationUsePage'
 import VacationRemainPage from './pages/hr/VacationRemainPage'
 import EmployeePage from './pages/hr/EmployeePage'
 import PayrollPage from './pages/hr/PayrollPage'
+import PaySettingPage from './pages/hr/PaySettingPage'
 import HrRecordPage from './pages/hr/HrRecordPage'
-import ContractPage from './pages/hr/ContractPage'
+import LaborContractPage from './pages/hr/ContractPage'
 import DailyWagePage from './pages/hr/DailyWagePage'
 import NoticePage from './pages/groupware/NoticePage'
 import SchedulePage from './pages/groupware/SchedulePage'
@@ -256,6 +264,10 @@ export default function App() {
         <Route path="/accounting/cash-deposit" element={<CashTxnPage mode="deposit" />} />
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
+        <Route path="/accounting/non-cash" element={<NonCashPage />} />
+        <Route path="/accounting/checks" element={<CheckPage />} />
+        <Route path="/accounting/contracts" element={<ContractPage />} />
+        <Route path="/settings/currencies" element={<CurrencyPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
@@ -287,8 +299,11 @@ export default function App() {
         <Route path="/groupware/approval/draft" element={<ApprovalDraftPage />} />
         <Route path="/groupware/approval/my" element={<MyApprovalPage />} />
         <Route path="/groupware/approval/all" element={<ApprovalAllPage />} />
+        <Route path="/groupware/approval/settings" element={<ApprovalSettingPage />} />
         <Route path="/groupware/drive" element={<EcDrivePage />} />
         <Route path="/groupware/board" element={<BoardPage />} />
+        <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
+        <Route path="/groupware/field-works" element={<FieldWorkPage />} />
         <Route path="/groupware/work" element={<WorkPage />} />
         <Route path="/groupware/worklog" element={<WorkLogPage />} />
         <Route path="/groupware/attendance" element={<AttendancePage />} />
@@ -322,8 +337,9 @@ export default function App() {
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
         <Route path="/hr/employees" element={<EmployeePage />} />
         <Route path="/hr/payroll" element={<PayrollPage />} />
+        <Route path="/hr/pay-settings" element={<PaySettingPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
-        <Route path="/hr/contracts" element={<ContractPage />} />
+        <Route path="/hr/contracts" element={<LaborContractPage />} />
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
         <Route path="/users" element={<UsersPage />} />

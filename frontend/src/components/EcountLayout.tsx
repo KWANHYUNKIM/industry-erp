@@ -50,6 +50,7 @@ const MENU: TopMenu[] = [
           { label: '관리항목등록', to: '/inventory/manage-items' },
           { label: '단가적용순서설정', to: '/inventory/price-order' },
           { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
+          { label: '외화(통화·환율)', to: '/settings/currencies' },
         ],
       },
       {
@@ -177,6 +178,7 @@ const MENU: TopMenu[] = [
           { label: '거래처등록', to: '/sales/partners' },
           { label: '계정과목등록', to: '/accounting/accounts' },
           { label: '계좌/카드', to: '/accounting/bank-cards' },
+          { label: '외화(통화·환율)', to: '/settings/currencies' },
         ],
       },
       {
@@ -188,6 +190,7 @@ const MENU: TopMenu[] = [
           { label: '지출결의서', to: '/accounting/vouchers' },
           { label: '입금보고서', to: '/accounting/vouchers' },
           { label: '가지급금정산서', to: '/accounting/vouchers' },
+          { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
         ],
       },
       {
@@ -247,6 +250,16 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '수표관리',
+        nodes: [{ label: '수표관리(받은수표·발행수표)', to: '/accounting/checks' }],
+      },
+      {
+        label: '계약관리',
+        nodes: [
+          { label: '계약관리·전자계약', to: '/accounting/contracts' },
+        ],
+      },
+      {
         label: '채무관리',
         nodes: [
           { label: '미지급현황(연령분석)', to: '/sales/payable' },
@@ -263,7 +276,11 @@ const MENU: TopMenu[] = [
         nodes: [{ label: '예산편성·집행현황', to: '/accounting/budget' }],
       },
       {
-        label: '비용관리',
+        label: '수입비용',
+        nodes: [{ label: '수입등록·수입비용현황', to: '/accounting/income' }],
+      },
+      {
+        label: '프로젝트',
         nodes: [
           { label: '프로젝트별 손익', to: '/accounting/project-profit' },
           { label: '프로젝트등록', to: '/groupware/project' },
@@ -285,7 +302,7 @@ const MENU: TopMenu[] = [
         label: '급여관리',
         nodes: [
           { label: '기본사항등록', children: [{ label: '사원등록', to: '/hr/employees' }] },
-          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }] },
+          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
           { label: '일용근로', children: [{ label: '일용근로급여관리', to: '/hr/daily-wage' }] },
         ],
       },
@@ -362,7 +379,11 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '주요전달사항', to: '/groupware/shared' },
           { label: '조직도관리', to: '/groupware/org' },
-          { label: '게시판', children: [{ label: '공지사항', to: '/groupware/notice' }] },
+          { label: '게시판', children: [
+            { label: '공지사항', to: '/groupware/notice' },
+            { label: '익명게시판', to: '/groupware/anonymous-board' },
+          ] },
+          { label: '외근조회', to: '/groupware/field-works' },
           {
             label: '사내관리',
             children: [
@@ -386,6 +407,7 @@ const MENU: TopMenu[] = [
           { label: '기안서작성', to: '/groupware/approval/draft' },
           { label: '내결재관리', to: '/groupware/approval/my' },
           { label: '기안서통합관리', to: '/groupware/approval/all' },
+          { label: '공통양식·결재선 설정', to: '/groupware/approval/settings' },
         ],
       },
       {
