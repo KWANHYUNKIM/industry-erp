@@ -22,6 +22,7 @@ import ProfitSummaryPage from './pages/accounting/ProfitSummaryPage'
 import ItemCostPage from './pages/accounting/ItemCostPage'
 import VatSummaryPage from './pages/accounting/VatSummaryPage'
 import WithholdingPage from './pages/accounting/WithholdingPage'
+import PromissoryNotePage from './pages/accounting/PromissoryNotePage'
 import AccountsPage from './pages/accounting/AccountsPage'
 import JournalListPage from './pages/accounting/JournalListPage'
 import AccountLedgerPage from './pages/accounting/AccountLedgerPage'
@@ -31,6 +32,9 @@ import IncomeStatementPage from './pages/accounting/IncomeStatementPage'
 import TaxInvoicePage from './pages/accounting/TaxInvoicePage'
 import JournalEntryPage from './pages/accounting/JournalEntryPage'
 import CashTxnPage from './pages/accounting/CashTxnPage'
+import BankCardPage from './pages/accounting/BankCardPage'
+import FixedAssetPage from './pages/accounting/FixedAssetPage'
+import FastVoucherPage from './pages/accounting/FastVoucherPage'
 import ExpensePage from './pages/accounting/ExpensePage'
 import QualityInspectionPage from './pages/quality/QualityInspectionPage'
 import SerialLotPage from './pages/quality/SerialLotPage'
@@ -222,6 +226,7 @@ export default function App() {
         <Route path="/accounting/item-cost" element={<ItemCostPage />} />
         <Route path="/accounting/vat" element={<VatSummaryPage />} />
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
+        <Route path="/accounting/notes" element={<PromissoryNotePage />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
         <Route path="/accounting/journals" element={<JournalListPage />} />
         <Route path="/accounting/ledger-book" element={<AccountLedgerPage />} />
@@ -231,8 +236,11 @@ export default function App() {
         <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />
         <Route path="/accounting/tax-invoice-purchase" element={<TaxInvoicePage type="PURCHASE" />} />
         <Route path="/accounting/journal-entry" element={<JournalEntryPage />} />
+        <Route path="/accounting/bank-cards" element={<BankCardPage />} />
+        <Route path="/accounting/fixed-assets" element={<FixedAssetPage />} />
         <Route path="/accounting/cash-deposit" element={<CashTxnPage mode="deposit" />} />
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
+        <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
         <Route path="/accounting/standard-cost" element={<StandardCostPage />} />
