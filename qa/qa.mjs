@@ -1224,8 +1224,145 @@ async function scenarioCurrency() {
   await rejects('고시 이전 날짜는 환산 불가', 'GET',
     `/currencies/convert?currencyId=${usd.id}&amount=100&baseDate=2026-01-01`, undefined, '고시환율이 없습니다')
 
-  const latest = (await must('GET', '/currencies')).find((c) => c.id === usd.id)
-  eq('통화 목록에 최근 고시환율이 실림', Number(latest.latestRate), 1385.5)
+  // 최근 고시환율은 다른 흐름(수출 인보이스 등)이 더 최신 고시를 넣으면 바뀌므로,
+  // 여기서는 "그날 고시가 그대로 남아 있는가"만 본다.
+  const usdRates = (await must('GET', `/currencies/rates?currencyId=${usd.id}`))
+  eq('등록한 고시환율이 목록에 남아 있음',
+    Number(usdRates.find((r) => r.rateDate === rateDate).rate), 1385.5)
+}
+
+async function scenarioExport(f) {
+  section('■ 시나리오 21. 수출 — 인보이스(외화·환율 고정) → 통관 → 선적 → 입금')
+
+  const DATE = '2026-07-14'
+
+  // 통화·고시환율 준비 (외화 모듈 재사용).
+  // USD 는 외화 시나리오가 '최신 고시' 가정을 걸고 있으므로 건드리지 않고 EUR 를 쓴다 —
+  // 시나리오끼리 같은 마스터의 시계열을 흔들면 서로를 깨뜨린다.
+  const currencies = await must('GET', '/currencies')
+  const eur = currencies.find((c) => c.code === 'EUR')
+    ?? await must('POST', '/currencies', { code: 'EUR', name: '유로', symbol: '€', unit: 1 })
+
+  const rates = await must('GET', `/currencies/rates?currencyId=${eur.id}`)
+  if (!rates.some((r) => r.rateDate === DATE)) {
+    await must('POST', '/currencies/rates', { currencyId: eur.id, rateDate: DATE, rate: 1450 })
+  }
+  const rate = (await must('GET', `/currencies/rates?currencyId=${eur.id}`)).find((r) => r.rateDate === DATE).rate
+
+  const inv = await must('POST', '/exports', {
+    partnerId: f.customer.id, currencyId: eur.id, invoiceDate: DATE,
+    incoterms: 'FOB', destination: 'Los Angeles, USA',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 100 }],
+  })
+  eq('신규 인보이스 상태는 오더', inv.statusName, '오더')
+  eq('인보이스 번호는 INV- 접두어', inv.invoiceNo.startsWith('INV-'), true)
+  eq('외화 합계 = 수량 × 외화단가', Number(inv.foreignAmount), 1000)
+  eq('발행일 고시환율이 적용됨', Number(inv.appliedRate), Number(rate))
+  eq('원화 = 외화 × 환율 / 고시단위', Number(inv.krwAmount), 1000 * Number(rate) / eur.unit)
+
+  // 단계는 건너뛸 수 없다
+  await rejects('오더에서 바로 선적은 거부', 'POST', `/exports/${inv.id}/ship`,
+    { blNo: 'BL-QA-001' }, '다음 단계가 아닙니다')
+  await rejects('오더에서 바로 입금은 거부', 'POST', `/exports/${inv.id}/pay`, {}, '다음 단계가 아닙니다')
+
+  const customs = await must('POST', `/exports/${inv.id}/customs`, { declarationNo: 'QA-DECL-0001' })
+  eq('통관진행 후 상태', customs.statusName, '통관진행')
+  eq('수출신고번호가 기록됨', customs.declarationNo, 'QA-DECL-0001')
+
+  await rejects('같은 단계 반복은 거부', 'POST', `/exports/${inv.id}/customs`,
+    { declarationNo: 'QA-DECL-0002' }, '다음 단계가 아닙니다')
+
+  const shipped = await must('POST', `/exports/${inv.id}/ship`, { blNo: 'QA-BL-0001', shippedDate: DATE })
+  eq('선적완료 후 상태', shipped.statusName, '선적완료')
+  eq('B/L 번호가 기록됨', shipped.blNo, 'QA-BL-0001')
+
+  const summaryBefore = await must('GET', '/exports')
+  const unpaidBefore = Number(summaryBefore.unpaidKrw)
+  eq('선적했어도 입금 전이면 미입금 잔액에 잡힘',
+    summaryBefore.exports.find((e) => e.id === inv.id).statusName, '선적완료')
+
+  const paid = await must('POST', `/exports/${inv.id}/pay`, { paidDate: DATE })
+  eq('입금완료 후 상태', paid.statusName, '입금완료')
+
+  const summaryAfter = await must('GET', '/exports')
+  eq('입금하면 미입금 잔액에서 빠짐',
+    Number(summaryAfter.unpaidKrw), unpaidBefore - Number(inv.krwAmount))
+
+  await rejects('입금완료 건은 더 진행할 수 없음', 'POST', `/exports/${inv.id}/pay`, {}, '다음 단계가 아닙니다')
+
+  await rejects('매입처에는 수출 불가', 'POST', '/exports', {
+    partnerId: f.supplier.id, currencyId: eur.id, invoiceDate: DATE,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1 }],
+  }, '매출처가 아닌')
+}
+
+/** 전자결재 설정 — 공통양식등록 · 결재선 프리셋 */
+async function scenarioApprovalSetting() {
+  section('■ 시나리오 22. 전자결재 설정 (공통양식 · 결재선 프리셋)')
+
+  const users = await must('GET', '/meta/users')
+  const [u1, u2] = users
+
+  const code = `${P}FORM`
+  const existing = (await must('GET', '/approval-settings/templates')).find((t) => t.code === code)
+  const template = existing ?? await must('POST', '/approval-settings/templates', {
+    code, name: 'QA 양식', sortOrder: 99,
+    fieldSchema: [{ key: 'reason', label: '사유', type: 'text', required: true }],
+  })
+  eq('새 양식은 기안서 0건', Number(template.documentCount), 0)
+  eq('입력항목이 저장됨', template.fieldSchema[0].label, '사유')
+
+  await rejects('중복 양식코드는 거부', 'POST', '/approval-settings/templates',
+    { code, name: '중복' }, '이미 등록된 양식코드')
+
+  // 기안서가 쓰고 있는 양식은 삭제할 수 없다 (사용중지로 내려야 한다)
+  const used = (await must('GET', '/approval-settings/templates')).find((t) => t.documentCount > 0)
+  if (used) {
+    await rejects('사용중인 양식 삭제는 거부', 'DELETE', `/approval-settings/templates/${used.id}`,
+      undefined, '삭제할 수 없습니다')
+  }
+
+  // 관리 목록은 사용중지된 양식도 보여 준다 (기안 화면 목록은 사용중인 것만)
+  await must('PUT', `/approval-settings/templates/${template.id}`, {
+    code, name: 'QA 양식', sortOrder: 99, active: false, fieldSchema: template.fieldSchema,
+  })
+  const admin = (await must('GET', '/approval-settings/templates')).find((t) => t.id === template.id)
+  eq('사용중지해도 관리 목록에는 남음', admin.active, false)
+  eq('기안 화면 양식 목록에서는 빠짐',
+    (await must('GET', '/approval-form-templates')).some((t) => t.id === template.id), false)
+  await must('PUT', `/approval-settings/templates/${template.id}`, {
+    code, name: 'QA 양식', sortOrder: 99, active: true, fieldSchema: template.fieldSchema,
+  })
+
+  // ── 결재선 프리셋
+  const presetName = `${P}결재선`
+  const before = (await must('GET', '/approval-settings/presets')).find((p) => p.name === presetName)
+  if (before) {
+    await must('DELETE', `/approval-settings/presets/${before.id}`)
+  }
+  const preset = await must('POST', '/approval-settings/presets', {
+    name: presetName, approverIds: [u1.id, u2.id],
+  })
+  eq('결재 순서대로 단계가 만들어짐', preset.steps.map((s) => s.stepOrder).join(','), '1,2')
+  eq('1차 결재자가 지정한 사람', preset.steps[0].approverId, u1.id)
+  isNull('양식을 지정하지 않으면 공통 결재선', preset.formTemplateId)
+
+  await rejects('같은 결재자가 연속으로 오면 거부', 'POST', '/approval-settings/presets',
+    { name: `${P}잘못된 결재선`, approverIds: [u1.id, u1.id] }, '연속')
+  await rejects('결재자가 없으면 거부', 'POST', '/approval-settings/presets',
+    { name: `${P}빈 결재선`, approverIds: [] }, '1명 이상')
+  await rejects('중복 결재선 이름은 거부', 'POST', '/approval-settings/presets',
+    { name: presetName, approverIds: [u2.id] }, '이미 등록된 결재선')
+
+  const updated = await must('PUT', `/approval-settings/presets/${preset.id}`, {
+    name: presetName, approverIds: [u2.id, u1.id], formTemplateId: template.id,
+  })
+  eq('수정하면 결재 순서가 바뀜', updated.steps[0].approverId, u2.id)
+  eq('양식 전용 결재선으로 바뀜', updated.formTemplateId, template.id)
+
+  await must('DELETE', `/approval-settings/presets/${preset.id}`)
+  eq('결재선 삭제됨',
+    (await must('GET', '/approval-settings/presets')).some((p) => p.id === preset.id), false)
 }
 
 // ── main ────────────────────────────────────────────────────────────────────
@@ -1264,9 +1401,11 @@ async function main() {
   await scenarioBudget()
   await scenarioMail()
   await scenarioIncome()
+  await scenarioExport(fixtures)
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()
+  await scenarioApprovalSetting()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
