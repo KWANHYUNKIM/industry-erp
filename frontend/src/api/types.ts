@@ -422,6 +422,36 @@ export interface MemberOption {
   department: string
 }
 
+// ===== 전자결재 설정 (공통양식등록 · 결재선 프리셋) =====
+
+/** 관리 화면용 양식 (사용중지된 양식도 포함) */
+export interface ApprovalFormTemplateAdmin {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
+  active: boolean
+  fieldSchema: ApprovalField[]
+  /** 이 양식으로 작성된 기안서 수 — 0건일 때만 삭제 가능 */
+  documentCount: number
+}
+
+export interface ApprovalPresetStep {
+  stepOrder: number
+  approverId: number
+  approverName: string
+  department: string | null
+}
+
+export interface ApprovalPreset {
+  id: number
+  name: string
+  active: boolean
+  formTemplateId: number | null
+  formTemplateName: string | null
+  steps: ApprovalPresetStep[]
+}
+
 // ===== 재고 기초등록: 관리항목 / 단가적용순서 =====
 
 export interface ManagementItem {
@@ -1545,48 +1575,95 @@ export interface WmsOverview {
   allocations: AllocationRow[]
 }
 
-// ===== WMS (로케이션) =====
+// ===== 수출관리 =====
 
-export interface WarehouseLocation {
-  id: number
-  warehouseId: number
-  warehouseName: string
-  code: string
-  zone: string | null
-  rack: string | null
-  level: string | null
-  description: string | null
-  active: boolean
-}
+export type ExportStatus = 'ORDER' | 'CUSTOMS' | 'SHIPPED' | 'PAID'
 
-export interface LocationStock {
+export interface ExportOrderLine {
   id: number
-  locationId: number
-  locationCode: string
-  warehouseId: number
-  warehouseName: string
+  lineNo: number
   itemId: number
   itemCode: string
   itemName: string
   unit: string
   quantity: number
+  unitPrice: number
+  amount: number
 }
 
-/** (품목, 창고)별 배치 현황: 창고 재고 = 배치 + 미배치 */
-export interface AllocationRow {
-  itemId: number
-  itemCode: string
-  itemName: string
-  unit: string
-  warehouseId: number
-  warehouseName: string
-  stockQuantity: number
-  allocatedQuantity: number
-  unallocatedQuantity: number
+export interface ExportOrder {
+  id: number
+  invoiceNo: string
+  invoiceDate: string
+  partnerId: number
+  buyerName: string
+  currencyId: number
+  currencyCode: string
+  currencySymbol: string | null
+  foreignAmount: number
+  appliedRate: number
+  krwAmount: number
+  incoterms: string | null
+  destination: string | null
+  status: ExportStatus
+  statusName: string
+  declarationNo: string | null
+  blNo: string | null
+  shippedDate: string | null
+  paidDate: string | null
+  remark: string | null
+  createdBy: string | null
+  lines: ExportOrderLine[]
 }
 
-export interface WmsOverview {
-  locations: WarehouseLocation[]
-  locationStocks: LocationStock[]
-  allocations: AllocationRow[]
+export interface ExportSummary {
+  totalKrw: number
+  unpaidKrw: number
+  orderCount: number
+  shippingCount: number
+  unpaidCount: number
+  exports: ExportOrder[]
+}
+
+// ===== 쇼핑몰관리 =====
+
+export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
+
+export interface MallOrder {
+  id: number
+  mall: string
+  mallOrderNo: string
+  orderDate: string
+  status: MallOrderStatus
+  statusName: string
+  buyerName: string
+  buyerPhone: string | null
+  address: string | null
+  productName: string
+  itemId: number | null
+  itemCode: string | null
+  itemName: string | null
+  quantity: number
+  unitPrice: number
+  totalAmount: number
+  salesId: number | null
+  salesDocNo: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface MallSummary {
+  mall: string
+  orderCount: number
+  totalAmount: number
+  unconverted: number
+}
+
+export interface MallOverview {
+  totalOrders: number
+  totalAmount: number
+  unmapped: number
+  unconverted: number
+  byMall: MallSummary[]
+  orders: MallOrder[]
 }

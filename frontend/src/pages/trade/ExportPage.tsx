@@ -1,202 +1,396 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
 
-/** 재고 II > 수출관리 — 판매 전표를 수출 오더 관점으로 조회 (/api/sales 연동)
- *  별도 수출 스키마가 없어 판매 전표(docNo→Invoice, 거래처→Buyer)를 수출 뷰로 표시하고,
- *  진행상태는 판매일 경과에 따라 오더→통관진행→선적완료→입금완료로 표시한다. */
-type Status = '오더' | '통관진행' | '선적완료' | '입금완료'
+const won = (n: number) => n.toLocaleString('ko-KR')
+const fx = (n: number, symbol?: string | null) =>
+  `${symbol ?? ''}${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+const today = () => new Date().toISOString().slice(0, 10)
 
-interface SalesLine { itemCode?: string; itemName: string; unit?: string; quantity: number; unitPrice?: number; supplyAmount?: number; vatAmount?: number }
-interface SalesDoc {
-  id: number
-  docNo: string
-  partnerName: string
-  warehouseName: string
-  saleDate: string
-  supplyAmount?: number
-  vatAmount?: number
-  totalAmount: number
-  lines: SalesLine[]
+const TABS = ['전체', '오더', '통관진행', '선적완료', '입금완료'] as const
+type Tab = (typeof TABS)[number]
+const TAB_STATUS: Record<Exclude<Tab, '전체'>, ExportStatus> = {
+  오더: 'ORDER', 통관진행: 'CUSTOMS', 선적완료: 'SHIPPED', 입금완료: 'PAID',
 }
+const statusColor = (s: ExportStatus) =>
+  s === 'PAID' ? '#1c7c3c' : s === 'SHIPPED' ? '#7a5cc0' : s === 'CUSTOMS' ? 'var(--ec-blue)' : '#c07a00'
 
-const statusColor = (s: Status) => ({ 오더: '#c07a00', 통관진행: 'var(--ec-blue)', 선적완료: '#7a5cc0', 입금완료: '#1c7c3c' }[s])
+interface LineForm { itemId: string; quantity: string; unitPrice: string }
+const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
 
-function deriveStatus(saleDate: string): Status {
-  const days = Math.floor((Date.now() - new Date(saleDate).getTime()) / 86400000)
-  if (days <= 0) return '오더'
-  if (days <= 3) return '통관진행'
-  if (days <= 7) return '선적완료'
-  return '입금완료'
-}
+const esc = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 
+/**
+ * 수출관리 — 인보이스 발행 → 통관진행 → 선적완료 → 입금완료.
+ * 금액은 외화가 원본이고, 원화는 발행일 고시환율로 환산해 인보이스에 고정된다.
+ */
 export default function ExportPage() {
-  const [docs, setDocs] = useState<SalesDoc[]>([])
-  const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState<ExportSummary | null>(null)
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  const [tab, setTab] = useState<Tab>('전체')
+  const [openId, setOpenId] = useState<number | null>(null)
   const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const [notice, setNotice] = useState('')
+  const [showForm, setShowForm] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    try {
-      const res = await api.get<SalesDoc[]>('/sales')
-      const list = [...res.data].sort((a, b) => (a.saleDate < b.saleDate ? 1 : a.saleDate > b.saleDate ? -1 : 0))
-      setDocs(list)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+
+  function load() {
+    setError('')
+    api.get<ExportSummary>('/exports').then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'SUPPLIER'))).catch(() => {})
+    api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data.filter((c) => c.code !== 'KRW'))).catch(() => {})
+    api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
+  }, [])
 
-  const shown = docs.filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
-  const total = useMemo(() => shown.reduce((s, d) => s + d.totalAmount, 0), [shown])
+  const rows = summary?.exports ?? []
+  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
-  // 선택 상태 — 각 서식은 선택된 건, 없으면 화면 전체(shown)를 대상으로 출력
-  const [selected, setSelected] = useState<Set<number>>(new Set())
-  const toggle = (id: number) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const targets = () => (selected.size ? shown.filter((d) => selected.has(d.id)) : shown)
+  async function customs(e: ExportOrder) {
+    const declarationNo = window.prompt(`${e.invoiceNo} 수출신고번호`, '')
+    if (declarationNo === null || !declarationNo.trim()) return
+    try { await api.post(`/exports/${e.id}/customs`, { declarationNo }); flash('통관진행으로 넘겼습니다.'); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
 
-  const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
-  const money = (n: number) => Number(n || 0).toLocaleString('ko-KR')
+  async function ship(e: ExportOrder) {
+    const blNo = window.prompt(`${e.invoiceNo} B/L 번호`, '')
+    if (blNo === null || !blNo.trim()) return
+    try { await api.post(`/exports/${e.id}/ship`, { blNo, shippedDate: today() }); flash('선적완료 처리했습니다.'); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
 
-  /** 인쇄용 서식 문서를 새 창으로 띄운다 (print.ts의 PRINT_CSS/escape 패턴을 페이지 안에서 재구성) */
-  function openDoc(title: string, sections: string[]) {
-    const list = targets()
-    if (list.length === 0) { alert('출력할 수출 건이 없습니다.'); return }
+  async function pay(e: ExportOrder) {
+    if (!window.confirm(`${e.invoiceNo} 입금완료로 처리할까요? (원화 ${won(e.krwAmount)})`)) return
+    try { await api.post(`/exports/${e.id}/pay`, { paidDate: today() }); flash('입금완료 처리했습니다.'); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
+  /** Commercial Invoice / Packing List 인쇄. 수량·금액은 인보이스에 박힌 값 그대로 쓴다. */
+  function print(e: ExportOrder, kind: 'INVOICE' | 'PACKING') {
     const win = window.open('', '_blank', 'width=1024,height=768')
-    if (!win) { alert('팝업이 차단되어 인쇄창을 열 수 없습니다.'); return }
-    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-      *{box-sizing:border-box}body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;margin:0;color:#1f2733}
-      .doc{padding:24px 28px;page-break-after:always}.doc:last-child{page-break-after:auto}
-      h1{font-size:20px;margin:0 0 2px;letter-spacing:1px}.sub{font-size:11px;color:#6b7480;margin-bottom:14px}
-      .meta{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
-      .meta th{background:#f0f4f8;text-align:left;width:110px;padding:5px 8px;border:1px solid #c9d1da;font-weight:700}
-      .meta td{padding:5px 8px;border:1px solid #c9d1da}
-      table.items{width:100%;border-collapse:collapse;font-size:11.5px}
-      table.items th,table.items td{border:1px solid #c9d1da;padding:5px 7px}
-      table.items th{background:#eff3f8;text-align:center;font-weight:700}
-      td.num{text-align:right}.tot{font-weight:700;background:#f7f9fb}
-      .sign{margin-top:26px;font-size:12px;display:flex;justify-content:flex-end}
-      .sign .box{border-top:1px solid #333;padding-top:4px;width:220px;text-align:center;color:#5a626e}
-      .note{margin-top:10px;font-size:10.5px;color:#8a929c}
-      @page{size:A4;margin:12mm}@media print{.doc{padding:0}}
-    </style></head><body>${sections.join('')}</body></html>`)
+    if (!win) return alert('팝업이 차단되었습니다.')
+    const money = kind === 'INVOICE'
+    const head = money
+      ? '<th>No.</th><th>Description</th><th class="r">Q\'ty</th><th class="r">Unit Price</th><th class="r">Amount</th>'
+      : '<th>No.</th><th>Description</th><th class="r">Q\'ty</th><th>Unit</th>'
+    const body = e.lines.map((l) => money
+      ? `<tr><td>${l.lineNo}</td><td>${esc(l.itemName)} (${esc(l.itemCode)})</td><td class="r">${l.quantity.toLocaleString('en-US')}</td><td class="r">${fx(l.unitPrice, e.currencySymbol)}</td><td class="r">${fx(l.amount, e.currencySymbol)}</td></tr>`
+      : `<tr><td>${l.lineNo}</td><td>${esc(l.itemName)} (${esc(l.itemCode)})</td><td class="r">${l.quantity.toLocaleString('en-US')}</td><td>${esc(l.unit)}</td></tr>`,
+    ).join('')
+
+    win.document.write(`<!doctype html><meta charset="utf-8"><title>${money ? 'Commercial Invoice' : 'Packing List'} ${esc(e.invoiceNo)}</title>
+      <style>
+        body{font-family:system-ui,'Malgun Gothic',sans-serif;padding:32px;color:#222}
+        h1{font-size:20px;letter-spacing:2px;text-align:center;margin:0 0 18px}
+        table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+        th,td{border:1px solid #999;padding:6px 8px;text-align:left}
+        th{background:#f2f4f7}
+        .r{text-align:right}
+        .meta td{border:none;padding:3px 0;font-size:13px}
+        .foot{margin-top:14px;font-size:13px}
+      </style>
+      <h1>${money ? 'COMMERCIAL INVOICE' : 'PACKING LIST'}</h1>
+      <table class="meta">
+        <tr><td style="width:120px"><b>Invoice No.</b></td><td>${esc(e.invoiceNo)}</td>
+            <td style="width:120px"><b>Date</b></td><td>${esc(e.invoiceDate)}</td></tr>
+        <tr><td><b>Buyer</b></td><td>${esc(e.buyerName)}</td>
+            <td><b>Destination</b></td><td>${esc(e.destination ?? '-')}</td></tr>
+        <tr><td><b>Terms</b></td><td>${esc(e.incoterms ?? '-')}</td>
+            <td><b>B/L No.</b></td><td>${esc(e.blNo ?? '-')}</td></tr>
+        <tr><td><b>수출신고번호</b></td><td colspan="3">${esc(e.declarationNo ?? '-')}</td></tr>
+      </table>
+      <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+      ${money ? `<div class="foot"><b>Total: ${esc(e.currencyCode)} ${fx(e.foreignAmount, e.currencySymbol)}</b>
+        &nbsp;·&nbsp; 원화환산 ${won(e.krwAmount)} 원 (적용환율 ${e.appliedRate.toLocaleString('ko-KR')})</div>` : ''}
+      <script>window.onload=()=>window.print()<\/script>`)
     win.document.close()
-    win.onload = () => { win.focus(); win.print() }
-  }
-
-  function metaRows(d: SalesDoc, extra: [string, string][] = []) {
-    const base: [string, string][] = [['Invoice No.', d.docNo], ['Date', d.saleDate], ['Buyer (수입자)', d.partnerName], ['출고창고', d.warehouseName], ...extra]
-    return `<table class="meta"><tbody>${base.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>`
-  }
-
-  function printInvoice() {
-    openDoc('Commercial Invoice', targets().map((d) => {
-      const rows = d.lines.map((l, i) => {
-        const amount = l.supplyAmount ?? (l.unitPrice ?? 0) * l.quantity
-        return `<tr><td class="num">${i + 1}</td><td>${esc(l.itemName)}${l.itemCode ? ` <span style="color:#8a929c">(${esc(l.itemCode)})</span>` : ''}</td><td class="num">${money(l.quantity)} ${esc(l.unit ?? '')}</td><td class="num">${money(l.unitPrice ?? 0)}</td><td class="num">${money(amount)}</td></tr>`
-      }).join('')
-      const supply = d.supplyAmount ?? d.lines.reduce((s, l) => s + (l.supplyAmount ?? (l.unitPrice ?? 0) * l.quantity), 0)
-      return `<div class="doc"><h1>COMMERCIAL INVOICE</h1><div class="sub">상업송장 · 통화 KRW</div>${metaRows(d)}
-        <table class="items"><thead><tr><th style="width:36px">No</th><th>Description of Goods</th><th style="width:120px">Q'ty</th><th style="width:120px">Unit Price</th><th style="width:130px">Amount</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="tot"><td colspan="4">Sub Total (공급가액)</td><td class="num">${money(supply)}</td></tr>
-        <tr class="tot"><td colspan="4">Total Amount (합계, VAT 포함)</td><td class="num">${money(d.totalAmount)}</td></tr></tfoot></table>
-        <div class="sign"><div class="box">Signature (수출자)</div></div></div>`
-    }))
-  }
-
-  function printPacking() {
-    openDoc('Packing List', targets().map((d) => {
-      const rows = d.lines.map((l, i) =>
-        `<tr><td class="num">${i + 1}</td><td>${esc(l.itemName)}${l.itemCode ? ` <span style="color:#8a929c">(${esc(l.itemCode)})</span>` : ''}</td><td class="num">${money(l.quantity)} ${esc(l.unit ?? '')}</td><td class="num">1</td><td class="num">-</td><td class="num">-</td></tr>`,
-      ).join('')
-      const totQty = d.lines.reduce((s, l) => s + l.quantity, 0)
-      return `<div class="doc"><h1>PACKING LIST</h1><div class="sub">포장명세서</div>${metaRows(d)}
-        <table class="items"><thead><tr><th style="width:36px">No</th><th>Description of Goods</th><th style="width:110px">Q'ty</th><th style="width:90px">Packages</th><th style="width:110px">N.W (kg)</th><th style="width:110px">G.W (kg)</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="tot"><td colspan="2">Total</td><td class="num">${money(totQty)}</td><td class="num">${d.lines.length}</td><td class="num">-</td><td class="num">-</td></tr></tfoot></table>
-        <div class="note">※ 순중량(N.W)·총중량(G.W)은 시스템 미보유 항목으로 실측값을 별도 기입해 주세요.</div>
-        <div class="sign"><div class="box">Signature (수출자)</div></div></div>`
-    }))
-  }
-
-  function printDeclaration() {
-    openDoc('수출신고필증', targets().map((d) => {
-      const rows = d.lines.map((l, i) => {
-        const amount = l.supplyAmount ?? (l.unitPrice ?? 0) * l.quantity
-        return `<tr><td class="num">${i + 1}</td><td>${esc(l.itemName)}${l.itemCode ? ` (${esc(l.itemCode)})` : ''}</td><td class="num">${money(l.quantity)} ${esc(l.unit ?? '')}</td><td class="num">${money(amount)}</td></tr>`
-      }).join('')
-      return `<div class="doc"><h1>수출신고필증</h1><div class="sub">Export Declaration Certificate</div>
-        ${metaRows(d, [['신고번호', `EXP-${esc(d.docNo)}`], ['신고구분/거래구분', 'H / 11 (일반형태 수출)'], ['결제금액', `KRW ${money(d.totalAmount)}`], ['목적국(Buyer)', d.partnerName]])}
-        <table class="items"><thead><tr><th style="width:36px">란</th><th>품명·규격</th><th style="width:120px">수량</th><th style="width:140px">신고가격(FOB)</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="tot"><td colspan="3">총 신고가격</td><td class="num">KRW ${money(d.supplyAmount ?? d.totalAmount)}</td></tr></tfoot></table>
-        <div class="note">※ 신고번호·목적국·HS부호·운송정보 등 관세청 실제 신고 항목은 시스템 미보유로 판매전표 값 기준의 예시 서식입니다. (백엔드 미연동)</div>
-        <div class="sign"><div class="box">세관장 확인</div></div></div>`
-    }))
   }
 
   return (
-    <EcListShell
-      title="수출관리"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Commercial Invoice', onClick: printInvoice }, { label: 'Packing List', onClick: printPacking }, { label: '수출신고필증', onClick: printDeclaration }, { label: 'Excel' }]}
-    >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
+    <EcListShell title="수출관리" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 인보이스 발행(F2)</button>
+        <button className="ec-btn" onClick={load}>새로고침</button>
+        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+          오더 → 통관진행(신고번호) → 선적완료(B/L) → 입금완료. 원화는 발행일 고시환율로 고정됩니다.
+        </span>
       </div>
+
+      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+
+      {summary && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <Tile label="수출 총액(원화)" value={won(summary.totalKrw)} />
+          <Tile label="미입금 잔액" value={won(summary.unpaidKrw)} strong />
+          <Tile label="오더" value={`${summary.orderCount}건`} />
+          <Tile label="통관·선적 중" value={`${summary.shippingCount}건`} />
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+        {TABS.map((t) => (
+          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
+            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
+          }}>{t} ({tabCount(t)})</button>
+        ))}
+      </div>
+
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 30, textAlign: 'center' }} data-export-skip="true">
-              <input
-                type="checkbox"
-                checked={shown.length > 0 && shown.every((d) => selected.has(d.id))}
-                onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())}
-              />
-            </th>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>Invoice No. ▼</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
-            <th>Buyer ▼</th>
-            <th style={{ width: 120 }}>출고창고</th>
-            <th style={{ width: 70, textAlign: 'right' }}>품목수</th>
-            <th style={{ width: 130, textAlign: 'right' }}>금액(KRW)</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태 ▼</th>
+            <th>Invoice No.</th><th>발행일</th><th>Buyer</th><th>도착지</th><th>조건</th>
+            <th style={{ textAlign: 'right' }}>외화금액</th>
+            <th style={{ textAlign: 'right' }}>적용환율</th>
+            <th style={{ textAlign: 'right' }}>원화환산</th>
+            <th style={{ textAlign: 'center' }}>상태</th>
+            <th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
-          {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수출 내역이 없습니다.</td></tr>
-          ) : shown.map((d, i) => {
-            const status = deriveStatus(d.saleDate)
-            return (
-              <tr key={d.id} style={selected.has(d.id) ? { background: '#f5f8ff' } : undefined}>
-                <td style={{ textAlign: 'center' }}>
-                  <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
-                </td>
+          {shown.length === 0 ? (
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수출 인보이스가 없습니다.</td></tr>
+          ) : shown.map((e, i) => (
+            <Fragment key={e.id}>
+              <tr onClick={() => setOpenId(openId === e.id ? null : e.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{d.saleDate}</td>
-                <td>{d.partnerName}</td>
-                <td>{d.warehouseName}</td>
-                <td style={{ textAlign: 'right' }}>{d.lines.length.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{d.totalAmount.toLocaleString()}</td>
-                <td style={{ textAlign: 'center', color: statusColor(status), fontWeight: 700 }}>{status}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+                  {openId === e.id ? '▾ ' : '▸ '}{e.invoiceNo}
+                </td>
+                <td>{e.invoiceDate}</td>
+                <td>{e.buyerName}</td>
+                <td>{e.destination ?? ''}</td>
+                <td>{e.incoterms ?? ''}</td>
+                <td style={{ textAlign: 'right' }}>{e.currencyCode} {fx(e.foreignAmount, e.currencySymbol)}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{e.appliedRate.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(e.krwAmount)}</td>
+                <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(e.status) }}>{e.statusName}</span></td>
+                <td style={{ textAlign: 'center' }} onClick={(ev) => ev.stopPropagation()}>
+                  <div style={{ display: 'inline-flex', gap: 3 }}>
+                    {e.status === 'ORDER' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => customs(e)}>통관진행</button>}
+                    {e.status === 'CUSTOMS' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => ship(e)}>선적완료</button>}
+                    {e.status === 'SHIPPED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => pay(e)}>입금완료</button>}
+                    {e.status === 'PAID' && <span style={{ fontSize: 11, color: '#1c7c3c' }}>{e.paidDate}</span>}
+                  </div>
+                </td>
               </tr>
-            )
-          })}
+              {openId === e.id && (
+                <tr className="no-ec">
+                  <td colSpan={11} style={{ padding: 0, background: '#fafbfc' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', fontSize: 12, color: '#5a626e' }}>
+                      <span>수출신고번호: <b>{e.declarationNo ?? '—'}</b></span>
+                      <span>· B/L: <b>{e.blNo ?? '—'}</b></span>
+                      {e.shippedDate && <span>· 선적일: <b>{e.shippedDate}</b></span>}
+                      <button className="ec-btn" style={{ marginLeft: 'auto', height: 20, padding: '0 8px' }} onClick={() => print(e, 'INVOICE')}>Commercial Invoice</button>
+                      <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => print(e, 'PACKING')}>Packing List</button>
+                    </div>
+                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th>
+                          <th style={{ textAlign: 'right' }}>수량</th>
+                          <th style={{ textAlign: 'right' }}>외화단가</th>
+                          <th style={{ textAlign: 'right' }}>외화금액</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {e.lines.map((l) => (
+                          <tr key={l.id}>
+                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
+                            <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
+                            <td>{l.itemName}</td>
+                            <td style={{ textAlign: 'right' }}>{l.quantity.toLocaleString('ko-KR')} {l.unit}</td>
+                            <td style={{ textAlign: 'right' }}>{fx(l.unitPrice, e.currencySymbol)}</td>
+                            <td style={{ textAlign: 'right' }}>{fx(l.amount, e.currencySymbol)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
         </tbody>
       </table>
+
+      {showForm && (
+        <ExportForm
+          partners={partners}
+          currencies={currencies}
+          items={items}
+          onClose={() => setShowForm(false)}
+          onSaved={() => { setShowForm(false); flash('인보이스를 발행했습니다.'); load() }}
+        />
+      )}
     </EcListShell>
+  )
+}
+
+function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? '#eef5ff' : '#fff' }}>
+      <div style={{ fontSize: 11.5, color: '#8a929c' }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : '#2b3440' }}>{value}</div>
+    </div>
+  )
+}
+
+function ExportForm({ partners, currencies, items, onClose, onSaved }: {
+  partners: Partner[]
+  currencies: Currency[]
+  items: Item[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [partnerId, setPartnerId] = useState('')
+  const [currencyId, setCurrencyId] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState(today())
+  const [incoterms, setIncoterms] = useState('FOB')
+  const [destination, setDestination] = useState('')
+  const [lines, setLines] = useState<LineForm[]>([emptyLine()])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const symbol = currencies.find((c) => String(c.id) === currencyId)?.symbol ?? ''
+  const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
+  const total = calc.reduce((a, b) => a + b, 0)
+
+  function setLine(i: number, patch: Partial<LineForm>) {
+    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+  }
+
+  async function save() {
+    setError('')
+    if (!partnerId) return setError('수입자(Buyer)를 선택하세요.')
+    if (!currencyId) return setError('통화를 선택하세요. (통화·고시환율은 기초등록 > 외화에서 등록합니다)')
+    const payload = lines
+      .filter((l) => l.itemId && Number(l.quantity) > 0 && Number(l.unitPrice) > 0)
+      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }))
+    if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
+    setSaving(true)
+    try {
+      await api.post('/exports', {
+        partnerId: Number(partnerId), currencyId: Number(currencyId), invoiceDate,
+        incoterms: incoterms || undefined, destination: destination || undefined, lines: payload,
+      })
+      onSaved()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 760, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>Commercial Invoice 발행</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        </div>
+        <div style={{ padding: 16 }}>
+          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+            <tbody>
+              <tr>
+                <th style={{ width: 90, background: '#f5f7fa' }}>Buyer<span style={{ color: '#c60a2e' }}>*</span></th>
+                <td>
+                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
+                    <option value="">수입자 선택</option>
+                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </td>
+                <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
+                <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>통화<span style={{ color: '#c60a2e' }}>*</span></th>
+                <td>
+                  <select className="ec-input" value={currencyId} onChange={(e) => setCurrencyId(e.target.value)} style={{ width: 220 }}>
+                    <option value="">통화 선택</option>
+                    {currencies.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
+                  </select>
+                </td>
+                <th style={{ background: '#f5f7fa' }}>가격조건</th>
+                <td>
+                  <select className="ec-input" value={incoterms} onChange={(e) => setIncoterms(e.target.value)} style={{ width: 100 }}>
+                    <option value="FOB">FOB</option>
+                    <option value="CIF">CIF</option>
+                    <option value="EXW">EXW</option>
+                    <option value="DDP">DDP</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>도착지</th>
+                <td colSpan={3}>
+                  <input className="ec-input" value={destination} onChange={(e) => setDestination(e.target.value)}
+                    style={{ width: 300 }} placeholder="예: Los Angeles, USA" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th><th>품목</th>
+                <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+                <th style={{ width: 110, textAlign: 'right' }}>외화단가</th>
+                <th style={{ textAlign: 'right' }}>외화금액</th>
+                <th style={{ width: 40 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l, i) => (
+                <tr key={i}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>
+                    <select className="ec-input" value={l.itemId} onChange={(e) => setLine(i, { itemId: e.target.value })} style={{ width: '100%' }}>
+                      <option value="">품목 선택</option>
+                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
+                    </select>
+                  </td>
+                  <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
+                  <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
+                  <td style={{ textAlign: 'right' }}>{fx(calc[i], symbol)}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <td colSpan={4} style={{ textAlign: 'right' }}>Total</td>
+                <td colSpan={2} style={{ textAlign: 'right' }}>{fx(total, symbol)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <button className="ec-btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
+          <div style={{ marginTop: 10, fontSize: 12, color: '#8a929c' }}>
+            원화 환산액은 저장 시 발행일 고시환율로 계산돼 인보이스에 고정됩니다(그날 고시가 없으면 직전 고시 적용).
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '발행 중…' : '발행(F8)'}</button>
+          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
   )
 }
