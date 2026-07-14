@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import type { Project } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const PAYMENTS = ['법인카드', '계좌이체', '현금']
@@ -29,12 +30,14 @@ export default function ExpensePage() {
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
-    expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', paymentMethod: '법인카드', department: '',
+    expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', paymentMethod: '법인카드', department: '', projectId: '',
   })
+  const [projects, setProjects] = useState<Project[]>([])
 
   async function load() {
     setLoading(true)
     try {
+      api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
       const [e, a] = await Promise.all([
         api.get<Expense[]>('/expenses'),
         api.get<Account[]>('/accounts'),
@@ -66,6 +69,7 @@ export default function ExpensePage() {
         amount: Number(form.amount),
         paymentMethod: form.paymentMethod || undefined,
         department: form.department || undefined,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
       })
       setForm((f) => ({ ...f, content: '', partnerName: '', amount: '', department: '' }))
       setShowForm(false)
@@ -125,6 +129,11 @@ export default function ExpensePage() {
               </select></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>부서</div>
               <input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} style={{ width: 100 }} /></label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>프로젝트
+              <select className="ec-input" value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 160 }}>
+                <option value="">(없음)</option>
+                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.code} {pj.name}</option>)}
+              </select></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>

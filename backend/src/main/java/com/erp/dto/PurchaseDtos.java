@@ -27,6 +27,8 @@ public final class PurchaseDtos {
             LocalDate purchaseDate,
             Boolean taxable,
             String remark,
+            /** 귀속 프로젝트 (선택) */
+            Long projectId,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<PurchaseLineRequest> lines
     ) {}
 
@@ -55,6 +57,7 @@ public final class PurchaseDtos {
             LocalDate purchaseDate,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
+            Long projectId, String projectName,
             List<PurchaseLineResponse> lines
     ) {
         public static PurchaseResponse from(Purchase p) {
@@ -65,6 +68,8 @@ public final class PurchaseDtos {
                     p.getPurchaseDate(),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
                     p.getRemark(), p.getCreatedBy(),
+                    p.getProject() != null ? p.getProject().getId() : null,
+                    p.getProject() != null ? p.getProject().getName() : null,
                     p.getLines().stream().map(PurchaseLineResponse::from).toList());
         }
     }

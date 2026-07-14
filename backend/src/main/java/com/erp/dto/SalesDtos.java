@@ -30,6 +30,8 @@ public final class SalesDtos {
             /** 과세 여부 (true=부가세 10%, false=면세) */
             Boolean taxable,
             String remark,
+            /** 귀속 프로젝트 (선택). 프로젝트별 손익 집계의 재료가 된다. */
+            Long projectId,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<SalesLineRequest> lines
     ) {}
 
@@ -60,6 +62,7 @@ public final class SalesDtos {
             String remark, String createdBy,
             SalesConfirmStatus confirmStatus, String confirmStatusName, LocalDateTime confirmedAt,
             boolean accountingReflected,
+            Long projectId, String projectName,
             List<SalesLineResponse> lines
     ) {
         public static SalesResponse from(Sales s) {
@@ -72,6 +75,8 @@ public final class SalesDtos {
                     s.getRemark(), s.getCreatedBy(),
                     s.getConfirmStatus(), s.getConfirmStatus().getDisplayName(), s.getConfirmedAt(),
                     s.isAccountingReflected(),
+                    s.getProject() != null ? s.getProject().getId() : null,
+                    s.getProject() != null ? s.getProject().getName() : null,
                     s.getLines().stream().map(SalesLineResponse::from).toList());
         }
     }

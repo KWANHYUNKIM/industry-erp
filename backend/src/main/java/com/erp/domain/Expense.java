@@ -51,4 +51,9 @@ public class Expense extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /** 귀속 프로젝트. 없으면 일반 영업·간접비다 (억지로 채우면 프로젝트 손익이 거짓말을 한다). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 }

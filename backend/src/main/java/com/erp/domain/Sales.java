@@ -61,6 +61,11 @@ public class Sales extends BaseTimeEntity {
     @Column(length = 50)
     private String createdBy;
 
+    /** 귀속 프로젝트. 없으면 일반 영업·간접비다 (억지로 채우면 프로젝트 손익이 거짓말을 한다). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
     /** 회계반영 여부 (판매 전표 → 회계 분개 반영 완료) */
     @Column(nullable = false)
     @Builder.Default

@@ -31,6 +31,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SalesService {
 
+    private final ProjectService projectService;
+
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final SalesRepository salesRepository;
@@ -126,6 +128,7 @@ public class SalesService {
                 .saleDate(saleDate)
                 .createdBy(username)
                 .remark(req.remark())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .build();
 
         BigDecimal totalSupply = BigDecimal.ZERO;

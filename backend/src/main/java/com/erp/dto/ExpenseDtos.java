@@ -18,7 +18,9 @@ public final class ExpenseDtos {
             String partnerName,
             @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             String paymentMethod,
-            String department
+            String department,
+            /** 귀속 프로젝트 (선택) */
+            Long projectId
     ) {}
 
     public record ExpenseResponse(
@@ -27,6 +29,7 @@ public final class ExpenseDtos {
             Long accountId, String accountName,
             String content, String partnerName,
             BigDecimal amount, String paymentMethod, String department,
+            Long projectId, String projectName,
             String createdBy
     ) {
         public static ExpenseResponse from(Expense e) {
@@ -35,6 +38,8 @@ public final class ExpenseDtos {
                     e.getAccount().getId(), e.getAccount().getName(),
                     e.getContent(), e.getPartnerName(),
                     e.getAmount(), e.getPaymentMethod(), e.getDepartment(),
+                    e.getProject() != null ? e.getProject().getId() : null,
+                    e.getProject() != null ? e.getProject().getName() : null,
                     e.getCreatedBy());
         }
     }

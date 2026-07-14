@@ -265,6 +265,13 @@ const MENU: TopMenu[] = [
       {
         label: '비용관리',
         nodes: [
+          { label: '프로젝트별 손익', to: '/accounting/project-profit' },
+          { label: '프로젝트등록', to: '/groupware/project' },
+        ],
+      },
+      {
+        label: '비용관리',
+        nodes: [
           { label: '기본사항등록', children: [{ label: '비용등록', to: '/accounting/expense' }] },
           { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
         ],
