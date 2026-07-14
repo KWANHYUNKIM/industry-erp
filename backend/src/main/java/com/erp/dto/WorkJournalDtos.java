@@ -22,6 +22,8 @@ public final class WorkJournalDtos {
             LocalDate reportDate,
             Long authorId, String authorName,
             String department, String partnerName,
+            /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다(아니면 null) */
+            Long partnerId,
             String title, String content
     ) {
         public static WorkJournalResponse from(WorkJournal j) {
@@ -29,6 +31,7 @@ public final class WorkJournalDtos {
                     j.getId(), j.getReportDate(),
                     j.getAuthor().getId(), j.getAuthor().getName(),
                     j.getDepartment(), j.getPartnerName(),
+                    j.getPartner() != null ? j.getPartner().getId() : null,
                     j.getTitle(), j.getContent());
         }
     }

@@ -12,6 +12,9 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
 
     boolean existsByCode(String code);
 
+    /** 자유입력된 거래처명이 마스터와 정확히 일치할 때만 연결한다(부분일치로 엮으면 엉뚱한 거래처가 붙는다). */
+    java.util.Optional<BusinessPartner> findByName(String name);
+
     /** 통합검색: 코드·거래처명 부분일치 상위 N건 */
     @Query("select p from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q order by p.code")
     List<BusinessPartner> searchTop(@Param("q") String q, Pageable pageable);
