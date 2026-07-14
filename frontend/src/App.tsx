@@ -55,6 +55,7 @@ import WorkPage from './pages/groupware/WorkPage'
 import WorkLogPage from './pages/groupware/WorkLogPage'
 import AttendancePage from './pages/groupware/AttendancePage'
 import CrmPage from './pages/groupware/CrmPage'
+import BusinessCardPage from './pages/groupware/BusinessCardPage'
 import ProjectPage from './pages/groupware/ProjectPage'
 import SharedInfoPage from './pages/groupware/SharedInfoPage'
 import OrgChartPage from './pages/groupware/OrgChartPage'
@@ -282,6 +283,7 @@ export default function App() {
         <Route path="/groupware/worklog" element={<WorkLogPage />} />
         <Route path="/groupware/attendance" element={<AttendancePage />} />
         <Route path="/groupware/crm" element={<CrmPage />} />
+        <Route path="/groupware/cards" element={<BusinessCardPage />} />
         <Route path="/groupware/project" element={<ProjectPage />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
