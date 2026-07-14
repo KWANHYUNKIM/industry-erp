@@ -254,6 +254,14 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '자금계획',
+        nodes: [{ label: '자금수지계획', to: '/accounting/cash-plan' }],
+      },
+      {
+        label: '예산관리',
+        nodes: [{ label: '예산편성·집행현황', to: '/accounting/budget' }],
+      },
+      {
         label: '비용관리',
         nodes: [
           { label: '기본사항등록', children: [{ label: '비용등록', to: '/accounting/expense' }] },

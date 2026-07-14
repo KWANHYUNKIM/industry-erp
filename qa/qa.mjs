@@ -772,6 +772,135 @@ async function scenarioFastVoucher() {
   }, '내역')
 }
 
+/** 비현금거래(대체전표) — 상계 · 대손 · 미지급 계상 · 계정대체 */
+async function scenarioNonCash() {
+  section('■ 시나리오 14. 비현금거래 (대체전표)')
+
+  const accounts = await must('GET', '/accounts')
+  const byCode = (c) => accounts.find((a) => a.code === c)
+  const travel = byCode('812')     // 여비교통비
+  const supplies = byCode('830')   // 소모품비
+  const goods = byCode('146')      // 상품
+  const cash = byCode('101')       // 현금
+
+  const linesOf = async (id) => (await must('GET', `/journals/${id}`)).lines
+
+  const offset = await must('POST', '/non-cash', { type: 'OFFSET', amount: 300_000, txnDate: '2026-07-14' })
+  eq('상계는 차)외상매입금', offset.debitAccountCode, '251')
+  eq('상계는 대)외상매출금', offset.creditAccountCode, '108')
+  eq('상계에 회계전표가 붙음', String(offset.journalDocNo).startsWith('GL-'), 'true')
+
+  const badDebt = await must('POST', '/non-cash', { type: 'BAD_DEBT', amount: 150_000, txnDate: '2026-07-14' })
+  eq('대손은 차)대손상각비', badDebt.debitAccountCode, '835')
+  const badLines = await linesOf(badDebt.journalEntryId)
+  eq('대손 분개 대변은 외상매출금',
+    Number(badLines.find((l) => l.accountCode === '108').credit), 150_000)
+
+  const accrual = await must('POST', '/non-cash', {
+    type: 'ACCRUAL', amount: 80_000, debitAccountId: travel.id, txnDate: '2026-07-14',
+  })
+  eq('미지급 계상은 대)미지급금', accrual.creditAccountCode, '253')
+  const accrualLines = await linesOf(accrual.journalEntryId)
+  eq('미지급 계상 분개 차변은 선택한 비용계정',
+    Number(accrualLines.find((l) => l.accountCode === '812').debit), 80_000)
+
+  const transfer = await must('POST', '/non-cash', {
+    type: 'TRANSFER', amount: 50_000, debitAccountId: supplies.id, creditAccountId: goods.id,
+    txnDate: '2026-07-14',
+  })
+  const transferEntry = await must('GET', `/journals/${transfer.journalEntryId}`)
+  eq('계정대체는 지정한 차/대변 그대로', `${transfer.debitAccountCode}/${transfer.creditAccountCode}`, '830/146')
+  eq('대체 분개가 대차평형', Number(transferEntry.totalDebit), Number(transferEntry.totalCredit))
+
+  await rejects('현금 계정은 비현금거래에 쓸 수 없음', 'POST', '/non-cash', {
+    type: 'TRANSFER', amount: 1_000, debitAccountId: cash.id, creditAccountId: goods.id,
+  }, '현금성 계정')
+
+  await rejects('차변과 대변이 같으면 거부', 'POST', '/non-cash', {
+    type: 'TRANSFER', amount: 1_000, debitAccountId: goods.id, creditAccountId: goods.id,
+  }, '같은 계정')
+
+  await rejects('미지급 계상에 비용계정이 없으면 거부', 'POST', '/non-cash', {
+    type: 'ACCRUAL', amount: 1_000,
+  }, '비용계정')
+}
+
+async function scenarioBudget() {
+  section('■ 시나리오 15. 예산관리 · 자금계획 (계획 대비 실적)')
+
+  const PERIOD = '2026-05'          // QA 전용 귀속월 (다른 시나리오 전표와 섞이지 않게 과거 달을 쓴다)
+  const FROM = '2026-05-01'
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')   // 복리후생비 (비용)
+
+  // 이미 편성된 예산이 있으면 지우고 다시 잡는다.
+  // 전표는 실행할 때마다 쌓이므로(삭제 API가 없다) 예산액을 '기존 집행액 + 여유'로 잡아야
+  // 몇 번을 돌려도 같은 결론이 나온다. 고정 금액을 쓰면 누적 집행액이 언젠가 예산을 넘어 깨진다.
+  const before = await must('GET', `/budgets?period=${PERIOD}`)
+  for (const row of before.rows) await must('DELETE', `/budgets/${row.id}`)
+
+  const SPEND = 300_000
+  const MARGIN = 200_000
+  const spendBefore = Number(before.rows.find((r) => r.accountId === welfare.id)?.actual ?? 0)
+  const BUDGET = spendBefore + SPEND + MARGIN
+
+  const budget = await must('POST', '/budgets', {
+    period: PERIOD, accountId: welfare.id, amount: BUDGET, remark: 'QA 복리후생 예산',
+  })
+  eq('편성 직후 예산액이 그대로', Number(budget.amount), BUDGET)
+  eq('편성 시점 집행액은 기존 전표 집계', Number(budget.actual), spendBefore)
+
+  await rejects('같은 달 같은 계정 이중 편성은 거부', 'POST', '/budgets', {
+    period: PERIOD, accountId: welfare.id, amount: 500_000,
+  }, '이미 편성')
+
+  // 그 달에 복리후생비 전표를 하나 끊고, 집행실적이 따라오는지 본다
+  await must('POST', '/journals', {
+    entryDate: FROM, description: 'QA 예산 집행 테스트',
+    lines: [
+      { accountId: welfare.id, debit: SPEND },
+      { accountId: accounts.find((a) => a.code === '101').id, credit: SPEND },
+    ],
+  })
+
+  const status = await must('GET', `/budgets?period=${PERIOD}`)
+  const row = status.rows.find((r) => r.accountId === welfare.id)
+  eq('집행실적이 회계전표에서 집계됨', Number(row.actual), spendBefore + SPEND)
+  eq('잔여 = 편성액 - 집행액', Number(row.remaining), BUDGET - Number(row.actual))
+  eq('잔여가 여유분과 일치', Number(row.remaining), MARGIN)
+  eq('집행률 = 집행액 / 편성액 × 100', Number(row.executionRate),
+    Math.round(Number(row.actual) / BUDGET * 1000) / 10)
+  eq('예산 내면 초과 아님', row.over, false)
+  eq('합계가 행 합계와 일치', Number(status.totalActual),
+    status.rows.reduce((s, r) => s + Number(r.actual), 0))
+
+  // 예산액을 집행액보다 낮추면 초과로 잡힌다
+  const lowered = await must('PUT', `/budgets/${budget.id}`, { amount: Number(row.actual) - 1 })
+  eq('편성액 수정이 반영됨', Number(lowered.amount), Number(row.actual) - 1)
+  eq('집행액이 편성액을 넘으면 초과', lowered.over, true)
+  eq('초과 시 잔여는 음수', Number(lowered.remaining) < 0, true)
+
+  await rejects('귀속월 형식이 틀리면 거부', 'GET', '/budgets?period=2026-13', undefined, '귀속월')
+
+  // ── 자금계획
+  const plans = await must('GET', `/cash-plans?period=${PERIOD}`)
+  for (const p of plans.plans) await must('DELETE', `/cash-plans/${p.id}`)
+
+  await must('POST', '/cash-plans', { period: PERIOD, type: 'INFLOW', category: 'QA 매출대금 회수', amount: 5_000_000 })
+  await must('POST', '/cash-plans', { period: PERIOD, type: 'OUTFLOW', category: 'QA 급여 지급', amount: 3_000_000 })
+  await must('POST', '/cash-plans', { period: PERIOD, type: 'OUTFLOW', category: 'QA 임차료', amount: 500_000 })
+
+  const cash = await must('GET', `/cash-plans?period=${PERIOD}`)
+  eq('수입 계획 합계', Number(cash.plannedInflow), 5_000_000)
+  eq('지출 계획 합계', Number(cash.plannedOutflow), 3_500_000)
+  eq('계획 수지 = 수입 - 지출', Number(cash.plannedNet), 1_500_000)
+  eq('실적 수지 = 실제 입금 - 출금', Number(cash.actualNet),
+    Number(cash.actualInflow) - Number(cash.actualOutflow))
+  eq('수입 차이 = 실적 - 계획', Number(cash.inflowDiff),
+    Number(cash.actualInflow) - Number(cash.plannedInflow))
+  eq('계획 3건이 목록에 있음', cash.plans.length, 3)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -804,6 +933,8 @@ async function main() {
   await scenarioFixedAsset()
   await scenarioNote(fixtures)
   await scenarioFastVoucher()
+  await scenarioNonCash()
+  await scenarioBudget()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

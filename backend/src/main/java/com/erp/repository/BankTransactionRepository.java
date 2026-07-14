@@ -17,9 +17,12 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
            "order by t.txnDate desc, t.id desc")
     List<BankTransaction> findAllWithRefs();
 
-    /** 자금계획 실적: 기간 내 계좌 입금·출금 합계 [입금합, 출금합] */
+    /**
+     * 자금계획 실적: 기간 내 계좌 입금·출금 합계 [입금합, 출금합].
+     * 다중 컬럼 단일 행은 Object[] 로 바로 받으면 한 겹 더 감싸여 오므로 List 로 받아 첫 행을 쓴다.
+     */
     @Query("select coalesce(sum(case when t.deposit = true then t.amount else 0 end), 0), " +
            "coalesce(sum(case when t.deposit = false then t.amount else 0 end), 0) " +
            "from BankTransaction t where t.txnDate between :from and :to")
-    Object[] sumInOut(@Param("from") LocalDate from, @Param("to") LocalDate to);
+    List<Object[]> sumInOut(@Param("from") LocalDate from, @Param("to") LocalDate to);
 }
