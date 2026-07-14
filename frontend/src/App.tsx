@@ -48,6 +48,7 @@ import CompanyInfoPage from './pages/settings/CompanyInfoPage'
 import PreferencesPage from './pages/settings/PreferencesPage'
 import SecurityPage from './pages/settings/SecurityPage'
 import DownloadPage from './pages/settings/DownloadPage'
+import PrintSignLinePage from './pages/settings/PrintSignLinePage'
 import ApprovalDraftPage from './pages/groupware/ApprovalDraftPage'
 import MyApprovalPage from './pages/groupware/MyApprovalPage'
 import ApprovalAllPage from './pages/groupware/ApprovalAllPage'
@@ -275,6 +276,7 @@ export default function App() {
         <Route path="/settings/preferences" element={<PreferencesPage />} />
         <Route path="/settings/security" element={<SecurityPage />} />
         <Route path="/settings/download" element={<DownloadPage />} />
+        <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
 
         {/* 그룹웨어 */}

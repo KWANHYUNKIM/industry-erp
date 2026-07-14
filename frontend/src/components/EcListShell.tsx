@@ -1,7 +1,22 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
-import { printTable } from '../utils/print'
+import { printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
+
+/**
+ * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
+ * 매번 요청이 나간다. 결재란이 없거나 조회가 실패하면 결재란 없이 인쇄한다 — 도장칸이 없다고
+ * 출력을 막을 이유는 없다.
+ */
+async function defaultSignLine(): Promise<PrintSignLine | null> {
+  try {
+    const r = await api.get<PrintSignLine>('/print-sign-lines/default')
+    return r.status === 204 ? null : r.data
+  } catch {
+    return null
+  }
+}
 
 export interface BottomAction { label: string; onClick?: () => void; primary?: boolean }
 
@@ -50,7 +65,7 @@ export default function EcListShell({
   }
 
   const doExcel = withTable((t) => exportTableToXlsx(t, title))
-  const doPrint = withTable((t) => printTable(t, title))
+  const doPrint = withTable(async (t) => printTable(t, title, await defaultSignLine()))
 
   const filterRows = (q: string) => {
     const table = findDataTable(bodyRef.current)
