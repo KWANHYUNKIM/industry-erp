@@ -321,6 +321,12 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '기타원천세',
+        nodes: [
+          { label: '기타원천세(사업·기타소득)', to: '/accounting/other-withholding' },
+        ],
+      },
+      {
         label: '부가세',
         nodes: [{ label: '신고전검토자료', children: [{ label: '매입매출·부가세', to: '/accounting/vat' }] }],
       },

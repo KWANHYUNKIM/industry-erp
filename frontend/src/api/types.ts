@@ -1146,3 +1146,46 @@ export interface DailyWorkSummary {
   unpaidNetPay: number
   rows: DailyWork[]
 }
+
+// ===== 기타원천세 =====
+
+export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND'
+
+export interface OtherWithholding {
+  id: number
+  docNo: string
+  payDate: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  partnerId: number | null
+  payeeName: string
+  payeeRegNo: string | null
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  incomeTax: number
+  localIncomeTax: number
+  netAmount: number
+  description: string | null
+  createdBy: string | null
+}
+
+export interface IncomeTypeSummary {
+  incomeType: IncomeType
+  incomeTypeName: string
+  count: number
+  grossAmount: number
+  incomeTax: number
+  localIncomeTax: number
+}
+
+export interface OtherWithholdingSummary {
+  month: string
+  count: number
+  totalGross: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalNet: number
+  byIncomeType: IncomeTypeSummary[]
+  rows: OtherWithholding[]
+}
