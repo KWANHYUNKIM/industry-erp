@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.SalesOrder;
@@ -20,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -32,6 +32,7 @@ public class SalesOrderService {
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<SalesOrderResponse> findAll() {
@@ -107,8 +108,6 @@ public class SalesOrderService {
     }
 
     private String generateOrderNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        int seq = salesOrderRepository.maxSeq(date) + 1;
-        return "SN-" + d + "-" + String.format("%04d", seq);
+        return docNoGenerator.next("SN-", "sales_orders", "order_no", "order_date", date);
     }
 }

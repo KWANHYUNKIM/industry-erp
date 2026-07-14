@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.Purchase;
@@ -22,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +37,7 @@ public class PurchaseService {
     private final WarehouseRepository warehouseRepository;
     private final ItemRepository itemRepository;
     private final StockService stockService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<PurchaseResponse> findAll() {
@@ -128,7 +129,6 @@ public class PurchaseService {
     }
 
     private String generateDocNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "PO-" + d + "-" + String.format("%04d", purchaseRepository.count() + 1);
+        return docNoGenerator.next("PO-", "purchases", "doc_no", "purchase_date", date);
     }
 }

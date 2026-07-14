@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.Sales;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +38,7 @@ public class SalesService {
     private final WarehouseRepository warehouseRepository;
     private final ItemRepository itemRepository;
     private final StockService stockService;
+    private final DocumentNoGenerator docNoGenerator;
 
     /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
     @Transactional
@@ -156,7 +157,6 @@ public class SalesService {
     }
 
     private String generateDocNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "SO-" + d + "-" + String.format("%04d", salesRepository.count() + 1);
+        return docNoGenerator.next("SO-", "sales", "doc_no", "sale_date", date);
     }
 }

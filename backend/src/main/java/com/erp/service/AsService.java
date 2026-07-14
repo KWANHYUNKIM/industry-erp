@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.AsRequest;
 import com.erp.domain.AsStatus;
 import com.erp.domain.BusinessPartner;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -26,6 +26,7 @@ public class AsService {
     private final AsRequestRepository asRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<AsResponse> findAll() {

@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.Quotation;
@@ -21,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** 견적서: 작성/조회/상태전이, 수주(SalesOrder)로 전환. */
@@ -29,13 +29,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class QuotationService {
 
-    private static final DateTimeFormatter DOC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final QuotationRepository quotationRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
     private final SalesOrderService salesOrderService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<QuotationResponse> findAll() {
@@ -130,8 +130,7 @@ public class QuotationService {
     }
 
     private String generateQuoteNo(LocalDate date) {
-        int seq = quotationRepository.maxSeq(date) + 1;
-        return "QT-" + date.format(DOC_DATE) + "-" + String.format("%04d", seq);
+        return docNoGenerator.next("QT-", "quotations", "quote_no", "quote_date", date);
     }
 
     private Quotation get(Long id) {
