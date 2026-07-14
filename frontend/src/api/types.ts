@@ -1343,3 +1343,42 @@ export interface SharedMailBox {
   pendingCount: number
   mails: Mail[]
 }
+
+// ===== 법인세 =====
+
+export type TaxAdjustmentType = 'ADD' | 'DEDUCT'
+export type TaxReturnStatus = 'DRAFT' | 'CONFIRMED'
+
+export interface TaxAdjustment {
+  id: number
+  type: TaxAdjustmentType
+  typeName: string
+  name: string
+  amount: number
+  remark: string | null
+}
+
+export interface TaxReturn {
+  id: number
+  fiscalYear: number
+  periodFrom: string
+  periodTo: string
+  status: TaxReturnStatus
+  statusName: string
+  netIncome: number
+  additions: number
+  deductions: number
+  incomeForYear: number
+  lossCarryforward: number
+  taxBase: number
+  calculatedTax: number
+  taxCredit: number
+  penaltyTax: number
+  totalTax: number
+  prepaidTax: number
+  payableTax: number
+  localIncomeTax: number
+  remark: string | null
+  createdBy: string | null
+  adjustments: TaxAdjustment[]
+}
