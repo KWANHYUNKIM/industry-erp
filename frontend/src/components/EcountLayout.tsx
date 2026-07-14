@@ -33,6 +33,7 @@ const MENU: TopMenu[] = [
       { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }] },
       { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
+      { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
       { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },
     ],
   },

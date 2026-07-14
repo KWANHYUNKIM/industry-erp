@@ -1668,45 +1668,20 @@ export interface MallOverview {
   orders: MallOrder[]
 }
 
-// ===== 쇼핑몰관리 =====
+// ===== 인쇄용 결재라인 =====
 
-export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
-
-export interface MallOrder {
+export interface SignSlot {
   id: number
-  mall: string
-  mallOrderNo: string
-  orderDate: string
-  status: MallOrderStatus
-  statusName: string
-  buyerName: string
-  buyerPhone: string | null
-  address: string | null
-  productName: string
-  itemId: number | null
-  itemCode: string | null
-  itemName: string | null
-  quantity: number
-  unitPrice: number
-  totalAmount: number
-  salesId: number | null
-  salesDocNo: string | null
+  slotOrder: number
+  title: string
+  signerName: string | null
+}
+
+export interface SignLine {
+  id: number
+  name: string
+  defaultLine: boolean
+  active: boolean
   remark: string | null
-  createdBy: string | null
-}
-
-export interface MallSummary {
-  mall: string
-  orderCount: number
-  totalAmount: number
-  unconverted: number
-}
-
-export interface MallOverview {
-  totalOrders: number
-  totalAmount: number
-  unmapped: number
-  unconverted: number
-  byMall: MallSummary[]
-  orders: MallOrder[]
+  slots: SignSlot[]
 }

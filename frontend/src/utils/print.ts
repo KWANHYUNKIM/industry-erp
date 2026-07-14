@@ -12,6 +12,11 @@ const PRINT_CSS = `
   tbody tr:nth-child(even) { background: #fafbfc; }
   @page { size: A4 landscape; margin: 12mm; }
   @media print { body { margin: 0; } }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  /* 결재란: 도장을 찍을 자리라 칸을 넉넉히 비워둔다 */
+  table.signline { width: auto; margin-bottom: 8px; }
+  table.signline th { padding: 2px 10px; font-size: 10px; }
+  table.signline td.sign { height: 42px; min-width: 56px; text-align: center; vertical-align: bottom; font-size: 10px; }
 `
 
 const escapeHtml = (v: unknown) =>
@@ -20,7 +25,21 @@ const escapeHtml = (v: unknown) =>
   )
 
 /** 화면의 테이블을 인쇄용 창으로 띄운다. 인쇄할 행이 없으면 false. */
-export function printTable(table: HTMLTableElement, title: string): boolean {
+/** 인쇄용 결재란. 슬롯 이름이 비면 도장을 찍을 빈 칸으로 나간다. */
+export interface PrintSignLine {
+  name: string
+  slots: { title: string; signerName: string | null }[]
+}
+
+/** 출력물 우측 상단 결재란. 없으면 아무것도 그리지 않는다. */
+function signLineHtml(line?: PrintSignLine | null): string {
+  if (!line || line.slots.length === 0) return ''
+  const heads = line.slots.map((s) => `<th>${escapeHtml(s.title)}</th>`).join('')
+  const cells = line.slots.map((s) => `<td class="sign">${escapeHtml(s.signerName ?? '')}</td>`).join('')
+  return `<table class="signline"><thead><tr>${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
+}
+
+export function printTable(table: HTMLTableElement, title: string, signLine?: PrintSignLine | null): boolean {
   const { headers, rows } = tableToMatrix(table)
   if (rows.length === 0) return false
 
@@ -45,8 +64,13 @@ export function printTable(table: HTMLTableElement, title: string): boolean {
   win.document.write(`<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${PRINT_CSS}</style></head>
 <body>
-  <h1>${escapeHtml(title)}</h1>
-  <div class="meta">출력일시 ${escapeHtml(printedAt)} · 총 ${rows.length}건</div>
+  <div class="head">
+    <div>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="meta">출력일시 ${escapeHtml(printedAt)} · 총 ${rows.length}건</div>
+    </div>
+    ${signLineHtml(signLine)}
+  </div>
   <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
 </body></html>`)
   win.document.close()
