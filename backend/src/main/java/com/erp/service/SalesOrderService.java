@@ -108,6 +108,7 @@ public class SalesOrderService {
 
     private String generateOrderNo(LocalDate date) {
         String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "SN-" + d + "-" + String.format("%04d", salesOrderRepository.count() + 1);
+        int seq = salesOrderRepository.maxSeq(date) + 1;
+        return "SN-" + d + "-" + String.format("%04d", seq);
     }
 }

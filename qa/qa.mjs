@@ -259,6 +259,41 @@ async function scenarioSettings() {
   await must('PUT', '/security-policy', sp) // 원복
 }
 
+/** 견적 → 발송 → 수주전환 (영업 흐름 시작점) */
+async function scenarioQuotation(f) {
+  section('■ 시나리오 6. 견적서 → 발송 → 수주전환')
+
+  const quote = await must('POST', '/quotations', {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', validUntil: '2026-07-31', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 5000 }],
+  })
+  eq('신규 견적 상태는 작성', quote.statusName, '작성')
+  eq('공급가액 = 수량 × 단가', Number(quote.supplyAmount), 50000)
+  eq('부가세 10% 자동계산', Number(quote.vatAmount), 5000)
+  eq('합계 = 공급가액 + 부가세', Number(quote.totalAmount), 55000)
+  isNull('전환 전에는 수주 연결 없음', quote.convertedOrderId)
+
+  eq('발송 처리 후 상태는 발송', (await must('POST', `/quotations/${quote.id}/send`)).statusName, '발송')
+
+  const order = await must('POST', `/quotations/${quote.id}/convert`)
+  eq('전환된 수주는 접수 상태', order.statusName, '접수')
+  eq('수주에 견적 거래처가 승계됨', order.partnerId, f.customer.id)
+  eq('수주 합계가 견적 합계와 일치', Number(order.totalAmount), 55000)
+
+  const converted = (await must('GET', '/quotations')).find((q) => q.id === quote.id)
+  eq('전환 후 견적 상태는 수주전환', converted.statusName, '수주전환')
+  eq('견적에 생성된 수주가 FK로 연결됨', converted.convertedOrderId, order.id)
+
+  await rejects('전환된 견적 재전환은 거부', 'POST', `/quotations/${quote.id}/convert`, undefined, '이미')
+
+  const dead = await must('POST', '/quotations', {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  await must('POST', `/quotations/${dead.id}/cancel`)
+  await rejects('취소된 견적은 수주전환 불가', 'POST', `/quotations/${dead.id}/convert`, undefined, '취소')
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -283,6 +318,7 @@ async function main() {
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)
   await scenarioSettings()
+  await scenarioQuotation(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
