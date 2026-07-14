@@ -41,9 +41,12 @@ public class BankTransaction extends BaseTimeEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
-    /** 상대계정 (입금이면 대변, 출금이면 차변에 선다) */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "counter_account_id", nullable = false)
+    /**
+     * 상대계정 (입금이면 대변, 출금이면 차변에 선다).
+     * 간편전표(지출결의서 등)로 생긴 이동은 상대편이 여러 줄이라 비어 있고, 분개를 봐야 한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counter_account_id")
     private Account counterAccount;
 
     @ManyToOne(fetch = FetchType.LAZY)

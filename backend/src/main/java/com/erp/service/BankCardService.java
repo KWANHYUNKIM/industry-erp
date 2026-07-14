@@ -179,6 +179,42 @@ public class BankCardService {
         return BankTxnResponse.from(txnRepository.save(t));
     }
 
+    /**
+     * 다른 전표(간편전표 등)가 만든 계좌 이동을 기록한다.
+     * 분개는 호출부가 이미 만들었으므로 여기서는 잔액과 입출금 내역만 남긴다(이중 분개 방지).
+     * 상대계정은 호출부의 라인이 여럿이라 비워 둔다.
+     */
+    @Transactional
+    public BankTransaction recordExternal(Long bankAccountId, boolean deposit, BigDecimal amount,
+                                          LocalDate date, String description,
+                                          JournalEntry entry, String username) {
+        BankAccount b = bankAccountRepository.findForUpdate(bankAccountId)
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + bankAccountId));
+        if (!b.isActive()) {
+            throw ApiException.badRequest("사용중지된 계좌입니다: " + b.getBankName() + " " + b.getAccountNo());
+        }
+        BigDecimal after = b.getBalance().add(deposit ? amount : amount.negate());
+        if (after.signum() < 0) {
+            throw ApiException.badRequest(String.format("계좌 잔액이 부족합니다. 잔액 %s, 출금 %s",
+                    b.getBalance().toPlainString(), amount.toPlainString()));
+        }
+        b.setBalance(after);
+
+        BankTransaction t = BankTransaction.builder()
+                .txnNo(docNoGenerator.next("BK-", "bank_transactions", "txn_no", "txn_date", date))
+                .txnDate(date)
+                .bankAccount(b)
+                .deposit(deposit)
+                .amount(amount)
+                .counterAccount(null)
+                .balanceAfter(after)
+                .journalEntry(entry)
+                .description(description)
+                .createdBy(username)
+                .build();
+        return txnRepository.save(t);
+    }
+
     // ── 카드사용 ──────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
