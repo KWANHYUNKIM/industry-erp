@@ -53,6 +53,7 @@ const MENU: TopMenu[] = [
       {
         label: '영업관리',
         nodes: [
+          { label: '견적서', to: '/sales/quotations' },
           { label: '판매입력', to: '/sales/sell' },
           { label: '판매조회', to: '/sales/sales-list' },
           { label: '판매현황', to: '/sales/sales-status' },

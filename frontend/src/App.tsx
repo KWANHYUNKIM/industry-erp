@@ -50,6 +50,7 @@ import CrmPage from './pages/groupware/CrmPage'
 import ProjectPage from './pages/groupware/ProjectPage'
 import SharedInfoPage from './pages/groupware/SharedInfoPage'
 import SalesOrderPage from './pages/trade/SalesOrderPage'
+import QuotationPage from './pages/trade/QuotationPage'
 import TradeInquiryPage from './pages/trade/TradeInquiryPage'
 import ExportPage from './pages/trade/ExportPage'
 import MallPage from './pages/trade/MallPage'
@@ -183,6 +184,7 @@ export default function App() {
         <Route path="/sales/settlement" element={<SettlementPage />} />
         <Route path="/sales/ledger" element={<LedgerPage />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
+        <Route path="/sales/quotations" element={<QuotationPage />} />
         <Route path="/sales/export" element={<ExportPage />} />
         <Route path="/sales/mall" element={<MallPage />} />
         <Route path="/sales/sales-status" element={<SalesStatusPage />} />

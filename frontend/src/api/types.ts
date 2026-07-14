@@ -714,3 +714,38 @@ export interface Payslip {
   remark: string | null
   lines: PayslipLine[]
 }
+
+// ===== 견적서 =====
+
+export type QuotationStatus = 'DRAFT' | 'SENT' | 'CONVERTED' | 'CANCELLED'
+
+export interface QuoteLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+}
+
+export interface Quotation {
+  id: number
+  quoteNo: string
+  quoteDate: string
+  validUntil: string | null
+  partnerId: number
+  partnerName: string
+  status: QuotationStatus
+  statusName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  convertedOrderId: number | null
+  remark: string | null
+  createdBy: string | null
+  lines: QuoteLine[]
+}
