@@ -76,6 +76,7 @@ import TransferPage from './pages/inventory/TransferPage'
 import WmsPage from './pages/inventory/WmsPage'
 import ReportsPage from './pages/inventory/ReportsPage'
 import EtcSystemPage from './pages/settings/EtcSystemPage'
+import CommonCodePage from './pages/settings/CommonCodePage'
 import DataCollectPage from './pages/datacenter/DataCollectPage'
 import DataExportPage from './pages/datacenter/DataExportPage'
 import MrpPage from './pages/production/MrpPage'
@@ -279,6 +280,7 @@ export default function App() {
         <Route path="/settings/download" element={<DownloadPage />} />
         <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
+        <Route path="/settings/codes" element={<CommonCodePage />} />
 
         {/* 그룹웨어 */}
         <Route path="/groupware" element={<Navigate to="/groupware/approval/draft" replace />} />

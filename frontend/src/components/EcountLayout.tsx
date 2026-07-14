@@ -31,7 +31,7 @@ const MENU: TopMenu[] = [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
       { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }] },
       { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
-      { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }] },
+      { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }] },
       { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
       { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
       { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },

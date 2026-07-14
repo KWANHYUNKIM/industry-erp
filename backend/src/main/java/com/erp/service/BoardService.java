@@ -36,11 +36,14 @@ public class BoardService {
 
     @Transactional
     public PostDetail create(CreatePostRequest req, String author) {
+        // 익명 글도 작성자는 남긴다. 본인 확인 없이 삭제를 허용할 수 없고, 문제가 생기면
+        // 추적할 수 있어야 한다. 가리는 것은 응답(BoardDtos)이다.
         BoardPost p = BoardPost.builder()
                 .title(req.title())
                 .content(req.content())
                 .category(req.category() != null ? req.category() : "자유")
                 .author(author)
+                .anonymous(Boolean.TRUE.equals(req.anonymous()))
                 .views(0)
                 .build();
         return PostDetail.from(boardRepository.save(p));

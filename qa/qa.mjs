@@ -1419,6 +1419,169 @@ async function scenarioPrintSign() {
   if (before.id !== line.id) await must('POST', `/print-sign-lines/${before.id}/default`)
 }
 
+/** 급여 수당/공제그룹(비과세 반영) · 급여이체(계좌 출금 + 자동 분개) */
+async function scenarioPaySetting() {
+  section('■ 시나리오 24. 급여 수당/공제그룹 · 급여이체')
+
+  const items = await must('GET', '/pay-settings/items')
+  const meal = items.find((i) => i.code === 'MEAL')          // 식대 (비과세 20만)
+  const position = items.find((i) => i.code === 'POSITION')  // 직책수당 (과세 30만)
+  eq('식대는 비과세 항목', meal.taxable, false)
+  eq('직책수당은 과세 항목', position.taxable, true)
+
+  await rejects('중복 항목코드는 거부', 'POST', '/pay-settings/items',
+    { code: 'MEAL', name: '중복 식대', kind: 'ALLOWANCE' }, '이미 등록된 항목코드')
+
+  const groupName = `${P}급여그룹`
+  const existingGroup = (await must('GET', '/pay-settings/groups')).find((g) => g.name === groupName)
+  const group = existingGroup ?? await must('POST', '/pay-settings/groups', {
+    name: groupName,
+    lines: [{ payItemId: meal.id }, { payItemId: position.id }],   // 금액 생략 → 기본금액
+  })
+  eq('금액을 비우면 항목 기본금액을 쓴다', Number(group.allowanceTotal), 500_000)
+
+  await rejects('같은 항목을 두 번 넣으면 거부', 'POST', '/pay-settings/groups',
+    { name: `${P}중복그룹`, lines: [{ payItemId: meal.id }, { payItemId: meal.id }] }, '두 번')
+
+  // ── 그룹을 적용한 급여계산: 비과세 수당은 4대보험 기준에서 빠진다
+  const employees = await must('GET', '/employees')
+  const emp = employees[0]
+
+  // 다른 흐름이 만든 명세를 건드리지 않도록, 이 사원의 명세가 아직 없는 달을 골라 쓴다.
+  let month = null
+  for (let m = 1; m <= 12 && month === null; m++) {
+    const candidate = `2027-${String(m).padStart(2, '0')}`
+    const slips = await must('GET', `/payslips?month=${candidate}`)
+    if (!slips.some((p) => p.employeeId === emp.id)) {
+      month = candidate
+    }
+  }
+  if (month === null) {
+    throw new Error('2027년에 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.')
+  }
+
+  const slip = await must('POST', '/payslips', {
+    employeeId: emp.id, payMonth: month, payGroupId: group.id, lines: [],
+  })
+  eq('그룹의 수당이 명세에 들어감', Number(slip.allowanceTotal), 500_000)
+
+  const base = Number(slip.baseSalary)
+  const taxableIncome = base + 300_000                       // 기본급 + 과세수당(직책수당). 식대는 빠진다
+  const pension = slip.lines.find((l) => l.name === '국민연금')
+  eq('국민연금 = 과세소득 × 4.5% (비과세 식대 제외)',
+    Number(pension.amount), Math.round(taxableIncome * 0.045))
+
+  const mealLine = slip.lines.find((l) => l.name === '식대')
+  eq('비과세 수당은 명세에 비과세로 남음', mealLine.taxable, false)
+  eq('비과세 수당도 지급은 된다(실지급액에 포함)',
+    Number(slip.netPay), base + 500_000 - Number(slip.deductionTotal))
+
+  // ── 급여이체: 확정된 명세만, 계좌에서 실지급액이 나간다
+  const accountNo = `${P}440-666-000004`
+  const banks = await must('GET', '/bank-cards/accounts')
+  const bank = banks.find((b) => b.accountNo === accountNo)
+    ?? await must('POST', '/bank-cards/accounts', {
+      bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 50_000_000,
+    })
+
+  await rejects('미확정 명세는 이체 대상이 아님', 'POST', '/pay-settings/transfers',
+    { payMonth: month, bankAccountId: bank.id }, '이체할 확정 급여명세가 없습니다')
+
+  await must('POST', `/payslips/${slip.id}/confirm`)
+  const balanceBefore = Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === bank.id).balance)
+
+  const transfer = await must('POST', '/pay-settings/transfers', {
+    payMonth: month, bankAccountId: bank.id, transferDate: `${month}-25`, payslipIds: [slip.id],
+  })
+  eq('지급총액 = 기본급 + 수당합', Number(transfer.totalPay), base + 500_000)
+  eq('실지급액 = 지급총액 − 공제합계',
+    Number(transfer.netPay), Number(transfer.totalPay) - Number(transfer.totalDeduction))
+  eq('이체하면 계좌에서 실지급액이 빠짐',
+    Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === bank.id).balance),
+    balanceBefore - Number(transfer.netPay))
+
+  const entry = await must('GET', `/journals/${transfer.journalEntryId}`)
+  eq('이체 분개 차변은 급여(801) 지급총액',
+    Number(entry.lines.find((l) => l.accountCode === '801').debit), Number(transfer.totalPay))
+  eq('공제합계는 예수금(254)으로 남음',
+    Number(entry.lines.find((l) => l.accountCode === '254').credit), Number(transfer.totalDeduction))
+  eq('이체 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
+
+  await rejects('같은 명세를 두 번 이체할 수 없음', 'POST', '/pay-settings/transfers',
+    { payMonth: month, bankAccountId: bank.id, payslipIds: [slip.id] }, '이미 이체됨')
+}
+
+async function scenarioGroupwareShared() {
+  section('■ 시나리오 24. 익명게시판 · 외근조회')
+
+  // ── 익명게시판: 작성자는 서버에 남지만 응답에서는 가려진다
+  const anon = await must('POST', '/board', {
+    title: `${P}익명 건의`, category: '건의', content: 'QA 익명 본문', anonymous: true,
+  })
+  eq('익명 글의 작성자는 가려짐', anon.author, '익명')
+  eq('익명 플래그가 응답에 실림', anon.anonymous, true)
+
+  const named = await must('POST', '/board', {
+    title: `${P}실명 공지`, category: '자유', content: 'QA 실명 본문', anonymous: false,
+  })
+  eq('실명 글은 작성자가 그대로', named.author, USER)
+
+  const list = await must('GET', '/board')
+  eq('목록에서도 익명 글은 가려짐', list.find((p) => p.id === anon.id).author, '익명')
+  eq('목록에서 실명 글은 그대로', list.find((p) => p.id === named.id).author, USER)
+
+  const detail = await must('GET', `/board/${anon.id}`)
+  eq('상세에서도 익명 유지', detail.author, '익명')
+  eq('상세 조회 시 조회수 증가', detail.views > anon.views, true)
+
+  await must('DELETE', `/board/${anon.id}`)
+  await must('DELETE', `/board/${named.id}`)
+
+  // ── 외근조회: 신청 → 승인/반려
+  const users = await must('GET', '/users')
+  const me = users.find((u) => u.username === USER)
+  const DATE = '2026-06-15'
+
+  const existing = (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows
+  for (const f of existing) {
+    if (f.status === 'REQUESTED' && f.userId === me.id) await must('DELETE', `/field-works/${f.id}`)
+  }
+  const stillThere = (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows
+    .some((f) => f.userId === me.id && f.status !== 'REJECTED')
+
+  if (!stillThere) {
+    const fw = await must('POST', '/field-works', {
+      workDate: DATE, startTime: '09:00', endTime: '18:00',
+      destination: 'QA고객사 본사', purpose: 'QA 설비 점검',
+    })
+    eq('신규 외근계 상태는 신청', fw.statusName, '신청')
+
+    await rejects('같은 날 외근계 중복 신청은 거부', 'POST', '/field-works', {
+      workDate: DATE, destination: 'QA 다른 곳', purpose: '중복',
+    }, '이미 있습니다')
+
+    await rejects('자기 외근계는 자기가 승인 불가', 'POST', `/field-works/${fw.id}/approve`,
+      undefined, '자기가 승인할 수 없습니다')
+    await rejects('자기 외근계는 자기가 반려도 불가', 'POST', `/field-works/${fw.id}/reject`,
+      { reason: '내가 반려' }, '자기가 반려할 수 없습니다')
+
+    await rejects('종료 시각이 시작보다 빠르면 거부', 'POST', '/field-works', {
+      workDate: '2026-06-16', startTime: '18:00', endTime: '09:00',
+      destination: 'QA', purpose: 'QA',
+    }, '빠를 수 없습니다')
+
+    // 본인이 취소하면 사라진다
+    await must('DELETE', `/field-works/${fw.id}`)
+    eq('취소하면 목록에서 사라짐',
+      (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows.some((f) => f.id === fw.id), false)
+  }
+
+  const summary = await must('GET', `/field-works?from=2026-06-01&to=2026-06-30`)
+  eq('상태별 건수 합 = 행 개수',
+    Number(summary.requestedCount) + Number(summary.approvedCount) + Number(summary.rejectedCount),
+    summary.rows.length)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1457,10 +1620,12 @@ async function main() {
   await scenarioIncome()
   await scenarioExport(fixtures)
   await scenarioPrintSign()
+  await scenarioGroupwareShared()
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()
   await scenarioApprovalSetting()
+  await scenarioPaySetting()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

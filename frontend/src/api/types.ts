@@ -1729,3 +1729,26 @@ export interface ProjectProfitSummary {
   unassignedCost: number
   rows: ProjectProfitRow[]
 }
+
+// ===== 공통코드 =====
+
+export interface CommonCode {
+  id: number
+  code: string
+  name: string
+  value1: string | null
+  value2: string | null
+  sortOrder: number
+  active: boolean
+  remark: string | null
+}
+
+export interface CodeGroup {
+  id: number
+  groupCode: string
+  name: string
+  description: string | null
+  system: boolean
+  active: boolean
+  codes: CommonCode[]
+}
