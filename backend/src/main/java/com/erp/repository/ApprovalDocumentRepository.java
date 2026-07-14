@@ -16,6 +16,9 @@ public interface ApprovalDocumentRepository extends JpaRepository<ApprovalDocume
             "order by d.draftDate desc, d.id desc")
     List<ApprovalDocument> findAllWithRefs();
 
+    /** 양식별 기안서 수. 0건인 양식만 삭제할 수 있다. */
+    long countByFormTemplateId(Long formTemplateId);
+
     /**
      * 해당 기안일자에 이미 쓰인 일련번호의 최댓값. 없으면 0.
      * draft_no 는 '2026/07/10-2' 형태라 '-' 뒤가 일련번호다(날짜 구분자는 '/').
