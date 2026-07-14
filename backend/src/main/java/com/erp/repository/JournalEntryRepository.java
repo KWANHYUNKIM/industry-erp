@@ -21,7 +21,4 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
             "order by e.entryDate desc, e.id desc")
     List<JournalEntry> findByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-    @Query(value = "select coalesce(max(cast(split_part(doc_no, '-', 3) as integer)), 0) " +
-            "from journal_entries where entry_date = :date", nativeQuery = true)
-    int maxSeq(@Param("date") LocalDate date);
 }
