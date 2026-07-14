@@ -258,6 +258,14 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '인사관리',
+        nodes: [
+          { label: '인사기록카드', to: '/hr/records' },
+          { label: '인사발령', to: '/hr/records' },
+          { label: '조직도', to: '/groupware/org' },
+        ],
+      },
+      {
         label: '근태관리',
         nodes: [
           {

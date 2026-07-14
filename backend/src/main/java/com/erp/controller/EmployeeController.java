@@ -1,12 +1,16 @@
 package com.erp.controller;
 
 import com.erp.dto.EmployeeDtos.AssignDepartmentRequest;
+import com.erp.dto.EmployeeDtos.AssignmentResponse;
+import com.erp.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.dto.EmployeeDtos.EmployeeResponse;
 import com.erp.dto.EmployeeDtos.UpdateSalaryRequest;
+import com.erp.security.UserPrincipal;
 import com.erp.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +29,27 @@ public class EmployeeController {
     @GetMapping
     public List<EmployeeResponse> list() {
         return employeeService.findAll();
+    }
+
+    /** 퇴사자를 포함한 전 사원 (인사관리) */
+    @GetMapping("/all")
+    public List<EmployeeResponse> listAll() {
+        return employeeService.findAllIncludingResigned();
+    }
+
+    /** 사원별 발령이력 */
+    @GetMapping("/{id}/assignments")
+    public List<AssignmentResponse> assignments(@PathVariable Long id) {
+        return employeeService.findAssignments(id);
+    }
+
+    /** 인사발령 (입사·전보·승진·퇴사·재입사). 사원의 현재 부서·직위·재직상태가 함께 갱신된다. */
+    @PostMapping("/{id}/assignments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public AssignmentResponse assign(@PathVariable Long id,
+                                     @Valid @RequestBody CreateAssignmentRequest req,
+                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return employeeService.createAssignment(id, req, principal.getUsername());
     }
 
     /** 사원 기본급 수정 */

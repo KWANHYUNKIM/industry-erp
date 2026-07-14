@@ -22,6 +22,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("select e from Employee e left join fetch e.department where e.active = true order by e.name asc")
     List<Employee> findActiveWithDepartment();
 
+    /** 퇴사자 포함 전 사원 (인사관리). 재직자를 먼저 보여준다. */
+    @Query("select e from Employee e left join fetch e.department order by e.active desc, e.name asc")
+    List<Employee> findAllWithDepartment();
+
     long countByDepartmentId(Long departmentId);
 
     List<Employee> findByDepartmentId(Long departmentId);

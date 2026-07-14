@@ -96,6 +96,7 @@ import VacationUsePage from './pages/hr/VacationUsePage'
 import VacationRemainPage from './pages/hr/VacationRemainPage'
 import EmployeePage from './pages/hr/EmployeePage'
 import PayrollPage from './pages/hr/PayrollPage'
+import HrRecordPage from './pages/hr/HrRecordPage'
 import NoticePage from './pages/groupware/NoticePage'
 import SchedulePage from './pages/groupware/SchedulePage'
 import SurveyPage from './pages/groupware/SurveyPage'
@@ -291,6 +292,7 @@ export default function App() {
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
         <Route path="/hr/employees" element={<EmployeePage />} />
         <Route path="/hr/payroll" element={<PayrollPage />} />
+        <Route path="/hr/records" element={<HrRecordPage />} />
 
         <Route path="/users" element={<UsersPage />} />
       </Route>

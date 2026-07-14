@@ -90,6 +90,10 @@ public class DataInitializer implements CommandLineRunner {
         ensureAccount("103", "보통예금", AccountDivision.ASSET, "유동자산");
         ensureAccount("108", "외상매출금", AccountDivision.ASSET, "매출채권");
         ensureAccount("146", "상품", AccountDivision.ASSET, "재고자산");
+        ensureAccount("203", "감가상각누계액", AccountDivision.ASSET, "유형자산");   // 자산 차감계정
+        ensureAccount("206", "기계장치", AccountDivision.ASSET, "유형자산");
+        ensureAccount("208", "차량운반구", AccountDivision.ASSET, "유형자산");
+        ensureAccount("212", "비품", AccountDivision.ASSET, "유형자산");
         ensureAccount("251", "외상매입금", AccountDivision.LIABILITY, "매입채무");
         ensureAccount("331", "자본금", AccountDivision.EQUITY, "자본금");
         ensureAccount("401", "상품매출", AccountDivision.REVENUE, "매출액");
@@ -101,6 +105,9 @@ public class DataInitializer implements CommandLineRunner {
         ensureAccount("830", "소모품비", AccountDivision.EXPENSE, "판매관리비");
         ensureAccount("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비");
         ensureAccount("833", "광고선전비", AccountDivision.EXPENSE, "판매관리비");
+        ensureAccount("818", "감가상각비", AccountDivision.EXPENSE, "판매관리비");
+        ensureAccount("914", "유형자산처분이익", AccountDivision.REVENUE, "영업외수익");
+        ensureAccount("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용");
     }
 
     private void ensureAccount(String code, String name, AccountDivision division, String detail) {
