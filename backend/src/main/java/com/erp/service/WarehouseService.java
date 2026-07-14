@@ -56,6 +56,12 @@ public class WarehouseService {
         warehouseRepository.delete(getWarehouse(id));
     }
 
+    /** 다른 서비스가 창고 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public Warehouse get(Long id) {
+        return getWarehouse(id);
+    }
+
     private Warehouse getWarehouse(Long id) {
         return warehouseRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + id));

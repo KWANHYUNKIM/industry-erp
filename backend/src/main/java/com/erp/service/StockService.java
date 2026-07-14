@@ -41,6 +41,14 @@ public class StockService {
                 .toList();
     }
 
+    /** 특정 (품목, 창고)의 현재고. 없으면 0. WMS 로케이션 배치가 이 수량을 넘지 못한다. */
+    @Transactional(readOnly = true)
+    public BigDecimal quantityOf(Long itemId, Long warehouseId) {
+        return stockRepository.findByItemIdAndWarehouseId(itemId, warehouseId)
+                .map(Stock::getQuantity)
+                .orElse(BigDecimal.ZERO);
+    }
+
     /** 입출고 이력 (최신순, 페이지) */
     @Transactional(readOnly = true)
     public Page<StockTransactionResponse> transactions(int page, int size) {

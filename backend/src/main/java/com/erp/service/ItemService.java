@@ -72,6 +72,12 @@ public class ItemService {
         itemRepository.delete(item);
     }
 
+    /** 다른 서비스가 품목 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public Item get(Long id) {
+        return getItem(id);
+    }
+
     private Item getItem(Long id) {
         return itemRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + id));
