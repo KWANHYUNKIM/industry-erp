@@ -11,6 +11,7 @@ public enum JournalSourceType {
     DEPRECIATION("감가상각"),
     DISPOSAL("자산처분"),
     VOUCHER("간편전표"),
+    NONCASH("비현금거래"),
     MANUAL("수동입력");
 
     private final String displayName;

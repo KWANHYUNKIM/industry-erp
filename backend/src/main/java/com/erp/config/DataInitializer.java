@@ -107,6 +107,7 @@ public class DataInitializer implements CommandLineRunner {
         ensureAccount("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비");
         ensureAccount("833", "광고선전비", AccountDivision.EXPENSE, "판매관리비");
         ensureAccount("818", "감가상각비", AccountDivision.EXPENSE, "판매관리비");
+        ensureAccount("835", "대손상각비", AccountDivision.EXPENSE, "판매관리비");
         ensureAccount("914", "유형자산처분이익", AccountDivision.REVENUE, "영업외수익");
         ensureAccount("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용");
     }

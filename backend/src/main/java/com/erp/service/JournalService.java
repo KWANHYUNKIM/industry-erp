@@ -351,6 +351,18 @@ public class JournalService {
         return l.getDescription() != null ? l.getDescription() : l.getAccount().getName();
     }
 
+    /** 비현금거래(대체전표) → 분개. 차변계정 하나 / 대변계정 하나. */
+    @Transactional
+    public JournalEntry createFromNonCash(com.erp.domain.NonCashTransaction t) {
+        String desc = t.getDescription() != null ? t.getDescription()
+                : t.getType().getDisplayName() + " " + t.getTxnNo();
+
+        JournalEntry e = newEntry(JournalSourceType.NONCASH, null, t.getTxnDate(), desc, t.getPartner(), t.getCreatedBy());
+        addDebitAccount(e, t.getDebitAccount(), t.getAmount(), desc);
+        addCreditAccount(e, t.getCreditAccount(), t.getAmount(), desc);
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {
