@@ -51,45 +51,43 @@ public class WorkspaceService {
 
     // ── 통합검색 ──────────────────────────────────────────────────────
 
+    /**
+     * 검색은 DB 에서 걸러 온다. 종류마다 상위 LIMIT 건만 가져오고 총 건수는 count 로 따로 센다.
+     * 전표를 전부 메모리로 올려 자바에서 필터링하면 데이터가 늘어난 만큼 그대로 느려진다.
+     */
     @Transactional(readOnly = true)
     public SearchResponse search(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             throw ApiException.badRequest("검색어를 입력하세요.");
         }
-        String q = keyword.trim().toLowerCase(Locale.ROOT);
+        String like = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
         List<SearchGroup> groups = new ArrayList<>();
 
-        addGroup(groups, "ITEM", "품목",
-                itemService.findAll().stream()
-                        .filter(i -> contains(i.code(), q) || contains(i.name(), q))
+        addGroup(groups, "ITEM", "품목", itemService.searchCount(like),
+                itemService.search(like, LIMIT).stream()
                         .map(i -> new SearchHit(i.code() + " " + i.name(),
                                 i.spec() != null ? i.spec() : i.unit(), "/inventory/items"))
                         .toList());
 
-        addGroup(groups, "PARTNER", "거래처",
-                partnerService.findAll().stream()
-                        .filter(p -> contains(p.code(), q) || contains(p.name(), q))
-                        .map(p -> new SearchHit(p.code() + " " + p.name(),
-                                p.typeName(), "/sales/partners"))
+        addGroup(groups, "PARTNER", "거래처", partnerService.searchCount(like),
+                partnerService.search(like, LIMIT).stream()
+                        .map(p -> new SearchHit(p.code() + " " + p.name(), p.typeName(), "/sales/partners"))
                         .toList());
 
-        addGroup(groups, "SALES", "판매전표",
-                salesService.findAll().stream()
-                        .filter(s -> contains(s.docNo(), q) || contains(s.partnerName(), q))
+        addGroup(groups, "SALES", "판매전표", salesService.searchCount(like),
+                salesService.search(like, LIMIT).stream()
                         .map(s -> new SearchHit(s.docNo(),
                                 s.saleDate() + " · " + s.partnerName(), "/sales/sales-list"))
                         .toList());
 
-        addGroup(groups, "PURCHASE", "구매전표",
-                purchaseService.findAll().stream()
-                        .filter(p -> contains(p.docNo(), q) || contains(p.partnerName(), q))
+        addGroup(groups, "PURCHASE", "구매전표", purchaseService.searchCount(like),
+                purchaseService.search(like, LIMIT).stream()
                         .map(p -> new SearchHit(p.docNo(),
                                 p.purchaseDate() + " · " + p.partnerName(), "/sales/purchase-list"))
                         .toList());
 
-        addGroup(groups, "SALES_ORDER", "수주",
-                salesOrderService.findAll().stream()
-                        .filter(o -> contains(o.orderNo(), q) || contains(o.partnerName(), q))
+        addGroup(groups, "SALES_ORDER", "수주", salesOrderService.searchCount(like),
+                salesOrderService.search(like, LIMIT).stream()
                         .map(o -> new SearchHit(o.orderNo(),
                                 o.orderDate() + " · " + o.partnerName() + " · " + o.statusName(), "/sales/orders"))
                         .toList());
@@ -98,16 +96,12 @@ public class WorkspaceService {
         return new SearchResponse(keyword.trim(), total, groups);
     }
 
-    /** 결과가 있는 종류만 담고, 화면에는 앞의 LIMIT 건만 보여 준다(총 건수는 그대로 알려 준다) */
-    private void addGroup(List<SearchGroup> groups, String type, String typeName, List<SearchHit> hits) {
-        if (hits.isEmpty()) {
+    /** 결과가 있는 종류만 담는다. hits 는 상위 LIMIT 건, total 은 DB 가 센 전체 건수다. */
+    private void addGroup(List<SearchGroup> groups, String type, String typeName, long total, List<SearchHit> hits) {
+        if (total == 0) {
             return;
         }
-        groups.add(new SearchGroup(type, typeName, hits.size(), hits.stream().limit(LIMIT).toList()));
-    }
-
-    private boolean contains(String value, String q) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains(q);
+        groups.add(new SearchGroup(type, typeName, (int) total, hits));
     }
 
     // ── 알림 ──────────────────────────────────────────────────────────

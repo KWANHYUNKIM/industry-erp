@@ -15,6 +15,7 @@ import com.erp.repository.BusinessPartnerRepository;
 import com.erp.repository.ItemRepository;
 import com.erp.repository.SalesOrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,4 +111,18 @@ public class SalesOrderService {
     private String generateOrderNo(LocalDate date) {
         return docNoGenerator.next("SN-", "sales_orders", "order_no", "order_date", date);
     }
+
+    /** 통합검색용. 수주번호·거래처명 부분일치 상위 limit 건과 총 건수. */
+    @Transactional(readOnly = true)
+    public List<SalesOrderResponse> search(String like, int limit) {
+        return salesOrderRepository.searchTop(like, PageRequest.of(0, limit)).stream()
+                .map(SalesOrderResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long searchCount(String like) {
+        return salesOrderRepository.searchCount(like);
+    }
+
 }

@@ -7,6 +7,7 @@ import com.erp.dto.ItemDtos.ItemResponse;
 import com.erp.dto.ItemDtos.UpdateItemRequest;
 import com.erp.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,4 +83,18 @@ public class ItemService {
         return itemRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + id));
     }
+
+    /** 통합검색용. 부분일치 상위 limit 건과 총 건수. DB 에서 걸러 오므로 전체를 메모리로 올리지 않는다. */
+    @Transactional(readOnly = true)
+    public List<ItemResponse> search(String like, int limit) {
+        return itemRepository.searchTop(like, PageRequest.of(0, limit)).stream()
+                .map(ItemResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long searchCount(String like) {
+        return itemRepository.searchCount(like);
+    }
+
 }

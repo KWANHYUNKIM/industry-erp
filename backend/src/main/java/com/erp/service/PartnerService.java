@@ -8,6 +8,7 @@ import com.erp.dto.PartnerDtos.UpdatePartnerRequest;
 import com.erp.dto.PartnerDtos.UpdatePriceGroupRequest;
 import com.erp.repository.BusinessPartnerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,4 +94,18 @@ public class PartnerService {
         return partnerRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
     }
+
+    /** 통합검색용. 부분일치 상위 limit 건과 총 건수. */
+    @Transactional(readOnly = true)
+    public List<PartnerResponse> search(String like, int limit) {
+        return partnerRepository.searchTop(like, PageRequest.of(0, limit)).stream()
+                .map(PartnerResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long searchCount(String like) {
+        return partnerRepository.searchCount(like);
+    }
+
 }

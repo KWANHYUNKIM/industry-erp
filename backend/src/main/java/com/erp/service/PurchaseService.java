@@ -17,6 +17,7 @@ import com.erp.repository.ItemRepository;
 import com.erp.repository.PurchaseRepository;
 import com.erp.repository.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -136,4 +137,18 @@ public class PurchaseService {
     private String generateDocNo(LocalDate date) {
         return docNoGenerator.next("PO-", "purchases", "doc_no", "purchase_date", date);
     }
+
+    /** 통합검색용. 전표번호·거래처명 부분일치 상위 limit 건과 총 건수. */
+    @Transactional(readOnly = true)
+    public List<PurchaseResponse> search(String like, int limit) {
+        return purchaseRepository.searchTop(like, PageRequest.of(0, limit)).stream()
+                .map(PurchaseResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long searchCount(String like) {
+        return purchaseRepository.searchCount(like);
+    }
+
 }
