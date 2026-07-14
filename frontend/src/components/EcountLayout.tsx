@@ -284,6 +284,13 @@ const MENU: TopMenu[] = [
     label: '세무',
     tabs: [
       {
+        label: '원천징수',
+        nodes: [
+          { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
+          { label: '근로소득원천징수영수증', to: '/accounting/withholding' },
+        ],
+      },
+      {
         label: '부가세',
         nodes: [{ label: '신고전검토자료', children: [{ label: '매입매출·부가세', to: '/accounting/vat' }] }],
       },

@@ -21,10 +21,11 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * 급여관리: 급여명세 생성(4대보험 자동공제), 급여대장 조회, 확정.
+ * 급여관리: 급여명세 생성(4대보험·원천징수 자동공제), 급여대장 조회, 확정.
  *
- * 4대보험 근로자 부담 요율(2026 기준). 소득세·지방소득세는 간이세액표가 필요하므로
- * 이 데모에서는 자동 공제하지 않고 수동 항목으로 입력한다.
+ * 4대보험 근로자 부담 요율은 2026 기준. 소득세·지방소득세는 WithholdingTaxCalculator 가
+ * 간이세액표를 근사해 계산하며, 확정된 명세는 WithholdingService 가 원천징수이행상황신고서로 집계한다.
+ * 부양가족이 있어 세액을 조정해야 하면 같은 이름("소득세")의 수동 공제 항목으로 넣는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -40,6 +41,7 @@ public class PayrollService {
 
     private final PayslipRepository payslipRepository;
     private final EmployeeRepository employeeRepository;
+    private final WithholdingTaxCalculator taxCalculator;
 
     @Transactional(readOnly = true)
     public List<PayslipResponse> payroll(String month) {
@@ -101,6 +103,17 @@ public class PayrollService {
         addAutoDeduction(p, "장기요양보험", care);
         addAutoDeduction(p, "고용보험", employment);
 
+        // 3) 원천징수. 손으로 넣은 소득세가 있으면 그 값을 그대로 두고 자동 계산하지 않는다
+        //    (부양가족 반영 등 회사가 정한 세액을 서버가 덮어쓰면 안 된다).
+        if (!hasDeduction(p, WithholdingService.INCOME_TAX)) {
+            BigDecimal incomeTax = taxCalculator.monthlyIncomeTax(taxableIncome, pension);
+            addAutoDeduction(p, WithholdingService.INCOME_TAX, incomeTax);
+        }
+        if (!hasDeduction(p, WithholdingService.LOCAL_INCOME_TAX)) {
+            BigDecimal incomeTax = sumDeduction(p, WithholdingService.INCOME_TAX);
+            addAutoDeduction(p, WithholdingService.LOCAL_INCOME_TAX, taxCalculator.localIncomeTax(incomeTax));
+        }
+
         p.recalculate();
         return PayslipResponse.from(payslipRepository.save(p));
     }
@@ -122,6 +135,18 @@ public class PayrollService {
             throw ApiException.badRequest("확정된 급여명세는 삭제할 수 없습니다.");
         }
         payslipRepository.delete(p);
+    }
+
+    private boolean hasDeduction(Payslip p, String name) {
+        return p.getLines().stream()
+                .anyMatch(l -> l.getKind() == PayslipLineKind.DEDUCTION && name.equals(l.getName()));
+    }
+
+    private BigDecimal sumDeduction(Payslip p, String name) {
+        return p.getLines().stream()
+                .filter(l -> l.getKind() == PayslipLineKind.DEDUCTION && name.equals(l.getName()))
+                .map(PayslipLine::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private void addAutoDeduction(Payslip p, String name, BigDecimal amount) {

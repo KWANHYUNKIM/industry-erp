@@ -14,4 +14,10 @@ public interface PayslipRepository extends JpaRepository<Payslip, Long> {
     @Query("select distinct p from Payslip p join fetch p.employee " +
             "where p.payMonth = :month order by p.employee.code")
     List<Payslip> findByPayMonth(@Param("month") String month);
+
+    /** 연간 원천징수영수증용. prefix 는 'YYYY-' 형태의 귀속월 접두어. */
+    @Query("select distinct p from Payslip p join fetch p.employee " +
+            "where p.payMonth like concat(:yearPrefix, '%') " +
+            "order by p.employee.code, p.payMonth")
+    List<Payslip> findByYear(@Param("yearPrefix") String yearPrefix);
 }
