@@ -1448,16 +1448,19 @@ async function scenarioPaySetting() {
   const emp = employees[0]
 
   // 다른 흐름이 만든 명세를 건드리지 않도록, 이 사원의 명세가 아직 없는 달을 골라 쓴다.
+  // 확정·이체된 명세는 지울 수 없으므로 매 실행마다 한 달씩 소진된다. 넉넉한 범위를 훑는다.
   let month = null
-  for (let m = 1; m <= 12 && month === null; m++) {
-    const candidate = `2027-${String(m).padStart(2, '0')}`
-    const slips = await must('GET', `/payslips?month=${candidate}`)
-    if (!slips.some((p) => p.employeeId === emp.id)) {
-      month = candidate
+  for (let y = 2027; y <= 2036 && month === null; y++) {
+    for (let m = 1; m <= 12 && month === null; m++) {
+      const candidate = `${y}-${String(m).padStart(2, '0')}`
+      const slips = await must('GET', `/payslips?month=${candidate}`)
+      if (!slips.some((p) => p.employeeId === emp.id)) {
+        month = candidate
+      }
     }
   }
   if (month === null) {
-    throw new Error('2027년에 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.')
+    throw new Error('2027~2036년에 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.')
   }
 
   const slip = await must('POST', '/payslips', {
