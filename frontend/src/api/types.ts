@@ -1922,3 +1922,47 @@ export interface PerformanceSummary {
   totalPurchase: number
   rows: PerformanceRow[]
 }
+
+// ===== 우측 앱바 위젯 (통합검색 · 알림 · E Note) =====
+
+export interface SearchHit {
+  title: string
+  subtitle: string
+  /** 클릭하면 이동할 화면 경로 */
+  to: string
+}
+
+export interface SearchGroup {
+  type: string
+  typeName: string
+  /** 전체 매칭 건수 (hits 는 상위 일부만) */
+  total: number
+  hits: SearchHit[]
+}
+
+export interface WorkspaceSearch {
+  keyword: string
+  total: number
+  groups: SearchGroup[]
+}
+
+export interface WorkspaceNotification {
+  type: string
+  level: 'INFO' | 'WARN'
+  title: string
+  message: string
+  count: number
+  to: string
+}
+
+export interface NotificationResponse {
+  total: number
+  notifications: WorkspaceNotification[]
+}
+
+export interface UserNote {
+  id: number
+  content: string
+  pinned: boolean
+  updatedAt: string
+}
