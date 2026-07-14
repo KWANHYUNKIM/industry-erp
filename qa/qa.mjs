@@ -406,6 +406,134 @@ async function scenarioAdjustment(f) {
     (await must('GET', '/stock-adjustments')).filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
 }
 
+async function scenarioWithholding() {
+  section('■ 시나리오 9. 급여 원천징수 → 이행상황신고서')
+
+  const employees = await must('GET', '/employees')
+  if (employees.length === 0) {
+    console.log('  ⏭  사원 마스터가 비어 있어 건너뜁니다.')
+    return
+  }
+  const emp = employees[0]
+  const MONTH = '2026-11'   // QA 전용 귀속월 (재실행 시 기존 명세를 재사용한다)
+
+  // 작성 상태의 옛 명세가 남아 있으면 지우고 다시 만든다(원천징수 자동공제 이전에 만들어진 명세일 수 있다).
+  // 확정된 명세는 지울 수 없으므로 그대로 재사용한다 → 여러 번 돌려도 안전하다.
+  let existing = (await must('GET', `/payslips?month=${MONTH}`)).find((p) => p.employeeId === emp.id)
+  if (existing && existing.status === 'DRAFT') {
+    await must('DELETE', `/payslips/${existing.id}`)
+    existing = undefined
+  }
+  const slip = existing ?? await must('POST', '/payslips', {
+    employeeId: emp.id, payMonth: MONTH, baseSalary: 3000000,
+    lines: [{ kind: 'ALLOWANCE', name: '식대', amount: 200000 }],
+  })
+
+  const deduction = (name) => {
+    const l = slip.lines.find((x) => x.kind === 'DEDUCTION' && x.name === name)
+    return l ? Number(l.amount) : 0
+  }
+  const incomeTax = deduction('소득세')
+  const localTax = deduction('지방소득세')
+
+  eq('소득세가 자동 공제됨', incomeTax > 0, true)
+  eq('지방소득세 = 소득세의 10%', localTax, Math.floor(incomeTax * 0.1))
+  eq('4대보험도 그대로 공제됨', deduction('국민연금') > 0 && deduction('건강보험') > 0, true)
+  eq('공제합계 = 각 공제항목의 합',
+    Number(slip.deductionTotal),
+    slip.lines.filter((l) => l.kind === 'DEDUCTION').reduce((s, l) => s + Number(l.amount), 0))
+  eq('실지급액 = 지급총액 − 공제합계',
+    Number(slip.netPay), Number(slip.grossPay) - Number(slip.deductionTotal))
+
+  // 확정 전에는 신고 대상이 아니다
+  if (!existing) {
+    const before = await must('GET', `/withholding/statement?month=${MONTH}`)
+    eq('미확정 명세는 신고 인원에서 제외', before.rows.some((r) => r.employeeId === emp.id), false)
+    eq('미확정 건수로만 잡힘', before.draftCount > 0, true)
+    await must('POST', `/payslips/${slip.id}/confirm`)
+  }
+
+  const stmt = await must('GET', `/withholding/statement?month=${MONTH}`)
+  const row = stmt.rows.find((r) => r.employeeId === emp.id)
+  eq('확정 후 신고서에 사원이 잡힘', Boolean(row), true)
+  eq('신고서 소득세가 급여 공제액과 일치', Number(row.incomeTax), incomeTax)
+  eq('신고서 지방소득세가 급여 공제액과 일치', Number(row.localIncomeTax), localTax)
+  eq('원천징수 합계 = 소득세 + 지방소득세', Number(row.totalWithheld), incomeTax + localTax)
+  eq('신고서 합계가 행 합계와 일치',
+    Number(stmt.totalWithheld),
+    stmt.rows.reduce((s, r) => s + Number(r.totalWithheld), 0))
+
+  const receipts = await must('GET', '/withholding/receipts?year=2026')
+  const receipt = receipts.find((r) => r.employeeId === emp.id)
+  eq('연간 원천징수영수증에 사원이 잡힘', Boolean(receipt), true)
+  eq('영수증 소득세는 월별 합계 이상', Number(receipt.incomeTax) >= incomeTax, true)
+  eq('영수증에 사회보험료가 집계됨', Number(receipt.socialInsurance) > 0, true)
+
+  await rejects('귀속월 형식이 틀리면 거부', 'GET', '/withholding/statement?month=2026-13-99', undefined, '귀속월')
+}
+
+/** 계좌/카드 — 입출금·카드사용이 복식부기 분개로 옮겨지는지 */
+async function scenarioBankCard() {
+  section('■ 시나리오 10. 계좌/카드 (입출금 · 카드사용 → 자동 분개)')
+
+  const accounts = await must('GET', '/accounts')
+  const byCode = (code) => accounts.find((a) => a.code === code)
+  const cash = byCode('101')
+  const welfare = byCode('811')
+
+  const accountNo = `${P}110-999-000001`
+  const existing = (await must('GET', '/bank-cards/accounts')).find((a) => a.accountNo === accountNo)
+  const bank = existing ?? await must('POST', '/bank-cards/accounts', {
+    bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 1_000_000,
+  })
+  eq('예금계정 미지정 시 보통예금(103)', bank.glAccountCode, '103')
+
+  const cardNo = `${P}5310-****-****-0001`
+  const existingCard = (await must('GET', '/bank-cards/cards')).find((c) => c.cardNo === cardNo)
+  const card = existingCard ?? await must('POST', '/bank-cards/cards', {
+    cardName: 'QA법인카드', cardCompany: 'QA카드', cardNo, type: 'CORPORATE',
+    settlementAccountId: bank.id, settlementDay: 25,
+  })
+  eq('카드에 결제계좌가 연결됨', card.settlementAccountId, bank.id)
+
+  const before = (await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance
+
+  const deposit = await must('POST', '/bank-cards/transactions', {
+    bankAccountId: bank.id, deposit: true, amount: 500_000, counterAccountId: cash.id,
+    txnDate: '2026-07-14', description: 'QA 계좌입금',
+  })
+  eq('입금 후 잔액 = 기존 + 입금액', Number(deposit.balanceAfter), Number(before) + 500_000)
+  eq('입금에 회계전표가 붙음', String(deposit.journalDocNo).startsWith('GL-'), 'true')
+
+  const withdraw = await must('POST', '/bank-cards/transactions', {
+    bankAccountId: bank.id, deposit: false, amount: 200_000, counterAccountId: cash.id,
+    txnDate: '2026-07-14', description: 'QA 계좌출금',
+  })
+  eq('출금 후 잔액 = 입금 후 - 출금액', Number(withdraw.balanceAfter), Number(deposit.balanceAfter) - 200_000)
+
+  await rejects('잔액보다 많은 출금은 거부', 'POST', '/bank-cards/transactions', {
+    bankAccountId: bank.id, deposit: false, amount: Number(withdraw.balanceAfter) + 1, counterAccountId: cash.id,
+  }, '잔액이 부족')
+
+  const usage = await must('POST', '/bank-cards/usages', {
+    cardId: card.id, merchant: 'QA가맹점', expenseAccountId: welfare.id,
+    supplyAmount: 50_000, usageDate: '2026-07-14',
+  })
+  eq('부가세 미입력 시 공급가액의 10%', Number(usage.vatAmount), 5_000)
+  eq('카드사용 합계 = 공급가액 + 부가세', Number(usage.totalAmount), 55_000)
+  eq('카드사용에 회계전표가 붙음', String(usage.journalDocNo).startsWith('GL-'), 'true')
+
+  // 카드사용은 차)비용·부가세대급금 / 대)미지급금 — 대변 미지급금이 합계와 같아야 한다
+  const entry = await must('GET', `/journals/${usage.journalEntryId}`)
+  const payable = entry.lines.find((l) => l.accountCode === '253')
+  eq('카드사용 분개의 대변은 미지급금', Number(payable.credit), 55_000)
+  eq('카드사용 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
+
+  await rejects('중복 계좌번호 등록은 거부', 'POST', '/bank-cards/accounts', {
+    bankName: 'QA은행2', accountNo, openingBalance: 0,
+  }, '이미 등록된 계좌번호')
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -433,6 +561,8 @@ async function main() {
   await scenarioQuotation(fixtures)
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
+  await scenarioWithholding()
+  await scenarioBankCard()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

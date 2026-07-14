@@ -21,6 +21,7 @@ import ProductionResultPage from './pages/production/ProductionResultPage'
 import ProfitSummaryPage from './pages/accounting/ProfitSummaryPage'
 import ItemCostPage from './pages/accounting/ItemCostPage'
 import VatSummaryPage from './pages/accounting/VatSummaryPage'
+import WithholdingPage from './pages/accounting/WithholdingPage'
 import AccountsPage from './pages/accounting/AccountsPage'
 import JournalListPage from './pages/accounting/JournalListPage'
 import AccountLedgerPage from './pages/accounting/AccountLedgerPage'
@@ -218,6 +219,7 @@ export default function App() {
         <Route path="/accounting/profit" element={<ProfitSummaryPage />} />
         <Route path="/accounting/item-cost" element={<ItemCostPage />} />
         <Route path="/accounting/vat" element={<VatSummaryPage />} />
+        <Route path="/accounting/withholding" element={<WithholdingPage />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
         <Route path="/accounting/journals" element={<JournalListPage />} />
         <Route path="/accounting/ledger-book" element={<AccountLedgerPage />} />

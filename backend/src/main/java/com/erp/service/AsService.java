@@ -74,7 +74,6 @@ public class AsService {
     }
 
     private String generateNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "AS-" + d + "-" + String.format("%04d", asRepository.count() + 1);
+        return docNoGenerator.next("AS-", "as_requests", "as_no", "receipt_date", date);
     }
 }

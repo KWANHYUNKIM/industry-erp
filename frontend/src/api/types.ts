@@ -483,6 +483,80 @@ export interface StockTransfer {
   createdBy: string | null
 }
 
+// ===== 계좌/카드 (회계 I) =====
+
+export type CardType = 'CORPORATE' | 'PERSONAL'
+
+export interface BankAccountRow {
+  id: number
+  bankName: string
+  accountNo: string
+  holder: string | null
+  glAccountId: number
+  glAccountCode: string
+  glAccountName: string
+  balance: number
+  active: boolean
+  remark: string | null
+}
+
+export interface CreditCardRow {
+  id: number
+  cardName: string
+  cardCompany: string
+  cardNo: string
+  type: CardType
+  typeName: string
+  ownerName: string | null
+  settlementAccountId: number | null
+  settlementAccountName: string | null
+  settlementDay: number | null
+  active: boolean
+  remark: string | null
+}
+
+export interface BankTxn {
+  id: number
+  txnNo: string
+  txnDate: string
+  bankAccountId: number
+  bankName: string
+  accountNo: string
+  deposit: boolean
+  directionName: string
+  amount: number
+  counterAccountId: number
+  counterAccountName: string
+  partnerId: number | null
+  partnerName: string | null
+  balanceAfter: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+export interface CardUsage {
+  id: number
+  usageNo: string
+  usageDate: string
+  cardId: number
+  cardName: string
+  cardCompany: string
+  cardNo: string
+  cardTypeName: string
+  merchant: string
+  expenseAccountId: number
+  expenseAccountName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
 // ===== 기타이동 (자가사용·불량처리·재고조정) =====
 
 export type StockAdjustmentType = 'SELF_USE' | 'DEFECT' | 'ADJUST'
@@ -701,13 +775,18 @@ export interface TaxInvoice {
 export type PayslipStatus = 'DRAFT' | 'CONFIRMED'
 export type PayslipLineKind = 'ALLOWANCE' | 'DEDUCTION'
 
+/** 사원 마스터 (/api/employees). 로그인 User 와는 별개다. */
 export interface EmployeeMaster {
   id: number
   code: string
   name: string
+  departmentId: number | null
   department: string
   jobTitle: string
   baseSalary: number
+  hireDate: string | null
+  resignDate: string | null
+  active: boolean
 }
 
 export interface PayslipLine {
@@ -821,13 +900,65 @@ export interface Department {
   employeeCount: number
 }
 
-/** 사원 마스터 (/api/employees). 로그인 User 와는 별개다. */
-export interface EmployeeMaster {
+// ===== 인사관리 (발령이력) =====
+
+export type AssignmentType = 'HIRE' | 'TRANSFER' | 'PROMOTION' | 'RESIGN' | 'REHIRE'
+
+export interface Assignment {
   id: number
-  code: string
-  name: string
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  assignDate: string
+  type: AssignmentType
+  typeName: string
   departmentId: number | null
   department: string
   jobTitle: string
-  baseSalary: number
+  remark: string | null
+  createdBy: string | null
+}
+
+// ===== 원천징수 =====
+
+export interface WithholdingRow {
+  payslipId: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+  totalWithheld: number
+}
+
+export interface WithholdingStatement {
+  payMonth: string
+  headcount: number
+  draftCount: number
+  totalGrossPay: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalWithheld: number
+  rows: WithholdingRow[]
+}
+
+export interface ReceiptMonth {
+  payMonth: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+}
+
+export interface WithholdingReceipt {
+  year: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+  totalWithheld: number
+  socialInsurance: number
+  months: ReceiptMonth[]
 }
