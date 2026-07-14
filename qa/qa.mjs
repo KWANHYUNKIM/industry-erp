@@ -1840,6 +1840,45 @@ async function scenarioCreatedByFk() {
     (await must('GET', '/users')).some((u) => u.username === UNAME), false)
 }
 
+async function scenarioPersonRefs() {
+  section('■ 시나리오 28. 사람참조 정리 (작성자 FK · 휴가상태 enum)')
+
+  // ── 휴가 상태는 이제 enum 이다
+  const users = await must('GET', '/users')
+  const me = users.find((u) => u.username === USER)
+
+  const vac = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: '2026-05-04', endDate: '2026-05-04',
+    days: 1, reason: 'QA 휴가상태 enum',
+  })
+  eq('신규 휴가는 PENDING', vac.status, 'PENDING')
+  eq('표시용 한글도 함께 온다', vac.statusName, '대기')
+
+  const approved = await must('PUT', `/hr/vacations/${vac.id}/status`, { status: 'APPROVED' })
+  eq('승인하면 APPROVED', approved.status, 'APPROVED')
+  eq('표시용은 승인', approved.statusName, '승인')
+
+  await rejects('enum 에 없는 상태는 거부', 'PUT', `/hr/vacations/${vac.id}/status`, { status: '승락' })
+  await rejects('한글 상태값도 이제 거부', 'PUT', `/hr/vacations/${vac.id}/status`, { status: '승인' })
+
+  const listed = (await must('GET', '/hr/vacations?year=2026')).find((v) => v.id === vac.id)
+  eq('목록에서도 enum 으로 나온다', listed.status, 'APPROVED')
+
+  // ── 게시글 작성자는 users(username) FK 로 묶여 있다
+  const post = await must('POST', '/board', {
+    title: `${P}작성자 FK`, category: '자유', content: 'QA', anonymous: false,
+  })
+  eq('작성자는 로그인 사용자', post.author, USER)
+  await must('DELETE', `/board/${post.id}`)
+
+  // 익명 글도 작성자는 서버에 남는다 → 그 계정은 삭제가 막힌다(시나리오 27과 같은 규칙)
+  const anon = await must('POST', '/board', {
+    title: `${P}익명 작성자도 FK`, category: '건의', content: 'QA', anonymous: true,
+  })
+  eq('익명 글의 작성자는 응답에서 가려짐', anon.author, '익명')
+  await must('DELETE', `/board/${anon.id}`)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1881,6 +1920,7 @@ async function main() {
   await scenarioGroupwareShared()
   await scenarioPerformance(fixtures)
   await scenarioCreatedByFk()
+  await scenarioPersonRefs()
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()

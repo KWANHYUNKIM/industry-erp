@@ -3,6 +3,7 @@ package com.erp.config;
 import com.erp.domain.Attendance;
 import com.erp.domain.User;
 import com.erp.domain.VacationRequest;
+import com.erp.domain.enums.VacationStatus;
 import com.erp.repository.AttendanceRepository;
 import com.erp.repository.UserRepository;
 import com.erp.repository.VacationRepository;
@@ -48,7 +49,7 @@ public class HrDataInitializer implements CommandLineRunner {
         ensureAttendance(u, t.minusDays(2), "08:55", "18:30", null);   // 정상(연장)
         ensureAttendance(u, t.minusDays(3), "09:00", "18:00", null);   // 정상
         seedVacations(u,
-                vac("연차", currentYearDate(6, 1), 2, "승인", "개인사유"));
+                vac("연차", currentYearDate(6, 1), 2, VacationStatus.APPROVED, "개인사유"));
     }
 
     private void seedManager(User u) {
@@ -57,8 +58,8 @@ public class HrDataInitializer implements CommandLineRunner {
         ensureAttendance(u, t.minusDays(2), "08:58", "15:30", "병원방문");  // 조퇴
         ensureAttendance(u, t.minusDays(3), "09:00", "18:00", null);        // 정상
         seedVacations(u,
-                vac("반차", currentYearDate(6, 10), 0.5, "승인", "병원방문"),
-                vac("병가", currentYearDate(6, 15), 2, "대기", "입원치료"));
+                vac("반차", currentYearDate(6, 10), 0.5, VacationStatus.APPROVED, "병원방문"),
+                vac("병가", currentYearDate(6, 15), 2, VacationStatus.PENDING, "입원치료"));
     }
 
     private void seedStaff(User u) {
@@ -67,8 +68,8 @@ public class HrDataInitializer implements CommandLineRunner {
         ensureAttendance(u, t.minusDays(2), null, null, "무단결근");    // 결근
         ensureAttendance(u, t.minusDays(3), "08:50", "18:00", null);   // 정상
         seedVacations(u,
-                vac("연차", currentYearDate(6, 20), 1, "대기", "경조사"),
-                vac("연차", currentYearDate(6, 2), 3, "승인", "가족여행"));
+                vac("연차", currentYearDate(6, 20), 1, VacationStatus.PENDING, "경조사"),
+                vac("연차", currentYearDate(6, 2), 3, VacationStatus.APPROVED, "가족여행"));
     }
 
     private void ensureAttendance(User u, LocalDate date, String clockIn, String clockOut, String note) {
@@ -96,7 +97,7 @@ public class HrDataInitializer implements CommandLineRunner {
         log.info("데모 휴가 생성 → {} ({}건)", u.getUsername(), requests.length);
     }
 
-    private VacationRequest vac(String type, LocalDate start, double days, String status, String reason) {
+    private VacationRequest vac(String type, LocalDate start, double days, VacationStatus status, String reason) {
         return VacationRequest.builder()
                 .type(type)
                 .startDate(start)
