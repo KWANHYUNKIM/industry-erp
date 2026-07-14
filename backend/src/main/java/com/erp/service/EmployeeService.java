@@ -136,7 +136,9 @@ public class EmployeeService {
         return AssignmentResponse.from(assignmentRepository.save(a));
     }
 
-    private Employee get(Long id) {
+    /** 같은 모듈의 다른 서비스(근로계약 등)가 사원 엔티티를 얻는 진입점. */
+    @Transactional(readOnly = true)
+    public Employee get(Long id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + id));
     }
