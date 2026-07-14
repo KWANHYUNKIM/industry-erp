@@ -160,7 +160,7 @@ public class PurchaseOrderService {
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
                 po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
-                "발주 " + po.getOrderNo() + " 입고", null, lines);
+                "발주 " + po.getOrderNo() + " 입고", null, null, lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
         po.setStatus(PurchaseOrderStatus.RECEIVED);
