@@ -483,6 +483,29 @@ export interface StockTransfer {
   createdBy: string | null
 }
 
+// ===== 기타이동 (자가사용·불량처리·재고조정) =====
+
+export type StockAdjustmentType = 'SELF_USE' | 'DEFECT' | 'ADJUST'
+
+export interface StockAdjustment {
+  id: number
+  adjustNo: string
+  adjustDate: string
+  type: StockAdjustmentType
+  typeName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  beforeQty: number
+  quantityChange: number
+  afterQty: number
+  reason: string | null
+  createdBy: string | null
+}
+
 // ===== 시리얼/로트 관리 =====
 
 export interface Lot {
@@ -748,4 +771,41 @@ export interface Quotation {
   remark: string | null
   createdBy: string | null
   lines: QuoteLine[]
+}
+
+// ===== 발주서 =====
+
+export type PurchaseOrderStatus =
+  | 'REQUESTED' | 'PLANNED' | 'PRICED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
+
+export interface PurchaseOrderLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+}
+
+export interface PurchaseOrder {
+  id: number
+  orderNo: string
+  orderDate: string
+  dueDate: string | null
+  partnerId: number
+  partnerName: string
+  status: PurchaseOrderStatus
+  statusName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  taxable: boolean
+  convertedPurchaseId: number | null
+  remark: string | null
+  createdBy: string | null
+  lines: PurchaseOrderLine[]
 }

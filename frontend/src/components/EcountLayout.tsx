@@ -76,6 +76,7 @@ const MENU: TopMenu[] = [
       {
         label: '구매관리',
         nodes: [
+          { label: '발주서', to: '/sales/purchase-orders' },
           { label: '구매입력', to: '/sales/buy' },
           { label: '구매조회', to: '/sales/purchase-list' },
           { label: '구매현황', to: '/sales/purchase-status' },
@@ -83,6 +84,7 @@ const MENU: TopMenu[] = [
           { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
           { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
           { label: '지급현황', to: '/sales/payment' },
+          { label: '미지급현황', to: '/sales/payable' },
         ],
       },
       {
@@ -225,6 +227,14 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '채권·채무현황', to: '/sales/ledger' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
+        ],
+      },
+      {
+        label: '채무관리',
+        nodes: [
+          { label: '미지급현황(연령분석)', to: '/sales/payable' },
+          { label: '지급현황', to: '/sales/payment' },
+          { label: '수금/지급(정산)', to: '/sales/settlement' },
         ],
       },
       {
