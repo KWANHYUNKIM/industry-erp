@@ -363,6 +363,51 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 수표 → 분개.
+     *   받은수표 수취   차)받을수표   / 대)외상매출금
+     *   발행수표 발행   차)외상매입금 / 대)발행계좌의 예금계정 (당좌수표는 끊는 순간 예금이 빠진다)
+     *   받은수표 입금   차)입금계좌의 예금계정 / 대)받을수표
+     *   받은수표 부도   차)외상매출금 / 대)받을수표 (현금은 움직이지 않는다)
+     * 한 수표가 전표를 여러 장 만들므로 sourceId 는 최초 수취/발행에만 채운다
+     * (중복반영 방지 유니크 인덱스는 source_id IS NOT NULL 에만 걸린다).
+     */
+    @Transactional
+    public JournalEntry createFromCheckIssue(com.erp.domain.BankCheck c) {
+        boolean received = c.getType() == com.erp.domain.enums.CheckType.RECEIVED;
+        String desc = c.getType().getDisplayName() + " " + c.getCheckNo();
+
+        JournalEntry e = newEntry(JournalSourceType.CHECK, c.getId(), c.getIssueDate(), desc, c.getPartner(), c.getCreatedBy());
+        if (received) {
+            addDebit(e, "104", c.getAmount(), "받을수표");
+            addCredit(e, "108", c.getAmount(), "외상매출금");
+        } else {
+            addDebit(e, "251", c.getAmount(), "외상매입금");
+            addCreditAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), "수표 발행");
+        }
+        return save(e);
+    }
+
+    /** 받은수표 입금 → 차)예금계정 / 대)받을수표 */
+    @Transactional
+    public JournalEntry createFromCheckDeposit(com.erp.domain.BankCheck c, LocalDate date, String username) {
+        String desc = "수표 입금 " + c.getCheckNo();
+        JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
+        addDebitAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), desc);
+        addCredit(e, "104", c.getAmount(), "받을수표");
+        return save(e);
+    }
+
+    /** 받은수표 부도 → 차)외상매출금 / 대)받을수표 (채권으로 되돌린다) */
+    @Transactional
+    public JournalEntry createFromCheckDishonor(com.erp.domain.BankCheck c, LocalDate date, String username) {
+        String desc = "수표 부도 " + c.getCheckNo();
+        JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
+        addDebit(e, "108", c.getAmount(), "외상매출금 환원");
+        addCredit(e, "104", c.getAmount(), "받을수표");
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {
