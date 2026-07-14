@@ -266,6 +266,12 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        label: '전자근로계약',
+        nodes: [
+          { label: '근로계약서', to: '/hr/contracts' },
+        ],
+      },
+      {
         label: '근태관리',
         nodes: [
           {

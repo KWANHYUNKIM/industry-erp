@@ -962,3 +962,33 @@ export interface WithholdingReceipt {
   socialInsurance: number
   months: ReceiptMonth[]
 }
+
+// ===== 전자근로계약 =====
+
+export type ContractType = 'PERMANENT' | 'FIXED_TERM' | 'DAILY'
+export type ContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'TERMINATED'
+
+export interface EmploymentContract {
+  id: number
+  contractNo: string
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  type: ContractType
+  typeName: string
+  status: ContractStatus
+  statusName: string
+  startDate: string
+  endDate: string | null
+  departmentId: number | null
+  department: string
+  jobTitle: string
+  monthlySalary: number
+  weeklyHours: number
+  workPlace: string | null
+  duty: string | null
+  signedAt: string | null
+  signedBy: string | null
+  remark: string | null
+  createdBy: string | null
+}
