@@ -22,6 +22,7 @@ import ProfitSummaryPage from './pages/accounting/ProfitSummaryPage'
 import ItemCostPage from './pages/accounting/ItemCostPage'
 import VatSummaryPage from './pages/accounting/VatSummaryPage'
 import WithholdingPage from './pages/accounting/WithholdingPage'
+import OtherWithholdingPage from './pages/accounting/OtherWithholdingPage'
 import PromissoryNotePage from './pages/accounting/PromissoryNotePage'
 import AccountsPage from './pages/accounting/AccountsPage'
 import JournalListPage from './pages/accounting/JournalListPage'
@@ -227,6 +228,7 @@ export default function App() {
         <Route path="/accounting/item-cost" element={<ItemCostPage />} />
         <Route path="/accounting/vat" element={<VatSummaryPage />} />
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
+        <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
         <Route path="/accounting/journals" element={<JournalListPage />} />

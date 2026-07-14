@@ -83,6 +83,12 @@ public class PartnerService {
         return (v == null || v.isBlank()) ? null : v;
     }
 
+    /** 다른 서비스가 거래처 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public BusinessPartner get(Long id) {
+        return getPartner(id);
+    }
+
     private BusinessPartner getPartner(Long id) {
         return partnerRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
