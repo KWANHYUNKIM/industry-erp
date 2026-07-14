@@ -37,6 +37,11 @@ public class WorkJournal extends BaseTimeEntity {
     @Column(length = 100)
     private String partnerName;
 
+    /** 거래처 마스터 연결. 이름이 마스터와 정확히 일치할 때만 채운다(없으면 null + 입력 문자열 보존). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private BusinessPartner partner;
+
     @Column(nullable = false, length = 200)
     private String title;
 

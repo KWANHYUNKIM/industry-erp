@@ -868,6 +868,8 @@ export interface StockAdjustment {
 
 // ===== 시리얼/로트 관리 =====
 
+export type LotStatus = 'IN_STOCK' | 'SHIPPED' | 'HOLD'
+
 export interface Lot {
   id: number
   lotNo: string
@@ -882,6 +884,8 @@ export interface Lot {
   inboundQty: number
   stockQty: number
   held: boolean
+  /** 저장하지 않고 파생되는 상태 (보류 우선 → 수량 0이면 출고완료) */
+  status: LotStatus
   statusName: string
 }
 

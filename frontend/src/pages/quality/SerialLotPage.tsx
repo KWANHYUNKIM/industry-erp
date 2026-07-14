@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Lot, Warehouse } from '../../api/types'
+import type { Item, Lot, LotStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-const statusColor = (s: string) => (s === '보류' ? '#c07a00' : s === '출고완료' ? '#8a929c' : '#1c7c3c')
+const statusColor = (s: LotStatus) => (s === 'HOLD' ? '#c07a00' : s === 'SHIPPED' ? '#8a929c' : '#1c7c3c')
 
 /** 재고 II > 시리얼/로트No. — 로트별 입고/현재고/보류 추적 (실연동) */
 export default function SerialLotPage() {
@@ -163,7 +163,7 @@ export default function SerialLotPage() {
               <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? '#9aa1ab' : undefined }}>{r.stockQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? '-'}</td>
-              <td style={{ textAlign: 'center', color: statusColor(r.statusName), fontWeight: 700 }}>{r.statusName}</td>
+              <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={r.held || r.stockQty <= 0} onClick={() => consume(r)}>출고</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? '#1c7c3c' : '#c07a00' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>

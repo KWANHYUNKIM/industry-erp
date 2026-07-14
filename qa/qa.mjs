@@ -1879,6 +1879,53 @@ async function scenarioPersonRefs() {
   await must('DELETE', `/board/${anon.id}`)
 }
 
+async function scenarioPartnerLink(f) {
+  section('■ 시나리오 29. 거래처 자유입력 + 마스터 연결 · 로트 상태 파생')
+
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')
+
+  // 이름이 마스터와 정확히 일치하면 FK 가 붙는다
+  const linked = await must('POST', '/expenses', {
+    accountId: welfare.id, expenseDate: '2026-01-15', content: 'QA 거래처 연결',
+    partnerName: f.customer.name, amount: 10_000, paymentMethod: '현금',
+  })
+  eq('이름이 마스터와 일치하면 거래처가 연결됨', linked.partnerId, f.customer.id)
+  eq('입력한 문자열도 그대로 보존', linked.partnerName, f.customer.name)
+
+  // 마스터에 없는 상대도 그대로 받는다 (FK 는 null)
+  const free = await must('POST', '/expenses', {
+    accountId: welfare.id, expenseDate: '2026-01-15', content: 'QA 미등록 거래처',
+    partnerName: 'QA-등록안된상호', amount: 5_000, paymentMethod: '현금',
+  })
+  isNull('마스터에 없으면 연결하지 않음', free.partnerId)
+  eq('그래도 이름은 남는다', free.partnerName, 'QA-등록안된상호')
+
+  // 부분일치로는 엮지 않는다
+  const partial = await must('POST', '/expenses', {
+    accountId: welfare.id, expenseDate: '2026-01-15', content: 'QA 부분일치',
+    partnerName: f.customer.name.slice(0, 2), amount: 3_000, paymentMethod: '현금',
+  })
+  isNull('부분일치로는 연결하지 않음', partial.partnerId)
+
+  // 업무일지도 같은 규칙
+  const journal = await must('POST', '/work-journals', {
+    reportDate: '2026-01-15', partnerName: f.customer.name,
+    title: 'QA 업무일지', content: 'QA 거래처 연결 확인',
+  })
+  eq('업무일지도 이름이 일치하면 연결', journal.partnerId, f.customer.id)
+
+  for (const id of [linked.id, free.id, partial.id]) {
+    await must('DELETE', `/expenses/${id}`)
+  }
+
+  // ── 로트 상태는 저장하지 않고 파생된다
+  const lots = await must('GET', '/lots')
+  const lot = lots.find((l) => l.lotNo === `${P}LOT-001`)
+  eq('보유수량이 남은 로트는 재고 상태', lot.status, lot.held ? 'HOLD' : (Number(lot.stockQty) > 0 ? 'IN_STOCK' : 'SHIPPED'))
+  eq('표시용 한글도 함께 온다', lot.statusName, { IN_STOCK: '재고', SHIPPED: '출고완료', HOLD: '보류' }[lot.status])
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1921,6 +1968,7 @@ async function main() {
   await scenarioPerformance(fixtures)
   await scenarioCreatedByFk()
   await scenarioPersonRefs()
+  await scenarioPartnerLink(fixtures)
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()

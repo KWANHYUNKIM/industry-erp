@@ -28,6 +28,8 @@ public final class ExpenseDtos {
             LocalDate expenseDate,
             Long accountId, String accountName,
             String content, String partnerName,
+            /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다(아니면 null) */
+            Long partnerId,
             BigDecimal amount, String paymentMethod, String department,
             Long projectId, String projectName,
             String createdBy
@@ -37,6 +39,7 @@ public final class ExpenseDtos {
                     e.getId(), e.getExpenseDate(),
                     e.getAccount().getId(), e.getAccount().getName(),
                     e.getContent(), e.getPartnerName(),
+                    e.getPartner() != null ? e.getPartner().getId() : null,
                     e.getAmount(), e.getPaymentMethod(), e.getDepartment(),
                     e.getProject() != null ? e.getProject().getId() : null,
                     e.getProject() != null ? e.getProject().getName() : null,

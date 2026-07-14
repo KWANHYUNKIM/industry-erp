@@ -1,6 +1,7 @@
 package com.erp.dto;
 
 import com.erp.domain.Lot;
+import com.erp.domain.enums.LotStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -35,12 +36,11 @@ public final class LotDtos {
             Long warehouseId, String warehouseName,
             LocalDate inboundDate, LocalDate expireDate,
             BigDecimal inboundQty, BigDecimal stockQty,
-            boolean held, String statusName
+            boolean held, LotStatus status, String statusName
     ) {
         public static LotResponse from(Lot l) {
-            String status = l.isHeld() ? "보류"
-                    : l.getStockQty().signum() <= 0 ? "출고완료"
-                    : "재고";
+            // 상태는 저장하지 않는다. 보유수량·보류 플래그에서 파생한다(LotStatus 참조).
+            LotStatus status = LotStatus.of(l.isHeld(), l.getStockQty());
             return new LotResponse(
                     l.getId(), l.getLotNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
@@ -48,7 +48,7 @@ public final class LotDtos {
                     l.getWarehouse() != null ? l.getWarehouse().getName() : null,
                     l.getInboundDate(), l.getExpireDate(),
                     l.getInboundQty(), l.getStockQty(),
-                    l.isHeld(), status);
+                    l.isHeld(), status, status.getDisplayName());
         }
     }
 }

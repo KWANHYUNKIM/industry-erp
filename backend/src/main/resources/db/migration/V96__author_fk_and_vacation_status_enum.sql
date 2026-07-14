@@ -17,7 +17,27 @@
 
 -- ── 1) 작성자 FK ────────────────────────────────────────────────────────────
 
--- 사용자 목록에 없는 작성자가 남아 있으면 FK 생성이 실패한다. 먼저 비운다(시스템 시드 등).
+-- 기존 행에는 계정명(username)이 아니라 표시이름(users.name)이 들어 있는 것들이 있다
+-- (work_posts.writer = '시스템 관리자'). 지우기 전에 이름 → 계정으로 옮긴다.
+-- 여기서 NULL 로 밀어버리면 사람 정보를 잃고, work_posts.writer 는 NOT NULL 이라 실패한다.
+UPDATE public.board_posts b SET author = u.username
+  FROM public.users u
+ WHERE b.author = u.name
+   AND NOT EXISTS (SELECT 1 FROM public.users x WHERE x.username = b.author);
+UPDATE public.notices n SET author = u.username
+  FROM public.users u
+ WHERE n.author = u.name
+   AND NOT EXISTS (SELECT 1 FROM public.users x WHERE x.username = n.author);
+UPDATE public.work_posts w SET writer = u.username
+  FROM public.users u
+ WHERE w.writer = u.name
+   AND NOT EXISTS (SELECT 1 FROM public.users x WHERE x.username = w.writer);
+
+-- 그래도 계정으로 이어지지 않는 작성자가 남으면 FK 를 걸 수 없다. 이름만 남은 사람은
+-- "누구인지 모른다"가 사실이므로 NULL 로 둔다. work_posts.writer 는 NOT NULL 이었으므로
+-- 그 제약을 먼저 푼다 (없는 계정을 지어내 채우는 것보다 비어 있는 편이 정직하다).
+ALTER TABLE public.work_posts ALTER COLUMN writer DROP NOT NULL;
+
 UPDATE public.board_posts SET author = NULL
  WHERE author IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.users u WHERE u.username = author);
 UPDATE public.notices SET author = NULL
