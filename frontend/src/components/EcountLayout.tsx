@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { api } from '../api/client'
+import AppBarPanel, { type PanelKind } from './AppBarPanel'
+import type { NotificationResponse } from '../api/types'
 
 /** 이카운트 v5 실제 레이아웃 재현:
  *  [최상단 북마크바]
@@ -478,17 +481,18 @@ const BOOKMARKS: { label: string; to: string }[] = [
 ]
 
 // 우측 세로 앱바 아이콘. to가 있으면 라우트 이동, print면 화면 인쇄, 나머지는 안내 문구
-interface AppIcon { icon: string; title: string; to?: string; print?: boolean }
+interface AppIcon { icon: string; title: string; to?: string; print?: boolean; panel?: PanelKind }
 const APPS: AppIcon[] = [
   { icon: '🌙', title: '테마' },
   { icon: '🤖', title: 'AI 도우미' },
-  { icon: '🔍', title: '통합검색' },
+  { icon: '🔍', title: '통합검색', panel: 'search' },
   { icon: '🎧', title: '고객지원' },
   { icon: '➕', title: '빠른등록' },
   { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
-  { icon: '🔔', title: '알림' },
+  { icon: '🔔', title: '알림', panel: 'notifications' },
   { icon: '💬', title: '메신저' },
   { icon: '📨', title: '쪽지' },
+  { icon: '📝', title: 'E Note', panel: 'notes' },
   { icon: '🖨️', title: '화면 인쇄', print: true },
   { icon: '🔖', title: '즐겨찾기' },
   { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
@@ -550,6 +554,15 @@ export default function EcountLayout() {
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
   const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
+  const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
+  const [alertCount, setAlertCount] = useState(0)               // 알림 배지
+
+  // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
+  useEffect(() => {
+    api.get<NotificationResponse>('/workspace/notifications')
+      .then((r) => setAlertCount(r.data.total))
+      .catch(() => setAlertCount(0))
+  }, [panel])
 
   const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
   const activeTop = MENU[topIdx]
@@ -574,6 +587,7 @@ export default function EcountLayout() {
 
   // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
   function onApp(app: AppIcon) {
+    if (app.panel) return setPanel(app.panel)
     if (app.to) return navigate(app.to)
     if (app.print) return window.print()
     setAppNotice(`${app.title} 기능은 준비 중입니다.`)
@@ -771,10 +785,22 @@ export default function EcountLayout() {
         {/* 우측 세로 앱바 */}
         <div style={{ width: 44, background: '#fff', borderLeft: '1px solid #e6e9ee', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 12, fontSize: 16, color: '#6b7280' }}>
           {APPS.map((a, i) => (
-            <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer' }}>{a.icon}</span>
+            <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer', position: 'relative' }}>
+              {a.icon}
+              {a.panel === 'notifications' && alertCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, padding: '0 3px',
+                  borderRadius: 7, background: '#c60a2e', color: '#fff', fontSize: 9, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>{alertCount}</span>
+              )}
+            </span>
           ))}
         </div>
       </div>
+
+      {/* 앱바 패널: 통합검색 · 알림 · E Note */}
+      {panel && <AppBarPanel kind={panel} onClose={() => setPanel(null)} />}
 
       {/* 앱바 안내 토스트 */}
       {appNotice && (
