@@ -66,6 +66,14 @@ public class Sales extends BaseTimeEntity {
     @JoinColumn(name = "project_id")
     private Project project;
 
+    /**
+     * 담당 사원. createdBy(입력한 로그인 계정)와 다르다 — 사무직원이 영업사원 대신 전표를 넣으면
+     * 실적은 영업사원 것이어야 한다. 비우면 담당자 없는 전표다(실적 집계에서 '미지정'으로 잡힌다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
+
     /** 회계반영 여부 (판매 전표 → 회계 분개 반영 완료) */
     @Column(nullable = false)
     @Builder.Default

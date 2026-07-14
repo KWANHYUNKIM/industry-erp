@@ -1582,6 +1582,69 @@ async function scenarioGroupwareShared() {
     summary.rows.length)
 }
 
+async function scenarioPerformance(f) {
+  section('■ 시나리오 25. 담당자별 실적 (전표 담당 사원 기준)')
+
+  const employees = await must('GET', '/employees')
+  if (employees.length === 0) {
+    console.log('  ⏭  사원 마스터가 비어 있어 건너뜁니다.')
+    return
+  }
+  const emp = employees[0]
+  const FROM = '2026-03-01'
+  const TO = '2026-03-31'
+  const DATE = '2026-03-10'
+
+  const before = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  const beforeMine = before.rows.find((r) => r.employeeId === emp.id)
+  const beforeSales = Number(beforeMine?.salesAmount ?? 0)
+  const beforeUnassigned = Number(before.rows.find((r) => r.employeeId === null)?.salesAmount ?? 0)
+
+  // 담당자를 지정한 판매 전표
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: DATE, taxable: true,
+    employeeId: emp.id,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 10000 }],
+  })
+  eq('판매 전표에 담당자가 붙음', sale.employeeId, emp.id)
+  eq('담당자 이름이 응답에 실림', sale.employeeName, emp.name)
+
+  // 담당자 없는 판매 전표
+  const noOwner = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: DATE, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  isNull('담당자를 안 넣으면 비어 있음', noOwner.employeeId)
+
+  const after = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  const mine = after.rows.find((r) => r.employeeId === emp.id)
+  eq('담당자 실적에 판매 합계가 더해짐', Number(mine.salesAmount), beforeSales + Number(sale.totalAmount))
+  eq('담당자 판매 건수도 증가', mine.salesCount >= 1, true)
+
+  const unassigned = after.rows.find((r) => r.employeeId === null)
+  eq('담당자 없는 전표는 미지정 행으로 모임',
+    Number(unassigned.salesAmount), beforeUnassigned + Number(noOwner.totalAmount))
+  eq('미지정 행의 이름', unassigned.employeeName, '미지정')
+  eq('미지정 행은 항상 맨 아래', after.rows[after.rows.length - 1].employeeId, null)
+
+  eq('총 매출 = 행 매출 합계',
+    Number(after.totalSales), after.rows.reduce((s, r) => s + Number(r.salesAmount), 0))
+  eq('비중 = 매출 / 총매출 × 100', Number(mine.salesShare),
+    Math.round(Number(mine.salesAmount) / Number(after.totalSales) * 1000) / 10)
+
+  // 구매도 담당자로 잡힌다
+  const buy = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: DATE, taxable: true,
+    employeeId: emp.id,
+    lines: [{ itemId: f.material.id, quantity: 5, unitPrice: 1000 }],
+  })
+  eq('구매 전표에도 담당자가 붙음', buy.employeeId, emp.id)
+
+  const afterBuy = (await must('GET', `/employees/performance?from=${FROM}&to=${TO}`))
+    .rows.find((r) => r.employeeId === emp.id)
+  eq('담당자 매입액이 증가', Number(afterBuy.purchaseAmount) >= Number(buy.totalAmount), true)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1621,6 +1684,7 @@ async function main() {
   await scenarioExport(fixtures)
   await scenarioPrintSign()
   await scenarioGroupwareShared()
+  await scenarioPerformance(fixtures)
   await scenarioCheck(fixtures)
   await scenarioContract(fixtures)
   await scenarioCurrency()

@@ -427,6 +427,36 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 계좌간이동 → 분개. 차)입금계좌 예금계정 / 대)출금계좌 예금계정.
+     * 회사 밖으로 나가는 돈이 아니라 손익에 영향이 없다.
+     */
+    @Transactional
+    public JournalEntry createFromAccountTransfer(com.erp.domain.AccountTransfer t) {
+        String desc = t.getDescription() != null ? t.getDescription() : "계좌간이동 " + t.getTransferNo();
+
+        JournalEntry e = newEntry(JournalSourceType.ACCOUNT_TRANSFER, t.getId(), t.getTransferDate(),
+                desc, null, t.getCreatedBy());
+        addDebitAccount(e, t.getToAccount().getGlAccount(), t.getAmount(), "입금 " + t.getToAccount().getBankName());
+        addCreditAccount(e, t.getFromAccount().getGlAccount(), t.getAmount(), "출금 " + t.getFromAccount().getBankName());
+        return save(e);
+    }
+
+    /**
+     * 법인카드 대금결제 → 분개. 차)미지급금(253) / 대)결제계좌 예금계정.
+     * 카드사용 시점에 이미 비용과 미지급금을 잡아 두었으므로, 결제는 그 미지급금을 갚는 것뿐이다.
+     */
+    @Transactional
+    public JournalEntry createFromCardPayment(com.erp.domain.CardPayment p) {
+        String desc = "카드대금 결제 " + p.getCard().getCardName() + " " + p.getPaymentNo();
+
+        JournalEntry e = newEntry(JournalSourceType.CARD_PAYMENT, p.getId(), p.getPaymentDate(),
+                desc, null, p.getCreatedBy());
+        addDebit(e, "253", p.getAmount(), "미지급금 상환");
+        addCreditAccount(e, p.getBankAccount().getGlAccount(), p.getAmount(), "카드대금 출금");
+        return save(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {

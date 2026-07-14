@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Partner, Project, PurchaseDoc, SalesDoc, Warehouse } from '../../api/types'
+import type { EmployeeMaster, Item, Partner, Project, PurchaseDoc, SalesDoc, Warehouse } from '../../api/types'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -73,6 +73,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [remark, setRemark] = useState('')
   const [projectId, setProjectId] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
+  const [employeeId, setEmployeeId] = useState('')
+  const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
@@ -80,6 +82,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
   async function loadRefs() {
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
     const [p, w, i] = await Promise.all([
       api.get<Partner[]>('/partners'),
       api.get<Warehouse[]>('/warehouses'),
@@ -155,6 +158,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         taxable,
         remark: remark || undefined,
         projectId: projectId ? Number(projectId) : undefined,
+        employeeId: employeeId ? Number(employeeId) : undefined,
         lines: validLines,
       })
       setOk(`${res.data.docNo} 저장 완료 (합계 ${won(res.data.totalAmount)}원)`)
@@ -276,6 +280,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         <select className="ec-input" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ width: 200 }}>
           <option value="">(없음)</option>
           {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.code} {pj.name}</option>)}
+        </select>
+        <span style={{ fontSize: 12.5, color: '#5a626e', fontWeight: 600 }}>담당자</span>
+        <select className="ec-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ width: 160 }}>
+          <option value="">(미지정)</option>
+          {employees.map((em) => <option key={em.id} value={em.id}>{em.name}</option>)}
         </select>
       </div>
       <div style={{ marginTop: 4, fontSize: 11, color: '#9aa1ab' }}>※ 품목을 선택하면 단가가 자동 입력되고 다음 행이 추가됩니다.</div>

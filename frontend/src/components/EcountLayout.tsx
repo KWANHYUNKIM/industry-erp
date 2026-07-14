@@ -187,6 +187,7 @@ const MENU: TopMenu[] = [
           { label: '일반전표입력', to: '/accounting/journal-entry' },
           { label: '현금예금입금', to: '/accounting/cash-deposit' },
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+          { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
           { label: '지출결의서', to: '/accounting/vouchers' },
           { label: '입금보고서', to: '/accounting/vouchers' },
           { label: '가지급금정산서', to: '/accounting/vouchers' },
@@ -301,7 +302,10 @@ const MENU: TopMenu[] = [
       {
         label: '급여관리',
         nodes: [
-          { label: '기본사항등록', children: [{ label: '사원등록', to: '/hr/employees' }] },
+          { label: '기본사항등록', children: [
+            { label: '사원등록', to: '/hr/employees' },
+            { label: '담당자별 실적', to: '/hr/performance' },
+          ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
           { label: '일용근로', children: [{ label: '일용근로급여관리', to: '/hr/daily-wage' }] },
         ],
