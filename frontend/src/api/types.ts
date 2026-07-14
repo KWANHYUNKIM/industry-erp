@@ -1382,3 +1382,44 @@ export interface TaxReturn {
   createdBy: string | null
   adjustments: TaxAdjustment[]
 }
+
+// ===== 회계 II: 수입비용 =====
+
+export type ReceiptMethod = 'CASH' | 'BANK' | 'CREDIT'
+
+export interface Income {
+  id: number
+  incomeDate: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  content: string
+  partnerName: string | null
+  amount: number
+  receiptMethod: ReceiptMethod
+  receiptMethodName: string
+  bankAccountId: number | null
+  bankAccountName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  department: string | null
+  createdBy: string | null
+}
+
+export interface AccountSummaryRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  amount: number
+  ratio: number
+}
+
+export interface IncomeExpenseStatus {
+  from: string
+  to: string
+  totalIncome: number
+  totalExpense: number
+  net: number
+  incomeByAccount: AccountSummaryRow[]
+  expenseByAccount: AccountSummaryRow[]
+}
