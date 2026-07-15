@@ -38,10 +38,7 @@ public class DocumentNoGenerator {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public String next(String prefix, String table, String noColumn, String dateColumn, LocalDate date) {
-        // 같은 (접두어, 날짜) 번호 공간을 쓰는 트랜잭션끼리만 줄을 세운다. 트랜잭션 종료 시 자동 해제.
-        em.createNativeQuery("select pg_advisory_xact_lock(hashtext(:key))")
-                .setParameter("key", prefix + date.format(YMD))
-                .getSingleResult();
+        lockNumberSpace(prefix + date.format(YMD));
 
         // table/noColumn/dateColumn 은 호출부의 상수만 들어온다 (사용자 입력 아님).
         Object max = em.createNativeQuery(
@@ -53,5 +50,23 @@ public class DocumentNoGenerator {
                 .getSingleResult();
         int seq = ((Number) max).intValue() + 1;
         return prefix + date.format(YMD) + "-" + String.format("%04d", seq);
+    }
+
+    /**
+     * 같은 번호 공간의 채번을 트랜잭션 단위로 직렬화한다. 트랜잭션이 끝나면 자동 해제되고,
+     * {@code key} 가 다르면 서로를 막지 않는다.
+     * <p>
+     * 번호를 직접 조립하는 호출부에서 쓴다 — 예: 기안서는 하나의 일련번호로 기안No(
+     * {@code 2026/07/10-2})와 기안서No({@code AP-20260710-0002})를 동시에 만들어야 해서
+     * {@link #next}(문자열만 반환)를 못 쓴다. 그런 경우 {@code max(seq)} 조회 직전에 이 락을
+     * 잡아 두 트랜잭션이 같은 seq 를 읽는 race 를 막는다.
+     *
+     * @param key 번호 공간 식별자. 보통 {@code 접두어 + yyyyMMdd}.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockNumberSpace(String key) {
+        em.createNativeQuery("select pg_advisory_xact_lock(hashtext(:key))")
+                .setParameter("key", key)
+                .getSingleResult();
     }
 }
