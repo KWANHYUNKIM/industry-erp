@@ -15,6 +15,16 @@ export interface Role {
   name: string
   displayName: string
   description: string | null
+  system?: boolean
+  userCount?: number
+  permissionCodes?: string[]
+}
+
+export interface Permission {
+  code: string
+  name: string
+  category: string
+  sort: number
 }
 
 export interface LoginResponse {

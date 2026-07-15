@@ -7,7 +7,6 @@ import com.erp.service.PartnerGroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +24,16 @@ public class PartnerGroupController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<PartnerGroupResponse> create(@Valid @RequestBody CreatePartnerGroupRequest req) {
         return ResponseEntity.ok(partnerGroupService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public PartnerGroupResponse update(@PathVariable Long id, @Valid @RequestBody UpdatePartnerGroupRequest req) {
         return partnerGroupService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         partnerGroupService.delete(id);
         return ResponseEntity.noContent().build();

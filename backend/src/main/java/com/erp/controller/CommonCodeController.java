@@ -9,7 +9,6 @@ import com.erp.service.CommonCodeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,33 +33,28 @@ public class CommonCodeController {
     }
 
     @PostMapping("/groups")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<CodeGroupResponse> createGroup(@Valid @RequestBody CreateGroupRequest req) {
         return ResponseEntity.ok(service.createGroup(req));
     }
 
     @DeleteMapping("/groups/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
         service.deleteGroup(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/groups/{groupId}/codes")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<CodeResponse> addCode(@PathVariable Long groupId,
                                                 @Valid @RequestBody CreateCodeRequest req) {
         return ResponseEntity.ok(service.addCode(groupId, req));
     }
 
     @PutMapping("/codes/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public CodeResponse updateCode(@PathVariable Long id, @Valid @RequestBody UpdateCodeRequest req) {
         return service.updateCode(id, req);
     }
 
     @DeleteMapping("/codes/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> deleteCode(@PathVariable Long id) {
         service.deleteCode(id);
         return ResponseEntity.noContent().build();

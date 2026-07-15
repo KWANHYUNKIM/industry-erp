@@ -1,17 +1,20 @@
 package com.erp.config;
 
+import com.erp.common.MenuPermissionCatalog;
 import com.erp.domain.Account;
 import com.erp.domain.AccountDivision;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Item;
 import com.erp.domain.ItemCategory;
 import com.erp.domain.PartnerType;
+import com.erp.domain.Permission;
 import com.erp.domain.Role;
 import com.erp.domain.User;
 import com.erp.domain.Warehouse;
 import com.erp.repository.AccountRepository;
 import com.erp.repository.BusinessPartnerRepository;
 import com.erp.repository.ItemRepository;
+import com.erp.repository.PermissionRepository;
 import com.erp.repository.RoleRepository;
 import com.erp.repository.UserRepository;
 import com.erp.repository.WarehouseRepository;
@@ -24,6 +27,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -42,6 +47,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ItemRepository itemRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final AccountRepository accountRepository;
+    private final PermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -50,6 +56,8 @@ public class DataInitializer implements CommandLineRunner {
         Role admin = ensureRole("ADMIN", "관리자", "모든 기능 및 사용자 관리 권한");
         Role manager = ensureRole("MANAGER", "매니저", "모듈 관리 및 승인 권한");
         Role staff = ensureRole("STAFF", "사원", "일반 업무 처리 권한");
+
+        seedPermissions(manager, staff);
 
         if (!userRepository.existsByUsername("admin")) {
             User adminUser = User.builder()
@@ -185,5 +193,33 @@ public class DataInitializer implements CommandLineRunner {
                         .displayName(displayName)
                         .description(description)
                         .build()));
+    }
+
+    /**
+     * 권한 카탈로그를 MenuPermissionCatalog 기준으로 시드하고, 기본 역할에 초기 권한을 부여한다.
+     * ADMIN 은 코드로 전권 바이패스하므로 부여하지 않는다. MANAGER·STAFF 는 현행 동작(모든 메뉴
+     * 접근)을 유지하도록 전체 권한을 준다 — 단 관리자가 이미 손을 댄 역할은 건드리지 않는다(멱등).
+     */
+    private void seedPermissions(Role manager, Role staff) {
+        for (MenuPermissionCatalog.Perm p : MenuPermissionCatalog.ALL) {
+            permissionRepository.findById(p.code()).orElseGet(() ->
+                    permissionRepository.save(Permission.builder()
+                            .code(p.code()).name(p.name()).category(p.category()).sort(p.sort())
+                            .build()));
+        }
+        // 사용자·권한 관리(USER_MANAGE)는 ADMIN 전용(바이패스)으로 남긴다. 기본 역할엔 주지 않는다.
+        List<Permission> defaults = permissionRepository.findAll().stream()
+                .filter(p -> !"USER_MANAGE".equals(p.getCode()))
+                .toList();
+        grantAllIfEmpty(manager, defaults);
+        grantAllIfEmpty(staff, defaults);
+    }
+
+    private void grantAllIfEmpty(Role role, List<Permission> perms) {
+        if (role.getPermissions().isEmpty()) {
+            role.setPermissions(new HashSet<>(perms));
+            roleRepository.save(role);
+            log.info("역할 {} 에 기본 권한 {}개 부여", role.getName(), perms.size());
+        }
     }
 }

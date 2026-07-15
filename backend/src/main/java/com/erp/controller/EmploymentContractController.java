@@ -8,7 +8,6 @@ import com.erp.service.EmploymentContractService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +27,12 @@ public class EmploymentContractController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<ContractResponse> create(@Valid @RequestBody CreateContractRequest req,
                                                    @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
     @PostMapping("/{id}/send")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ContractResponse send(@PathVariable Long id) {
         return service.send(id);
     }
@@ -47,13 +44,11 @@ public class EmploymentContractController {
     }
 
     @PostMapping("/{id}/terminate")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ContractResponse terminate(@PathVariable Long id) {
         return service.terminate(id);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

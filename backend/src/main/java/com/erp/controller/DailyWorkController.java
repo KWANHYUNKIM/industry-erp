@@ -9,7 +9,6 @@ import com.erp.service.DailyWorkService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +29,6 @@ public class DailyWorkController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<DailyWorkResponse> create(@Valid @RequestBody CreateDailyWorkRequest req,
                                                     @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
@@ -38,13 +36,11 @@ public class DailyWorkController {
 
     /** 선택한 출역들을 지급 처리 */
     @PostMapping("/pay")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public List<DailyWorkResponse> pay(@RequestBody PayRequest req) {
         return service.pay(req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

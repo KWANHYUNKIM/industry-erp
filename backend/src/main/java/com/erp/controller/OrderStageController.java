@@ -7,7 +7,6 @@ import com.erp.service.OrderStageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +24,16 @@ public class OrderStageController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<OrderStageResponse> create(@Valid @RequestBody CreateOrderStageRequest req) {
         return ResponseEntity.ok(orderStageService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public OrderStageResponse update(@PathVariable Long id, @Valid @RequestBody UpdateOrderStageRequest req) {
         return orderStageService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         orderStageService.delete(id);
         return ResponseEntity.noContent().build();

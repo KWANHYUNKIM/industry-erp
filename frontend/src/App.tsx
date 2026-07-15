@@ -5,6 +5,7 @@ import EcountLayout from './components/EcountLayout'
 import LoginPage from './pages/LoginPage'
 const MyPageDashboard = lazy(() => import('./pages/MyPageDashboard'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const RolesPage = lazy(() => import('./pages/RolesPage'))
 const ItemsPage = lazy(() => import('./pages/inventory/ItemsPage'))
 const WarehousesPage = lazy(() => import('./pages/inventory/WarehousesPage'))
 const StockIoPage = lazy(() => import('./pages/inventory/StockIoPage'))
@@ -349,6 +350,7 @@ export default function App() {
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/roles" element={<RolesPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,7 +5,6 @@ import com.erp.dto.PriceOrderDtos.SavePriceOrderRequest;
 import com.erp.service.PriceOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +22,6 @@ public class PriceOrderController {
     }
 
     @PutMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public List<PriceOrderLine> save(@Valid @RequestBody SavePriceOrderRequest req) {
         return priceOrderService.save(req);
     }

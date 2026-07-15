@@ -6,7 +6,6 @@ import com.erp.service.WorkResultService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,13 +23,11 @@ public class WorkResultController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<WorkResultResponse> create(@Valid @RequestBody CreateWorkResultRequest req) {
         return ResponseEntity.ok(workResultService.create(req));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         workResultService.delete(id);
         return ResponseEntity.noContent().build();

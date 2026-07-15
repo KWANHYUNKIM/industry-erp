@@ -7,7 +7,6 @@ import com.erp.service.ItemGroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +24,16 @@ public class ItemGroupController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<ItemGroupResponse> create(@Valid @RequestBody CreateItemGroupRequest req) {
         return ResponseEntity.ok(itemGroupService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ItemGroupResponse update(@PathVariable Long id, @Valid @RequestBody UpdateItemGroupRequest req) {
         return itemGroupService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         itemGroupService.delete(id);
         return ResponseEntity.noContent().build();

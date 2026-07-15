@@ -7,7 +7,6 @@ import com.erp.service.ResourceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +24,16 @@ public class ResourceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<ResourceResponse> create(@Valid @RequestBody CreateResourceRequest req) {
         return ResponseEntity.ok(resourceService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResourceResponse update(@PathVariable Long id, @Valid @RequestBody UpdateResourceRequest req) {
         return resourceService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         resourceService.delete(id);
         return ResponseEntity.noContent().build();
