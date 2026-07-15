@@ -11,9 +11,14 @@ interface MyPermissions {
 interface AuthContextValue {
   user: User | null
   loading: boolean
-  login: (username: string, password: string) => Promise<void>
+  login: (companyCode: string, username: string, password: string) => Promise<void>
   logout: () => void
   hasRole: (role: string) => boolean
+  /** 현재 로그인한 회사코드/회사명 */
+  companyCode: string | null
+  companyName: string | null
+  /** 본사(회사관리 권한 보유) 여부 */
+  isHost: boolean
   /** 관리자(전권) 여부 */
   isAdmin: boolean
   /** 이 권한 코드를 가졌는지 (관리자는 항상 true) */
@@ -24,9 +29,19 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+const COMPANY_KEY = 'erp_company'
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [perms, setPerms] = useState<MyPermissions>({ admin: false, codes: [] })
+  const [company, setCompany] = useState<{ code: string; name: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem(COMPANY_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  })
   const [loading, setLoading] = useState(true)
 
   async function loadPermissions() {
@@ -55,16 +70,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
-  async function login(username: string, password: string) {
-    const res = await api.post<LoginResponse>('/auth/login', { username, password })
+  async function login(companyCode: string, username: string, password: string) {
+    const res = await api.post<LoginResponse>('/auth/login', { companyCode, username, password })
     tokenStore.set(res.data.token)
+    const co = { code: res.data.companyCode, name: res.data.companyName }
+    localStorage.setItem(COMPANY_KEY, JSON.stringify(co))
+    setCompany(co)
     setUser(res.data.user)
     await loadPermissions()
   }
 
   function logout() {
     tokenStore.clear()
+    localStorage.removeItem(COMPANY_KEY)
     setUser(null)
+    setCompany(null)
     setPerms({ admin: false, codes: [] })
     window.location.href = '/login'
   }
@@ -85,7 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, hasRole, isAdmin: perms.admin, can, canRoute }}
+      value={{
+        user, loading, login, logout, hasRole,
+        isAdmin: perms.admin, can, canRoute,
+        companyCode: company?.code ?? null,
+        companyName: company?.name ?? null,
+        isHost: company?.code === '0001',
+      }}
     >
       {children}
     </AuthContext.Provider>

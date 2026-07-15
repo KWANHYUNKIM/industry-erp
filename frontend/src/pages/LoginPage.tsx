@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../api/client'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [companyCode, setCompanyCode] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -16,7 +17,7 @@ export default function LoginPage() {
     setError('')
     setSubmitting(true)
     try {
-      await login(username, password)
+      await login(companyCode, username, password)
       navigate('/', { replace: true })
     } catch (err) {
       setError(extractErrorMessage(err, '로그인에 실패했습니다.'))
@@ -35,12 +36,23 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">회사코드</label>
+            <input
+              type="text"
+              value={companyCode}
+              onChange={(e) => setCompanyCode(e.target.value)}
+              autoFocus
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              placeholder="회사코드 (본사는 비워두세요)"
+            />
+          </div>
+
+          <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">아이디</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              autoFocus
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               placeholder="아이디를 입력하세요"
             />
@@ -71,7 +83,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          초기 계정 — 아이디: admin / 비밀번호: admin1234
+          본사 초기 계정 — 회사코드 비움 / 아이디: admin / 비밀번호: admin1234
         </p>
       </div>
     </div>

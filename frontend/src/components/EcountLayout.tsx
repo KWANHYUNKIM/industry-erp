@@ -32,7 +32,7 @@ const MENU: TopMenu[] = [
     label: 'Self-Customizing',
     tabs: [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
-      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }] },
+      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }, { label: '회사관리', to: '/companies' }] },
       { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }] },
       { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
@@ -543,7 +543,7 @@ const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
 )
 
 export default function EcountLayout() {
-  const { user, logout, canRoute } = useAuth()
+  const { user, logout, canRoute, isHost, companyName } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
@@ -567,7 +567,9 @@ export default function EcountLayout() {
   const activeTab = activeTop.tabs[tabIdx]
 
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
-  const leafOk = (l: Leaf) => !l.to || canRoute(l.to)
+  // 회사관리(/companies)는 본사에서만 노출한다.
+  const leafOk = (l: Leaf) =>
+    (l.to === '/companies' ? isHost : true) && (!l.to || canRoute(l.to))
   const nodeOk = (n: SideNode) => (isGroup(n) ? n.children.some(leafOk) : leafOk(n))
   const tabOk = (t: Tab) => t.nodes.some(nodeOk)
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
@@ -749,6 +751,12 @@ export default function EcountLayout() {
 
             {/* 우측 사용자 아바타 */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingRight: 6 }}>
+              {companyName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: '#eef1fb', borderRadius: 4, marginRight: 4 }}>
+                  <span style={{ fontSize: 12 }}>🏢</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{companyName}</span>
+                </div>
+              )}
               <div style={{ textAlign: 'right', lineHeight: 1.3 }}>
                 <div style={{ fontSize: 12.5, color: '#2a3242', fontWeight: 600 }}>{user?.name}</div>
                 <div style={{ fontSize: 11, color: '#9aa1ab' }}>{user?.roles.join(', ')}</div>
