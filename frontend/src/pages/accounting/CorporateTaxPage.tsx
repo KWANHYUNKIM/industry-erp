@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxAdjustmentType, TaxReturn } from '../../api/types'
 
@@ -199,7 +198,7 @@ export default function CorporateTaxPage() {
         </div>
       )}
 
-      <Modal open={showForm} title="법인세 등록" onClose={() => setShowForm(false)}>{<ReturnForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('신고서를 만들었습니다.'); load(false) }} />}</Modal>
+      {showForm && <ReturnForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('신고서를 만들었습니다.'); load(false) }} />}
     </EcListShell>
   )
 }

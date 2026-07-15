@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
 
@@ -149,7 +148,7 @@ export default function QuotationPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="견적서 등록" onClose={() => setShowForm(false)}>{<QuotationForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}</Modal>
+      {showForm && <QuotationForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}
     </EcListShell>
   )
 }

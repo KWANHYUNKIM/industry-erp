@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 
@@ -172,7 +171,7 @@ export default function PurchaseOrderPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="발주서 등록" onClose={() => setShowForm(false)}>{<PurchaseOrderForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}</Modal>
+      {showForm && <PurchaseOrderForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
       {pricing && <PriceForm order={pricing} onClose={() => setPricing(null)} onSaved={() => { setPricing(null); flash('단가를 확정했습니다.'); load() }} />}
     </EcListShell>
   )
@@ -252,9 +251,12 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
   const [partnerId, setPartnerId] = useState('')
   const [orderDate, setOrderDate] = useState(today())
   const [dueDate, setDueDate] = useState('')
+  const [taxable, setTaxable] = useState(true)   // 거래유형: 부가세율 적용 / 면세
+  const [remark, setRemark] = useState('')       // 참조
   const [lines, setLines] = useState<LineForm[]>([emptyLine()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const specOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.spec ?? ''
 
   function setLine(i: number, patch: Partial<LineForm>) {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -266,7 +268,7 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
 
   const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
   const supply = calc.reduce((a, b) => a + b, 0)
-  const vat = Math.round(supply * 0.1)
+  const vat = taxable ? Math.round(supply * 0.1) : 0
 
   async function save() {
     setError('')
@@ -278,7 +280,8 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
     setSaving(true)
     try {
       await api.post('/purchase-orders', {
-        partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined, taxable: true, lines: payload,
+        partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
+        taxable, remark: remark || undefined, lines: payload,
       })
       onSaved()
     } catch (err) {
@@ -313,13 +316,23 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>납기요청일</th>
                 <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
-                <td colSpan={2} style={{ fontSize: 12, color: '#9aa1ab' }}>단가는 품목 기준단가로 채워지며, 단가확정 단계에서 매입처 회신단가로 바꿉니다.</td>
+                <th style={{ background: '#f5f7fa' }}>거래유형</th>
+                <td>
+                  <select className="ec-input" value={taxable ? 'VAT' : 'FREE'} onChange={(e) => setTaxable(e.target.value === 'VAT')} style={{ width: 150 }}>
+                    <option value="VAT">부가세율 적용</option>
+                    <option value="FREE">면세</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>참조</th>
+                <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
               </tr>
             </tbody>
           </table>
 
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 34 }}></th><th>품목</th><th style={{ width: 90, textAlign: 'right' }}>수량</th><th style={{ width: 110, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 40 }}></th></tr></thead>
+            <thead><tr><th style={{ width: 34 }}></th><th>품목</th><th style={{ width: 120 }}>규격</th><th style={{ width: 80, textAlign: 'right' }}>수량</th><th style={{ width: 100, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 40 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -330,6 +343,7 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
                       {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
                     </select>
                   </td>
+                  <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
@@ -339,7 +353,7 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={4} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
+                <td colSpan={5} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
                 <td style={{ textAlign: 'right' }} colSpan={2}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
