@@ -3,10 +3,12 @@ package com.erp.service;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
+import com.erp.domain.Employee;
 import com.erp.domain.Item;
 import com.erp.domain.PurchaseOrder;
 import com.erp.domain.PurchaseOrderLine;
 import com.erp.domain.PurchaseOrderStatus;
+import com.erp.domain.Warehouse;
 import com.erp.dto.PurchaseDtos.CreatePurchaseRequest;
 import com.erp.dto.PurchaseDtos.PurchaseLineRequest;
 import com.erp.dto.PurchaseDtos.PurchaseResponse;
@@ -18,8 +20,10 @@ import com.erp.dto.PurchaseOrderDtos.PlanRequest;
 import com.erp.dto.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.erp.dto.PurchaseOrderDtos.ReceiveRequest;
 import com.erp.repository.BusinessPartnerRepository;
+import com.erp.repository.EmployeeRepository;
 import com.erp.repository.ItemRepository;
 import com.erp.repository.PurchaseOrderRepository;
+import com.erp.repository.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +46,8 @@ public class PurchaseOrderService {
     private final PurchaseOrderRepository orderRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
+    private final EmployeeRepository employeeRepository;
+    private final WarehouseRepository warehouseRepository;
     private final PurchaseService purchaseService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -62,11 +68,20 @@ public class PurchaseOrderService {
         }
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : LocalDate.now();
 
+        Employee employee = req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
+                .orElseThrow(() -> ApiException.notFound("담당자를 찾을 수 없습니다. id=" + req.employeeId()));
+        Warehouse warehouse = req.warehouseId() == null ? null : warehouseRepository.findById(req.warehouseId())
+                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        String currency = (req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim();
+
         PurchaseOrder po = PurchaseOrder.builder()
                 .orderNo(docNoGenerator.next("PR-", "purchase_orders", "order_no", "order_date", orderDate))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
                 .partner(partner)
+                .employee(employee)
+                .warehouse(warehouse)
+                .currency(currency)
                 .status(PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())
                 .remark(req.remark())
@@ -77,8 +92,11 @@ public class PurchaseOrderService {
             Item item = itemRepository.findById(lr.itemId())
                     .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
             BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
+            BusinessPartner linePartner = lr.partnerId() == null ? null : partnerRepository.findById(lr.partnerId())
+                    .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId()));
             po.addLine(PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(unitPrice)
+                    .partner(linePartner).remark(lr.remark())
                     .build());
         }
         recalculate(po);

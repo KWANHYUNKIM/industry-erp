@@ -21,7 +21,10 @@ public final class PurchaseOrderDtos {
     public record OrderLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            /** 라인 거래처(선택). 미지정 시 헤더 매입처 기준. */
+            Long partnerId,
+            String remark
     ) {}
 
     public record CreatePurchaseOrderRequest(
@@ -30,6 +33,9 @@ public final class PurchaseOrderDtos {
             LocalDate dueDate,
             Boolean taxable,
             String remark,
+            Long employeeId,
+            Long warehouseId,
+            String currency,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
     ) {}
 
@@ -55,19 +61,25 @@ public final class PurchaseOrderDtos {
     public record OrderLineResponse(
             Long id, int lineNo,
             Long itemId, String itemCode, String itemName, String unit,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            Long partnerId, String partnerName, String remark
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getPartner() != null ? l.getPartner().getId() : null,
+                    l.getPartner() != null ? l.getPartner().getName() : null,
+                    l.getRemark());
         }
     }
 
     public record PurchaseOrderResponse(
             Long id, String orderNo, LocalDate orderDate, LocalDate dueDate,
             Long partnerId, String partnerName,
+            Long employeeId, String employeeName,
+            Long warehouseId, String warehouseName, String currency,
             PurchaseOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Boolean taxable, Long convertedPurchaseId, String remark, String createdBy,
@@ -77,6 +89,11 @@ public final class PurchaseOrderDtos {
             return new PurchaseOrderResponse(
                     po.getId(), po.getOrderNo(), po.getOrderDate(), po.getDueDate(),
                     po.getPartner().getId(), po.getPartner().getName(),
+                    po.getEmployee() != null ? po.getEmployee().getId() : null,
+                    po.getEmployee() != null ? po.getEmployee().getName() : null,
+                    po.getWarehouse() != null ? po.getWarehouse().getId() : null,
+                    po.getWarehouse() != null ? po.getWarehouse().getName() : null,
+                    po.getCurrency(),
                     po.getStatus(), po.getStatus().getDisplayName(),
                     po.getSupplyAmount(), po.getVatAmount(), po.getTotalAmount(),
                     po.getTaxable(), po.getConvertedPurchaseId(), po.getRemark(), po.getCreatedBy(),

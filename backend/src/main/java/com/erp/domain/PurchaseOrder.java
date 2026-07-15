@@ -41,6 +41,21 @@ public class PurchaseOrder extends BaseTimeEntity {
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner partner;
 
+    /** 담당자 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
+
+    /** 입고예정 창고 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    /** 통화 코드 (내자=KRW, 외화=USD 등) */
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private String currency = "KRW";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
