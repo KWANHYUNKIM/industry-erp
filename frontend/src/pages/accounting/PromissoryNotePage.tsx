@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../api/types'
 
@@ -159,7 +158,7 @@ export default function PromissoryNotePage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="어음거래 등록" onClose={() => setShowForm(false)}>{<NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('어음을 등록했습니다. 분개가 생성되었습니다.'); load() }} />}</Modal>
+      {showForm && <NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('어음을 등록했습니다. 분개가 생성되었습니다.'); load() }} />}
     </EcListShell>
   )
 }
