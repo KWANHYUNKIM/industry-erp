@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 interface Supply {
   id: number
@@ -63,12 +64,12 @@ export default function SuppliesPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '공용품등록(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <p className="mb-2 text-xs text-slate-500">사내 공용품 재고 등록·관리 · 등록/삭제는 관리자·매니저 권한</p>
 
-      {showForm && (
+      <Modal open={showForm} title="공용품 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
             <tbody>
@@ -96,7 +97,7 @@ export default function SuppliesPage() {
           {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 

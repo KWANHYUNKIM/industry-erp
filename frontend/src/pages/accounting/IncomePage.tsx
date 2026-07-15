@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../api/types'
 
@@ -119,14 +120,14 @@ export default function IncomePage() {
         </>
       )}
 
-      {showForm && (
+      <Modal open={showForm} title="수입비용 등록" onClose={() => setShowForm(false)}>{(
         <IncomeForm
           accounts={accounts.filter((a) => a.division === 'REVENUE')}
           banks={banks}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('수입을 등록했습니다. 분개가 생성되었습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

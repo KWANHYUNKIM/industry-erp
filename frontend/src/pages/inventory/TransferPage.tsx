@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -77,7 +78,7 @@ export default function TransferPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : `${tab} 등록(F2)`}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
@@ -92,9 +93,9 @@ export default function TransferPage() {
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {showForm && (tab === '창고이동'
+      <Modal open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
         ? <TransferForm items={items} warehouses={warehouses} onError={setError} onSaved={saved} />
-        : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} onError={setError} onSaved={saved} />)}
+        : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} onError={setError} onSaved={saved} />)}</Modal>
 
       {tab === '창고이동' ? (
         <table className="w-full text-left">

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
 
@@ -153,14 +154,14 @@ export default function ContractPage() {
         </tbody>
       </table>
 
-      {showForm && (
+      <Modal open={showForm} title="전자근로계약 등록" onClose={() => setShowForm(false)}>{(
         <ContractForm
           employees={employees}
           departments={departments}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('근로계약을 작성했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
       {viewing && <ContractSheet contract={viewing} onClose={() => setViewing(null)} />}
     </EcListShell>
   )

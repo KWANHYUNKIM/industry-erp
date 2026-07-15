@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import type { Currency, CurrencyConversion, ExchangeRate } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -48,7 +49,7 @@ export default function CurrencyPage() {
     <EcListShell
       title="외화 (통화·고시환율)"
       newLabel={showForm ? '입력닫기' : `${tab === '통화등록' ? '통화 등록' : '환율 등록'}(F2)`}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
@@ -68,13 +69,13 @@ export default function CurrencyPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      {showForm && tab === '통화등록' && (
+      <Modal open={showForm && tab === '통화등록'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <CurrencyForm onError={setError} onSaved={() => { setShowForm(false); flash('통화를 등록했습니다.'); load() }} />
-      )}
-      {showForm && tab === '고시환율' && (
+      )}</Modal>
+      <Modal open={showForm && tab === '고시환율'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <RateForm currencies={currencies} onError={setError}
           onSaved={(r) => { setShowForm(false); flash(`${r.currencyCode} ${r.rateDate} 환율 ${rateText(r.rate)}원 등록`); load() }} />
-      )}
+      )}</Modal>
 
       {tab === '고시환율' && <Converter currencies={currencies} onError={setError} />}
 

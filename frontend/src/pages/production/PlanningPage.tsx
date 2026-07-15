@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
 const COLOR: Record<PlanStatus, string> = { REVIEW: '#c07a00', CONFIRMED: 'var(--ec-blue)', ORDERED: '#1c7c3c' }
@@ -76,12 +77,12 @@ export default function PlanningPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '계획등록(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">제품별 주차 수요 대비 생산 계획 · 확정 후 작업지시 자동생성 · 현재고 실시간 반영</p>
 
-      {showForm && (
+      <Modal open={showForm} title="생산계획 (MPS) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 760 }}>
           <table className="w-full text-left">
             <tbody>
@@ -108,7 +109,7 @@ export default function PlanningPage() {
           {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       {ok && !showForm && <p className="mb-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
 

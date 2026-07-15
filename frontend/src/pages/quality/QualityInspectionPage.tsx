@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -82,13 +83,12 @@ export default function QualityInspectionPage() {
       title="품질관리 (검사성적)"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="품질관리 (검사성적) 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>검사성적 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -119,7 +119,7 @@ export default function QualityInspectionPage() {
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

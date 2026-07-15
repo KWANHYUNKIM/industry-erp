@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -95,7 +96,7 @@ export default function FixedAssetPage() {
     <EcListShell
       title="고정자산"
       newLabel={showForm ? '입력닫기' : '자산등록(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
@@ -128,9 +129,9 @@ export default function FixedAssetPage() {
         </div>
       )}
 
-      {showForm && tab === '자산목록' && (
+      <Modal open={showForm && tab === '자산목록'} title="고정자산 등록" onClose={() => setShowForm(false)}>{(
         <AssetForm accounts={accounts} onError={setError} onSaved={() => { setShowForm(false); flash('자산을 등록했습니다.'); load() }} />
-      )}
+      )}</Modal>
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
         : tab === '자산목록' ? <AssetTable rows={assets} onDispose={dispose} />

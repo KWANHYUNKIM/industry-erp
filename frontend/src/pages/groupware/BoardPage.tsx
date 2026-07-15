@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 interface Notice {
   id: number
@@ -62,11 +63,10 @@ export default function BoardPage() {
       title="업무관리게시판"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
       onNew={() => { setShowForm((v) => !v); setDetail(null) }}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {showForm && (
+      <Modal open={showForm} title="업무관리게시판 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
             <tbody>
@@ -91,7 +91,7 @@ export default function BoardPage() {
           {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       {detail && (
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>

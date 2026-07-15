@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, Item } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 const inputCls = 'ec-input w-full'
 
@@ -139,13 +140,12 @@ export default function ItemsPage() {
       title="품목등록 리스트"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
       onNew={showForm ? () => setShowForm(false) : openCreate}
       actions={[{ label: 'Excel' }, { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '품목 수정' : '새 품목 등록'}</div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -192,7 +192,7 @@ export default function ItemsPage() {
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left">

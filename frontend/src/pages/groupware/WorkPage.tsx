@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../api/types'
 
@@ -75,7 +76,7 @@ export default function WorkPage() {
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>업무 등록</div>
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
@@ -97,7 +98,7 @@ export default function WorkPage() {
             <button className="ec-btn" onClick={() => setShowForm(false)}>취소</button>
           </div>
         </div>
-      )}
+      )}</Modal>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
         {(['전체', '진행중', '완료'] as const).map((t) => (

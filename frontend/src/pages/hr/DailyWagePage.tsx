@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../api/types'
 
@@ -155,13 +156,13 @@ export default function DailyWagePage() {
         )}
       </table>
 
-      {showForm && (
+      <Modal open={showForm} title="일용근로급여 등록" onClose={() => setShowForm(false)}>{(
         <DailyWorkForm
           employees={employees}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('출역을 등록했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

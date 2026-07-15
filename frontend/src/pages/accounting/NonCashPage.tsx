@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -70,7 +71,7 @@ export default function NonCashPage() {
     <EcListShell
       title="비현금거래 (대체전표)"
       newLabel={showForm ? '입력닫기' : '대체전표 작성(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
@@ -92,12 +93,12 @@ export default function NonCashPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      {showForm && (
+      <Modal open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
         <NonCashForm
           accounts={accounts} partners={partners} onError={setError}
           onSaved={(t) => { setShowForm(false); flash(`${t.txnNo} 저장 · 회계전표 ${t.journalDocNo} 생성`); load() }}
         />
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

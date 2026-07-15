@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 const inputCls = 'ec-input w-full'
 
@@ -64,13 +65,12 @@ export default function WarehousesPage() {
   return (
     <EcListShell
       title="창고등록 리스트"
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="창고등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 창고 등록</div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -91,7 +91,7 @@ export default function WarehousesPage() {
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left">
