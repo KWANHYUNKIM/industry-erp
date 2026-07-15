@@ -42,7 +42,7 @@ function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, chi
   // ⋮ 옵션 드롭다운 (숨기기·좌우 이동) — 편집모드가 아니어도 위젯 단위로 조작
   const [menuOpen, setMenuOpen] = useState(false)
   return (
-    <div style={{ background: '#fff', border: edit ? '1px dashed var(--ec-blue)' : '1px solid var(--ec-border)', borderRadius: 3, display: 'flex', flexDirection: 'column', minHeight: 120 }}>
+    <div style={{ background: '#fff', border: edit ? '1px dashed var(--ec-blue)' : '1px solid var(--ec-border)', borderRadius: 4, boxShadow: 'var(--ec-shadow)', display: 'flex', flexDirection: 'column', minHeight: 120 }}>
       <div style={{ display: 'flex', alignItems: 'center', height: 34, padding: '0 10px', borderBottom: '1px solid #eef1f5', background: edit ? '#f5f8ff' : undefined }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-text)' }}>{def.title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, color: '#aab0b8', fontSize: 12, position: 'relative' }}>
