@@ -96,6 +96,7 @@ const RULES: Rule[] = [
   // 설정
   ['/users', 'USER_MANAGE'],
   ['/roles', 'USER_MANAGE'],
+  ['/companies', 'USER_MANAGE'],
   ['/settings', 'SETTINGS'],
 
   // 데이터센터 — 누구나

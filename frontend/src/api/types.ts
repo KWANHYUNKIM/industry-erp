@@ -29,7 +29,18 @@ export interface Permission {
 
 export interface LoginResponse {
   token: string
+  companyCode: string
+  companyName: string
   user: User
+}
+
+export interface Company {
+  id: number
+  code: string
+  name: string
+  schemaName: string
+  active: boolean
+  createdAt: string | null
 }
 
 export interface CreateUserRequest {

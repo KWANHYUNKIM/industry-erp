@@ -29,12 +29,13 @@ public class JwtTokenProvider {
         this.expirationMs = expirationMs;
     }
 
-    /** 사용자명(subject) 기준으로 토큰 생성 */
-    public String createToken(String username) {
+    /** 사용자명(subject) + 테넌트(회사 스키마) 기준으로 토큰 생성 */
+    public String createToken(String username, String tenant) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(username)
+                .claim("tenant", tenant)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -44,6 +45,12 @@ public class JwtTokenProvider {
     /** 토큰에서 사용자명 추출 */
     public String getUsername(String token) {
         return parse(token).getSubject();
+    }
+
+    /** 토큰에서 테넌트(회사 스키마) 추출. 없으면 null(구 토큰 → 본사 취급). */
+    public String getTenant(String token) {
+        Object t = parse(token).get("tenant");
+        return t == null ? null : t.toString();
     }
 
     /** 토큰 유효성 검증 */
