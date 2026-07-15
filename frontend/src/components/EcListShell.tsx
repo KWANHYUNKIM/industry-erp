@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
 import { printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
+import Modal from './Modal'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -26,7 +27,8 @@ const PRINT_LABELS = ['인쇄', '출력']
 
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
-  title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew, actions = [], help, children,
+  title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
+  renderForm, formTitle, formWidth, actions = [], help, children,
 }: {
   title: string
   search?: string
@@ -34,6 +36,11 @@ export default function EcListShell({
   onSearch?: () => void
   newLabel?: string
   onNew?: () => void
+  /** 신규 폼을 팝업으로 띄운다. close 를 호출하면 팝업이 닫힌다. onNew 보다 우선한다. */
+  renderForm?: (close: () => void) => ReactNode
+  /** 팝업 제목 (기본: "제목 등록") */
+  formTitle?: string
+  formWidth?: number
   actions?: BottomAction[]
   /** 도움말 모달 본문. 없으면 화면 제목 기준 기본 안내가 나온다. */
   help?: ReactNode
@@ -43,6 +50,7 @@ export default function EcListShell({
   const [localSearch, setLocalSearch] = useState('')
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
 
   // 페이지가 검색을 직접 처리하지 않으면 셸이 렌더된 행을 필터링한다
@@ -161,7 +169,14 @@ export default function EcListShell({
 
       {/* 하단 액션 툴바 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
-        {onNew && <button className="ec-btn ec-btn-primary" onClick={onNew}>{newLabel}</button>}
+        {(onNew || renderForm) && (
+          <button
+            className="ec-btn ec-btn-primary"
+            onClick={() => (renderForm ? setFormOpen(true) : onNew?.())}
+          >
+            {newLabel}
+          </button>
+        )}
         {actions.map((a, i) => {
           // 페이지가 onClick을 주지 않은 Excel/인쇄 버튼은 셸의 기본 동작으로 연결한다
           let handler = a.onClick
@@ -174,6 +189,17 @@ export default function EcListShell({
           )
         })}
       </div>
+
+      {renderForm && (
+        <Modal
+          open={formOpen}
+          title={formTitle ?? `${title} 등록`}
+          width={formWidth ?? 640}
+          onClose={() => setFormOpen(false)}
+        >
+          {renderForm(() => setFormOpen(false))}
+        </Modal>
+      )}
 
       {helpOpen && (
         <div

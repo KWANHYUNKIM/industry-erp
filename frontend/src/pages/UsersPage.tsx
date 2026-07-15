@@ -8,7 +8,6 @@ export default function UsersPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
 
   async function loadAll() {
     setLoading(true)
@@ -58,21 +57,19 @@ export default function UsersPage() {
   return (
     <EcListShell
       title="사용자등록 리스트"
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
-      actions={[{ label: 'Excel' }]}
-    >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-
-      {showForm && (
+      formTitle="새 사용자 등록"
+      renderForm={(close) => (
         <CreateUserForm
           roles={roles}
           onCreated={() => {
-            setShowForm(false)
+            close()
             loadAll()
           }}
         />
       )}
+      actions={[{ label: 'Excel' }]}
+    >
+      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -166,9 +163,8 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
   const inputCls = 'ec-input w-full'
 
   return (
-    <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 사용자 등록</div>
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <form onSubmit={submit}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm text-slate-600">아이디 *</label>
           <input className={inputCls} value={form.username} onChange={(e) => update('username', e.target.value)} />
