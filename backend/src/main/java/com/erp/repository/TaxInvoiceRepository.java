@@ -21,8 +21,4 @@ public interface TaxInvoiceRepository extends JpaRepository<TaxInvoice, Long> {
     List<TaxInvoice> findByTypeAndPeriod(@Param("type") TaxInvoiceType type,
                                          @Param("from") LocalDate from,
                                          @Param("to") LocalDate to);
-
-    @Query(value = "select coalesce(max(cast(split_part(invoice_no, '-', 3) as integer)), 0) " +
-            "from tax_invoices where issue_date = :date", nativeQuery = true)
-    int maxSeq(@Param("date") LocalDate date);
 }

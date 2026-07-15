@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.Bom;
 import com.erp.domain.BomLine;
 import com.erp.domain.Item;
@@ -24,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -36,6 +36,7 @@ public class ProductionService {
     private final BomRepository bomRepository;
     private final ItemRepository itemRepository;
     private final StockService stockService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<ProductionResponse> findAll() {
@@ -137,7 +138,6 @@ public class ProductionService {
     }
 
     private String generateProdNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "PR-" + d + "-" + String.format("%04d", productionRepository.count() + 1);
+        return docNoGenerator.next("PR-", "productions", "prod_no", "production_date", date);
     }
 }

@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.Item;
 import com.erp.domain.StockTransactionType;
 import com.erp.domain.StockTransfer;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -26,6 +26,7 @@ public class StockTransferService {
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<TransferResponse> findAll() {
@@ -70,7 +71,6 @@ public class StockTransferService {
     }
 
     private String generateNo(LocalDate date) {
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "TR-" + d + "-" + String.format("%04d", transferRepository.count() + 1);
+        return docNoGenerator.next("TR-", "stock_transfers", "transfer_no", "transfer_date", date);
     }
 }

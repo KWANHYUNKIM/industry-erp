@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.Purchase;
 import com.erp.domain.Sales;
 import com.erp.domain.TaxInvoice;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** 전자(세금)계산서: 판매/구매 전표에서 발행, 진행단계 전이, 종류별 조회. */
@@ -24,11 +24,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TaxInvoiceService {
 
-    private static final DateTimeFormatter DOC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
-
     private final TaxInvoiceRepository repository;
     private final SalesRepository salesRepository;
     private final PurchaseRepository purchaseRepository;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<TaxInvoiceResponse> list(TaxInvoiceType type, LocalDate from, LocalDate to) {
@@ -40,8 +39,7 @@ public class TaxInvoiceService {
     @Transactional
     public TaxInvoiceResponse issue(IssueRequest req, String username) {
         LocalDate issueDate = req.issueDate() != null ? req.issueDate() : LocalDate.now();
-        int seq = repository.maxSeq(issueDate) + 1;
-        String invoiceNo = "TI-" + issueDate.format(DOC_DATE) + "-" + String.format("%04d", seq);
+        String invoiceNo = docNoGenerator.next("TI-", "tax_invoices", "invoice_no", "issue_date", issueDate);
 
         TaxInvoice.TaxInvoiceBuilder b = TaxInvoice.builder()
                 .invoiceNo(invoiceNo)
