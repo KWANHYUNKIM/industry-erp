@@ -711,7 +711,7 @@ export default function EcountLayout() {
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* 흰 메인메뉴 (로고 + 대메뉴 + 아바타) */}
-          <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px 0 16px', borderBottom: '1px solid #e6e9ee', position: 'relative', zIndex: 30 }}
+          <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px 0 16px', borderBottom: '1px solid #e6e9ee', boxShadow: '0 2px 5px rgba(20,36,68,0.06)', position: 'relative', zIndex: 30 }}
                onMouseLeave={() => setHoverIdx(null)}>
             <Link to="/" style={{ display: 'flex', alignItems: 'baseline', gap: 0, textDecoration: 'none', marginRight: 18 }}>
               <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--ec-blue)', letterSpacing: -0.5 }}>제조</span>
@@ -763,7 +763,7 @@ export default function EcountLayout() {
 
           {/* 좌측 사이드바 + 본문 */}
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            <aside style={{ width: 180, flexShrink: 0, background: '#fff', borderRight: '1px solid #e6e9ee', padding: '8px 0', overflowY: 'auto' }}>
+            <aside style={{ width: 180, flexShrink: 0, background: '#fff', borderRight: '1px solid #e6e9ee', boxShadow: '2px 0 6px rgba(20,36,68,0.04)', padding: '8px 0', overflowY: 'auto', position: 'relative', zIndex: 5 }}>
               {activeTab.nodes.map((node) => {
                 if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node, false) : null
                 const visibleChildren = node.children.filter(leafOk)

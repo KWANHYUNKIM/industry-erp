@@ -11,6 +11,10 @@
   --ec-border: #d5dbe2;
   --ec-body-bg: #eef1f5;
   --ec-text: #142444;         /* --text (진네이비) */
+  /* 그림자 토큰 (네이비 톤, 은은하게 — 카드/표/버튼에 입체감) */
+  --ec-shadow-sm: 0 1px 2px rgba(20, 36, 68, 0.08);
+  --ec-shadow: 0 1px 3px rgba(20, 36, 68, 0.10), 0 1px 2px rgba(20, 36, 68, 0.06);
+  --ec-shadow-lg: 0 6px 18px rgba(20, 36, 68, 0.14);
   font-family: "DM Sans", "Noto Sans KR", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, "Malgun Gothic", "맑은 고딕", sans-serif;
   font-size: 12px;
@@ -36,6 +40,7 @@ body {
   border-collapse: collapse;
   font-size: 12px;
   background: #fff;
+  box-shadow: var(--ec-shadow);
 }
 .ec-grid th {
   background: #f2f5f8;
@@ -70,9 +75,11 @@ body {
   border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: var(--ec-shadow-sm);
 }
 .ec-btn:hover {
   background: #eef2f7;
+  box-shadow: var(--ec-shadow);
 }
 .ec-btn-primary {
   border-color: var(--ec-blue-dark);
@@ -126,17 +133,27 @@ main table,
 #root table:not(.no-ec) tbody tr:hover {
   background: var(--ec-blue-light) !important;
 }
+/* 목록 표를 살짝 띄워 카드처럼 (이카운트 격자 유지 + 입체감) */
+#root table:not(.no-ec) {
+  box-shadow: var(--ec-shadow);
+}
 
-/* 패널을 각지고 평평하게 (이카운트 위젯/카드 느낌) */
+/* 패널은 각지게 유지하되(이카운트 위젯 느낌) 그림자로 입체감을 준다 */
 #root .rounded-2xl,
 #root .rounded-xl,
 #root .rounded-lg {
   border-radius: 3px !important;
 }
-#root .shadow-sm,
+#root .shadow-sm {
+  box-shadow: var(--ec-shadow-sm) !important;
+}
 #root .shadow,
-#root .shadow-lg {
-  box-shadow: none !important;
+#root .shadow-md {
+  box-shadow: var(--ec-shadow) !important;
+}
+#root .shadow-lg,
+#root .shadow-xl {
+  box-shadow: var(--ec-shadow-lg) !important;
 }
 
 /* indigo(보라) → 이카운트 파랑 통일 */
