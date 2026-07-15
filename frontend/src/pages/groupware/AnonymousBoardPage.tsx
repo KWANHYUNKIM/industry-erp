@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BoardPost, BoardPostDetail } from '../../api/types'
 
@@ -105,7 +106,7 @@ export default function AnonymousBoardPage() {
         </div>
       )}
 
-      {showForm && <PostForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('글을 올렸습니다.'); load() }} />}
+      <Modal open={showForm} title="익명게시판 등록" onClose={() => setShowForm(false)}>{<PostForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('글을 올렸습니다.'); load() }} />}</Modal>
     </EcListShell>
   )
 }

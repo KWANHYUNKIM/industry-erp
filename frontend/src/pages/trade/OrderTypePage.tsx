@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 
 /** 영업 > 오더관리유형리스트 — 수주 오더 유형 코드 관리 (/api/order-types 연동) */
@@ -83,13 +84,12 @@ export default function OrderTypePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
       onNew={showForm ? () => setShowForm(false) : openCreate}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '160px 200px 1fr 110px', gap: 10 }}>
@@ -117,7 +117,7 @@ export default function OrderTypePage() {
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

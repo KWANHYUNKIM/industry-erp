@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Partner } from '../../api/types'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -85,7 +86,7 @@ export default function BankCardPage() {
     <EcListShell
       title="계좌/카드"
       newLabel={showForm ? '입력닫기' : `${tab}(F2)`}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
@@ -104,20 +105,20 @@ export default function BankCardPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      {showForm && tab === '계좌등록' && (
+      <Modal open={showForm && tab === '계좌등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <BankAccountForm glAccounts={glAccounts} onError={setError} onSaved={() => saved('계좌를 등록했습니다.')} />
-      )}
-      {showForm && tab === '카드등록' && (
+      )}</Modal>
+      <Modal open={showForm && tab === '카드등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <CardForm accounts={accounts} onError={setError} onSaved={() => saved('카드를 등록했습니다.')} />
-      )}
-      {showForm && tab === '계좌입출금' && (
+      )}</Modal>
+      <Modal open={showForm && tab === '계좌입출금'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <BankTxnForm accounts={accounts} glAccounts={glAccounts} partners={partners}
           onError={setError} onSaved={() => saved('입출금을 처리하고 회계전표를 생성했습니다.')} />
-      )}
-      {showForm && tab === '카드사용' && (
+      )}</Modal>
+      <Modal open={showForm && tab === '카드사용'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <CardUsageForm cards={cards} glAccounts={glAccounts}
           onError={setError} onSaved={() => saved('카드사용을 등록하고 회계전표를 생성했습니다.')} />
-      )}
+      )}</Modal>
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
         : tab === '계좌등록' ? <BankAccountTable rows={accounts} />

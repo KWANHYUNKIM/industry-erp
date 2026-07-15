@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -88,12 +89,12 @@ export default function ProjectPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '프로젝트등록(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <p className="mb-2 text-xs text-slate-500">프로젝트 진행·진척 관리 · 기획 → 진행중 → 완료(진척 100 자동) · 보류 전환 가능</p>
 
-      {showForm && (
+      <Modal open={showForm} title="프로젝트 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
             <tbody>
@@ -125,7 +126,7 @@ export default function ProjectPage() {
           {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 

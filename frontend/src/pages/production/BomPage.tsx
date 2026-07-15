@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Bom, Item } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 const inputCls = 'ec-input'
 
@@ -85,13 +86,12 @@ export default function BomPage() {
   return (
     <EcListShell
       title="BOM(자재명세서) 리스트"
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
       onNew={showForm ? () => setShowForm(false) : openNew}
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>BOM 등록 / 수정</div>
           <table className="w-full text-left" style={{ marginBottom: 10, maxWidth: 720 }}>
@@ -140,7 +140,7 @@ export default function BomPage() {
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {loading ? (

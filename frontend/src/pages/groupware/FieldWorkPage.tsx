@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../api/types'
@@ -143,7 +144,7 @@ export default function FieldWorkPage() {
         </tbody>
       </table>
 
-      {showForm && <FieldWorkForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('외근계를 신청했습니다.'); load() }} />}
+      <Modal open={showForm} title="외근 등록" onClose={() => setShowForm(false)}>{<FieldWorkForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('외근계를 신청했습니다.'); load() }} />}</Modal>
     </EcListShell>
   )
 }

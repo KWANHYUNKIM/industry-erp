@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ManagementItem } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 /** 재고 기초등록 > 관리항목등록 — 실제 CRUD 연동 */
 export default function ManageItemsPage() {
@@ -60,13 +61,12 @@ export default function ManageItemsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="관리항목 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>관리항목 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -85,7 +85,7 @@ export default function ManageItemsPage() {
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

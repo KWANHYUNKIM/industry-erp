@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -78,13 +79,12 @@ export default function SettlementPage() {
   return (
     <EcListShell
       title="수금/지급 입력"
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">수금 → 거래처 채권(미수금) 감소 · 지급 → 거래처 채무(미지급) 감소</p>
 
-      {showForm && (
+      <Modal open={showForm} title="수금/지급 입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', borderRadius: 3, padding: 12, marginBottom: 10, background: '#fff', maxWidth: 760 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             <div>
@@ -126,7 +126,7 @@ export default function SettlementPage() {
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left">

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 /** 생산관리 > 자원등록 — 설비·인력·외주 자원 마스터 (백엔드 /api/resources 연동) */
 interface ProductionResource {
@@ -78,13 +79,12 @@ export default function ResourcePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 자원 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
@@ -119,7 +119,7 @@ export default function ResourcePage() {
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

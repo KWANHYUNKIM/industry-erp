@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -90,13 +91,12 @@ export default function AttendanceInputPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="근태입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>근태 입력</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
@@ -130,7 +130,7 @@ export default function AttendanceInputPage() {
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
         </form>
-      )}
+      )}</Modal>
 
       <table className="w-full text-left">
         <thead>

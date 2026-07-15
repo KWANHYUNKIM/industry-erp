@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
@@ -112,12 +113,12 @@ export default function SalesOrderPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '수주등록(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">매출처로부터 받은 주문(수주) 관리 · 접수 → 진행중 → 완료. 실제 출고는 판매입력에서.</p>
 
-      {showForm && (
+      <Modal open={showForm} title="오더관리 (수주) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
           <table className="w-full text-left" style={{ marginBottom: 8, maxWidth: 820 }}>
             <tbody>
@@ -188,7 +189,7 @@ export default function SalesOrderPage() {
           {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
         </form>
-      )}
+      )}</Modal>
 
       {/* 상태 필터 */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>

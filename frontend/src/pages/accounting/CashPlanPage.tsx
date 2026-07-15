@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CashFlowType, CashPlanStatus } from '../../api/types'
 
@@ -90,13 +91,13 @@ export default function CashPlanPage() {
         <PlanTable title="지출 계획" rows={outflows} onRemove={remove} />
       </div>
 
-      {showForm && (
+      <Modal open={showForm} title="자금계획 등록" onClose={() => setShowForm(false)}>{(
         <CashPlanForm
           period={period}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('자금계획을 추가했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

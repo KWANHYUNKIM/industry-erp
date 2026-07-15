@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
 
@@ -227,7 +228,7 @@ export default function ExportPage() {
         </tbody>
       </table>
 
-      {showForm && (
+      <Modal open={showForm} title="수출 등록" onClose={() => setShowForm(false)}>{(
         <ExportForm
           partners={partners}
           currencies={currencies}
@@ -235,7 +236,7 @@ export default function ExportPage() {
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('인보이스를 발행했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

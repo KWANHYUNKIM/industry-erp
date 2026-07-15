@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BudgetStatus } from '../../api/types'
 
@@ -127,14 +128,14 @@ export default function BudgetPage() {
         </tbody>
       </table>
 
-      {showForm && (
+      <Modal open={showForm} title="예산 등록" onClose={() => setShowForm(false)}>{(
         <BudgetForm
           period={period}
           accounts={accounts}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('예산을 편성했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

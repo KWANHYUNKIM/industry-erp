@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 /** 그룹웨어 > 공유정보 — 사내 공지/자료 공유 게시판 (실제 연동, /notices 재사용) */
 interface Notice {
@@ -99,11 +100,11 @@ export default function SharedInfoPage() {
       title="공유정보"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       newLabel={showForm ? '입력닫기' : '글쓰기(F2)'}
       actions={[{ label: '새로고침', onClick: load }, { label: '분류 관리', onClick: () => setCatOpen(true) }]}
     >
-      {showForm && (
+      <Modal open={showForm} title="공유정보 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
             <tbody>
@@ -130,7 +131,7 @@ export default function SharedInfoPage() {
           {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 

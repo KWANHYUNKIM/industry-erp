@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '처리중', COMPLETED: '완료', CANCELED: '취소' }
@@ -94,12 +95,12 @@ export default function AsManagePage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : 'A/S접수(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">고객 제품의 A/S 접수·수리 관리 · 접수 → 처리중 → 완료 · 미완료 {openCount}건</p>
 
-      {showForm && (
+      <Modal open={showForm} title="A/S 접수·수리 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
             <tbody>
@@ -135,7 +136,7 @@ export default function AsManagePage() {
           {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
           <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">접수(F8)</button></div>
         </form>
-      )}
+      )}</Modal>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (

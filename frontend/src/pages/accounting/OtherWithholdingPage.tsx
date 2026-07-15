@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeType, OtherWithholding, OtherWithholdingSummary, Partner } from '../../api/types'
 
@@ -150,13 +151,13 @@ export default function OtherWithholdingPage() {
         </tbody>
       </table>
 
-      {showForm && (
+      <Modal open={showForm} title="기타원천세 등록" onClose={() => setShowForm(false)}>{(
         <WithholdingForm
           partners={partners}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('지급을 등록했습니다.'); load() }}
         />
-      )}
+      )}</Modal>
     </EcListShell>
   )
 }

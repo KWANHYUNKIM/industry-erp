@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 
 /** 회계 > 원가생성/수정 (실제 연동: /api/costs) */
 interface Item { id: number; code: string; name: string }
@@ -128,7 +129,7 @@ export default function CostBuildPage() {
       actions={[{ label: '표준원가 자동생성', onClick: build }, { label: '새로고침', onClick: load }, { label: 'Excel' }]}>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {showForm && (
+      <Modal open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
             {editId ? `원가 수정 — ${editItemName}` : '원가 등록'}
@@ -163,7 +164,7 @@ export default function CostBuildPage() {
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
-      )}
+      )}</Modal>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         표준원가 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
