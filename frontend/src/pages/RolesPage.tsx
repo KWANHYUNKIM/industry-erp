@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { Permission, Role } from '../api/types'
 import EcListShell from '../components/EcListShell'
+import Modal from '../components/Modal'
 
 /** 역할·권한 관리: 역할을 만들고, 역할이 접근할 메뉴(권한)를 체크박스로 부여한다.
  *  ADMIN 은 전권(바이패스)이라 권한 목록과 무관하게 모든 메뉴를 쓴다. */
@@ -45,24 +46,30 @@ export default function RolesPage() {
   return (
     <EcListShell
       title="역할·권한관리 리스트"
-      newLabel={editing === 'new' ? '입력닫기' : '신규(F2)'}
-      onNew={() => setEditing((v) => (v === 'new' ? null : 'new'))}
+      onNew={() => setEditing('new')}
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      {editing && (
-        <RoleForm
-          key={editing === 'new' ? 'new' : editing.id}
-          role={editing === 'new' ? null : editing}
-          perms={perms}
-          onDone={() => {
-            setEditing(null)
-            loadAll()
-          }}
-          onCancel={() => setEditing(null)}
-        />
-      )}
+      <Modal
+        open={editing !== null}
+        title={editing === 'new' ? '새 역할 등록' : '역할 편집'}
+        width={880}
+        onClose={() => setEditing(null)}
+      >
+        {editing && (
+          <RoleForm
+            key={editing === 'new' ? 'new' : editing.id}
+            role={editing === 'new' ? null : editing}
+            perms={perms}
+            onDone={() => {
+              setEditing(null)
+              loadAll()
+            }}
+            onCancel={() => setEditing(null)}
+          />
+        )}
+      </Modal>
 
       <table className="w-full text-left">
         <thead>
@@ -187,12 +194,8 @@ function RoleForm({
   const inputCls = 'ec-input w-full'
 
   return (
-    <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>
-        {isEdit ? `역할 편집 — ${role!.displayName}` : '새 역할 등록'}
-      </div>
-
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <form onSubmit={submit}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm text-slate-600">역할 코드 *</label>
           <input

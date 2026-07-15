@@ -9,7 +9,6 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
   const [created, setCreated] = useState<Company | null>(null)
 
   async function load() {
@@ -31,8 +30,16 @@ export default function CompaniesPage() {
   return (
     <EcListShell
       title="회사관리 리스트"
-      newLabel={showForm ? '입력닫기' : '신규(F2)'}
-      onNew={() => { setShowForm((v) => !v); setCreated(null) }}
+      formTitle="새 회사 등록"
+      renderForm={(close) => (
+        <CreateCompanyForm
+          onCreated={(c) => {
+            setCreated(c)
+            close()
+            load()
+          }}
+        />
+      )}
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
@@ -41,16 +48,6 @@ export default function CompaniesPage() {
         <div style={{ marginBottom: 8, padding: '10px 14px', background: '#eef7ee', border: '1px solid #bfe3bf', borderRadius: 4, fontSize: 13 }}>
           <b>{created.name}</b> 회사가 생성되었습니다. 회사코드 <b style={{ color: 'var(--ec-blue)' }}>{created.code}</b> 로 로그인하세요.
         </div>
-      )}
-
-      {showForm && (
-        <CreateCompanyForm
-          onCreated={(c) => {
-            setShowForm(false)
-            setCreated(c)
-            load()
-          }}
-        />
       )}
 
       <table className="w-full text-left">
@@ -119,8 +116,7 @@ function CreateCompanyForm({ onCreated }: { onCreated: (c: Company) => void }) {
   const inputCls = 'ec-input w-full'
 
   return (
-    <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 회사 등록</div>
+    <form onSubmit={submit}>
       <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10 }}>
         회사코드는 자동 발급됩니다. 회사마다 데이터가 완전히 분리되며, 아래 관리자 계정으로 그 회사에 처음 로그인합니다.
       </p>
