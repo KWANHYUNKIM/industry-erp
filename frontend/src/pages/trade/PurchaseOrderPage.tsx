@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
+import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => new Date().toISOString().slice(0, 10)
@@ -16,8 +16,8 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, PurchaseOrderStatus> = {
 const statusColor = (s: PurchaseOrderStatus) =>
   s === 'RECEIVED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'ORDERED' ? 'var(--ec-blue)' : '#5a626e'
 
-interface LineForm { itemId: string; quantity: string; unitPrice: string }
-const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
+interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string }
+const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '' })
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */
 export default function PurchaseOrderPage() {
@@ -26,6 +26,8 @@ export default function PurchaseOrderPage() {
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [employees, setEmployees] = useState<EmployeeMaster[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -45,6 +47,8 @@ export default function PurchaseOrderPage() {
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'CUSTOMER'))).catch(() => {})
     api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])
 
   const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
@@ -171,7 +175,7 @@ export default function PurchaseOrderPage() {
         </tbody>
       </table>
 
-      {showForm && <PurchaseOrderForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
+      {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
       {pricing && <PriceForm order={pricing} onClose={() => setPricing(null)} onSaved={() => { setPricing(null); flash('단가를 확정했습니다.'); load() }} />}
     </EcListShell>
   )
@@ -245,12 +249,16 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   )
 }
 
-function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
-  items: Item[]; partners: Partner[]; onClose: () => void; onSaved: () => void
+function PurchaseOrderForm({ items, partners, employees, warehouses, currencies, onClose, onSaved }: {
+  items: Item[]; partners: Partner[]; employees: EmployeeMaster[]; warehouses: Warehouse[]; currencies: Currency[]
+  onClose: () => void; onSaved: () => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [orderDate, setOrderDate] = useState(today())
   const [dueDate, setDueDate] = useState('')
+  const [employeeId, setEmployeeId] = useState('')   // 담당자
+  const [warehouseId, setWarehouseId] = useState('') // 창고
+  const [currency, setCurrency] = useState('KRW')    // 통화
   const [taxable, setTaxable] = useState(true)   // 거래유형: 부가세율 적용 / 면세
   const [remark, setRemark] = useState('')       // 참조
   const [lines, setLines] = useState<LineForm[]>([emptyLine()])
@@ -275,12 +283,19 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
     if (!partnerId) return setError('매입처를 선택하세요.')
     const payload = lines
       .filter((l) => l.itemId && Number(l.quantity) > 0)
-      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) || 0 }))
+      .map((l) => ({
+        itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) || 0,
+        partnerId: l.partnerId ? Number(l.partnerId) : undefined,
+        remark: l.remark || undefined,
+      }))
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
     setSaving(true)
     try {
       await api.post('/purchase-orders', {
         partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
+        employeeId: employeeId ? Number(employeeId) : undefined,
+        warehouseId: warehouseId ? Number(warehouseId) : undefined,
+        currency,
         taxable, remark: remark || undefined, lines: payload,
       })
       onSaved()
@@ -293,7 +308,7 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 720, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 880, maxWidth: '96vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>발주요청</span>
           <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
@@ -325,14 +340,37 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
+                <th style={{ background: '#f5f7fa' }}>담당자</th>
+                <td>
+                  <select className="ec-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ width: 150 }}>
+                    <option value="">담당자 선택</option>
+                    {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                  </select>
+                </td>
+                <th style={{ background: '#f5f7fa' }}>창고</th>
+                <td>
+                  <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 150 }}>
+                    <option value="">창고 선택</option>
+                    {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>통화</th>
+                <td>
+                  <select className="ec-input" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 150 }}>
+                    <option value="KRW">내자(KRW)</option>
+                    {currencies.filter((c) => c.code !== 'KRW').map((c) => <option key={c.id} value={c.code}>{c.code} {c.name}</option>)}
+                  </select>
+                </td>
                 <th style={{ background: '#f5f7fa' }}>참조</th>
-                <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
+                <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
               </tr>
             </tbody>
           </table>
 
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 34 }}></th><th>품목</th><th style={{ width: 120 }}>규격</th><th style={{ width: 80, textAlign: 'right' }}>수량</th><th style={{ width: 100, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 40 }}></th></tr></thead>
+            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -344,17 +382,24 @@ function PurchaseOrderForm({ items, partners, onClose, onSaved }: {
                     </select>
                   </td>
                   <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
+                  <td>
+                    <select className="ec-input" value={l.partnerId} onChange={(e) => setLine(i, { partnerId: e.target.value })} style={{ width: '100%' }}>
+                      <option value="">(헤더 매입처)</option>
+                      {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
+                  <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
                   <td style={{ textAlign: 'center' }}>{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={5} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
-                <td style={{ textAlign: 'right' }} colSpan={2}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
+                <td colSpan={6} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
+                <td style={{ textAlign: 'right' }} colSpan={3}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>

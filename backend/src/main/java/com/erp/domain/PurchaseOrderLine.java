@@ -27,6 +27,15 @@ public class PurchaseOrderLine {
     @JoinColumn(name = "item_id", nullable = false)
     private Item item;
 
+    /** 라인 거래처 (헤더 매입처와 다를 수 있음) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private BusinessPartner partner;
+
+    /** 적요 */
+    @Column(length = 200)
+    private String remark;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
 
