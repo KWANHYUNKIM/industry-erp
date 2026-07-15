@@ -13,8 +13,6 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
     @Query("select s from Settlement s join fetch s.partner order by s.settleDate desc, s.id desc")
     List<Settlement> findAllWithPartner();
 
-    long countByType(SettlementType type);
-
     /** 거래처별 정산 합계 (유형별) */
     @Query("select s.partner.id as partnerId, coalesce(sum(s.amount),0) as total " +
             "from Settlement s where s.type = :type group by s.partner.id")

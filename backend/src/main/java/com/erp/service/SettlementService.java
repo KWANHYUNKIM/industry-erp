@@ -1,6 +1,7 @@
 package com.erp.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.domain.BusinessPartner;
 import com.erp.domain.Settlement;
 import com.erp.domain.SettlementType;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -22,6 +22,7 @@ public class SettlementService {
 
     private final SettlementRepository settlementRepository;
     private final BusinessPartnerRepository partnerRepository;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<SettlementResponse> findAll() {
@@ -52,8 +53,7 @@ public class SettlementService {
     }
 
     private String generateDocNo(SettlementType type, LocalDate date) {
-        String prefix = type == SettlementType.RECEIPT ? "RC" : "PY";
-        String d = date.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return prefix + "-" + d + "-" + String.format("%04d", settlementRepository.countByType(type) + 1);
+        String prefix = type == SettlementType.RECEIPT ? "RC-" : "PY-";
+        return docNoGenerator.next(prefix, "settlements", "doc_no", "settle_date", date);
     }
 }
