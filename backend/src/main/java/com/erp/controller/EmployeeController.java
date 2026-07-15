@@ -11,7 +11,6 @@ import com.erp.service.EmployeePerformanceService;
 import com.erp.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,7 +58,6 @@ public class EmployeeController {
 
     /** 인사발령 (입사·전보·승진·퇴사·재입사). 사원의 현재 부서·직위·재직상태가 함께 갱신된다. */
     @PostMapping("/{id}/assignments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public AssignmentResponse assign(@PathVariable Long id,
                                      @Valid @RequestBody CreateAssignmentRequest req,
                                      @AuthenticationPrincipal UserPrincipal principal) {
@@ -68,14 +66,12 @@ public class EmployeeController {
 
     /** 사원 기본급 수정 */
     @PutMapping("/{id}/base-salary")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public EmployeeResponse updateBaseSalary(@PathVariable Long id, @Valid @RequestBody UpdateSalaryRequest req) {
         return employeeService.updateBaseSalary(id, req);
     }
 
     /** 부서 배치 (조직도에서 사원을 부서로 옮길 때) */
     @PutMapping("/{id}/department")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public EmployeeResponse assignDepartment(@PathVariable Long id, @RequestBody AssignDepartmentRequest req) {
         return employeeService.assignDepartment(id, req);
     }

@@ -6,7 +6,6 @@ import com.erp.dto.PriceBulkDtos.PriceBulkItemResponse;
 import com.erp.service.PriceBulkService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,7 +26,6 @@ public class PriceBulkController {
     }
 
     @PostMapping("/apply")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public PriceBulkApplyResponse apply(@Valid @RequestBody PriceBulkApplyRequest req) {
         return priceBulkService.apply(req);
     }

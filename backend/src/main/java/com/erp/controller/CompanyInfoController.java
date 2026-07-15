@@ -5,7 +5,6 @@ import com.erp.dto.CompanyInfoDtos.CompanyInfoResponse;
 import com.erp.service.CompanyInfoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,7 +20,6 @@ public class CompanyInfoController {
     }
 
     @PutMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public CompanyInfoResponse save(@Valid @RequestBody CompanyInfoRequest req) {
         return companyInfoService.save(req);
     }

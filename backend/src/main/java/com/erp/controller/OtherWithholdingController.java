@@ -8,7 +8,6 @@ import com.erp.service.OtherWithholdingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,14 +26,12 @@ public class OtherWithholdingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<OtherWithholdingResponse> create(@Valid @RequestBody CreateWithholdingRequest req,
                                                            @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

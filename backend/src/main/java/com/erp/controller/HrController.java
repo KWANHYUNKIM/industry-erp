@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -54,7 +53,6 @@ public class HrController {
     }
 
     @PostMapping("/attendance")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<AttendanceRow> inputAttendance(@Valid @RequestBody AttendanceInputRequest req) {
         return ResponseEntity.ok(hrService.upsertAttendance(req));
     }
@@ -67,13 +65,11 @@ public class HrController {
     }
 
     @PostMapping("/vacations")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<VacationRow> createVacation(@Valid @RequestBody CreateVacationRequest req) {
         return ResponseEntity.ok(hrService.createVacation(req));
     }
 
     @PutMapping("/vacations/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public VacationRow updateVacationStatus(@PathVariable Long id,
                                             @Valid @RequestBody UpdateVacationStatusRequest req) {
         return hrService.updateVacationStatus(id, req.status());

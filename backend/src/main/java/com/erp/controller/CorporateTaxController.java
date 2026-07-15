@@ -9,7 +9,6 @@ import com.erp.service.CorporateTaxService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,45 +29,38 @@ public class CorporateTaxController {
 
     /** 사업연도 신고서 생성. 당기순이익은 손익계산서에서 자동으로 가져온다. */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<TaxReturnResponse> create(@Valid @RequestBody CreateReturnRequest req,
                                                     @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public TaxReturnResponse update(@PathVariable Long id, @RequestBody UpdateReturnRequest req) {
         return service.update(id, req);
     }
 
     /** 결산이 바뀌었을 때 당기순이익을 손익계산서에서 다시 가져온다. */
     @PostMapping("/{id}/refresh")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public TaxReturnResponse refresh(@PathVariable Long id) {
         return service.refreshNetIncome(id);
     }
 
     @PostMapping("/{id}/adjustments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public TaxReturnResponse addAdjustment(@PathVariable Long id, @Valid @RequestBody AddAdjustmentRequest req) {
         return service.addAdjustment(id, req);
     }
 
     @DeleteMapping("/{id}/adjustments/{adjustmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public TaxReturnResponse removeAdjustment(@PathVariable Long id, @PathVariable Long adjustmentId) {
         return service.removeAdjustment(id, adjustmentId);
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public TaxReturnResponse confirm(@PathVariable Long id) {
         return service.confirm(id);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

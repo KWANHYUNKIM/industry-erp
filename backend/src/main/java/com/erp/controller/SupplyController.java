@@ -7,7 +7,6 @@ import com.erp.service.SupplyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +24,16 @@ public class SupplyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<SupplyResponse> create(@Valid @RequestBody CreateSupplyRequest req) {
         return ResponseEntity.ok(supplyService.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public SupplyResponse update(@PathVariable Long id, @Valid @RequestBody UpdateSupplyRequest req) {
         return supplyService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         supplyService.delete(id);
         return ResponseEntity.noContent().build();

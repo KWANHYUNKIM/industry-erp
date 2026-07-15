@@ -32,7 +32,7 @@ const MENU: TopMenu[] = [
     label: 'Self-Customizing',
     tabs: [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
-      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }] },
+      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }] },
       { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }] },
       { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
@@ -502,8 +502,6 @@ const APPS: AppIcon[] = [
 ]
 
 const tabLeaves = (tab: Tab): Leaf[] => tab.nodes.flatMap((n) => (isGroup(n) ? n.children : [n]))
-const firstTabRoute = (tab: Tab) => tabLeaves(tab).find((l) => l.to)?.to
-const firstTopRoute = (m: TopMenu) => m.tabs.map(firstTabRoute).find(Boolean)
 
 /** 경로가 메뉴 항목에 해당하면 그 항목의 길이(구체성)를, 아니면 0을 돌려준다.
  *  세그먼트 경계로 끊어야 '/'가 모든 경로를, '/sales/pay'가 '/sales/payment'를 삼키지 않는다. */
@@ -545,7 +543,7 @@ const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
 )
 
 export default function EcountLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout, canRoute } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
@@ -568,9 +566,20 @@ export default function EcountLayout() {
   const activeTop = MENU[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
 
-  // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개)
+  // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
+  const leafOk = (l: Leaf) => !l.to || canRoute(l.to)
+  const nodeOk = (n: SideNode) => (isGroup(n) ? n.children.some(leafOk) : leafOk(n))
+  const tabOk = (t: Tab) => t.nodes.some(nodeOk)
+  const topOk = (m: TopMenu) => m.tabs.some(tabOk)
+  // 대메뉴/탭을 클릭했을 때 이동할 "접근 가능한" 첫 라우트 (권한 없는 첫 화면으로 튀지 않게)
+  const firstAllowedTabRoute = (t: Tab) => tabLeaves(t).find((l) => l.to && canRoute(l.to))?.to
+  const firstAllowedTopRoute = (m: TopMenu) => m.tabs.map(firstAllowedTabRoute).find(Boolean)
+
+  // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개). 권한 없는 항목은 제외.
   const menuMatches = menuQuery.trim()
-    ? FLAT_MENU.filter((x) => x.label.toLowerCase().includes(menuQuery.trim().toLowerCase())).slice(0, 12)
+    ? FLAT_MENU.filter((x) => x.label.toLowerCase().includes(menuQuery.trim().toLowerCase()))
+        .filter((x) => canRoute(x.to))
+        .slice(0, 12)
     : []
 
   function gotoMenu(to: string) {
@@ -604,11 +613,12 @@ export default function EcountLayout() {
           : { borderBottom: '1px solid #e6e9ee' }),
       }}>
         {menu.tabs.map((tab, i) => {
+          if (!tabOk(tab)) return null
           const on = i === activeTabIdx
           return (
             <button
               key={tab.label}
-              onClick={() => { const to = firstTabRoute(tab); if (to) gotoMenu(to) }}
+              onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to) }}
               style={{
                 height: '100%', padding: '0 12px', background: 'none', border: 0, cursor: 'pointer',
                 fontSize: 12.5, whiteSpace: 'nowrap',
@@ -710,11 +720,12 @@ export default function EcountLayout() {
 
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', alignItems: 'center', height: '100%' }}>
               {MENU.map((m, idx) => {
+                if (!topOk(m)) return null
                 const active = idx === topIdx
                 return (
                   <li key={m.label} onMouseEnter={() => setHoverIdx(idx)} style={{ position: 'relative', height: '100%' }}>
                     <div
-                      onClick={() => { const to = firstTopRoute(m); if (to) gotoMenu(to) }}
+                      onClick={() => { const to = firstAllowedTopRoute(m); if (to) gotoMenu(to) }}
                       style={{
                         padding: '0 14px', height: '100%', display: 'flex', alignItems: 'center', cursor: 'pointer',
                         fontSize: 14, fontWeight: active || hoverIdx === idx ? 700 : 500,
@@ -754,7 +765,9 @@ export default function EcountLayout() {
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
             <aside style={{ width: 180, flexShrink: 0, background: '#fff', borderRight: '1px solid #e6e9ee', padding: '8px 0', overflowY: 'auto' }}>
               {activeTab.nodes.map((node) => {
-                if (!isGroup(node)) return sidebarLeaf(node, false)
+                if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node, false) : null
+                const visibleChildren = node.children.filter(leafOk)
+                if (visibleChildren.length === 0) return null
                 const key = `${topIdx}/${tabIdx}/${node.label}`
                 const open = !collapsed[key]
                 return (
@@ -770,14 +783,26 @@ export default function EcountLayout() {
                       <span style={{ fontSize: 9, color: '#9aa1ab' }}>{open ? '▼' : '▶'}</span>
                       {node.label}
                     </button>
-                    {open && node.children.map((c) => sidebarLeaf(c, true))}
+                    {open && visibleChildren.map((c) => sidebarLeaf(c, true))}
                   </div>
                 )
               })}
             </aside>
 
             <div style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
-              <Outlet />
+              {canRoute(location.pathname) ? (
+                <Outlet />
+              ) : (
+                <div style={{ padding: 48, textAlign: 'center', color: '#8a929c' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#5b6472', marginBottom: 6 }}>
+                    접근 권한이 없습니다
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -835,6 +860,7 @@ export default function EcountLayout() {
               {/* 좌측 대메뉴 레일 */}
               <div style={{ width: 168, flexShrink: 0, borderRight: '1px solid #e6eaef', padding: '8px 0', background: '#fafbfc' }}>
                 {MENU.map((m, i) => (
+                  !topOk(m) ? null :
                   <button
                     key={m.label}
                     onMouseEnter={() => setSitemapIdx(i)}
@@ -858,15 +884,17 @@ export default function EcountLayout() {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
               }}>
                 {MENU[sitemapIdx].tabs.map((tab) => (
+                  !tabOk(tab) ? null :
                   <div key={tab.label}>
                     <div style={{ fontWeight: 800, fontSize: 12.5, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
                       {tab.label}
                     </div>
                     {tab.nodes.map((node) =>
                       isGroup(node) ? (
+                        node.children.some(leafOk) ? (
                         <div key={node.label} style={{ marginBottom: 6 }}>
                           <div style={{ fontWeight: 700, fontSize: 11.5, color: '#8a929c', margin: '4px 0 2px' }}>{node.label}</div>
-                          {node.children.map((c) => (
+                          {node.children.filter(leafOk).map((c) => (
                             <button
                               key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}
                               style={{
@@ -881,7 +909,8 @@ export default function EcountLayout() {
                             </button>
                           ))}
                         </div>
-                      ) : (
+                        ) : null
+                      ) : !leafOk(node) ? null : (
                         <button
                           key={node.label} disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}
                           style={{

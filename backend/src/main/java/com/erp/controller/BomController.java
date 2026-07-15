@@ -6,7 +6,6 @@ import com.erp.service.BomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,13 +23,11 @@ public class BomController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<BomResponse> save(@Valid @RequestBody SaveBomRequest req) {
         return ResponseEntity.ok(bomService.save(req));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         bomService.delete(id);
         return ResponseEntity.noContent().build();

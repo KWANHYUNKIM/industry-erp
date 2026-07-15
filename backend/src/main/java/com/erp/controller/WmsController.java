@@ -12,7 +12,6 @@ import com.erp.service.WmsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,19 +31,16 @@ public class WmsController {
     }
 
     @PostMapping("/locations")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<LocationResponse> createLocation(@Valid @RequestBody CreateLocationRequest req) {
         return ResponseEntity.ok(service.createLocation(req));
     }
 
     @PutMapping("/locations/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public LocationResponse updateLocation(@PathVariable Long id, @RequestBody UpdateLocationRequest req) {
         return service.updateLocation(id, req);
     }
 
     @DeleteMapping("/locations/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
         service.deleteLocation(id);
         return ResponseEntity.noContent().build();
