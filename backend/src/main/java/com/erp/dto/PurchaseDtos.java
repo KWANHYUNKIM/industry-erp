@@ -18,7 +18,8 @@ public final class PurchaseDtos {
     public record PurchaseLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            String remark
     ) {}
 
     public record CreatePurchaseRequest(
@@ -35,13 +36,15 @@ public final class PurchaseDtos {
     ) {}
 
     public record PurchaseLineResponse(
-            Long itemId, String itemCode, String itemName, String unit,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+            Long itemId, String itemCode, String itemName, String unit, String spec,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            String remark
     ) {
         static PurchaseLineResponse from(PurchaseLine l) {
             return new PurchaseLineResponse(
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getRemark());
         }
     }
 

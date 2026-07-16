@@ -40,4 +40,8 @@ public class PurchaseLine {
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal vatAmount;
+
+    /** 라인별 적요(선택). 이카운트 구매입력 그리드의 "적요" 컬럼. */
+    @Column(length = 255)
+    private String remark;
 }

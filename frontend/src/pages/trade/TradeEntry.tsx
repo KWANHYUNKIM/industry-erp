@@ -11,11 +11,12 @@ interface LineInput {
   itemId: string
   quantity: string
   unitPrice: string
+  remark: string
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => new Date().toISOString().slice(0, 10)
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
 
 const CFG = {
   sales: {
@@ -129,10 +130,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     const vat = taxable ? Math.round(supply * 0.1) : 0
     return { supply, vat, total: supply + vat }
   })
-  const totals = computed.reduce(
-    (a, c) => ({ supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total }),
-    { supply: 0, vat: 0, total: 0 },
-  )
+  const totals = {
+    qty: lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0),
+    supply: computed.reduce((s, c) => s + c.supply, 0),
+    vat: computed.reduce((s, c) => s + c.vat, 0),
+    total: computed.reduce((s, c) => s + c.total, 0),
+  }
   const lineCount = lines.filter((l) => l.itemId).length
 
   function dateOf(d: SalesDoc | PurchaseDoc) {
@@ -145,7 +148,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     setOk('')
     const validLines = lines
       .filter((l) => l.itemId && Number(l.quantity) > 0 && Number(l.unitPrice) > 0)
-      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }))
+      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), remark: l.remark.trim() || undefined }))
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
 
@@ -187,10 +190,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         </div>
       </div>
 
-      {/* 헤더 정보 */}
+      {/* 헤더 정보 — 이카운트 ESG009M 배열: 일자 / 거래처 / 담당자 / 입고창고 / 거래유형 / 통화 / 프로젝트 */}
       <table className="w-full text-left" style={{ marginBottom: 8, maxWidth: 900 }}>
         <tbody>
           <tr>
+            <th style={th}>일자</th>
+            <td><input type="date" className={cellInput} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
             <th style={th}>{cfg.partnerLabel} *</th>
             <td>
               <select className={cellInput} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 220 }}>
@@ -198,22 +203,47 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 {usablePartners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
               </select>
             </td>
-            <th style={th}>창고 *</th>
+            <th style={th}>담당자</th>
+            <td>
+              <select className={cellInput} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ minWidth: 150 }}>
+                <option value="">(미지정)</option>
+                {employees.map((em) => <option key={em.id} value={em.id}>{em.name}</option>)}
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>{mode === 'purchase' ? '입고창고' : '출고창고'} *</th>
             <td>
               <select className={cellInput} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ minWidth: 160 }}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
               </select>
             </td>
+            <th style={th}>거래유형</th>
+            <td>
+              <select className={cellInput} value={taxable ? 'Y' : 'N'} onChange={(e) => setTaxable(e.target.value === 'Y')} style={{ minWidth: 150 }}>
+                <option value="Y">부가세율 적용 (10%)</option>
+                <option value="N">부가세 미적용 (면세)</option>
+              </select>
+            </td>
+            <th style={th}>통화</th>
+            <td>
+              {/* 내자/외자. 현재는 원화(내자) 전용이라 표시용으로 고정한다. */}
+              <select className={cellInput} value="KRW" disabled style={{ minWidth: 150, background: '#f5f7fa', color: '#5a626e' }}>
+                <option value="KRW">내자 (KRW)</option>
+              </select>
+            </td>
           </tr>
           <tr>
-            <th style={th}>일자</th>
-            <td><input type="date" className={cellInput} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
-            <th style={th}>부가세</th>
+            <th style={th}>프로젝트</th>
             <td>
-              <select className={cellInput} value={taxable ? 'Y' : 'N'} onChange={(e) => setTaxable(e.target.value === 'Y')} style={{ width: 130 }}>
-                <option value="Y">과세 (10%)</option>
-                <option value="N">면세</option>
+              <select className={cellInput} value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ minWidth: 220 }}>
+                <option value="">(없음)</option>
+                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.code} {pj.name}</option>)}
               </select>
+            </td>
+            <th style={th}>적요</th>
+            <td colSpan={3}>
+              <input className={cellInput} value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="전표 적요" style={{ width: '100%', maxWidth: 560 }} />
             </td>
           </tr>
         </tbody>
@@ -225,13 +255,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>품목 *</th>
-            <th style={{ width: 60 }}>단위</th>
-            <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-            <th style={{ width: 130, textAlign: 'right' }}>단가</th>
+            <th style={{ width: 110 }}>품목코드</th>
+            <th>품목명 *</th>
+            <th style={{ width: 120 }}>규격</th>
+            <th style={{ width: 90, textAlign: 'right' }}>기본수량</th>
+            <th style={{ width: 120, textAlign: 'right' }}>단가</th>
             <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
             <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
-            <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+            <th style={{ width: 150 }}>적요</th>
             <th style={{ width: 40 }}></th>
           </tr>
         </thead>
@@ -242,18 +273,19 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               // 빈 입력행은 내보내기/인쇄에서 제외
               <tr key={idx} data-export-skip={l.itemId ? undefined : 'true'}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.itemId ? idx + 1 : ''}</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{it?.code ?? ''}</td>
                 <td>
                   <select className={cellInput} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)} style={{ width: '100%' }}>
                     <option value="">선택</option>
                     {items.map((i) => <option key={i.id} value={i.id}>[{i.code}] {i.name}</option>)}
                   </select>
                 </td>
-                <td style={{ textAlign: 'center', color: '#5a626e' }}>{it?.unit ?? ''}</td>
+                <td style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
                 <td><input type="number" step="any" className={cellInput} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
                 <td><input type="number" step="any" className={cellInput} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
                 <td style={{ textAlign: 'right', color: '#3a4453' }}>{won(computed[idx].supply)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(computed[idx].vat)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(computed[idx].total)}</td>
+                <td><input className={cellInput} value={l.remark} onChange={(e) => updateLine(idx, 'remark', e.target.value)} style={{ width: '100%' }} disabled={!l.itemId} /></td>
                 <td style={{ textAlign: 'center' }}>
                   {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>✕</button>}
                 </td>
@@ -262,8 +294,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           })}
         </tbody>
         <tfoot>
+          {/* 이카운트 tfoot: 기본수량·공급가액·부가세 합계, 적요 칸에 총계(공급가+부가세) */}
           <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-            <td colSpan={5} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계 ({lineCount}건)</td>
+            <td colSpan={4} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계 ({lineCount}건)</td>
+            <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(totals.qty)}</td>
+            <td style={{ border: '1px solid var(--ec-border)' }}></td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(totals.supply)}</td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(totals.vat)}</td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
@@ -273,21 +308,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </table>
       </div>
 
-      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e', fontWeight: 600, width: 40 }}>비고</span>
-        <input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ maxWidth: 380, flex: 1 }} />
-        <span style={{ fontSize: 12.5, color: '#5a626e', fontWeight: 600 }}>프로젝트</span>
-        <select className="ec-input" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ width: 200 }}>
-          <option value="">(없음)</option>
-          {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.code} {pj.name}</option>)}
-        </select>
-        <span style={{ fontSize: 12.5, color: '#5a626e', fontWeight: 600 }}>담당자</span>
-        <select className="ec-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ width: 160 }}>
-          <option value="">(미지정)</option>
-          {employees.map((em) => <option key={em.id} value={em.id}>{em.name}</option>)}
-        </select>
-      </div>
-      <div style={{ marginTop: 4, fontSize: 11, color: '#9aa1ab' }}>※ 품목을 선택하면 단가가 자동 입력되고 다음 행이 추가됩니다.</div>
+      <div style={{ marginTop: 4, fontSize: 11, color: '#9aa1ab' }}>※ 품목을 선택하면 품목코드·규격·단가가 자동 표시되고 다음 행이 추가됩니다. 적요는 라인별로 입력합니다.</div>
 
       {notice && <p style={{ marginTop: 10, background: '#eef5ff', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, border: '1px solid #cfe0f5' }}>{notice}</p>}
       {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}

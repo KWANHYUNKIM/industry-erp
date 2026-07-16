@@ -115,6 +115,7 @@ public class PurchaseService {
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
+                    .remark(lr.remark())
                     .build();
             purchase.addLine(line);
 

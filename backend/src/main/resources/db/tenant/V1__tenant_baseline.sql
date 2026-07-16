@@ -1941,6 +1941,7 @@ CREATE TABLE purchase_lines (
     supply_amount numeric(18,2) NOT NULL,
     unit_price numeric(18,2) NOT NULL,
     vat_amount numeric(18,2) NOT NULL,
+    remark character varying(255),
     item_id bigint NOT NULL,
     purchase_id bigint NOT NULL
 );
@@ -2168,6 +2169,7 @@ CREATE TABLE sales_lines (
     supply_amount numeric(18,2) NOT NULL,
     unit_price numeric(18,2) NOT NULL,
     vat_amount numeric(18,2) NOT NULL,
+    remark character varying(255),
     item_id bigint NOT NULL,
     sales_id bigint NOT NULL
 );

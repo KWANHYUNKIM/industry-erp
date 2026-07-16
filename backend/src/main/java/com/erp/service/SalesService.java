@@ -149,6 +149,7 @@ public class SalesService {
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
+                    .remark(lr.remark())
                     .build();
             sales.addLine(line);
 
