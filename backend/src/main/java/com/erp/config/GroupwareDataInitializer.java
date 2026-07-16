@@ -1,12 +1,12 @@
 package com.erp.config;
 
-import com.erp.domain.BoardPost;
-import com.erp.domain.Survey;
-import com.erp.domain.SurveyStatus;
-import com.erp.domain.SupplyItem;
-import com.erp.repository.BoardRepository;
-import com.erp.repository.SupplyRepository;
-import com.erp.repository.SurveyRepository;
+import com.erp.groupware.domain.BoardPost;
+import com.erp.groupware.domain.Survey;
+import com.erp.groupware.domain.SurveyStatus;
+import com.erp.groupware.domain.SupplyItem;
+import com.erp.groupware.repository.BoardRepository;
+import com.erp.groupware.repository.SupplyRepository;
+import com.erp.groupware.repository.SurveyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

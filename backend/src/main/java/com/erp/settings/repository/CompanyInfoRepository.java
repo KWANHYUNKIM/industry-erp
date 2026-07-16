@@ -1,0 +1,12 @@
+package com.erp.settings.repository;
+
+import com.erp.settings.domain.CompanyInfo;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface CompanyInfoRepository extends JpaRepository<CompanyInfo, Long> {
+
+    /** 단일 레코드 조회 (가장 먼저 등록된 1건). */
+    Optional<CompanyInfo> findFirstByOrderByIdAsc();
+}
