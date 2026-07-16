@@ -3,26 +3,31 @@
 이 문서는 **백엔드 패키지 구조와 의존 규칙**을 정의합니다. 새 코드는 이 규칙을 따르고,
 기존 코드를 만질 때 규칙에서 벗어난 부분이 보이면 그 자리에서 고칩니다.
 
-현재 코드는 계층 우선(`controller/`, `service/`, …) 평면 구조이고, **모듈 우선 구조로 이행 중**입니다.
-이행 전이라도 아래 의존 규칙은 그대로 적용됩니다.
+**2026-07-16 모듈 우선 구조 이행 완료.** 백엔드는 `com/erp/<module>/<layer>/` 구조입니다
+(예: `com/erp/trade/service/SalesService.java`). 옛 계층 우선 평면 구조(`controller/`, `service/`, …)는
+더 이상 없습니다. 아래 의존 규칙을 계속 적용하세요.
 
 ---
 
 ## 1. 모듈
 
-기능 단위로 8개 모듈을 둡니다. 모듈은 프론트엔드 `frontend/src/pages/` 폴더와 1:1로 맞춥니다.
+기능 단위로 모듈을 둡니다. 모듈은 프론트엔드 `frontend/src/pages/` 폴더와 대체로 1:1로 맞춥니다.
 
 | 모듈 | 책임 | 대표 엔티티 |
 |------|------|-------------|
-| `common` | 공통 기반. 다른 모듈을 몰라야 함 | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
-| `auth` | 사용자·역할·인증 | `User`, `Role` |
+| `common` | 공통 기반. 다른 모듈을 몰라야 함. 메타/헬스 등 인프라 엔드포인트 포함 | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
+| `auth` | 사용자·역할·인증·권한 | `User`, `Role`, `Permission` |
 | `inventory` | 품목·창고·재고·프로젝트 (기초 마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem`, `Project` |
-| `trade` | 판매·구매·거래처·정산·출하 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment` |
-| `production` | BOM·작업지시·생산실적·생산계획 | `Bom`, `WorkOrder`, `Production`, `ProductionPlan`, `MaterialIssue` |
-| `accounting` | 계정·비용·원가·손익 | `Account`, `Expense`, `ItemCost` |
+| `trade` | 판매·구매·거래처·정산·출하·세금계산서·단가일괄 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment`, `TaxInvoice` |
+| `production` | BOM·작업지시·생산실적·생산계획·공정·자원 | `Bom`, `WorkOrder`, `Production`, `ProductionPlan`, `MaterialIssue` |
+| `accounting` | 계정·비용·원가·손익 + 자금(은행·카드·어음)·자산·감가상각·세무·통화 | `Account`, `Expense`, `ItemCost`, `BankAccount`, `FixedAsset`, `Currency`, `CorporateTaxReturn` |
 | `quality` | 품질검사·A/S | `QualityInspection`, `AsRequest` |
-| `groupware` | 전자결재·업무일지·근태·게시판·CRM | `ApprovalDocument`, `WorkJournal`, `Attendance` |
-| `settings` | Self-Customizing (회사정보·환경설정·보안정책) | `CompanyInfo`, `Preference`, `SecurityPolicy` |
+| `hr` | 사원·부서·근태·급여·근로계약·휴가 | `Employee`, `Department`, `Attendance`, `Payslip`, `EmploymentContract` |
+| `groupware` | 전자결재·업무일지·게시판·CRM·메일·드라이브·일정·공용품·E Note | `ApprovalDocument`, `WorkJournal`, `WorkPost`, `Mail`, `SupplyItem` |
+| `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode` |
+
+> `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 계층 없이 평면 유지합니다.
+> HR/급여/근태는 원래 groupware의 근태만 있었으나 사원·부서·급여까지 커지며 `hr` 모듈로 분리했습니다(2026-07-16).
 
 새 클래스는 **자신이 다루는 주 엔티티가 속한 모듈**에 둡니다.
 어느 모듈에도 안 맞으면 모듈을 새로 만들지 말고 먼저 논의합니다.
@@ -89,6 +94,7 @@ controller  →  service  →  repository  →  domain
 | `production` | `inventory` |
 | `quality` | `inventory`, `trade` |
 | `accounting` | `inventory`, `trade` |
+| `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
 
 - `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
@@ -279,9 +285,12 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 
 ---
 
-## 10. 패키지 이동을 실제로 실행할 때
+## 10. 패키지 이동 (완료됨 · 2026-07-16)
 
-아직 이동하지 않았습니다. 실행 시점에 확인한 전제조건입니다.
+계층 우선 → 모듈 우선 이동을 **이미 완료**했습니다. 558개 파일을 `com/erp/<module>/<layer>/`로
+옮기고, 패키지 선언·import·본문 FQN을 재작성했으며, `rm -rf target && ./mvnw -o compile` 통과 +
+앱 기동(Bean 스캔·JPA `validate`) + QA 하네스 405개 전부 통과로 검증했습니다.
+아래는 그때 확인한 전제조건이며, 이후 유사 이동 시 참고용으로 남깁니다.
 
 - **클래스명 297개가 전부 유니크합니다.** 따라서 `import` 자동 삽입이 안전합니다. 이동 전에 다시 확인하세요.
   ```bash

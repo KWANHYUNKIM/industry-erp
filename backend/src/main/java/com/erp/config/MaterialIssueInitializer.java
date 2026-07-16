@@ -1,13 +1,13 @@
 package com.erp.config;
 
-import com.erp.domain.Item;
-import com.erp.domain.MaterialIssue;
-import com.erp.domain.Warehouse;
-import com.erp.domain.WorkOrder;
-import com.erp.repository.ItemRepository;
-import com.erp.repository.MaterialIssueRepository;
-import com.erp.repository.WarehouseRepository;
-import com.erp.repository.WorkOrderRepository;
+import com.erp.inventory.domain.Item;
+import com.erp.production.domain.MaterialIssue;
+import com.erp.inventory.domain.Warehouse;
+import com.erp.production.domain.WorkOrder;
+import com.erp.inventory.repository.ItemRepository;
+import com.erp.production.repository.MaterialIssueRepository;
+import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

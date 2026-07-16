@@ -1,12 +1,12 @@
 package com.erp.config;
 
-import com.erp.domain.Attendance;
-import com.erp.domain.User;
-import com.erp.domain.VacationRequest;
-import com.erp.domain.enums.VacationStatus;
-import com.erp.repository.AttendanceRepository;
-import com.erp.repository.UserRepository;
-import com.erp.repository.VacationRepository;
+import com.erp.hr.domain.Attendance;
+import com.erp.auth.domain.User;
+import com.erp.hr.domain.VacationRequest;
+import com.erp.hr.domain.enums.VacationStatus;
+import com.erp.hr.repository.AttendanceRepository;
+import com.erp.auth.repository.UserRepository;
+import com.erp.hr.repository.VacationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
