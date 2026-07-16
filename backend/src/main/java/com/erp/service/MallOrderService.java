@@ -143,7 +143,7 @@ public class MallOrderService {
                 o.getMall() + " 주문 " + o.getMallOrderNo() + " (" + o.getBuyerName() + ")",
                 null,   // 몰 주문에는 프로젝트 개념이 없다
                 null,   // 담당 사원도 없다 — 몰이 판 것이지 누가 판 게 아니다
-                List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice()))
+                List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice(), o.getRemark()))
         ), username);
 
         o.setStatus(MallOrderStatus.CONVERTED);

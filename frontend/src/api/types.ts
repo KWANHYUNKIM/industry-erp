@@ -159,10 +159,12 @@ export interface TradeLine {
   itemCode: string
   itemName: string
   unit: string
+  spec: string | null
   quantity: number
   unitPrice: number
   supplyAmount: number
   vatAmount: number
+  remark: string | null
 }
 
 export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'

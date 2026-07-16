@@ -173,7 +173,7 @@ public class PurchaseOrderService {
         }
 
         List<PurchaseLineRequest> lines = po.getLines().stream()
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice()))
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
