@@ -60,6 +60,42 @@ public class PurchaseOrderService {
                 .toList();
     }
 
+    /** 특정 진행상태의 발주서만 조회한다(발주요청조회/현황 등에서 사용). */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> findByStatus(PurchaseOrderStatus status) {
+        return orderRepository.findByStatusWithRefs(status).stream()
+                .map(PurchaseOrderResponse::from)
+                .toList();
+    }
+
+    /**
+     * 발주 파이프라인을 상태별로 집계한다(건수·공급가액·부가세·합계).
+     * 모든 상태를 항상 한 줄씩 반환하며, 자료가 없는 상태는 0으로 채운다.
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderDtos.PurchaseOrderSummaryRow> summary() {
+        List<PurchaseOrder> all = orderRepository.findAllWithRefs();
+        List<PurchaseOrderDtos.PurchaseOrderSummaryRow> out = new java.util.ArrayList<>();
+        for (PurchaseOrderStatus st : PurchaseOrderStatus.values()) {
+            long count = 0;
+            BigDecimal supply = BigDecimal.ZERO, vat = BigDecimal.ZERO, total = BigDecimal.ZERO;
+            for (PurchaseOrder po : all) {
+                if (po.getStatus() != st) continue;
+                count++;
+                supply = supply.add(nz(po.getSupplyAmount()));
+                vat = vat.add(nz(po.getVatAmount()));
+                total = total.add(nz(po.getTotalAmount()));
+            }
+            out.add(new PurchaseOrderDtos.PurchaseOrderSummaryRow(
+                    st, st.getDisplayName(), count, supply, vat, total));
+        }
+        return out;
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
+    }
+
     /** 발주요청 등록. 단가 미입력 라인은 품목 기준단가로 채운다. */
     @Transactional
     public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {

@@ -1249,6 +1249,11 @@ export interface PurchaseOrder {
   dueDate: string | null
   partnerId: number
   partnerName: string
+  employeeId: number | null
+  employeeName: string | null
+  warehouseId: number | null
+  warehouseName: string | null
+  currency: string | null
   status: PurchaseOrderStatus
   statusName: string
   supplyAmount: number

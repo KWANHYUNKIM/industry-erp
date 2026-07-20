@@ -100,4 +100,10 @@ public final class PurchaseOrderDtos {
                     po.getLines().stream().map(OrderLineResponse::from).toList());
         }
     }
+
+    /** 발주 파이프라인 상태별 집계 한 줄(발주요청·계획·단가확정·발주확정·입고전환·취소). */
+    public record PurchaseOrderSummaryRow(
+            PurchaseOrderStatus status, String statusName,
+            long count, BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount
+    ) {}
 }
