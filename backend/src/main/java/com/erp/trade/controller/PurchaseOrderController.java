@@ -6,6 +6,7 @@ import com.erp.trade.dto.PurchaseOrderDtos.CreatePurchaseOrderRequest;
 import com.erp.trade.dto.PurchaseOrderDtos.PlanRequest;
 import com.erp.trade.dto.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.erp.trade.dto.PurchaseOrderDtos.ReceiveRequest;
+import com.erp.trade.domain.PurchaseOrderStatus;
 import com.erp.security.UserPrincipal;
 import com.erp.trade.service.PurchaseOrderService;
 import jakarta.validation.Valid;
@@ -25,9 +26,16 @@ public class PurchaseOrderController {
 
     private final PurchaseOrderService service;
 
+    /** 전체 발주서 목록. status 지정 시 해당 진행상태만(발주요청조회/현황 등에서 사용). */
     @GetMapping
-    public List<PurchaseOrderResponse> list() {
-        return service.findAll();
+    public List<PurchaseOrderResponse> list(@RequestParam(required = false) PurchaseOrderStatus status) {
+        return status != null ? service.findByStatus(status) : service.findAll();
+    }
+
+    /** 발주 파이프라인 상태별 집계(건수·금액). 발주요청현황 상단 요약에 사용. */
+    @GetMapping("/summary")
+    public List<PurchaseOrderDtos.PurchaseOrderSummaryRow> summary() {
+        return service.summary();
     }
 
     /** 발주요청 등록 */

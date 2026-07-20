@@ -50,8 +50,11 @@ const CurrencyPage = lazy(() => import('./pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('./pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('./pages/accounting/IncomePage'))
 const QualityInspectionPage = lazy(() => import('./pages/quality/QualityInspectionPage'))
+const QualityStatusPage = lazy(() => import('./pages/quality/QualityStatusPage'))
 const SerialLotPage = lazy(() => import('./pages/quality/SerialLotPage'))
+const LotStockComparePage = lazy(() => import('./pages/quality/LotStockComparePage'))
 const AsManagePage = lazy(() => import('./pages/quality/AsManagePage'))
+const AsStatusPage = lazy(() => import('./pages/quality/AsStatusPage'))
 const CompanyInfoPage = lazy(() => import('./pages/settings/CompanyInfoPage'))
 const PreferencesPage = lazy(() => import('./pages/settings/PreferencesPage'))
 const SecurityPage = lazy(() => import('./pages/settings/SecurityPage'))
@@ -84,6 +87,7 @@ const ExportPage = lazy(() => import('./pages/trade/ExportPage'))
 const MallPage = lazy(() => import('./pages/trade/MallPage'))
 const PlanningPage = lazy(() => import('./pages/production/PlanningPage'))
 const TransferPage = lazy(() => import('./pages/inventory/TransferPage'))
+const StocktakePage = lazy(() => import('./pages/inventory/StocktakePage'))
 const WmsPage = lazy(() => import('./pages/inventory/WmsPage'))
 const ReportsPage = lazy(() => import('./pages/inventory/ReportsPage'))
 const EtcSystemPage = lazy(() => import('./pages/settings/EtcSystemPage'))
@@ -105,6 +109,12 @@ const VariancePage = lazy(() => import('./pages/accounting/VariancePage'))
 const MonthlyProfitPage = lazy(() => import('./pages/accounting/MonthlyProfitPage'))
 const DailyProfitPage = lazy(() => import('./pages/accounting/DailyProfitPage'))
 const SalesStatusPage = lazy(() => import('./pages/trade/SalesStatusPage'))
+const SalesOrderStatusPage = lazy(() => import('./pages/trade/SalesOrderStatusPage'))
+const SalesPlanPage = lazy(() => import('./pages/trade/SalesPlanPage'))
+const UnorderedStatusPage = lazy(() => import('./pages/trade/UnorderedStatusPage'))
+const UnpurchasedStatusPage = lazy(() => import('./pages/trade/UnpurchasedStatusPage'))
+const PurchaseOrderStatusPage = lazy(() => import('./pages/trade/PurchaseOrderStatusPage'))
+const PurchaseRequestStatusPage = lazy(() => import('./pages/trade/PurchaseRequestStatusPage'))
 const SalesDiscountPage = lazy(() => import('./pages/trade/SalesDiscountPage'))
 const PurchaseStatusPage = lazy(() => import('./pages/trade/PurchaseStatusPage'))
 const PurchaseDiscountPage = lazy(() => import('./pages/trade/PurchaseDiscountPage'))
@@ -182,6 +192,7 @@ export default function App() {
         <Route path="/inventory/stock-io" element={<StockIoPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
+        <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
         <Route path="/inventory/reports" element={<ReportsPage />} />
 
@@ -219,6 +230,9 @@ export default function App() {
         <Route path="/sales/settlement" element={<SettlementPage />} />
         <Route path="/sales/ledger" element={<LedgerPage />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
+        <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
+        <Route path="/sales/sales-plan" element={<SalesPlanPage />} />
+        <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />
         <Route path="/sales/payable" element={<PayablePage />} />
@@ -227,6 +241,11 @@ export default function App() {
         <Route path="/sales/sales-status" element={<SalesStatusPage />} />
         <Route path="/sales/sales-discount" element={<SalesDiscountPage />} />
         <Route path="/sales/purchase-status" element={<PurchaseStatusPage />} />
+        <Route path="/sales/unpurchased" element={<UnpurchasedStatusPage />} />
+        <Route path="/sales/purchase-order-status" element={<PurchaseOrderStatusPage />} />
+        <Route path="/sales/purchase-request-status" element={<PurchaseRequestStatusPage />} />
+        <Route path="/sales/purchase-plan-status" element={<PurchaseRequestStatusPage defaultStatus="PLANNED" title="발주계획현황" />} />
+        <Route path="/sales/price-request-status" element={<PurchaseRequestStatusPage defaultStatus="PRICED" title="단가요청현황" />} />
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
@@ -288,8 +307,11 @@ export default function App() {
         {/* 품질 */}
         <Route path="/quality" element={<Navigate to="/quality/inspection" replace />} />
         <Route path="/quality/inspection" element={<QualityInspectionPage />} />
+        <Route path="/quality/inspection-status" element={<QualityStatusPage />} />
         <Route path="/quality/serial-lot" element={<SerialLotPage />} />
+        <Route path="/quality/lot-compare" element={<LotStockComparePage />} />
         <Route path="/quality/as" element={<AsManagePage />} />
+        <Route path="/quality/as-status" element={<AsStatusPage />} />
 
         {/* Self-Customizing */}
         <Route path="/settings" element={<Navigate to="/settings/company" replace />} />
