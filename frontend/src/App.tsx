@@ -87,6 +87,7 @@ const ProjectPage = lazy(() => import('./pages/groupware/ProjectPage'))
 const ProjectProfitPage = lazy(() => import('./pages/accounting/ProjectProfitPage'))
 const ProjectPlanPage = lazy(() => import('./pages/accounting/ProjectPlanPage'))
 const SharedInfoPage = lazy(() => import('./pages/groupware/SharedInfoPage'))
+const KeyNoticePage = lazy(() => import('./pages/groupware/KeyNoticePage'))
 const MailPage = lazy(() => import('./pages/groupware/MailPage'))
 const OrgChartPage = lazy(() => import('./pages/groupware/OrgChartPage'))
 const SalesOrderPage = lazy(() => import('./pages/trade/SalesOrderPage'))
@@ -384,6 +385,7 @@ export default function App() {
         <Route path="/accounting/project-profit" element={<ProjectProfitPage />} />
         <Route path="/accounting/project-plan" element={<ProjectPlanPage />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
+        <Route path="/groupware/key-notice" element={<KeyNoticePage />} />
         <Route path="/groupware/mail" element={<MailPage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
