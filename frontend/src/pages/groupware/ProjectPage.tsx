@@ -76,6 +76,12 @@ export default function ProjectPage() {
     patch(p, { progress: n })
   }
 
+  async function remove(p: Project) {
+    if (!confirm(`[${p.code}] ${p.name} 프로젝트를 삭제할까요?`)) return
+    try { await api.delete(`/projects/${p.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }  // 전표·계획 참조 시 서버가 막는다(400)
+  }
+
   const shown = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword) || (r.manager ?? '').includes(keyword))
@@ -182,8 +188,9 @@ export default function ProjectPage() {
                   {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
                 </select>
               </td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => editProgress(r)}>진척수정</button>
+              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <button className="ec-btn" style={{ height: 20, padding: '0 10px', marginRight: 4 }} onClick={() => editProgress(r)}>진척수정</button>
+                <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

@@ -521,6 +521,27 @@ export interface QualityInspection {
   remark: string | null
 }
 
+export type QualityRequestStatus = 'REQUESTED' | 'INSPECTED' | 'CANCELED'
+
+export interface QualityInspectionRequest {
+  id: number
+  requestNo: string
+  requestDate: string
+  type: QualityInspectionType
+  typeName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  lotNo: string | null
+  requestQty: number
+  dueDate: string | null
+  status: QualityRequestStatus
+  statusName: string
+  requester: string | null
+  remark: string | null
+}
+
 // ===== 재고 창고간이동 =====
 
 export interface StockTransfer {
@@ -868,7 +889,29 @@ export interface CardUsage {
 
 // ===== 기타이동 (자가사용·불량처리·재고조정) =====
 
-export type StockAdjustmentType = 'SELF_USE' | 'DEFECT' | 'ADJUST'
+export type StockAdjustmentType = 'SELF_USE' | 'DEFECT' | 'SUBSTITUTE' | 'DISPOSAL' | 'ADJUST'
+
+export type StagedStatus = 'REQUESTED' | 'APPLIED' | 'REJECTED'
+
+export interface StagedAdjustment {
+  id: number
+  adjustNo: string
+  requestDate: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  bookQty: number
+  actualQty: number
+  diff: number
+  reason: string | null
+  status: StagedStatus
+  statusName: string
+  requester: string | null
+  handler: string | null
+}
 
 export interface StockAdjustment {
   id: number
@@ -910,6 +953,25 @@ export interface Lot {
   /** 저장하지 않고 파생되는 상태 (보류 우선 → 수량 0이면 출고완료) */
   status: LotStatus
   statusName: string
+}
+
+export type LotTxType = 'INBOUND' | 'OUTBOUND' | 'ADJUST'
+
+export interface LotTransaction {
+  id: number
+  lotId: number
+  lotNo: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  txDate: string
+  type: LotTxType
+  typeName: string
+  quantityChange: number
+  balanceAfter: number
+  note: string | null
+  createdBy: string | null
 }
 
 // ===== 고객관리(CRM) =====

@@ -14,8 +14,13 @@ const RULES: Rule[] = [
   ['/inventory/wms', 'WMS'],
   ['/inventory/current', 'STOCK_MOVE'],
   ['/inventory/stock-io', 'STOCK_MOVE'],
+  ['/inventory/ledger', 'STOCK_MOVE'],
+  ['/inventory/movement', 'STOCK_MOVE'],
+  ['/inventory/stock-analysis', 'STOCK_MOVE'],
+  ['/inventory/executive-report', 'STOCK_MOVE'],
   ['/inventory/transfer', 'STOCK_MOVE'],
   ['/inventory/stocktake', 'STOCK_MOVE'],
+  ['/inventory/staged-adjustment', 'STOCK_MOVE'],
   ['/inventory/reports', 'STOCK_MOVE'],
   ['/inventory/price-order', 'SALES'],
   ['/inventory/special-price-group', 'SALES'],
@@ -82,6 +87,7 @@ const RULES: Rule[] = [
   ['/accounting/monthly-profit', 'PROFIT'],
   ['/accounting/daily-profit', 'PROFIT'],
   ['/accounting/project-profit', 'PROFIT'],
+  ['/accounting/project-plan', 'PROFIT'],
   ['/accounting', 'ACCOUNTING'], // accounts · journals · vouchers · 재무제표 · 원장 …
 
   // 관리(인사/급여)

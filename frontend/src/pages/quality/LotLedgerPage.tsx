@@ -1,0 +1,143 @@
+import { useEffect, useMemo, useState } from 'react'
+import { api, extractErrorMessage } from '../../api/client'
+import type { LotTransaction, LotTxType } from '../../api/types'
+import EcListShell from '../../components/EcListShell'
+
+/**
+ * 재고 II > 시리얼/로트No. — 로트 수불부 / 내역조회 (이카운트 E040618·E040620·E040639)
+ * 로트별 입고·출고·조정 이력을 시간순으로 보고 잔량(balanceAfter)을 읽는다.
+ * 데이터는 GET /api/lots/transactions (LotTransactionResponse[], 로트별 오름차순). 백엔드 신설.
+ */
+
+const TYPE_COLOR: Record<LotTxType, { bg: string; fg: string }> = {
+  INBOUND: { bg: '#eef4ff', fg: 'var(--ec-blue)' },
+  OUTBOUND: { bg: '#fdf3ea', fg: '#a5561b' },
+  ADJUST: { bg: '#f3eefb', fg: '#6b3fb0' },
+}
+const num = (n: number) => n.toLocaleString('ko-KR')
+
+export default function LotLedgerPage() {
+  const [rows, setRows] = useState<LotTransaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [lotNo, setLotNo] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
+  const [keyword, setKeyword] = useState('')
+
+  async function load() {
+    setLoading(true); setError('')
+    try {
+      const res = await api.get<LotTransaction[]>('/lots/transactions')
+      setRows(res.data)
+    } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+
+  const lotNos = useMemo(() => [...new Set(rows.map((r) => r.lotNo))].sort(), [rows])
+
+  const shown = useMemo(() => {
+    const kw = keyword.trim()
+    return rows.filter((r) => {
+      if (lotNo && r.lotNo !== lotNo) return false
+      if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
+      if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
+      return true
+    })
+  }, [rows, lotNo, typeFilter, keyword])
+
+  const totals = useMemo(() => shown.reduce((s, r) => {
+    if (r.quantityChange >= 0) s.inQty += r.quantityChange
+    else s.outQty += -r.quantityChange
+    return s
+  }, { inQty: 0, outQty: 0 }), [shown])
+  // 단일 로트 선택 시 기말 = 마지막 행 잔량
+  const closing = lotNo && shown.length ? shown[shown.length - 1].balanceAfter : null
+
+  const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+
+  return (
+    <EcListShell
+      title="로트 수불부"
+      search={keyword}
+      onSearchChange={setKeyword}
+      onSearch={load}
+      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+    >
+      <p className="mb-2 text-xs text-slate-500">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
+
+      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>로트</span>
+          <select className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} style={{ width: 200 }}>
+            <option value="">전체</option>
+            {lotNos.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
+            <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
+              padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
+              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : '#3a4453', fontWeight: typeFilter === t ? 700 : 400,
+            }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'}</button>
+          ))}
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+          입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
+          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
+          {closing != null && (
+            <><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(closing)}</b></>
+          )}
+        </div>
+      </div>
+
+      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th style={{ width: 34 }}></th>
+            <th>로트No.</th>
+            <th>품목</th>
+            <th>일자</th>
+            <th style={{ textAlign: 'center', width: 56 }}>유형</th>
+            <th style={{ textAlign: 'right' }}>입고</th>
+            <th style={{ textAlign: 'right' }}>출고</th>
+            <th style={{ textAlign: 'right' }}>잔량</th>
+            <th>비고</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : shown.length === 0 ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+              {rows.length === 0 ? '로트 이력이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
+            </td></tr>
+          ) : shown.map((r, i) => {
+            const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
+            const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
+            const c = TYPE_COLOR[r.type]
+            return (
+              <tr key={r.id}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
+                <td>{r.itemName}</td>
+                <td style={{ fontFamily: 'monospace' }}>{r.txDate}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
+                </td>
+                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : '-'}</td>
+                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : '-'}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.balanceAfter)}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? '-'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </EcListShell>
+  )
+}

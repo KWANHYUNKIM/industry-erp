@@ -7,10 +7,10 @@ import Modal from '../../components/Modal'
 const today = () => new Date().toISOString().slice(0, 10)
 const num = (n: number) => n.toLocaleString('ko-KR')
 
-const TABS = ['창고이동', '자가사용', '불량처리', '재고조정'] as const
+const TABS = ['창고이동', '자가사용', '불량처리', '대체사용', '폐기', '재고조정'] as const
 type Tab = (typeof TABS)[number]
 const TAB_TYPE: Record<Exclude<Tab, '창고이동'>, StockAdjustmentType> = {
-  자가사용: 'SELF_USE', 불량처리: 'DEFECT', 재고조정: 'ADJUST',
+  자가사용: 'SELF_USE', 불량처리: 'DEFECT', 대체사용: 'SUBSTITUTE', 폐기: 'DISPOSAL', 재고조정: 'ADJUST',
 }
 
 /**

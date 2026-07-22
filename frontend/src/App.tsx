@@ -10,6 +10,12 @@ const CompaniesPage = lazy(() => import('./pages/CompaniesPage'))
 const ItemsPage = lazy(() => import('./pages/inventory/ItemsPage'))
 const WarehousesPage = lazy(() => import('./pages/inventory/WarehousesPage'))
 const StockIoPage = lazy(() => import('./pages/inventory/StockIoPage'))
+const StockLedgerPage = lazy(() => import('./pages/inventory/StockLedgerPage'))
+const StockMovementPage = lazy(() => import('./pages/inventory/StockMovementPage'))
+const DailyReportPage = lazy(() => import('./pages/inventory/DailyReportPage'))
+const StagedAdjustmentPage = lazy(() => import('./pages/inventory/StagedAdjustmentPage'))
+const StockAnalysisPage = lazy(() => import('./pages/inventory/StockAnalysisPage'))
+const ExecutiveReportPage = lazy(() => import('./pages/inventory/ExecutiveReportPage'))
 const CurrentStockPage = lazy(() => import('./pages/inventory/CurrentStockPage'))
 const ManageItemsPage = lazy(() => import('./pages/inventory/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('./pages/inventory/PriceOrderPage'))
@@ -50,11 +56,15 @@ const CurrencyPage = lazy(() => import('./pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('./pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('./pages/accounting/IncomePage'))
 const QualityInspectionPage = lazy(() => import('./pages/quality/QualityInspectionPage'))
+const QualityRequestPage = lazy(() => import('./pages/quality/QualityRequestPage'))
+const DefectReportPage = lazy(() => import('./pages/quality/DefectReportPage'))
+const LotLedgerPage = lazy(() => import('./pages/quality/LotLedgerPage'))
 const QualityStatusPage = lazy(() => import('./pages/quality/QualityStatusPage'))
 const SerialLotPage = lazy(() => import('./pages/quality/SerialLotPage'))
 const LotStockComparePage = lazy(() => import('./pages/quality/LotStockComparePage'))
 const AsManagePage = lazy(() => import('./pages/quality/AsManagePage'))
 const AsStatusPage = lazy(() => import('./pages/quality/AsStatusPage'))
+const AsConsumptionPage = lazy(() => import('./pages/quality/AsConsumptionPage'))
 const CompanyInfoPage = lazy(() => import('./pages/settings/CompanyInfoPage'))
 const PreferencesPage = lazy(() => import('./pages/settings/PreferencesPage'))
 const SecurityPage = lazy(() => import('./pages/settings/SecurityPage'))
@@ -75,6 +85,7 @@ const CrmPage = lazy(() => import('./pages/groupware/CrmPage'))
 const BusinessCardPage = lazy(() => import('./pages/groupware/BusinessCardPage'))
 const ProjectPage = lazy(() => import('./pages/groupware/ProjectPage'))
 const ProjectProfitPage = lazy(() => import('./pages/accounting/ProjectProfitPage'))
+const ProjectPlanPage = lazy(() => import('./pages/accounting/ProjectPlanPage'))
 const SharedInfoPage = lazy(() => import('./pages/groupware/SharedInfoPage'))
 const MailPage = lazy(() => import('./pages/groupware/MailPage'))
 const OrgChartPage = lazy(() => import('./pages/groupware/OrgChartPage'))
@@ -110,6 +121,13 @@ const MonthlyProfitPage = lazy(() => import('./pages/accounting/MonthlyProfitPag
 const DailyProfitPage = lazy(() => import('./pages/accounting/DailyProfitPage'))
 const SalesStatusPage = lazy(() => import('./pages/trade/SalesStatusPage'))
 const SalesOrderStatusPage = lazy(() => import('./pages/trade/SalesOrderStatusPage'))
+const TradeHistoryPage = lazy(() => import('./pages/trade/TradeHistoryPage'))
+const SalesPurchaseSummaryPage = lazy(() => import('./pages/trade/SalesPurchaseSummaryPage'))
+const MonthlyArApPage = lazy(() => import('./pages/trade/MonthlyArApPage'))
+const PriceMovementPage = lazy(() => import('./pages/trade/PriceMovementPage'))
+const ItemEntryPage = lazy(() => import('./pages/trade/ItemEntryPage'))
+const MonthlyCumulativePage = lazy(() => import('./pages/trade/MonthlyCumulativePage'))
+const PivotSummaryPage = lazy(() => import('./pages/trade/PivotSummaryPage'))
 const SalesPlanPage = lazy(() => import('./pages/trade/SalesPlanPage'))
 const UnorderedStatusPage = lazy(() => import('./pages/trade/UnorderedStatusPage'))
 const UnpurchasedStatusPage = lazy(() => import('./pages/trade/UnpurchasedStatusPage'))
@@ -120,6 +138,7 @@ const PurchaseStatusPage = lazy(() => import('./pages/trade/PurchaseStatusPage')
 const PurchaseDiscountPage = lazy(() => import('./pages/trade/PurchaseDiscountPage'))
 const ShipmentOrderPage = lazy(() => import('./pages/trade/ShipmentOrderPage'))
 const ShipmentPage = lazy(() => import('./pages/trade/ShipmentPage'))
+const ShipmentInquiryPage = lazy(() => import('./pages/trade/ShipmentInquiryPage'))
 const UnshippedPage = lazy(() => import('./pages/trade/UnshippedPage'))
 const CollectionPage = lazy(() => import('./pages/trade/CollectionPage'))
 const PaymentPage = lazy(() => import('./pages/trade/PaymentPage'))
@@ -127,6 +146,9 @@ const PartnerLedgerPage = lazy(() => import('./pages/trade/PartnerLedgerPage'))
 const AttendanceInputPage = lazy(() => import('./pages/hr/AttendanceInputPage'))
 const AttendanceListPage = lazy(() => import('./pages/hr/AttendanceListPage'))
 const AttendanceStatusPage = lazy(() => import('./pages/hr/AttendanceStatusPage'))
+const LateArrivalPage = lazy(() => import('./pages/hr/LateArrivalPage'))
+const DailyWorkHoursPage = lazy(() => import('./pages/hr/DailyWorkHoursPage'))
+const WorkIntegratedPage = lazy(() => import('./pages/hr/WorkIntegratedPage'))
 const VacationUsePage = lazy(() => import('./pages/hr/VacationUsePage'))
 const VacationRemainPage = lazy(() => import('./pages/hr/VacationRemainPage'))
 const EmployeePage = lazy(() => import('./pages/hr/EmployeePage'))
@@ -190,6 +212,12 @@ export default function App() {
         <Route path="/inventory/price-order" element={<PriceOrderPage />} />
         <Route path="/inventory/special-price-group" element={<SpecialPriceGroupPage />} />
         <Route path="/inventory/stock-io" element={<StockIoPage />} />
+        <Route path="/inventory/ledger" element={<StockLedgerPage />} />
+        <Route path="/inventory/movement" element={<StockMovementPage />} />
+        <Route path="/inventory/daily-report" element={<DailyReportPage />} />
+        <Route path="/inventory/stock-analysis" element={<StockAnalysisPage />} />
+        <Route path="/inventory/staged-adjustment" element={<StagedAdjustmentPage />} />
+        <Route path="/inventory/executive-report" element={<ExecutiveReportPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
@@ -231,6 +259,13 @@ export default function App() {
         <Route path="/sales/ledger" element={<LedgerPage />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
         <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
+        <Route path="/sales/trade-history" element={<TradeHistoryPage />} />
+        <Route path="/sales/sales-purchase-summary" element={<SalesPurchaseSummaryPage />} />
+        <Route path="/sales/monthly-ar-ap" element={<MonthlyArApPage />} />
+        <Route path="/sales/price-movement" element={<PriceMovementPage />} />
+        <Route path="/sales/item-entry" element={<ItemEntryPage />} />
+        <Route path="/sales/monthly-cumulative" element={<MonthlyCumulativePage />} />
+        <Route path="/sales/pivot-summary" element={<PivotSummaryPage />} />
         <Route path="/sales/sales-plan" element={<SalesPlanPage />} />
         <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
@@ -249,6 +284,7 @@ export default function App() {
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
+        <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
         <Route path="/sales/unshipped" element={<UnshippedPage />} />
         <Route path="/sales/collection" element={<CollectionPage />} />
         <Route path="/sales/payment" element={<PaymentPage />} />
@@ -308,10 +344,14 @@ export default function App() {
         <Route path="/quality" element={<Navigate to="/quality/inspection" replace />} />
         <Route path="/quality/inspection" element={<QualityInspectionPage />} />
         <Route path="/quality/inspection-status" element={<QualityStatusPage />} />
+        <Route path="/quality/inspection-request" element={<QualityRequestPage />} />
+        <Route path="/quality/defect-report" element={<DefectReportPage />} />
+        <Route path="/quality/lot-ledger" element={<LotLedgerPage />} />
         <Route path="/quality/serial-lot" element={<SerialLotPage />} />
         <Route path="/quality/lot-compare" element={<LotStockComparePage />} />
         <Route path="/quality/as" element={<AsManagePage />} />
         <Route path="/quality/as-status" element={<AsStatusPage />} />
+        <Route path="/quality/as-consumption" element={<AsConsumptionPage />} />
 
         {/* Self-Customizing */}
         <Route path="/settings" element={<Navigate to="/settings/company" replace />} />
@@ -340,6 +380,7 @@ export default function App() {
         <Route path="/groupware/cards" element={<BusinessCardPage />} />
         <Route path="/groupware/project" element={<ProjectPage />} />
         <Route path="/accounting/project-profit" element={<ProjectProfitPage />} />
+        <Route path="/accounting/project-plan" element={<ProjectPlanPage />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
         <Route path="/groupware/mail" element={<MailPage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
@@ -362,6 +403,9 @@ export default function App() {
         <Route path="/hr/attendance-input" element={<AttendanceInputPage />} />
         <Route path="/hr/attendance-list" element={<AttendanceListPage />} />
         <Route path="/hr/attendance-status" element={<AttendanceStatusPage />} />
+        <Route path="/hr/attendance-late" element={<LateArrivalPage />} />
+        <Route path="/hr/daily-hours" element={<DailyWorkHoursPage />} />
+        <Route path="/hr/work-integrated" element={<WorkIntegratedPage />} />
         <Route path="/hr/vacation-use" element={<VacationUsePage />} />
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
         <Route path="/hr/employees" element={<EmployeePage />} />

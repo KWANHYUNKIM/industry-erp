@@ -86,6 +86,19 @@ export default function SerialLotPage() {
     }
   }
 
+  async function adjust(lot: Lot) {
+    const v = window.prompt(`[${lot.lotNo}] 실사수량 (현재고 ${lot.stockQty})`, String(lot.stockQty))
+    if (v === null) return
+    const actualQty = Number(v)
+    if (!Number.isFinite(actualQty) || actualQty < 0) { alert('0 이상 숫자를 입력하세요.'); return }
+    try {
+      await api.patch(`/lots/${lot.id}/adjust`, { actualQty, note: '실사' })
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   const shown = rows
     .filter((r) => !keyword || r.lotNo.includes(keyword) || r.itemName.includes(keyword))
     .filter((r) => !onlyStock || r.stockQty > 0)
@@ -167,6 +180,7 @@ export default function SerialLotPage() {
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={r.held || r.stockQty <= 0} onClick={() => consume(r)}>출고</button>
+                <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} onClick={() => adjust(r)}>실사</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? '#1c7c3c' : '#c07a00' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>
               </td>
             </tr>

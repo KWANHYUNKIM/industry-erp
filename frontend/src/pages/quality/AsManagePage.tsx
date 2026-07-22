@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Partner } from '../../api/types'
+import type { Item, Partner, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+
+interface AsPart {
+  id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
+  quantity: number; unitPrice: number | null; amount: number | null; remark: string | null
+}
+const won = (n: number) => n.toLocaleString('ko-KR')
 
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '처리중', COMPLETED: '완료', CANCELED: '취소' }
@@ -21,7 +27,14 @@ export default function AsManagePage() {
   const [rows, setRows] = useState<AsRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [error, setError] = useState('')
+
+  // 소모부품 관리
+  const [partsFor, setPartsFor] = useState<AsRow | null>(null)
+  const [parts, setParts] = useState<AsPart[]>([])
+  const [partForm, setPartForm] = useState({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
+  const [partError, setPartError] = useState('')
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -37,15 +50,45 @@ export default function AsManagePage() {
 
   async function load() {
     try {
-      const [a, p, i] = await Promise.all([
+      const [a, p, i, w] = await Promise.all([
         api.get<AsRow[]>('/as-requests'),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
+        api.get<Warehouse[]>('/warehouses'),
       ])
-      setRows(a.data); setPartners(p.data); setItems(i.data)
+      setRows(a.data); setPartners(p.data); setItems(i.data); setWarehouses(w.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { load() }, [])
+
+  async function openParts(r: AsRow) {
+    setPartsFor(r); setPartError(''); setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
+    try { setParts((await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data) }
+    catch (err) { setPartError(extractErrorMessage(err)) }
+  }
+  async function addPart() {
+    if (!partsFor) return
+    setPartError('')
+    if (!partForm.itemId) return setPartError('품목을 선택하세요.')
+    if (!partForm.warehouseId) return setPartError('창고를 선택하세요.')
+    if (!(Number(partForm.quantity) > 0)) return setPartError('수량은 0보다 커야 합니다.')
+    try {
+      await api.post(`/as-requests/${partsFor.id}/parts`, {
+        itemId: Number(partForm.itemId), warehouseId: Number(partForm.warehouseId),
+        quantity: Number(partForm.quantity), unitPrice: partForm.unitPrice ? Number(partForm.unitPrice) : undefined,
+      })
+      setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
+      setParts((await api.get<AsPart[]>(`/as-requests/${partsFor.id}/parts`)).data)
+    } catch (err) { setPartError(extractErrorMessage(err)) }
+  }
+  async function delPart(p: AsPart) {
+    if (!partsFor) return
+    if (!confirm(`${p.itemName} ${won(p.quantity)}개 소모를 삭제할까요? (재고 복원)`)) return
+    try {
+      await api.delete(`/as-requests/parts/${p.id}`)
+      setParts((await api.get<AsPart[]>(`/as-requests/${partsFor.id}/parts`)).data)
+    } catch (err) { alert(extractErrorMessage(err)) }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -138,6 +181,46 @@ export default function AsManagePage() {
         </form>
       )}</Modal>
 
+      <Modal open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
+        <div style={{ padding: 4, minWidth: 560 }}>
+          <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+            <select className="ec-input" value={partForm.itemId} onChange={(e) => setPartForm((f) => ({ ...f, itemId: e.target.value }))} style={{ minWidth: 180 }}>
+              <option value="">부품(품목) 선택</option>
+              {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
+            </select>
+            <select className="ec-input" value={partForm.warehouseId} onChange={(e) => setPartForm((f) => ({ ...f, warehouseId: e.target.value }))} style={{ minWidth: 130 }}>
+              <option value="">창고</option>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
+            </select>
+            <input className="ec-input text-right" type="number" placeholder="수량" value={partForm.quantity} onChange={(e) => setPartForm((f) => ({ ...f, quantity: e.target.value }))} style={{ width: 80 }} />
+            <input className="ec-input text-right" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((f) => ({ ...f, unitPrice: e.target.value }))} style={{ width: 100 }} />
+            <button className="ec-btn ec-btn-primary" onClick={addPart}>추가(재고차감)</button>
+          </div>
+          {partError && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
+          <table className="w-full text-left">
+            <thead>
+              <tr><th style={{ width: 34 }}></th><th>부품</th><th>창고</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th><th style={{ textAlign: 'center' }}></th></tr>
+            </thead>
+            <tbody>
+              {parts.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>소모부품 없음</td></tr>
+              ) : parts.map((p, i) => (
+                <tr key={p.id}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>{p.itemName}</td>
+                  <td>{p.warehouseName}</td>
+                  <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
+                  <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : '-'}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : '-'}</td>
+                  <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}</Modal>
+
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
@@ -171,6 +254,7 @@ export default function AsManagePage() {
               <td>{r.doneDate ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
+                <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: '#5a626e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
                 {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
               </td>
             </tr>
