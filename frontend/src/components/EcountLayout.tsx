@@ -97,6 +97,7 @@ const MENU: TopMenu[] = [
           { label: '발주요청현황', to: '/sales/purchase-request-status' },
           { label: '발주계획현황', to: '/sales/purchase-plan-status' },
           { label: '단가요청현황', to: '/sales/price-request-status' },
+          { label: '단가요청진행단계', to: '/sales/price-request-progress' },
           { label: '구매입력', to: '/sales/buy' },
           { label: '구매조회', to: '/sales/purchase-list' },
           { label: '구매현황', to: '/sales/purchase-status' },
