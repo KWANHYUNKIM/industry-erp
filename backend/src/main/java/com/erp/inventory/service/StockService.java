@@ -22,7 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import com.erp.inventory.dto.StockDtos;
 
 @Service
@@ -56,6 +61,74 @@ public class StockService {
         Pageable pageable = PageRequest.of(page, size);
         return transactionRepository.findAllWithRefs(pageable)
                 .map(StockTransactionResponse::from);
+    }
+
+    /**
+     * 재고수불부 — 기간·창고·품목으로 거른 입출고 원장(일자·id 오름차순).
+     * 품목·창고를 모두 특정하면 기초재고(opening)를 함께 산출한다. 저장된 balanceAfter는 입력(id)순
+     * 기준이라 일자정렬 화면에서 어긋날 수 있으므로, 화면은 opening에 변동량을 누적해 잔량을 재계산한다.
+     */
+    @Transactional(readOnly = true)
+    public StockDtos.StockLedgerResponse ledger(Long itemId, Long warehouseId, LocalDate from, LocalDate to) {
+        // 날짜는 항상 non-null로 (PostgreSQL 42P18 회피). 미지정이면 넓은 경계로 채운다.
+        LocalDate effFrom = from != null ? from : LocalDate.of(1900, 1, 1);
+        LocalDate effTo = to != null ? to : LocalDate.of(9999, 12, 31);
+        List<StockTransactionResponse> rows = transactionRepository.findLedger(itemId, warehouseId, effFrom, effTo).stream()
+                .map(StockTransactionResponse::from)
+                .toList();
+        BigDecimal opening = null;
+        if (itemId != null && warehouseId != null) {
+            opening = from != null
+                    ? transactionRepository.sumChangeBefore(itemId, warehouseId, from)
+                    : BigDecimal.ZERO;   // from 미지정 → 전기간, 첫 거래 이전 재고는 0
+        }
+        return new StockDtos.StockLedgerResponse(opening, rows);
+    }
+
+    /**
+     * 재고변동표 — 품목별 기초·입고·출고·기말. warehouseId가 null이면 전 창고 합산.
+     * 기간 이전에 활동이 있었거나 기간 내 입출고가 있는 품목만 포함한다.
+     */
+    @Transactional(readOnly = true)
+    public List<StockDtos.StockMovementRow> movement(LocalDate from, LocalDate to, Long warehouseId) {
+        LocalDate effFrom = from != null ? from : LocalDate.of(1900, 1, 1);
+        LocalDate effTo = to != null ? to : LocalDate.of(9999, 12, 31);
+
+        Map<Long, BigDecimal> openingByItem = new LinkedHashMap<>();
+        for (Object[] r : transactionRepository.aggregateOpening(effFrom, warehouseId)) {
+            openingByItem.put(((Number) r[0]).longValue(), toBig(r[1]));
+        }
+        Map<Long, BigDecimal[]> inOutByItem = new LinkedHashMap<>();
+        for (Object[] r : transactionRepository.aggregateMovement(effFrom, effTo, warehouseId)) {
+            inOutByItem.put(((Number) r[0]).longValue(), new BigDecimal[]{ toBig(r[1]), toBig(r[2]) });
+        }
+
+        // 대상 품목 = 기초 또는 기간활동이 있는 품목의 합집합
+        Set<Long> itemIds = new LinkedHashSet<>();
+        itemIds.addAll(openingByItem.keySet());
+        itemIds.addAll(inOutByItem.keySet());
+        Map<Long, Item> items = itemRepository.findAllById(itemIds).stream()
+                .collect(Collectors.toMap(Item::getId, it -> it));
+
+        List<StockDtos.StockMovementRow> rows = new java.util.ArrayList<>();
+        for (Long id : itemIds) {
+            Item it = items.get(id);
+            if (it == null) continue;   // 품목이 지워진 경우 방어
+            BigDecimal opening = openingByItem.getOrDefault(id, BigDecimal.ZERO);
+            BigDecimal[] io = inOutByItem.getOrDefault(id, new BigDecimal[]{ BigDecimal.ZERO, BigDecimal.ZERO });
+            BigDecimal closing = opening.add(io[0]).subtract(io[1]);
+            rows.add(new StockDtos.StockMovementRow(
+                    it.getId(), it.getCode(), it.getName(), it.getUnit(),
+                    opening, io[0], io[1], closing));
+        }
+        rows.sort(java.util.Comparator.comparing(StockDtos.StockMovementRow::itemName));
+        return rows;
+    }
+
+    private static BigDecimal toBig(Object v) {
+        if (v == null) return BigDecimal.ZERO;
+        if (v instanceof BigDecimal b) return b;
+        return BigDecimal.valueOf(((Number) v).doubleValue());
     }
 
     /** 입고/출고/조정 처리 (재고 화면에서 직접 등록) */

@@ -1,9 +1,11 @@
 package com.erp.inventory.controller;
 
+import com.erp.inventory.dto.LotDtos.AdjustLotRequest;
 import com.erp.inventory.dto.LotDtos.ConsumeLotRequest;
 import com.erp.inventory.dto.LotDtos.CreateLotRequest;
 import com.erp.inventory.dto.LotDtos.HoldLotRequest;
 import com.erp.inventory.dto.LotDtos.LotResponse;
+import com.erp.inventory.dto.LotDtos.LotTransactionResponse;
 import com.erp.inventory.service.LotService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,12 @@ public class LotController {
         return lotService.findAll();
     }
 
+    /** 로트 수불부/내역조회 — 전체 로트 입출고 이력. */
+    @GetMapping("/transactions")
+    public List<LotTransactionResponse> transactions() {
+        return lotService.transactions();
+    }
+
     @PostMapping
     public ResponseEntity<LotResponse> create(@Valid @RequestBody CreateLotRequest req) {
         return ResponseEntity.ok(lotService.create(req));
@@ -38,5 +46,10 @@ public class LotController {
     @PatchMapping("/{id}/hold")
     public LotResponse hold(@PathVariable Long id, @RequestBody HoldLotRequest req) {
         return lotService.hold(id, req);
+    }
+
+    @PatchMapping("/{id}/adjust")
+    public LotResponse adjust(@PathVariable Long id, @Valid @RequestBody AdjustLotRequest req) {
+        return lotService.adjust(id, req);
     }
 }

@@ -8,10 +8,27 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class StockDtos {
 
     private StockDtos() {}
+
+    /**
+     * 재고수불부 응답. {@code opening}은 기간 시작 직전의 재고(품목·창고를 모두 특정했을 때만 산출,
+     * 그 외에는 null)이며, 화면은 이 값에 각 행의 변동량을 누적해 잔량을 <b>표시순서대로 재계산</b>한다.
+     * 저장된 balanceAfter는 입력(id)순 기준이라 일자정렬 화면에서 그대로 쓰면 어긋나기 때문이다.
+     */
+    public record StockLedgerResponse(
+            BigDecimal opening,
+            List<StockTransactionResponse> rows
+    ) {}
+
+    /** 재고변동표 한 행 — 품목별 기초·입고·출고·기말(기말 = 기초 + 입고 − 출고). */
+    public record StockMovementRow(
+            Long itemId, String itemCode, String itemName, String unit,
+            BigDecimal opening, BigDecimal inQty, BigDecimal outQty, BigDecimal closing
+    ) {}
 
     /** 입고/출고/조정 요청. quantity 는 항상 양수, 방향은 type 이 결정.
      *  (조정에서 감소가 필요하면 type=ADJUST + direction=false) */

@@ -8,6 +8,7 @@ import com.erp.inventory.dto.ProjectDtos.ProjectResponse;
 import com.erp.inventory.dto.ProjectDtos.UpdateProjectRequest;
 import com.erp.inventory.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +71,23 @@ public class ProjectService {
         if (p.getStatus() == ProjectStatus.DONE) p.setProgress(100);
 
         return ProjectResponse.from(p);
+    }
+
+    /**
+     * 프로젝트 삭제. 판매·구매·비용 전표나 프로젝트계획이 참조 중이면 FK 제약이 막는다.
+     * inventory는 상위 모듈(trade·accounting)을 참조할 수 없으므로, 여기서 참조 여부를 직접
+     * 조회하지 않고 DB 제약 위반을 잡아 사용자 메시지로 번역한다(모듈 경계 유지).
+     */
+    @Transactional
+    public void delete(Long id) {
+        Project p = projectRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + id));
+        try {
+            projectRepository.delete(p);
+            projectRepository.flush();   // FK 위반을 이 시점에 발생시켜 잡는다
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.badRequest("이 프로젝트를 참조하는 전표·계획이 있어 삭제할 수 없습니다. 먼저 연결을 해제하세요.");
+        }
     }
 
     private String generateCode(LocalDate date) {

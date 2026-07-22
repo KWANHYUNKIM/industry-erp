@@ -57,7 +57,7 @@ public class StockAdjustmentService {
 
         // 재고 부족·차이 없음은 StockService 가 예외로 막고, 전표까지 함께 롤백된다.
         StockTransaction tx = switch (req.type()) {
-            case SELF_USE, DEFECT -> {
+            case SELF_USE, DEFECT, SUBSTITUTE, DISPOSAL -> {
                 BigDecimal qty = required(req.quantity(), "차감할 수량을 입력하세요.");
                 if (qty.signum() <= 0) {
                     throw ApiException.badRequest("수량은 0보다 커야 합니다.");

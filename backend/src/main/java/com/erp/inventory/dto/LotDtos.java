@@ -1,7 +1,9 @@
 package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.Lot;
+import com.erp.inventory.domain.LotTransaction;
 import com.erp.inventory.domain.enums.LotStatus;
+import com.erp.inventory.domain.enums.LotTxType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -12,6 +14,31 @@ import java.time.LocalDate;
 public final class LotDtos {
 
     private LotDtos() {}
+
+    /** 로트 실사 조정 요청. 실사수량으로 로트 재고를 맞춘다. */
+    public record AdjustLotRequest(
+            @NotNull(message = "실사수량을 입력하세요.") BigDecimal actualQty,
+            String note
+    ) {}
+
+    /** 로트 수불부/내역 한 줄. balanceAfter 는 그 시점 로트 재고. */
+    public record LotTransactionResponse(
+            Long id, Long lotId, String lotNo,
+            Long itemId, String itemCode, String itemName, String unit,
+            LocalDate txDate, LotTxType type, String typeName,
+            BigDecimal quantityChange, BigDecimal balanceAfter,
+            String note, String createdBy
+    ) {
+        public static LotTransactionResponse from(LotTransaction t) {
+            Lot l = t.getLot();
+            return new LotTransactionResponse(
+                    t.getId(), l.getId(), l.getLotNo(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    t.getTxDate(), t.getType(), t.getType().getDisplayName(),
+                    t.getQuantityChange(), t.getBalanceAfter(),
+                    t.getNote(), t.getCreatedBy());
+        }
+    }
 
     public record CreateLotRequest(
             @NotBlank(message = "로트No.를 입력하세요.") String lotNo,
