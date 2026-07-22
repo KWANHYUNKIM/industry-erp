@@ -1479,8 +1479,11 @@ async function scenarioPaySetting() {
   eq('비과세 수당도 지급은 된다(실지급액에 포함)',
     Number(slip.netPay), base + 500_000 - Number(slip.deductionTotal))
 
-  // ── 급여이체: 확정된 명세만, 계좌에서 실지급액이 나간다
-  const accountNo = `${P}440-666-000004`
+  // ── 급여이체: 확정된 명세만, 계좌에서 실지급액이 나간다.
+  // 계좌를 귀속월(month)별 전용으로 둔다. month 는 매 실행 '빈 귀속월'로 새로 선택되므로
+  // 계좌도 매번 신선한 개설잔액(5천만)으로 생성돼, 반복 실행에도 잔액이 드리프트로 고갈되지 않는다.
+  // (예전엔 계좌 하나를 재사용해 매 실행 ~3백만씩 빠져나가 ~15회 후 '잔액 부족'으로 중단됐다.)
+  const accountNo = `${P}440-666-${month.replace('-', '')}`
   const banks = await must('GET', '/bank-cards/accounts')
   const bank = banks.find((b) => b.accountNo === accountNo)
     ?? await must('POST', '/bank-cards/accounts', {
