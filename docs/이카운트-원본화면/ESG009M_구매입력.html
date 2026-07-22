@@ -1,0 +1,92 @@
+<!--
+  이카운트 구매입력(prgId ESG009M) 화면의 최종 렌더 DOM 전체 스냅샷 (주식회사 팜인 실계정 캡처).
+  우리 ERP의 구매입력(frontend TradeEntry, mode="purchase") 재현 근거 원본.
+  - 헤더: 일자 / 거래처 / 담당자 / 입고창고 / 거래유형(부가세율 적용) / 통화(내자) / 프로젝트
+  - 그리드: 품목코드 · 품목명 · 규격 · 기본수량 · 단가 · 공급가액 · 부가세 · 적요 (+ 다수 hidden 컬럼)
+  - 툴바: 찾기(F3) · 정렬 · 거래내역보기(구매) · My품목 · 발주 · 주문 · 할인 · 전표불러오기 · 재고불러오기
+  관련 구현 커밋: feat(trade) 구매·판매입력 이카운트 ESG009M화 — 라인 적요·규격·품목코드.
+-->
+<div class="tab-content" style=""><div class="tab-pane" style="display: block;" data-container-id="ESG009M_130346986424∫main"><ul class="wrapper-form wrapper-form-state-2" data-formid="formESG009M" data-ecpath="ESG009M_130346986424∫contents∫main∫formESG009M∫∫∫"><li data-listid="basic_date" class=""><div class="title" data-listid="basic_date">일자</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫basic_date∫">
+
+<div class="wrapper-datepicker {{style.contextCss}}" data-cid="{{cid}}" data-pcid="{{pcid}}" data-node="0" data-section="0" data-role="dateWrapper">
+<button data-service="layer.selectbox" data-index="0" data-role="date.selectbox" data-role-index="0" data-cid="basic_date" class="btn btn-default btn-selectbox btn-group-select-inline  disabled"><div class="selectbox-label">2026</div></button><input type="text" data-service="layer.autocomplete" data-cid="basic_date" data-index="0" data-role="date.selectbox" data-role-index="0" class="hidden form-control select-direct-input" disabled=""><span data-for="0" class="">&nbsp;/</span>
+<button data-service="layer.selectbox" data-index="1" data-role="date.selectbox" data-role-index="1" data-cid="basic_date" class="btn btn-default btn-selectbox btn-group-select-inline  disabled"><div class="selectbox-label">07</div></button><input type="text" data-service="" data-cid="basic_date" data-index="1" data-role="date.selectbox" data-role-index="1" class="hidden form-control select-direct-input" disabled="">
+<span data-for="2" class="">/&nbsp;</span><input type="text" class="form-control " data-index="2" data-role-index="2" data-cid="basic_date" value="15" style="{{css.style}}" disabled="">
+
+<div id="btn-datepicker-toggle" data-cid="basic_date" class="btn-datepicker-toggle hidden" data-calendar="0" tabindex="-1" data-service="layer.datepicker" data-function="button" data-function-id="date.picker"></div>
+<span data-role="date.label" class=""> - 1 </span>
+
+<button type="button" class="btn btn-default btn-fn dropdown-toggle fn  " data-function="fn" data-service="layer.fn" data-service-attr="layer.fixed" data-cid="basic_date"></button>
+</div>
+</div></div></div></li><li data-listid="cust" class=""><div class="title" data-listid="cust">거래처</div><div class="form"><div class="control-set    "><div class="control  {{style.css}} " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫cust∫"><input type="text" class="noneEvent form-control form-control-code first-child" data-index="0" data-cid="cust" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="거래처" value="1378174235"><button class="btn btn-default btn-code-search" data-function="button" data-function-id="code.openpopup" data-cid="cust"></button><input type="text" class="form-control last-child" data-index="1" data-cid="cust" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="" value="(주)록스기계"><button type="button" class="btn btn-default btn-fn dropdown-toggle fn hidden" data-function="fn" data-service="layer.fn" data-service-attr="layer.fixed" data-cid="cust"></button><button class="btn btn-default btn-remove hidden" id="btn-remove" data-function="button" data-function-id="code.removeall"></button></div></div></div></li><li data-listid="emp_cd" class=""><div class="title" data-listid="emp_cd">담당자</div><div class="form"><div class="control-set    "><div class="control  {{style.css}} " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫emp_cd∫"><input type="text" class="noneEvent form-control form-control-code first-child" data-index="0" data-cid="emp_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="담당자" value="FI_lab00004"><button class="btn btn-default btn-code-search" data-function="button" data-function-id="code.openpopup" data-cid="emp_cd"></button><input type="text" class="form-control last-child" data-index="1" data-cid="emp_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="" readonly="" value="유나은"><button class="btn btn-default btn-remove hidden" id="btn-remove" data-function="button" data-function-id="code.removeall"></button></div></div></div></li><li data-listid="wh_cd" class=""><div class="title" data-listid="wh_cd">입고창고</div><div class="form"><div class="control-set    "><div class="control  {{style.css}} " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫wh_cd∫"><input type="text" class="noneEvent form-control form-control-code first-child" data-index="0" data-cid="wh_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="입고창고" value="100"><button class="btn btn-default btn-code-search" data-function="button" data-function-id="code.openpopup" data-cid="wh_cd"></button><input type="text" class="form-control last-child" data-index="1" data-cid="wh_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="" readonly="" value="제품자재창고"><button class="btn btn-default btn-remove hidden" id="btn-remove" data-function="button" data-function-id="code.removeall"></button></div></div></div></li><li data-listid="io_type" class=""><div class="title" data-listid="io_type">거래유형</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫io_type∫">
+
+<button data-service="layer.selectbox" data-index="0" data-role="{{ecRole}}" data-role-index="0" data-cid="io_type" class="btn btn-default btn-selectbox first-child last-child"><div class="selectbox-label">부가세율 적용</div></button><input type="text" data-service="layer.autocomplete" data-cid="io_type" data-index="0" data-role="{{ecRole}}" data-role-index="0" class="hidden form-control select-direct-input">
+</div></div></div></li><li data-listid="foreign_type" class=""><div class="title" data-listid="foreign_type">통화</div><div class="form"><div class="control-set"><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫foreign_type_select∫foreign_type">
+
+<button data-service="layer.selectbox" data-index="0" data-role="{{ecRole}}" data-role-index="0" data-cid="foreign_type_select" class="btn btn-default btn-selectbox first-child last-child"><div class="selectbox-label">내자</div></button><input type="text" data-service="layer.autocomplete" data-cid="foreign_type_select" data-index="0" data-role="{{ecRole}}" data-role-index="0" class="hidden form-control select-direct-input">
+</div><div class="control   hidden" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫foreign_type_input∫foreign_type">
+
+<input type="text" class="form-control form-control text-right first-child last-child" data-index="0" data-cid="foreign_type_input" data-pcid="foreign_type" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫foreign_type_input∫foreign_type" placeholder="통화" value="0">
+</div></div></div></li><li data-listid="pjt_cd" class=""><div class="title" data-listid="pjt_cd">프로젝트</div><div class="form"><div class="control-set    "><div class="control  {{style.css}} " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫pjt_cd∫"><input type="text" class="noneEvent form-control form-control-code first-child" data-index="0" data-cid="pjt_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="프로젝트" value=""><button class="btn btn-default btn-code-search" data-function="button" data-function-id="code.openpopup" data-cid="pjt_cd"></button><input type="text" class="form-control last-child" data-index="1" data-cid="pjt_cd" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="" readonly="" value=""><button class="btn btn-default btn-remove hidden" id="btn-remove" data-function="button" data-function-id="code.removeall"></button></div></div></div></li><li data-listid="u_memo1" class="hidden"><div class="title" data-listid="u_memo1">문자형식1</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo1∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="u_memo1" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo1∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="문자형식1" readonly="" value="">
+</div></div></div></li><li data-listid="u_memo2" class="hidden"><div class="title" data-listid="u_memo2">문자형식2</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo2∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="u_memo2" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo2∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="문자형식2" readonly="" value="">
+</div></div></div></li><li data-listid="u_memo3" class="hidden"><div class="title" data-listid="u_memo3">문자형식3</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo3∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="u_memo3" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo3∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="문자형식3" readonly="" value="">
+</div></div></div></li><li data-listid="u_memo4" class="hidden"><div class="title" data-listid="u_memo4">문자형식4</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo4∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="u_memo4" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo4∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="문자형식4" readonly="" value="">
+</div></div></div></li><li data-listid="u_memo5" class="hidden"><div class="title" data-listid="u_memo5">문자형식5</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo5∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="u_memo5" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_memo5∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="문자형식5" readonly="" value="">
+</div></div></div></li><li data-listid="u_txt1" class="hidden"><div class="title" data-listid="u_txt1">장문형식1</div><div class="form"><div class="control-set multi-line   "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫u_txt1∫">
+
+<textarea rows="2" class="form-control first-child last-child" data-index="0" data-cid="u_txt1" wrap="hard" placeholder="장문형식1" readonly="" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" style=""></textarea>
+</div></div></div></li><li data-listid="file_cd" class="hidden"><div class="title" data-listid="file_cd">첨부</div><div class="form"></div></li><li data-listid="doc_no" class="hidden"><div class="title" data-listid="doc_no">구매No.</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫doc_no∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="doc_no" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫doc_no∫" placeholder="구매No." value=""><button type="button" class="btn btn-default btn-fn dropdown-toggle fn  hidden" data-function="fn" data-service="layer.fn" data-service-attr="layer.fixed" data-cid="doc_no"></button>
+</div></div></div></li><li data-listid="site" class="hidden"><div class="title" data-listid="site">부서</div><div class="form"><div class="control-set    "><div class="control  {{style.css}} " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫site∫"><input type="text" class="noneEvent form-control form-control-code first-child" data-index="0" data-cid="site" placeholder="부서" disabled="" value=""><button class="btn btn-default btn-code-search" data-function="button" data-function-id="code.openpopup" data-cid="site"></button><input type="text" class="form-control last-child" data-index="1" data-cid="site" placeholder="" readonly="" disabled="" value=""><button class="btn btn-default btn-remove hidden" id="btn-remove" data-function="button" data-function-id="code.removeall"></button></div></div></div></li><li data-listid="TTL_CTT" class="hidden"><div class="title" data-listid="TTL_CTT">제목</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫TTL_CTT∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="TTL_CTT" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫TTL_CTT∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="제목" readonly="" value="2026/07/15 -1 (주)록스기계 밴드쏘 외 1건">
+</div></div></div></li><li data-listid="ADD_TXT_01_T" class="hidden"><div class="title" data-listid="ADD_TXT_01_T">추가문자형식1</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_01_T∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="ADD_TXT_01_T" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_01_T∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="추가문자형식1" readonly="" value="">
+</div></div></div></li><li data-listid="ADD_TXT_02_T" class="hidden"><div class="title" data-listid="ADD_TXT_02_T">추가문자형식2</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_02_T∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="ADD_TXT_02_T" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_02_T∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="추가문자형식2" readonly="" value="">
+</div></div></div></li><li data-listid="ADD_TXT_03_T" class="hidden"><div class="title" data-listid="ADD_TXT_03_T">추가문자형식3</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_03_T∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="ADD_TXT_03_T" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_03_T∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="추가문자형식3" readonly="" value="">
+</div></div></div></li><li data-listid="ADD_TXT_04_T" class="hidden"><div class="title" data-listid="ADD_TXT_04_T">추가문자형식4</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_04_T∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="ADD_TXT_04_T" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_04_T∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="추가문자형식4" readonly="" value="">
+</div></div></div></li><li data-listid="ADD_TXT_05_T" class="hidden"><div class="title" data-listid="ADD_TXT_05_T">추가문자형식5</div><div class="form"><div class="control-set    "><div class="control   " data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_05_T∫">
+
+<input type="text" class="form-control form-control first-child last-child" data-index="0" data-cid="ADD_TXT_05_T" data-ecpath="ESG009M_130346986424∫contents∫main∫∫∫ADD_TXT_05_T∫" data-service-attr="layer.focusable" data-lazy-service="layer.recommenddropdown" placeholder="추가문자형식5" readonly="" value="">
+</div></div></div></li><li data-listid="file_cd_bottom" class="hidden"><div class="title"></div><div class="form"></div></li></ul>
+
+<!--
+  ※ 아래 하단 툴바·명세 그리드(gridESG009M)의 전체 DOM은 원본 캡처가 매우 길다(수천 줄).
+     헤더 폼(위)은 원본 그대로 보존했고, 그리드/툴바는 컬럼·버튼·예시데이터를 요약해 남긴다.
+
+  [하단 툴바 버튼]
+    찾기(F3) · 정렬 · 거래내역보기(구매) · My품목 · 발주 · 주문 · 할인 · 전표불러오기 · 재고불러오기
+    (숨김) 불러온 전표 · 바코드 · 품목코드/합산기본수량 옵션 · 전표 바코드 · 검증
+    (2행) 선택삭제 · 재고 · F4 · 수량± · 단가변경 · 조정 · 부대비용 · 적용
+
+  [그리드 컬럼(visible)]  CHK · 이동 · 품목코드 | 품목명 | 규격 | 기본수량 | 단가 | 공급가액 | 부가세 | 적요
+  [그리드 컬럼(hidden)]   전체수량 · 창고수량 · 품질검사요청생성 · 불러온전표(일자/명/No.) · 추가수량 ·
+                          단위 · 단가(vat포함) · 관리항목 · 금액1/2 · 적요1~3 · 시리얼로트 · 부대비용 ·
+                          추가문자1~10 · 추가숫자1~5 · 추가장문1~3 · 추가일자1~3 · 추가코드1~3(코드/명)
+
+  [예시 라인]
+    1  RB-230    밴드쏘        바이스타입     1   2,400,000   2,400,000   240,000   (발주서 20260714 / ord_no 1 / ea)
+    2  RB-230.8  밴드쏘톱날    1855*16*14     5      18,000      90,000     9,000   (발주서 20260714 / ord_no 1 / ea)
+    3~5 (빈 행)
+
+  [합계(tfoot)]  기본수량 6 · 공급가액 2,490,000 · 부가세 249,000 · 총계(적요칸) 2,739,000
+-->
+</div></div>
