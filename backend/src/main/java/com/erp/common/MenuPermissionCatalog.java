@@ -68,7 +68,7 @@ public final class MenuPermissionCatalog {
                 "/api/crm-activities");
         put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/quotations", "/api/shipments",
                 "/api/price-bulk", "/api/special-prices", "/api/order-types", "/api/order-stages",
-                "/api/price-order-settings", "/api/settlements");
+                "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values");
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
                 "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
@@ -99,7 +99,7 @@ public final class MenuPermissionCatalog {
                 "/api/drive-documents", "/api/mails", "/api/schedule-events", "/api/field-works");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
-                "/api/currencies", "/api/codes", "/api/print-sign-lines");
+                "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields");
         put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies");
         return m;
     }

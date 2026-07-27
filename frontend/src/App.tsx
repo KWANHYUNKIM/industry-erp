@@ -105,6 +105,7 @@ const WmsPage = lazy(() => import('./pages/inventory/WmsPage'))
 const ReportsPage = lazy(() => import('./pages/inventory/ReportsPage'))
 const EtcSystemPage = lazy(() => import('./pages/settings/EtcSystemPage'))
 const CommonCodePage = lazy(() => import('./pages/settings/CommonCodePage'))
+const CustomFieldPage = lazy(() => import('./pages/settings/CustomFieldPage'))
 const DataCollectPage = lazy(() => import('./pages/datacenter/DataCollectPage'))
 const DataExportPage = lazy(() => import('./pages/datacenter/DataExportPage'))
 const MrpPage = lazy(() => import('./pages/production/MrpPage'))
@@ -374,6 +375,7 @@ export default function App() {
         <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
         <Route path="/settings/codes" element={<CommonCodePage />} />
+        <Route path="/settings/custom-fields" element={<CustomFieldPage />} />
 
         {/* 그룹웨어 */}
         <Route path="/groupware" element={<Navigate to="/groupware/approval/draft" replace />} />

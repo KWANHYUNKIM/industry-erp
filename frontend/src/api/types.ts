@@ -1930,6 +1930,28 @@ export interface MallItemMapping {
   active: boolean
 }
 
+// ===== 사용자정의 필드(Self-Customizing) =====
+
+export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CODE'
+
+export interface CustomFieldDef {
+  id: number
+  entityType: string
+  fieldKey: string
+  label: string
+  fieldType: CustomFieldType
+  fieldTypeName: string
+  options: string | null
+  required: boolean
+  sortOrder: number
+  active: boolean
+}
+
+export interface EntityCustomFields {
+  defs: CustomFieldDef[]
+  values: Record<string, string>
+}
+
 export type MallAccountType = 'MALL' | 'SOLUTION'
 
 export interface MallAccount {
