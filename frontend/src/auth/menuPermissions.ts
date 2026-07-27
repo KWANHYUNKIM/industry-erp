@@ -54,6 +54,7 @@ const RULES: Rule[] = [
   ['/sales/mall', 'MALL'],
   ['/sales/mall-item-mappings', 'MALL'],
   ['/sales/mall-accounts', 'MALL'],
+  ['/sales/condition-search', 'SALES'],
   // 나머지 영업 (sell · sales-* · quotations · shipment* · settlement · collection · orders …)
   ['/sales', 'SALES'],
 

@@ -414,6 +414,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '주요전달사항', to: '/groupware/key-notice' },
           { label: '공유정보', to: '/groupware/shared' },
+          { label: '조건별검색', to: '/sales/condition-search' },
           { label: '조직도관리', to: '/groupware/org' },
           { label: '게시판', children: [
             { label: '공지사항', to: '/groupware/notice' },

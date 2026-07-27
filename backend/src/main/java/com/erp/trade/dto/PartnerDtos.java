@@ -55,6 +55,8 @@ public final class PartnerDtos {
             String address,
             String salesPriceGroup,
             String purchasePriceGroup,
+            Long partnerGroupId,
+            String partnerGroupName,
             boolean active
     ) {
         public static PartnerResponse from(BusinessPartner p) {
@@ -62,7 +64,10 @@ public final class PartnerDtos {
                     p.getId(), p.getCode(), p.getName(), p.getType(), p.getType().getDisplayName(),
                     p.getBizRegNo(), p.getCeoName(), p.getBizType(), p.getBizItem(),
                     p.getManager(), p.getPhone(), p.getAddress(),
-                    p.getSalesPriceGroup(), p.getPurchasePriceGroup(), p.isActive());
+                    p.getSalesPriceGroup(), p.getPurchasePriceGroup(),
+                    p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
+                    p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
+                    p.isActive());
         }
     }
 }

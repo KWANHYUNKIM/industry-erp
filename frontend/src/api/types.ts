@@ -151,6 +151,8 @@ export interface Partner {
   address: string | null
   salesPriceGroup: string | null
   purchasePriceGroup: string | null
+  partnerGroupId: number | null
+  partnerGroupName: string | null
   active: boolean
 }
 
