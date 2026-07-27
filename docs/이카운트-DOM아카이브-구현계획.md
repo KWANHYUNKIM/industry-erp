@@ -433,8 +433,20 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
   **함정**: `mall_orders.status`에 CHECK 제약(ck_mall_orders_status, V70)이 있어 enum 값 추가가 런타임 23514로 막힘 — validate가
   CHECK를 안 봐 기동은 통과했다(enum CHECK 함정). V113으로 제약을 7개 값으로 교체해 해소.
   **테넌트 baseline 주의**: `db/tenant/V1__tenant_baseline.sql`은 V101 이후로 갱신되지 않아(sales_plans·special_prices·
-  card_issuers 등 미포함) 이미 표류 상태다. 이 프로젝트의 실제 관행은 public용 `db/migration`만 유지하는 것이며, 신규 테넌트
-  스키마 생성은 별도 baseline 리프레시가 필요하다(기존 이슈, 이번 범위 밖).
+  card_issuers 등 미포함) 이미 표류 상태다 → 아래에서 정비함.
+- ✅ **테넌트 baseline 표류 정비 (멀티테넌시 신규 회사 생성 복구)** — `db/tenant/V1__tenant_baseline.sql`이 2026-07-16
+  스냅샷(공용 V101 시점) 이후 갱신되지 않아, 신규 회사 스키마가 최근 테이블(V102~V113: 매출계획·품질검사요청·프로젝트계획·
+  대체/폐기 CHECK·로트이력·단계별조정·A/S부품·특별단가·카드사/결제대행사·메일 임시/지운함·몰 배송/반품/교환) 없이 생성돼
+  최근 기능이 전부 깨지는 상태였다. **원인 규명**: 공용은 `db/migration` 체인(V1~V113), 테넌트 스키마는 생성 시
+  `CompanyService.migrateTenant()`가 `db/tenant` baseline 한 벌만 적용 — 두 경로가 분리돼 있어 V102 이후 공용 마이그레이션이
+  테넌트에 반영된 적이 없다. **조치**: V102~V113 이 전부 스키마 비한정(unqualified) DDL 임을 확인하고, 그 DDL 을 tenant baseline
+  끝에 델타로 추가(FK 대상 base 테이블은 모두 baseline에 존재, V105·V113 의 CHECK 교체는 제약명 일치). 컷오프는 V100/V101
+  컬럼이 baseline에 있고 V102 테이블이 없음을 대조해 확정. **검증**: ① 임시 스키마에 baseline 전체 재실행(ON_ERROR_STOP) →
+  130테이블 무오류·신규 9테이블·몰 배송컬럼5·CHECK 7값. ② **실제 앱 경로**: 회사 생성 API(POST /api/companies, code 0003) →
+  migrateTenant(Flyway) → 131테이블·신규 9테이블·mall CHECK SHIPPED·**신규 회사 관리자 로그인 성공** → 스키마 drop + companies 행
+  삭제로 원복. ③ 기존 테넌트 `co_0002`(V101 상태·데모 데이터 극소)에도 동일 델타를 직접 적용(순수 추가·CHECK 확장) → 신규 9테이블·
+  mall CHECK SHIPPED. 이제 public·co_0002·신규 회사 스키마가 모두 V113으로 일관. **앞으로 공용 스키마 변경 시 이 baseline 델타도
+  함께 갱신할 것**(baseline 상단 주석에 명시).
 
 ---
 
