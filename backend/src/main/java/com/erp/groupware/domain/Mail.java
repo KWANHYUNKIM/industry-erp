@@ -71,4 +71,13 @@ public class Mail extends BaseTimeEntity {
     /** 처리 결과 메모 */
     @Column(name = "handle_note", length = 500)
     private String handleNote;
+
+    /** 임시보관(초안): 아직 발송하지 않은 메일. 수신함/발신함에서 제외, 임시보관함에만 표시. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean draft = false;
+
+    /** 소프트삭제(지운함): null 이면 정상, 값이 있으면 휴지통. 다른 함에서 제외. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

@@ -9,8 +9,10 @@ import com.erp.groupware.dto.MailDtos.AssignMailRequest;
 import com.erp.groupware.dto.MailDtos.HandleMailRequest;
 import com.erp.groupware.dto.MailDtos.MailResponse;
 import com.erp.groupware.dto.MailDtos.ReceiveSharedMailRequest;
+import com.erp.groupware.dto.MailDtos.SaveDraftRequest;
 import com.erp.groupware.dto.MailDtos.SendMailRequest;
 import com.erp.groupware.dto.MailDtos.SharedMailBox;
+import org.springframework.util.StringUtils;
 import com.erp.groupware.repository.MailRepository;
 import com.erp.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,9 +49,19 @@ public class MailService {
 
     @Transactional(readOnly = true)
     public SharedMailBox shared() {
-        long pending = mailRepository.countByTypeAndStatusNot(MailType.SHARED, MailStatus.HANDLED);
+        long pending = mailRepository.countByTypeAndStatusNotAndDeletedAtIsNull(MailType.SHARED, MailStatus.HANDLED);
         return new SharedMailBox(pending,
                 mailRepository.findShared().stream().map(MailResponse::from).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MailResponse> drafts(String username) {
+        return mailRepository.findDrafts(me(username).getId()).stream().map(MailResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MailResponse> trash(String username) {
+        return mailRepository.findTrash(me(username).getId()).stream().map(MailResponse::from).toList();
     }
 
     /** 사내메일 발송 */
@@ -72,6 +84,109 @@ public class MailService {
                 .status(MailStatus.UNREAD)
                 .build();
         return MailResponse.from(mailRepository.save(m));
+    }
+
+    /** 임시보관(초안) 저장. 받는사람·제목 없이도 저장 가능. */
+    @Transactional
+    public MailResponse saveDraft(SaveDraftRequest req, String username) {
+        User sender = me(username);
+        User recipient = resolveRecipient(req.recipientId(), sender);
+        Mail m = Mail.builder()
+                .type(MailType.INTERNAL)
+                .sender(sender)
+                .recipient(recipient)
+                .subject(StringUtils.hasText(req.subject()) ? req.subject() : "(제목 없음)")
+                .body(req.body())
+                .sentAt(LocalDateTime.now())
+                .status(MailStatus.UNREAD)
+                .draft(true)
+                .build();
+        return MailResponse.from(mailRepository.save(m));
+    }
+
+    /** 초안 수정 */
+    @Transactional
+    public MailResponse updateDraft(Long id, SaveDraftRequest req, String username) {
+        Mail m = myDraft(id, username);
+        m.setRecipient(resolveRecipient(req.recipientId(), m.getSender()));
+        m.setSubject(StringUtils.hasText(req.subject()) ? req.subject() : "(제목 없음)");
+        m.setBody(req.body());
+        m.setSentAt(LocalDateTime.now());
+        return MailResponse.from(m);
+    }
+
+    /** 초안 발송: 받는사람이 있어야 하고, 발송 시 draft=false 로 전환한다. */
+    @Transactional
+    public MailResponse sendDraft(Long id, String username) {
+        Mail m = myDraft(id, username);
+        if (m.getRecipient() == null) {
+            throw ApiException.badRequest("받는 사람을 지정해야 발송할 수 있습니다.");
+        }
+        m.setDraft(false);
+        m.setStatus(MailStatus.UNREAD);
+        m.setSentAt(LocalDateTime.now());
+        return MailResponse.from(m);
+    }
+
+    /** 지운함으로 이동(소프트삭제). 내가 보내거나 받은 메일만. */
+    @Transactional
+    public void moveToTrash(Long id, String username) {
+        Mail m = myMail(id, username);
+        if (m.getDeletedAt() == null) {
+            m.setDeletedAt(LocalDateTime.now());
+        }
+    }
+
+    /** 지운함에서 복원 */
+    @Transactional
+    public MailResponse restore(Long id, String username) {
+        Mail m = myMail(id, username);
+        m.setDeletedAt(null);
+        return MailResponse.from(m);
+    }
+
+    /** 영구삭제(행 제거). 지운함에 있는 것만. */
+    @Transactional
+    public void deletePermanent(Long id, String username) {
+        Mail m = myMail(id, username);
+        if (m.getDeletedAt() == null) {
+            throw ApiException.badRequest("지운함으로 옮긴 뒤에 영구삭제할 수 있습니다.");
+        }
+        mailRepository.delete(m);
+    }
+
+    private User resolveRecipient(Long recipientId, User sender) {
+        if (recipientId == null) {
+            return null;
+        }
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> ApiException.notFound("받는 사람을 찾을 수 없습니다. id=" + recipientId));
+        if (recipient.getId().equals(sender.getId())) {
+            throw ApiException.badRequest("자기 자신에게는 보낼 수 없습니다.");
+        }
+        return recipient;
+    }
+
+    /** 내 초안인지 확인 */
+    private Mail myDraft(Long id, String username) {
+        Mail m = get(id);
+        User user = me(username);
+        if (!m.isDraft() || m.getSender() == null || !m.getSender().getId().equals(user.getId())) {
+            throw ApiException.badRequest("본인의 임시보관 메일만 수정/발송할 수 있습니다.");
+        }
+        return m;
+    }
+
+    /** 내가 보내거나 받은 메일인지 확인 */
+    private Mail myMail(Long id, String username) {
+        Mail m = get(id);
+        User user = me(username);
+        boolean mine = (m.getSender() != null && m.getSender().getId().equals(user.getId()))
+                || (m.getRecipient() != null && m.getRecipient().getId().equals(user.getId()));
+        if (!mine) {
+            throw ApiException.badRequest("본인이 보내거나 받은 메일만 처리할 수 있습니다.");
+        }
+        return m;
     }
 
     /** 공용메일 수신 등록 */

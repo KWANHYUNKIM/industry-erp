@@ -36,6 +36,13 @@ public final class MailDtos {
     /** 공용메일 처리 완료 */
     public record HandleMailRequest(String note) {}
 
+    /** 임시보관(초안) 저장/수정. 초안은 받는사람·제목 없이도 저장할 수 있다(발송 시 검증). */
+    public record SaveDraftRequest(
+            Long recipientId,
+            String subject,
+            String body
+    ) {}
+
     public record MailResponse(
             Long id,
             MailType type, String typeName,
@@ -45,7 +52,8 @@ public final class MailDtos {
             LocalDateTime sentAt,
             MailStatus status, String statusName,
             Long assigneeId, String assigneeName,
-            LocalDateTime handledAt, String handleNote
+            LocalDateTime handledAt, String handleNote,
+            boolean draft, LocalDateTime deletedAt
     ) {
         public static MailResponse from(Mail m) {
             return new MailResponse(
@@ -60,7 +68,8 @@ public final class MailDtos {
                     m.getStatus(), m.getStatus().getDisplayName(),
                     m.getAssignee() != null ? m.getAssignee().getId() : null,
                     m.getAssignee() != null ? m.getAssignee().getName() : null,
-                    m.getHandledAt(), m.getHandleNote());
+                    m.getHandledAt(), m.getHandleNote(),
+                    m.isDraft(), m.getDeletedAt());
         }
     }
 

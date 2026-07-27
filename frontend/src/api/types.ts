@@ -1692,6 +1692,8 @@ export interface Mail {
   assigneeName: string | null
   handledAt: string | null
   handleNote: string | null
+  draft: boolean
+  deletedAt: string | null
 }
 
 export interface SharedMailBox {

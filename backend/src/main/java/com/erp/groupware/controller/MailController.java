@@ -4,6 +4,7 @@ import com.erp.groupware.dto.MailDtos.AssignMailRequest;
 import com.erp.groupware.dto.MailDtos.HandleMailRequest;
 import com.erp.groupware.dto.MailDtos.MailResponse;
 import com.erp.groupware.dto.MailDtos.ReceiveSharedMailRequest;
+import com.erp.groupware.dto.MailDtos.SaveDraftRequest;
 import com.erp.groupware.dto.MailDtos.SendMailRequest;
 import com.erp.groupware.dto.MailDtos.SharedMailBox;
 import com.erp.security.UserPrincipal;
@@ -52,6 +53,54 @@ public class MailController {
     @PostMapping("/shared")
     public ResponseEntity<MailResponse> receiveShared(@Valid @RequestBody ReceiveSharedMailRequest req) {
         return ResponseEntity.ok(service.receiveShared(req));
+    }
+
+    // ── 임시보관함(초안) ──
+    @GetMapping("/drafts")
+    public List<MailResponse> drafts(@AuthenticationPrincipal UserPrincipal principal) {
+        return service.drafts(principal.getUsername());
+    }
+
+    @PostMapping("/drafts")
+    public ResponseEntity<MailResponse> saveDraft(@RequestBody SaveDraftRequest req,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(service.saveDraft(req, principal.getUsername()));
+    }
+
+    @PutMapping("/drafts/{id}")
+    public MailResponse updateDraft(@PathVariable Long id, @RequestBody SaveDraftRequest req,
+                                    @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateDraft(id, req, principal.getUsername());
+    }
+
+    @PostMapping("/drafts/{id}/send")
+    public MailResponse sendDraft(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.sendDraft(id, principal.getUsername());
+    }
+
+    // ── 지운함(소프트삭제) ──
+    @GetMapping("/trash")
+    public List<MailResponse> trash(@AuthenticationPrincipal UserPrincipal principal) {
+        return service.trash(principal.getUsername());
+    }
+
+    /** 지운함으로 이동(소프트삭제) */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> moveToTrash(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        service.moveToTrash(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public MailResponse restore(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.restore(id, principal.getUsername());
+    }
+
+    /** 영구삭제 */
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> deletePermanent(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        service.deletePermanent(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/read")
