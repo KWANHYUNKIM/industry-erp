@@ -38,6 +38,21 @@ public class MallOrderDtos {
             Boolean taxable
     ) {}
 
+    /** 배송처리: 택배사·송장번호 입력. 배송일 미입력 시 오늘. */
+    public record ShipRequest(
+            @NotBlank(message = "택배사를 입력하세요.") String courier,
+            @NotBlank(message = "송장번호를 입력하세요.") String trackingNo,
+            LocalDate shippedAt
+    ) {}
+
+    /** 반품/교환 처리: 사유. 교환은 재발송 택배정보(선택). */
+    public record CloseRequest(
+            @NotBlank(message = "사유를 입력하세요.") String reason,
+            String courier,
+            String trackingNo,
+            LocalDate closedAt
+    ) {}
+
     public record MallOrderResponse(
             Long id,
             String mall,
@@ -58,7 +73,12 @@ public class MallOrderDtos {
             Long salesId,
             String salesDocNo,
             String remark,
-            String createdBy
+            String createdBy,
+            String courier,
+            String trackingNo,
+            LocalDate shippedAt,
+            String closeReason,
+            LocalDate closedAt
     ) {
         public static MallOrderResponse from(MallOrder o) {
             return new MallOrderResponse(
@@ -72,7 +92,9 @@ public class MallOrderDtos {
                     o.getQuantity(), o.getUnitPrice(), o.getTotalAmount(),
                     o.getSales() != null ? o.getSales().getId() : null,
                     o.getSales() != null ? o.getSales().getDocNo() : null,
-                    o.getRemark(), o.getCreatedBy());
+                    o.getRemark(), o.getCreatedBy(),
+                    o.getCourier(), o.getTrackingNo(), o.getShippedAt(),
+                    o.getCloseReason(), o.getClosedAt());
         }
     }
 

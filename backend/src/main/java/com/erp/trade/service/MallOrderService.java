@@ -51,7 +51,7 @@ public class MallOrderService {
             int count = (prev != null ? prev.orderCount() : 0) + 1;
             BigDecimal amount = (prev != null ? prev.totalAmount() : BigDecimal.ZERO).add(o.totalAmount());
             int unconverted = (prev != null ? prev.unconverted() : 0)
-                    + (o.status() == MallOrderStatus.CONVERTED || o.status() == MallOrderStatus.CANCELLED ? 0 : 1);
+                    + (o.status() == MallOrderStatus.RECEIVED || o.status() == MallOrderStatus.CONFIRMED ? 1 : 0);
             byMall.put(o.mall(), new MallSummary(o.mall(), count, amount, unconverted));
         }
 
@@ -152,6 +152,61 @@ public class MallOrderService {
         o.setStatus(MallOrderStatus.CONVERTED);
         o.setSales(salesService.get(sales.id()));
         return sales;
+    }
+
+    /**
+     * 배송처리. 판매전환된 주문을 실제 발송 처리한다(택배사·송장). 재고·채권은 이미 판매전표가 처리했으므로
+     * 여기서는 이행 상태만 기록한다.
+     */
+    @Transactional
+    public MallOrderResponse ship(Long id, com.erp.trade.dto.MallOrderDtos.ShipRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.CONVERTED) {
+            throw ApiException.conflict("판매전환된 주문만 배송처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCourier(req.courier().trim());
+        o.setTrackingNo(req.trackingNo().trim());
+        o.setShippedAt(req.shippedAt() != null ? req.shippedAt() : java.time.LocalDate.now());
+        o.setStatus(MallOrderStatus.SHIPPED);
+        return MallOrderResponse.from(o);
+    }
+
+    /**
+     * 반품처리. 배송된 주문을 반품 상태로 기록한다.
+     * 재고 환입·채권 취소 같은 재무 반전은 판매전표(sales) 측 별개 트랙 — 몰이 중복 기록하지 않는다.
+     */
+    @Transactional
+    public MallOrderResponse returnOrder(Long id, com.erp.trade.dto.MallOrderDtos.CloseRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.SHIPPED) {
+            throw ApiException.conflict("배송된 주문만 반품처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCloseReason(req.reason().trim());
+        o.setClosedAt(req.closedAt() != null ? req.closedAt() : java.time.LocalDate.now());
+        o.setStatus(MallOrderStatus.RETURNED);
+        return MallOrderResponse.from(o);
+    }
+
+    /**
+     * 교환처리. 배송된 주문을 교환 상태로 기록한다(재발송 택배정보 선택).
+     * 교환은 동일 상품을 바꿔 보내는 것이라 판매전표(매출)는 유지한다.
+     */
+    @Transactional
+    public MallOrderResponse exchange(Long id, com.erp.trade.dto.MallOrderDtos.CloseRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.SHIPPED) {
+            throw ApiException.conflict("배송된 주문만 교환처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCloseReason(req.reason().trim());
+        o.setClosedAt(req.closedAt() != null ? req.closedAt() : java.time.LocalDate.now());
+        if (req.courier() != null && !req.courier().isBlank()) {
+            o.setCourier(req.courier().trim());
+        }
+        if (req.trackingNo() != null && !req.trackingNo().isBlank()) {
+            o.setTrackingNo(req.trackingNo().trim());
+        }
+        o.setStatus(MallOrderStatus.EXCHANGED);
+        return MallOrderResponse.from(o);
     }
 
     /** 전환·취소된 주문은 더 이상 손대지 않는다. 판매전표가 이미 재고를 움직였기 때문이다. */

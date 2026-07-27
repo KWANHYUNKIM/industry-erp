@@ -6,13 +6,16 @@ import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => new Date().toISOString().slice(0, 10)
 
-const TABS = ['전체', '수집', '확인', '판매전환', '취소'] as const
+const TABS = ['전체', '수집', '확인', '판매전환', '배송', '반품', '교환', '취소'] as const
 type Tab = (typeof TABS)[number]
 const TAB_STATUS: Record<Exclude<Tab, '전체'>, MallOrderStatus> = {
-  수집: 'RECEIVED', 확인: 'CONFIRMED', 판매전환: 'CONVERTED', 취소: 'CANCELLED',
+  수집: 'RECEIVED', 확인: 'CONFIRMED', 판매전환: 'CONVERTED', 배송: 'SHIPPED',
+  반품: 'RETURNED', 교환: 'EXCHANGED', 취소: 'CANCELLED',
 }
 const statusColor = (s: MallOrderStatus) =>
-  s === 'CONVERTED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'CONFIRMED' ? 'var(--ec-blue)' : '#c07a00'
+  s === 'CONVERTED' || s === 'SHIPPED' ? '#1c7c3c'
+    : s === 'RETURNED' ? '#c60a2e' : s === 'EXCHANGED' ? '#8a5cf6'
+    : s === 'CANCELLED' ? '#8a929c' : s === 'CONFIRMED' ? 'var(--ec-blue)' : '#c07a00'
 
 /**
  * 재고 I > 쇼핑몰관리 — 외부몰 주문 수집 → 확인 → 판매전환.
@@ -28,6 +31,7 @@ export default function MallPage() {
   const [tab, setTab] = useState<Tab>('전체')
   const [showForm, setShowForm] = useState(false)
   const [converting, setConverting] = useState<MallOrder | null>(null)
+  const [fulfill, setFulfill] = useState<{ order: MallOrder; action: 'ship' | 'return' | 'exchange' } | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -183,12 +187,23 @@ export default function MallPage() {
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: statusColor(o.status) }}>{o.statusName}</span>
                   {o.salesDocNo && <div style={{ fontSize: 10.5, color: '#1c7c3c' }}>{o.salesDocNo}</div>}
+                  {o.trackingNo && <div style={{ fontSize: 10.5, color: '#5a626e' }}>{o.courier} {o.trackingNo}</div>}
+                  {o.closeReason && <div style={{ fontSize: 10.5, color: '#c07a00' }}>{o.closedAt}: {o.closeReason}</div>}
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
                     {o.status === 'RECEIVED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => act(o, 'confirm')}>확인</button>}
                     {o.status === 'CONFIRMED' && (
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setConverting(o)}>판매전환</button>
+                    )}
+                    {o.status === 'CONVERTED' && (
+                      <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setFulfill({ order: o, action: 'ship' })}>배송처리</button>
+                    )}
+                    {o.status === 'SHIPPED' && (
+                      <>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => setFulfill({ order: o, action: 'return' })}>반품</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#8a5cf6' }} onClick={() => setFulfill({ order: o, action: 'exchange' })}>교환</button>
+                      </>
                     )}
                     {open && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(o, 'cancel')}>취소</button>}
                   </div>
@@ -215,7 +230,93 @@ export default function MallPage() {
           onSaved={(docNo) => { setConverting(null); flash(`판매전표 ${docNo} 생성됨`); load() }}
         />
       )}
+      {fulfill && (
+        <FulfillForm
+          order={fulfill.order}
+          action={fulfill.action}
+          onClose={() => setFulfill(null)}
+          onSaved={(msg) => { setFulfill(null); flash(msg); load() }}
+        />
+      )}
     </EcListShell>
+  )
+}
+
+function FulfillForm({ order, action, onClose, onSaved }: {
+  order: MallOrder
+  action: 'ship' | 'return' | 'exchange'
+  onClose: () => void
+  onSaved: (msg: string) => void
+}) {
+  const isShip = action === 'ship'
+  const [courier, setCourier] = useState(order.courier ?? '')
+  const [trackingNo, setTrackingNo] = useState(order.trackingNo ?? '')
+  const [reason, setReason] = useState('')
+  const [date, setDate] = useState(today())
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const title = isShip ? '배송처리' : action === 'return' ? '반품처리' : '교환처리'
+
+  async function save() {
+    setError('')
+    if (isShip && (!courier.trim() || !trackingNo.trim())) return setError('택배사와 송장번호를 입력하세요.')
+    if (!isShip && !reason.trim()) return setError('사유를 입력하세요.')
+    setSaving(true)
+    try {
+      if (isShip) {
+        await api.post(`/mall-orders/${order.id}/ship`, { courier, trackingNo, shippedAt: date })
+        onSaved(`${order.mallOrderNo} 배송처리 완료`)
+      } else {
+        await api.post(`/mall-orders/${order.id}/${action}`, { reason, courier: courier || undefined, trackingNo: trackingNo || undefined, closedAt: date })
+        onSaved(`${order.mallOrderNo} ${title} 완료`)
+      }
+    } catch (err) { setError(extractErrorMessage(err)) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        </div>
+        <div style={{ padding: 16 }}>
+          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          <p style={{ fontSize: 12.5, color: '#5a626e', marginBottom: 10 }}>
+            {order.mall} / {order.mallOrderNo} · {order.buyerName} · {order.productName}
+          </p>
+          <table className="w-full text-left"><tbody>
+            {(isShip || action === 'exchange') && (
+              <>
+                <tr>
+                  <th style={{ width: 90, background: '#f5f7fa' }}>택배사{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <td><input className="ec-input" value={courier} onChange={(e) => setCourier(e.target.value)} style={{ width: '100%' }} placeholder="예: CJ대한통운" /></td>
+                </tr>
+                <tr>
+                  <th style={{ background: '#f5f7fa' }}>송장번호{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <td><input className="ec-input" value={trackingNo} onChange={(e) => setTrackingNo(e.target.value)} style={{ width: '100%' }} /></td>
+                </tr>
+              </>
+            )}
+            {!isShip && (
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>사유<span style={{ color: '#c60a2e' }}>*</span></th>
+                <td><input className="ec-input" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%' }} placeholder={action === 'return' ? '예: 단순변심' : '예: 사이즈 교환'} /></td>
+              </tr>
+            )}
+            <tr>
+              <th style={{ background: '#f5f7fa' }}>{isShip ? '배송일' : '처리일'}</th>
+              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+            </tr>
+          </tbody></table>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '처리 중…' : title}</button>
+          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

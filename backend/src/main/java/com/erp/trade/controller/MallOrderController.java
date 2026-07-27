@@ -1,10 +1,12 @@
 package com.erp.trade.controller;
 
+import com.erp.trade.dto.MallOrderDtos.CloseRequest;
 import com.erp.trade.dto.MallOrderDtos.CollectOrderRequest;
 import com.erp.trade.dto.MallOrderDtos.ConvertRequest;
 import com.erp.trade.dto.MallOrderDtos.MallOrderResponse;
 import com.erp.trade.dto.MallOrderDtos.MallOverview;
 import com.erp.trade.dto.MallOrderDtos.MapItemRequest;
+import com.erp.trade.dto.MallOrderDtos.ShipRequest;
 import com.erp.trade.dto.SalesDtos.SalesResponse;
 import com.erp.security.UserPrincipal;
 import com.erp.trade.service.MallOrderService;
@@ -58,5 +60,23 @@ public class MallOrderController {
                                  @Valid @RequestBody ConvertRequest req,
                                  @AuthenticationPrincipal UserPrincipal principal) {
         return service.convert(id, req, principal.getUsername());
+    }
+
+    /** 배송처리 (판매전환 → 배송) */
+    @PostMapping("/{id}/ship")
+    public MallOrderResponse ship(@PathVariable Long id, @Valid @RequestBody ShipRequest req) {
+        return service.ship(id, req);
+    }
+
+    /** 반품처리 (배송 → 반품) */
+    @PostMapping("/{id}/return")
+    public MallOrderResponse returnOrder(@PathVariable Long id, @Valid @RequestBody CloseRequest req) {
+        return service.returnOrder(id, req);
+    }
+
+    /** 교환처리 (배송 → 교환) */
+    @PostMapping("/{id}/exchange")
+    public MallOrderResponse exchange(@PathVariable Long id, @Valid @RequestBody CloseRequest req) {
+        return service.exchange(id, req);
     }
 }

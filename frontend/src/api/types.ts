@@ -1879,7 +1879,7 @@ export interface ExportSummary {
 
 // ===== 쇼핑몰관리 =====
 
-export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
+export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'SHIPPED' | 'RETURNED' | 'EXCHANGED' | 'CANCELLED'
 
 export interface MallOrder {
   id: number
@@ -1902,6 +1902,11 @@ export interface MallOrder {
   salesDocNo: string | null
   remark: string | null
   createdBy: string | null
+  courier: string | null
+  trackingNo: string | null
+  shippedAt: string | null
+  closeReason: string | null
+  closedAt: string | null
 }
 
 export interface MallSummary {

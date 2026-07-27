@@ -80,4 +80,25 @@ public class MallOrder extends BaseTimeEntity {
 
     @Column(name = "created_by", length = 50)
     private String createdBy;
+
+    // ── 이행(fulfillment): 배송/반품/교환 ──
+    /** 택배사 */
+    @Column(length = 50)
+    private String courier;
+
+    /** 송장번호 */
+    @Column(name = "tracking_no", length = 50)
+    private String trackingNo;
+
+    /** 배송 처리일 */
+    @Column(name = "shipped_at")
+    private LocalDate shippedAt;
+
+    /** 반품/교환 사유 */
+    @Column(name = "close_reason", length = 300)
+    private String closeReason;
+
+    /** 반품/교환 최종처리일 */
+    @Column(name = "closed_at")
+    private LocalDate closedAt;
 }
