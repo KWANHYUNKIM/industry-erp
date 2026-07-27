@@ -12,6 +12,7 @@ import type { Item, MallItemMapping } from '../../api/types'
 export default function MallItemMappingPage() {
   const [rows, setRows] = useState<MallItemMapping[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [mallNames, setMallNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -22,11 +23,13 @@ export default function MallItemMappingPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [m, it] = await Promise.all([
+      const [m, it, ma] = await Promise.all([
         api.get<MallItemMapping[]>('/mall-item-mappings'),
         api.get<Item[]>('/items'),
+        api.get<{ name: string; active: boolean }[]>('/mall-accounts'),
       ])
       setRows(m.data); setItems(it.data)
+      setMallNames(ma.data.filter((x) => x.active).map((x) => x.name))
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -89,7 +92,8 @@ export default function MallItemMappingPage() {
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰 *</div>
-              <input className={inputCls} value={form.mall} disabled={!!editId} onChange={(e) => set('mall', e.target.value)} style={{ width: 150 }} placeholder="예: 스마트스토어" /></label>
+              <input className={inputCls} value={form.mall} disabled={!!editId} onChange={(e) => set('mall', e.target.value)} style={{ width: 150 }} placeholder="예: 스마트스토어" list="mapping-mall-list" />
+              <datalist id="mapping-mall-list">{mallNames.map((n) => <option key={n} value={n} />)}</datalist></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰품목코드 *</div>
               <input className={inputCls} value={form.mallProductCode} disabled={!!editId} onChange={(e) => set('mallProductCode', e.target.value)} style={{ width: 160 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰상품명</div>

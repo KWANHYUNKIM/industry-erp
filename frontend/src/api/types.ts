@@ -1928,6 +1928,21 @@ export interface MallItemMapping {
   active: boolean
 }
 
+export type MallAccountType = 'MALL' | 'SOLUTION'
+
+export interface MallAccount {
+  id: number
+  code: string
+  name: string
+  type: MallAccountType
+  typeName: string
+  partnerId: number | null
+  partnerName: string | null
+  sellerId: string | null
+  memo: string | null
+  active: boolean
+}
+
 export interface MallOverview {
   totalOrders: number
   totalAmount: number

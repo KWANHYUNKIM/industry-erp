@@ -28,6 +28,7 @@ export default function MallPage() {
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [mallNames, setMallNames] = useState<string[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const [showForm, setShowForm] = useState(false)
   const [converting, setConverting] = useState<MallOrder | null>(null)
@@ -40,16 +41,18 @@ export default function MallPage() {
   async function load() {
     setError('')
     try {
-      const [o, it, p, w] = await Promise.all([
+      const [o, it, p, w, ma] = await Promise.all([
         api.get<MallOverview>('/mall-orders'),
         api.get<Item[]>('/items'),
         api.get<Partner[]>('/partners'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ name: string; active: boolean }[]>('/mall-accounts'),
       ])
       setData(o.data)
       setItems(it.data)
       setPartners(p.data.filter((x) => x.type !== 'SUPPLIER'))
       setWarehouses(w.data)
+      setMallNames(ma.data.filter((m) => m.active).map((m) => m.name))
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -217,6 +220,7 @@ export default function MallPage() {
       {showForm && (
         <CollectForm
           items={items}
+          mallNames={mallNames}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); flash('주문을 수집했습니다.'); load() }}
         />
@@ -329,10 +333,10 @@ function Box({ label, value, color, bg }: { label: string; value: string; color:
   )
 }
 
-function CollectForm({ items, onClose, onSaved }: {
-  items: Item[]; onClose: () => void; onSaved: () => void
+function CollectForm({ items, mallNames, onClose, onSaved }: {
+  items: Item[]; mallNames: string[]; onClose: () => void; onSaved: () => void
 }) {
-  const [mall, setMall] = useState('스마트스토어')
+  const [mall, setMall] = useState(mallNames[0] ?? '스마트스토어')
   const [mallOrderNo, setMallOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState(today())
   const [buyerName, setBuyerName] = useState('')
@@ -383,7 +387,10 @@ function CollectForm({ items, onClose, onSaved }: {
         <tbody>
           <tr>
             <th style={{ width: 100, background: '#f5f7fa' }}>몰<span style={{ color: '#c60a2e' }}>*</span></th>
-            <td><input className="ec-input" value={mall} onChange={(e) => setMall(e.target.value)} style={{ width: 140 }} /></td>
+            <td>
+              <input className="ec-input" value={mall} onChange={(e) => setMall(e.target.value)} style={{ width: 140 }} list="mall-name-list" />
+              <datalist id="mall-name-list">{mallNames.map((n) => <option key={n} value={n} />)}</datalist>
+            </td>
             <th style={{ width: 90, background: '#f5f7fa' }}>몰 주문번호<span style={{ color: '#c60a2e' }}>*</span></th>
             <td><input className="ec-input" value={mallOrderNo} onChange={(e) => setMallOrderNo(e.target.value)} placeholder="예: 2026071400123" style={{ width: 160 }} /></td>
           </tr>
