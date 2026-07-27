@@ -86,6 +86,7 @@ const BusinessCardPage = lazy(() => import('./pages/groupware/BusinessCardPage')
 const ProjectPage = lazy(() => import('./pages/groupware/ProjectPage'))
 const ProjectProfitPage = lazy(() => import('./pages/accounting/ProjectProfitPage'))
 const ProjectPlanPage = lazy(() => import('./pages/accounting/ProjectPlanPage'))
+const PaymentMastersPage = lazy(() => import('./pages/accounting/PaymentMastersPage'))
 const SharedInfoPage = lazy(() => import('./pages/groupware/SharedInfoPage'))
 const KeyNoticePage = lazy(() => import('./pages/groupware/KeyNoticePage'))
 const MailPage = lazy(() => import('./pages/groupware/MailPage'))
@@ -386,6 +387,8 @@ export default function App() {
         <Route path="/groupware/project" element={<ProjectPage />} />
         <Route path="/accounting/project-profit" element={<ProjectProfitPage />} />
         <Route path="/accounting/project-plan" element={<ProjectPlanPage />} />
+        <Route path="/accounting/card-issuers" element={<PaymentMastersPage defaultTab="card" />} />
+        <Route path="/accounting/payment-agencies" element={<PaymentMastersPage defaultTab="agency" />} />
         <Route path="/groupware/shared" element={<SharedInfoPage />} />
         <Route path="/groupware/key-notice" element={<KeyNoticePage />} />
         <Route path="/groupware/mail" element={<MailPage />} />

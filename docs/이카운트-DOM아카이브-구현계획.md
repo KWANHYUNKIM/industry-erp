@@ -93,7 +93,7 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | 재고 I › 생산/외주 | 36 / 37 | production 21개 페이지로 사실상 완비 + 외주비회계반영 2종 오탐 정정(외주 전용 도메인 없음 → 구매 회계반영이 커버). 잔여: 생산입고 III(생산입고 I/II와 중복) |
 | 재고 I › 기타이동 | 24 / 24 | 창고이동+자가사용·불량처리·재고조정=TransferPage, 재고실사=StocktakePage, 대체사용·폐기=TransferPage 탭(V105). **단계별재고조정·재고조정진행단계=StagedAdjustmentPage 풀스택 신규(V107). 완비** |
 | 재고 I › 쇼핑몰관리 | 6 / 11 | **오탐 정정** — MallOrder+MallPage가 주문관리·진행단계·확인·취소·판매전환(ERP전송)·상품생성설정 커버. 잔여: 몰계정 기초등록·품목코드연결·배송/반품/교환(몰 특화 상태 미추적) |
-| 재고 I › 기초등록 | 5 / 7 | 사원등록=EmployeePage·외화등록=CurrencyPage 오탐 정정. 잔여: 카드사·결제대행사 마스터(고립 CRUD·미구현) |
+| 재고 I › 기초등록 | 7 / 7 | 사원등록=EmployeePage·외화등록=CurrencyPage 오탐 정정. **카드사등록·결제대행사등록=PaymentMastersPage 풀스택 신규(card_issuers·payment_agencies+V110). 완비** |
 | 재고 I › 출력물 | 51 / 76 | 대부분 다른 섹션 화면의 인쇄 재listing — 12건 오탐 정정(주문서·미주문·발주요청·발주계획·회계미반영·자가사용·불량처리·재고조정·재고실사·소모현황·거래처별채무). 잔여 순수 인쇄서식은 별도 트랙(7장) |
 | 재고 II › 이익관리 | 9 / 9 | 사실상 완비 |
 | 재고 II › 오더관리 | 2 / 2 | 완비 |
@@ -112,9 +112,9 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | 그룹웨어 › 고객관리 | 2 / 2 | 완비 |
 | 관리 › 근태관리 | 7 / 7 | 완비 |
 | 데이터센터 › 데이터수집 | 4 / 5 | **오탐 정정** — DataCollectPage가 9개 소스(판매=거래명세서·재고수불·마스터 등) 수집. 잔여: 동적 소스등록 UI |
-| 데이터센터 › 데이터내보내기 | 0 / 1 | |
-| Self-Customizing › (다운로드·보안·환경) | 0 / 5 | |
-| **합계** | **≈229 / 340** | 2026-07-20 구매·영업 파이프라인 + 재고실사 + 품질/A/S현황 + 매출계획(풀스택) + 로트재고비교 구축, 생산/외주·회계기초·수출 포함 오탐 대량 정정 반영. 2026-07-27 특별단가등록(풀스택)으로 회계 I 기초등록 13/13 완비 |
+| 데이터센터 › 데이터내보내기 | 0 / 1 | 의료기기공급내역보고(외부 규제 보고 — 스코프 외) |
+| Self-Customizing › (다운로드·보안·환경) | 5 / 5 | **전부 오탐 정정** — 기능설정/기본값설정=PreferencesPage, 보안설정=SecurityPage, 엑셀자료올리기=DownloadPage, 편의기능=EtcSystemPage. 완비 |
+| **합계** | **≈236 / 340** | 2026-07-20 구매·영업 파이프라인 + 재고실사 + 품질/A/S현황 + 매출계획(풀스택) + 로트재고비교 구축, 생산/외주·회계기초·수출 포함 오탐 대량 정정 반영. 2026-07-27 특별단가등록(풀스택, 회계 I 기초등록 13/13) + 카드사·결제대행사(풀스택, 재고 I 기초등록 7/7) + Self-Customizing 5/5 오탐 정정 |
 
 방향: **우리 강점** = 이익관리·비용·근태·고객관리·전자결재·오더관리. **가장 빈 곳** = 기타이동(재고이동/실사),
 품질관리, 계획관리, 쇼핑몰, 공용메일, 그리고 출력물 서식.
@@ -400,6 +400,17 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
   거래처별 등록→**resolve 1순위 PARTNER·5555**, 범위중복 400 가드, 거래처별 사용중단→그룹으로 복귀, 삭제 정리 후 0건·거래처 그룹 원복(드리프트 0)
   전 흐름 + Flyway V109 적용·validate 통과 + tsc 통과 + QA 하네스(급여·분개 등 24개 시나리오 ✅, 25 현금계좌간이동은 로컬 DB 잔액
   누적 드리프트로 중단 — 격리 신규 테이블과 무관·회귀 아님). **회계 I 기초등록 13/13 완비.**
+- ✅ **카드사등록(E010109)·결제대행사등록(E010114)** — `PaymentMastersPage`(`/accounting/card-issuers`·`/accounting/payment-agencies`).
+  **진짜 신규 풀스택**: 두 고립 CRUD 마스터. 신규 엔티티 `CardIssuer`(코드·명·수수료율·적요·사용여부)·`PaymentAgency`(코드·명·
+  대표자·전화·Email·적요·사용여부) + **`V110__create_card_issuers_payment_agencies.sql`**(다른 테이블 미참조 → FK 없음) +
+  각 Repository/DTO/Service(코드 자동채번 `CI###`/`PA###`, 코드중복 409)/Controller(CRUD). 트윈 마스터라 한 컴포넌트를
+  `defaultTab` prop으로 두 라우트에서 재사용(PurchaseRequestStatusPage 선례). ManagementItem CRUD 패턴 준수. 검증(라이브):
+  카드사 등록(CI001·수수료율 2.5)→수정(3.1·사용중단)→코드중복 409 가드, 결제대행사 등록(PA001·대표자)→수정, 목록→삭제 정리 후
+  0건 전 흐름 + Flyway V110 적용·validate 통과 + tsc 통과. **재고 I 기초등록 7/7 완비.**
+- **Self-Customizing 0/5 → 5/5 오탐 대량 정정** — 전부 이미 구현돼 있던 것을 제목 자동판정이 못 잡은 오탐이었다:
+  기능설정(C000113)·기본값설정(C001124)=`PreferencesPage`(`/settings/preferences`), 보안설정(C001138)=`SecurityPage`
+  (`/settings/security`), 엑셀자료올리기기능(E000129)=`DownloadPage`(`/settings/download`), 편의기능(E000139)=`EtcSystemPage`
+  (`/settings/etc`). 원본 DOM 대조로 확인(환경설정 DOM=공통/회계/재고/관리 옵션·보안 DOM=접속관리/로그인/활동이력). Self-Customizing 완비.
 
 ---
 
@@ -458,9 +469,9 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | ✅ | `재고_I_기초등록_E010101` | 거래처등록 |
 | ✅ | `재고_I_기초등록_E010103` | 카드등록 |
 | ✅ | `재고_I_기초등록_E010104` | 계좌등록 |
-| ⬜ | `재고_I_기초등록_E010109` | 카드사등록 |
+| ✅ | `재고_I_기초등록_E010109` | 카드사등록 (PaymentMastersPage `/accounting/card-issuers` — 풀스택 신규 card_issuers+V110) |
 | ✅ | `재고_I_기초등록_E010110` | 사원(담당)등록 (EmployeePage — 오탐 정정) |
-| ⬜ | `재고_I_기초등록_E010114` | 결제대행사등록 |
+| ✅ | `재고_I_기초등록_E010114` | 결제대행사등록 (PaymentMastersPage `/accounting/payment-agencies` — 풀스택 신규 payment_agencies+V110) |
 | ✅ | `재고_I_기초등록_E040114` | 외화등록 (CurrencyPage — 오탐 정정) |
 
 #### 재고 I › 기타이동
@@ -882,18 +893,18 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 
 | | prgId | 화면명 |
 |--|--|--|
-| ⬜ | `Self_Customizing_다운로드_E000129` | 엑셀자료올리기기능 |
-| ⬜ | `Self_Customizing_다운로드_E000139` | 편의기능 |
+| ✅ | `Self_Customizing_다운로드_E000129` | 엑셀자료올리기기능 (DownloadPage `/settings/download` 엑셀양식 자료실 — 오탐 정정) |
+| ✅ | `Self_Customizing_다운로드_E000139` | 편의기능 (EtcSystemPage `/settings/etc` 부가 관리 바로가기 — 오탐 정정) |
 
 #### Self-Customizing › 보안관리
 
 | | prgId | 화면명 |
 |--|--|--|
-| ⬜ | `Self_Customizing_보안관리_C001138` | 보안설정 |
+| ✅ | `Self_Customizing_보안관리_C001138` | 보안설정 (SecurityPage `/settings/security` 접속관리·로그인·활동이력 — 오탐 정정) |
 
 #### Self-Customizing › 환경설정
 
 | | prgId | 화면명 |
 |--|--|--|
-| ⬜ | `Self_Customizing_환경설정_C000113` | 기능설정 |
-| ⬜ | `Self_Customizing_환경설정_C001124` | 기본값설정 |
+| ✅ | `Self_Customizing_환경설정_C000113` | 기능설정 (PreferencesPage `/settings/preferences` 공통/회계/재고/관리 옵션 — 오탐 정정) |
+| ✅ | `Self_Customizing_환경설정_C001124` | 기본값설정 (PreferencesPage — 환경설정 단일 레코드 upsert — 오탐 정정) |

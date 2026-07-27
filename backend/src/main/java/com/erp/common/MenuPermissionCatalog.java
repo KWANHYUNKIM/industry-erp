@@ -84,7 +84,8 @@ public final class MenuPermissionCatalog {
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
                 "/api/vouchers", "/api/accounts", "/api/ledger");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
-        put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes");
+        put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
+                "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
         put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax");

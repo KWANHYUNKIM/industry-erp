@@ -203,6 +203,8 @@ const MENU: TopMenu[] = [
           { label: '거래처등록', to: '/sales/partners' },
           { label: '계정과목등록', to: '/accounting/accounts' },
           { label: '계좌/카드', to: '/accounting/bank-cards' },
+          { label: '카드사등록', to: '/accounting/card-issuers' },
+          { label: '결제대행사등록', to: '/accounting/payment-agencies' },
           { label: '외화(통화·환율)', to: '/settings/currencies' },
         ],
       },

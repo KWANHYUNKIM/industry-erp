@@ -522,6 +522,28 @@ export interface SpecialPriceResolve {
   priceGroup: string | null
 }
 
+// ===== 카드사(E010109) / 결제대행사(E010114) 기초등록 마스터 =====
+
+export interface CardIssuer {
+  id: number
+  code: string
+  name: string
+  feeRate: number | null
+  remark: string | null
+  active: boolean
+}
+
+export interface PaymentAgency {
+  id: number
+  code: string
+  name: string
+  ceoName: string | null
+  phone: string | null
+  email: string | null
+  remark: string | null
+  active: boolean
+}
+
 // ===== 품질검사 =====
 
 export type QualityInspectionType = 'INCOMING' | 'PROCESS' | 'SHIPMENT'
