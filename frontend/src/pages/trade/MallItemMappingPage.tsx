@@ -1,0 +1,143 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
+import { api, extractErrorMessage } from '../../api/client'
+import type { Item, MallItemMapping } from '../../api/types'
+
+/**
+ * 재고 I > 쇼핑몰관리 > 쇼핑몰품목코드연결 (이카운트 E041004)
+ * (쇼핑몰, 몰품목코드) → 우리 품목 매핑 마스터. 주문 수집 시 품목 미지정이면 이 매핑으로 자동 연결된다.
+ * 백엔드 신규: mall_item_mappings + /api/mall-item-mappings (수집 자동연결은 MallOrderService.collect).
+ */
+export default function MallItemMappingPage() {
+  const [rows, setRows] = useState<MallItemMapping[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [form, setForm] = useState({ mall: '', mallProductCode: '', mallProductName: '', itemId: '' })
+
+  async function load() {
+    setLoading(true); setError('')
+    try {
+      const [m, it] = await Promise.all([
+        api.get<MallItemMapping[]>('/mall-item-mappings'),
+        api.get<Item[]>('/items'),
+      ])
+      setRows(m.data); setItems(it.data)
+    } catch (err) { setError(extractErrorMessage(err)) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  function openNew() {
+    setEditId(null); setForm({ mall: '', mallProductCode: '', mallProductName: '', itemId: '' }); setShowForm(true)
+  }
+  function openEdit(m: MallItemMapping) {
+    setEditId(m.id)
+    setForm({ mall: m.mall, mallProductCode: m.mallProductCode, mallProductName: m.mallProductName ?? '', itemId: String(m.itemId) })
+    setShowForm(true)
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setError(''); setOk('')
+    if (!form.itemId) return setError('연결할 품목을 선택하세요.')
+    try {
+      if (editId) {
+        await api.put(`/mall-item-mappings/${editId}`, { mallProductName: form.mallProductName || undefined, itemId: Number(form.itemId) })
+        setOk('매핑을 수정했습니다.')
+      } else {
+        if (!form.mall.trim() || !form.mallProductCode.trim()) return setError('쇼핑몰과 몰품목코드를 입력하세요.')
+        await api.post('/mall-item-mappings', { mall: form.mall, mallProductCode: form.mallProductCode, mallProductName: form.mallProductName || undefined, itemId: Number(form.itemId) })
+        setOk('품목코드를 연결했습니다.')
+      }
+      setShowForm(false); load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  async function toggleActive(m: MallItemMapping) {
+    setError('')
+    try { await api.put(`/mall-item-mappings/${m.id}`, { mallProductName: m.mallProductName, itemId: m.itemId, active: !m.active }); load() }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  async function remove(id: number) {
+    if (!confirm('이 연결을 삭제할까요?')) return
+    setError('')
+    try { await api.delete(`/mall-item-mappings/${id}`); load() }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  const inputCls = 'ec-input'
+
+  return (
+    <EcListShell
+      title="쇼핑몰품목코드연결"
+      onNew={openNew}
+      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+    >
+      <p className="mb-2 text-xs text-slate-500">(쇼핑몰, 몰품목코드) → 우리 품목 매핑. 주문 수집 시 품목이 지정되지 않으면 이 매핑으로 자동 연결됩니다.</p>
+
+      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+
+      <Modal open={showForm} title={editId ? '품목코드연결 수정' : '품목코드연결 등록'} onClose={() => setShowForm(false)}>{(
+        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰 *</div>
+              <input className={inputCls} value={form.mall} disabled={!!editId} onChange={(e) => set('mall', e.target.value)} style={{ width: 150 }} placeholder="예: 스마트스토어" /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰품목코드 *</div>
+              <input className={inputCls} value={form.mallProductCode} disabled={!!editId} onChange={(e) => set('mallProductCode', e.target.value)} style={{ width: 160 }} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰상품명</div>
+              <input className={inputCls} value={form.mallProductName} onChange={(e) => set('mallProductName', e.target.value)} style={{ width: 200 }} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>연결 품목 *</div>
+              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
+                <option value="">선택하세요</option>
+                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
+              </select></label>
+            <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
+          </div>
+          {editId && <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 8 }}>쇼핑몰·몰품목코드는 키라 수정할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</p>}
+        </form>
+      )}</Modal>
+
+      <table className="w-full text-left">
+        <thead><tr>
+          <th style={{ width: 34 }}></th>
+          <th style={{ width: 140 }}>쇼핑몰</th>
+          <th style={{ width: 160 }}>몰품목코드</th>
+          <th>몰상품명</th>
+          <th>연결 품목</th>
+          <th style={{ textAlign: 'center', width: 80 }}>사용</th>
+          <th style={{ textAlign: 'center', width: 90 }}>관리</th>
+        </tr></thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : rows.length === 0 ? (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+          ) : rows.map((m, i) => (
+            <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td>{m.mall}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{m.mallProductCode}</td>
+              <td style={{ color: '#6b7280' }}>{m.mallProductName ?? ''}</td>
+              <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{m.itemCode}</span>{m.itemName}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="no-ec" onClick={() => toggleActive(m)} style={{ border: '1px solid var(--ec-border)', background: m.active ? '#eaf6ec' : '#f2f3f5', color: m.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{m.active ? '사용' : '중단'}</button>
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="no-ec" onClick={() => openEdit(m)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
+                <button className="no-ec" onClick={() => remove(m.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </EcListShell>
+  )
+}

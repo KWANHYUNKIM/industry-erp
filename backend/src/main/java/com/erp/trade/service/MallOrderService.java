@@ -39,6 +39,7 @@ public class MallOrderService {
     private final MallOrderRepository orderRepository;
     private final ItemService itemService;
     private final SalesService salesService;
+    private final MallItemMappingService mappingService;
 
     @Transactional(readOnly = true)
     public MallOverview overview() {
@@ -79,6 +80,12 @@ public class MallOrderService {
             throw ApiException.conflict("이미 수집된 주문입니다: " + req.mall() + " / " + req.mallOrderNo());
         }
 
+        // 품목 결정: 명시된 itemId 우선, 없으면 (몰, 몰품목코드) 매핑으로 자동연결.
+        Long itemId = req.itemId();
+        if (itemId == null) {
+            itemId = mappingService.resolveItemId(req.mall().trim(), req.mallProductCode()).orElse(null);
+        }
+
         MallOrder o = MallOrder.builder()
                 .mall(req.mall().trim())
                 .mallOrderNo(req.mallOrderNo().trim())
@@ -88,7 +95,8 @@ public class MallOrderService {
                 .buyerPhone(req.buyerPhone())
                 .address(req.address())
                 .productName(req.productName().trim())
-                .item(req.itemId() != null ? itemService.get(req.itemId()) : null)
+                .mallProductCode(req.mallProductCode() != null ? req.mallProductCode().trim() : null)
+                .item(itemId != null ? itemService.get(itemId) : null)
                 .quantity(req.quantity())
                 .unitPrice(req.unitPrice())
                 .totalAmount(req.quantity().multiply(req.unitPrice()))

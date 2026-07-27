@@ -55,6 +55,10 @@ public class MallOrder extends BaseTimeEntity {
     @Column(name = "product_name", nullable = false, length = 200)
     private String productName;
 
+    /** 쇼핑몰 품목코드(몰 상품 key). 품목코드연결(MallItemMapping) 자동연결 키. */
+    @Column(name = "mall_product_code", length = 100)
+    private String mallProductCode;
+
     /** 우리 품목. 매핑되지 않으면 판매전환할 수 없다. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id")

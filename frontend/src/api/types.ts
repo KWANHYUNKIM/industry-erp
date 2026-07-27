@@ -1892,6 +1892,7 @@ export interface MallOrder {
   buyerPhone: string | null
   address: string | null
   productName: string
+  mallProductCode: string | null
   itemId: number | null
   itemCode: string | null
   itemName: string | null
@@ -1914,6 +1915,17 @@ export interface MallSummary {
   orderCount: number
   totalAmount: number
   unconverted: number
+}
+
+export interface MallItemMapping {
+  id: number
+  mall: string
+  mallProductCode: string
+  mallProductName: string | null
+  itemId: number
+  itemCode: string
+  itemName: string
+  active: boolean
 }
 
 export interface MallOverview {

@@ -52,6 +52,7 @@ const RULES: Rule[] = [
   // 부가
   ['/sales/export', 'EXPORT'],
   ['/sales/mall', 'MALL'],
+  ['/sales/mall-item-mappings', 'MALL'],
   // 나머지 영업 (sell · sales-* · quotations · shipment* · settlement · collection · orders …)
   ['/sales', 'SALES'],
 

@@ -339,6 +339,7 @@ function CollectForm({ items, onClose, onSaved }: {
   const [buyerPhone, setBuyerPhone] = useState('')
   const [address, setAddress] = useState('')
   const [productName, setProductName] = useState('')
+  const [mallProductCode, setMallProductCode] = useState('')
   const [itemId, setItemId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
@@ -363,6 +364,7 @@ function CollectForm({ items, onClose, onSaved }: {
         buyerPhone: buyerPhone.trim() || null,
         address: address.trim() || null,
         productName: productName.trim(),
+        mallProductCode: mallProductCode.trim() || null,
         itemId: itemId ? Number(itemId) : null,
         quantity: Number(quantity),
         unitPrice: Number(unitPrice) || 0,
@@ -402,10 +404,17 @@ function CollectForm({ items, onClose, onSaved }: {
             <td colSpan={3}><input className="ec-input" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="몰이 보내준 상품명 원문" style={{ width: '100%' }} /></td>
           </tr>
           <tr>
+            <th style={{ background: '#f5f7fa' }}>몰품목코드</th>
+            <td colSpan={3}>
+              <input className="ec-input" value={mallProductCode} onChange={(e) => setMallProductCode(e.target.value)} placeholder="몰 상품 key (예: NSP-1001)" style={{ width: 220 }} />
+              <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>품목코드연결에 등록돼 있으면 품목이 자동 연결됩니다.</span>
+            </td>
+          </tr>
+          <tr>
             <th style={{ background: '#f5f7fa' }}>품목 매핑</th>
             <td colSpan={3}>
               <select className="ec-input" value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: 280 }}>
-                <option value="">(나중에 매핑)</option>
+                <option value="">(비우면 몰품목코드로 자동연결 시도)</option>
                 {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
               </select>
               <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>매핑해야 판매전환할 수 있습니다.</span>
