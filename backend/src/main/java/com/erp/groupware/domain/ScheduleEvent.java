@@ -42,6 +42,14 @@ public class ScheduleEvent extends BaseTimeEntity {
     @Column(length = 50)
     private String owner;
 
+    /** 장소 */
+    @Column(length = 200)
+    private String location;
+
+    /** 참석자(콤마 구분) */
+    @Column(length = 500)
+    private String attendees;
+
     @Column(length = 500)
     private String remark;
 

@@ -5013,3 +5013,9 @@ INSERT INTO collect_sources (name, category, endpoint, paged, sort_order, active
     ('구매 전표',          '구매',     '/purchases',                          false, 7, true),
     ('작업지시',           '생산',     '/work-orders',                        false, 8, true),
     ('생산실적',           '생산',     '/productions',                        false, 9, true);
+
+-- ---- V118: V118__schedule_location_attendees.sql ----
+-- 일정(schedule_events)에 장소·참석자 추가. 사내관리(C000698) 일정 검색/관리에서 쓰는 필드.
+-- 기존 행은 NULL 로 남으며 기존 일정관리 동작에 영향 없음.
+ALTER TABLE schedule_events ADD COLUMN location  varchar(200);
+ALTER TABLE schedule_events ADD COLUMN attendees varchar(500);

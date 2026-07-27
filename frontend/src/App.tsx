@@ -165,6 +165,7 @@ const LaborContractPage = lazy(() => import('./pages/hr/ContractPage'))
 const DailyWagePage = lazy(() => import('./pages/hr/DailyWagePage'))
 const NoticePage = lazy(() => import('./pages/groupware/NoticePage'))
 const SchedulePage = lazy(() => import('./pages/groupware/SchedulePage'))
+const ScheduleSearchPage = lazy(() => import('./pages/groupware/ScheduleSearchPage'))
 const SurveyPage = lazy(() => import('./pages/groupware/SurveyPage'))
 const AccountingReflectionPage = lazy(() => import('./pages/trade/AccountingReflectionPage'))
 const OutsourcingDiscountPage = lazy(() => import('./pages/trade/OutsourcingDiscountPage'))
@@ -404,6 +405,7 @@ export default function App() {
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
+        <Route path="/groupware/schedule-search" element={<ScheduleSearchPage />} />
         <Route path="/groupware/survey" element={<SurveyPage />} />
         <Route path="/groupware/supplies" element={<SuppliesPage />} />
         <Route path="/groupware/dev-schedule" element={<SwSchedulePage />} />

@@ -16,6 +16,8 @@ public final class ScheduleEventDtos {
             @NotBlank(message = "일정 제목을 입력하세요.") String title,
             String category,
             String owner,
+            String location,
+            String attendees,
             String remark
     ) {}
 
@@ -26,17 +28,21 @@ public final class ScheduleEventDtos {
             String title,
             String category,
             String owner,
+            String location,
+            String attendees,
             String remark
     ) {}
 
     public record ScheduleEventResponse(
             Long id, LocalDate eventDate, String startTime, String title,
-            String category, String owner, String remark, String createdBy
+            String category, String owner, String location, String attendees,
+            String remark, String createdBy
     ) {
         public static ScheduleEventResponse from(ScheduleEvent e) {
             return new ScheduleEventResponse(
                     e.getId(), e.getEventDate(), e.getStartTime(), e.getTitle(),
-                    e.getCategory(), e.getOwner(), e.getRemark(), e.getCreatedBy());
+                    e.getCategory(), e.getOwner(), e.getLocation(), e.getAttendees(),
+                    e.getRemark(), e.getCreatedBy());
         }
     }
 }

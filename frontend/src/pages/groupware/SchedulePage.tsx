@@ -10,6 +10,8 @@ interface ScheduleEvent {
   title: string
   category: string | null
   owner: string | null
+  location: string | null
+  attendees: string | null
   remark: string | null
   createdBy: string | null
 }
@@ -31,6 +33,8 @@ export default function SchedulePage() {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('회의')
   const [owner, setOwner] = useState('')
+  const [location, setLocation] = useState('')
+  const [attendees, setAttendees] = useState('')
 
   async function load() {
     try { setRows((await api.get<ScheduleEvent[]>('/schedule-events')).data) }
@@ -45,9 +49,10 @@ export default function SchedulePage() {
     try {
       await api.post<ScheduleEvent>('/schedule-events', {
         eventDate, startTime: startTime || undefined, title, category, owner: owner || undefined,
+        location: location || undefined, attendees: attendees || undefined,
       })
       setOk('일정 등록 완료')
-      setTitle(''); setStartTime(''); setOwner('')
+      setTitle(''); setStartTime(''); setOwner(''); setLocation(''); setAttendees('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -97,6 +102,12 @@ export default function SchedulePage() {
                 <th style={th}>담당</th>
                 <td><input className={inputCls} value={owner} onChange={(e) => setOwner(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
+              <tr>
+                <th style={th}>장소</th>
+                <td><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: 150 }} placeholder="예: 3층 회의실" /></td>
+                <th style={th}>참석자</th>
+                <td><input className={inputCls} value={attendees} onChange={(e) => setAttendees(e.target.value)} style={{ width: '100%' }} placeholder="콤마로 구분 (예: 김부장, 이대리)" /></td>
+              </tr>
             </tbody>
           </table>
           {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
@@ -116,12 +127,13 @@ export default function SchedulePage() {
             <th>제목 ▼</th>
             <th style={{ width: 80, textAlign: 'center' }}>분류</th>
             <th style={{ width: 90 }}>담당</th>
+            <th style={{ width: 120 }}>장소</th>
             <th style={{ width: 70, textAlign: 'center' }}>삭제</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>일정이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>일정이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -130,6 +142,7 @@ export default function SchedulePage() {
               <td style={{ fontWeight: 600 }}>{r.title}</td>
               <td style={{ textAlign: 'center', color: CAT_COLOR[r.category ?? '기타'] ?? '#5a626e', fontWeight: 700 }}>{r.category ?? '기타'}</td>
               <td>{r.owner ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.location ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>
               </td>

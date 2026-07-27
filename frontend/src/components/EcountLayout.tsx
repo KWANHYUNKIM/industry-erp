@@ -425,6 +425,7 @@ const MENU: TopMenu[] = [
             label: '사내관리',
             children: [
               { label: '일정관리', to: '/groupware/schedule' },
+              { label: '일정검색', to: '/groupware/schedule-search' },
               { label: '공용품관리', to: '/groupware/supplies' },
             ],
           },

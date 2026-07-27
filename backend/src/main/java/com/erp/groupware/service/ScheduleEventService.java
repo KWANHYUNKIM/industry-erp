@@ -37,6 +37,8 @@ public class ScheduleEventService {
                 .title(req.title())
                 .category(req.category())
                 .owner(req.owner())
+                .location(req.location())
+                .attendees(req.attendees())
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
@@ -51,6 +53,8 @@ public class ScheduleEventService {
         if (req.title() != null) e.setTitle(req.title());
         if (req.category() != null) e.setCategory(req.category());
         if (req.owner() != null) e.setOwner(req.owner());
+        if (req.location() != null) e.setLocation(req.location());
+        if (req.attendees() != null) e.setAttendees(req.attendees());
         if (req.remark() != null) e.setRemark(req.remark());
         return ScheduleEventResponse.from(e);
     }
