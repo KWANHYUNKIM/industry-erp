@@ -181,6 +181,7 @@ const PartnerEntryPage = lazy(() => import('./pages/trade/PartnerEntryPage'))
 const PaymentHistoryPage = lazy(() => import('./pages/trade/PaymentHistoryPage'))
 const PaymentComparePage = lazy(() => import('./pages/trade/PaymentComparePage'))
 const SalesPriceBulkPage = lazy(() => import('./pages/trade/SalesPriceBulkPage'))
+const SpecialPricePage = lazy(() => import('./pages/trade/SpecialPricePage'))
 const PurchasePriceBulkPage = lazy(() => import('./pages/trade/PurchasePriceBulkPage'))
 const OrderTypePage = lazy(() => import('./pages/trade/OrderTypePage'))
 const OrderStagePage = lazy(() => import('./pages/trade/OrderStagePage'))
@@ -297,6 +298,7 @@ export default function App() {
         <Route path="/sales/order-types" element={<OrderTypePage />} />
         <Route path="/sales/order-stages" element={<OrderStagePage />} />
         <Route path="/sales/sales-price-bulk" element={<SalesPriceBulkPage />} />
+        <Route path="/sales/special-price" element={<SpecialPricePage />} />
         <Route path="/sales/purchase-price-bulk" element={<PurchasePriceBulkPage />} />
         <Route path="/sales/partner-entry" element={<PartnerEntryPage />} />
         <Route path="/sales/statement" element={<StatementPrintPage />} />

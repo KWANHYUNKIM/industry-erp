@@ -53,6 +53,7 @@ const MENU: TopMenu[] = [
           { label: '관리항목등록', to: '/inventory/manage-items' },
           { label: '단가적용순서설정', to: '/inventory/price-order' },
           { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
+          { label: '특별단가등록', to: '/sales/special-price' },
           { label: '외화(통화·환율)', to: '/settings/currencies' },
         ],
       },

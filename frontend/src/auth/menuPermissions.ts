@@ -24,6 +24,7 @@ const RULES: Rule[] = [
   ['/inventory/reports', 'STOCK_MOVE'],
   ['/inventory/price-order', 'SALES'],
   ['/inventory/special-price-group', 'SALES'],
+  ['/sales/special-price', 'SALES'],
   ['/inventory', 'INV_MASTER'], // items · warehouses · manage-items
 
   // 구매 (영업 라우트와 섞여 있어 먼저 걸러낸다)

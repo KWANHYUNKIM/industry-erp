@@ -102,7 +102,7 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | 재고 II › 품질관리 | 9 / 10 | 품질검사 입력/조회=QualityInspectionPage, 품질검사현황=QualityStatusPage. **품질검사요청 계열(C000692,E040628~631)=QualityRequestPage 풀스택 신규**(요청 엔티티+V103, 요청→검사완료/취소). 잔여: 유형등록(enum 고정) |
 | 재고 II › 계획관리 | 8 / 8 | 매출계획·비교표=SalesPlanPage(풀스택). **프로젝트계획 계열(C000653·E040636·E040637)=ProjectPlanPage 풀스택 신규**(project_plans+V104, 계획vs실적 대조는 ProjectProfitService 재사용). 완비 |
 | 재고 II › 수출관리 | 3 / 3 | ExportPage로 완비(인보이스→통관→선적→입금 + Invoice/Packing List 인쇄). 오탐 정정 |
-| 회계 I › 기초등록 | 12 / 13 | 사원=EmployeePage·외화=CurrencyPage·단가적용순서=PriceOrderPage·품목별단가=PriceBulk·각종코드변경=CommonCodePage 오탐 정정. 잔여: 특별단가등록(실단가 테이블 없음) |
+| 회계 I › 기초등록 | 13 / 13 | 사원=EmployeePage·외화=CurrencyPage·단가적용순서=PriceOrderPage·품목별단가=PriceBulk·각종코드변경=CommonCodePage 오탐 정정. **특별단가등록=SpecialPricePage 풀스택 신규(special_prices+V109, 거래처별/그룹별 실단가·resolve 폴백). 완비** |
 | 회계 II › 비용관리 | 3 / 3 | 완비 |
 | 그룹웨어 › 공유정보 | 10 / 12 | **주요전달사항=KeyNoticePage 신규**(그동안 이 메뉴는 공지게시판=SharedInfoPage에 잘못 연결돼 있던 것을 바로잡고, 게시판은 '공유정보'로 재라벨). 잔여: 사내관리·조건별검색 |
 | 그룹웨어 › 업무관리 | 8 / 10 | **오탐 대량 정정** + **지각현황·일별근무시간·통합현황(근태+일정)=WorkIntegratedPage 신규**. 잔여: ECDrive·WORK(외부 연동) |
@@ -114,7 +114,7 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | 데이터센터 › 데이터수집 | 4 / 5 | **오탐 정정** — DataCollectPage가 9개 소스(판매=거래명세서·재고수불·마스터 등) 수집. 잔여: 동적 소스등록 UI |
 | 데이터센터 › 데이터내보내기 | 0 / 1 | |
 | Self-Customizing › (다운로드·보안·환경) | 0 / 5 | |
-| **합계** | **≈228 / 340** | 2026-07-20 구매·영업 파이프라인 + 재고실사 + 품질/A/S현황 + 매출계획(풀스택) + 로트재고비교 구축, 생산/외주·회계기초·수출 포함 오탐 대량 정정 반영 |
+| **합계** | **≈229 / 340** | 2026-07-20 구매·영업 파이프라인 + 재고실사 + 품질/A/S현황 + 매출계획(풀스택) + 로트재고비교 구축, 생산/외주·회계기초·수출 포함 오탐 대량 정정 반영. 2026-07-27 특별단가등록(풀스택)으로 회계 I 기초등록 13/13 완비 |
 
 방향: **우리 강점** = 이익관리·비용·근태·고객관리·전자결재·오더관리. **가장 빈 곳** = 기타이동(재고이동/실사),
 품질관리, 계획관리, 쇼핑몰, 공용메일, 그리고 출력물 서식.
@@ -386,6 +386,20 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
   그동안 '주요전달사항' 메뉴가 공지게시판(SharedInfoPage)에 연결돼 있었으나, 진짜 주요전달사항(결재 대시보드)은 미구현이었다
   → 신규 페이지를 연결하고 기존 게시판은 '공유정보'로 재라벨. 검증: 결재 2건 시드(내 차례 1·상신진행 2)로 두 섹션 분류 대조 +
   브라우저 렌더 + tsc + 시드 삭제로 원복(approvals 0).
+
+### 완료 로그 (2026-07-27)
+- ✅ **특별단가등록(E040124)** — `SpecialPricePage`(`/sales/special-price`). **진짜 신규 풀스택**: 표준단가(Item.unitPrice)를
+  덮어쓰는 예외 단가 마스터. 신규 엔티티 `SpecialPrice`(trade) + enum `SpecialPriceType`(SALES/PURCHASE) +
+  **`V109__create_special_prices.sql`**(FK 인덱스 idx_special_prices_item_id·partner_id + resolve 복합 인덱스
+  idx_special_prices_lookup) + Repository/DTO/Service/Controller(`/api/special-prices`, `/resolve`, `/{id}/active` 토글).
+  적용범위는 **거래처별(partner_id) 또는 특별단가그룹별(price_group) 중 하나**(서비스에서 XOR 가드 400). 거래처특별단가그룹
+  (E040120)이 각 거래처에 지정한 `salesPriceGroup/purchasePriceGroup`과 짝을 이룬다. **`/resolve`가 실제 로직**: (구분·품목·거래처)로
+  유효단가를 거래처별→그룹별 순으로 해석(가짜 컨트롤 아님 — 데이터가 실제로 걸린다). 판매/구매 입력 자동적용은 회귀위험 커서
+  별도 트랙(마스터+해석까지 이번 범위). 프론트: 등록 폼(구분·품목·범위·단가) + 판매/구매/전체 탭 + 사용여부 토글 + 유효단가 조회 패널.
+  검증(라이브): 그룹별 등록→거래처 그룹 미지정 시 폴백 없음, 거래처에 '대리점가' 임시지정→**그룹폴백 resolve found=GROUP·8888**,
+  거래처별 등록→**resolve 1순위 PARTNER·5555**, 범위중복 400 가드, 거래처별 사용중단→그룹으로 복귀, 삭제 정리 후 0건·거래처 그룹 원복(드리프트 0)
+  전 흐름 + Flyway V109 적용·validate 통과 + tsc 통과 + QA 하네스(급여·분개 등 24개 시나리오 ✅, 25 현금계좌간이동은 로컬 DB 잔액
+  누적 드리프트로 중단 — 격리 신규 테이블과 무관·회귀 아님). **회계 I 기초등록 13/13 완비.**
 
 ---
 
@@ -755,7 +769,7 @@ grep -oE '<div class="prog" id="[^"]*"><h3>[^<]*<span class="badge b-ok">[^<]*</
 | ✅ | `회계_I_기초등록_E040114` | 외화등록 (CurrencyPage) |
 | ✅ | `회계_I_기초등록_E040120` | 거래처특별단가그룹등록 |
 | ✅ | `회계_I_기초등록_E040122` | 품목별단가 (SalesPriceBulk·PurchasePriceBulkPage 표준단가) |
-| ⬜ | `회계_I_기초등록_E040124` | 특별단가등록 |
+| ✅ | `회계_I_기초등록_E040124` | 특별단가등록 (SpecialPricePage `/sales/special-price` — 풀스택 신규 special_prices+V109·거래처별/그룹별 실단가·resolve 폴백) |
 | ✅ | `회계_I_기초등록_E040125` | 단가적용순서설정 (PriceOrderPage) |
 | ✅ | `회계_I_기초등록_E040126` | 단가관리 (PriceOrder·PriceBulk·특별단가그룹 조합) |
 

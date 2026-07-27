@@ -495,6 +495,33 @@ export interface PriceOrderLine {
   active: boolean
 }
 
+// ===== 특별단가(E040124) =====
+
+export type SpecialPriceType = 'SALES' | 'PURCHASE'
+
+export interface SpecialPrice {
+  id: number
+  tradeType: SpecialPriceType
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  partnerId: number | null
+  partnerName: string | null
+  priceGroup: string | null
+  unitPrice: number
+  active: boolean
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface SpecialPriceResolve {
+  found: boolean
+  unitPrice: number | null
+  source: 'PARTNER' | 'GROUP' | null
+  priceGroup: string | null
+}
+
 // ===== 품질검사 =====
 
 export type QualityInspectionType = 'INCOMING' | 'PROCESS' | 'SHIPMENT'
