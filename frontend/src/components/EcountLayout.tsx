@@ -496,7 +496,7 @@ const MENU: TopMenu[] = [
   {
     label: '데이터센터',
     tabs: [
-      { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }] },
+      { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
       { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }] },
     ],
   },

@@ -1,32 +1,25 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api } from '../../api/client'
+import type { CollectSource } from '../../api/types'
 
-/** 데이터센터 > 데이터수집 — 모듈별 실데이터 수집 현황 (기존 read 엔드포인트 집계) */
+/**
+ * 데이터센터 > 데이터수집 — 모듈별 실데이터 수집 현황.
+ * 수집 소스는 수집데이터등록(collect_sources)에서 관리하는 활성 소스를 읽어 실행한다(더 이상 하드코딩 아님).
+ * 실행 = 각 소스의 GET 엔드포인트를 호출해 행수(또는 페이지 totalElements)를 집계.
+ */
 type Status = '성공' | '실행중' | '실패' | '대기'
 interface Row {
   id: number
   source: string
   type: string
   endpoint: string
+  paged: boolean
   lastRun: string
   rows: number
   status: Status
 }
 interface PageRes { totalElements: number }
-
-/** 수집 대상: 모듈명 · 엔드포인트 · 응답에서 건수 뽑는 방법 */
-const SOURCES: { id: number; source: string; type: string; endpoint: string; paged?: boolean }[] = [
-  { id: 1, source: '품목 마스터', type: '기준정보', endpoint: '/items' },
-  { id: 2, source: '거래처 마스터', type: '기준정보', endpoint: '/partners' },
-  { id: 3, source: '창고 마스터', type: '기준정보', endpoint: '/warehouses' },
-  { id: 4, source: '현재고 (품목x창고)', type: '재고', endpoint: '/stock' },
-  { id: 5, source: '재고 수불 이력', type: '재고', endpoint: '/stock/transactions?page=0&size=1', paged: true },
-  { id: 6, source: '판매 전표', type: '영업', endpoint: '/sales' },
-  { id: 7, source: '구매 전표', type: '구매', endpoint: '/purchases' },
-  { id: 8, source: '작업지시', type: '생산', endpoint: '/work-orders' },
-  { id: 9, source: '생산실적', type: '생산', endpoint: '/productions' },
-]
 
 const statusColor = (s: Status) => ({ 성공: '#1c7c3c', 실행중: 'var(--ec-blue)', 실패: '#c60a2e', 대기: '#8a929c' }[s])
 
@@ -37,33 +30,41 @@ function nowText() {
 }
 
 export default function DataCollectPage() {
-  const [rows, setRows] = useState<Row[]>(
-    SOURCES.map((s) => ({ id: s.id, source: s.source, type: s.type, endpoint: s.endpoint, lastRun: '-', rows: 0, status: '대기' as Status })),
-  )
+  const [rows, setRows] = useState<Row[]>([])
   const [keyword, setKeyword] = useState('')
   const [logOpen, setLogOpen] = useState(false)  // 수집 로그 모달
 
-  async function runAll() {
+  async function runAll(rowsToRun?: Row[]) {
+    const target = rowsToRun ?? rows
+    if (target.length === 0) return
     setRows((rs) => rs.map((r) => ({ ...r, status: '실행중' as Status })))
     const results = await Promise.allSettled(
-      SOURCES.map(async (s) => {
+      target.map(async (s) => {
         const res = await api.get<unknown>(s.endpoint)
-        const count = s.paged
+        return s.paged
           ? (res.data as PageRes).totalElements
           : Array.isArray(res.data) ? res.data.length : 0
-        return count
       }),
     )
     const ts = nowText()
-    setRows((rs) => rs.map((r, i) => {
-      const result = results[i]
+    setRows((rs) => rs.map((r) => {
+      const idx = target.findIndex((t) => t.id === r.id)
+      if (idx < 0) return r
+      const result = results[idx]
       return result.status === 'fulfilled'
         ? { ...r, lastRun: ts, rows: result.value, status: '성공' as Status }
         : { ...r, lastRun: ts, rows: 0, status: '실패' as Status }
     }))
   }
 
-  useEffect(() => { runAll() }, [])
+  useEffect(() => {
+    api.get<CollectSource[]>('/collect-sources').then((r) => {
+      const active = r.data.filter((s) => s.active)
+      const initial: Row[] = active.map((s) => ({ id: s.id, source: s.name, type: s.category, endpoint: s.endpoint, paged: s.paged, lastRun: '-', rows: 0, status: '대기' as Status }))
+      setRows(initial)
+      runAll(initial)
+    }).catch(() => setRows([]))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const shown = rows.filter((r) => !keyword || r.source.includes(keyword) || r.type.includes(keyword))
   const totalRows = rows.reduce((s, r) => s + r.rows, 0)
@@ -74,7 +75,7 @@ export default function DataCollectPage() {
       title="데이터수집"
       search={keyword}
       onSearchChange={setKeyword}
-      actions={[{ label: '전체 수집 실행', primary: true, onClick: runAll }, { label: '수집 로그', onClick: () => setLogOpen(true) }]}
+      actions={[{ label: '전체 수집 실행', primary: true, onClick: () => runAll() }, { label: '수집 로그', onClick: () => setLogOpen(true) }]}
     >
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         수집소스 <b style={{ color: 'var(--ec-blue-dark)' }}>{rows.length}</b>개

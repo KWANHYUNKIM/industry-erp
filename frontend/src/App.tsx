@@ -108,6 +108,7 @@ const CommonCodePage = lazy(() => import('./pages/settings/CommonCodePage'))
 const CustomFieldPage = lazy(() => import('./pages/settings/CustomFieldPage'))
 const DataCollectPage = lazy(() => import('./pages/datacenter/DataCollectPage'))
 const DataExportPage = lazy(() => import('./pages/datacenter/DataExportPage'))
+const CollectSourcePage = lazy(() => import('./pages/datacenter/CollectSourcePage'))
 const MrpPage = lazy(() => import('./pages/production/MrpPage'))
 const ProcessPage = lazy(() => import('./pages/production/ProcessPage'))
 const ResourcePage = lazy(() => import('./pages/production/ResourcePage'))
@@ -413,6 +414,7 @@ export default function App() {
         {/* 데이터센터 */}
         <Route path="/datacenter" element={<Navigate to="/datacenter/collect" replace />} />
         <Route path="/datacenter/collect" element={<DataCollectPage />} />
+        <Route path="/datacenter/collect-sources" element={<CollectSourcePage />} />
         <Route path="/datacenter/export" element={<DataExportPage />} />
 
         {/* 관리(근태) */}

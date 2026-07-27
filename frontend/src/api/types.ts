@@ -1930,6 +1930,18 @@ export interface MallItemMapping {
   active: boolean
 }
 
+// ===== 수집데이터 소스 등록(E100000) =====
+
+export interface CollectSource {
+  id: number
+  name: string
+  category: string
+  endpoint: string
+  paged: boolean
+  sortOrder: number
+  active: boolean
+}
+
 // ===== 사용자정의 필드(Self-Customizing) =====
 
 export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CODE'
