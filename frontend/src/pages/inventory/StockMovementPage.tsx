@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -86,10 +87,8 @@ export default function StockMovementPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>창고</span>
-          <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 180 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={170} value={warehouseId} onChange={setWarehouseId}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
         </div>
         <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
           <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />

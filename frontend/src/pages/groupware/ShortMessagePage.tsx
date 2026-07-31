@@ -251,23 +251,19 @@ function ComposeForm({ users, partners, onDone }: { users: User[]; partners: Par
     } catch (err) { setError(extractErrorMessage(err)) } finally { setSaving(false) }
   }
 
-  const toggle = (id: number) =>
-    setRecipientIds((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5 }}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', borderRadius: 3 }}>{error}</p>}
-      <div>
-        <div style={{ color: '#5a626e', marginBottom: 4 }}>받는 사람 (복수 선택)</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 120, overflowY: 'auto', border: '1px solid var(--ec-border)', padding: 8 }}>
-          {users.map((u) => (
-            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <input type="checkbox" checked={recipientIds.includes(u.id)} onChange={() => toggle(u.id)} />
-              {u.name}
-            </label>
-          ))}
-        </div>
-      </div>
+      {/* 받는 사람은 원본도 코드도움 팝업 + tags-input(복수)이다. 사용자가 늘면 체크박스 나열은 못 쓴다. */}
+      <CodePickerField
+        label="받는 사람"
+        multiple
+        width={320}
+        placeholder="받는 사람을 선택하세요"
+        values={recipientIds.map(String)}
+        onChangeMulti={(vals) => setRecipientIds(vals.map(Number))}
+        items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))}
+      />
       <label>
         <div style={{ color: '#5a626e', marginBottom: 4 }}>내용</div>
         <textarea className="ec-input" value={content} onChange={(e) => setContent(e.target.value)}

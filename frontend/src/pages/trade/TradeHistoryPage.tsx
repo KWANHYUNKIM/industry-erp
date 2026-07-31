@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 영업관리 > 거래이력조회 (이카운트 E040716)
@@ -126,10 +127,8 @@ export default function TradeHistoryPage() {
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-            <option value="">전체</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
+                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>기간</span>

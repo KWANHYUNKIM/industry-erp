@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -127,17 +128,15 @@ export default function StockLedgerPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>창고</span>
-          <select className="ec-input" value={filters.warehouseId} onChange={(e) => setF({ warehouseId: e.target.value })} style={{ width: 180 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={170} value={filters.warehouseId}
+                           onChange={(v) => setF({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>품목</span>
-          <select className="ec-input" value={filters.itemId} onChange={(e) => setF({ itemId: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-          </select>
+          <CodePickerField label="품목" hideLabel width={210} value={filters.itemId}
+                           onChange={(v) => setF({ itemId: v })}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
         </div>
         <button className="ec-btn ec-btn-primary" onClick={loadLedger}>조회</button>
       </div>
