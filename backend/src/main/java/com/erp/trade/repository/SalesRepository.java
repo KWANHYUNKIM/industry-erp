@@ -31,6 +31,11 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
             "from Sales s group by s.partner.id")
     List<PartnerAmount> sumTotalByPartner();
 
+    /** 거래처별 매출 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
+    @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
+            "from Sales s where s.saleDate <= :asOf group by s.partner.id")
+    List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
+
     interface PartnerAmount {
         Long getPartnerId();
         BigDecimal getTotal();

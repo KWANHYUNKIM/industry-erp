@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -210,10 +211,9 @@ function TransferForm({ items, warehouses, onError, onSaved }: {
           <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
         </Field>
         <Field label="품목 *">
-          <select className="ec-input" value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-            <option value="">선택하세요</option>
-            {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-          </select>
+          <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
+                           value={form.itemId} onChange={(v) => set('itemId', v)}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
         </Field>
         <Field label="출고창고 *">
           <select className="ec-input" value={form.fromWarehouseId} onChange={(e) => set('fromWarehouseId', e.target.value)} style={{ width: 150 }}>
@@ -292,10 +292,9 @@ function AdjustmentForm({ type, label, items, warehouses, stock, onError, onSave
           <input className="ec-input" type="date" value={form.adjustDate} onChange={(e) => set('adjustDate', e.target.value)} style={{ width: 140 }} />
         </Field>
         <Field label="품목 *">
-          <select className="ec-input" value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-            <option value="">선택하세요</option>
-            {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-          </select>
+          <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
+                           value={form.itemId} onChange={(v) => set('itemId', v)}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
         </Field>
         <Field label="창고 *">
           <select className="ec-input" value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 150 }}>

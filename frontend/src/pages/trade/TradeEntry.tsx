@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, Item, Partner, Project, PurchaseDoc, SalesDoc, Warehouse } from '../../api/types'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
+import CodePickerField from '../../components/CodePickerField'
 import { findDataTable } from '../../utils/tableExport'
 
 type Mode = 'sales' | 'purchase'
@@ -198,10 +199,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <td><input type="date" className={cellInput} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
             <th style={th}>{cfg.partnerLabel} *</th>
             <td>
-              <select className={cellInput} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 220 }}>
-                <option value="">선택하세요</option>
-                {usablePartners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-              </select>
+              <CodePickerField label={cfg.partnerLabel} hideLabel width={220} placeholder="선택하세요"
+                               value={partnerId} onChange={setPartnerId}
+                               items={usablePartners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
             </td>
             <th style={th}>담당자</th>
             <td>
@@ -275,10 +275,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.itemId ? idx + 1 : ''}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{it?.code ?? ''}</td>
                 <td>
-                  <select className={cellInput} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)} style={{ width: '100%' }}>
-                    <option value="">선택</option>
-                    {items.map((i) => <option key={i.id} value={i.id}>[{i.code}] {i.name}</option>)}
-                  </select>
+                  <CodePickerField label="품목" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                                   value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
+                                   items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec }))} />
                 </td>
                 <td style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
                 <td><input type="number" step="any" className={cellInput} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>

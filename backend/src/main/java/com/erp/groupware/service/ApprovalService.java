@@ -28,6 +28,7 @@ import com.erp.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,6 +52,8 @@ public class ApprovalService {
     private final SalesRepository salesRepository;
     private final PurchaseRepository purchaseRepository;
     private final ExpenseRepository expenseRepository;
+    /** 결재 진행 상황을 기안자·다음 결재자에게 쪽지 자동알림으로 알린다. */
+    private final ShortMessageService shortMessageService;
 
     /**
      * 결재함 조회.
@@ -136,7 +139,12 @@ public class ApprovalService {
         addParticipants(doc, req.referenceUserIds(), ApprovalParticipantRole.REFERENCE);
         addParticipants(doc, req.shareUserIds(), ApprovalParticipantRole.SHARE);
 
-        return ApprovalResponse.from(approvalRepository.save(doc));
+        ApprovalDocument saved = approvalRepository.save(doc);
+        // 임시저장이 아니면 생성과 동시에 상신된다(status=IN_PROGRESS) — 이때도 첫 결재자에게 알린다.
+        if (!req.temporary()) {
+            notifyCurrentApprover(saved);
+        }
+        return ApprovalResponse.from(saved);
     }
 
     private void addParticipants(ApprovalDocument doc, List<Long> userIds, ApprovalParticipantRole role) {
@@ -163,7 +171,23 @@ public class ApprovalService {
         doc.setStatus(ApprovalStatus.IN_PROGRESS);
         doc.setCurrentStep(1);
         linkedSales(doc).forEach(Sales::markInApproval);
+        notifyCurrentApprover(doc);
         return ApprovalResponse.from(doc);
+    }
+
+    /** 지금 결재할 차례인 사람에게 쪽지 자동알림. 결재선이 비면 아무 일도 하지 않는다. */
+    private void notifyCurrentApprover(ApprovalDocument doc) {
+        currentLine(doc).ifPresent(line -> shortMessageService.notify(
+                line.getApprover(),
+                "전자결재 > " + doc.getTitle() + "(" + doc.getDraftNo() + ") 결재 요청이 도착했습니다.",
+                "전자결재", doc.getDraftNo(), "/groupware/approval/my"));
+    }
+
+    /** 기안자에게 쪽지 자동알림(최종 완료·반려). */
+    private void notifyDrafter(ApprovalDocument doc, String message) {
+        shortMessageService.notify(doc.getDrafter(),
+                "전자결재 > " + doc.getTitle() + "(" + doc.getDraftNo() + ") " + message,
+                "전자결재", doc.getDraftNo(), "/groupware/approval/draft");
     }
 
     /** 이 기안서에 걸린 판매전표들 */
@@ -187,8 +211,10 @@ public class ApprovalService {
             doc.setStatus(ApprovalStatus.APPROVED);
             // 마지막 결재까지 끝났으므로 걸려 있던 판매전표를 '확인' 으로 넘긴다.
             linkedSales(doc).forEach(Sales::markConfirmed);
+            notifyDrafter(doc, "기안문서의 최종 결재가 완료 되었습니다.");
         } else {
             doc.setCurrentStep(doc.getCurrentStep() + 1);
+            notifyCurrentApprover(doc);
         }
         return ApprovalResponse.from(doc);
     }
@@ -204,6 +230,8 @@ public class ApprovalService {
         doc.setStatus(ApprovalStatus.REJECTED);
         // 반려되면 걸려 있던 판매전표는 미확인으로 되돌린다.
         linkedSales(doc).forEach(Sales::markUnconfirmed);
+        notifyDrafter(doc, "기안문서가 반려되었습니다."
+                + (req != null && StringUtils.hasText(req.comment()) ? " (사유: " + req.comment() + ")" : ""));
         return ApprovalResponse.from(doc);
     }
 

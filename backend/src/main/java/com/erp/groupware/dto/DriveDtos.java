@@ -24,13 +24,16 @@ public final class DriveDtos {
     public record DocumentResponse(
             Long id, String name, String drive, long sizeBytes,
             String uploader, boolean important, boolean trashed,
-            String updatedAt
+            String updatedAt,
+            /** 실제 파일 id. null 이면 메타데이터만 등록된 항목이라 다운로드할 수 없다. */
+            Long fileId
     ) {
         public static DocumentResponse from(DriveDocument d) {
             return new DocumentResponse(
                     d.getId(), d.getName(), d.getDrive(), d.getSizeBytes(),
                     d.getUploader(), d.isImportant(), d.isTrashed(),
-                    d.getUpdatedAt() != null ? d.getUpdatedAt().toString() : null);
+                    d.getUpdatedAt() != null ? d.getUpdatedAt().toString() : null,
+                    d.getFile() != null ? d.getFile().getId() : null);
         }
     }
 }

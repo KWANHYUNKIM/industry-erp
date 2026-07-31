@@ -62,6 +62,13 @@ public class Item extends BaseTimeEntity {
     @Column(length = 100)
     private String barcode;
 
+    /**
+     * 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고(E040231) 대상 품목으로 본다.
+     * 별도 플래그를 두지 않는 이유: 보고에 필요한 것이 이 코드 자체라, 코드가 없으면 어차피 보고할 수 없다.
+     */
+    @Column(name = "udi_di", length = 50)
+    private String udiDi;
+
     /** 사용 여부 */
     @Column(nullable = false)
     @Builder.Default

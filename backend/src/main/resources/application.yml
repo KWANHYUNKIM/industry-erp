@@ -2,6 +2,13 @@ spring:
   application:
     name: manufacturing-erp
 
+  # 파일 업로드 상한. 서비스(FileStorageService.MAX_FILE_BYTES)도 같은 10MB 로 막지만,
+  # 여기서 먼저 잘라야 큰 파일이 서버 메모리까지 올라오지 않는다.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
   datasource:
     url: jdbc:postgresql://localhost:5432/erp
     username: erp

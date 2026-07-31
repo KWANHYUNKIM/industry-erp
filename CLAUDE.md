@@ -283,6 +283,17 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 존재하는 클래스를 `cannot find symbol`이라고 보고합니다. 설명 안 되는 컴파일 오류를 만나면
 먼저 `rm -rf target`을 하세요.
 
+### 프론트엔드 타입체크 — `npx tsc --noEmit` 을 쓰지 마세요
+
+```bash
+cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
+```
+
+`frontend/tsconfig.json` 은 `"files": []` + `references` 만 있는 **솔루션 스타일 설정**입니다.
+그래서 `npx tsc --noEmit` 은 **아무 파일도 검사하지 않고 조용히 성공합니다.** 통과했다고 안심하면
+정의되지 않은 식별자 같은 오류가 그대로 빠져나가 런타임에서 화면이 하얗게 뜹니다(실제로 겪었습니다).
+반드시 `npm run typecheck` 로 확인하세요.
+
 ---
 
 ## 10. 패키지 이동 (완료됨 · 2026-07-16)

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, SalesDoc, PurchaseDoc } from '../../api/types'
 
@@ -115,15 +116,15 @@ export default function ConditionSearchPage() {
           </select></label>
         {basis !== 'SELECTED' ? (
           <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처</div>
-            <select className={inputCls} value={partnerId} onChange={(e) => { setPartnerId(e.target.value); setRan(false) }} style={{ width: 200 }}>
-              <option value="">선택하세요</option>
-              {partners.map((p) => <option key={p.id} value={p.id}>{p.name}{p.partnerGroupName ? ` [${p.partnerGroupName}]` : ''}</option>)}
-            </select></label>
+            <CodePickerField label="거래처" hideLabel width={190} placeholder="선택하세요"
+                             value={partnerId} onChange={(v) => { setPartnerId(v); setRan(false) }}
+                             items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.partnerGroupName }))} /></label>
         ) : (
-          <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처(다중 · Ctrl)</div>
-            <select multiple className={inputCls} value={selectedIds.map(String)} onChange={(e) => { setSelectedIds(Array.from(e.target.selectedOptions).map((o) => Number(o.value))); setRan(false) }} style={{ width: 220, height: 90 }}>
-              {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select></label>
+          <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처(다중)</div>
+            <CodePickerField label="거래처(다중)" hideLabel multiple width={210} placeholder="거래처를 고르세요"
+                             values={selectedIds.map(String)}
+                             onChangeMulti={(vals) => { setSelectedIds(vals.map(Number)); setRan(false) }}
+                             items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.partnerGroupName }))} /></label>
         )}
         <button className="ec-btn ec-btn-primary" onClick={run} disabled={loading}>검색(F8)</button>
       </div>

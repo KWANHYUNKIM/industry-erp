@@ -57,6 +57,36 @@ public class StockController {
         return stockService.movement(from, to, warehouseId);
     }
 
+    /** 잔량재집계 — 점검만(값을 고치지 않는다). 월은 yyyy-MM. */
+    @GetMapping("/recalc")
+    public StockDtos.StockRecalcResult recalcPreview(
+            @RequestParam(required = false) String fromMonth,
+            @RequestParam(required = false) String toMonth) {
+        return stockService.recalculate(startOf(fromMonth), endOf(toMonth), false);
+    }
+
+    /** 잔량재집계 실행 — 어긋난 거래잔량·현재고를 수불 이력 기준으로 맞춘다. */
+    @PostMapping("/recalc")
+    public StockDtos.StockRecalcResult recalcApply(
+            @RequestParam(required = false) String fromMonth,
+            @RequestParam(required = false) String toMonth) {
+        return stockService.recalculate(startOf(fromMonth), endOf(toMonth), true);
+    }
+
+    /** yyyy-MM → 그 달 1일. 생략 시 아주 과거(전 기간). */
+    private LocalDate startOf(String month) {
+        return month == null || month.isBlank()
+                ? LocalDate.of(1900, 1, 1)
+                : java.time.YearMonth.parse(month).atDay(1);
+    }
+
+    /** yyyy-MM → 그 달 말일. 생략 시 아주 미래(전 기간). */
+    private LocalDate endOf(String month) {
+        return month == null || month.isBlank()
+                ? LocalDate.of(2999, 12, 31)
+                : java.time.YearMonth.parse(month).atEndOfMonth();
+    }
+
     /** 입고/출고/조정 등록 */
     @PostMapping("/transactions")
     public ResponseEntity<StockTransactionResponse> record(

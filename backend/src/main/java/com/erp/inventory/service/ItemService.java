@@ -47,6 +47,7 @@ public class ItemService {
                 .unitPrice(req.unitPrice())
                 .safetyStock(req.safetyStock())
                 .barcode(req.barcode())
+                .udiDi(req.udiDi())
                 .active(true)
                 .build();
         return ItemResponse.from(itemRepository.save(item));
@@ -62,6 +63,7 @@ public class ItemService {
         item.setUnitPrice(req.unitPrice());
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
+        item.setUdiDi(req.udiDi());
         if (req.active() != null) {
             item.setActive(req.active());
         }

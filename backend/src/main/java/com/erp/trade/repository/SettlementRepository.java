@@ -18,6 +18,11 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
             "from Settlement s where s.type = :type group by s.partner.id")
     List<PartnerAmount> sumByPartner(SettlementType type);
 
+    /** 거래처별 정산 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
+    @Query("select s.partner.id as partnerId, coalesce(sum(s.amount),0) as total " +
+            "from Settlement s where s.type = :type and s.settleDate <= :asOf group by s.partner.id")
+    List<PartnerAmount> sumByPartnerUntil(SettlementType type, java.time.LocalDate asOf);
+
     interface PartnerAmount {
         Long getPartnerId();
         BigDecimal getTotal();

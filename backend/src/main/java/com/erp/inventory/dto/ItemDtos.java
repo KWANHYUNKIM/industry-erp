@@ -20,7 +20,9 @@ public final class ItemDtos {
             @NotNull(message = "품목분류를 선택하세요.") ItemCategory category,
             @NotNull @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             @NotNull @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
-            String barcode
+            String barcode,
+            /** 의료기기 표준코드(UDI-DI). 있으면 의료기기공급내역보고 대상. */
+            String udiDi
     ) {}
 
     public record UpdateItemRequest(
@@ -31,6 +33,7 @@ public final class ItemDtos {
             @NotNull @PositiveOrZero BigDecimal unitPrice,
             @NotNull @PositiveOrZero BigDecimal safetyStock,
             String barcode,
+            String udiDi,
             Boolean active
     ) {}
 
@@ -45,6 +48,7 @@ public final class ItemDtos {
             BigDecimal unitPrice,
             BigDecimal safetyStock,
             String barcode,
+            String udiDi,
             boolean active
     ) {
         public static ItemResponse from(Item item) {
@@ -59,6 +63,7 @@ public final class ItemDtos {
                     item.getUnitPrice(),
                     item.getSafetyStock(),
                     item.getBarcode(),
+                    item.getUdiDi(),
                     item.isActive()
             );
         }

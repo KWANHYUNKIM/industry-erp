@@ -15,6 +15,7 @@ const emptyForm = {
   unitPrice: '0',
   safetyStock: '0',
   barcode: '',
+  udiDi: '',
 }
 
 export default function ItemsPage() {
@@ -63,6 +64,7 @@ export default function ItemsPage() {
       unitPrice: String(item.unitPrice),
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
+      udiDi: item.udiDi ?? '',
     })
     setShowForm(true)
   }
@@ -186,6 +188,11 @@ export default function ItemsPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">바코드</label>
               <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">UDI-DI (의료기기 표준코드)</label>
+              <input className={inputCls} value={form.udiDi} onChange={(e) => set('udiDi', e.target.value)}
+                     placeholder="의료기기만 입력 (공급내역보고 대상)" />
             </div>
           </div>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
