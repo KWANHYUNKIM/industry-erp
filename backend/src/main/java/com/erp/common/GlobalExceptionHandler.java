@@ -78,6 +78,18 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
     }
 
+    /**
+     * 업로드 크기 초과. 톰캣이 요청을 자르며 던지는 예외라 서비스의 크기 검사까지 가지 못한다.
+     * 사용자 잘못이므로 500 이 아니라 400 으로 돌려준다.
+     */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadTooLarge(
+            org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "파일이 너무 큽니다. 최대 "
+                        + (FileStorageService.MAX_FILE_BYTES / 1024 / 1024) + "MB 까지 올릴 수 있습니다."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

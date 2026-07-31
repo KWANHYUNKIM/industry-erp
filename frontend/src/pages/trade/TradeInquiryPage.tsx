@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
+import EvidencePanel from '../../components/EvidencePanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc } from '../../api/types'
 
@@ -197,6 +198,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     </table>
                     {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {d.remark}</div>}
                     {isSales && <div style={{ padding: '0 10px 8px' }}><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}
+                    <div style={{ padding: '0 10px 8px' }}>
+                      <EvidencePanel
+                        entityType={isSales ? 'SALES' : 'PURCHASE'}
+                        entityId={d.id}
+                        docNo={d.docNo}
+                        docDate={d.date}
+                      />
+                    </div>
                   </td>
                 </tr>
               )}

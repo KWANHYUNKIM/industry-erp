@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DriveDocument } from '../../api/types'
+import { downloadStoredFile } from '../../utils/fileDownload'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -23,6 +24,8 @@ export default function EcDrivePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [totalKB, setTotalKB] = useState(0)
+  const [uploading, setUploading] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!
 
@@ -59,6 +62,28 @@ export default function EcDrivePage() {
     } catch (err) {
       alert(extractErrorMessage(err))
     }
+  }
+
+  /** 실제 파일 업로드 — 이름·크기는 서버가 올린 파일에서 가져온다. */
+  async function uploadFile(file: File) {
+    const fd = new FormData()
+    fd.append('file', file)
+    const drive = sel === 'shared' ? 'SHARED' : 'MY'
+    setUploading(true)
+    try {
+      await api.post('/drive-documents/upload', fd, { params: { drive } })
+      load(sel)
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function download(d: DriveDocument) {
+    if (!d.fileId) return alert('이 항목에는 실제 파일이 없습니다(메타데이터만 등록됨).')
+    try { await downloadStoredFile(d.fileId, d.name) }
+    catch (err) { alert(extractErrorMessage(err)) }
   }
 
   async function patch(d: DriveDocument, body: Partial<Pick<DriveDocument, 'important' | 'trashed' | 'name'>>) {
@@ -117,7 +142,21 @@ export default function EcDrivePage() {
             {current.icon} {current.label}
             {sel !== 'trash' && (
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                <button className="ec-btn ec-btn-primary" style={{ height: 22 }} onClick={addDoc}>파일 등록</button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) uploadFile(f)
+                    e.target.value = ''
+                  }}
+                />
+                <button className="ec-btn ec-btn-primary" style={{ height: 22 }}
+                        onClick={() => fileInput.current?.click()} disabled={uploading}>
+                  {uploading ? '올리는 중…' : '파일 업로드'}
+                </button>
+                <button className="ec-btn" style={{ height: 22 }} onClick={addDoc}>항목만 등록</button>
               </div>
             )}
           </div>
@@ -144,7 +183,14 @@ export default function EcDrivePage() {
                     <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => patch(d, { important: !d.important })} title="중요표시">
                       {d.important ? '⭐' : '☆'}
                     </span>
-                    📄 {d.name}
+                    {d.fileId ? (
+                      <button onClick={() => download(d)} title="다운로드"
+                              style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
+                        📄 {d.name}
+                      </button>
+                    ) : (
+                      <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span style={{ color: '#9aa1ab', fontSize: 11 }}>(파일없음)</span></span>
+                    )}
                   </td>
                   <td style={{ color: '#5a626e' }}>{d.uploader ?? ''}</td>
                   <td style={{ color: '#5a626e' }}>{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
@@ -164,7 +210,7 @@ export default function EcDrivePage() {
             </tbody>
           </table>
           <div style={{ marginTop: 'auto', padding: '6px 12px', fontSize: 11.5, color: '#9aa1ab', borderTop: '1px solid #eef1f5' }}>
-            ※ ☆를 눌러 중요표시, 휴지통 이동/복원이 가능합니다. (파일 메타데이터 관리)
+            ※ ☆를 눌러 중요표시, 휴지통 이동/복원이 가능합니다. 파일명을 누르면 다운로드됩니다(업로드 상한 10MB).
           </div>
         </div>
       </div>

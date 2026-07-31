@@ -79,6 +79,8 @@ export interface Item {
   unitPrice: number
   safetyStock: number
   barcode: string | null
+  /** 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고 대상. */
+  udiDi: string | null
   active: boolean
 }
 
@@ -219,6 +221,11 @@ export interface PartnerBalance {
   typeName: string
   receivable: number
   payable: number
+  /** 채권/채무현황 조건용 (기존 화면은 쓰지 않아도 된다) */
+  partnerGroupId: number | null
+  partnerGroupName: string | null
+  manager: string | null
+  active: boolean
 }
 
 // ===== 생산관리 =====
@@ -1070,6 +1077,30 @@ export interface DriveDocument {
   important: boolean
   trashed: boolean
   updatedAt: string | null
+  /** 실제 업로드된 파일 id. null 이면 메타데이터만 등록된 항목(다운로드 불가). */
+  fileId: number | null
+}
+
+// ===== 증빙(증빙센터) =====
+
+export type EvidenceMethod = 'TAX_INVOICE' | 'CARD' | 'CASH_RECEIPT' | 'STATEMENT' | 'ETC'
+
+export interface EvidenceAttachment {
+  id: number
+  entityType: string
+  menuLabel: string
+  entityId: number
+  docNo: string | null
+  docDate: string | null
+  evidenceDate: string | null
+  method: EvidenceMethod
+  methodName: string
+  worker: string | null
+  note: string | null
+  fileId: number | null
+  fileName: string | null
+  fileSize: number | null
+  attached: boolean
 }
 
 // ===== 회계전표(복식부기) =====
@@ -1696,11 +1727,36 @@ export interface Mail {
   handleNote: string | null
   draft: boolean
   deletedAt: string | null
+  /** 스팸 메일함 분류 여부와 사유(어떤 규칙에 걸렸는지 / 수동 지정) */
+  spam: boolean
+  spamReason: string | null
 }
 
 export interface SharedMailBox {
   pendingCount: number
   mails: Mail[]
+}
+
+// ===== 쪽지 =====
+
+/** 쪽지. senderId 가 null 이면 시스템 자동알림(senderName 은 'ECOUNT'). */
+export interface ShortMessage {
+  id: number
+  senderId: number | null
+  senderName: string
+  recipientId: number
+  recipientName: string
+  partnerId: number | null
+  partnerName: string | null
+  content: string
+  sentAt: string
+  readAt: string | null
+  archived: boolean
+  system: boolean
+  statusName: string
+  linkSource: string | null
+  linkRef: string | null
+  linkPath: string | null
 }
 
 // ===== 법인세 =====

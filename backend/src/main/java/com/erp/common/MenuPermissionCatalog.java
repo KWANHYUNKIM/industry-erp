@@ -82,13 +82,14 @@ public final class MenuPermissionCatalog {
         put(m, "PROJECT", "/api/projects");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
-                "/api/vouchers", "/api/accounts", "/api/ledger");
+                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
         put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses");
-        put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax");
+        put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
+                "/api/medical-device-reports");
         // 관리
         put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works");
         put(m, "HR", "/api/employees", "/api/hr", "/api/attendances", "/api/employment-contracts",
@@ -96,7 +97,8 @@ public final class MenuPermissionCatalog {
         // 그룹웨어
         put(m, "GROUPWARE", "/api/approvals", "/api/approval-settings", "/api/approval-form-templates",
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
-                "/api/drive-documents", "/api/mails", "/api/schedule-events", "/api/field-works");
+                "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
+                "/api/field-works");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",

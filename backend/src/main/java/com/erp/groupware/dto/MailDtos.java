@@ -53,7 +53,8 @@ public final class MailDtos {
             MailStatus status, String statusName,
             Long assigneeId, String assigneeName,
             LocalDateTime handledAt, String handleNote,
-            boolean draft, LocalDateTime deletedAt
+            boolean draft, LocalDateTime deletedAt,
+            boolean spam, String spamReason
     ) {
         public static MailResponse from(Mail m) {
             return new MailResponse(
@@ -69,7 +70,8 @@ public final class MailDtos {
                     m.getAssignee() != null ? m.getAssignee().getId() : null,
                     m.getAssignee() != null ? m.getAssignee().getName() : null,
                     m.getHandledAt(), m.getHandleNote(),
-                    m.isDraft(), m.getDeletedAt());
+                    m.isDraft(), m.getDeletedAt(),
+                    m.isSpam(), m.getSpamReason());
         }
     }
 

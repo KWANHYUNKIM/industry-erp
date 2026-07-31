@@ -86,7 +86,9 @@ const MENU: TopMenu[] = [
           { label: '결제내역조회', to: '/sales/payment-history' },
           { label: '결제내역자료비교', to: '/sales/payment-compare' },
           { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
+          { label: '증빙센터', to: '/accounting/evidence-center' },
           { label: '채권·채무현황', to: '/sales/ledger' },
+          { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
         ],
       },
@@ -118,6 +120,7 @@ const MENU: TopMenu[] = [
           { label: '재고수불부', to: '/inventory/ledger' },
           { label: '재고변동표', to: '/inventory/movement' },
           { label: '재고잔량분석표', to: '/inventory/stock-analysis' },
+          { label: '잔량재집계', to: '/inventory/recalc' },
           { label: '일보', to: '/inventory/daily-report' },
         ],
       },
@@ -140,6 +143,7 @@ const MENU: TopMenu[] = [
           { label: '생산실적', to: '/production/result' },
           { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },
           { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' },
+          { label: '생산입고 III(품질검사요청)', to: '/production/receipt-qr' },
           { label: '생산입고조회', to: '/production/receipt-inquiry' },
           { label: '생산입고현황', to: '/production/receipt-status' },
           { label: '생산입고 소모현황', to: '/production/consume-status' },
@@ -244,6 +248,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '회계전표조회', to: '/accounting/journals' },
           { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
+          { label: '증빙센터', to: '/accounting/evidence-center' },
         ],
       },
       {
@@ -274,6 +279,8 @@ const MENU: TopMenu[] = [
         label: '채권관리',
         nodes: [
           { label: '채권·채무현황', to: '/sales/ledger' },
+          { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
+          { label: '채권현황', to: '/sales/receivable-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
         ],
       },
@@ -490,6 +497,8 @@ const MENU: TopMenu[] = [
         label: '공용메일',
         nodes: [
           { label: '메일함(사내·공용)', to: '/groupware/mail' },
+          { label: '쪽지(수발신내역)', to: '/groupware/messages' },
+          { label: '커뮤니케이션센터', to: '/groupware/messages' },
         ],
       },
     ],
@@ -498,7 +507,7 @@ const MENU: TopMenu[] = [
     label: '데이터센터',
     tabs: [
       { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
-      { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }] },
+      { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }, { label: '의료기기공급내역보고', to: '/datacenter/medical-device-report' }] },
     ],
   },
 ]

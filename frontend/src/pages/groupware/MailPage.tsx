@@ -6,7 +6,9 @@ import type { Mail, SharedMailBox, User } from '../../api/types'
 
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 
-const TABS = ['수신함', '발신함', '공용메일함', '임시보관함', '지운함'] as const
+interface SpamRule { id: number; kind: 'FROM_ADDRESS' | 'SUBJECT' | 'BODY'; kindName: string; pattern: string; active: boolean; note: string | null }
+
+const TABS = ['수신함', '발신함', '공용메일함', '스팸메일함', '임시보관함', '지운함'] as const
 type Tab = (typeof TABS)[number]
 
 const statusColor = (s: Mail['status']) =>
@@ -21,6 +23,9 @@ export default function MailPage() {
   const [box, setBox] = useState<SharedMailBox | null>(null)
   const [drafts, setDrafts] = useState<Mail[]>([])
   const [trash, setTrash] = useState<Mail[]>([])
+  const [spam, setSpam] = useState<Mail[]>([])
+  const [rules, setRules] = useState<SpamRule[]>([])
+  const [ruleForm, setRuleForm] = useState({ kind: 'SUBJECT' as SpamRule['kind'], pattern: '' })
   const [users, setUsers] = useState<User[]>([])
   const [open, setOpen] = useState<Mail | null>(null)
   const [error, setError] = useState('')
@@ -38,6 +43,8 @@ export default function MailPage() {
     api.get<SharedMailBox>('/mails/shared').then((r) => setBox(r.data)).catch(fail)
     api.get<Mail[]>('/mails/drafts').then((r) => setDrafts(r.data)).catch(fail)
     api.get<Mail[]>('/mails/trash').then((r) => setTrash(r.data)).catch(fail)
+    api.get<Mail[]>('/mails/spam').then((r) => setSpam(r.data)).catch(fail)
+    api.get<SpamRule[]>('/spam-rules').then((r) => setRules(r.data)).catch(fail)
   }
 
   useEffect(() => {
@@ -89,8 +96,35 @@ export default function MailPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  async function markSpam(m: Mail, spamOn: boolean) {
+    try {
+      await api.post(`/mails/${m.id}/${spamOn ? 'spam' : 'not-spam'}`)
+      flash(spamOn ? '스팸으로 옮겼습니다.' : '스팸을 해제했습니다.')
+      setOpen(null); load()
+    } catch (err) { alert(extractErrorMessage(err)) }
+  }
+
+  async function addRule() {
+    if (!ruleForm.pattern.trim()) return alert('걸러낼 문자열을 입력하세요.')
+    try {
+      await api.post('/spam-rules', { kind: ruleForm.kind, pattern: ruleForm.pattern.trim() })
+      setRuleForm({ ...ruleForm, pattern: '' }); flash('규칙을 추가했습니다.'); load()
+    } catch (err) { alert(extractErrorMessage(err)) }
+  }
+
+  async function toggleRule(r: SpamRule) {
+    try { await api.put(`/spam-rules/${r.id}`, { kind: r.kind, pattern: r.pattern, active: !r.active, note: r.note }); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
+  async function removeRule(r: SpamRule) {
+    if (!confirm(`[${r.kindName}: ${r.pattern}] 규칙을 삭제할까요?`)) return
+    try { await api.delete(`/spam-rules/${r.id}`); load() } catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   const rows = tab === '수신함' ? inbox : tab === '발신함' ? sent
-    : tab === '공용메일함' ? (box?.mails ?? []) : tab === '임시보관함' ? drafts : trash
+    : tab === '공용메일함' ? (box?.mails ?? []) : tab === '스팸메일함' ? spam
+    : tab === '임시보관함' ? drafts : trash
   const unread = inbox.filter((m) => m.status === 'UNREAD').length
 
   function rowClick(m: Mail) {
@@ -114,7 +148,7 @@ export default function MailPage() {
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => {
-          const badge = t === '수신함' ? unread : t === '공용메일함' ? (box?.pendingCount ?? 0) : t === '임시보관함' ? drafts.length : 0
+          const badge = t === '수신함' ? unread : t === '공용메일함' ? (box?.pendingCount ?? 0) : t === '스팸메일함' ? spam.length : t === '임시보관함' ? drafts.length : 0
           return (
             <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
               padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -123,7 +157,7 @@ export default function MailPage() {
             }}>
               {t}
               {badge > 0 && (
-                <span style={{ marginLeft: 5, fontSize: 11, background: t === '임시보관함' ? '#8a929c' : '#c60a2e', color: '#fff', borderRadius: 8, padding: '1px 6px' }}>
+                <span style={{ marginLeft: 5, fontSize: 11, background: t === '임시보관함' || t === '스팸메일함' ? '#8a929c' : '#c60a2e', color: '#fff', borderRadius: 8, padding: '1px 6px' }}>
                   {badge}
                 </span>
               )}
@@ -140,7 +174,8 @@ export default function MailPage() {
             <th>제목</th>
             <th style={{ width: 130 }}>{tab === '지운함' ? '삭제일시' : '일시'}</th>
             {tab === '공용메일함' && <th style={{ width: 100 }}>담당자</th>}
-            {tab === '임시보관함' || tab === '지운함' ? (
+            {tab === '스팸메일함' && <th style={{ width: 220 }}>분류 사유</th>}
+            {tab === '임시보관함' || tab === '지운함' || tab === '스팸메일함' ? (
               <th style={{ width: 140, textAlign: 'center' }}>관리</th>
             ) : (
               <th style={{ width: 90, textAlign: 'center' }}>상태</th>
@@ -157,7 +192,12 @@ export default function MailPage() {
               <td style={{ fontWeight: !m.deletedAt && m.status === 'UNREAD' && tab !== '임시보관함' ? 700 : 400 }}>{m.subject}</td>
               <td style={{ color: '#8a929c' }}>{when(tab === '지운함' ? m.deletedAt : m.sentAt)}</td>
               {tab === '공용메일함' && <td>{m.assigneeName ?? <span style={{ color: '#c07a00' }}>미배정</span>}</td>}
-              {tab === '임시보관함' ? (
+              {tab === '스팸메일함' && <td style={{ color: '#8a929c', fontSize: 12 }}>{m.spamReason ?? ''}</td>}
+              {tab === '스팸메일함' ? (
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <button className="no-ec" onClick={() => markSpam(m, false)} style={btnLink('#1c7c3c')}>스팸 해제</button>
+                </td>
+              ) : tab === '임시보관함' ? (
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <button className="no-ec" onClick={() => setEditDraft(m)} style={btnLink('var(--ec-blue)')}>수정</button>
                   <button className="no-ec" onClick={() => trashMail(m)} style={btnLink('#c60a2e')}>삭제</button>
@@ -168,12 +208,64 @@ export default function MailPage() {
                   <button className="no-ec" onClick={() => permanentDelete(m)} style={btnLink('#c60a2e')}>영구삭제</button>
                 </td>
               ) : (
-                <td style={{ textAlign: 'center', color: statusColor(m.status) }}>{m.statusName}</td>
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <span style={{ color: statusColor(m.status) }}>{m.statusName}</span>
+                  {(tab === '공용메일함' || tab === '수신함') && (
+                    <button className="no-ec" onClick={() => markSpam(m, true)} style={btnLink('#c07a00')} title="스팸메일함으로 옮기기">스팸</button>
+                  )}
+                </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+
+      {tab === '스팸메일함' && (
+        <div style={{ marginTop: 12, border: '1px solid var(--ec-border)', background: '#fbfcfd', padding: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 6 }}>
+            스팸 분류 규칙 <span style={{ fontWeight: 400, color: '#8a929c', fontSize: 11.5 }}>
+              — 공용메일 수신등록 시 이 규칙과 대조해 스팸함으로 가릅니다(부분일치, 대소문자 무시).
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+            <select className="ec-input" value={ruleForm.kind} style={{ width: 120 }}
+                    onChange={(e) => setRuleForm({ ...ruleForm, kind: e.target.value as SpamRule['kind'] })}>
+              <option value="SUBJECT">제목</option>
+              <option value="FROM_ADDRESS">보낸주소</option>
+              <option value="BODY">본문</option>
+            </select>
+            <input className="ec-input" style={{ width: 240 }} placeholder="걸러낼 문자열 (예: 【광고】)"
+                   value={ruleForm.pattern} onChange={(e) => setRuleForm({ ...ruleForm, pattern: e.target.value })} />
+            <button className="ec-btn ec-btn-primary" onClick={addRule}>규칙 추가</button>
+          </div>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th style={{ width: 110 }}>기준</th>
+              <th>문자열</th>
+              <th style={{ width: 90, textAlign: 'center' }}>사용</th>
+              <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+            </tr></thead>
+            <tbody>
+              {rules.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 규칙이 없습니다.</td></tr>
+              ) : rules.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.kindName}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.pattern}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button className="no-ec" onClick={() => toggleRule(r)} style={btnLink(r.active ? '#1c7c3c' : '#8a929c')}>
+                      {r.active ? '사용중' : '사용중단'}
+                    </button>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button className="no-ec" onClick={() => removeRule(r)} style={btnLink('#c60a2e')}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {open && (
         <MailDetail

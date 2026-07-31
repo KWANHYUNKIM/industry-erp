@@ -22,4 +22,8 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
     @Query("select count(p) from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q")
     long searchCount(@Param("q") String q);
 
+    /** 거래처그룹까지 한 번에 (채권/채무현황처럼 그룹으로 묶는 목록의 N+1 방지) */
+    @Query("select p from BusinessPartner p left join fetch p.partnerGroup order by p.code")
+    List<BusinessPartner> findAllWithGroup();
+
 }

@@ -3,9 +3,11 @@ package com.erp.groupware.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import com.erp.common.BaseTimeEntity;
+import com.erp.common.StoredFile;
 
 /**
- * ECDrive 문서 항목. 실제 바이너리 저장 없이 문서 메타데이터(이름/드라이브/크기/중요/휴지통)를 관리.
+ * ECDrive 문서 항목. 메타데이터(이름/드라이브/크기/중요/휴지통) + 실제 파일({@link StoredFile}).
+ * file 이 null 이면 파일 없이 등록만 된 항목이다(V120 이전에 만들어진 행).
  */
 @Entity
 @Table(name = "drive_documents")
@@ -48,6 +50,11 @@ public class DriveDocument extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean important = false;
+
+    /** 실제 업로드된 파일. null 이면 메타데이터만 있는 항목(다운로드 불가). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_id")
+    private StoredFile file;
 
     /** 휴지통 이동 여부 */
     @Column(nullable = false)

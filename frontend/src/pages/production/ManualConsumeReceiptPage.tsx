@@ -3,7 +3,14 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 
-/** 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동) */
+/**
+ * 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동)
+ *
+ * {@code withQualityRequest} 를 켜면 이카운트 <b>생산입고 III(E040416)</b> 가 된다. 원본에서 III 가
+ * II 와 다른 점은 소모품목 선택이 아니라(그건 II 와 같다) 입고와 동시에 <b>품질검사요청을 생성</b>하는 것이다.
+ * 우리는 품질검사요청(QualityInspectionRequest)이 이미 있으므로, 입고 저장 뒤 그 품목·수량으로
+ * 요청을 만들어 잇는다(POST /quality-inspection-requests). 요청번호는 등록 직후 알려준다.
+ */
 interface ProductionMaterial {
   componentId: number
   componentCode: string
@@ -47,7 +54,11 @@ const inputCls = 'ec-input w-full'
 const today = () => new Date().toISOString().slice(0, 10)
 const emptyForm = { workOrderId: '', producedQty: '', productionDate: today() }
 
-export default function ManualConsumeReceiptPage() {
+export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
+  const title = withQualityRequest ? '생산입고 III - 소모품목 선택(품질검사요청)' : '생산입고 II - 소모품목 선택'
+  const [makeQr, setMakeQr] = useState(withQualityRequest)
+  const [qrType, setQrType] = useState<'PROCESS' | 'INCOMING' | 'SHIPMENT'>('PROCESS')
+  const [notice, setNotice] = useState('')
   const [rows, setRows] = useState<Production[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -112,12 +123,32 @@ export default function ManualConsumeReceiptPage() {
       .filter((l) => l.itemId !== '' && l.quantity !== '')
       .map((l) => ({ componentId: Number(l.itemId), quantity: Number(l.quantity) }))
     try {
-      await api.post('/productions', {
+      const res = await api.post<Production>('/productions', {
         workOrderId: Number(form.workOrderId),
         producedQty: form.producedQty === '' ? 0 : Number(form.producedQty),
         productionDate: form.productionDate || null,
         materials,
       })
+      let msg = `생산입고 ${res.data.prodNo} 등록`
+      // 생산입고 III: 입고한 완제품·수량 그대로 품질검사요청을 만든다.
+      // 요청 생성이 실패해도 입고는 이미 끝난 일이라 되돌리지 않고 사유만 알린다.
+      if (withQualityRequest && makeQr) {
+        try {
+          const qr = await api.post<{ requestNo: string }>('/quality-inspection-requests', {
+            requestDate: form.productionDate || today(),
+            type: qrType,
+            itemId: res.data.productId,
+            requestQty: res.data.producedQty,
+            requester: res.data.createdBy,
+            remark: `생산입고 ${res.data.prodNo} 연계`,
+          })
+          msg += ` · 품질검사요청 ${qr.data.requestNo} 생성`
+        } catch (qrErr) {
+          msg += ` (품질검사요청 생성 실패: ${extractErrorMessage(qrErr)})`
+        }
+      }
+      setNotice(msg)
+      window.setTimeout(() => setNotice(''), 4000)
       setForm(emptyForm)
       setLines([])
       setShowForm(false)
@@ -145,7 +176,7 @@ export default function ManualConsumeReceiptPage() {
 
   return (
     <EcListShell
-      title="생산입고 II - 소모품목 선택"
+      title={title}
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -153,8 +184,9 @@ export default function ManualConsumeReceiptPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <Modal open={showForm} title="생산입고 II - 소모품목 선택 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={`${title} 등록`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>생산입고 등록 (소모품목 직접 선택)</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -174,6 +206,22 @@ export default function ManualConsumeReceiptPage() {
               <input type="date" className={inputCls} value={form.productionDate} onChange={(e) => setForm({ ...form, productionDate: e.target.value })} />
             </div>
           </div>
+
+          {withQualityRequest && (
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: '#f7f9fb', border: '1px solid var(--ec-border)', padding: '8px 10px' }}>
+              <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={makeQr} onChange={(e) => setMakeQr(e.target.checked)} />
+                품질검사요청 생성
+              </label>
+              <select className="ec-input" value={qrType} disabled={!makeQr}
+                      onChange={(e) => setQrType(e.target.value as typeof qrType)} style={{ width: 130 }}>
+                <option value="PROCESS">공정검사</option>
+                <option value="INCOMING">수입검사</option>
+                <option value="SHIPMENT">출하검사</option>
+              </select>
+              <span style={{ fontSize: 12, color: '#8a929c' }}>※ 입고한 완제품·수량으로 검사요청이 생성됩니다(품질관리 &gt; 품질검사요청).</span>
+            </div>
+          )}
 
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>소모자재 선택</span>

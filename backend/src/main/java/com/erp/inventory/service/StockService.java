@@ -202,6 +202,86 @@ public class StockService {
         return applyDelta(item, warehouse, delta, StockTransactionType.ADJUST, null, date, note, username);
     }
 
+    /**
+     * 잔량재집계(E040607).
+     *
+     * 두 가지를 점검하고, {@code apply=true} 면 고친다.
+     * <ol>
+     *   <li><b>거래별 잔량(balanceAfter)</b> — 저장값은 입력 순서로 매겨진다. 과거 일자 거래가 뒤늦게
+     *       입력되면 일자순으로 읽을 때의 잔량과 어긋난다. 기간의 기초재고에서 출발해 일자·id 순으로
+     *       다시 누적해 정규화한다.</li>
+     *   <li><b>잔량 테이블(stocks.quantity)</b> — 모든 재고 변동이 이력을 남기므로
+     *       {@code sum(quantityChange) == stocks.quantity} 가 불변식이다. 어긋나면 이력 합계를 진실로 본다.</li>
+     * </ol>
+     *
+     * 잔량 대조는 기간과 무관하게 전 (품목,창고) 조합을 본다 — 기간을 좁혀 놓고 "이상 없음"이라고
+     * 답하면 재집계를 돌린 의미가 없다. balanceAfter 정규화만 기간 안으로 한정한다.
+     */
+    @Transactional
+    public StockDtos.StockRecalcResult recalculate(LocalDate from, LocalDate to, boolean apply) {
+        List<StockTransaction> txs = transactionRepository.findLedger(null, null, from, to);
+
+        // (품목,창고)별로 모아 기초재고에서부터 일자순 누적으로 잔량을 다시 매긴다
+        Map<String, List<StockTransaction>> grouped = txs.stream()
+                .collect(Collectors.groupingBy(t -> t.getItem().getId() + ":" + t.getWarehouse().getId(),
+                        LinkedHashMap::new, Collectors.toList()));
+
+        Map<String, int[]> mismatchByKey = new LinkedHashMap<>();   // key → [기간거래수, 잔량어긋난건수]
+        Map<String, BigDecimal> openingByKey = new LinkedHashMap<>();
+        int balanceMismatch = 0;
+
+        for (Map.Entry<String, List<StockTransaction>> e : grouped.entrySet()) {
+            List<StockTransaction> list = e.getValue();
+            StockTransaction first = list.get(0);
+            BigDecimal running = transactionRepository.sumChangeBefore(
+                    first.getItem().getId(), first.getWarehouse().getId(), from);
+            openingByKey.put(e.getKey(), running);
+
+            int fixed = 0;
+            for (StockTransaction t : list) {
+                running = running.add(t.getQuantityChange());
+                if (t.getBalanceAfter().compareTo(running) != 0) {
+                    fixed++;
+                    if (apply) {
+                        t.setBalanceAfter(running);
+                    }
+                }
+            }
+            balanceMismatch += fixed;
+            mismatchByKey.put(e.getKey(), new int[] { list.size(), fixed });
+        }
+
+        // 잔량 테이블 대조 — 이력 전체 합계와 맞는지
+        List<StockDtos.StockRecalcRow> rows = new java.util.ArrayList<>();
+        int quantityMismatch = 0;
+        for (Stock s : stockRepository.findAllWithItemAndWarehouse()) {
+            String key = s.getItem().getId() + ":" + s.getWarehouse().getId();
+            BigDecimal computed = transactionRepository.sumChangeBefore(
+                    s.getItem().getId(), s.getWarehouse().getId(), LocalDate.of(2999, 12, 31));
+            BigDecimal stored = s.getQuantity();
+            BigDecimal diff = computed.subtract(stored);
+            int[] m = mismatchByKey.getOrDefault(key, new int[] { 0, 0 });
+
+            if (diff.signum() != 0) {
+                quantityMismatch++;
+                if (apply) {
+                    s.setQuantity(computed);
+                }
+            }
+            if (m[0] > 0 || diff.signum() != 0) {
+                rows.add(new StockDtos.StockRecalcRow(
+                        s.getItem().getId(), s.getItem().getCode(), s.getItem().getName(),
+                        s.getWarehouse().getId(), s.getWarehouse().getCode(), s.getWarehouse().getName(),
+                        openingByKey.getOrDefault(key, BigDecimal.ZERO), m[0], m[1],
+                        stored, computed, diff));
+            }
+        }
+
+        return new StockDtos.StockRecalcResult(
+                from.toString().substring(0, 7), to.toString().substring(0, 7),
+                apply, txs.size(), balanceMismatch, quantityMismatch, rows);
+    }
+
     /** 유형과 방향으로 실제 증감량(부호 있음) 계산 */
     private BigDecimal resolveDelta(StockTransactionRequest req) {
         BigDecimal qty = req.quantity().abs();
