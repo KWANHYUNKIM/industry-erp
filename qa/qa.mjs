@@ -1667,6 +1667,18 @@ async function scenarioCashDetail() {
   const to = await ensureBank(`${P}550-222-000006`, 0)
   const balanceOf = async (id) => Number((await must('GET', '/bank-cards/accounts')).find((b) => b.id === id).balance)
 
+  // 이 계좌는 하네스를 돌릴 때마다 돈이 빠져나간다(이동 50만 + 카드결제). 계좌를 재사용하므로
+  // 실행을 반복하면 언젠가 잔액이 바닥나 시나리오 25 부터가 통째로 실행되지 않는다.
+  // 실제로 그렇게 멈춰 있었다(잔액 240,000). 실행 횟수에 좌우되지 않도록 부족하면 먼저 채우고 시작한다.
+  const NEEDED = 3_000_000
+  if (await balanceOf(from.id) < NEEDED) {
+    await must('POST', '/bank-cards/transactions', {
+      bankAccountId: from.id, deposit: true, amount: NEEDED,
+      counterAccountId: accounts.find((a) => a.code === '101').id,   // 현금
+      txnDate: '2026-07-14', description: 'QA 시나리오 준비금 보충',
+    })
+  }
+
   const fromBefore = await balanceOf(from.id)
   const toBefore = await balanceOf(to.id)
 
