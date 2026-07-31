@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../api/client'
 import AppBarPanel, { type PanelKind } from './AppBarPanel'
+import TableContextMenu from './TableContextMenu'
 import type { NotificationResponse } from '../api/types'
 
 /** 이카운트 v5 실제 레이아웃 재현:
@@ -595,6 +596,7 @@ export default function EcountLayout() {
   const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
   const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
+  const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
   useEffect(() => {
@@ -838,7 +840,10 @@ export default function EcountLayout() {
               })}
             </aside>
 
-            <div style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
+            <div ref={contentRef} style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
+              {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
+                  셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
+              <TableContextMenu containerRef={contentRef} />
               {canRoute(location.pathname) ? (
                 <Outlet />
               ) : (

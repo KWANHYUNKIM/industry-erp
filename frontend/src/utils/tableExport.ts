@@ -86,7 +86,8 @@ export function rowToPairs(
     if (th?.dataset.exportSkip === 'true') return
     const label = (th?.textContent ?? '').replace(SORT_MARKS, '').replace(/\s+/g, ' ').trim()
     const value = extractCell(td)
-    // 컬럼명도 값도 없는 칸(행 선택 체크박스·버튼 칸)은 상세에서 뺀다
+    // 값이 없는 조작 칸(행 선택 체크박스, 수정·삭제 버튼 칸)은 상세에서 뺀다
+    if (!value && td.querySelector('button, a, input')) return
     if (!label && !value) return
     pairs.push({ label: label || `열 ${i + 1}`, value })
   })
@@ -106,7 +107,7 @@ export function tableToMatrix(table: HTMLTableElement): TableMatrix {
 
   const keep = <T,>(arr: T[]) => arr.filter((_, i) => !skipped.has(i))
 
-  const headers = keep(headerCells).map((th) =>
+  const headers = keep(heads).map((th) =>
     (th.textContent ?? '').replace(SORT_MARKS, '').replace(/\s+/g, ' ').trim(),
   )
 

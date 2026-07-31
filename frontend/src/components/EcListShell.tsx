@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
 import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
+import TableContextMenu from './TableContextMenu'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -107,6 +108,33 @@ export default function EcListShell({
     else setLocalSearch(v)
   }
 
+  // 우클릭 메뉴의 '이 값으로 검색'. 페이지가 검색을 처리하는 경우 onSearchChange 로 값을 넣은 뒤
+  // 그 값이 실제로 반영된 렌더에서 onSearch 를 부른다 — 같은 틱에 부르면 페이지가 옛 값으로 조회한다.
+  const [pendingSearch, setPendingSearch] = useState<string | null>(null)
+  const applySearchValue = (v: string) => {
+    if (searchHandledByPage && onSearchChange) {
+      onSearchChange(v)
+      setPendingSearch(v)
+    } else {
+      setLocalSearch(v)
+      filterRows(v)
+    }
+  }
+  useEffect(() => {
+    if (pendingSearch === null) return
+    if (search !== pendingSearch) return
+    setPendingSearch(null)
+    onSearch?.()
+  }, [pendingSearch, search, onSearch])
+
+  // 하단 툴바와 우클릭 메뉴가 같은 동작을 쓰도록, Excel/인쇄 기본 핸들러를 여기서 한 번만 붙인다
+  const resolved = actions.map((a) => {
+    let handler = a.onClick
+    if (!handler && EXCEL_LABELS.some((l) => a.label.includes(l))) handler = doExcel
+    if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
+    return { ...a, onClick: handler }
+  })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* 상단: ☆제목 + 검색 */}
@@ -173,6 +201,16 @@ export default function EcListShell({
       {/* 그리드 본문 */}
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
 
+      {/* 표 우클릭 메뉴 — 행 버튼·행 복사·열 숨기기 + 이 화면의 기능 */}
+      <TableContextMenu
+        containerRef={bodyRef}
+        pageActions={resolved}
+        onNew={onNew || renderForm ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined}
+        newLabel={newLabel}
+        onSearchValue={applySearchValue}
+        onFlash={flash}
+      />
+
       {/* 하단 액션 툴바 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
         {(onNew || renderForm) && (
@@ -183,17 +221,11 @@ export default function EcListShell({
             {newLabel}
           </button>
         )}
-        {actions.map((a, i) => {
-          // 페이지가 onClick을 주지 않은 Excel/인쇄 버튼은 셸의 기본 동작으로 연결한다
-          let handler = a.onClick
-          if (!handler && EXCEL_LABELS.some((l) => a.label.includes(l))) handler = doExcel
-          if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
-          return (
-            <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`} onClick={handler}>
-              {a.label}
-            </button>
-          )
-        })}
+        {resolved.map((a, i) => (
+          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`} onClick={a.onClick}>
+            {a.label}
+          </button>
+        ))}
       </div>
 
       {renderForm && (
@@ -236,6 +268,9 @@ export default function EcListShell({
                   <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
                   <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
                   <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
+                  <li><b>표 우클릭</b> — 그 행의 수정·삭제 같은 기능, 행 상세 보기·복사, 이 값으로 검색,
+                    열 숨기기(다시 조회하면 원래대로), 화면 기능을 한 자리에서 고릅니다.
+                    Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
                 </ul>
               )}
             </div>

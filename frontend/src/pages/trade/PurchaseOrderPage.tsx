@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
@@ -412,10 +413,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                 <tr key={i}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td>
-                    <select className="ec-input" value={l.itemId} onChange={(e) => pickItem(i, e.target.value)} style={{ width: '100%' }}>
-                      <option value="">품목 선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => pickItem(i, v)}
+                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
                   </td>
                   <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
                   <td>

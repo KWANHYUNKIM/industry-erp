@@ -25,7 +25,7 @@ export interface CodeItem {
 
 export default function CodePickerField({
   label, value, onChange, items, width = 170, placeholder = '전체', emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti,
+  hideLabel, multiple, values, onChangeMulti, fill,
 }: {
   label: string
   /** 단일 선택 값. multiple 이면 쓰지 않는다. */
@@ -39,6 +39,8 @@ export default function CodePickerField({
   disabled?: boolean
   /** 호출부가 이미 라벨을 그리고 있을 때(가로 배치 화면) 라벨 줄을 생략한다. */
   hideLabel?: boolean
+  /** 표 셀 안처럼 남는 폭을 채워야 할 때(width 대신 100%). */
+  fill?: boolean
   /** 다중 선택 — 원본의 tags-input 에 해당. values/onChangeMulti 와 함께 쓴다. */
   multiple?: boolean
   values?: string[]
@@ -85,9 +87,9 @@ export default function CodePickerField({
   // <label> 로 감싸면 안 된다 — 팝업이 이 요소 안에 렌더되므로, 팝업 안의 클릭이 label 을 통해
   // 입력칸으로 전달돼 행 선택이 먹히지 않고 팝업이 닫히지 않는다(실제로 그렇게 동작했다).
   return (
-    <div style={{ fontSize: 12.5 }}>
+    <div style={{ fontSize: 12.5, width: fill ? "100%" : undefined }}>
       {!hideLabel && <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>}
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
           className="ec-input"
           readOnly
@@ -95,7 +97,8 @@ export default function CodePickerField({
           value={display}
           placeholder={placeholder}
           onClick={() => !disabled && setOpen(true)}
-          style={{ width, cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
+          style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined, minWidth: 0,
+                   cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
           title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : placeholder)}
         />
         <button
