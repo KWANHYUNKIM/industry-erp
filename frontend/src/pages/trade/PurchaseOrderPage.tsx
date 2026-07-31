@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -34,6 +35,7 @@ export default function PurchaseOrderPage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [pricing, setPricing] = useState<PurchaseOrder | null>(null)
+  const [company, setCompany] = useState<DocParty | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
@@ -53,6 +55,39 @@ export default function PurchaseOrderPage() {
 
   const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
+
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
+
+  /**
+   * 발주서 인쇄. 발주서는 우리가 <b>발주자</b>이고 거래처가 물품을 대는 쪽이라,
+   * 명세서와 공급자/공급받는자 위치가 반대다.
+   */
+  async function printOrder(po: PurchaseOrder) {
+    const p = partners.find((x) => x.id === po.partnerId)
+    await printDocuments([{
+      title: '발 주 서',
+      docNo: po.orderNo,
+      docDate: po.orderDate,
+      supplier: {
+        label: '수신처(공급자)', name: po.partnerName,
+        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
+        tel: p?.phone, address: p?.address,
+      },
+      customer: company ? { ...company, label: '발주자' } : { label: '발주자', name: '(회사정보 미등록)' },
+      extra: [
+        { label: '납기일', value: po.dueDate },
+        { label: '입고창고', value: po.warehouseName },
+        { label: '담당', value: po.employeeName ?? po.createdBy },
+        { label: '진행상태', value: po.statusName },
+      ],
+      remark: po.remark,
+      lines: po.lines.map((l) => ({
+        itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
+      })),
+      footNote: '아래와 같이 발주하오니 납기를 준수하여 주시기 바랍니다.',
+    }])
+  }
 
   async function plan(po: PurchaseOrder) {
     const dueDate = window.prompt(`${po.orderNo} 납기 요청일 (YYYY-MM-DD)`, po.dueDate ?? today())
@@ -139,6 +174,7 @@ export default function PurchaseOrderPage() {
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printOrder(po)}>인쇄</button>
                     {po.status === 'REQUESTED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => plan(po)}>발주계획</button>}
                     {(po.status === 'PLANNED' || po.status === 'PRICED') && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setPricing(po)}>단가확정</button>}
                     {po.status === 'PRICED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(po)}>발주확정</button>}

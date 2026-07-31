@@ -3,16 +3,17 @@ import EcListShell from '../../components/EcListShell'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SalesConfirmStatus, SalesDoc, PurchaseDoc } from '../../api/types'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner } from '../../api/types'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
-  id: number; docNo: string; partnerName: string; warehouseName: string
+  id: number; docNo: string; partnerId: number; partnerName: string; warehouseName: string
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
-  lines: { itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }[]
+  lines: { itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }[]
 }
 
 // 판매조회 탭 (이카운트). '결재중'은 전자결재 진행중, '확인/미확인'은 확인상태.
@@ -44,21 +45,29 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [openId, setOpenId] = useState<number | null>(null)
   // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
   const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
+  // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
+  const [company, setCompany] = useState<DocParty | null>(null)
+  const [partners, setPartners] = useState<Partner[]>([])
 
   function load() {
     setError('')
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
       .then((res) => setDocs(res.data.map((d) => ({
-        id: d.id, docNo: d.docNo, partnerName: d.partnerName, warehouseName: d.warehouseName,
+        id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
         createdBy: d.createdBy, remark: d.remark,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
-        lines: d.lines.map((l) => ({ itemCode: l.itemCode, itemName: l.itemName, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount })),
+        lines: d.lines.map((l) => ({ itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount })),
       }))))
       .catch((err) => setError(extractErrorMessage(err)))
   }
+
+  useEffect(() => {
+    loadSupplierParty().then(setCompany)
+    api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
+  }, [])
 
   useEffect(() => {
     load()
@@ -83,6 +92,35 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     } catch (err) {
       alert(extractErrorMessage(err))
     }
+  }
+
+  /**
+   * 전표를 명세서 서식으로 인쇄한다.
+   * 판매는 우리가 공급자, 구매는 <b>거래처가 공급자</b>다 — 양쪽을 바꿔 넣어야 서식이 사실과 맞는다.
+   */
+  async function printStatement(d: NormalDoc) {
+    const p = partners.find((x) => x.id === d.partnerId)
+    const partnerParty = {
+      label: isSales ? '공급받는자' : '공급자',
+      name: d.partnerName,
+      bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
+      tel: p?.phone, address: p?.address,
+    }
+    const ourParty: DocParty = company
+      ? { ...company, label: isSales ? '공급자' : '공급받는자' }
+      : { label: isSales ? '공급자' : '공급받는자', name: '(회사정보 미등록)' }
+
+    await printDocuments([{
+      title: isSales ? '거래명세서' : '매입명세서',
+      docNo: d.docNo,
+      docDate: d.date,
+      supplier: isSales ? ourParty : partnerParty,
+      customer: isSales ? partnerParty : ourParty,
+      extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.createdBy }],
+      remark: d.remark,
+      lines: d.lines,
+      footNote: isSales ? '위와 같이 거래하였음을 확인합니다.' : undefined,
+    }])
   }
 
   const shown = useMemo(() => docs
@@ -196,6 +234,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                         ))}
                       </tbody>
                     </table>
+                    <div style={{ padding: '4px 10px 8px' }}>
+                      <button className="ec-btn ec-btn-primary" onClick={() => printStatement(d)}>
+                        {isSales ? '거래명세서 인쇄' : '매입명세서 인쇄'}
+                      </button>
+                    </div>
                     {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {d.remark}</div>}
                     {isSales && <div style={{ padding: '0 10px 8px' }}><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}
                     <div style={{ padding: '0 10px 8px' }}>

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -29,6 +30,7 @@ export default function QuotationPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [company, setCompany] = useState<DocParty | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
@@ -49,6 +51,31 @@ export default function QuotationPage() {
   async function send(q: Quotation) {
     try { await api.post(`/quotations/${q.id}/send`); flash(`${q.quoteNo} 발송`); load() }
     catch (err) { alert(extractErrorMessage(err)) }
+  }
+
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
+
+  /** 견적서 서식 인쇄 — 거래명세서와 같은 템플릿을 쓴다(제목·유효기간만 다르다). */
+  async function printQuote(q: Quotation) {
+    const p = partners.find((x) => x.id === q.partnerId)
+    await printDocuments([{
+      title: '견 적 서',
+      docNo: q.quoteNo,
+      docDate: q.quoteDate,
+      supplier: company ?? { label: '공급자', name: '(회사정보 미등록)' },
+      customer: {
+        label: '수신처', name: q.partnerName,
+        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
+        tel: p?.phone, address: p?.address,
+      },
+      extra: [{ label: '유효기간', value: q.validUntil }, { label: '담당', value: q.createdBy }],
+      remark: q.remark,
+      lines: q.lines.map((l) => ({
+        itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
+      })),
+      footNote: '아래와 같이 견적합니다.',
+    }])
   }
 
   async function convert(q: Quotation) {
@@ -114,6 +141,7 @@ export default function QuotationPage() {
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(q.status) }}>{q.statusName}</span></td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printQuote(q)}>인쇄</button>
                     {q.status === 'DRAFT' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => send(q)}>발송</button>}
                     {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => convert(q)}>수주전환</button>}
                     {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(q)}>취소</button>}
