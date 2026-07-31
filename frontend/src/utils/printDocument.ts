@@ -1,5 +1,5 @@
 import { api } from '../api/client'
-import type { PrintSignLine } from './print'
+import { fillAndPrint, openPrintWindow, type PrintSignLine } from './print'
 
 /**
  * 전표 서식 인쇄 — 거래명세서·견적서·발주서처럼 <b>머리글(공급자/공급받는자) + 품목 명세 + 합계</b>
@@ -267,24 +267,25 @@ export async function loadSupplierParty(label = '공급자'): Promise<DocParty |
 export async function printDocuments(docs: PrintDocumentOptions[]): Promise<boolean> {
   if (docs.length === 0) return false
 
-  const sign = docs.some((d) => d.signLine === undefined) ? await defaultSignLine() : null
-  const filled = docs.map((d) => ({ ...d, signLine: d.signLine === undefined ? sign : d.signLine }))
+  // 결재란 조회(await)보다 창을 <b>먼저</b> 연다. 순서를 바꾸면 사용자 제스처가 만료돼
+  // 브라우저 팝업 차단에 걸리고, 인쇄 버튼을 눌러도 아무 일도 일어나지 않는다.
+  const win = openPrintWindow()
+  if (!win) return false
 
-  const win = window.open('', '_blank', 'width=1024,height=768')
-  if (!win) {
-    alert('팝업이 차단되어 인쇄창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.')
-    return false
+  try {
+    const sign = docs.some((d) => d.signLine === undefined) ? await defaultSignLine() : null
+    const filled = docs.map((d) => ({ ...d, signLine: d.signLine === undefined ? sign : d.signLine }))
+
+    const title = filled.length === 1 ? filled[0].title : `${filled[0].title} 외 ${filled.length - 1}건`
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+      <title>${escapeHtml(title)}</title><style>${CSS}</style></head>
+      <body>${filled.map(documentHtml).join('')}</body></html>`)
+    return true
+  } catch (e) {
+    // 준비 중 문구만 띄운 빈 창을 남겨두지 않는다
+    win.close()
+    throw e
   }
-
-  const title = filled.length === 1 ? filled[0].title : `${filled[0].title} 외 ${filled.length - 1}건`
-  win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8">
-    <title>${escapeHtml(title)}</title><style>${CSS}</style></head>
-    <body>${filled.map(documentHtml).join('')}</body></html>`)
-  win.document.close()
-  win.focus()
-  // 렌더가 끝난 뒤 인쇄 대화상자를 띄운다(바로 부르면 빈 페이지가 찍히는 브라우저가 있다)
-  win.setTimeout(() => win.print(), 200)
-  return true
 }
 
 /** 전표 한 건 인쇄 */

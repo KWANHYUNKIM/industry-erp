@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
@@ -139,11 +140,8 @@ export default function MedicalDeviceReportPage() {
             <option value="OUT">출고</option>
             <option value="DISPOSAL">폐기</option>
           </select></label>
-        <label style={{ fontSize: 12.5 }}>{label('거래처')}
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 170 }}>
-            <option value="">전체</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select></label>
+        <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
+                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <label style={{ fontSize: 12.5 }}>{label('보고기준월')}

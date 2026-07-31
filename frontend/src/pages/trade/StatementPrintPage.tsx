@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, SalesDoc } from '../../api/types'
 import { loadSupplierParty, printDocuments, type DocParty, type PrintDocumentOptions } from '../../utils/printDocument'
@@ -136,16 +137,9 @@ export default function StatementPrintPage() {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>거래처</span>
-        <select
-          className="ec-input"
-          style={{ width: 200 }}
-          value={partnerId}
-          onChange={(e) => setPartnerId(e.target.value ? Number(e.target.value) : '')}
-        >
-          <option value="">전체</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-        </select>
+        <CodePickerField label="거래처" value={partnerId === '' ? '' : String(partnerId)} width={180}
+                         onChange={(v) => setPartnerId(v ? Number(v) : '')}
+                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
         <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 6 }}>기간</span>
         <input type="date" className="ec-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         <span style={{ color: '#9aa1ab' }}>~</span>

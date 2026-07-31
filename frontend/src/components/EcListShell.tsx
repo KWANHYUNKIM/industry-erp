@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
-import { printTable, type PrintSignLine } from '../utils/print'
+import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 
@@ -73,7 +73,13 @@ export default function EcListShell({
   }
 
   const doExcel = withTable((t) => exportTableToXlsx(t, title))
-  const doPrint = withTable(async (t) => printTable(t, title, await defaultSignLine()))
+  // 결재란을 가져오기 전에 창부터 연다 — await 뒤에 window.open 을 부르면 사용자 제스처가 만료돼
+  // 팝업 차단에 걸리고, 인쇄 버튼을 눌러도 아무 일도 일어나지 않는다.
+  const doPrint = withTable(async (t) => {
+    const win = openPrintWindow()
+    if (!win) return true   // 차단 안내는 openPrintWindow 가 이미 띄웠다
+    return printTable(t, title, await defaultSignLine(), win)
+  })
 
   const filterRows = (q: string) => {
     const table = findDataTable(bodyRef.current)

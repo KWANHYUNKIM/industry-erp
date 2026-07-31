@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
@@ -142,11 +143,8 @@ export default function EvidenceCenterPage() {
           <select className="ec-input" value={method} onChange={(e) => setMethod(e.target.value as EvidenceMethod | '')} style={{ width: 130 }}>
             {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select></label>
-        <label style={{ fontSize: 12.5 }}>{label('작업자')}
-          <select className="ec-input" value={worker} onChange={(e) => setWorker(e.target.value)} style={{ width: 110 }}>
-            <option value="">전체</option>
-            {workers.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select></label>
+        <CodePickerField label="작업자" value={worker} onChange={setWorker} width={110}
+                         items={workers.map((w) => ({ value: w, name: w }))} />
         <label style={{ fontSize: 12.5 }}>{label('증빙첨부')}
           <select className="ec-input" value={attached} onChange={(e) => setAttached(e.target.value as '' | 'true' | 'false')} style={{ width: 100 }}>
             <option value="">전체</option>

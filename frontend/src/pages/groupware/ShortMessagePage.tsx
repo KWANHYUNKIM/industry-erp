@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, ShortMessage, User } from '../../api/types'
 
@@ -160,21 +161,12 @@ export default function ShortMessagePage() {
           <button className="ec-btn" onClick={() => preset('month')}>금월</button>
           <button className="ec-btn" onClick={() => preset('m3')}>3개월</button>
         </div>
-        <label style={{ fontSize: 12.5 }}>{label('보낸사람')}
-          <select className={inputCls} value={senderId} onChange={(e) => setSenderId(e.target.value)} style={{ width: 130 }}>
-            <option value="">전체</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select></label>
-        <label style={{ fontSize: 12.5 }}>{label('받는사람')}
-          <select className={inputCls} value={recipientId} onChange={(e) => setRecipientId(e.target.value)} style={{ width: 130 }}>
-            <option value="">전체</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select></label>
-        <label style={{ fontSize: 12.5 }}>{label('거래처')}
-          <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 160 }}>
-            <option value="">전체</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select></label>
+        <CodePickerField label="보낸사람" value={senderId} onChange={setSenderId} width={120}
+                         items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
+        <CodePickerField label="받는사람" value={recipientId} onChange={setRecipientId} width={120}
+                         items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
+        <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={150}
+                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
         <label style={{ fontSize: 12.5 }}>{label('내용')}
           <input className={inputCls} value={keyword} onChange={(e) => setKeyword(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') load() }} style={{ width: 200 }} placeholder="본문 키워드" /></label>

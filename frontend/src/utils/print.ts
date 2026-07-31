@@ -39,15 +39,50 @@ function signLineHtml(line?: PrintSignLine | null): string {
   return `<table class="signline"><thead><tr>${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
 }
 
-export function printTable(table: HTMLTableElement, title: string, signLine?: PrintSignLine | null): boolean {
-  const { headers, rows } = tableToMatrix(table)
-  if (rows.length === 0) return false
-
+/**
+ * 인쇄창을 <b>지금 당장</b> 연다.
+ *
+ * 브라우저는 사용자가 누른 그 순간(transient activation)에만 새 창을 허용한다. 결재란을 먼저
+ * 가져오려고 {@code await} 를 하고 나서 열면 활성화가 만료돼 <b>팝업 차단에 걸리고, 버튼을 눌러도
+ * 아무 일도 일어나지 않는다.</b> 그래서 창부터 열어 두고(빈 '준비 중' 문서) 내용은 나중에 채운다.
+ */
+export function openPrintWindow(): Window | null {
   const win = window.open('', '_blank', 'width=1024,height=768')
   if (!win) {
     alert('팝업이 차단되어 인쇄창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.')
+    return null
+  }
+  win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+    + '<title>인쇄 준비 중…</title></head>'
+    + '<body style="font-family:sans-serif;padding:24px;color:#5a626e">인쇄 내용을 준비하고 있습니다…</body></html>')
+  return win
+}
+
+/** 준비된 창에 문서를 써 넣고 인쇄 대화상자를 띄운다. */
+export function fillAndPrint(win: Window, html: string) {
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  // document.write 로 만든 문서는 load 이벤트가 이미 지나가 onload 가 안 오는 경우가 있다.
+  // 렌더가 끝난 뒤 인쇄를 부르려고 한 박자 늦춘다(바로 부르면 빈 페이지가 찍히는 브라우저가 있다).
+  win.setTimeout(() => win.print(), 200)
+}
+
+/**
+ * @param win 이미 열어 둔 인쇄창. 비동기 작업(결재란 조회) 뒤에 인쇄한다면 호출부가
+ *            {@link openPrintWindow} 로 <b>클릭 시점에</b> 열어서 넘겨야 팝업 차단을 피한다.
+ */
+export function printTable(table: HTMLTableElement, title: string,
+                           signLine?: PrintSignLine | null, win?: Window | null): boolean {
+  const { headers, rows } = tableToMatrix(table)
+  if (rows.length === 0) {
+    win?.close()
     return false
   }
+
+  const target = win ?? openPrintWindow()
+  if (!target) return false
 
   const thead = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`
   const tbody = rows
@@ -61,7 +96,7 @@ export function printTable(table: HTMLTableElement, title: string, signLine?: Pr
 
   const printedAt = new Date().toLocaleString('ko-KR')
 
-  win.document.write(`<!doctype html>
+  fillAndPrint(target, `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${PRINT_CSS}</style></head>
 <body>
   <div class="head">
@@ -73,12 +108,5 @@ export function printTable(table: HTMLTableElement, title: string, signLine?: Pr
   </div>
   <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
 </body></html>`)
-  win.document.close()
-
-  // 렌더 완료 후 인쇄 대화상자
-  win.onload = () => {
-    win.focus()
-    win.print()
-  }
   return true
 }

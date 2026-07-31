@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 
@@ -29,6 +30,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const [group, setGroup] = useState('전체')
   const [manager, setManager] = useState('전체')
   const [keyword, setKeyword] = useState('')
+  const [partnerCode, setPartnerCode] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [hideZero, setHideZero] = useState(true)
 
@@ -104,18 +106,16 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           <button className="ec-btn" onClick={() => { const d = new Date(); d.setDate(0); setAsOf(iso(d)) }}>전월말일</button>
           <button className="ec-btn" onClick={() => { const d = new Date(); setAsOf(iso(new Date(d.getFullYear(), d.getMonth() + 1, 0))) }}>당월말일</button>
         </div>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처그룹</div>
-          <select className="ec-input" value={group} onChange={(e) => setGroup(e.target.value)} style={{ width: 140 }}>
-            <option>전체</option>
-            {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처관리담당자</div>
-          <select className="ec-input" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 130 }}>
-            <option>전체</option>
-            {managers.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처(코드/명)</div>
-          <input className="ec-input" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 160 }} placeholder="부분일치" /></label>
+        {/* 이카운트 원본은 거래처·거래처그룹·관리담당자가 드롭다운이 아니라 코드도움 팝업(code.openpopup)이다 */}
+        <CodePickerField label="거래처" value={partnerCode} width={150}
+                         onChange={(v, item) => { setPartnerCode(v); setKeyword(item ? item.name : '') }}
+                         items={rows.map((r) => ({ value: r.code, code: r.code, name: r.name, sub: r.partnerGroupName }))} />
+        <CodePickerField label="거래처그룹" value={group === '전체' ? '' : group} width={130}
+                         onChange={(v) => setGroup(v || '전체')}
+                         items={groups.map((g) => ({ value: g, name: g }))} />
+        <CodePickerField label="거래처관리담당자" value={manager === '전체' ? '' : manager} width={120}
+                         onChange={(v) => setManager(v || '전체')}
+                         items={managers.map((m) => ({ value: m, name: m }))} />
         <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           사용중단거래처포함
