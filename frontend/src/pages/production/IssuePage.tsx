@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -115,10 +116,9 @@ export default function IssuePage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-slate-600">자재 *</label>
-              <select className={inputCls} value={form.itemId} onChange={(e) => setForm({ ...form, itemId: e.target.value })}>
-                <option value="">선택</option>
-                {items.map((i) => <option key={i.id} value={i.id}>{i.code} {i.name}</option>)}
-              </select>
+              <CodePickerField label="자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => setForm({ ...form, itemId: v })}
+                               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.unit }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고</label>

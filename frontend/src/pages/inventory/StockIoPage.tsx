@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
 
@@ -121,9 +122,9 @@ export default function StockIoPage() {
               <tr>
                 <th style={th}>품목 *</th>
                 <td>
-                  <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)}>
-                    {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                  </select>
+                  <CodePickerField label="품목" hideLabel fill placeholder="품목을 선택하세요" emptyLabel="선택 해제"
+                                   value={form.itemId} onChange={(v) => set('itemId', v)}
+                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
                 </td>
               </tr>
               <tr>

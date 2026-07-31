@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AllocationRow, Item, LocationStock, Warehouse, WarehouseLocation, WmsOverview } from '../../api/types'
@@ -364,10 +365,9 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
           <tr>
             <th style={{ width: 110, background: '#f5f7fa' }}>품목<span style={{ color: '#c60a2e' }}>*</span></th>
             <td>
-              <select className="ec-input" value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: 240 }}>
-                <option value="">품목 선택</option>
-                {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-              </select>
+              <CodePickerField label="품목" hideLabel width={240} placeholder="품목 선택" emptyLabel="선택 해제"
+                               value={itemId} onChange={setItemId}
+                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
               {hint && <div style={{ marginTop: 4, fontSize: 11.5, color: '#2b5b91' }}>{hint}</div>}
             </td>
           </tr>

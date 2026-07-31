@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -244,10 +245,9 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                   <tr key={idx}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                     <td>
-                      <select className={inputCls} value={l.itemId} onChange={(e) => updateLine(idx, { itemId: e.target.value })}>
-                        <option value="">선택</option>
-                        {items.map((i) => <option key={i.id} value={i.id}>{i.code} {i.name} ({i.unit})</option>)}
-                      </select>
+                      <CodePickerField label="소모자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                                       value={l.itemId} onChange={(v) => updateLine(idx, { itemId: v })}
+                                       items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.unit }))} />
                     </td>
                     <td>
                       <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} />

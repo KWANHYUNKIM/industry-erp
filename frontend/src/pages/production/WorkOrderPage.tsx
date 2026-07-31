@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse, WorkOrder } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -82,10 +83,9 @@ export default function WorkOrderPage() {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-slate-600">제품 *</label>
-              <select className={inputCls} value={form.productId} onChange={(e) => set('productId', e.target.value)}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select>
+              <CodePickerField label="제품" hideLabel fill placeholder="선택하세요" emptyLabel="선택 해제"
+                               value={form.productId} onChange={(v) => set('productId', v)}
+                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고 *</label>
