@@ -843,7 +843,7 @@ export default function EcountLayout() {
             <div ref={contentRef} style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
               {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
                   셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
-              <TableContextMenu containerRef={contentRef} />
+              <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
               {canRoute(location.pathname) ? (
                 <Outlet />
               ) : (

@@ -48,6 +48,7 @@ export default function EcListShell({
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
   const [localSearch, setLocalSearch] = useState('')
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -201,9 +202,10 @@ export default function EcListShell({
       {/* 그리드 본문 */}
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
 
-      {/* 표 우클릭 메뉴 — 행 버튼·행 복사·열 숨기기 + 이 화면의 기능 */}
+      {/* 표 우클릭 메뉴 — 등록·수정·삭제 + 행/열 기능 + 이 화면의 기능 */}
       <TableContextMenu
         containerRef={bodyRef}
+        toolbarRef={toolbarRef}
         pageActions={resolved}
         onNew={onNew || renderForm ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined}
         newLabel={newLabel}
@@ -212,7 +214,7 @@ export default function EcListShell({
       />
 
       {/* 하단 액션 툴바 */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      <div ref={toolbarRef} style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
@@ -268,8 +270,9 @@ export default function EcListShell({
                   <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
                   <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
                   <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
-                  <li><b>표 우클릭</b> — 그 행의 수정·삭제 같은 기능, 행 상세 보기·복사, 이 값으로 검색,
-                    열 숨기기(다시 조회하면 원래대로), 화면 기능을 한 자리에서 고릅니다.
+                  <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
+                    이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
+                    수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
                     Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
                 </ul>
               )}
