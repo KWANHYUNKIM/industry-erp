@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
-import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
@@ -47,10 +48,10 @@ export default function PurchaseStatusPage() {
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
 
-  // 상세검색 패널
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)      // 실제 적용된 조건
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)          // 패널 입력 중인 값
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  // 조건은 고치는 즉시 반영한다 — 원본 조건 판도 접히지 않고 그 자리에서 걸린다.
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
 
   async function load() {
     setLoading(true)
@@ -120,19 +121,25 @@ export default function PurchaseStatusPage() {
     { supply: 0, vat: 0 },
   ), [shown])
 
-  const activeCount = useMemo(() => {
-    let n = 0
-    if (filters.dateFrom || filters.dateTo) n++
-    if (filters.partner) n++
-    if (filters.warehouse) n++
-    if (filters.item) n++
-    if (filters.sortByModified) n++
-    return n
-  }, [filters])
+  /**
+   * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
+   * 기간만 바꾸고 나머지 조건은 그대로여야 견주는 의미가 있다.
+   */
+  const prevRange = comparePeriodOf(filters.dateFrom, filters.dateTo, compare)
+  const prevTotals = useMemo(() => {
+    if (!prevRange) return null
+    const f = filters
+    const kw = keyword.trim()
+    return rows
+      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
+      .filter((r) => !f.partner || r.partner.includes(f.partner))
+      .filter((r) => !f.warehouse || r.warehouse.includes(f.warehouse))
+      .filter((r) => !f.item || r.itemName.includes(f.item))
+      .filter((r) => !kw || r.partner.includes(kw) || r.itemName.includes(kw))
+      .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
+  }, [rows, prevRange, filters, keyword])
 
-  const applyDraft = () => { setFilters(draft); setPanelOpen(false) }
-  const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
-  const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
+  const reset = () => { setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('') }
 
   return (
     <EcListShell
@@ -140,62 +147,70 @@ export default function PurchaseStatusPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {/* 상세검색 토글 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <button className="ec-btn" onClick={openPanel}>
-          상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
-        </button>
-        {activeCount > 0 && !panelOpen && (
-          <button
-            className="ec-btn"
-            onClick={resetDraft}
-            style={{ fontSize: 12, color: '#8a929c' }}
-          >
-            조건 해제
-          </button>
-        )}
-      </div>
-
-      {panelOpen && (
-        <SearchPanel
-          draft={draft}
-          onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-          onApply={applyDraft}
-          onReset={resetDraft}
-        />
-      )}
-
-      {/* 원본 상단의 메뉴 토글 — 판매현황과 같다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-label)', fontSize: 12, minWidth: 54 }}>메뉴</span>
-        {(['현황', '집계'] as const).map((m) => (
-          <button
-            key={m} type="button"
-            className={`ec-btn ec-btn-sm${mode === m ? ' ec-btn-primary' : ''}`}
-            onClick={() => setMode(m)}
-          >
-            {m}
-          </button>
-        ))}
+      {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
+      <EcStatusPanel
+        mode={mode} onModeChange={setMode}
+        compare={compare} onCompareChange={setCompare}
+        from={filters.dateFrom} to={filters.dateTo}
+        onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
+        picks={STATUS_PICKS}
+      >
         {mode === '집계' && (
-          <>
-            <span style={{ width: 12 }} />
-            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건1</span>
+          <EcCond label="집계조건">
             <select className="ec-input" value={group1} onChange={(e) => setGroup1(e.target.value as GroupKey)} style={{ width: 150 }}>
               {GROUP_KEYS.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
-            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건2</span>
             <select className="ec-input" value={group2} onChange={(e) => setGroup2(e.target.value as GroupKey | '')} style={{ width: 150 }}>
-              <option value="">(없음)</option>
+              <option value="">(2차 없음)</option>
               {GROUP_KEYS.filter((g) => g !== group1).map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
-          </>
+          </EcCond>
         )}
-      </div>
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="매입처명 일부" value={filters.partner}
+                 onChange={(e) => setF({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={filters.warehouse}
+                 onChange={(e) => setF({ warehouse: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명 일부" value={filters.item}
+                 onChange={(e) => setF({ item: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="정렬기준">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.sortByModified}
+                   onChange={(e) => setF({ sortByModified: e.target.checked })} /> 전표번호순 (기본: 일자순)
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      {prevTotals && (
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+          <span style={{ color: 'var(--ec-label)' }}>
+            비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
+          </span>
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
+          {prevTotals.supply > 0 && (
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+              ({totals.supply >= prevTotals.supply ? '+' : ''}
+              {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
+            </span>
+          )}
+        </div>
+      )}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
@@ -288,74 +303,5 @@ export default function PurchaseStatusPage() {
       </table>
       )}
     </EcListShell>
-  )
-}
-
-/** 이카운트 Search 패널 — 기준일자/거래처/창고/품목/기타 조건 입력 */
-function SearchPanel({
-  draft, onChange, onApply, onReset,
-}: {
-  draft: Filters
-  onChange: (patch: Partial<Filters>) => void
-  onApply: () => void
-  onReset: () => void
-}) {
-  const label: React.CSSProperties = {
-    width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
-    display: 'flex', alignItems: 'center', paddingRight: 8,
-  }
-  const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #eef1f5',
-  }
-  return (
-    <div
-      onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
-      style={{
-        border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe',
-        padding: '4px 14px 12px', marginBottom: 10,
-      }}
-    >
-      <div style={rowStyle}>
-        <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
-        <span style={{ width: 8 }} />
-        {/* 원본 현황 화면 하단의 기간 빠른선택 — 라벨 묶음이 업무일지와 다르다. */}
-        <EcPeriodPicks
-          labels={STATUS_PICKS}
-          onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })}
-        />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>거래처</span>
-        <input className="ec-input" placeholder="매입처명 일부" value={draft.partner}
-          onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>창고</span>
-        <input className="ec-input" placeholder="창고명 일부" value={draft.warehouse}
-          onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>기타</span>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={draft.sortByModified}
-            onChange={(e) => onChange({ sortByModified: e.target.checked })} />
-          전표번호순(정렬)
-        </label>
-      </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
-        <button className="ec-btn" onClick={onReset}>초기화</button>
-        <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
-      </div>
-    </div>
   )
 }

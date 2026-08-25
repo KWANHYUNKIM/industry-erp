@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import EcPeriodPicks, { periodOf, STATUS_PICKS } from '../../components/EcPeriodPicks'
+import { periodOf, STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
@@ -57,6 +58,7 @@ export default function SalesStatusPage() {
    * 우리는 현황(라인 목록)만 있었다.
    */
   const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
 
@@ -138,134 +140,139 @@ export default function SalesStatusPage() {
     { supply: 0, vat: 0 },
   ), [shown])
 
+  /**
+   * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
+   * 기간만 바꾸고 나머지 조건은 그대로여야 견주는 의미가 있다.
+   */
+  const reset = () => {
+    const m = periodOf('금월')!
+    setFrom(m.from); setTo(m.to)
+    setMode('현황'); setCompare('사용안함')
+    setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')
+    setMgmtItem(''); setLotNo(''); setTaxType('전체'); setKeyword('')
+  }
+
+  const prevRange = comparePeriodOf(from, to, compare)
+  const prevTotals = useMemo(() => {
+    if (!prevRange) return null
+    return rows
+      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
+      .filter((r) => !partnerId || String(r.partnerId) === partnerId)
+      .filter((r) => !itemId || String(r.itemId) === itemId)
+      .filter((r) => !warehouse || r.warehouseName === warehouse)
+      .filter((r) => !project || r.projectName === project)
+      .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
+      .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
+      .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
+      .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
+      .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, mgmtItem, taxType, keyword, items])
+
   return (
     <EcListShell
       title="판매현황"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {/* 원본 상단의 메뉴 토글 — [현황]은 라인 목록, [집계]는 조건1/2로 묶은 합계다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-label)', fontSize: 12, minWidth: 54 }}>메뉴</span>
-        {(['현황', '집계'] as const).map((m) => (
-          <button
-            key={m} type="button"
-            className={`ec-btn ec-btn-sm${mode === m ? ' ec-btn-primary' : ''}`}
-            onClick={() => setMode(m)}
-          >
-            {m}
-          </button>
-        ))}
+      {/*
+        조건 판은 현황 화면들이 공통으로 쓰므로 EcStatusPanel 로 뺐다.
+        [메뉴 현황|집계] · [비교기간] · [기준일자]+빠른선택이 그 안에 있고, 아래는 이 화면만의 조건이다.
+        코드도움으로 고르는 조건은 `pick` 을 준다 — 원본이 그 라벨만 파랗게 쓴다.
+      */}
+      <EcStatusPanel
+        mode={mode} onModeChange={setMode}
+        compare={compare} onCompareChange={setCompare}
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={STATUS_PICKS}
+      >
         {mode === '집계' && (
-          <>
-            <span style={{ width: 12 }} />
-            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건1</span>
+          <EcCond label="집계조건">
             <select className="ec-input" value={group1} onChange={(e) => setGroup1(e.target.value as GroupKey)} style={{ width: 150 }}>
               {GROUP_KEYS.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
-            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건2</span>
             <select className="ec-input" value={group2} onChange={(e) => setGroup2(e.target.value as GroupKey | '')} style={{ width: 150 }}>
-              <option value="">(없음)</option>
+              <option value="">(2차 없음)</option>
               {GROUP_KEYS.filter((g) => g !== group1).map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
-          </>
+          </EcCond>
         )}
-      </div>
+        <EcCond label="거래처" pick>
+          <CodePickerField
+            label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            value={partnerId} onChange={setPartnerId}
+            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))}
+          />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField
+            label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            value={itemId} onChange={setItemId}
+            items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec }))}
+          />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField
+            label="창고" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            value={warehouse} onChange={setWarehouse}
+            items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name, sub: w.location }))}
+          />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 220 }}>
+            <option value="">전체</option>
+            {projectOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="관리항목">
+          <select className="ec-input" value={mgmtItem} onChange={(e) => setMgmtItem(e.target.value)} style={{ width: 220 }}>
+            <option value="">전체</option>
+            {mgmtOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="시리얼/로트No.">
+          <input className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)}
+                 placeholder="부분일치" style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="거래유형">
+          {(['전체', '과세', '면세'] as const).map((t) => (
+            <button
+              key={t} type="button"
+              className={`ec-btn ec-btn-sm${taxType === t ? ' ec-btn-primary' : ''}`}
+              onClick={() => setTaxType(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </EcCond>
+      </EcStatusPanel>
 
-      {/*
-        원본 판매현황의 [기준일자] 와 하단 기간 빠른선택.
-        빠른선택 묶음은 현황용이다 — 업무일지와 라벨이 다르다(금월(~오늘)·전월+금월).
-      */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-label)', fontSize: 12, marginRight: 4 }}>기준일자</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <span style={{ width: 8 }} />
-        <EcPeriodPicks
-          labels={STATUS_PICKS}
-          onPick={(r) => { setFrom(r.from); setTo(r.to) }}
-        />
-      </div>
-      {/*
-        원본의 나머지 조건. 코드도움(🔍)으로 고른다 — 마스터가 수백 건이 되면 나열로는 못 찾는다.
-        내·외자구분과 거래구분(일반/반품)은 우리 모델에 개념이 없어 넣지 않았다.
-      */}
-      <ul className="ec-form" style={{ marginBottom: 8 }}>
-        <li>
-          <div className="title">거래처</div>
-          <div className="form">
-            <CodePickerField
-              label="거래처" hideLabel fill placeholder="전체" emptyLabel="전체"
-              value={partnerId} onChange={setPartnerId}
-              items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))}
-            />
-          </div>
-        </li>
-        <li>
-          <div className="title">품목</div>
-          <div className="form">
-            <CodePickerField
-              label="품목" hideLabel fill placeholder="전체" emptyLabel="전체"
-              value={itemId} onChange={setItemId}
-              items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec }))}
-            />
-          </div>
-        </li>
-        <li>
-          <div className="title">창고</div>
-          <div className="form">
-            <CodePickerField
-              label="창고" hideLabel fill placeholder="전체" emptyLabel="전체"
-              value={warehouse} onChange={setWarehouse}
-              items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name, sub: w.location }))}
-            />
-          </div>
-        </li>
-        <li>
-          <div className="title">프로젝트</div>
-          <div className="form">
-            <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: '100%' }}>
-              <option value="">전체</option>
-              {projectOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-        </li>
-        <li>
-          <div className="title">관리항목</div>
-          <div className="form">
-            <select className="ec-input" value={mgmtItem} onChange={(e) => setMgmtItem(e.target.value)} style={{ width: '100%' }}>
-              <option value="">전체</option>
-              {mgmtOptions.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-        </li>
-        <li>
-          <div className="title">시리얼/로트No.</div>
-          <div className="form">
-            <input className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)}
-                   placeholder="부분일치" style={{ width: '100%' }} />
-          </div>
-        </li>
-        <li>
-          <div className="title">거래유형</div>
-          <div className="form" style={{ gap: 4 }}>
-            {(['전체', '과세', '면세'] as const).map((t) => (
-              <button
-                key={t} type="button"
-                className={`ec-btn ec-btn-sm${taxType === t ? ' ec-btn-primary' : ''}`}
-                onClick={() => setTaxType(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </li>
-      </ul>
+      {prevTotals && (
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+          <span style={{ color: 'var(--ec-label)' }}>
+            비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
+          </span>
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
+          {prevTotals.supply > 0 && (
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+              ({totals.supply >= prevTotals.supply ? '+' : ''}
+              {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
+            </span>
+          )}
+        </div>
+      )}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         공급가액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
