@@ -1,96 +1,203 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { ymd } from '../../components/EcPeriodPicks'
+import type { SurveyDoc } from '../../api/types'
 
-interface Survey {
-  id: number
-  title: string
-  startDate: string | null
-  endDate: string | null
-  target: number
-  responses: number
-  responseRate: number
-  status: 'OPEN' | 'CLOSED'
-  statusName: string
-  createdBy: string | null
-}
+/**
+ * 그룹웨어 > 공유정보 > 설문조사 > 설문조사현황 (이카운트 E070258)
+ *
+ * 원본은 목록이 아니라 <b>조회 조건 패널 + 검색(F8)</b> 화면이다. 조건은
+ * 작성일(기간) · 설문대상구분 · 설문종료일(사용 여부) · 제목(포함) · 질문내용(포함) ·
+ * 작성자 · 게시글번호(포함) 이고, 하단은 [검색(F8)][다시 작성][인쇄][Excel].
+ *
+ * '질문내용 포함'은 설문 안의 문항 글자로 설문을 찾는 조건이다 — 문항이 실제로 저장되기 전에는
+ * 만들 수 없던 조건이라, 이번에 문항을 만들면서 같이 붙였다.
+ *
+ * 예전 이 화면은 '응답+1' 버튼으로 응답 수 정수를 올리는 화면이었다. 그건 설문 현황이 아니다.
+ */
 
-const COLOR: Record<Survey['status'], string> = { OPEN: '#c07a00', CLOSED: '#1c7c3c' }
+interface UserRow { id: number; name: string; username: string }
 
-/** 그룹웨어 > 설문조사현황 — 설문별 응답 현황·응답률 (실제 연동, /surveys 재사용) */
 export default function SurveyStatusPage() {
-  const [rows, setRows] = useState<Survey[]>([])
+  const [rows, setRows] = useState<SurveyDoc[]>([])
+  const [users, setUsers] = useState<UserRow[]>([])
   const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const [searched, setSearched] = useState(false)
+
+  const today = new Date()
+  const [from, setFrom] = useState(ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
+  const [to, setTo] = useState(ymd(today))
+  const [scope, setScope] = useState<'' | 'INTERNAL' | 'EXTERNAL'>('')
+  const [useEnd, setUseEnd] = useState(false)
+  const [endFrom, setEndFrom] = useState(ymd(today))
+  const [endTo, setEndTo] = useState(ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0)))
+  const [title, setTitle] = useState('')
+  const [question, setQuestion] = useState('')
+  const [writer, setWriter] = useState('')
+  const [postNo, setPostNo] = useState('')
 
   async function load() {
-    try { setRows((await api.get<Survey[]>('/surveys')).data) }
+    setError('')
+    try { setRows((await api.get<SurveyDoc[]>('/surveys')).data); setSearched(true) }
     catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { void load() }, [])
 
-  async function respond(s: Survey) {
-    try { await api.post(`/surveys/${s.id}/respond`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+  useEffect(() => {
+    api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
+  }, [])
+
+  function reset() {
+    setFrom(ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
+    setTo(ymd(today))
+    setScope(''); setUseEnd(false); setTitle(''); setQuestion(''); setWriter(''); setPostNo('')
   }
 
-  async function toggle(s: Survey) {
-    try { await api.patch(`/surveys/${s.id}`, { status: s.status === 'OPEN' ? 'CLOSED' : 'OPEN' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
+  const shown = useMemo(() => {
+    const writerName = users.find((u) => String(u.id) === writer)?.name
+    return rows.filter((r) => {
+      const created = (r.createdAt ?? '').slice(0, 10)
+      if (created && (created < from || created > to)) return false
+      if (scope && r.targetScope !== scope) return false
+      if (useEnd) {
+        const end = (r.endAt ?? '').slice(0, 10)
+        if (!end || end < endFrom || end > endTo) return false
+      }
+      if (title && !r.title.includes(title)) return false
+      if (question && !r.questions.some((q) => q.content.includes(question))) return false
+      if (writerName && r.writerName !== writerName) return false
+      if (postNo && !String(r.postNo).includes(postNo)) return false
+      return true
+    })
+  }, [rows, from, to, scope, useEnd, endFrom, endTo, title, question, writer, postNo, users])
 
-  const shown = rows.filter((r) => !keyword || r.title.includes(keyword))
+  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const totals = shown.reduce((a, r) => ({
+    targets: a.targets + r.targetCount,
+    responses: a.responses + r.responseCount,
+  }), { targets: 0, responses: 0 })
 
   return (
     <EcListShell
       title="설문조사현황"
-      search={keyword}
-      onSearchChange={setKeyword}
-      newLabel="새로고침"
-      onNew={load}
-      actions={[{ label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: () => void load() },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">설문별 응답 현황·응답률 · 응답+1 버튼으로 응답 반영 · 마감 시 응답 불가</p>
+      {/* 조회 조건 — 원본은 이 패널이 화면의 본체다 */}
+      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+        <tbody>
+          <tr>
+            <th style={th}>작성일</th>
+            <td>
+              <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            </td>
+            <th style={th}>설문대상구분</th>
+            <td>
+              {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
+                <label key={l} style={{ marginRight: 12, fontSize: 12 }}>
+                  <input type="radio" name="scope" checked={scope === v} onChange={() => setScope(v)} /> {l}
+                </label>
+              ))}
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>설문종료일</th>
+            <td colSpan={3}>
+              <label style={{ fontSize: 12, marginRight: 8 }}>
+                <input type="checkbox" checked={useEnd} onChange={(e) => setUseEnd(e.target.checked)} /> 사용
+              </label>
+              <input type="date" className="ec-input" value={endFrom} disabled={!useEnd}
+                onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className="ec-input" value={endTo} disabled={!useEnd}
+                onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>제목</th>
+            <td>
+              <input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: 220 }} />
+              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+            </td>
+            <th style={th}>질문내용</th>
+            <td>
+              <input className="ec-input" value={question} onChange={(e) => setQuestion(e.target.value)} style={{ width: 220 }} />
+              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>작성자</th>
+            <td>
+              <CodePickerField
+                label="작성자" hideLabel value={writer} onChange={setWriter}
+                items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name }))}
+              />
+            </td>
+            <th style={th}>게시글번호</th>
+            <td>
+              <input className="ec-input" value={postNo} onChange={(e) => setPostNo(e.target.value)} style={{ width: 120 }} />
+              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
+        <colgroup>
+          <col style={{ width: '4%' }} /><col style={{ width: '9%' }} /><col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} /><col /><col style={{ width: '8%' }} />
+          <col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} />
+          <col style={{ width: '9%' }} />
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>설문제목</th>
-            <th style={{ width: 90, textAlign: 'right' }}>대상수</th>
-            <th style={{ width: 90, textAlign: 'right' }}>응답수</th>
-            <th style={{ width: 170 }}>응답률</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태</th>
-            <th style={{ width: 140, textAlign: 'center' }}>처리</th>
+            <th></th><th>게시글번호</th><th>작성일</th><th>설문종료일</th><th>제목</th>
+            <th>작성자</th><th>대상구분</th><th>대상수</th><th>응답수</th><th>응답률</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>설문이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
+              {searched ? '조건에 맞는 데이터가 없습니다.' : '등록된 데이터가 없습니다.'}
+            </td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontWeight: 600 }}>{r.title}</td>
-              <td style={{ textAlign: 'right' }}>{r.target.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.responses.toLocaleString()}</td>
-              <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, r.responseRate)}%`, height: '100%', background: COLOR[r.status] }} />
-                  </div>
-                  <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.responseRate}%</span>
-                </div>
-              </td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: COLOR[r.status] }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} disabled={r.status === 'CLOSED'} onClick={() => respond(r)}>응답+1</button>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px', marginLeft: 4 }} onClick={() => toggle(r)}>{r.status === 'OPEN' ? '마감' : '재개'}</button>
-              </td>
+              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
+              <td style={{ textAlign: 'center' }}>{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
+              <td style={{ textAlign: 'center' }}>{(r.endAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
+              <td>{r.title}</td>
+              <td style={{ textAlign: 'center' }}>{r.writerName ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>{r.targetScopeName}</td>
+              <td style={{ textAlign: 'right' }}>{r.targetCount.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{r.responseCount.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{r.responseRate}%</td>
             </tr>
           ))}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totals.targets.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totals.responses.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+                {totals.targets > 0 ? Math.round((totals.responses * 100) / totals.targets) : 0}%
+              </td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )

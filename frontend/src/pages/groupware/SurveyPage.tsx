@@ -1,166 +1,304 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../api/types'
 
-type SurveyStatus = 'OPEN' | 'CLOSED'
-const LABEL: Record<SurveyStatus, string> = { OPEN: '진행중', CLOSED: '마감' }
-const COLOR: Record<SurveyStatus, string> = { OPEN: '#c07a00', CLOSED: '#1c7c3c' }
+/**
+ * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
+ *
+ * 원본 탭: 전체 · 초안 · 진행중 · 완료 · 미발송
+ * 원본 컬럼(실측): (선택 25) 게시글번호 70 · 작성일 85 · 설문종료일 85 · 제목 190 ·
+ *                  작성자 60 · 진행상태 55 · 설문조사결과 60 · 설문조사 참여여부 140
+ *
+ * 원본 하단은 [신규(F2)][Email][대화방][선택삭제] 인데, Email·대화방은 이 화면에서 무엇을
+ * 보내고 어떤 방을 여는지 확인하지 못해 넣지 않았다.
+ */
 
-interface Survey {
-  id: number
-  title: string
-  startDate: string | null
-  endDate: string | null
-  target: number
-  responses: number
-  responseRate: number
-  status: SurveyStatus
-  statusName: string
-  createdBy: string | null
+const TABS = ['전체', '초안', '진행중', '완료', '미발송'] as const
+type Tab = (typeof TABS)[number]
+const TAB_STATUS: Record<Exclude<Tab, '전체'>, SurveyStatus> = {
+  초안: 'DRAFT', 진행중: 'OPEN', 완료: 'CLOSED', 미발송: 'UNSENT',
+}
+const STATUS_COLOR: Record<SurveyStatus, string> = {
+  DRAFT: '#8a929c', OPEN: 'var(--ec-blue)', CLOSED: '#1c7c3c', UNSENT: '#c07a00',
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const dateOf = (iso: string | null) => (iso ? iso.slice(0, 10).replace(/-/g, '/') : '')
+const COLS = ['3.2%', '9.1%', '11%', '11%', '24.7%', '7.8%', '7.1%', '7.8%', '18.2%']
 
-/** 그룹웨어 > 설문조사 — 사내 설문 등록·응답 현황 (실제 연동) */
 export default function SurveyPage() {
-  const [rows, setRows] = useState<Survey[]>([])
-  const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
-  const [showForm, setShowForm] = useState(false)
+  const navigate = useNavigate()
+  const [rows, setRows] = useState<SurveyDoc[]>([])
+  const [tab, setTab] = useState<Tab>('전체')
   const [keyword, setKeyword] = useState('')
-
-  const [title, setTitle] = useState('')
-  const [startDate, setStartDate] = useState(today())
-  const [endDate, setEndDate] = useState('')
-  const [target, setTarget] = useState('')
+  const [error, setError] = useState('')
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [answering, setAnswering] = useState<SurveyDoc | null>(null)
+  const [result, setResult] = useState<SurveyResult | null>(null)
 
   async function load() {
-    try { setRows((await api.get<Survey[]>('/surveys')).data) }
+    setError('')
+    try { setRows((await api.get<SurveyDoc[]>('/surveys')).data) }
     catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { void load() }, [])
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(''); setOk('')
-    if (!title.trim()) return setError('설문 제목을 입력하세요.')
-    try {
-      await api.post<Survey>('/surveys', {
-        title, startDate, endDate: endDate || undefined, target: target ? Number(target) : 0,
-      })
-      setOk('설문 등록 완료')
-      setTitle(''); setEndDate(''); setTarget('')
-      load()
-    } catch (err) { setError(extractErrorMessage(err)) }
-  }
-
-  async function patch(s: Survey, body: Record<string, unknown>) {
-    try { await api.patch(`/surveys/${s.id}`, body); load() }
+  async function openResult(s: SurveyDoc) {
+    try { setResult((await api.get<SurveyResult>(`/surveys/${s.id}/result`)).data) }
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  async function respond(s: Survey) {
-    try { await api.post(`/surveys/${s.id}/respond`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+  async function removeSelected() {
+    const targets = shown.filter((r) => selected.has(r.id))
+    if (targets.length === 0) return alert('지울 설문을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
+    if (!confirm(`${targets.length}건을 삭제할까요? 응답도 함께 사라집니다.`)) return
+    const failed: string[] = []
+    for (const r of targets) {
+      try { await api.delete(`/surveys/${r.id}`) }
+      catch (err) { failed.push(`${r.title}: ${extractErrorMessage(err)}`) }
+    }
+    setSelected(new Set())
+    void load()
+    if (failed.length) alert(`지우지 못한 설문 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
-  async function remove(s: Survey) {
-    if (!confirm(`[${s.title}] 설문을 삭제하시겠습니까?`)) return
-    try { await api.delete(`/surveys/${s.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
+  const toggle = (id: number) =>
+    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
-  const shown = rows.filter((r) => !keyword || r.title.includes(keyword))
-  const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const shown = useMemo(() => rows
+    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? '').includes(keyword)),
+    [rows, tab, keyword])
+
+  const tabCount = (t: Tab) => (t === '전체' ? rows.length : rows.filter((r) => r.status === TAB_STATUS[t]).length)
 
   return (
     <EcListShell
-      title="설문조사"
+      title="설문조사조회"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : '설문등록(F2)'}
-      onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      onNew={() => navigate('/groupware/survey-input')}
+      actions={[{ label: '선택삭제', onClick: removeSelected }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">사내 설문 등록·응답현황 · 응답 버튼으로 응답수 반영(응답률 자동) · 마감 시 응답 불가</p>
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+            {t} {tabCount(t)}
+          </button>
+        ))}
+      </div>
 
-      <Modal open={showForm} title="설문조사 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
-          <table className="w-full text-left">
-            <tbody>
-              <tr>
-                <th style={th}>설문제목 *</th>
-                <td colSpan={3}><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} placeholder="설문 제목을 입력하세요" /></td>
-              </tr>
-              <tr>
-                <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={th}>종료일</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th style={th}>대상인원</th>
-                <td><input type="number" className={inputCls} value={target} onChange={(e) => setTarget(e.target.value)} style={{ width: 100 }} min={0} /></td>
-                <th style={th}></th><td></td>
-              </tr>
-            </tbody>
-          </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
-        </form>
-      )}</Modal>
-
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
+        <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>설문제목 ▼</th>
-            <th style={{ width: 100 }}>시작일</th>
-            <th style={{ width: 100 }}>종료일</th>
-            <th style={{ width: 70, textAlign: 'right' }}>대상</th>
-            <th style={{ width: 70, textAlign: 'right' }}>응답</th>
-            <th style={{ width: 150 }}>응답률</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
-            <th style={{ width: 130, textAlign: 'center' }}>처리</th>
+            <th></th><th>게시글번호</th><th>작성일</th><th>설문종료일</th><th>제목</th>
+            <th>작성자</th><th>진행상태</th><th>설문조사결과</th><th>설문조사 참여여부</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>설문이 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontWeight: 600 }}>{r.title}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.startDate ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.endDate ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.target.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.responses.toLocaleString()}</td>
+              <td
+                onClick={() => toggle(r.id)}
+                title="눌러서 선택 (하단 [선택삭제])"
+                style={{
+                  textAlign: 'center', cursor: 'pointer',
+                  background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
+                  color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                  fontWeight: selected.has(r.id) ? 700 : 400,
+                }}
+              >
+                {i + 1}
+              </td>
+              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
+              <td style={{ textAlign: 'center' }}>{dateOf(r.createdAt)}</td>
+              <td style={{ textAlign: 'center' }}>{dateOf(r.endAt)}</td>
               <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, r.responseRate)}%`, height: '100%', background: COLOR[r.status] }} />
-                  </div>
-                  <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.responseRate}%</span>
-                </div>
+                {r.title}
+                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontSize: 11.5 }}>
+                  문항 {r.questionCount}
+                  {r.anonymous && ' · 익명'}
+                </span>
+              </td>
+              <td style={{ textAlign: 'center' }}>{r.writerName ?? ''}</td>
+              <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="ec-btn ec-btn-sm" onClick={() => void openResult(r)}>결과</button>
               </td>
               <td style={{ textAlign: 'center' }}>
-                <select className="ec-input" value={r.status} onChange={(e) => patch(r, { status: e.target.value })} style={{ width: 74, color: COLOR[r.status], fontWeight: 700 }}>
-                  {(['OPEN', 'CLOSED'] as SurveyStatus[]).map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
-                </select>
-              </td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} disabled={r.status === 'CLOSED'} onClick={() => respond(r)}>응답+1</button>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px', marginLeft: 4, color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>
+                {/* 종료일이 지난 설문에 [응답하기] 를 띄우면 눌러도 400 만 난다 — 상태가 '진행중'
+                    이어도 시간으로 닫히므로 expired 를 같이 본다. */}
+                {r.answeredByMe ? (
+                  <span style={{ color: '#1c7c3c' }}>참여</span>
+                ) : r.status === 'OPEN' && !r.expired ? (
+                  <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setAnswering(r)}>응답하기</button>
+                ) : (
+                  <span style={{ color: 'var(--ec-label)' }}>{r.expired && r.status === 'OPEN' ? '기간종료' : '미참여'}</span>
+                )}
+                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontSize: 11.5 }}>
+                  {r.responseCount}/{r.targetCount || '-'}
+                </span>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {answering && (
+        <AnswerModal
+          survey={answering}
+          onClose={() => setAnswering(null)}
+          onDone={() => { setAnswering(null); void load() }}
+        />
+      )}
+
+      {result && <ResultModal result={result} onClose={() => setResult(null)} />}
     </EcListShell>
+  )
+}
+
+/** 설문에 실제로 답하는 창. 유형마다 입력 모양이 다르다. */
+function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: () => void; onDone: () => void }) {
+  const [values, setValues] = useState<Record<number, string[]>>({})
+  const [error, setError] = useState('')
+
+  const set = (qid: number, v: string[]) => setValues((s) => ({ ...s, [qid]: v }))
+  const toggleMulti = (qid: number, option: string) => {
+    const cur = values[qid] ?? []
+    set(qid, cur.includes(option) ? cur.filter((x) => x !== option) : [...cur, option])
+  }
+
+  async function submit() {
+    setError('')
+    try {
+      await api.post(`/surveys/${survey.id}/respond`, {
+        answers: Object.entries(values).map(([qid, v]) => ({ questionId: Number(qid), values: v })),
+      })
+      onDone()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  return (
+    <Modal open title={survey.title} width={640} onClose={onClose}>
+      <div style={{ fontSize: 13 }}>
+        {survey.headerText && (
+          <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--ec-border)', padding: 10, marginBottom: 12 }}>
+            {survey.headerText}
+          </div>
+        )}
+        {survey.anonymous && (
+          <p style={{ color: 'var(--ec-label)', fontSize: 12, marginBottom: 10 }}>
+            익명 설문입니다 — 누가 답했는지 저장하지 않습니다.
+          </p>
+        )}
+
+        {survey.questions.map((q) => (
+          <div key={q.id} style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              {q.seq}. {q.content}
+              {q.required && <span style={{ color: '#c60a2e', marginLeft: 4 }}>*</span>}
+            </div>
+
+            {(q.type === 'SINGLE' || q.type === 'SINGLE_ETC') && q.options.map((o) => (
+              <label key={o} style={{ display: 'block', paddingLeft: 12 }}>
+                <input type="radio" name={`q${q.id}`} checked={(values[q.id] ?? [])[0] === o} onChange={() => set(q.id, [o])} /> {o}
+              </label>
+            ))}
+
+            {(q.type === 'MULTI' || q.type === 'MULTI_ETC' || q.type === 'RANK') && q.options.map((o) => (
+              <label key={o} style={{ display: 'block', paddingLeft: 12 }}>
+                <input type="checkbox" checked={(values[q.id] ?? []).includes(o)} onChange={() => toggleMulti(q.id, o)} /> {o}
+              </label>
+            ))}
+
+            {(q.type === 'SINGLE_ETC' || q.type === 'MULTI_ETC') && (
+              <div style={{ paddingLeft: 12, marginTop: 4 }}>
+                <input className="ec-input" placeholder="기타 (직접 입력)" style={{ width: '70%' }}
+                  onChange={(e) => {
+                    const others = (values[q.id] ?? []).filter((v) => q.options.includes(v))
+                    set(q.id, e.target.value.trim() ? [...others, e.target.value.trim()] : others)
+                  }} />
+              </div>
+            )}
+
+            {q.type === 'SHORT_TEXT' && (
+              <input className="ec-input" style={{ width: '70%', marginLeft: 12 }}
+                value={(values[q.id] ?? [])[0] ?? ''} onChange={(e) => set(q.id, e.target.value ? [e.target.value] : [])} />
+            )}
+
+            {q.type === 'LONG_TEXT' && (
+              <textarea className="ec-input" rows={3} style={{ width: '90%', marginLeft: 12, height: 'auto' }}
+                value={(values[q.id] ?? [])[0] ?? ''} onChange={(e) => set(q.id, e.target.value ? [e.target.value] : [])} />
+            )}
+
+            {q.type === 'DATE' && (
+              <input type="date" className="ec-input" style={{ width: 150, marginLeft: 12 }}
+                value={(values[q.id] ?? [])[0] ?? ''} onChange={(e) => set(q.id, e.target.value ? [e.target.value] : [])} />
+            )}
+
+            {q.type === 'SCALE' && (
+              <div style={{ paddingLeft: 12 }}>
+                {['1', '2', '3', '4', '5'].map((n) => (
+                  <label key={n} style={{ marginRight: 10 }}>
+                    <input type="radio" name={`q${q.id}`} checked={(values[q.id] ?? [])[0] === n} onChange={() => set(q.id, [n])} /> {n}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+        <div style={{ marginTop: 10 }}>
+          <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>제출</button>
+          <button className="ec-btn" style={{ marginLeft: 4 }} onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () => void }) {
+  return (
+    <Modal open title={`${result.title} — 결과`} width={640} onClose={onClose}>
+      <div style={{ fontSize: 13 }}>
+        <p style={{ marginBottom: 10, color: 'var(--ec-label)' }}>
+          대상 {result.targetCount}명 · 응답 {result.responseCount}건 · 응답률 {result.responseRate}%
+          {result.anonymous && ' · 익명'}
+        </p>
+        {result.questions.map((q) => {
+          const max = Math.max(1, ...Object.values(q.counts))
+          return (
+            <div key={q.questionId} style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 600 }}>
+                {q.seq}. {q.content}
+                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontWeight: 400, fontSize: 11.5 }}>
+                  {q.typeName} · 응답 {q.answeredCount}
+                </span>
+              </div>
+              {Object.entries(q.counts).map(([opt, n]) => (
+                <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12, marginTop: 2 }}>
+                  <span style={{ width: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+                  <span style={{ height: 10, background: 'var(--ec-blue)', width: `${(n / max) * 60}%`, minWidth: n ? 3 : 0 }} />
+                  <span style={{ color: 'var(--ec-label)' }}>{n}</span>
+                </div>
+              ))}
+              {q.texts.length > 0 && (
+                <ul style={{ paddingLeft: 28, margin: '4px 0 0', color: '#3c4553' }}>
+                  {q.texts.map((t, i) => <li key={i}>{t}</li>)}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Modal>
   )
 }

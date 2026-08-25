@@ -2094,6 +2094,99 @@ async function scenarioSupplyUsage() {
     (await must('GET', '/supplies')).some((s) => s.code === `${P}SUP`), false)
 }
 
+
+/**
+ * 설문조사(E070256·E070257·E070258).
+ * 예전에는 제목·기간과 '대상 인원수·응답 수 정수'뿐이라 질문도 응답도 없었다.
+ * 지금은 문항·대상·응답·답이 실제로 저장된다.
+ */
+async function scenarioSurvey() {
+  section('■ 설문조사')
+
+  const me = (await must('GET', '/users')).find((u) => u.username === USER)
+  const survey = await must('POST', '/surveys', {
+    title: `${P}설문`,
+    endAt: '2099-12-31T23:59:59',
+    targetScope: 'INTERNAL',
+    anonymous: false,
+    resultVisibility: 'ALL',
+    headerText: 'QA 안내문',
+    targetUserIds: [me.id],
+    questions: [
+      { seq: 1, type: 'SINGLE', content: 'QA 단일선택', option1: '가', option2: '나', required: true },
+      { seq: 2, type: 'MULTI', content: 'QA 복수선택', option1: 'A', option2: 'B', option3: 'C', required: false },
+      { seq: 3, type: 'LONG_TEXT', content: 'QA 서술', required: false },
+    ],
+    draft: false,
+  })
+  eq('문항이 저장된다', survey.questionCount, 3)
+  eq('대상이 저장된다', survey.targetCount, 1)
+  eq('발송하면 진행중', survey.statusName, '진행중')
+  eq('보기 없는 유형은 usesOptions=false', survey.questions[2].usesOptions, false)
+
+  await rejects('보기 없는 선택형 문항은 거부', 'POST', '/surveys', {
+    title: `${P}설문-보기없음`, questions: [{ seq: 1, type: 'SINGLE', content: '보기 없음' }], draft: false,
+  }, '보기항목')
+
+  await rejects('문항 없이 발송은 거부', 'POST', '/surveys', {
+    title: `${P}설문-빈문항`, questions: [], draft: false,
+  }, '문항이 없는')
+
+  const draft = await must('POST', '/surveys', { title: `${P}설문-초안`, questions: [], draft: true })
+  eq('초안은 문항 없이도 저장된다', draft.statusName, '초안')
+
+  const [q1, q2, q3] = survey.questions
+  await rejects('필수 문항 누락은 거부', 'POST', `/surveys/${survey.id}/respond`,
+    { answers: [{ questionId: q3.id, values: ['서술만'] }] }, '필수 문항')
+  await rejects('단일 선택에 값 2개는 거부', 'POST', `/surveys/${survey.id}/respond`,
+    { answers: [{ questionId: q1.id, values: ['가', '나'] }] }, '단일 선택')
+  await rejects('보기에 없는 값은 거부', 'POST', `/surveys/${survey.id}/respond`,
+    { answers: [{ questionId: q1.id, values: ['다'] }] }, '보기에 없는')
+  await rejects('남의 설문 문항은 거부', 'POST', `/surveys/${survey.id}/respond`,
+    { answers: [{ questionId: 999999, values: ['가'] }] }, '문항이 아닙니다')
+
+  const answered = await must('POST', `/surveys/${survey.id}/respond`, {
+    answers: [
+      { questionId: q1.id, values: ['가'] },
+      { questionId: q2.id, values: ['A', 'C'] },
+      { questionId: q3.id, values: ['QA 의견'] },
+    ],
+  })
+  eq('응답 수는 세어서 낸다', answered.responseCount, 1)
+  eq('응답률도 세어서 낸다', answered.responseRate, 100)
+  eq('내가 응답했음이 표시된다', answered.answeredByMe, true)
+
+  await rejects('같은 사람이 두 번 응답은 거부', 'POST', `/surveys/${survey.id}/respond`, {
+    answers: [{ questionId: q1.id, values: ['나'] }],
+  }, '이미 응답한')
+
+  const result = await must('GET', `/surveys/${survey.id}/result`)
+  eq('단일선택 집계', result.questions[0].counts['가'], 1)
+  eq('고르지 않은 보기는 0', result.questions[0].counts['나'], 0)
+  eq('복수선택은 고른 것마다 센다', result.questions[1].counts['A'] + result.questions[1].counts['C'], 2)
+  eq('복수선택에서 안 고른 보기는 0', result.questions[1].counts['B'], 0)
+  eq('서술형은 원문이 모인다', result.questions[2].texts[0], 'QA 의견')
+
+  // 응답이 달린 뒤 문항을 갈아 끼우면 기존 응답이 다른 질문의 답이 된다
+  await rejects('응답 있는 설문의 문항 교체는 거부', 'PATCH', `/surveys/${survey.id}`, {
+    questions: [{ seq: 1, type: 'SHORT_TEXT', content: '바꿔치기' }],
+  }, '문항을 바꿀 수 없습니다')
+
+  // 비공개 설문은 대상자도 결과를 못 본다(작성자는 볼 수 있다)
+  const secret = await must('POST', '/surveys', {
+    title: `${P}설문-비공개`, resultVisibility: 'NONE', endAt: '2099-12-31T23:59:59',
+    questions: [{ seq: 1, type: 'SHORT_TEXT', content: '비공개 질문' }], draft: false,
+  })
+  const asOwner = await must('GET', `/surveys/${secret.id}/result`)
+  eq('비공개라도 작성자는 결과를 본다', asOwner.surveyId, secret.id)
+
+  await must('DELETE', `/surveys/${survey.id}`)
+  await must('DELETE', `/surveys/${draft.id}`)
+  await must('DELETE', `/surveys/${secret.id}`)
+  eq('지운 설문은 목록에서 빠진다',
+    (await must('GET', '/surveys')).some((x) => x.title === `${P}설문`), false)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -2145,6 +2238,7 @@ async function main() {
   await scenarioCashDetail()
   await scenarioWorkspace(fixtures)
   await scenarioSupplyUsage()
+  await scenarioSurvey()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

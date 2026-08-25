@@ -2351,3 +2351,75 @@ export interface ChatMessage {
   /** 참여·퇴장 같은 시스템 안내 */
   system: boolean
 }
+
+// ── 설문조사 (그룹웨어 > 공유정보 > 설문조사) ───────────────────────────────
+
+/** 원본 설문조사입력의 질문유형 9종. */
+export type QuestionType =
+  | 'SINGLE' | 'MULTI' | 'SINGLE_ETC' | 'MULTI_ETC'
+  | 'SHORT_TEXT' | 'LONG_TEXT' | 'RANK' | 'DATE' | 'SCALE'
+
+export type SurveyStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'UNSENT'
+
+export interface SurveyQuestion {
+  id: number
+  seq: number
+  type: QuestionType
+  typeName: string
+  /** 보기항목을 쓰는 유형인가 — 화면이 보기 칸을 그릴지 판단한다 */
+  usesOptions: boolean
+  content: string
+  options: string[]
+  required: boolean
+}
+
+export interface SurveyDoc {
+  id: number
+  postNo: number
+  title: string
+  endAt: string | null
+  targetScope: 'INTERNAL' | 'EXTERNAL'
+  targetScopeName: string
+  anonymous: boolean
+  resultVisibility: 'ALL' | 'PARTIAL' | 'NONE'
+  resultVisibilityName: string
+  headerText: string | null
+  status: SurveyStatus
+  statusName: string
+  createdBy: string | null
+  writerName: string | null
+  createdAt: string | null
+  questionCount: number
+  targetCount: number
+  responseCount: number
+  responseRate: number
+  /** 지금 보는 사람이 이미 응답했는가 — 원본 '설문조사 참여여부' 칸 */
+  answeredByMe: boolean
+  /** 설문종료일이 지났는가. 상태가 '진행중'이어도 시간으로 닫힌다 */
+  expired: boolean
+  questions: SurveyQuestion[]
+  targets: { userId: number; userName: string }[]
+}
+
+export interface SurveyQuestionResult {
+  questionId: number
+  seq: number
+  typeName: string
+  content: string
+  usesOptions: boolean
+  /** 보기 → 응답 수. 보기 없는 유형이면 비어 있다 */
+  counts: Record<string, number>
+  /** 서술형 답변 원문 + '기타' 직접 입력 */
+  texts: string[]
+  answeredCount: number
+}
+
+export interface SurveyResult {
+  surveyId: number
+  title: string
+  targetCount: number
+  responseCount: number
+  responseRate: number
+  anonymous: boolean
+  questions: SurveyQuestionResult[]
+}
