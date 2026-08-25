@@ -1,11 +1,11 @@
-import type { CSSProperties } from 'react'
 import type { ApprovalField, ApprovalFieldColumn } from '../../api/types'
 
 type Row = Record<string, unknown>
 type FormData = Record<string, unknown>
 
-const TH: CSSProperties = { width: 130, background: '#f5f7fa', whiteSpace: 'nowrap' }
-const REQ: CSSProperties = { color: '#c60a2e', marginLeft: 2 }
+/** 원본 본문 표는 7열 격자다(실측). 라벨은 2열, 값은 5열을 차지한다. */
+const COLS = 7
+const LABEL_SPAN = 2
 
 const num = (v: unknown) => {
   const n = Number(v)
@@ -14,18 +14,28 @@ const num = (v: unknown) => {
 
 const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
 
-/** 양식 마스터의 field_schema 를 읽어 입력 폼을 그린다. 값은 그대로 formData 로 저장된다. */
+/**
+ * 기안서 본문 — 원본은 양식을 **에디터 본문 안의 표**로 그린다.
+ * 제목(자간을 벌린 「휴 가 신 청 서」) 아래로 라벨/값 행이 이어지는 문서 서식이고,
+ * 값 칸에 직접 입력한다. 우리는 이 필드들을 에디터 **위에** 별도 폼으로 두고 에디터는 자유 본문이었다 —
+ * 같은 데이터인데 사용자가 보는 모습이 전혀 달랐다.
+ *
+ * <p><b>모델 한계</b>: 원본은 양식마다 셀 배치(예: 신청내용·신청사유를 나란히 두기)를 따로 갖고 있는데
+ * 우리 `field_schema` 는 <b>필드의 평면 목록</b>이라 배치 정보가 없다. 그래서 한 줄에 한 필드씩 그린다
+ * (원본의 신청일자 행과 같은 모양). 배치까지 맞추려면 양식 마스터에 레이아웃을 넣어야 한다.
+ */
 export default function ApprovalFormFields({
+  title,
   fields,
   value,
   onChange,
 }: {
+  /** 문서 제목 — 원본은 본문 맨 위에 자간을 벌려 크게 쓴다. */
+  title: string
   fields: ApprovalField[]
   value: FormData
   onChange: (next: FormData) => void
 }) {
-  if (fields.length === 0) return null
-
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v })
 
   const setCell = (field: ApprovalField, rowIdx: number, colKey: string, v: unknown) => {
@@ -39,16 +49,19 @@ export default function ApprovalFormFields({
     set(field.key, asRows(value[field.key]).filter((_, i) => i !== rowIdx))
 
   return (
-    <table className="w-full text-left" style={{ marginBottom: 12 }}>
+    <table className="ec-doc">
       <tbody>
-        {fields.map((f) =>
-          f.type === 'table' ? (
-            <tr key={f.key}>
-              <th style={TH}>
-                {f.label}
-                {f.required && <span style={REQ}>*</span>}
-              </th>
-              <td>
+        <tr>
+          <td className="doc-title" colSpan={COLS}>{title}</td>
+        </tr>
+        {fields.map((f) => (
+          <tr key={f.key}>
+            <td className="doc-label" colSpan={LABEL_SPAN}>
+              {f.label}
+              {f.required && <span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span>}
+            </td>
+            <td colSpan={COLS - LABEL_SPAN}>
+              {f.type === 'table' ? (
                 <TableField
                   field={f}
                   rows={asRows(value[f.key])}
@@ -56,20 +69,12 @@ export default function ApprovalFormFields({
                   onAdd={() => addRow(f)}
                   onRemove={(i) => removeRow(f, i)}
                 />
-              </td>
-            </tr>
-          ) : (
-            <tr key={f.key}>
-              <th style={TH}>
-                {f.label}
-                {f.required && <span style={REQ}>*</span>}
-              </th>
-              <td>
+              ) : (
                 <ScalarField field={f} value={value[f.key]} onChange={(v) => set(f.key, v)} />
-              </td>
-            </tr>
-          ),
-        )}
+              )}
+            </td>
+          </tr>
+        ))}
       </tbody>
     </table>
   )
@@ -86,24 +91,18 @@ function ScalarField({
 }) {
   const str = value == null ? '' : String(value)
 
+  // 표 자체가 서식이라 셀 안에 입력칸 테두리를 또 그리지 않는다(원본도 그렇다).
   if (field.type === 'textarea') {
-    return (
-      <textarea
-        className="ec-input"
-        value={str}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: '100%', height: 64, resize: 'vertical', padding: 6 }}
-      />
-    )
+    return <textarea className="doc-input" value={str} onChange={(e) => onChange(e.target.value)} />
   }
   if (field.type === 'number') {
     return (
       <input
-        className="ec-input"
+        className="doc-input"
         type="number"
         value={str}
         onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-        style={{ width: 160, textAlign: 'right' }}
+        style={{ textAlign: 'right' }}
       />
     )
   }
@@ -111,11 +110,10 @@ function ScalarField({
   const inputType = field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : 'text'
   return (
     <input
-      className="ec-input"
+      className="doc-input"
       type={inputType}
       value={field.type === 'datetime' ? str.slice(0, 16) : str}
       onChange={(e) => onChange(field.type === 'datetime' ? `${e.target.value}:00` : e.target.value)}
-      style={{ width: inputType === 'text' ? '100%' : 220 }}
     />
   )
 }

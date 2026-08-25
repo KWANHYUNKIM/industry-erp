@@ -402,6 +402,90 @@ main table,
 }
 
 /* ============================================================
+   전자결재 기안서 본문 — 원본은 양식이 **에디터 본문 안의 표**로 들어간다.
+   실측(휴가신청서): 7열 격자 · 표폭 621px · 테두리 1px solid #000 · 12px ·
+   제목 행 colspan 전체 · 라벨 셀 가운데 · 값 셀 왼쪽.
+   우리는 양식 필드를 에디터 **위에** 별도 폼으로 두고 에디터는 자유 본문이었다 — 모델이 달랐다.
+   ============================================================ */
+.ec-doc {
+  width: 621px;
+  max-width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 12px;
+  color: #000;
+  table-layout: fixed;
+}
+.ec-doc td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+/* 제목 행 — 원본은 자간을 벌려 「휴 가 신 청 서」 처럼 쓴다 */
+.ec-doc .doc-title {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  padding: 16px 6px;
+}
+.ec-doc .doc-label {
+  text-align: center;
+  white-space: nowrap;
+}
+/* 값 칸의 입력은 테두리 없이 셀을 꽉 채운다 — 표 자체가 서식이라 입력칸이 또 그려지면 안 된다 */
+.ec-doc .doc-input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+}
+.ec-doc textarea.doc-input {
+  resize: vertical;
+  min-height: 76px;
+}
+.ec-doc .doc-input:focus {
+  background: #fffbe6;
+}
+
+/* 에디터 툴바 — 원본은 한 줄을 [글꼴][서식][삽입][레이아웃] 그룹으로 나누고
+   각 그룹 아래에 회색(#868d93) 12px 라벨을 단다. */
+.ec-editor-bar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--ec-border);
+  border-bottom: none;
+  background: #fff;
+  padding: 3px 0 0;
+}
+.ec-editor-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  border-right: 1px solid var(--ec-border);
+}
+.ec-editor-group:last-child { border-right: 0; }
+.ec-editor-group .row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+}
+.ec-editor-group .name {
+  font-size: 12px;
+  color: #868d93;
+  line-height: 1.2;
+  padding-bottom: 2px;
+}
+
+/* ============================================================
    목록 화면의 상태 필터 — 이카운트 판매조회의 [전체][결재중][미확인][확인]
    원본 실측: 알약 하나가 h26 · padding 7px 13px · 12px,
    선택된 것만 배경 #1f48d4 + radius 15px + 흰 글씨, 나머지는 배경 없이 #606c93.

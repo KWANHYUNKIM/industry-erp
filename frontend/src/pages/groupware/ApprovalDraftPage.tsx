@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import ApprovalFormFields from '../../components/approval/ApprovalFormFields'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -262,39 +263,52 @@ export default function ApprovalDraftPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <div ref={bodyRef} style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
-        {/* 좌측 양식 목록 — 서버의 양식 마스터 */}
-        <div style={{ width: 260, border: '1px solid var(--ec-border)', background: '#fff', flexShrink: 0, overflow: 'auto' }}>
-          <table className="w-full text-left">
-            <thead>
-              <tr>
-                <th style={{ width: 60 }}>정렬순서</th>
-                <th>양식명</th>
-                <th style={{ width: 44 }}>구분</th>
+      {/*
+        원본 기안서작성은 **전폭 양식 목록**이다 — 정렬순서·양식명·구분·결재문서 4열.
+        양식을 누르면 **모달 팝업**으로 작성 폼이 뜬다.
+        우리는 좌우 분할(좁은 목록 + 인라인 편집기)이라 같은 화면인데 전혀 다르게 보였다.
+      */}
+      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 90 }}>정렬순서</th>
+              <th>양식명</th>
+              <th style={{ width: 200 }}>구분</th>
+              <th style={{ width: 220 }}>결재문서</th>
+            </tr>
+          </thead>
+          <tbody>
+            {templates.map((t) => (
+              <tr key={t.id} onClick={() => selectForm(t)} style={{ cursor: 'pointer' }}>
+                <td style={{ textAlign: 'center', color: '#8a929c' }}>{String(t.sortOrder).padStart(2, '0')}</td>
+                <td>{t.name}</td>
+                <td style={{ textAlign: 'center', color: '#8a929c' }}>기본</td>
+                <td />
               </tr>
-            </thead>
-            <tbody>
-              {templates.map((t) => (
-                <tr key={t.id} onClick={() => selectForm(t)} style={{ cursor: 'pointer', background: selected?.id === t.id ? 'var(--ec-blue-light)' : undefined }}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{t.sortOrder}</td>
-                  <td>{t.name}</td>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>기본</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* 우측 기안 편집기 */}
-        <div style={{ flex: 1, minWidth: 0, border: '1px solid var(--ec-border)', background: '#fff', padding: 16, overflow: 'auto' }}>
-          {!selected ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9aa1ab', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 40 }}>📝</div>
-              <div>좌측에서 결재양식을 선택하세요.</div>
-            </div>
-          ) : (
+      {/* 작성 폼 — 원본과 같이 모달 팝업이다. */}
+      <Modal
+        open={!!selected}
+        title={TITLE}
+        width={1180}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 12 }}>기안서 | {selected.name}</div>
+              {/* 원본의 파란 배지 — [기안서 | 양식명] */}
+              <div style={{ marginBottom: 10 }}>
+                <span style={{
+                  display: 'inline-block', background: 'var(--ec-blue)', color: '#fff',
+                  fontSize: 12, padding: '5px 12px', borderRadius: 5,
+                }}>
+                  기안서 | {selected.name}
+                </span>
+              </div>
 
               <table className="w-full text-left" style={{ marginBottom: 12 }}>
                 <tbody>
@@ -353,42 +367,99 @@ export default function ApprovalDraftPage() {
                 </tbody>
               </table>
 
-              {/* 양식별 입력 항목 — 서버의 field_schema 가 정의한다 */}
-              <ApprovalFormFields fields={selected.fieldSchema} value={formData} onChange={setFormData} />
-
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', border: '1px solid var(--ec-border)', borderBottom: 'none', padding: '4px 8px', background: '#f5f7fa', fontSize: 12 }}>
-                <select className="ec-input" style={{ height: 22 }} value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
-                  <option>돋움</option><option>맑은 고딕</option>
-                </select>
-                <select className="ec-input" style={{ height: 22, width: 54 }} value={fontSize} onChange={(e) => setFontSize(e.target.value)}>
-                  <option>10</option><option>12</option>
-                </select>
-                <span onClick={() => setBold((v) => !v)} title="굵게" style={{ fontWeight: 700, cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: bold ? 'var(--ec-blue-light)' : undefined, color: bold ? 'var(--ec-blue-dark)' : undefined }}>B</span>
-                <span onClick={() => setItalic((v) => !v)} title="기울임" style={{ fontStyle: 'italic', cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: italic ? 'var(--ec-blue-light)' : undefined, color: italic ? 'var(--ec-blue-dark)' : undefined }}>I</span>
-                <span onClick={() => setUnderline((v) => !v)} title="밑줄" style={{ textDecoration: 'underline', cursor: 'pointer', padding: '0 5px', borderRadius: 2, background: underline ? 'var(--ec-blue-light)' : undefined, color: underline ? 'var(--ec-blue-dark)' : undefined }}>U</span>
+              {/*
+                원본 에디터 툴바는 한 줄을 [글꼴][서식][삽입][레이아웃] 그룹으로 나누고
+                각 그룹 아래에 회색(#868d93) 12px 라벨을 단다(실측). 우리는 라벨 없는 평평한 한 줄이었다.
+                지금 실제로 동작하는 것만 제자리에 둔다 — 눌러도 아무 일 없는 버튼을 늘리는 건
+                원본을 닮은 게 아니라 거짓말이다.
+              */}
+              <div className="ec-editor-bar">
+                <div className="ec-editor-group">
+                  <div className="row">
+                    <select className="ec-input" style={{ height: 24 }} value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
+                      <option>돋움</option><option>맑은 고딕</option>
+                    </select>
+                    <select className="ec-input" style={{ height: 24, width: 60 }} value={fontSize} onChange={(e) => setFontSize(e.target.value)}>
+                      <option>10</option><option>12</option><option>14</option>
+                    </select>
+                  </div>
+                  <div className="name">글꼴</div>
+                </div>
+                <div className="ec-editor-group">
+                  <div className="row">
+                    <span title="굵게" onClick={() => setBold((v) => !v)}
+                      style={{ fontWeight: 700, cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
+                        background: bold ? 'var(--ec-blue-light)' : undefined, color: bold ? 'var(--ec-blue-dark)' : undefined }}>B</span>
+                    <span title="기울임" onClick={() => setItalic((v) => !v)}
+                      style={{ fontStyle: 'italic', cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
+                        background: italic ? 'var(--ec-blue-light)' : undefined, color: italic ? 'var(--ec-blue-dark)' : undefined }}>I</span>
+                    <span title="밑줄" onClick={() => setUnderline((v) => !v)}
+                      style={{ textDecoration: 'underline', cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
+                        background: underline ? 'var(--ec-blue-light)' : undefined, color: underline ? 'var(--ec-blue-dark)' : undefined }}>U</span>
+                  </div>
+                  <div className="name">서식</div>
+                </div>
               </div>
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="본문(자유서식)을 입력하세요."
-                style={{
-                  width: '100%', height: 160, border: '1px solid var(--ec-border)', padding: 10, resize: 'vertical', outline: 'none',
-                  fontFamily: FONT_FAMILY[fontFamily] ?? undefined,
-                  fontSize: Number(fontSize) || 13,
-                  fontWeight: bold ? 700 : 400,
-                  fontStyle: italic ? 'italic' : 'normal',
-                  textDecoration: underline ? 'underline' : 'none',
-                }} />
+
+              {/*
+                본문. 원본은 **양식이 본문 안의 표**로 들어가고 그 아래 자유 서술이 이어진다.
+                우리는 양식 필드를 에디터 위에 따로 두고 본문은 자유 텍스트뿐이었다 — 모델이 달랐다.
+              */}
+              <div style={{
+                border: '1px solid var(--ec-border)', background: '#fff', padding: 14,
+                maxHeight: 420, overflow: 'auto',
+                fontFamily: FONT_FAMILY[fontFamily] ?? undefined,
+              }}>
+                <ApprovalFormFields
+                  title={selected.name.split('').join(' ')}
+                  fields={selected.fieldSchema}
+                  value={formData}
+                  onChange={setFormData}
+                />
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="본문(자유서식)을 입력하세요."
+                  style={{
+                    width: 621, maxWidth: '100%', marginTop: 10, minHeight: 90,
+                    border: '1px solid var(--ec-border)', padding: 8, resize: 'vertical', outline: 'none',
+                    fontFamily: 'inherit',
+                    fontSize: Number(fontSize) || 12,
+                    fontWeight: bold ? 700 : 400,
+                    fontStyle: italic ? 'italic' : 'normal',
+                    textDecoration: underline ? 'underline' : 'none',
+                  }}
+                />
+              </div>
 
               <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5', alignItems: 'center' }}>
+                {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}
                 <button className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>{saving ? '처리 중…' : '저장/결재(F7)'}</button>
-                <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장</button>
+                <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장/미리보기</button>
+                <button
+                  className="ec-btn"
+                  title="이 양식이 어떤 항목을 요구하는지 미리 봅니다."
+                  onClick={() => setNotice(
+                    `${selected.name} — 입력항목: ${selected.fieldSchema.map((f) => f.label).join(' · ') || '없음'}`,
+                  )}
+                >
+                  양식샘플보기
+                </button>
+                <button
+                  className="ec-btn"
+                  title="도장·서명 이미지는 아직 없습니다. 인쇄 결재란은 [인쇄용결재라인등록]에서 씁니다."
+                  disabled
+                >
+                  My도장/서명
+                </button>
                 <button className="ec-btn" onClick={() => setSelected(null)}>닫기</button>
                 {missing.length > 0 && (
                   <span style={{ fontSize: 11.5, color: '#c60a2e', marginLeft: 4 }}>미입력 필수: {missing.join(', ')}</span>
                 )}
               </div>
             </div>
-          )}
-        </div>
-      </div>
+        )}
+      </Modal>
 
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
