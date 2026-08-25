@@ -205,6 +205,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
   // + 판매만 있는 확인상태·확인 2개
   const colCount = 14 + (isSales ? 2 : 0)
+
+  /**
+   * 원본은 일자와 전표번호를 '2026/08/03 -1' 로 한 칸에 적는다(게시글의 '일자-No.'와 같은 규칙).
+   * 우리 전표번호는 'SL-20260803-0001' 이라 끝의 일련번호만 떼어 붙인다.
+   */
+  const dateNo = (d: { date: string; docNo: string }) => {
+    const seq = d.docNo.split('-').pop() ?? ''
+    return `${d.date.replace(/-/g, '/')} -${Number(seq) || seq}`
+  }
+
+  /** 행의 [인쇄] — 그 전표 하나만 인쇄한다(원본 목록에도 행마다 인쇄가 있다). */
+  function printOne(d: { id: number }) {
+    setOpenId(d.id)
+    // 상세가 펼쳐진 뒤에 인쇄해야 품목까지 같이 나온다.
+    window.setTimeout(() => window.print(), 100)
+  }
   useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
   return (
@@ -257,17 +273,23 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             >
               {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
             </th>
-            <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th>
-            {/* 원본 목록에 있는 열 — 무슨 물건을 판 전표인지 열지 않고도 알아야 한다 */}
+            {/*
+              여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
+              원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
+            */}
+            <th>일자-No. ▼</th>
+            <th>{cfg.partnerLabel}</th>
             <th>품목명(요약)</th>
-            {/* 원본 목록의 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
-            <th>거래유형</th>
-            <th>창고</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th><th>담당</th>
-            {/* 원본 목록의 '불러온전표' — 이 전표가 어느 수주/발주에서 왔는지 */}
+            <th style={{ textAlign: 'right' }}>금액합계</th>
+            {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
+            <th>거래유형명</th>
+            <th>창고명</th>
+            <th style={{ textAlign: 'center' }}>회계반영여부</th>
+            <th style={{ textAlign: 'center' }}>인쇄</th>
+            {/* 이 전표가 어느 수주/발주에서 왔는지 */}
             <th>불러온전표</th>
-            {/* 원본 목록의 '회계반영여부' */}
-            <th style={{ textAlign: 'center' }}>회계반영</th>
+            {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
+            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th>담당</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
             <th style={{ textAlign: 'center' }}>세금계산서</th>
           </tr>
@@ -291,18 +313,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 >
                   {i + 1}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>{openId === d.id ? '▾ ' : '▸ '}{d.docNo}</td>
-                <td>{d.date}</td>
+                <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>
+                  {openId === d.id ? '▾ ' : '▸ '}{dateNo(d)}
+                </td>
                 <td>{d.partnerName}</td>
                 <td style={{ color: '#5a626e' }}>
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
                 <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
-                <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
-                <td>{d.createdBy ?? ''}</td>
+                <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
+                  {d.accountingReflected ? '반영' : '미반영'}
+                </td>
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <button className="ec-btn ec-btn-sm" onClick={() => printOne(d)}>인쇄</button>
+                </td>
                 <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
@@ -311,9 +337,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                   })()}
                 </td>
-                <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
-                  {d.accountingReflected ? '반영' : '미반영'}
-                </td>
+                <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
+                <td>{d.createdBy ?? ''}</td>
                 {isSales && (
                   <>
                     <td style={{ textAlign: 'center', color: confirmColor(d.confirmStatus), fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>
@@ -396,14 +422,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
             {/*
               합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
-              앞 7칸(행머리·전표번호·일자·거래처·품목명·거래유형·창고) + 금액 3칸 + 나머지.
-              나머지를 colCount 에서 빼서 구한다 — 열을 늘릴 때 여기를 또 잊어도 어긋나지 않는다.
+              앞 4칸(행머리·일자-No.·거래처·품목명) + 금액합계 + 5칸(거래유형·창고·회계반영·인쇄·불러온전표)
+              + 공급가액 + 부가세 + 나머지. 나머지는 colCount 에서 빼서 구한다 —
+              열을 늘릴 때 여기를 또 잊어도 어긋나지 않는다.
             */}
-            <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
+            <td colSpan={5}></td>
             <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
             <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
-            <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
-            <td colSpan={colCount - 10}></td>
+            <td colSpan={colCount - 12}></td>
           </tr>
         </tfoot>
       </table>
