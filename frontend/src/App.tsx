@@ -275,11 +275,14 @@ export default function App() {
         <Route path="/sales/purchase-list" element={<TradeInquiryPage mode="purchase" />} />
         <Route path="/sales/settlement" element={<SettlementPage />} />
         <Route path="/sales/ledger" element={<LedgerPage />} />
+        <Route path="/sales/ledger-receivable" element={<LedgerPage side="AR" />} />
+        <Route path="/sales/ledger-payable" element={<LedgerPage side="AP" />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
         <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
         <Route path="/sales/trade-history" element={<TradeHistoryPage />} />
         <Route path="/sales/sales-purchase-summary" element={<SalesPurchaseSummaryPage />} />
         <Route path="/sales/monthly-ar-ap" element={<MonthlyArApPage />} />
+        <Route path="/sales/monthly-ap" element={<MonthlyArApPage defaultMode="AP" />} />
         <Route path="/sales/price-movement" element={<PriceMovementPage />} />
         <Route path="/sales/item-entry" element={<ItemEntryPage />} />
         <Route path="/sales/monthly-cumulative" element={<MonthlyCumulativePage />} />
@@ -311,8 +314,11 @@ export default function App() {
         <Route path="/sales/collection" element={<CollectionPage />} />
         <Route path="/sales/payment" element={<PaymentPage />} />
         <Route path="/sales/partner-ledger" element={<PartnerLedgerPage />} />
+        <Route path="/sales/partner-ledger-receivable" element={<PartnerLedgerPage side="AR" />} />
+        <Route path="/sales/partner-ledger-payable" element={<PartnerLedgerPage side="AP" />} />
         <Route path="/sales/ar-ap-status" element={<ArApStatusPage />} />
         <Route path="/sales/receivable-status" element={<ArApStatusPage defaultMode="RECEIVABLE" />} />
+        <Route path="/sales/payable-status" element={<ArApStatusPage defaultMode="PAYABLE" />} />
         <Route path="/sales/accounting-reflection" element={<AccountingReflectionPage />} />
         <Route path="/sales/outsourcing-discount" element={<OutsourcingDiscountPage />} />
         <Route path="/sales/order-types" element={<OrderTypePage />} />

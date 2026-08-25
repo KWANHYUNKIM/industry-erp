@@ -3,8 +3,12 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 
-/** 영업 > 거래처관리대장 — 거래처별 채권/채무 잔액 대장 (/api/ledger/partner-balances) */
-export default function PartnerLedgerPage() {
+/**
+ * 영업 > 거래처관리대장 — 거래처별 채권/채무 잔액 대장 (/api/ledger/partner-balances)
+ * 원본은 거래처관리대장1(채권)과 (채무)가 따로 있어서 어느 쪽 대장인지 제목이 말해 준다.
+ */
+export default function PartnerLedgerPage({ side = 'BOTH' }: { side?: 'AR' | 'AP' | 'BOTH' }) {
+  const title = side === 'AR' ? '거래처관리대장1(채권)' : side === 'AP' ? '거래처관리대장1(채무)' : '거래처관리대장'
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -24,14 +28,17 @@ export default function PartnerLedgerPage() {
 
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+  // 채권 대장에 잔액 0 인 거래처가 섞이면 대장이 아니라 거래처 목록이 된다 — 그 쪽 잔액이 있는 곳만.
+  const shown = rows
+    .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+    .filter((r) => (side === 'AR' ? r.receivable !== 0 : side === 'AP' ? r.payable !== 0 : true))
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ receivable: s.receivable + r.receivable, payable: s.payable + r.payable }),
     { receivable: 0, payable: 0 },
   ), [shown])
 
   return (
-    <EcListShell title="거래처관리대장" search={keyword} onSearchChange={setKeyword} onSearch={load} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}>
+    <EcListShell title={title} search={keyword} onSearchChange={setKeyword} onSearch={load} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>

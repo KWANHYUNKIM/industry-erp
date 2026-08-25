@@ -26,9 +26,9 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const ym = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) })
 
-export default function MonthlyArApPage() {
+export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: Mode }) {
   const [year, setYear] = useState<number>(thisYear())
-  const [mode, setMode] = useState<Mode>('AR')
+  const [mode, setMode] = useState<Mode>(defaultMode)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
@@ -48,6 +48,8 @@ export default function MonthlyArApPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+  // 채권판·채무판이 같은 컴포넌트를 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 값을 따라가게 한다.
+  useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
   const rows = useMemo<MonthRow[]>(() => {
     // 증가/감소 소스: 채권=매출/수금, 채무=매입/지급
