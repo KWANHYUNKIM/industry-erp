@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Quotation, QuotationStatus } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -16,6 +17,11 @@ import { ymd } from '../../components/EcPeriodPicks'
  *
  * 원본 Search 패널의 창고·프로젝트·담당자·거래처관리담당자·관리항목은 Quotation 에 필드가 없어 **의도적 제외**
  * (구매현황·주문서현황 선례와 동일). 실제 데이터가 있는 기준일자·거래처·견적No.·품목만 조건으로 둔다.
+ *
+ * 조건 판은 현황 화면 공용(`EcStatusPanel`)이다. 원본도 접히지 않고 펼쳐져 있다.
+ * 원본 기준일자는 '기준일자(영업주기)' 라는 **한 날짜**지만, 우리는 견적일자 <b>구간</b>으로 거른다 —
+ * 우리 조건이 실제로 하는 일이 그것이라 한 칸짜리 흉내를 내지 않는다.
+ * 이 화면의 기간 빠른선택은 '종료일'과 '전월+금월'이 둘 다 붙는다(원본 확인).
  */
 
 /** 미주문 = 아직 수주 전환/취소되지 않은 상태 */
@@ -60,9 +66,8 @@ export default function UnorderedStatusPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
 
-  const [panelOpen, setPanelOpen] = useState(false)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
+  const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
 
   async function load() {
     setLoading(true)
@@ -122,20 +127,7 @@ export default function UnorderedStatusPage() {
     { qty: 0, supply: 0, vat: 0 },
   ), [shown])
 
-  const activeCount = useMemo(() => {
-    let n = 0
-    if (filters.dateFrom || filters.dateTo) n++
-    if (filters.partner) n++
-    if (filters.quoteNo) n++
-    if (filters.item) n++
-    if (filters.expiredOnly) n++
-    if (filters.sortByDoc) n++
-    return n
-  }, [filters])
-
-  const applyDraft = () => { setFilters(draft); setPanelOpen(false) }
-  const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
-  const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
+  const reset = () => { setFilters(EMPTY_FILTERS); setKeyword('') }
 
   return (
     <EcListShell
@@ -143,32 +135,44 @@ export default function UnorderedStatusPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <button className="ec-btn" onClick={openPanel}>
-          상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
-        </button>
-        {activeCount > 0 && !panelOpen && (
-          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: '#8a929c' }}>
-            조건 해제
-          </button>
-        )}
-        <span style={{ fontSize: 11.5, color: '#9aa1ab', marginLeft: 'auto' }}>
-          미전환(작성·발송) 견적 기준
-        </span>
-      </div>
-
-      {panelOpen && (
-        <SearchPanel
-          draft={draft}
-          onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-          onApply={applyDraft}
-          onReset={resetDraft}
-        />
-      )}
+      <EcStatusPanel
+        from={filters.dateFrom} to={filters.dateTo}
+        onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
+        picks={INQUIRY_FULL_PICKS}
+      >
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="매출처명 일부" value={filters.partner}
+                 onChange={(e) => setF({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="견적No." pick>
+          <input className="ec-input" placeholder="견적번호 일부" value={filters.quoteNo}
+                 onChange={(e) => setF({ quoteNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명 일부" value={filters.item}
+                 onChange={(e) => setF({ item: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={filters.expiredOnly}
+                   onChange={(e) => setF({ expiredOnly: e.target.checked })} /> 유효기간 지난 것만
+          </label>
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.sortByDoc}
+                   onChange={(e) => setF({ sortByDoc: e.target.checked })} /> 견적번호순 (기본: 일자순)
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
@@ -224,73 +228,5 @@ export default function UnorderedStatusPage() {
         </tbody>
       </table>
     </EcListShell>
-  )
-}
-
-/** 이카운트 Search 패널 — 기준일자/거래처/견적No./품목/기타 */
-function SearchPanel({
-  draft, onChange, onApply, onReset,
-}: {
-  draft: Filters
-  onChange: (patch: Partial<Filters>) => void
-  onApply: () => void
-  onReset: () => void
-}) {
-  const label: React.CSSProperties = {
-    width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
-    display: 'flex', alignItems: 'center', paddingRight: 8,
-  }
-  const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #eef1f5',
-  }
-  return (
-    <div
-      onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
-      style={{
-        border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe',
-        padding: '4px 14px 12px', marginBottom: 10,
-      }}
-    >
-      <div style={rowStyle}>
-        <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>거래처</span>
-        <input className="ec-input" placeholder="매출처명 일부" value={draft.partner}
-          onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>견적No.</span>
-        <input className="ec-input" placeholder="견적번호 일부" value={draft.quoteNo}
-          onChange={(e) => onChange({ quoteNo: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>기타</span>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginRight: 16 }}>
-          <input type="checkbox" checked={draft.expiredOnly}
-            onChange={(e) => onChange({ expiredOnly: e.target.checked })} />
-          유효기간 경과만
-        </label>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={draft.sortByDoc}
-            onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
-          견적번호순(정렬)
-        </label>
-      </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
-        <button className="ec-btn" onClick={onReset}>초기화</button>
-        <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
-      </div>
-    </div>
   )
 }

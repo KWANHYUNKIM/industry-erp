@@ -114,9 +114,20 @@ export const JOURNAL_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '최근3일+7일',
 ] as const
 
-export const STATUS_PICKS = [
-  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월',
-] as const
+/**
+ * 조회·현황 화면 묶음들의 <b>공통 앞부분</b>. 원본에서 확인한 화면들이 이 여섯 개를 똑같이 쓰고
+ * 뒤에 붙는 것만 다르다 — 그래서 뒤만 갈아 끼우도록 이어 붙인다.
+ */
+const BASE_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
+
+/** 판매현황·구매현황 */
+export const STATUS_PICKS = [...BASE_PICKS, '전월+금월'] as const
+
+/** 출/퇴근현황(ID)(E070306) · 주문서현황(E040209) */
+export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
+
+/** 미주문현황(E040211) — 둘 다 붙는다 */
+export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const
 
 /**
  * 건설예정공정표(C000044) 묶음 — 앞으로의 일정을 보는 화면이라 '차주·차월' 처럼
@@ -124,14 +135,6 @@ export const STATUS_PICKS = [
  */
 export const PROJECT_PICKS = [
   '금일', '전일', '말일', '전주', '금주', '차주', '전월', '금월', '차월',
-] as const
-
-/**
- * 현황·조회 화면에서 가장 흔한 묶음 — 판매현황과 같은데 '전월+금월' 대신 '종료일' 이다.
- * 원본에서 이 라인업을 확인한 화면: 출/퇴근현황(ID)(E070306) · 주문서현황(E040209).
- */
-export const INQUIRY_PICKS = [
-  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일',
 ] as const
 
 /**
