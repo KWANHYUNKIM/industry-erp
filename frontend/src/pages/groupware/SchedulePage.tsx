@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcMonthCalendar from '../../components/EcMonthCalendar'
 
 interface ScheduleEvent {
   id: number
@@ -17,6 +18,7 @@ interface ScheduleEvent {
 }
 
 const CATEGORIES = ['회의', '출장', '교육', '기타']
+const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const CAT_COLOR: Record<string, string> = { 회의: 'var(--ec-blue)', 출장: '#c07a00', 교육: '#1c7c3c', 기타: '#5a626e' }
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -27,6 +29,12 @@ export default function SchedulePage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 일정관리는 [월 캘린더 | 일정 목록] 2분할이고, 날짜를 누르면 그날 일정만 뜬다.
+   * 우리는 목록만 있어서 "이번 달 언제 뭐가 있나" 를 한눈에 볼 수 없었다.
+   * 빈 문자열이면 고른 날 없음 = 전체 보기.
+   */
+  const [pickedDate, setPickedDate] = useState('')
 
   const [eventDate, setEventDate] = useState(today())
   const [startTime, setStartTime] = useState('')
@@ -63,7 +71,10 @@ export default function SchedulePage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const shown = rows.filter((r) => !keyword || r.title.includes(keyword) || (r.owner ?? '').includes(keyword))
+  const shown = rows
+    // 달력에서 고른 날이 있으면 그날만. 없으면 전체 — 원본도 같은 규칙이다.
+    .filter((r) => !pickedDate || r.eventDate === pickedDate)
+    .filter((r) => !keyword || r.title.includes(keyword) || (r.owner ?? '').includes(keyword))
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
@@ -118,30 +129,48 @@ export default function SchedulePage() {
 
       {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <EcMonthCalendar
+        value={pickedDate}
+        onPick={setPickedDate}
+        marks={new Set(rows.map((r) => r.eventDate))}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+      {pickedDate && (
+        <div style={{ marginBottom: 6, fontSize: 12, color: 'var(--ec-label)' }}>
+          {pickedDate} ({DOW[new Date(pickedDate).getDay()]}) 일정 {shown.length}건 —
+          달력에서 같은 날을 다시 누르거나 [전체 보기]로 돌아갑니다.
+        </div>
+      )}
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 110 }}>일자 ▼</th>
-            <th style={{ width: 70 }}>시간</th>
+            {/* 원본 컬럼: 일자(요일) · 시작시간 · 종료시간 · 참석자성명 (+ 제목·분류·장소) */}
+            <th style={{ width: 120 }}>일자(요일) ▼</th>
+            <th style={{ width: 70, textAlign: 'center' }}>시작시간</th>
             <th>제목 ▼</th>
             <th style={{ width: 80, textAlign: 'center' }}>분류</th>
             <th style={{ width: 90 }}>담당</th>
+            <th style={{ width: 140 }}>참석자성명</th>
             <th style={{ width: 120 }}>장소</th>
             <th style={{ width: 70, textAlign: 'center' }}>삭제</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>일정이 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>일정이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.eventDate}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.startTime ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>
+                {r.eventDate} <span style={{ color: '#8a929c' }}>({DOW[new Date(r.eventDate).getDay()]})</span>
+              </td>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.startTime ?? '-'}</td>
               <td style={{ fontWeight: 600 }}>{r.title}</td>
               <td style={{ textAlign: 'center', color: CAT_COLOR[r.category ?? '기타'] ?? '#5a626e', fontWeight: 700 }}>{r.category ?? '기타'}</td>
               <td>{r.owner ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.attendees ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{r.location ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>
@@ -150,6 +179,8 @@ export default function SchedulePage() {
           ))}
         </tbody>
       </table>
+      </div>
+      </div>
     </EcListShell>
   )
 }
