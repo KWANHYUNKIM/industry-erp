@@ -7,21 +7,33 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate, ApprovalStatus } from '../../api/types'
 import ApprovalDetailModal, { STATUS_LABEL, VOUCHER_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
+import { ymd } from '../../components/EcPeriodPicks'
 
-/** 이카운트 기안서통합관리의 탭. '결재'는 결재완료(APPROVED), '삭제'는 소프트 삭제된 문서. */
-const TABS = ['전체', '기안중', '진행중', '반려', '결재', '삭제'] as const
-type Tab = (typeof TABS)[number]
+/**
+ * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
+ *   내결재관리     : 전체·기안중·진행중·반려·결재·**수신참조**
+ *   기안서통합관리 : 전체·기안중·진행중·반려·결재·**삭제**
+ * 앞의 다섯은 같고, 내 결재함에서는 '내가 수신참조로 걸린 문서', 통합관리에서는
+ * '지운 문서'를 마지막 칸으로 본다. 우리는 둘 다 '삭제'로 두고 있었다.
+ */
+const COMMON_TABS = ['전체', '기안중', '진행중', '반려', '결재'] as const
+const TABS_MINE = [...COMMON_TABS, '수신참조'] as const
+const TABS_ALL = [...COMMON_TABS, '삭제'] as const
+type Tab = (typeof TABS_MINE)[number] | (typeof TABS_ALL)[number]
 
-const TAB_STATUS: Record<Exclude<Tab, '전체' | '삭제'>, ApprovalStatus> = {
+const TAB_STATUS: Record<Exclude<Tab, '전체' | '삭제' | '수신참조'>, ApprovalStatus> = {
   기안중: 'DRAFTING',
   진행중: 'IN_PROGRESS',
   반려: 'REJECTED',
   결재: 'APPROVED',
 }
 
-const inTab = (d: ApprovalDoc, tab: Tab) => {
+const inTab = (d: ApprovalDoc, tab: Tab, myName?: string) => {
   if (tab === '삭제') return d.deleted
   if (d.deleted) return false
+  if (tab === '수신참조') {
+    return !!myName && d.participants.some((p) => p.role === 'REFERENCE' && p.userName === myName)
+  }
   if (tab === '전체') return true
   return d.status === TAB_STATUS[tab]
 }
@@ -38,6 +50,7 @@ export default function ApprovalListPage({
   const navigate = useNavigate()
   const [rows, setRows] = useState<ApprovalDoc[]>([])
   const [tab, setTab] = useState<Tab>('전체')
+  const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ApprovalDoc | null>(null)
@@ -47,6 +60,9 @@ export default function ApprovalListPage({
   // 그러려면 행을 고를 수 있어야 하는데 우리 목록엔 그 방법이 없었다.
   // 고르는 방식은 판매조회·전표입력과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  // 원본은 목록 위에 기안일자 기간을 놓는다(기본 오늘 −30일 ~ +30일).
+  const [from, setFrom] = useState(() => ymd(new Date(Date.now() - 30 * 86400000)))
+  const [to, setTo] = useState(() => ymd(new Date(Date.now() + 30 * 86400000)))
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [search, setSearch] = useState('')
@@ -110,7 +126,9 @@ export default function ApprovalListPage({
       .catch(() => {})
   }, [])
 
-  const filtered = rows.filter((r) => inTab(r, tab))
+  const inPeriod = (d: ApprovalDoc) =>
+    (!from || (d.draftDate ?? '') >= from) && (!to || (d.draftDate ?? '') <= to)
+  const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -241,7 +259,7 @@ export default function ApprovalListPage({
 
   const copy = (d: ApprovalDoc) => navigate('/groupware/approval/draft', { state: { copyFrom: d } })
 
-  const tabCount = (t: Tab) => rows.filter((r) => inTab(r, t)).length
+  const tabCount = (t: Tab) => rows.filter((r) => inTab(r, t, user?.name)).filter(inPeriod).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -292,6 +310,13 @@ export default function ApprovalListPage({
             {t} ({tabCount(t)})
           </button>
         ))}
+      </div>
+
+      {/* 원본은 알약 아래에 기안일자 기간을 적어 둔다 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowX: 'auto' }}>
