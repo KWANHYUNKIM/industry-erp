@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 
 /**
@@ -14,6 +16,11 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
  *   GET /api/purchase-orders/summary          → 상태별 집계(건수·금액)
  *   GET /api/purchase-orders?status=REQUESTED  → 특정 상태만 조회
  * (집계·필터를 프론트에서 매번 계산하지 않고 서버가 소유한다. 새 테이블/컬럼이 없어 마이그레이션은 없다.)
+ *
+ * 조건 판은 현황 화면 공용(`EcStatusPanel`)이다. 원본(E040318)은 [메뉴 현황|집계] · [비교기간] ·
+ * 기준일자 · 발주요청No. · 내.외자구분 · 납기일자 · 창고 · 프로젝트 · 관리항목 · 거래처 · 품목을
+ * 펼쳐 놓는다. 우리 화면은 조건이 검색어 한 칸뿐이었다.
+ * 프로젝트·관리항목·내외자구분은 PurchaseOrder 에 없어 **의도적 제외**(값 없는 컨트롤을 만들지 않는다).
  */
 
 /** 파이프라인 표시 순서 */
@@ -63,6 +70,13 @@ export default function PurchaseRequestStatusPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const [cond, setCond] = useState({
+    from: '', to: '', dueFrom: '', dueTo: '',
+    orderNo: '', partner: '', item: '', warehouse: '',
+  })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function loadSummary() {
     try {
@@ -107,11 +121,54 @@ export default function PurchaseRequestStatusPage({
 
   const reload = () => { loadSummary(); loadList(status) }
 
+  /** 조건 하나가 늘 때마다 두 곳(목록·비교기간)에 같은 규칙을 적으면 어긋난다 — 한 곳에 모은다. */
+  const matches = (r: Row, c: typeof cond, kw: string) =>
+    (!kw || r.partner.includes(kw) || r.itemName.includes(kw) || r.orderNo.includes(kw))
+    && (!c.orderNo || r.orderNo.includes(c.orderNo))
+    && (!c.partner || r.partner.includes(c.partner))
+    && (!c.item || r.itemName.includes(c.item))
+    && (!c.warehouse || r.warehouse.includes(c.warehouse))
+    && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
+    && (!c.dueTo || (r.dueDate ?? '') <= c.dueTo)
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
-    if (!kw) return rows
-    return rows.filter((r) => r.partner.includes(kw) || r.itemName.includes(kw) || r.orderNo.includes(kw))
-  }, [rows, keyword])
+    return rows
+      .filter((r) => !cond.from || r.date >= cond.from)
+      .filter((r) => !cond.to || r.date <= cond.to)
+      .filter((r) => matches(r, cond, kw))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, keyword, cond])
+
+  /** 비교기간 — 기준일자만 앞 구간으로 옮기고 나머지 조건은 그대로 태운다. */
+  const prevRange = comparePeriodOf(cond.from, cond.to, compare)
+  const prevTotals = useMemo(() => {
+    if (!prevRange) return null
+    const kw = keyword.trim()
+    return rows
+      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
+      .filter((r) => matches(r, cond, kw))
+      .reduce((s2, r) => ({ supply: s2.supply + r.supply, qty: s2.qty + r.qty, count: s2.count + 1 }),
+        { supply: 0, qty: 0, count: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, prevRange, cond, keyword])
+
+  /** 집계 — 매입처별로 묶는다. 원본 [집계]도 같은 자료를 묶어서 본다. */
+  const grouped = useMemo(() => {
+    if (mode !== '집계') return []
+    const map = new Map<string, { partner: string; count: number; qty: number; supply: number; vat: number }>()
+    shown.forEach((r) => {
+      const g = map.get(r.partner) ?? { partner: r.partner, count: 0, qty: 0, supply: 0, vat: 0 }
+      g.count += 1; g.qty += r.qty; g.supply += r.supply; g.vat += r.vat
+      map.set(r.partner, g)
+    })
+    return [...map.values()].sort((a, b) => b.supply - a.supply)
+  }, [mode, shown])
+
+  const reset = () => {
+    setCond({ from: '', to: '', dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '' })
+    setMode('현황'); setCompare('사용안함'); setKeyword('')
+  }
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.qty, supply: s.supply + r.supply, vat: s.vat + r.vat }),
@@ -124,7 +181,13 @@ export default function PurchaseRequestStatusPage({
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={reload}
-      actions={[{ label: '새로고침', onClick: reload }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: reload },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -159,6 +222,56 @@ export default function PurchaseRequestStatusPage({
         })}
       </div>
 
+      <EcStatusPanel
+        mode={mode} onModeChange={setMode}
+        compare={compare} onCompareChange={setCompare}
+        from={cond.from} to={cond.to}
+        onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        picks={INQUIRY_PICKS}
+      >
+        <EcCond label="발주No." pick>
+          <input className="ec-input" placeholder="발주번호 일부" value={cond.orderNo}
+                 onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="납기일자">
+          <input type="date" className="ec-input" value={cond.dueFrom}
+                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.dueTo}
+                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="매입처명 일부" value={cond.partner}
+                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={cond.warehouse}
+                 onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명 일부" value={cond.item}
+                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+      </EcStatusPanel>
+
+      {prevTotals && (
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+          <span style={{ color: 'var(--ec-label)' }}>
+            비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
+          </span>
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          건수 {prevTotals.count.toLocaleString()} → {shown.length.toLocaleString()}
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
+          {prevTotals.supply > 0 && (
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+              ({totals.supply >= prevTotals.supply ? '+' : ''}
+              {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
+            </span>
+          )}
+        </div>
+      )}
+
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         <span style={{ color: STATUS_COLOR[status], fontWeight: 700 }}>{STATUS_LABEL[status]}</span>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
@@ -170,6 +283,34 @@ export default function PurchaseRequestStatusPage({
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+      {mode === '집계' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>매입처</th>
+              <th style={{ textAlign: 'right' }}>건수</th>
+              <th style={{ textAlign: 'right' }}>수량</th>
+              <th style={{ textAlign: 'right' }}>공급가액</th>
+              <th style={{ textAlign: 'right' }}>부가세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            ) : grouped.map((g, i) => (
+              <tr key={g.partner}>
+                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td>{g.partner}</td>
+                <td style={{ textAlign: 'right' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -212,6 +353,7 @@ export default function PurchaseRequestStatusPage({
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
