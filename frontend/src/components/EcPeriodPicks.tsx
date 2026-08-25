@@ -146,6 +146,12 @@ export const STATUS_PICKS = [...BASE_PICKS, '전월+금월'] as const
 /** 출/퇴근현황(ID)(E070306) · 주문서현황(E040209) */
 export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
 
+/**
+ * 재고현황(E040701) — <b>금일·전일 둘뿐</b>이다.
+ * 재고는 구간이 아니라 시점을 보는 것이라 '금주'·'금월' 같은 구간 버튼이 뜻이 없다.
+ */
+export const STOCK_PICKS = ['금일', '전일'] as const
+
 /** 수금현황(E040217) — 회계 기수 둘이 더 붙는다 */
 export const SETTLE_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종료일'] as const
 

@@ -34,6 +34,8 @@ export default function EcStatusPanel({
   from, to, onPeriod,
   picks = INQUIRY_PICKS,
   fiscalStart,
+  single,
+  dateLabel = '기준일자',
   children,
 }: {
   /** [메뉴] 현황·집계 토글. 안 주면 그 줄을 그리지 않는다. */
@@ -48,6 +50,13 @@ export default function EcStatusPanel({
   picks?: readonly string[]
   /** 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 쓰는 화면만 준다. */
   fiscalStart?: number
+  /**
+   * 기준일자가 <b>한 날짜</b>인 화면(재고현황처럼 시점을 보는 것). 구간이 아니라 칸이 하나다.
+   * 이때 onPeriod 는 from·to 가 같은 값으로 온다 — 호출부가 둘 중 아무거나 써도 된다.
+   */
+  single?: boolean
+  /** 라벨을 바꿔야 하는 화면(예: '기준일(영업주기)'). */
+  dateLabel?: string
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
@@ -91,21 +100,30 @@ export default function EcStatusPanel({
         </EcCond>
       )}
 
-      <EcCond label="기준일자">
+      <EcCond label={dateLabel}>
         {pickedLabel && (
           <span style={{ fontSize: 12, color: 'var(--ec-blue)', marginRight: 6 }}>{pickedLabel}</span>
         )}
         <input type="date" className="ec-input" value={from}
-               onChange={(e) => { setPickedLabel(''); onPeriod({ from: e.target.value, to }) }} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
-        <input type="date" className="ec-input" value={to}
-               onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
+               onChange={(e) => {
+                 setPickedLabel('')
+                 onPeriod(single ? { from: e.target.value, to: e.target.value } : { from: e.target.value, to })
+               }} style={{ width: 140 }} />
+        {!single && (
+          <>
+            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <input type="date" className="ec-input" value={to}
+                   onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
+          </>
+        )}
       </EcCond>
 
       <EcCond label="">
         <EcPeriodPicks
           labels={picks} currentFrom={from} fiscalStart={fiscalStart}
-          onPick={onPeriod} onPickLabel={setPickedLabel}
+          // 한 날짜짜리 화면은 구간을 받아도 시작일만 쓴다 — 끝을 같이 맞춰 돌려준다.
+          onPick={(r) => onPeriod(single ? { from: r.to, to: r.to } : r)}
+          onPickLabel={setPickedLabel}
         />
       </EcCond>
 
