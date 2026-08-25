@@ -62,7 +62,8 @@ public class ApprovalService {
     /**
      * 결재함 조회.
      * scope=drafted → 내가 기안한 문서, scope=pending → 내가 결재할 차례인 문서,
-     * scope=mine → 내가 기안했거나 결재선/참여자에 포함된 문서, 그 외 → 전체.
+     * scope=mine → 내가 기안했거나 결재선/참여자에 포함된 문서,
+     * scope=reference → 내가 수신참조로 지정된 문서, 그 외 → 전체.
      *
      * 삭제된 문서는 includeDeleted=true 일 때만 나온다(목록의 '삭제' 탭).
      */
@@ -84,6 +85,11 @@ public class ApprovalService {
                     && currentLine(d)
                     .map(l -> l.getApprover().getUsername().equals(username))
                     .orElse(false);
+        }
+        if ("reference".equals(scope)) {
+            return d.getParticipants().stream()
+                    .anyMatch(p -> p.getRole() == ApprovalParticipantRole.REFERENCE
+                            && p.getUser().getUsername().equals(username));
         }
         if ("mine".equals(scope)) {
             return d.getDrafter().getUsername().equals(username)

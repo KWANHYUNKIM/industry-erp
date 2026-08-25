@@ -88,7 +88,6 @@ const ProjectPage = lazy(() => import('./pages/groupware/ProjectPage'))
 const ProjectProfitPage = lazy(() => import('./pages/accounting/ProjectProfitPage'))
 const ProjectPlanPage = lazy(() => import('./pages/accounting/ProjectPlanPage'))
 const PaymentMastersPage = lazy(() => import('./pages/accounting/PaymentMastersPage'))
-const SharedInfoPage = lazy(() => import('./pages/groupware/SharedInfoPage'))
 const KeyNoticePage = lazy(() => import('./pages/groupware/KeyNoticePage'))
 const MailPage = lazy(() => import('./pages/groupware/MailPage'))
 const ShortMessagePage = lazy(() => import('./pages/groupware/ShortMessagePage'))
@@ -168,7 +167,6 @@ const LaborContractPage = lazy(() => import('./pages/hr/ContractPage'))
 const DailyWagePage = lazy(() => import('./pages/hr/DailyWagePage'))
 const NoticePage = lazy(() => import('./pages/groupware/NoticePage'))
 const SchedulePage = lazy(() => import('./pages/groupware/SchedulePage'))
-const ScheduleSearchPage = lazy(() => import('./pages/groupware/ScheduleSearchPage'))
 const SurveyPage = lazy(() => import('./pages/groupware/SurveyPage'))
 const AccountingReflectionPage = lazy(() => import('./pages/trade/AccountingReflectionPage'))
 const EvidenceCenterPage = lazy(() => import('./pages/accounting/EvidenceCenterPage'))
@@ -410,14 +408,12 @@ export default function App() {
         <Route path="/accounting/project-plan" element={<ProjectPlanPage />} />
         <Route path="/accounting/card-issuers" element={<PaymentMastersPage defaultTab="card" />} />
         <Route path="/accounting/payment-agencies" element={<PaymentMastersPage defaultTab="agency" />} />
-        <Route path="/groupware/shared" element={<SharedInfoPage />} />
         <Route path="/groupware/key-notice" element={<KeyNoticePage />} />
         <Route path="/groupware/mail" element={<MailPage />} />
         <Route path="/groupware/messages" element={<ShortMessagePage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
-        <Route path="/groupware/schedule-search" element={<ScheduleSearchPage />} />
         <Route path="/groupware/survey" element={<SurveyPage />} />
         <Route path="/groupware/supplies" element={<SuppliesPage />} />
         <Route path="/groupware/dev-schedule" element={<SwSchedulePage />} />

@@ -23,6 +23,7 @@ public class ApprovalController {
 
     private final ApprovalService approvalService;
 
+    /** scope: all(기본)·drafted·pending·mine·reference */
     @GetMapping
     public List<ApprovalResponse> list(
             @RequestParam(required = false, defaultValue = "all") String scope,

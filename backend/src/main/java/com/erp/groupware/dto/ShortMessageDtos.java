@@ -40,7 +40,7 @@ public final class ShortMessageDtos {
             return new ShortMessageResponse(
                     m.getId(),
                     m.getSender() != null ? m.getSender().getId() : null,
-                    m.getSender() != null ? m.getSender().getName() : "ECOUNT",
+                    m.getSender() != null ? m.getSender().getName() : "시스템",
                     m.getRecipient().getId(), m.getRecipient().getName(),
                     m.getPartner() != null ? m.getPartner().getId() : null,
                     m.getPartner() != null ? m.getPartner().getName() : null,

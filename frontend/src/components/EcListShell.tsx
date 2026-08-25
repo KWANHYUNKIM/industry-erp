@@ -29,7 +29,7 @@ const PRINT_LABELS = ['인쇄', '출력']
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
-  renderForm, formTitle, formWidth, actions = [], help, children,
+  renderForm, formTitle, formWidth, actions = [], help, searchable = true, children,
 }: {
   title: string
   search?: string
@@ -45,6 +45,8 @@ export default function EcListShell({
   actions?: BottomAction[]
   /** 도움말 모달 본문. 없으면 화면 제목 기준 기본 안내가 나온다. */
   help?: ReactNode
+  /** 원본에 검색창이 없는 화면(예: 주요전달사항)은 false. Option·도움말만 남는다. */
+  searchable?: boolean
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -136,6 +138,8 @@ export default function EcListShell({
     return { ...a, onClick: handler }
   })
 
+  const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* 상단: ☆제목 + 검색 */}
@@ -143,15 +147,17 @@ export default function EcListShell({
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
-          <input
-            className="ec-input"
-            placeholder="입력 후 [Enter]"
-            value={searchValue}
-            onChange={(e) => changeSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-            style={{ width: 160 }}
-          />
-          <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
+          {searchable && <>
+            <input
+              className="ec-input"
+              placeholder="입력 후 [Enter]"
+              value={searchValue}
+              onChange={(e) => changeSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+              style={{ width: 160 }}
+            />
+            <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
+          </>}
           <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
@@ -213,8 +219,14 @@ export default function EcListShell({
         onFlash={flash}
       />
 
-      {/* 하단 액션 툴바 */}
-      <div ref={toolbarRef} style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      {/* 하단 액션 툴바. 버튼이 하나도 없으면 구분선만 남아 빈 띠로 보이므로 아예 그리지 않는다. */}
+      <div
+        ref={toolbarRef}
+        style={{
+          display: hasBottom ? 'flex' : 'none',
+          gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5',
+        }}
+      >
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
