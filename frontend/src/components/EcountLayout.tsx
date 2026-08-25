@@ -243,6 +243,7 @@ const MENU: TopMenu[] = [
           {
             label: '기타',
             children: [
+              { label: '일별재고현황', to: '/inventory/daily-stock' },
               { label: '거래이력조회', to: '/sales/trade-history' },
               { label: '판매구매집계표', to: '/sales/sales-purchase-summary' },
               { label: '단가변동표', to: '/sales/price-movement' },
