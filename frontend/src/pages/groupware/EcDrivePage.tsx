@@ -17,7 +17,16 @@ const fmtSize = (b: number) => {
   return `${(b / 1024 / 1024).toFixed(1)} MB`
 }
 
-/** 그룹웨어 > 업무관리 > ECDrive — 문서 드라이브 (실연동, 메타데이터 등록) */
+/**
+ * 그룹웨어 > 업무관리 > ECDrive (이카운트 E077100)
+ *
+ * 원본은 [드라이브 트리 | 파일 목록] 2분할이고, 목록 컬럼은 실측 기준으로
+ * (선택 67) 이름 984 · 최종수정일자 447 · 크기 224 · 중요 89 · 더보기 134 다.
+ * 파일에 하는 일은 <b>우클릭 메뉴</b>와 <b>[더보기] ⋮</b> 로 하고, 왼쪽 아래에 [File] 버튼이 있다.
+ *
+ * 우리는 행마다 [휴지통]·[복원]·[영구삭제] 버튼을 늘어놓고 중요표시를 이름 칸에 붙여 뒀었다.
+ * 원본에 없는 '업로더' 칸도 있었다 — 그 정보는 행 툴팁으로 옮겼다.
+ */
 export default function EcDrivePage() {
   const [sel, setSel] = useState<(typeof TREE)[number]['key']>('my')
   const [rows, setRows] = useState<DriveDocument[]>([])
@@ -25,9 +34,14 @@ export default function EcDrivePage() {
   const [error, setError] = useState('')
   const [totalKB, setTotalKB] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  /** 열려 있는 [더보기] ⋮ 메뉴의 문서 id */
+  const [menuFor, setMenuFor] = useState<number | null>(null)
+  const [treeOpen, setTreeOpen] = useState(true)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!
+  const shown = rows.filter((d) => !keyword || d.name.includes(keyword))
 
   async function load(folder = sel) {
     setLoading(true)
@@ -111,7 +125,10 @@ export default function EcDrivePage() {
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>ECDrive</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          <button className="ec-btn" onClick={() => load(sel)}>새로고침</button>
+          <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') load(sel) }} style={{ width: 150 }} />
+          <button className="ec-btn ec-btn-primary" onClick={() => load(sel)}>Search(F3)</button>
           <button className="ec-btn">Option</button>
           <button className="ec-btn">도움말</button>
         </div>
@@ -122,7 +139,11 @@ export default function EcDrivePage() {
       <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
         {/* 드라이브 트리 */}
         <div style={{ width: 200, border: '1px solid var(--ec-border)', background: '#fff', flexShrink: 0, padding: '8px 0' }}>
-          {TREE.map((t) => (
+          <div onClick={() => setTreeOpen((v) => !v)}
+               style={{ padding: '4px 14px 8px', fontSize: 11.5, color: 'var(--ec-label)', cursor: 'pointer' }}>
+            {treeOpen ? '▾' : '▸'} 전체펼치기/접기
+          </div>
+          {treeOpen && TREE.map((t) => (
             <div key={t.key} onClick={() => setSel(t.key)} style={{
               padding: '7px 14px', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
               background: sel === t.key ? 'var(--ec-blue-light)' : undefined,
@@ -140,77 +161,100 @@ export default function EcDrivePage() {
         <div style={{ flex: 1, minWidth: 0, border: '1px solid var(--ec-border)', background: '#fff', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ec-border)', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             {current.icon} {current.label}
-            {sel !== 'trash' && (
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) uploadFile(f)
-                    e.target.value = ''
-                  }}
-                />
-                <button className="ec-btn ec-btn-primary" style={{ height: 22 }}
-                        onClick={() => fileInput.current?.click()} disabled={uploading}>
-                  {uploading ? '올리는 중…' : '파일 업로드'}
-                </button>
-                <button className="ec-btn" style={{ height: 22 }} onClick={addDoc}>항목만 등록</button>
-              </div>
-            )}
+            <input
+              ref={fileInput}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) uploadFile(f)
+                e.target.value = ''
+              }}
+            />
           </div>
+          {/* 원본 실측 폭(67-984-447-224-89-134)을 비율로 옮겼다 */}
           <table className="w-full text-left">
+            <colgroup>
+              {['3.4%', '50.6%', '23%', '11.5%', '4.6%', '6.9%'].map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th></th>
                 <th>이름</th>
-                <th style={{ width: 90 }}>업로더</th>
-                <th style={{ width: 160 }}>최종수정일자</th>
-                <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-                <th style={{ width: 160, textAlign: 'center' }}>처리</th>
+                <th>최종수정일자</th>
+                <th>크기</th>
+                <th>중요</th>
+                <th>더보기</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 30 }}>불러오는 중…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 30 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : rows.map((d, i) => (
-                <tr key={d.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              ) : shown.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              ) : shown.map((d, i) => (
+                <tr key={d.id} title={d.uploader ? `올린 사람: ${d.uploader}` : undefined}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
                   <td>
-                    <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => patch(d, { important: !d.important })} title="중요표시">
-                      {d.important ? '⭐' : '☆'}
-                    </span>
                     {d.fileId ? (
                       <button onClick={() => download(d)} title="다운로드"
-                              style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
+                              style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }}>
                         📄 {d.name}
                       </button>
                     ) : (
                       <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span style={{ color: '#9aa1ab', fontSize: 11 }}>(파일없음)</span></span>
                     )}
                   </td>
-                  <td style={{ color: '#5a626e' }}>{d.uploader ?? ''}</td>
-                  <td style={{ color: '#5a626e' }}>{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
                   <td style={{ textAlign: 'right' }}>{fmtSize(d.sizeBytes)}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    {d.trashed ? (
+                  <td style={{ textAlign: 'center', cursor: 'pointer', color: d.important ? '#f0a500' : '#c8ced6' }}
+                      onClick={() => patch(d, { important: !d.important })}
+                      title={d.important ? '중요 해제' : '중요 표시'}>
+                    {d.important ? '★' : '☆'}
+                  </td>
+                  <td style={{ textAlign: 'center', position: 'relative' }}>
+                    <button className="ec-btn ec-btn-sm" onClick={() => setMenuFor(menuFor === d.id ? null : d.id)}>⋮</button>
+                    {menuFor === d.id && (
                       <>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} onClick={() => patch(d, { trashed: false })}>복원</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: '#c60a2e' }} onClick={() => remove(d)}>영구삭제</button>
+                        <div onClick={() => setMenuFor(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                        <div style={{
+                          position: 'absolute', top: '100%', right: 4, marginTop: 2, zIndex: 41,
+                          background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+                          boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 110, padding: 4, textAlign: 'left',
+                        }}>
+                          {(d.trashed
+                            ? [
+                                { label: '복원', run: () => patch(d, { trashed: false }), danger: false },
+                                { label: '영구삭제', run: () => remove(d), danger: true },
+                              ]
+                            : [
+                                ...(d.fileId ? [{ label: '다운로드', run: () => download(d), danger: false }] : []),
+                                { label: '휴지통으로', run: () => patch(d, { trashed: true }), danger: true },
+                              ]
+                          ).map((m) => (
+                            <button key={m.label} onClick={() => { setMenuFor(null); void m.run() }}
+                                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
+                                             fontSize: 12, background: 'none', border: 0, cursor: 'pointer',
+                                             color: m.danger ? '#c60a2e' : undefined }}>
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
                       </>
-                    ) : (
-                      <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c07a00' }} onClick={() => patch(d, { trashed: true })}>휴지통</button>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: 'auto', padding: '6px 12px', fontSize: 11.5, color: '#9aa1ab', borderTop: '1px solid #eef1f5' }}>
-            ※ ☆를 눌러 중요표시, 휴지통 이동/복원이 가능합니다. 파일명을 누르면 다운로드됩니다(업로드 상한 10MB).
+          <div style={{ marginTop: 'auto', padding: '8px 12px', borderTop: '1px solid #eef1f5', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="ec-btn ec-btn-primary" onClick={() => fileInput.current?.click()} disabled={uploading || sel === 'trash'}>
+              {uploading ? '올리는 중…' : 'File'}
+            </button>
+            <button className="ec-btn" onClick={addDoc} disabled={sel === 'trash'}>항목만 등록</button>
+            <span style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+              ※ [더보기] ⋮ 로 기능을 사용할 수 있습니다. 업로드 상한 10MB.
+            </span>
           </div>
         </div>
       </div>
