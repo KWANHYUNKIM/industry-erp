@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcPeriodPicks, { periodOf, STATUS_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc } from '../../api/types'
 
@@ -21,6 +22,12 @@ export default function SalesStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 기준일자. 원본 판매현황의 **핵심 조건**인데 우리는 아예 없어서 전 기간을 통째로 뿌리고 있었다.
+   * 전표가 쌓이면 못 쓴다. 기본은 원본과 같이 '금월(~오늘)'.
+   */
+  const [from, setFrom] = useState(() => periodOf('금월(~오늘)')!.from)
+  const [to, setTo] = useState(() => periodOf('금월(~오늘)')!.to)
 
   async function load() {
     setLoading(true)
@@ -52,7 +59,9 @@ export default function SalesStatusPage() {
 
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
+  const shown = rows
+    .filter((r) => (!from || r.date >= from) && (!to || r.date <= to))
+    .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ supply: s.supply + r.supply, vat: s.vat + r.vat }),
     { supply: 0, vat: 0 },
@@ -67,6 +76,22 @@ export default function SalesStatusPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+
+      {/*
+        원본 판매현황의 [기준일자] 와 하단 기간 빠른선택.
+        빠른선택 묶음은 현황용이다 — 업무일지와 라벨이 다르다(금월(~오늘)·전월+금월).
+      */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ color: 'var(--ec-label)', fontSize: 12, marginRight: 4 }}>기준일자</span>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
+        <span>~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+        <span style={{ width: 8 }} />
+        <EcPeriodPicks
+          labels={STATUS_PICKS}
+          onPick={(r) => { setFrom(r.from); setTo(r.to) }}
+        />
+      </div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         공급가액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>

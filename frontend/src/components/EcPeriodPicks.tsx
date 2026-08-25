@@ -63,19 +63,43 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
     // 원본 그대로의 이름. 오늘 기준 사흘 전부터 이레 뒤까지 — 지난 일과 다가올 일을 함께 본다.
     case '최근3일+7일':
       return { from: ymd(addDays(t, -3)), to: ymd(addDays(t, 7)) }
+    // 현황 화면에서 쓰는 것들. '금월' 과 달리 월말이 아니라 **오늘**까지다.
+    case '금월(~오늘)':
+      return { from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) }
+    case '전월+금월':
+      return {
+        from: ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
+        to: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0)),
+      }
     default:
       return null
   }
 }
 
-export const PERIOD_LABELS = [
+/**
+ * 화면마다 쓰는 항목이 다르다 — 원본에서 실제로 확인한 두 묶음이다.
+ *   업무일지 : 금일·전일·금주(~오늘)·전주·금월·전월·금년·전년·종료일·최근3일+7일
+ *   판매현황 : 금일·전일·금주(~오늘)·전주·**금월(~오늘)**·전월·**전월+금월**
+ * 그래서 목록을 받는다. 기본값은 업무일지 묶음.
+ */
+export const JOURNAL_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '최근3일+7일',
 ] as const
 
-export default function EcPeriodPicks({ onPick }: { onPick: (r: PeriodRange) => void }) {
+export const STATUS_PICKS = [
+  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월',
+] as const
+
+export default function EcPeriodPicks({
+  onPick,
+  labels = JOURNAL_PICKS,
+}: {
+  onPick: (r: PeriodRange) => void
+  labels?: readonly string[]
+}) {
   return (
     <>
-      {PERIOD_LABELS.map((label) => (
+      {labels.map((label) => (
         <button
           key={label}
           type="button"

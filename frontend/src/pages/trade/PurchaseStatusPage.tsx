@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
+import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 interface Row {
@@ -225,6 +226,12 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        <span style={{ width: 8 }} />
+        {/* 원본 현황 화면 하단의 기간 빠른선택 — 라벨 묶음이 업무일지와 다르다. */}
+        <EcPeriodPicks
+          labels={STATUS_PICKS}
+          onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })}
+        />
       </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>
