@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
 import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
+import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 interface Row {
@@ -16,6 +17,10 @@ interface Row {
   unitPrice: number
   supply: number
   vat: number
+  // 집계(utils/statusAggregate)가 읽는 값들. 화면이 이미 받아 온 전표에서 뽑는다.
+  projectName: string | null
+  taxable: boolean
+  employeeName: string | null
 }
 
 /** 이카운트 Search 패널의 검색조건. 이 화면 데이터로 실제 거를 수 있는 항목만 둔다. */
@@ -37,6 +42,10 @@ export default function PurchaseStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  // 원본 상단의 메뉴 토글 — 판매현황과 같은 규칙이다(집계 계산은 utils/statusAggregate 가 진다).
+  const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
+  const [group2, setGroup2] = useState<GroupKey | ''>('')
 
   // 상세검색 패널
   const [panelOpen, setPanelOpen] = useState(false)
@@ -60,6 +69,9 @@ export default function PurchaseStatusPage() {
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
           vat: l.vatAmount,
+          projectName: d.projectName,
+          taxable: d.vatAmount > 0,
+          employeeName: d.employeeName,
         }))
       }
       setRows(flat)
@@ -91,6 +103,17 @@ export default function PurchaseStatusPage() {
       : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     return out
   }, [rows, keyword, filters])
+
+  /** 집계는 판매현황과 같은 규칙을 쓴다 — 계산은 utils/statusAggregate 가 진다. */
+  const grouped = useMemo(
+    () => (mode !== '집계' ? [] : aggregate(
+      // 구매 라인에는 품목의 관리항목이 실려 있지 않다. 여기서는 묶지 않는다(값이 없으면 '(없음)').
+      shown.map((r) => ({ ...r, partner: r.partner, warehouseName: r.warehouse, managementItemName: null })),
+      group1,
+      group2,
+    )),
+    [shown, mode, group1, group2],
+  )
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ supply: s.supply + r.supply, vat: s.vat + r.vat }),
@@ -146,6 +169,34 @@ export default function PurchaseStatusPage() {
         />
       )}
 
+      {/* 원본 상단의 메뉴 토글 — 판매현황과 같다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <span style={{ color: 'var(--ec-label)', fontSize: 12, minWidth: 54 }}>메뉴</span>
+        {(['현황', '집계'] as const).map((m) => (
+          <button
+            key={m} type="button"
+            className={`ec-btn ec-btn-sm${mode === m ? ' ec-btn-primary' : ''}`}
+            onClick={() => setMode(m)}
+          >
+            {m}
+          </button>
+        ))}
+        {mode === '집계' && (
+          <>
+            <span style={{ width: 12 }} />
+            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건1</span>
+            <select className="ec-input" value={group1} onChange={(e) => setGroup1(e.target.value as GroupKey)} style={{ width: 150 }}>
+              {GROUP_KEYS.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>집계조건2</span>
+            <select className="ec-input" value={group2} onChange={(e) => setGroup2(e.target.value as GroupKey | '')} style={{ width: 150 }}>
+              <option value="">(없음)</option>
+              {GROUP_KEYS.filter((g) => g !== group1).map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </>
+        )}
+      </div>
+
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
@@ -153,6 +204,50 @@ export default function PurchaseStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+      {mode === '집계' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>{group1 || '집계조건1'}</th>
+              {group2 && <th>{group2}</th>}
+              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
+              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.length === 0 ? (
+              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>집계할 내역이 없습니다.</td></tr>
+            ) : grouped.map((g, i) => (
+              <tr key={`${g.g1}|${g.g2}`}>
+                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td>{g.g1}</td>
+                {group2 && <td>{g.g2}</td>}
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: '#1c6b32' }}>
+                  {(g.supply + g.vat).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={group2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#1c6b32' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -191,6 +286,7 @@ export default function PurchaseStatusPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }

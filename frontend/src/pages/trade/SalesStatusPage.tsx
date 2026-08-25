@@ -3,27 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import EcPeriodPicks, { periodOf, STATUS_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
+import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import type { Item, Partner, SalesDoc, Warehouse } from '../../api/types'
-
-/**
- * 집계 기준 — 원본 판매현황 [집계] 모드의 `집계조건1/2` 에서 고를 수 있는 항목이다.
- * 원본 목록: 일별·주차별·월별·분기별·반기별·연별·담당자별·창고별·거래유형별·거래처별·
- * 프로젝트별·전표별·관리항목별·품목별·라인별.
- * 이 중 **우리 데이터로 실제 묶을 수 있는 것만** 둔다.
- */
-const GROUP_KEYS = [
-  '일별', '주차별', '월별', '분기별', '반기별', '연별',
-  '담당자별', '창고별', '거래유형별', '거래처별', '프로젝트별', '전표별', '관리항목별', '품목별',
-] as const
-type GroupKey = (typeof GROUP_KEYS)[number]
-
-/** 그 해 몇 번째 주인가(월요일 시작). 원본의 '주차별' 과 같은 셈법. */
-function weekOfYear(iso: string): number {
-  const d = new Date(iso)
-  const jan1 = new Date(d.getFullYear(), 0, 1)
-  const days = Math.floor((d.getTime() - jan1.getTime()) / 86400000)
-  return Math.floor((days + ((jan1.getDay() + 6) % 7)) / 7) + 1
-}
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
 interface Row {
@@ -141,44 +122,16 @@ export default function SalesStatusPage() {
     .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
     .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
     .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
-  /** 한 행이 어느 그룹에 속하는지. 값이 없으면 '(없음)' 으로 묶는다 — 빈칸이 흩어지면 못 읽는다. */
-  const groupValue = (r: Row, key: GroupKey | ''): string => {
-    if (!key) return ''
-    const q = Math.floor(Number(r.date.slice(5, 7)) - 1) / 3
-    switch (key) {
-      case '일별': return r.date
-      case '주차별': return `${r.date.slice(0, 4)}년 ${weekOfYear(r.date)}주`
-      case '월별': return r.date.slice(0, 7)
-      case '분기별': return `${r.date.slice(0, 4)} ${Math.floor(q) + 1}분기`
-      case '반기별': return `${r.date.slice(0, 4)} ${Number(r.date.slice(5, 7)) <= 6 ? '상' : '하'}반기`
-      case '연별': return r.date.slice(0, 4)
-      case '담당자별': return r.employeeName ?? '(미지정)'
-      case '창고별': return r.warehouseName
-      case '거래유형별': return r.taxable ? '과세' : '면세'
-      case '거래처별': return r.partner
-      case '프로젝트별': return r.projectName ?? '(없음)'
-      case '전표별': return r.docNo
-      case '관리항목별': return mgmtOf(r.itemId) || '(없음)'
-      case '품목별': return r.itemName
-      default: return ''
-    }
-  }
-
-  /** 집계 결과. 조건1(+조건2)로 묶고 수량·금액을 더한다. 큰 금액이 위로 온다. */
-  const grouped = useMemo(() => {
-    if (mode !== '집계') return []
-    const map = new Map<string, { g1: string; g2: string; qty: number; supply: number; vat: number; count: number }>()
-    for (const r of shown) {
-      const g1 = groupValue(r, group1)
-      const g2 = groupValue(r, group2)
-      const k = `${g1} \u241F ${g2}`
-      const cur = map.get(k) ?? { g1, g2, qty: 0, supply: 0, vat: 0, count: 0 }
-      cur.qty += r.qty; cur.supply += r.supply; cur.vat += r.vat; cur.count += 1
-      map.set(k, cur)
-    }
-    return [...map.values()].sort((a, b) => b.supply - a.supply)
+  /** 집계는 판매·구매가 같은 규칙을 쓰므로 `utils/statusAggregate` 에 모아 두고 여기서 부른다. */
+  const grouped = useMemo(
+    () => (mode !== '집계' ? [] : aggregate(
+      shown.map((r) => ({ ...r, managementItemName: mgmtOf(r.itemId) || null })),
+      group1,
+      group2,
+    )),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, mode, group1, group2, items])
+    [shown, mode, group1, group2, items],
+  )
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ supply: s.supply + r.supply, vat: s.vat + r.vat }),
