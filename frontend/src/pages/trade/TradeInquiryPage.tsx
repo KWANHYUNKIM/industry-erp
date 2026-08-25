@@ -16,6 +16,8 @@ interface NormalDoc {
   createdBy: string | null; remark: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
   accountingReflected: boolean
+  /** 원본 구매조회에만 있는 열. 판매 전표에도 프로젝트는 붙지만 원본 판매조회는 안 보여 준다. */
+  projectName?: string | null
   // 라인은 공용 타입을 그대로 쓴다 — 여기서 좁게 다시 적어 두면 백엔드가 필드를 늘려도 화면이 못 본다
   // (실제로 lotNo·부대비용·불러온전표가 늘었는데 이 화면만 모르고 있었다).
   lines: TradeLine[]
@@ -70,6 +72,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
         accountingReflected: d.accountingReflected,
+        projectName: d.projectName,
         // 라인은 그대로 넘긴다. 필드를 골라 담으면 백엔드가 늘린 것을 화면이 못 본다.
         lines: d.lines,
       }))))
@@ -204,7 +207,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
   // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
   // + 판매만 있는 확인상태·확인 2개
-  const colCount = 14 + (isSales ? 2 : 0)
+  const colCount = 14 + (isSales ? 2 : 1)   // 판매: 확인상태·확인 / 구매: 프로젝트명
+  /**
+   * 합계행 가운데 빈 칸 수 — 금액합계와 공급가액 사이의 열들
+   * (거래유형·창고·회계반영·인쇄·불러온전표, 구매는 앞에 프로젝트명이 하나 더).
+   * 앞 4칸 + 금액합계 1칸 + midSpan + 공급가액 + 부가세 = 7 + midSpan 이고, 나머지가 꼬리다.
+   */
+  const midSpan = isSales ? 5 : 6
 
   /**
    * 원본은 일자와 전표번호를 '2026/08/03 -1' 로 한 칸에 적는다(게시글의 '일자-No.'와 같은 규칙).
@@ -281,6 +290,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <th>{cfg.partnerLabel}</th>
             <th>품목명(요약)</th>
             <th style={{ textAlign: 'right' }}>금액합계</th>
+            {/* 원본 구매조회에만 있는 열이다 — 판매조회에는 없다. 실측으로 확인했다. */}
+            {!isSales && <th>프로젝트명</th>}
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
             <th>거래유형명</th>
             <th>창고명</th>
@@ -321,6 +332,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
+                {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
                 <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
                 <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
@@ -428,10 +440,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             */}
             <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
-            <td colSpan={5}></td>
+            <td colSpan={midSpan}></td>
             <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
             <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
-            <td colSpan={colCount - 12}></td>
+            <td colSpan={colCount - (7 + midSpan)}></td>
           </tr>
         </tfoot>
       </table>
