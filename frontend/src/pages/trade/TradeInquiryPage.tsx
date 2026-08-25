@@ -5,7 +5,7 @@ import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner } from '../../api/types'
+import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../api/types'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
@@ -14,7 +14,9 @@ interface NormalDoc {
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
-  lines: { itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }[]
+  // 라인은 공용 타입을 그대로 쓴다 — 여기서 좁게 다시 적어 두면 백엔드가 필드를 늘려도 화면이 못 본다
+  // (실제로 lotNo·부대비용·불러온전표가 늘었는데 이 화면만 모르고 있었다).
+  lines: TradeLine[]
 }
 
 // 판매조회 탭 (이카운트). '결재중'은 전자결재 진행중, '확인/미확인'은 확인상태.
@@ -61,7 +63,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         createdBy: d.createdBy, remark: d.remark,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
-        lines: d.lines.map((l) => ({ itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount })),
+        // 라인은 그대로 넘긴다. 필드를 골라 담으면 백엔드가 늘린 것을 화면이 못 본다.
+        lines: d.lines,
       }))))
       .catch((err) => setError(extractErrorMessage(err)))
   }
@@ -163,7 +166,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const totals = shown.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, vat: a.vat + d.vatAmount, total: a.total + d.totalAmount }), { supply: 0, vat: 0, total: 0 })
 
   // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
-  const colCount = (isSales ? 11 : 9) + 1
+  // 번호 + 전표번호·일자·거래처·품목명(요약)·창고·공급가액·부가세·합계·담당·불러온전표·세금계산서
+  // + 판매만 있는 확인상태·확인 2개
+  const colCount = 12 + (isSales ? 2 : 0)
 
   return (
     <EcListShell title={cfg.title} search={keyword} onSearchChange={setKeyword} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
@@ -178,15 +183,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {isSales && (
-        <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+        // 원본은 밑줄 탭이 아니라 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
+        <div className="ec-pills" style={{ marginBottom: 6 }}>
           {SALES_TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-              padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-              background: tab === t ? '#fff' : 'transparent',
-              color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-              fontWeight: tab === t ? 700 : 400,
-              borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-            }}>{t} ({tabCount(t)})</button>
+            <button
+              key={t} type="button" onClick={() => setTab(t)}
+              className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+            >
+              {t} ({tabCount(t)})
+            </button>
           ))}
         </div>
       )}
@@ -195,8 +200,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th><th>창고</th>
+            <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th>
+            {/* 원본 목록에 있는 열 — 무슨 물건을 판 전표인지 열지 않고도 알아야 한다 */}
+            <th>품목명(요약)</th>
+            <th>창고</th>
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th><th>담당</th>
+            {/* 원본 목록의 '불러온전표' — 이 전표가 어느 수주/발주에서 왔는지 */}
+            <th>불러온전표</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
             <th style={{ textAlign: 'center' }}>세금계산서</th>
           </tr>
@@ -211,11 +221,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>{openId === d.id ? '▾ ' : '▸ '}{d.docNo}</td>
                 <td>{d.date}</td>
                 <td>{d.partnerName}</td>
+                <td style={{ color: '#5a626e' }}>
+                  {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
+                </td>
                 <td>{d.warehouseName}</td>
                 <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
                 <td>{d.createdBy ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>
+                  {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
+                  {(() => {
+                    const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
+                    if (nos.length === 0) return ''
+                    return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
+                  })()}
+                </td>
                 {isSales && (
                   <>
                     <td style={{ textAlign: 'center', color: confirmColor(d.confirmStatus), fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>

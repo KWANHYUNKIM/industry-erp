@@ -401,6 +401,42 @@ main table,
   white-space: nowrap;
 }
 
+/* ============================================================
+   목록 화면의 상태 필터 — 이카운트 판매조회의 [전체][결재중][미확인][확인]
+   원본 실측: 알약 하나가 h26 · padding 7px 13px · 12px,
+   선택된 것만 배경 #1f48d4 + radius 15px + 흰 글씨, 나머지는 배경 없이 #606c93.
+   우리는 밑줄 탭이었다 — 같은 자리 같은 기능인데 생김새가 달랐다.
+   ============================================================ */
+.ec-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ec-pill {
+  height: 26px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 400;
+  color: #606c93;
+  background: transparent;
+  border: 0;
+  border-radius: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ec-pill:hover {
+  background: #eef1f7;
+}
+.ec-pill.active {
+  background: var(--ec-blue);
+  color: #fff;
+}
+.ec-pill.active:hover {
+  background: var(--ec-blue);
+}
+
 /* 입력 그리드 (.table-grid-input) — 셀에 input 이 꽉 차게 */
 .ec-grid-input {
   width: 100%;
