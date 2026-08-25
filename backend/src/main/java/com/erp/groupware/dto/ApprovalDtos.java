@@ -54,6 +54,11 @@ public final class ApprovalDtos {
             Long expenseId
     ) {}
 
+    /** 라벨 변경 — 원본 내결재관리 하단의 [라벨변경]. 여러 문서를 골라 한 번에 바꾼다. */
+    public record ChangeLabelRequest(
+            String labelText
+    ) {}
+
     public record ApprovalActionRequest(
             String comment
     ) {}

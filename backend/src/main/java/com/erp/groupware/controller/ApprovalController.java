@@ -1,6 +1,7 @@
 package com.erp.groupware.controller;
 
 import com.erp.groupware.dto.ApprovalDtos.ApprovalActionRequest;
+import com.erp.groupware.dto.ApprovalDtos.ChangeLabelRequest;
 import com.erp.groupware.dto.ApprovalDtos.ApprovalResponse;
 import com.erp.groupware.dto.ApprovalDtos.CreateApprovalRequest;
 import com.erp.groupware.dto.ApprovalDtos.LinkVoucherRequest;
@@ -62,6 +63,15 @@ public class ApprovalController {
             @RequestBody(required = false) ApprovalActionRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return approvalService.reject(id, req, principal.getUsername());
+    }
+
+    /** 라벨 변경 (원본 내결재관리 하단 [라벨변경]) */
+    @PatchMapping("/{id}/label")
+    public ApprovalResponse changeLabel(
+            @PathVariable Long id,
+            @RequestBody ChangeLabelRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return approvalService.changeLabel(id, req.labelText(), principal.getUsername());
     }
 
     @DeleteMapping("/{id}")

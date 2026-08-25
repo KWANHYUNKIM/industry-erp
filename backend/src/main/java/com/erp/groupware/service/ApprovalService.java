@@ -342,6 +342,21 @@ public class ApprovalService {
                 .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + projectId));
     }
 
+    /**
+     * 라벨 변경 — 원본 내결재관리 하단의 [라벨변경].
+     * 라벨은 문서를 묶어 보는 꼬리표일 뿐이라 <b>결재 상태와 무관하게</b> 언제든 바꿀 수 있다.
+     * 다만 남의 문서를 손대지는 못한다 — 기안자만 바꾼다.
+     */
+    @Transactional
+    public ApprovalResponse changeLabel(Long id, String labelText, String username) {
+        ApprovalDocument doc = getDocument(id);
+        if (!doc.getDrafter().getUsername().equals(username)) {
+            throw ApiException.forbidden("기안자만 라벨을 바꿀 수 있습니다: " + doc.getDocNo());
+        }
+        doc.setLabelText(labelText == null || labelText.isBlank() ? null : labelText.trim());
+        return ApprovalResponse.from(doc);
+    }
+
     private StoredFile findStoredFile(Long id) {
         return storedFileRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));

@@ -55,6 +55,10 @@ export default function ApprovalListPage({
   const [detail, setDetail] = useState<ApprovalDoc | null>(null)
   // 상세에서 formData 의 키를 사람이 읽는 라벨로 바꾸기 위해 양식 스키마를 받아둔다.
   const [schemas, setSchemas] = useState<Record<number, ApprovalField[]>>({})
+  // 원본 하단 버튼줄의 [결재/검토완료]·[라벨변경]은 **고른 문서에 한꺼번에** 하는 동작이다.
+  // 그러려면 행을 고를 수 있어야 하는데 우리 목록엔 그 방법이 없었다.
+  // 고르는 방식은 판매조회·전표입력과 같다 — 회색 행번호 칸을 누른다.
+  const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [search, setSearch] = useState('')
@@ -135,6 +139,65 @@ export default function ApprovalListPage({
     } catch (err) {
       alert(extractErrorMessage(err))
     }
+  }
+
+  const toggleSelect = (id: number) => setSelected((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  /**
+   * 원본 [결재/검토완료] — 고른 문서 중 **내 차례인 것만** 결재한다.
+   * 내 차례가 아닌 문서는 서버가 막으므로, 미리 걸러 내고 몇 건을 건너뛰었는지 알려 준다.
+   */
+  async function approveSelected() {
+    const targets = filtered.filter((d) => selected.has(d.id) && isMyTurn(d))
+    const skipped = selected.size - targets.length
+    if (targets.length === 0) {
+      flash(selected.size === 0
+        ? '결재할 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        : '고른 문서 중 지금 내 차례인 것이 없습니다.')
+      return
+    }
+    if (!window.confirm(`${targets.length}건을 결재할까요?`)) return
+    const failed: string[] = []
+    for (const d of targets) {
+      try {
+        await api.post(`/approvals/${d.id}/approve`, {})
+      } catch (err) {
+        failed.push(`${d.title}: ${extractErrorMessage(err)}`)
+      }
+    }
+    setSelected(new Set())
+    load()
+    flash(failed.length === 0
+      ? `${targets.length}건 결재했습니다.${skipped > 0 ? ` (내 차례가 아닌 ${skipped}건은 건너뜀)` : ''}`
+      : `결재하지 못한 문서 ${failed.length}건 — ${failed.join(' / ')}`)
+  }
+
+  /** 원본 [라벨변경] — 고른 문서의 꼬리표를 한 번에 바꾼다. 비우면 라벨을 뗀다. */
+  async function changeLabelSelected() {
+    const targets = filtered.filter((d) => selected.has(d.id))
+    if (targets.length === 0) {
+      flash('라벨을 바꿀 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.')
+      return
+    }
+    const next = window.prompt(`${targets.length}건의 라벨을 무엇으로 바꿀까요? (비우면 라벨을 뗍니다)`, '')
+    if (next === null) return
+    const failed: string[] = []
+    for (const d of targets) {
+      try {
+        await api.patch(`/approvals/${d.id}/label`, { labelText: next })
+      } catch (err) {
+        failed.push(`${d.title}: ${extractErrorMessage(err)}`)
+      }
+    }
+    setSelected(new Set())
+    load()
+    flash(failed.length === 0
+      ? `${targets.length}건의 라벨을 바꿨습니다.`
+      : `바꾸지 못한 문서 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
   async function submitDraft(d: ApprovalDoc) {
@@ -219,7 +282,16 @@ export default function ApprovalListPage({
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              {/* 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}
+              <th
+                style={{ width: 34, cursor: filtered.length > 0 ? 'pointer' : 'default' }}
+                title="전체 선택 / 해제"
+                onClick={() => setSelected(
+                  selected.size === filtered.length ? new Set() : new Set(filtered.map((d) => d.id)),
+                )}
+              >
+                {filtered.length > 0 && selected.size === filtered.length ? '☑' : ''}
+              </th>
               <th>기안일자</th>
               <th>제목</th>
               <th style={{ textAlign: 'center' }}>ERP전표(건)</th>
@@ -240,7 +312,19 @@ export default function ApprovalListPage({
               <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당하는 데이터가 없습니다.</td></tr>
             ) : filtered.map((r, i) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td
+                  style={{
+                    textAlign: 'center',
+                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
+                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    fontWeight: selected.has(r.id) ? 700 : 400,
+                    cursor: 'pointer', userSelect: 'none',
+                  }}
+                  title="눌러서 이 문서를 고릅니다"
+                  onClick={() => toggleSelect(r.id)}
+                >
+                  {i + 1}
+                </td>
                 <td style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{r.draftNo}</td>
                 <td><a onClick={() => setDetail(r)} style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}>{r.title}</a></td>
                 <td style={{ textAlign: 'center' }}>{r.voucherCount > 0 ? r.voucherCount : ''}</td>
@@ -284,6 +368,15 @@ export default function ApprovalListPage({
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+        {/*
+          원본 하단 버튼줄: 신규(F2) · My도장/서명 · 보내기 · 결재/검토완료 · 라벨변경 · 인쇄 · Excel.
+          이 중 **실제로 동작을 붙일 수 있는 것만** 둔다 — My도장/서명·보내기는 받쳐 줄 기능이 없다.
+        */}
+        <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
+          신규(F2)
+        </button>
+        <button className="ec-btn" onClick={() => void approveSelected()}>결재/검토완료</button>
+        <button className="ec-btn" onClick={() => void changeLabelSelected()}>라벨변경</button>
         {bottomActions.map((a) => {
           const onClick = a.includes('Excel') || a.includes('엑셀') ? () => { void doExcel() }
             : a.includes('인쇄') || a.includes('출력') ? () => doPrint()
