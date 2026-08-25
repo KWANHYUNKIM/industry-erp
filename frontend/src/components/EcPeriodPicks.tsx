@@ -71,6 +71,25 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
         from: ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
         to: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0)),
       }
+    // 이번 달 마지막 날 하루. 원본 건설예정공정표 버튼줄에 있다.
+    case '말일': {
+      const last = new Date(t.getFullYear(), t.getMonth() + 1, 0)
+      return { from: ymd(last), to: ymd(last) }
+    }
+    // 이카운트의 '주'는 월요일 시작이다(mondayOf 와 같은 규칙).
+    case '금주': {
+      const mon = mondayOf(t)
+      return { from: ymd(mon), to: ymd(addDays(mon, 6)) }
+    }
+    case '차주': {
+      const mon = addDays(mondayOf(t), 7)
+      return { from: ymd(mon), to: ymd(addDays(mon, 6)) }
+    }
+    case '차월':
+      return {
+        from: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 1)),
+        to: ymd(new Date(t.getFullYear(), t.getMonth() + 2, 0)),
+      }
     /**
      * 시작일은 그대로 두고 종료일만 오늘로 당긴다. 원본 버튼줄에 이 이름이 있다.
      * 시작일을 모르므로 빈 문자열을 돌려주는데, 이걸 그대로 넣으면 시작일이 지워진다 —
@@ -88,6 +107,7 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
  *   업무일지 : 금일·전일·금주(~오늘)·전주·금월·전월·금년·전년·종료일·최근3일+7일
  *   판매현황 : 금일·전일·금주(~오늘)·전주·**금월(~오늘)**·전월·**전월+금월**
  *   출퇴근현황 : 금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·**종료일**
+ *   건설예정공정표 : 금일·전일·**말일**·전주·**금주**·**차주**·전월·금월·**차월**
  * 그래서 목록을 받는다. 기본값은 업무일지 묶음.
  */
 export const JOURNAL_PICKS = [
@@ -96,6 +116,14 @@ export const JOURNAL_PICKS = [
 
 export const STATUS_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월',
+] as const
+
+/**
+ * 건설예정공정표(C000044) 묶음 — 앞으로의 일정을 보는 화면이라 '차주·차월' 처럼
+ * 미래 구간이 들어 있다. 조회 화면들과 라인업이 꽤 다르다.
+ */
+export const PROJECT_PICKS = [
+  '금일', '전일', '말일', '전주', '금주', '차주', '전월', '금월', '차월',
 ] as const
 
 /** 출/퇴근현황(ID) 묶음 — 판매현황과 같은데 '전월+금월' 대신 '종료일' 이다. */

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { PROJECT_PICKS, ymd } from '../../components/EcPeriodPicks'
 
 interface Project {
   id: number
@@ -24,13 +24,28 @@ const STATUS_COLOR: Record<Project['status'], string> = {
 
 const today = () => ymd(new Date())
 
-/** 그룹웨어 > 건설예정공정표 — 공정(프로젝트)별 착수·완료 예정 일정 조회·등록 (실제 연동, /projects 재사용) */
+/**
+ * 그룹웨어 > 프로젝트 > 건설예정공정표 (이카운트 C000044)
+ *
+ * 원본은 상단에 [전체][진행중][완료] 알약과 조회 조건 패널이 있고, 아래에
+ * 기간 빠른선택(금일·전일·말일·전주·금주·차주·전월·금월·차월)과 [검색(F8)][다시 작성]이 붙는다.
+ * 앞으로의 일정을 보는 화면이라 버튼줄에 '차주·차월' 같은 미래 구간이 들어 있다.
+ *
+ * 우리 화면은 상태 알약도 조건도 없이 전부 뿌리고 있었다.
+ *
+ * 원본 조건 중 태스크구분·담당자구분·게시글번호·입력경로·삭제구분은 우리 데이터에 없는
+ * 개념이라 넣지 않았다. 칸만 만들면 눌러도 아무 일이 없다.
+ */
 export default function ConstructionSchedulePage() {
   const [rows, setRows] = useState<Project[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [manager2, setManager2] = useState('')
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
@@ -60,7 +75,26 @@ export default function ConstructionSchedulePage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
+  const inTab = (r: Project) =>
+    tab === '전체' ? true
+      : tab === '완료' ? r.status === 'DONE'
+      : r.status === 'IN_PROGRESS'
+
+  /** 기간은 '착수예정일이 이 구간에 걸리는가'로 본다 — 원본 조건 이름은 게시일이지만 우리 공정에는 게시일이 없다. */
+  const shown = rows
+    .filter(inTab)
+    .filter((r) => !from || (r.startDate ?? '') >= from)
+    .filter((r) => !to || (r.startDate ?? '') <= to)
+    .filter((r) => !manager2 || (r.manager ?? '').includes(manager2))
+    .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
+
+  const tabCount = (t: typeof tab) =>
+    rows.filter((r) => (t === '전체' ? true : t === '완료' ? r.status === 'DONE' : r.status === 'IN_PROGRESS')).length
+
+  function reset() {
+    setTab('전체'); setFrom(''); setTo(''); setManager2(''); setKeyword('')
+  }
+
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
@@ -71,9 +105,45 @@ export default function ConstructionSchedulePage() {
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '공정등록(F2)'}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">공정(프로젝트)별 착수·완료 예정일 조회/등록 (프로젝트관리와 저장소 공유)</p>
+      {/* 원본 상단 알약 — 전체·진행중·완료 */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {(['전체', '진행중', '완료'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+            {t} {tabCount(t)}
+          </button>
+        ))}
+      </div>
+
+      {/* 원본 조회 조건 — 우리 데이터에 있는 것만 */}
+      <table className="w-full text-left" style={{ marginBottom: 8 }}>
+        <tbody>
+          <tr>
+            <th style={{ ...th, width: 110 }}>착수예정일</th>
+            <td colSpan={3}>
+              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <span style={{ marginLeft: 10, display: 'inline-flex', gap: 3, flexWrap: 'wrap' }}>
+                <EcPeriodPicks labels={PROJECT_PICKS} currentFrom={from}
+                               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <th style={{ ...th, width: 110 }}>담당</th>
+            <td colSpan={3}>
+              <input className={inputCls} value={manager2} onChange={(e) => setManager2(e.target.value)} style={{ width: 200 }} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <Modal open={showForm} title="건설예정공정표 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>

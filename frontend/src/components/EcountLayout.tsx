@@ -506,16 +506,12 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        // 원본 프로젝트 탭은 묶음 없이 두 개다. '프로젝트' 항목은 여기에 없다
+        // (프로젝트 등록은 회계 II > 프로젝트에 있다).
         label: '프로젝트',
         nodes: [
-          { label: '프로젝트', to: '/groupware/project' },
-          {
-            label: '진척관리',
-            children: [
-              { label: '건설예정공정표', to: '/groupware/construction-schedule' },
-              { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
-            ],
-          },
+          { label: '건설예정공정표', to: '/groupware/construction-schedule' },
+          { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
         ],
       },
       {
