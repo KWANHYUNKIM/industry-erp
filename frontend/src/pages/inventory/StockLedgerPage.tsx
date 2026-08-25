@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -44,6 +46,13 @@ export default function StockLedgerPage() {
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
   const [keyword, setKeyword] = useState('')
+  /** 원본 '거래내역없는품목제외'. 조회 결과에 변동이 0 인 행이 섞이면 원장이 지저분해진다. */
+  const [excludeNoTx, setExcludeNoTx] = useState(false)
+
+  const reset = () => {
+    setFilters({ from: firstOfMonth(), to: today(), itemId: '', warehouseId: '' })
+    setTypeFilter('ALL'); setKeyword(''); setExcludeNoTx(false)
+  }
 
   async function loadRefs() {
     const [i, w] = await Promise.all([api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses')])
@@ -84,9 +93,11 @@ export default function StockLedgerPage() {
     return rows.filter((r) => {
       if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
       if (kw && !r.itemName.includes(kw) && !r.warehouseName.includes(kw) && !(r.note ?? '').includes(kw)) return false
+      // 원본 '거래내역없는품목제외' — 변동량이 0 인 행은 원장을 지저분하게만 한다.
+      if (excludeNoTx && r.quantityChange === 0) return false
       return true
     })
-  }, [rows, typeFilter, keyword])
+  }, [rows, typeFilter, keyword, excludeNoTx])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
@@ -102,7 +113,6 @@ export default function StockLedgerPage() {
   }, [shown, rows, opening, typeFilter])
 
   const setF = (patch: Partial<ServerFilters>) => setFilters((f) => ({ ...f, ...patch }))
-  const label: React.CSSProperties = { width: 64, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -110,37 +120,43 @@ export default function StockLedgerPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={loadLedger}
-      actions={[{ label: '조회', onClick: loadLedger }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: loadLedger },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">
-        기간·창고·품목별 입출고 원장. 잔량은 기초재고에 변동량을 누적해 표시순으로 계산 — 기초/기말은 품목·창고를 함께 지정할 때만 표시됩니다.
-      </p>
-
-      {/* 조회 조건 */}
-      <div
-        onKeyDown={(e) => { if (e.key === 'Enter') loadLedger() }}
-        style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}
+      {/*
+        원본 재고수불부(E040702)의 조건 판. 기준일자는 구간이고 빠른선택은 여덟 개다
+        (금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일).
+        원본에는 '단가표시'가 있어 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
+        우리 재고이동은 단가를 하나만 들고 있어(전표에서 넘어온 그 값) 고를 대상이 없다.
+        그래서 그 조건은 넣지 않고 표에는 그 단가를 그대로 보여 준다.
+      */}
+      <EcStatusPanel
+        from={filters.from} to={filters.to}
+        onPeriod={(r) => setF({ from: r.from, to: r.to })}
+        picks={INQUIRY_FULL_PICKS}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
-          <input type="date" className="ec-input" value={filters.from} onChange={(e) => setF({ from: e.target.value })} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-          <input type="date" className="ec-input" value={filters.to} onChange={(e) => setF({ to: e.target.value })} style={{ width: 148 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <CodePickerField label="창고" hideLabel width={170} value={filters.warehouseId}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={filters.warehouseId}
                            onChange={(v) => setF({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>품목</span>
-          <CodePickerField label="품목" hideLabel width={210} value={filters.itemId}
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={220} value={filters.itemId}
                            onChange={(v) => setF({ itemId: v })}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
-        </div>
-        <button className="ec-btn ec-btn-primary" onClick={loadLedger}>조회</button>
-      </div>
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={excludeNoTx}
+                   onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
