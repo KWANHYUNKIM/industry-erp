@@ -47,6 +47,12 @@ export default function QuotationPage() {
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'SUPPLIER'))).catch(() => {})
   }, [])
 
+  /** 원본은 일자와 번호를 '2026/08/03 -1' 로 한 칸에 적는다(판매조회와 같은 규칙). */
+  const dateNo = (q: { quoteDate: string; quoteNo: string }) => {
+    const seq = q.quoteNo.split('-').pop() ?? ''
+    return `${q.quoteDate.replace(/-/g, '/')} -${Number(seq) || seq}`
+  }
+
   const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
@@ -122,40 +128,63 @@ export default function QuotationPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              원본 견적서조회(E040202) 열과 순서 그대로다(실측 74·295·297·236·533·236·277·106·106·106).
+              일자와 번호는 원본처럼 한 칸에 적는다('2026/08/03 -1').
+            */}
             <th style={{ width: 34 }}></th>
-            <th>견적번호</th><th>견적일</th><th>유효기한</th><th>거래처</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th>
-            <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th>일자-No.</th>
+            <th>거래처명</th>
+            <th>사원(담당)명</th>
+            <th>품목명(요약)</th>
+            <th>유효기간</th>
+            <th style={{ textAlign: 'right' }}>견적금액합계</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th style={{ textAlign: 'center' }}>생성한전표</th>
+            <th style={{ textAlign: 'center' }}>인쇄</th>
+            {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
+            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>견적서가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>견적서가 없습니다.</td></tr>
           ) : shown.map((q, i) => (
             <Fragment key={q.id}>
               <tr onClick={() => setOpenId(openId === q.id ? null : q.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === q.id ? '▾ ' : '▸ '}{q.quoteNo}</td>
-                <td>{q.quoteDate}</td>
-                <td>{q.validUntil ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+                  {openId === q.id ? '▾ ' : '▸ '}{dateNo(q)}
+                </td>
                 <td>{q.partnerName}</td>
-                <td style={{ textAlign: 'right' }}>{won(q.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(q.vatAmount)}</td>
+                <td>{q.createdBy ?? ''}</td>
+                <td style={{ color: '#5a626e' }}>
+                  {q.lines[0]?.itemName ?? ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}
+                </td>
+                <td>{q.validUntil ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(q.totalAmount)}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(q.status) }}>{q.statusName}</span></td>
+                <td style={{ textAlign: 'center', color: '#1c7c3c', fontSize: 11.5 }}>
+                  {/* 원본 '생성한전표' — 이 견적서에서 만들어진 전표. 우리는 수주만 만든다. */}
+                  {q.convertedOrderId ? `수주 #${q.convertedOrderId}` : ''}
+                </td>
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <button className="ec-btn ec-btn-sm" onClick={() => printQuote(q)}>인쇄</button>
+                </td>
+                <td style={{ textAlign: 'right' }}>{won(q.supplyAmount)}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(q.vatAmount)}</td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printQuote(q)}>인쇄</button>
-                    {q.status === 'DRAFT' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => send(q)}>발송</button>}
-                    {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => convert(q)}>수주전환</button>}
-                    {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(q)}>취소</button>}
-                    {q.status === 'CONVERTED' && <span style={{ fontSize: 11, color: '#1c7c3c' }}>수주 #{q.convertedOrderId}</span>}
+                    {q.status === 'DRAFT' && <button className="ec-btn ec-btn-sm" onClick={() => send(q)}>발송</button>}
+                    {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => convert(q)}>수주전환</button>}
+                    {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => cancel(q)}>취소</button>}
                   </div>
                 </td>
               </tr>
               {openId === q.id && (
                 <tr className="no-ec">
-                  <td colSpan={10} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={13} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>
