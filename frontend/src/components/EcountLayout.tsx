@@ -474,7 +474,18 @@ const MENU: TopMenu[] = [
             ],
           },
           { label: '업무일지', to: '/groupware/worklog' },
-          { label: '출/퇴근', children: [{ label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+          // 원본 그룹웨어의 출/퇴근 묶음은 다섯 개다. 우리 화면은 관리 > 근태관리에 있어서
+          // 새로 만들지 않고 같은 화면을 가리킨다.
+          {
+            label: '출/퇴근',
+            children: [
+              { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' },
+              { label: '출/퇴근현황(ID)', to: '/hr/attendance-status' },
+              { label: '지각현황(ID)', to: '/hr/attendance-late' },
+              { label: '일별근무시간(ID)', to: '/hr/daily-hours' },
+              { label: '출퇴근/근태/일정현황(ID)', to: '/hr/work-integrated' },
+            ],
+          },
         ],
       },
       {

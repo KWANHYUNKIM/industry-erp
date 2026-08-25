@@ -71,6 +71,13 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
         from: ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
         to: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0)),
       }
+    /**
+     * 시작일은 그대로 두고 종료일만 오늘로 당긴다. 원본 버튼줄에 이 이름이 있다.
+     * 시작일을 모르므로 빈 문자열을 돌려주는데, 이걸 그대로 넣으면 시작일이 지워진다 —
+     * {@link EcPeriodPicks} 가 currentFrom 으로 채워서 넘긴다. 직접 부르는 곳은 주의할 것.
+     */
+    case '종료일':
+      return { from: '', to: ymd(t) }
     default:
       return null
   }
@@ -80,6 +87,7 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
  * 화면마다 쓰는 항목이 다르다 — 원본에서 실제로 확인한 두 묶음이다.
  *   업무일지 : 금일·전일·금주(~오늘)·전주·금월·전월·금년·전년·종료일·최근3일+7일
  *   판매현황 : 금일·전일·금주(~오늘)·전주·**금월(~오늘)**·전월·**전월+금월**
+ *   출퇴근현황 : 금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·**종료일**
  * 그래서 목록을 받는다. 기본값은 업무일지 묶음.
  */
 export const JOURNAL_PICKS = [
@@ -90,12 +98,20 @@ export const STATUS_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월',
 ] as const
 
+/** 출/퇴근현황(ID) 묶음 — 판매현황과 같은데 '전월+금월' 대신 '종료일' 이다. */
+export const ATTENDANCE_PICKS = [
+  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일',
+] as const
+
 export default function EcPeriodPicks({
   onPick,
   labels = JOURNAL_PICKS,
+  currentFrom,
 }: {
   onPick: (r: PeriodRange) => void
   labels?: readonly string[]
+  /** 지금 화면의 시작일. '종료일' 처럼 시작일을 건드리지 않는 버튼이 이 값을 그대로 돌려준다. */
+  currentFrom?: string
 }) {
   return (
     <>
@@ -106,7 +122,8 @@ export default function EcPeriodPicks({
           className="ec-btn"
           onClick={() => {
             const r = periodOf(label)
-            if (r) onPick(r)
+            // 시작일을 바꾸지 않는 버튼('종료일')은 빈 from 을 준다. 그대로 넣으면 시작일이 지워진다.
+            if (r) onPick(r.from ? r : { ...r, from: currentFrom ?? r.to })
           }}
         >
           {label}
