@@ -41,11 +41,12 @@ export default function EcMonthCalendar({
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1))
 
   const head: React.CSSProperties = {
-    textAlign: 'center', fontSize: 12, color: 'var(--ec-label)', padding: '4px 0',
+    textAlign: 'center', fontSize: 12, color: 'var(--ec-label)', height: 26, lineHeight: '26px',
   }
 
   return (
-    <div style={{ width: 260, flex: '0 0 auto', border: '1px solid var(--ec-border)', background: '#fff', borderRadius: 5 }}>
+    // 폭 240 · 칸 34x26 은 원본 일정관리 왼쪽 달력 실측값이다.
+    <div style={{ width: 240, flex: '0 0 auto', border: '1px solid var(--ec-border)', background: '#fff', borderRadius: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px' }}>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => move(-1)} aria-label="이전 달">‹</button>
         <span style={{ flex: 1, textAlign: 'center', fontSize: 12 }}>
@@ -77,7 +78,7 @@ export default function EcMonthCalendar({
               }}
               title={picked ? '눌러서 전체 일정 보기' : s}
               style={{
-                position: 'relative', border: 0, cursor: 'pointer', padding: '5px 0',
+                position: 'relative', border: 0, cursor: 'pointer', height: 26, padding: 0,
                 fontSize: 12, borderRadius: 4,
                 background: picked ? 'var(--ec-blue)' : 'transparent',
                 color: picked ? '#fff'
