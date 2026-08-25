@@ -200,6 +200,34 @@ export default function ApprovalListPage({
       : `바꾸지 못한 문서 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
+  /**
+   * 원본 기안서통합관리 하단의 [선택삭제] — 고른 문서를 한꺼번에 지운다(소프트 삭제).
+   * 결재가 끝난 문서는 서버가 막는다. 막힌 건은 사유를 모아 보여 주고 나머지는 계속 지운다.
+   */
+  async function deleteSelected() {
+    const targets = filtered.filter((d) => selected.has(d.id) && !d.deleted)
+    if (targets.length === 0) {
+      flash(selected.size === 0
+        ? '지울 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        : '고른 문서 중 지울 수 있는 것이 없습니다.')
+      return
+    }
+    if (!window.confirm(`${targets.length}건을 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`)) return
+    const failed: string[] = []
+    for (const d of targets) {
+      try {
+        await api.delete(`/approvals/${d.id}`)
+      } catch (err) {
+        failed.push(`${d.title}: ${extractErrorMessage(err)}`)
+      }
+    }
+    setSelected(new Set())
+    load()
+    flash(failed.length === 0
+      ? `${targets.length}건 삭제했습니다.`
+      : `지우지 못한 문서 ${failed.length}건 — ${failed.join(' / ')}`)
+  }
+
   async function submitDraft(d: ApprovalDoc) {
     try {
       await api.post(`/approvals/${d.id}/submit`)
@@ -369,13 +397,22 @@ export default function ApprovalListPage({
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
         {/*
-          원본 하단 버튼줄: 신규(F2) · My도장/서명 · 보내기 · 결재/검토완료 · 라벨변경 · 인쇄 · Excel.
-          이 중 **실제로 동작을 붙일 수 있는 것만** 둔다 — My도장/서명·보내기는 받쳐 줄 기능이 없다.
+          **두 화면의 하단 버튼줄이 다르다** — 같은 컴포넌트를 쓴다고 같은 버튼을 달면 안 된다.
+            내결재관리(mine)     : 신규(F2) · My도장/서명 · 보내기 · 결재/검토완료 · 라벨변경 · 인쇄 · Excel
+            기안서통합관리(all)  : 선택삭제 · 라벨변경 · 인쇄 · Excel
+          통합관리는 남의 기안서까지 보는 자리라 **거기서 결재하거나 새로 쓰지 않는다.**
+          (My도장/서명·보내기는 받쳐 줄 기능이 없어 넣지 않는다 — 눌러도 아무 일 없는 버튼은 거짓말이다.)
         */}
-        <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
-          신규(F2)
-        </button>
-        <button className="ec-btn" onClick={() => void approveSelected()}>결재/검토완료</button>
+        {scope === 'mine' ? (
+          <>
+            <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
+              신규(F2)
+            </button>
+            <button className="ec-btn" onClick={() => void approveSelected()}>결재/검토완료</button>
+          </>
+        ) : (
+          <button className="ec-btn" onClick={() => void deleteSelected()}>선택삭제</button>
+        )}
         <button className="ec-btn" onClick={() => void changeLabelSelected()}>라벨변경</button>
         {bottomActions.map((a) => {
           const onClick = a.includes('Excel') || a.includes('엑셀') ? () => { void doExcel() }
