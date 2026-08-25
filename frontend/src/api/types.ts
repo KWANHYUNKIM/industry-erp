@@ -473,6 +473,10 @@ export interface WorkJournal {
   authorName: string
   department: string | null
   partnerName: string | null
+  /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다 */
+  partnerId: number | null
+  projectId: number | null
+  projectName: string | null
   title: string
   content: string
 }

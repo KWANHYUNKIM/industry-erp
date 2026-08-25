@@ -9,6 +9,7 @@ import java.util.List;
 public interface WorkJournalRepository extends JpaRepository<WorkJournal, Long> {
 
     @Query("select j from WorkJournal j join fetch j.author " +
+            "left join fetch j.partner left join fetch j.project " +
             "order by j.reportDate desc, j.id desc")
     List<WorkJournal> findAllWithRefs();
 }

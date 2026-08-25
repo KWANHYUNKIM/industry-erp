@@ -9,6 +9,7 @@ import com.erp.groupware.dto.WorkJournalDtos.WorkJournalResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.auth.repository.UserRepository;
 import com.erp.groupware.repository.WorkJournalRepository;
+import com.erp.inventory.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,8 @@ public class WorkJournalService {
     private final WorkJournalRepository workJournalRepository;
     private final UserRepository userRepository;
     private final BusinessPartnerRepository partnerRepository;
+    // 프로젝트는 inventory 가 소유한다. 리포지토리를 직접 주입하지 않고 그 모듈의 서비스를 거친다.
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
@@ -43,6 +46,7 @@ public class WorkJournalService {
                 .department(req.department() != null ? req.department() : author.getDepartment())
                 .partnerName(req.partnerName())
                 .partner(matchPartner(req.partnerName()))
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .title(req.title())
                 .content(req.content())
                 .build();

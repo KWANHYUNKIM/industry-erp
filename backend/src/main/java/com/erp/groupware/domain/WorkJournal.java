@@ -6,6 +6,7 @@ import lombok.*;
 import java.time.LocalDate;
 import com.erp.auth.domain.User;
 import com.erp.common.BaseTimeEntity;
+import com.erp.inventory.domain.Project;
 import com.erp.trade.domain.BusinessPartner;
 
 /**
@@ -44,6 +45,11 @@ public class WorkJournal extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
+
+    /** 프로젝트. 원본 업무일지 조회 조건에 있다 — 어느 프로젝트 일인지로 일지를 찾는다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 
     @Column(nullable = false, length = 200)
     private String title;

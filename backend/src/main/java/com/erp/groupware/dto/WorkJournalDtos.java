@@ -13,6 +13,7 @@ public final class WorkJournalDtos {
             LocalDate reportDate,
             String department,
             String partnerName,
+            Long projectId,
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content
     ) {}
@@ -24,6 +25,7 @@ public final class WorkJournalDtos {
             String department, String partnerName,
             /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다(아니면 null) */
             Long partnerId,
+            Long projectId, String projectName,
             String title, String content
     ) {
         public static WorkJournalResponse from(WorkJournal j) {
@@ -32,6 +34,8 @@ public final class WorkJournalDtos {
                     j.getAuthor().getId(), j.getAuthor().getName(),
                     j.getDepartment(), j.getPartnerName(),
                     j.getPartner() != null ? j.getPartner().getId() : null,
+                    j.getProject() != null ? j.getProject().getId() : null,
+                    j.getProject() != null ? j.getProject().getName() : null,
                     j.getTitle(), j.getContent());
         }
     }

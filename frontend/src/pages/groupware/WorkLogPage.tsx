@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { WorkJournal } from '../../api/types'
+import type { Project, WorkJournal } from '../../api/types'
 
 const TITLE = '업무일지'
 
@@ -19,7 +20,7 @@ export default function WorkLogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ reportDate: today(), department: '', partnerName: '', title: '', content: '' })
+  const [form, setForm] = useState({ reportDate: today(), department: '', projectId: '', partnerName: '', title: '', content: '' })
 
   // 표 내보내기/인쇄/검색 직접 배선
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -27,15 +28,16 @@ export default function WorkLogPage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
 
   /*
    * 조회 조건. 원본 업무일지는 목록이 아니라 **조건 화면**이고, [검색(F8)] 을 눌러야 결과가 나온다.
-   * 조건은 업무보고일(기간) · 요일 · 부서 · 거래처 · 제목 · 내용 · 최초작성자다.
+   * 조건은 업무보고일(기간) · 요일 · 부서 · 프로젝트 · 거래처 · 제목 · 내용 · 최초작성자다.
    * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
    */
   const [cond, setCond] = useState(() => {
     const m = periodOf('금월')!
-    return { from: m.from, to: m.to, dow: '', department: '', partnerName: '', title: '', content: '', author: '' }
+    return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
   })
   const setC = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
 
@@ -46,6 +48,7 @@ export default function WorkLogPage() {
     && (!cond.to || r.reportDate <= cond.to)
     && (!cond.dow || dow(r.reportDate) === cond.dow)
     && has(r.department, cond.department)
+    && (!cond.projectId || String(r.projectId ?? '') === cond.projectId)
     && has(r.partnerName, cond.partnerName)
     && has(r.title, cond.title)
     && has(r.content, cond.content)
@@ -98,6 +101,10 @@ export default function WorkLogPage() {
 
   useEffect(() => { load() }, [])
 
+  useEffect(() => {
+    api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
+  }, [])
+
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
   async function submit() {
@@ -108,11 +115,12 @@ export default function WorkLogPage() {
       await api.post('/work-journals', {
         reportDate: form.reportDate,
         department: form.department || undefined,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
         partnerName: form.partnerName || undefined,
         title: form.title,
         content: form.content,
       })
-      setForm({ reportDate: today(), department: '', partnerName: '', title: '', content: '' })
+      setForm({ reportDate: today(), department: '', projectId: '', partnerName: '', title: '', content: '' })
       setShowForm(false)
       load()
     } catch (err) {
@@ -171,8 +179,14 @@ export default function WorkLogPage() {
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>
               <tr>
+                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <td>
+                  <CodePickerField label="프로젝트" hideLabel width={200} value={form.projectId}
+                                   onChange={(v) => set('projectId', v)}
+                                   items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+                </td>
                 <th style={{ background: '#f5f7fa' }}>거래처</th>
-                <td colSpan={3}><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 320 }} /></td>
+                <td><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 200 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>제목 *</th>
@@ -192,7 +206,7 @@ export default function WorkLogPage() {
       )}</Modal>
 
       {/*
-        원본 조회 조건 — 업무보고일(기간) · 요일 · 부서 · 거래처 · 제목 · 내용 · 최초작성자.
+        원본 조회 조건 — 업무보고일(기간) · 요일 · 부서 · 프로젝트 · 거래처 · 제목 · 내용 · 최초작성자.
         그 아래에 [검색(F8)] 과 기간 빠른선택 버튼줄이 붙는다.
       */}
       <ul className="ec-form" style={{ marginBottom: 8 }}>
@@ -218,6 +232,14 @@ export default function WorkLogPage() {
           <div className="form"><input className="ec-input" value={cond.department} onChange={(e) => setC('department', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
         <li>
+          <div className="title">프로젝트</div>
+          <div className="form">
+            <CodePickerField label="프로젝트" hideLabel fill value={cond.projectId}
+                             onChange={(v) => setC('projectId', v)}
+                             items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+          </div>
+        </li>
+        <li>
           <div className="title">거래처</div>
           <div className="form"><input className="ec-input" value={cond.partnerName} onChange={(e) => setC('partnerName', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
@@ -241,7 +263,7 @@ export default function WorkLogPage() {
         <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
         <button
           className="ec-btn"
-          onClick={() => setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', partnerName: '', title: '', content: '', author: '' })}
+          onClick={() => setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })}
         >
           다시 작성
         </button>
@@ -255,6 +277,7 @@ export default function WorkLogPage() {
               <th>업무보고일 ▼</th>
               <th style={{ width: 44, textAlign: 'center' }}>요일</th>
               <th>부서</th>
+              <th>프로젝트</th>
               <th>거래처</th>
               <th>제목</th>
               <th>작성자</th>
@@ -262,15 +285,16 @@ export default function WorkLogPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작성된 업무일지가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작성된 업무일지가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.reportDate}</td>
                 <td style={{ textAlign: 'center' }}>{dow(r.reportDate)}</td>
                 <td>{r.department ?? ''}</td>
+                <td>{r.projectName ?? ''}</td>
                 <td>{r.partnerName ?? ''}</td>
                 <td>{r.title}</td>
                 <td>{r.authorName}</td>
