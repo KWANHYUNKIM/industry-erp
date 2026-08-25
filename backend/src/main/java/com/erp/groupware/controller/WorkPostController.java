@@ -30,7 +30,9 @@ public class WorkPostController {
     public ResponseEntity<WorkPostResponse> create(
             @Valid @RequestBody CreateWorkPostRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(workPostService.create(req, principal.getName()));
+        // work_posts.writer 는 users(username) 을 참조하는 FK 다(V96).
+        // 여기서 표시 이름(principal.getName())을 넘기고 있어서 **글을 쓸 때마다 FK 위반으로 500** 이 났다.
+        return ResponseEntity.ok(workPostService.create(req, principal.getUsername()));
     }
 
     @PatchMapping("/{id}/status")

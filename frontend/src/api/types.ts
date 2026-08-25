@@ -1141,7 +1141,10 @@ export interface WorkPost {
   postDate: string
   title: string
   content: string
+  /** 작성자 로그인 아이디 (users.username FK) */
   writer: string
+  /** 작성자 표시 이름. 화면은 이걸 쓴다 — writer 는 아이디라 사람이 읽기 나쁘다. */
+  writerName: string
   forwardTo: string | null
   status: WorkPostStatus
   statusName: string

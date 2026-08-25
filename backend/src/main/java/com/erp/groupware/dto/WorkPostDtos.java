@@ -23,13 +23,18 @@ public final class WorkPostDtos {
 
     public record WorkPostResponse(
             Long id, int postNo, LocalDate postDate,
-            String title, String content, String writer, String forwardTo,
+            String title, String content,
+            /** 작성자 로그인 아이디 (users.username FK) */
+            String writer,
+            /** 작성자 표시 이름. 화면은 이걸 보여 준다 — writer 는 아이디라 사람이 읽기 나쁘다. */
+            String writerName,
+            String forwardTo,
             WorkPostStatus status, String statusName
     ) {
-        public static WorkPostResponse from(WorkPost p) {
+        public static WorkPostResponse from(WorkPost p, String writerName) {
             return new WorkPostResponse(
                     p.getId(), p.getPostNo(), p.getPostDate(),
-                    p.getTitle(), p.getContent(), p.getWriter(), p.getForwardTo(),
+                    p.getTitle(), p.getContent(), p.getWriter(), writerName, p.getForwardTo(),
                     p.getStatus(), p.getStatus().getDisplayName());
         }
     }

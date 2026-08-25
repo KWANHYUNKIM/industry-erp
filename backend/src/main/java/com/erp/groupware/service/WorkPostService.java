@@ -1,5 +1,7 @@
 package com.erp.groupware.service;
 
+import com.erp.auth.domain.User;
+import com.erp.auth.repository.UserRepository;
 import com.erp.common.ApiException;
 import com.erp.groupware.domain.WorkPost;
 import com.erp.groupware.domain.WorkPostStatus;
@@ -20,11 +22,19 @@ import com.erp.groupware.dto.WorkPostDtos;
 public class WorkPostService {
 
     private final WorkPostRepository workPostRepository;
+    // writer 는 로그인 아이디다(FK). 화면에는 사람 이름을 보여야 하므로 여기서 옮긴다.
+    private final UserRepository userRepository;
+
+    /** 로그인 아이디 → 표시 이름. 계정이 지워졌으면 아이디를 그대로 보여 준다. */
+    private String displayName(String username) {
+        if (username == null) return null;
+        return userRepository.findByUsername(username).map(User::getName).orElse(username);
+    }
 
     @Transactional(readOnly = true)
     public List<WorkPostResponse> findAll() {
         return workPostRepository.findAllOrdered().stream()
-                .map(WorkPostResponse::from)
+                .map((post) -> WorkPostResponse.from(post, displayName(post.getWriter())))
                 .toList();
     }
 
@@ -39,7 +49,7 @@ public class WorkPostService {
                 .forwardTo(req.forwardTo())
                 .status(WorkPostStatus.IN_PROGRESS)
                 .build();
-        return WorkPostResponse.from(workPostRepository.save(post));
+        return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
 
     @Transactional
@@ -48,7 +58,7 @@ public class WorkPostService {
         WorkPostStatus target = req.status() != null ? req.status()
                 : (post.getStatus() == WorkPostStatus.DONE ? WorkPostStatus.IN_PROGRESS : WorkPostStatus.DONE);
         post.setStatus(target);
-        return WorkPostResponse.from(post);
+        return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
 
     @Transactional
