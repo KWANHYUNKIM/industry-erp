@@ -1,86 +1,263 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import type { SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
-/** 회계 > 월별이익현황 (실제 연동: /api/profit/monthly) */
-interface Row {
-  month: string
-  revenue: number
-  cost: number
-  profit: number
-  marginRate: number
-}
+/**
+ * 이익관리 > 월별이익현황
+ *
+ * 일별이익현황과 <b>같은 결함</b>이 있었다 — `/api/profit/monthly` 는 그 달의 <b>매입액</b>을
+ * 원가로 놓는다. 자재를 몰아 사들인 달은 잘 팔았어도 적자로 찍힌다.
+ * 이익은 판 물건의 원가로 재야 한다: 이익 = 판매액 − (판매수량 × 원가단가).
+ *
+ * 원가 기준은 일별이익현황(C000140)에서 <b>실측한</b> 것을 그대로 쓴다.
+ * 이 화면 자체의 조건 판은 원본 세션이 끊겨 실측하지 못했다 — 나중에 다시 열어 대조해야 한다.
+ * 지금 고치는 것은 조건 판의 모양이 아니라 <b>이익의 정의</b>라서 실측 없이도 맞다.
+ */
+type Mode = '월별' | '품목별' | '거래처별'
+type Basis = '월별원가' | '최종구매가' | '품목단가'
 
-const nowYear = () => new Date().getFullYear()
+interface CostRow { itemId: number; period: string; standardTotal: number }
+interface PurchaseLite { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }
+
+const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
+const num = (n: number) => n.toLocaleString()
+const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 1000) / 10)
+const nowYear = () => Number(ymd(new Date()).slice(0, 4))
 
 export default function MonthlyProfitPage() {
-  const [rows, setRows] = useState<Row[]>([])
-  const [year, setYear] = useState(nowYear())
-  const [keyword, setKeyword] = useState('')
+  const [sales, setSales] = useState<SalesDoc[]>([])
+  const [costs, setCosts] = useState<CostRow[]>([])
+  const [purchases, setPurchases] = useState<PurchaseLite[]>([])
+  const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function load() {
-    setLoading(true)
-    try {
-      const res = await api.get<Row[]>('/profit/monthly', { params: { year } })
-      setRows(res.data)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [year])
+  const [year, setYear] = useState(nowYear())
+  const [mode, setMode] = useState<Mode>('월별')
+  const [basis, setBasis] = useState<Basis>('품목단가')
+  const [withVat, setWithVat] = useState(false)
 
-  const shown = rows.filter((r) => !keyword || r.month.includes(keyword))
-  const total = useMemo(() => shown.reduce((s, r) => s + r.profit, 0), [shown])
+  function load() {
+    setLoading(true)
+    setError('')
+    Promise.all([
+      api.get<SalesDoc[]>('/sales'),
+      api.get<CostRow[]>('/costs'),
+      api.get<PurchaseLite[]>('/purchases'),
+      api.get<{ id: number; unitPrice: number }[]>('/items'),
+    ])
+      .then(([s, c, p, i]) => {
+        setSales(s.data); setCosts(c.data); setPurchases(p.data)
+        setUnitPrices(new Map(i.data.map((it) => [it.id, it.unitPrice])))
+      })
+      .catch((err) => setError(extractErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const costByItemPeriod = useMemo(
+    () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
+
+  const lastPurchasePrice = useMemo(() => {
+    const m = new Map<number, { date: string; price: number }>()
+    purchases.forEach((d) => d.lines.forEach((l) => {
+      const cur = m.get(l.itemId)
+      if (!cur || d.purchaseDate >= cur.date) m.set(l.itemId, { date: d.purchaseDate, price: l.unitPrice })
+    }))
+    return m
+  }, [purchases])
+
+  /** 원가단가. 못 찾으면 null — 0 으로 채우면 이익이 매출 전액이 돼 버린다. */
+  const costPrice = (itemId: number, saleDate: string): number | null => {
+    if (basis === '월별원가') return costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null
+    if (basis === '최종구매가') return lastPurchasePrice.get(itemId)?.price ?? null
+    return unitPrices.get(itemId) ?? null
+  }
+
+  const lines = useMemo(() => sales
+    .filter((d) => d.saleDate.slice(0, 4) === String(year))
+    .flatMap((d) => d.lines.map((l) => {
+      const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
+      const price = costPrice(l.itemId, d.saleDate)
+      const cost = price === null ? null : price * l.quantity
+      return {
+        month: d.saleDate.slice(0, 7),
+        partnerId: d.partnerId, partnerName: d.partnerName,
+        itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName,
+        quantity: l.quantity, revenue, cost,
+        profit: cost === null ? null : revenue - cost,
+      }
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, year, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+
+  const rows = useMemo(() => {
+    const keyOf = (l: typeof lines[number]) =>
+      mode === '월별' ? l.month : mode === '품목별' ? String(l.itemId) : String(l.partnerId)
+    const labelOf = (l: typeof lines[number]) =>
+      mode === '월별' ? [`${Number(l.month.slice(5))}월`, '']
+        : mode === '품목별' ? [l.itemCode, l.itemName]
+          : [l.partnerName, '']
+
+    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number }>()
+    lines.forEach((l) => {
+      const k = keyOf(l)
+      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, count: 0 }
+      g.qty += l.quantity
+      g.revenue += l.revenue
+      // 한 줄이라도 원가를 모르면 그 묶음의 원가·이익은 알 수 없다.
+      if (l.cost === null || g.cost === null) { g.cost = null; g.profit = null }
+      else { g.cost += l.cost; g.profit = (g.profit ?? 0) + (l.profit ?? 0) }
+      g.count += 1
+      m.set(k, g)
+    })
+    return [...m.values()].sort((a, b) => (mode === '월별' ? (a.key < b.key ? -1 : 1) : b.revenue - a.revenue))
+  }, [lines, mode])
+
+  const known = lines.filter((l) => l.cost !== null)
+  const totals = {
+    revenue: lines.reduce((n, l) => n + l.revenue, 0),
+    knownRevenue: known.reduce((n, l) => n + l.revenue, 0),
+    cost: known.reduce((n, l) => n + (l.cost ?? 0), 0),
+    profit: known.reduce((n, l) => n + (l.profit ?? 0), 0),
+    qty: lines.reduce((n, l) => n + l.quantity, 0),
+  }
+  const unknownCost = lines.length - known.length
+  const allUnknown = lines.length > 0 && known.length === 0
+
   const years = [nowYear(), nowYear() - 1, nowYear() - 2]
+  const heads = mode === '품목별' ? ['품목코드', '품목명'] : [mode === '월별' ? '월' : '거래처']
+  const colCount = 1 + heads.length + 1 + 4
 
   return (
-    <EcListShell title="월별이익현황" search={keyword} onSearchChange={setKeyword}
-      newLabel="새로고침" onNew={load} actions={[{ label: 'Excel' }]}>
+    <EcListShell
+      title="월별이익현황"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>연도</span>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          이익합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
-        </span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</span>
+        <div className="ec-pills">
+          {(['월별', '품목별', '거래처별'] as const).map((m) => (
+            <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                    onClick={() => setMode(m)}>{m}</button>
+          ))}
+        </div>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>판매액</span>
+        <div className="ec-pills">
+          {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
+            <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
+                    onClick={() => setWithVat(v)}>{label}</button>
+          ))}
+        </div>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>원가</span>
+        <div className="ec-pills">
+          {(['월별원가', '최종구매가', '품목단가'] as const).map((b) => (
+            <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                    onClick={() => setBasis(b)}>{b}</button>
+          ))}
+        </div>
       </div>
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th>월</th>
-            <th style={{ textAlign: 'right' }}>매출액</th>
-            <th style={{ textAlign: 'right' }}>매입액</th>
-            <th style={{ textAlign: 'right' }}>이익</th>
-            <th style={{ textAlign: 'right' }}>이익률(%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => {
-            const color = r.profit > 0 ? '#1c7c3c' : r.profit < 0 ? '#c60a2e' : undefined
-            return (
-              <tr key={r.month}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.month}</td>
-                <td style={{ textAlign: 'right' }}>{r.revenue.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{r.cost.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color }}>{r.profit.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color }}>{r.marginRate}</td>
+
+      {unknownCost > 0 && (
+        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          <b>{num(unknownCost)}</b>개 라인의 {basis} 를 찾지 못했습니다. 그 줄의 원가·이익은 <b>'—'</b> 로 두고
+          합계에서도 뺐습니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.
+        </p>
+      )}
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        판매액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.revenue)}</b>
+        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        원가 <b style={{ color: allUnknown ? '#c9ced6' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
+        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        이익 <b style={{ color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+          {allUnknown ? '—' : won(totals.profit)}
+        </b>
+        {!allUnknown && <span style={{ color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}></th>
+              {heads.map((h) => <th key={h}>{h}</th>)}
+              <th style={{ textAlign: 'right', width: 70 }}>건수</th>
+              <th style={{ textAlign: 'right', width: 90 }}>수량</th>
+              <th style={{ textAlign: 'right', width: 130 }}>판매액</th>
+              <th style={{ textAlign: 'right', width: 130 }}>원가</th>
+              <th style={{ textAlign: 'right', width: 140 }}>이익 (이익률)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            ) : rows.map((r, i) => {
+              const color = r.profit === null ? '#c9ced6' : r.profit > 0 ? '#1c7c3c' : r.profit < 0 ? '#c60a2e' : undefined
+              return (
+                <tr key={r.key}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  {heads.map((h, hi) => (
+                    <td key={h} style={hi === 0 && mode === '품목별' ? { fontFamily: 'monospace' } : undefined}>
+                      {r.label[hi]}
+                    </td>
+                  ))}
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.count)}</td>
+                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.revenue)}</td>
+                  <td style={{ textAlign: 'right', color: r.cost === null ? '#c9ced6' : '#a5561b' }}>
+                    {r.cost === null ? '—' : won(r.cost)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color }}>
+                    {r.profit === null ? '—' : (
+                      <>
+                        {won(r.profit)}
+                        <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(r.profit, r.revenue)}%)</span>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={colCount - 4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.qty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#a5561b' }}>
+                  {allUnknown ? '—' : won(totals.cost)}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                  {allUnknown ? '—' : (
+                    <>
+                      {won(totals.profit)}
+                      <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>
+                    </>
+                  )}
+                </td>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </EcListShell>
   )
 }

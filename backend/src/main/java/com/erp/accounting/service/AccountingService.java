@@ -5,7 +5,6 @@ import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
 import com.erp.accounting.dto.AccountingDtos.ItemProfitResponse;
-import com.erp.accounting.dto.AccountingDtos.MonthlyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.ProfitSummaryResponse;
 import com.erp.accounting.dto.AccountingDtos.VatSummaryResponse;
 import com.erp.production.repository.BomRepository;
@@ -94,37 +93,6 @@ public class AccountingService {
     }
 
     // ===== 이익현황 (매출 - 매입, 공급가 기준) =====
-
-    /** 월별 이익현황 (연도별). revenue=매출 공급가, cost=매입 공급가 */
-    @Transactional(readOnly = true)
-    public List<MonthlyProfitResponse> monthlyProfit(int year) {
-        LocalDate from = LocalDate.of(year, 1, 1);
-        LocalDate to = LocalDate.of(year, 12, 31);
-
-        Map<String, BigDecimal> revenueByMonth = new TreeMap<>();
-        Map<String, BigDecimal> costByMonth = new TreeMap<>();
-        for (Sales s : salesRepository.findBySaleDateBetween(from, to)) {
-            String key = String.format("%d-%02d", year, s.getSaleDate().getMonthValue());
-            revenueByMonth.merge(key, nz(s.getSupplyAmount()), BigDecimal::add);
-        }
-        for (Purchase p : purchaseRepository.findByPurchaseDateBetween(from, to)) {
-            String key = String.format("%d-%02d", year, p.getPurchaseDate().getMonthValue());
-            costByMonth.merge(key, nz(p.getSupplyAmount()), BigDecimal::add);
-        }
-
-        Set<String> months = new TreeSet<>();
-        months.addAll(revenueByMonth.keySet());
-        months.addAll(costByMonth.keySet());
-
-        List<MonthlyProfitResponse> result = new ArrayList<>();
-        for (String month : months) {
-            BigDecimal revenue = revenueByMonth.getOrDefault(month, BigDecimal.ZERO);
-            BigDecimal cost = costByMonth.getOrDefault(month, BigDecimal.ZERO);
-            BigDecimal profit = revenue.subtract(cost);
-            result.add(new MonthlyProfitResponse(month, revenue, cost, profit, marginRate(profit, revenue)));
-        }
-        return result;
-    }
 
     private static BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
