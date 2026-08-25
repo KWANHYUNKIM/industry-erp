@@ -22,7 +22,9 @@ public final class ItemDtos {
             @NotNull @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
             String barcode,
             /** 의료기기 표준코드(UDI-DI). 있으면 의료기기공급내역보고 대상. */
-            String udiDi
+            String udiDi,
+            /** 관리항목 (선택). 전표 라인에는 이 값이 읽기전용으로 따라 붙는다. */
+            Long managementItemId
     ) {}
 
     public record UpdateItemRequest(
@@ -34,6 +36,7 @@ public final class ItemDtos {
             @NotNull @PositiveOrZero BigDecimal safetyStock,
             String barcode,
             String udiDi,
+            Long managementItemId,
             Boolean active
     ) {}
 
@@ -49,6 +52,8 @@ public final class ItemDtos {
             BigDecimal safetyStock,
             String barcode,
             String udiDi,
+            Long managementItemId,
+            String managementItemName,
             boolean active
     ) {
         public static ItemResponse from(Item item) {
@@ -64,6 +69,8 @@ public final class ItemDtos {
                     item.getSafetyStock(),
                     item.getBarcode(),
                     item.getUdiDi(),
+                    item.getManagementItem() == null ? null : item.getManagementItem().getId(),
+                    item.getManagementItem() == null ? null : item.getManagementItem().getName(),
                     item.isActive()
             );
         }

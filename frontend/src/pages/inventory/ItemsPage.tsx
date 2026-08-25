@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, Item } from '../../api/types'
+import type { CodeOption, Item, ManagementItem } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 
 const inputCls = 'ec-input w-full'
 
@@ -16,11 +17,13 @@ const emptyForm = {
   safetyStock: '0',
   barcode: '',
   udiDi: '',
+  managementItemId: '',
 }
 
 export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([])
   const [categories, setCategories] = useState<CodeOption[]>([])
+  const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -30,12 +33,14 @@ export default function ItemsPage() {
   async function load() {
     setLoading(true)
     try {
-      const [i, c] = await Promise.all([
+      const [i, c, m] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<CodeOption[]>('/meta/item-categories'),
+        api.get<ManagementItem[]>('/management-items'),
       ])
       setItems(i.data)
       setCategories(c.data)
+      setMgmtItems(m.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -65,6 +70,7 @@ export default function ItemsPage() {
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
       udiDi: item.udiDi ?? '',
+      managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
     })
     setShowForm(true)
   }
@@ -80,6 +86,7 @@ export default function ItemsPage() {
       ...form,
       unitPrice: Number(form.unitPrice),
       safetyStock: Number(form.safetyStock),
+      managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
     }
     try {
       if (editId) {
@@ -194,6 +201,14 @@ export default function ItemsPage() {
               <input className={inputCls} value={form.udiDi} onChange={(e) => set('udiDi', e.target.value)}
                      placeholder="의료기기만 입력 (공급내역보고 대상)" />
             </div>
+            {/* 원본 품목등록 A7 탭의 [관리항목]. 전표 라인에는 여기 값이 읽기전용으로 따라 붙는다. */}
+            <div>
+              <CodePickerField
+                label="관리항목" placeholder="관리항목 선택" emptyLabel="선택 해제"
+                value={form.managementItemId} onChange={(v) => set('managementItemId', v)}
+                items={mgmtItems.map((m) => ({ value: String(m.id), code: m.code, name: m.name, sub: m.description }))}
+              />
+            </div>
           </div>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
@@ -220,15 +235,16 @@ export default function ItemsPage() {
               <th>품목구분 ▼</th>
               <th style={{ textAlign: 'right' }}>단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
+              <th>관리항목</th>
               <th>사용 ▼</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
@@ -243,6 +259,7 @@ export default function ItemsPage() {
                   <td>[{it.categoryName}]</td>
                   <td style={{ textAlign: 'right' }}>{it.unitPrice.toLocaleString()}</td>
                   <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString()}</td>
+                  <td>{it.managementItemName ?? ''}</td>
                   <td>{it.active ? 'YES' : 'NO'}</td>
                   <td>
                     <button onClick={() => openEdit(it)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>

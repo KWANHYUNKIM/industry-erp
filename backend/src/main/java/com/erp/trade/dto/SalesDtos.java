@@ -3,6 +3,7 @@ package com.erp.trade.dto;
 import com.erp.trade.domain.Sales;
 import com.erp.trade.domain.SalesConfirmStatus;
 import com.erp.trade.domain.SalesLine;
+import com.erp.trade.domain.SalesOrder;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +22,13 @@ public final class SalesDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @NotNull @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
-            String remark
+            String remark,
+            /** 시리얼/로트 번호 (선택) */
+            String lotNo,
+            /** 부대비용 (선택). 합계에는 더하지 않는다. */
+            BigDecimal extraCost,
+            /** 이 줄을 담아 온 근거전표(수주) id. 직접 입력한 줄은 null. */
+            Long sourceOrderId
     ) {}
 
     public record CreateSalesRequest(
@@ -35,19 +42,28 @@ public final class SalesDtos {
             Long projectId,
             /** 담당 사원 (선택). 입력 계정(createdBy)이 아니라 실적이 붙을 사람이다. */
             Long employeeId,
+            /** 거래별부가세계산 — 전표 합계에 한 번 반올림한다. 비우면 라인별 반올림(기존 동작). */
+            Boolean vatBySlip,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<SalesLineRequest> lines
     ) {}
 
     public record SalesLineResponse(
             Long itemId, String itemCode, String itemName, String unit, String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
-            String remark
+            String remark, String lotNo, BigDecimal extraCost,
+            /** 불러온 전표 — 원본 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열. 없으면 전부 null. */
+            Long sourceOrderId, String sourceDocType, LocalDate sourceDocDate, String sourceDocNo
     ) {
         static SalesLineResponse from(SalesLine l) {
+            SalesOrder src = l.getSourceOrder();
             return new SalesLineResponse(
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
-                    l.getRemark());
+                    l.getRemark(), l.getLotNo(), l.getExtraCost(),
+                    src == null ? null : src.getId(),
+                    src == null ? null : "주문서",
+                    src == null ? null : src.getOrderDate(),
+                    src == null ? null : src.getOrderNo());
         }
     }
 
@@ -67,6 +83,8 @@ public final class SalesDtos {
             String remark, String createdBy,
             SalesConfirmStatus confirmStatus, String confirmStatusName, LocalDateTime confirmedAt,
             boolean accountingReflected,
+            /** 부가세를 전표 단위로 계산한 전표인가 (거래별부가세계산) */
+            boolean vatBySlip,
             Long projectId, String projectName,
             Long employeeId, String employeeName,
             List<SalesLineResponse> lines
@@ -81,6 +99,7 @@ public final class SalesDtos {
                     s.getRemark(), s.getCreatedBy(),
                     s.getConfirmStatus(), s.getConfirmStatus().getDisplayName(), s.getConfirmedAt(),
                     s.isAccountingReflected(),
+                    s.isVatBySlip(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getId() : null,

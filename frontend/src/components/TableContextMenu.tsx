@@ -474,8 +474,10 @@ export default function TableContextMenu({
     // 메뉴가 길면 메뉴 안에서 스크롤이 일어난다. 그것까지 '화면이 움직였다'로 보면
     // 휠을 굴리는 순간 메뉴가 닫혀 아래쪽 항목을 고를 수 없다. 메뉴 안 스크롤은 넘어간다.
     const onScroll = (e: Event) => {
-      const target = e.target as Node | null
-      if (target && menuRef.current?.contains(target)) return
+      // target 은 Node 가 아닐 수 있다(window 에서 올라온 scroll). contains 에 그대로 넣으면 예외가 나고
+      // 그러면 메뉴가 영영 안 닫힌다.
+      const target = e.target
+      if (target instanceof Node && menuRef.current?.contains(target)) return
       close()
     }
     window.addEventListener('mousedown', close)

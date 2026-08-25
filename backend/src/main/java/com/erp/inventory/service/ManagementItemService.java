@@ -28,6 +28,13 @@ public class ManagementItemService {
                 .toList();
     }
 
+    /** 다른 서비스가 관리항목 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public ManagementItem get(Long id) {
+        return managementItemRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("관리항목을 찾을 수 없습니다. id=" + id));
+    }
+
     @Transactional
     public ManagementItemResponse create(CreateManagementItemRequest req) {
         String code = StringUtils.hasText(req.code()) ? req.code().trim() : generateCode();

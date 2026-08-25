@@ -246,6 +246,30 @@ async function scenarioRelations(f) {
   })
   isNull('마스터에 없는 자유입력 공정 → processId 는 null', wrFree.processId)
   eq('자유입력 공정명은 보존', wrFree.process, `${P}임시수작업`)
+
+  // 관리항목 — 이카운트 품목등록 A7 탭의 `item_type`. 전표 라인에는 읽기전용으로 따라 붙는다.
+  // 오래도록 아무 테이블도 참조하지 않는 죽은 마스터였다(FK 0개). 그 회귀를 막는 단언이다.
+  const mgmt = await ensure('/management-items', 'code', `${P}MG`, null, {
+    code: `${P}MG`, name: 'QA관리항목', description: 'QA 전용',
+  })
+  const tagged = await must('PUT', `/items/${f.material.id}`, {
+    name: f.material.name, spec: f.material.spec, unit: f.material.unit,
+    category: f.material.category, unitPrice: f.material.unitPrice,
+    safetyStock: f.material.safetyStock, barcode: f.material.barcode,
+    udiDi: f.material.udiDi, managementItemId: mgmt.id, active: true,
+  })
+  eq('품목에 관리항목이 붙는다', tagged.managementItemId, mgmt.id)
+  eq('관리항목명이 함께 실린다', tagged.managementItemName, 'QA관리항목')
+  const reread = (await must('GET', '/items')).find((x) => x.id === f.material.id)
+  eq('다시 조회해도 관리항목이 유지된다', reread.managementItemName, 'QA관리항목')
+
+  const cleared = await must('PUT', `/items/${f.material.id}`, {
+    name: f.material.name, spec: f.material.spec, unit: f.material.unit,
+    category: f.material.category, unitPrice: f.material.unitPrice,
+    safetyStock: f.material.safetyStock, barcode: f.material.barcode,
+    udiDi: f.material.udiDi, managementItemId: null, active: true,
+  })
+  isNull('관리항목은 해제할 수 있다', cleared.managementItemId)
 }
 
 /** 설정이 실제로 영속되는지 */
@@ -351,6 +375,27 @@ async function scenarioPurchaseOrder(f) {
     { warehouseId: f.warehouse.id }, '이미')
   await rejects('입고된 발주는 취소 불가', 'POST', `/purchase-orders/${po.id}/cancel`, undefined, '취소할 수 없습니다')
 
+  // 입고전환으로 생긴 라인에는 근거전표(발주서)가 붙는다 — 판매·구매입력 그리드의 [불러온 전표] 3열.
+  eq('입고전표 라인에 근거 발주서가 실림', purchase.lines[0].sourceDocNo, po.orderNo)
+  eq('근거전표 종류는 발주서', purchase.lines[0].sourceDocType, '발주서')
+  eq('근거전표 일자도 실림', purchase.lines[0].sourceDocDate, '2026-07-14')
+  eq('근거전표 id 가 그 발주서를 가리킴', purchase.lines[0].sourceOrderId, po.id)
+
+  // 입고전표를 지우는 것이 곧 입고취소다(이카운트에도 별도 [입고취소] 버튼은 없다).
+  // 발주서의 입고 연결을 풀어 주지 않으면 FK 에 걸려 영영 못 지운다 — 그 회귀를 막는 단언이다.
+  await must('DELETE', `/purchases/${purchase.id}`)
+  const reverted = (await must('GET', '/purchase-orders')).find((x) => x.id === po.id)
+  eq('입고전표를 지우면 발주가 발주확정으로 돌아옴', reverted.statusName, '발주확정')
+  isNull('입고 연결(convertedPurchaseId)도 함께 풀림', reverted.convertedPurchaseId)
+  eq('입고전표 삭제로 재고도 원복', await stockOf(f.material.id), before)
+
+  // 이후 시나리오의 전제를 되돌린다(발주는 다시 입고된 상태여야 한다).
+  const purchase2 = await must('POST', `/purchase-orders/${po.id}/receive`, {
+    warehouseId: f.warehouse.id, purchaseDate: '2026-07-14',
+  })
+  eq('입고취소한 발주를 다시 입고전환할 수 있음', purchase2.docNo.startsWith('PO-'), true)
+  eq('재입고 후 재고가 다시 증가', await stockOf(f.material.id), before + 30)
+
   const dead = await must('POST', '/purchase-orders', {
     partnerId: f.supplier.id, orderDate: '2026-07-14', taxable: true,
     lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 900 }],
@@ -363,6 +408,37 @@ async function scenarioPurchaseOrder(f) {
     partnerId: f.customer.id, orderDate: '2026-07-14',
     lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 100 }],
   }, '매입처가 아닌')
+
+  // ── 거래별부가세계산 (이카운트 [거래별부가세계산] / calcbySlip) ──
+  // 라인마다 반올림하면 잔돈이 쌓인다. 공급가액 3,333 짜리 세 줄이 정확히 그 경우다.
+  const vatLines = [0, 1, 2].map(() => ({ itemId: f.material.id, quantity: 3, unitPrice: 1111 }))
+
+  const byLine = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14',
+    taxable: true, lines: vatLines,
+  })
+  eq('라인별 반올림: 공급가액 9,999', Number(byLine.supplyAmount), 9999)
+  eq('라인별 반올림: 부가세 999 (333 × 3)', Number(byLine.vatAmount), 999)
+  eq('기본은 라인별 계산', byLine.vatBySlip, false)
+
+  const bySlip = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14',
+    taxable: true, vatBySlip: true, lines: vatLines,
+  })
+  eq('거래별 반올림: 부가세 1,000 (round(9,999 × 0.1))', Number(bySlip.vatAmount), 1000)
+  eq('거래별 계산 전표로 표시됨', bySlip.vatBySlip, true)
+  eq('라인 부가세 합 = 전표 부가세',
+    bySlip.lines.reduce((sum, l) => sum + Number(l.vatAmount), 0), Number(bySlip.vatAmount))
+  eq('잔차 1원은 한 줄에만 몰린다', bySlip.lines.filter((l) => Number(l.vatAmount) === 334).length, 1)
+  eq('합계 = 공급가액 + 부가세', Number(bySlip.totalAmount), 10999)
+
+  // 저장하지 않으면 다시 열었을 때 조용히 라인별로 되돌아가 합계가 바뀐다 — 그 회귀를 막는 단언이다.
+  const reread = (await must('GET', '/purchases')).find((x) => x.id === bySlip.id)
+  eq('다시 조회해도 거래별 계산이 유지된다', reread.vatBySlip, true)
+  eq('다시 조회해도 부가세는 1,000', Number(reread.vatAmount), 1000)
+
+  await must('DELETE', `/purchases/${byLine.id}`)
+  await must('DELETE', `/purchases/${bySlip.id}`)
 }
 
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */

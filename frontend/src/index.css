@@ -176,3 +176,265 @@ main table,
 #root textarea {
   border-radius: 2px !important;
 }
+
+/* ============================================================
+   전표입력 화면 (이카운트 page-modal: header-fixed / contents / footer)
+   원본 클래스 대응 — .header .wrapper-title / .nav-tabs / .wrapper-form /
+   .wrapper-toolbar / .table-grid-input / .footer
+   ============================================================ */
+
+.ec-slip {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* 상단 고정 제목줄 (.header.header-fixed > .wrapper-title) */
+.ec-slip-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ec-border);
+  margin-bottom: 0;
+}
+.ec-slip-title .name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ec-text);
+}
+
+/* 임시저장 안내줄 (.wrapper-toolbar 의 tempSave 영역) */
+.ec-slip-tempbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: #fffbe6;
+  border: 1px solid #f0dfa0;
+  border-top: 0;
+  color: #7a5c00;
+}
+.ec-slip-tempbar a {
+  color: var(--ec-blue);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* 양식/연결전표 탭 (.nav.nav-tabs) */
+.ec-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 0;
+  border-bottom: 1px solid var(--ec-border);
+}
+.ec-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 25px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #5a626e;
+  background: #eef1f5;
+  border: 1px solid var(--ec-border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  cursor: pointer;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.ec-tab:hover {
+  background: #e3e8ef;
+}
+.ec-tab.active {
+  background: #fff;
+  color: var(--ec-blue);
+  font-weight: 700;
+  border-bottom: 1px solid #fff;
+}
+.ec-tab .caret {
+  font-size: 9px;
+  color: #8a929c;
+}
+.ec-tab-add {
+  padding: 0 8px;
+  color: #8a929c;
+}
+
+/* 헤더 항목 폼 (.wrapper-form: li > .title + .form) */
+.ec-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ec-border);
+  border-left: 1px solid var(--ec-border);
+  background: #fff;
+}
+.ec-form > li {
+  display: flex;
+  align-items: stretch;
+  border-right: 1px solid var(--ec-border);
+  border-bottom: 1px solid var(--ec-border);
+  min-height: 30px;
+}
+.ec-form > li > .title {
+  flex: 0 0 92px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  background: #f2f5f8;
+  border-right: 1px solid var(--ec-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a4453;
+  white-space: nowrap;
+}
+.ec-form > li > .title .req {
+  color: #c60a2e;
+  margin-left: 2px;
+}
+.ec-form > li > .form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+}
+/* 두 칸을 차지하는 항목(적요·장문 등) */
+.ec-form > li.wide {
+  grid-column: 1 / -1;
+}
+
+/* 코드도움 조합칸 (.control-set: [코드][🔍][명칭][×]) */
+.ec-code {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+.ec-code > .ec-input {
+  min-width: 0;
+}
+.ec-code > .ec-input:not(:first-child),
+.ec-code > .ec-btn:not(:first-child) {
+  margin-left: -1px;
+}
+.ec-code .code {
+  width: 92px;
+  flex: 0 0 92px;
+  font-family: ui-monospace, monospace;
+  background: #fff;
+  cursor: pointer;
+}
+.ec-code .name {
+  flex: 1;
+}
+.ec-code .ec-btn {
+  padding: 0 6px;
+}
+
+/* 연/월/일 3분할 일자칸 (.wrapper-datepicker) */
+.ec-date {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: #5a626e;
+}
+.ec-date select.ec-input {
+  padding: 0 2px;
+}
+
+/* 그리드 툴바 (.wrapper-toolbar.toolbar-collapse) */
+.ec-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 0;
+}
+.ec-btn-sm {
+  height: 23px;
+  padding: 0 7px;
+  font-size: 11.5px;
+}
+.ec-toolbar .sep {
+  width: 1px;
+  height: 15px;
+  background: var(--ec-border);
+  margin: 0 3px;
+}
+.ec-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: #3a4453;
+  white-space: nowrap;
+}
+
+/* 입력 그리드 (.table-grid-input) — 셀에 input 이 꽉 차게 */
+.ec-grid-input {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.ec-grid-input th {
+  background: #f2f5f8;
+  border: 1px solid var(--ec-border);
+  padding: 4px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #3a4453;
+  white-space: nowrap;
+}
+.ec-grid-input td {
+  border: 1px solid var(--ec-border);
+  padding: 0;
+  font-size: 12px;
+}
+.ec-grid-input td.pad {
+  padding: 3px 6px;
+}
+.ec-grid-input td > .cell {
+  width: 100%;
+  height: 24px;
+  border: 0;
+  outline: none;
+  padding: 0 5px;
+  font-size: 12px;
+  background: transparent;
+}
+.ec-grid-input td > .cell:focus {
+  background: #fffbe6;
+  box-shadow: inset 0 0 0 2px rgba(31, 72, 212, 0.35);
+}
+.ec-grid-input tfoot td {
+  background: #f7f9fb;
+  font-weight: 700;
+  padding: 4px 6px;
+}
+
+/* 하단 고정 버튼줄 (.footer) */
+.ec-slip-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ec-border);
+}
+/* 그룹버튼의 ▴ 화살표 (btn-arrow) */
+.ec-btn-arrow {
+  padding: 0 5px;
+  margin-left: -1px;
+}

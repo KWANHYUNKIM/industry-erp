@@ -42,4 +42,22 @@ public class PurchaseController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(purchaseService.create(req, principal.getUsername()));
     }
+
+    /** 구매입력의 '수정'. 재고를 되돌린 뒤 새 내용으로 다시 반영한다. */
+    @PutMapping("/{id}")
+    public PurchaseResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody CreatePurchaseRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return purchaseService.update(id, req, principal.getUsername());
+    }
+
+    /** 구매조회의 '삭제'. 입고분을 되돌린다. 회계반영·세금계산서 발행 전표는 거부. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        purchaseService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

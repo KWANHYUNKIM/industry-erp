@@ -25,7 +25,7 @@ export interface CodeItem {
 
 export default function CodePickerField({
   label, value, onChange, items, width = 170, placeholder = '전체', emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill,
+  hideLabel, multiple, values, onChangeMulti, fill, pair,
 }: {
   label: string
   /** 단일 선택 값. multiple 이면 쓰지 않는다. */
@@ -41,6 +41,12 @@ export default function CodePickerField({
   hideLabel?: boolean
   /** 표 셀 안처럼 남는 폭을 채워야 할 때(width 대신 100%). */
   fill?: boolean
+  /**
+   * 전표입력 화면의 코드칸 모양 — 원본 `.form-control-code` 조합을 그대로 낸다:
+   * `[코드][🔍][명칭][×]`. 목록 화면의 조회조건은 명칭 한 칸이면 되지만, 전표는
+   * 코드를 직접 쳐서 넣는 사용자가 있어 코드칸이 앞에 따로 있다.
+   */
+  pair?: boolean
   /** 다중 선택 — 원본의 tags-input 에 해당. values/onChangeMulti 와 함께 쓴다. */
   multiple?: boolean
   values?: string[]
@@ -89,6 +95,45 @@ export default function CodePickerField({
   return (
     <div style={{ fontSize: 12.5, width: fill ? "100%" : undefined }}>
       {!hideLabel && <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>}
+
+      {pair ? (
+        /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
+        <div className="ec-code">
+          <input
+            className="ec-input code"
+            readOnly
+            disabled={disabled}
+            value={selected?.code ?? ''}
+            placeholder={label}
+            onClick={() => !disabled && setOpen(true)}
+            style={{ background: disabled ? '#f4f5f7' : undefined, cursor: disabled ? 'default' : 'pointer' }}
+          />
+          <button
+            type="button"
+            className="ec-btn"
+            disabled={disabled}
+            onClick={() => setOpen(true)}
+            title={`${label} 코드도움`}
+          >
+            🔍
+          </button>
+          <input
+            className="ec-input name"
+            readOnly
+            disabled={disabled}
+            value={selected?.name ?? ''}
+            placeholder=""
+            onClick={() => !disabled && setOpen(true)}
+            title={selected ? `${selected.code ?? ''} ${selected.name}`.trim() : ''}
+            style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
+          />
+          {!!selected && !disabled && (
+            <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: '#c60a2e' }}>
+              ×
+            </button>
+          )}
+        </div>
+      ) : (
       <div style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
           className="ec-input"
@@ -123,6 +168,7 @@ export default function CodePickerField({
           </button>
         )}
       </div>
+      )}
 
       <Modal open={open} title={`${label} 선택`} width={520} onClose={() => setOpen(false)}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>

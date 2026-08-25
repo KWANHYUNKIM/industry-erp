@@ -14,10 +14,12 @@ import com.erp.trade.dto.SalesDtos.SalesDiscountRow;
 import com.erp.trade.dto.SalesDtos.SalesLineRequest;
 import com.erp.trade.dto.SalesDtos.SalesResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.trade.repository.MallOrderRepository;
+import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.trade.repository.SalesRepository;
-import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.trade.repository.TaxInvoiceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +30,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.erp.hr.service.EmployeeService;
+import com.erp.inventory.service.ItemService;
 import com.erp.inventory.service.ProjectService;
 import com.erp.inventory.service.StockService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.trade.dto.SalesDtos;
 
 @Service
@@ -43,10 +47,16 @@ public class SalesService {
 
     private final SalesRepository salesRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final WarehouseRepository warehouseRepository;
-    private final ItemRepository itemRepository;
+    // 다른 모듈(inventory)은 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
+    private final WarehouseService warehouseService;
+    private final ItemService itemService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    // 수정·삭제를 막아야 하는 후속 문서(같은 trade 모듈이라 직접 조회한다)
+    private final TaxInvoiceRepository taxInvoiceRepository;
+    // 명세 라인의 근거전표(수주). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
+    private final SalesOrderRepository salesOrderRepository;
+    private final MallOrderRepository mallOrderRepository;
 
     /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
     @Transactional
@@ -116,36 +126,123 @@ public class SalesService {
 
     @Transactional
     public SalesResponse create(CreateSalesRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
-        if (!partner.getType().canSell()) {
-            throw ApiException.badRequest("매출처가 아닌 거래처에는 판매할 수 없습니다: " + partner.getName());
-        }
-        Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
-                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
-
-        boolean taxable = req.taxable() == null || req.taxable();
         LocalDate saleDate = req.saleDate() != null ? req.saleDate() : LocalDate.now();
 
         Sales sales = Sales.builder()
                 .docNo(generateDocNo(saleDate))
-                .partner(partner)
-                .warehouse(warehouse)
+                .partner(resolvePartner(req.partnerId()))
+                .warehouse(warehouseService.get(req.warehouseId()))
                 .saleDate(saleDate)
                 .createdBy(username)
-                .remark(req.remark())
-                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
-                .employee(req.employeeId() != null ? employeeService.get(req.employeeId()) : null)
                 .build();
+
+        applyContent(sales, req, username);
+        return SalesResponse.from(salesRepository.save(sales));
+    }
+
+    /**
+     * 판매전표 수정. 재고에 이미 반영된 전표라서 <b>옛 라인을 재고에 되돌린 뒤 새 라인을 다시 반영</b>한다.
+     * 한 트랜잭션 안이므로 도중에 재고가 모자라면 전부 롤백된다.
+     *
+     * <p>전표번호는 바꾸지 않는다 — 이미 인쇄돼 나간 거래명세서와 어긋나기 때문이다.
+     */
+    @Transactional
+    public SalesResponse update(Long id, CreateSalesRequest req, String username) {
+        Sales sales = getSales(id);
+        ensureEditable(sales, "수정");
+
+        // 되돌리기는 반드시 '바꾸기 전' 창고·일자로 해야 한다. 창고를 옮기는 수정이면
+        // 옛 창고에 되돌리고 새 창고에서 빼야 재고가 맞는다.
+        revertStock(sales, "판매수정 원복", username);
+        sales.getLines().clear();
+
+        sales.setPartner(resolvePartner(req.partnerId()));
+        sales.setWarehouse(warehouseService.get(req.warehouseId()));
+        if (req.saleDate() != null) sales.setSaleDate(req.saleDate());
+
+        applyContent(sales, req, username);
+        return SalesResponse.from(sales);
+    }
+
+    /** 판매전표 삭제. 재고를 되돌린 뒤 지운다. */
+    @Transactional
+    public void delete(Long id, String username) {
+        Sales sales = getSales(id);
+        ensureEditable(sales, "삭제");
+
+        revertStock(sales, "판매삭제 원복", username);
+        salesRepository.delete(sales);
+        try {
+            // 다른 모듈(전자결재 첨부 전표)이 이 전표를 참조하고 있으면 여기서 FK 제약에 걸린다.
+            // trade 는 groupware 를 참조할 수 없으므로(CLAUDE.md 4.1) 직접 조회하지 않고
+            // 제약 위반을 400 으로 번역한다 — ProjectService.delete 와 같은 방식이다.
+            salesRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.badRequest("다른 문서(전자결재 등)가 참조 중이라 삭제할 수 없습니다: " + sales.getDocNo());
+        }
+    }
+
+    /** 수정·삭제해도 되는 전표인지. 되돌릴 수 없는 후속 처리가 붙었으면 막는다. */
+    private void ensureEditable(Sales s, String action) {
+        if (s.isAccountingReflected()) {
+            throw ApiException.badRequest("회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인된 전표는 " + action + "할 수 없습니다. 확인취소를 먼저 하세요: " + s.getDocNo());
+        }
+        if (taxInvoiceRepository.existsBySales_Id(s.getId())) {
+            throw ApiException.badRequest("세금계산서가 발행된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+        if (mallOrderRepository.existsBySales_Id(s.getId())) {
+            throw ApiException.badRequest("쇼핑몰 주문에서 전환된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+    }
+
+    /** 출고했던 수량을 창고에 되돌린다(입고). 이력을 지우지 않고 반대 거래를 남긴다. */
+    private void revertStock(Sales s, String note, String username) {
+        for (SalesLine l : s.getLines()) {
+            stockService.applyDelta(l.getItem(), s.getWarehouse(), l.getQuantity(),
+                    StockTransactionType.INBOUND, l.getUnitPrice(), s.getSaleDate(),
+                    note + " " + s.getDocNo(), username);
+        }
+    }
+
+    private BusinessPartner resolvePartner(Long partnerId) {
+        BusinessPartner partner = partnerRepository.findById(partnerId)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + partnerId));
+        if (!partner.getType().canSell()) {
+            throw ApiException.badRequest("매출처가 아닌 거래처에는 판매할 수 없습니다: " + partner.getName());
+        }
+        return partner;
+    }
+
+    /** 헤더 부가정보 + 라인 + 합계 + 재고 출고. create/update 가 공유한다. */
+    private void applyContent(Sales sales, CreateSalesRequest req, String username) {
+        boolean taxable = req.taxable() == null || req.taxable();
+        sales.setRemark(req.remark());
+        sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
+        sales.setEmployee(req.employeeId() != null ? employeeService.get(req.employeeId()) : null);
+
+        // 부가세는 라인을 만들기 전에 한꺼번에 배분한다 — [거래별부가세계산] 이 켜져 있으면
+        // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
+        boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
+        sales.setVatBySlip(vatBySlip);
+        List<BigDecimal> supplies = req.lines().stream()
+                .map(lr -> lr.quantity().multiply(lr.unitPrice()))
+                .toList();
+        List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip);
 
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
 
-        for (SalesLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
-            BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
-            BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        for (int i = 0; i < req.lines().size(); i++) {
+            SalesLineRequest lr = req.lines().get(i);
+            Item item = itemService.get(lr.itemId());
+            BigDecimal supply = supplies.get(i);
+            BigDecimal vat = vats.get(i);
 
             SalesLine line = SalesLine.builder()
                     .item(item)
@@ -154,6 +251,12 @@ public class SalesService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .lotNo(lr.lotNo())
+                    .extraCost(lr.extraCost())
+                    .sourceOrder(lr.sourceOrderId() == null ? null
+                            : salesOrderRepository.findById(lr.sourceOrderId())
+                                    .orElseThrow(() -> ApiException.notFound(
+                                            "근거전표(수주)를 찾을 수 없습니다. id=" + lr.sourceOrderId())))
                     .build();
             sales.addLine(line);
 
@@ -161,16 +264,14 @@ public class SalesService {
             totalVat = totalVat.add(vat);
 
             // 재고 감소(출고). 재고 부족 시 예외 → 전체 롤백
-            stockService.applyDelta(item, warehouse, lr.quantity().negate(),
-                    StockTransactionType.OUTBOUND, lr.unitPrice(), saleDate,
+            stockService.applyDelta(item, sales.getWarehouse(), lr.quantity().negate(),
+                    StockTransactionType.OUTBOUND, lr.unitPrice(), sales.getSaleDate(),
                     "판매 " + sales.getDocNo(), username);
         }
 
         sales.setSupplyAmount(totalSupply);
         sales.setVatAmount(totalVat);
         sales.setTotalAmount(totalSupply.add(totalVat));
-
-        return SalesResponse.from(salesRepository.save(sales));
     }
 
     private String generateDocNo(LocalDate date) {

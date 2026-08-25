@@ -117,6 +117,10 @@ public final class MenuPermissionCatalog {
      * 요청 경로를 관장하는 권한 코드. 매핑이 없으면 {@code null}(권한 불요).
      * {@code /api/auth}, {@code /api/health}, {@code /api/meta}, {@code /api/workspace},
      * {@code /api/me} 등 공통/참조 경로는 매핑하지 않아 인증만 되면 통과한다.
+     *
+     * <p>{@code /api/chat}(메신저)도 일부러 매핑하지 않았다. 앱바 도구(알림·E Note·메신저)는 메뉴가 아니라
+     * 전 사용자 공용이고, 그룹웨어 권한이 없는 현장 사용자에게 말을 못 거는 메신저는 쓸모가 없다.
+     * 대화 내용 보호는 권한 코드가 아니라 "참여자만 읽고 쓴다"는 서비스 규칙이 한다.
      */
     public static String requiredCode(String path) {
         String best = null;

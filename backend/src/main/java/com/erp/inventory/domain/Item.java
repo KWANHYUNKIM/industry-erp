@@ -48,6 +48,16 @@ public class Item extends BaseTimeEntity {
     @JoinColumn(name = "item_group_id")
     private ItemGroup itemGroup;
 
+    /**
+     * 관리항목. 이카운트 품목등록(ESA009M) A7 탭의 <b>관리항목</b>(`item_type`)에 해당한다.
+     *
+     * <p>전표 라인에 사람이 고르는 값이 아니다 — 원본 판매입력 그리드의 관리항목 열(`item_des`)은
+     * <b>disabled</b> 이고, 품목에 설정된 값이 따라 붙기만 한다. 그래서 라인이 아니라 품목에 둔다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "management_item_id")
+    private ManagementItem managementItem;
+
     /** 표준 단가 */
     @Column(nullable = false, precision = 18, scale = 2)
     @Builder.Default

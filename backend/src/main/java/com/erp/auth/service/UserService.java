@@ -103,6 +103,13 @@ public class UserService {
         return getUser(id);
     }
 
+    /** 로그인 아이디로 사용자 엔티티. 로그인한 본인을 찾는 다른 모듈의 진입점. */
+    @Transactional(readOnly = true)
+    public User getByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다: " + username));
+    }
+
     private User getUser(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다. id=" + id));

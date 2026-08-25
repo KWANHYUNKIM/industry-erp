@@ -76,6 +76,17 @@ public class Purchase extends BaseTimeEntity {
     @Builder.Default
     private boolean accountingReflected = false;
 
+    /**
+     * 부가세를 <b>전표 단위</b>로 계산했는가. 이카운트 판매·구매입력의 [거래별부가세계산]
+     * ({@code calcbySlip}) 이다. false 면 라인별로 반올림한다 — 잔돈이 1원 단위로 달라진다.
+     *
+     * <p>버튼을 누른 결과가 아니라 <b>전표의 성질</b>로 저장한다. 저장하지 않으면 같은 전표를
+     * 수정할 때 조용히 라인별 계산으로 되돌아가 합계가 바뀐다.
+     */
+    @Column(name = "vat_by_slip", nullable = false)
+    @Builder.Default
+    private boolean vatBySlip = false;
+
     @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PurchaseLine> lines = new ArrayList<>();

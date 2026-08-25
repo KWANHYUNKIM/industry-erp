@@ -532,7 +532,7 @@ const APPS: AppIcon[] = [
   { icon: '➕', title: '빠른등록' },
   { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
   { icon: '🔔', title: '알림', panel: 'notifications' },
-  { icon: '💬', title: '메신저' },
+  { icon: '💬', title: '메신저', panel: 'messenger' },
   { icon: '📨', title: '쪽지' },
   { icon: '📝', title: 'E Note', panel: 'notes' },
   { icon: '🖨️', title: '화면 인쇄', print: true },
@@ -596,6 +596,7 @@ export default function EcountLayout() {
   const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
   const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
+  const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
@@ -603,6 +604,18 @@ export default function EcountLayout() {
     api.get<NotificationResponse>('/workspace/notifications')
       .then((r) => setAlertCount(r.data.total))
       .catch(() => setAlertCount(0))
+  }, [panel])
+
+  // 메신저 미읽음. 패널을 열지 않아도 새 메시지를 알아야 하므로 주기적으로 센다.
+  // 패널이 열려 있을 때는 패널 자신이 폴링하므로 여기서는 닫힌 동안만 돈다.
+  useEffect(() => {
+    const count = () => api.get<{ unread: number }>('/chat/unread-count')
+      .then((r) => setChatCount(r.data.unread))
+      .catch(() => setChatCount(0))
+    count()
+    if (panel === 'messenger') return
+    const t = window.setInterval(count, 30000)
+    return () => window.clearInterval(t)
   }, [panel])
 
   const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
@@ -866,12 +879,12 @@ export default function EcountLayout() {
           {APPS.map((a, i) => (
             <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer', position: 'relative' }}>
               {a.icon}
-              {a.panel === 'notifications' && alertCount > 0 && (
+              {((a.panel === 'notifications' && alertCount > 0) || (a.panel === 'messenger' && chatCount > 0)) && (
                 <span style={{
                   position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, padding: '0 3px',
                   borderRadius: 7, background: '#c60a2e', color: '#fff', fontSize: 9, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{alertCount}</span>
+                }}>{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount) : alertCount}</span>
               )}
             </span>
           ))}

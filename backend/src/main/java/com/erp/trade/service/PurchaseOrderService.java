@@ -211,12 +211,15 @@ public class PurchaseOrderService {
         }
 
         List<PurchaseLineRequest> lines = po.getLines().stream()
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark()))
+                // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
                 po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
-                "발주 " + po.getOrderNo() + " 입고", null, null, lines);
+                "발주 " + po.getOrderNo() + " 입고", null, null,
+                null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
+                lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
         po.setStatus(PurchaseOrderStatus.RECEIVED);

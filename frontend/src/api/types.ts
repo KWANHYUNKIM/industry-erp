@@ -81,6 +81,12 @@ export interface Item {
   barcode: string | null
   /** 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고 대상. */
   udiDi: string | null
+  /**
+   * 관리항목 (이카운트 품목등록 A7 탭 `item_type`).
+   * 전표 라인의 관리항목 열은 이 값을 읽기전용으로 보여 준다 — 라인에서 고르는 값이 아니다.
+   */
+  managementItemId: number | null
+  managementItemName: string | null
   active: boolean
 }
 
@@ -169,6 +175,19 @@ export interface TradeLine {
   supplyAmount: number
   vatAmount: number
   remark: string | null
+  /** 시리얼/로트 (이카운트 판매입력 그리드의 serial_cd) */
+  lotNo: string | null
+  /** 부대비용 (cust_amt). 합계 금액에는 더하지 않는다. */
+  extraCost: number | null
+  /**
+   * 불러온 근거전표 — 이카운트 판매입력·구매입력 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열.
+   * [전표불러오기]로 수주·발주 라인을 담았을 때만 채워지고, 직접 입력한 줄은 전부 null 이다.
+   */
+  sourceOrderId: number | null
+  /** '주문서'(판매) 또는 '발주서'(구매) */
+  sourceDocType: string | null
+  sourceDocDate: string | null
+  sourceDocNo: string | null
 }
 
 export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
@@ -190,6 +209,11 @@ export interface SalesDoc {
   confirmStatusName: string
   confirmedAt: string | null
   accountingReflected: boolean
+  /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
+  vatBySlip: boolean
+  /** 귀속 프로젝트 (백엔드 SalesResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
+  projectId: number | null
+  projectName: string | null
   employeeId: number | null
   employeeName: string | null
   lines: TradeLine[]
@@ -208,6 +232,11 @@ export interface PurchaseDoc {
   totalAmount: number
   remark: string | null
   createdBy: string | null
+  /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
+  vatBySlip: boolean
+  /** 귀속 프로젝트 (백엔드 PurchaseResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
+  projectId: number | null
+  projectName: string | null
   employeeId: number | null
   employeeName: string | null
   lines: TradeLine[]
@@ -496,6 +525,30 @@ export interface ManagementItem {
   name: string
   description: string | null
   active: boolean
+}
+
+/**
+ * 품목별 원가 (`GET /api/costs`). 회계 모듈이 소유하고, 판매입력의 [이익계산] 이 읽어 간다.
+ * (원가 화면 4개가 각자 같은 모양을 지역 선언하고 있다 — 그 화면들을 손볼 때 이걸로 모은다.)
+ */
+export interface ItemCost {
+  id: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  /** 귀속 기간 'YYYY-MM' */
+  period: string
+  materialCost: number
+  laborCost: number
+  overheadCost: number
+  standardTotal: number
+  actualMaterial: number
+  actualLabor: number
+  actualOverhead: number
+  actualTotal: number
+  /** 실제 - 표준 */
+  variance: number
+  varianceRate: number
 }
 
 export interface PriceOrderLine {
@@ -2234,4 +2287,36 @@ export interface UserNote {
   content: string
   pinned: boolean
   updatedAt: string
+}
+
+/* ── 메신저 (앱바 💬) ───────────────────────────────────────────── */
+
+export interface ChatMember {
+  userId: number
+  name: string
+  department: string | null
+}
+
+export interface ChatRoom {
+  id: number
+  /** 1:1 이면 상대 이름, 그룹이면 방 이름 (백엔드가 내 기준으로 만들어 준다) */
+  title: string
+  direct: boolean
+  memberCount: number
+  members: ChatMember[]
+  lastMessage: string | null
+  lastSenderName: string | null
+  lastMessageAt: string | null
+  unread: number
+}
+
+export interface ChatMessage {
+  id: number
+  roomId: number
+  senderId: number | null
+  senderName: string
+  content: string
+  sentAt: string
+  /** 참여·퇴장 같은 시스템 안내 */
+  system: boolean
 }

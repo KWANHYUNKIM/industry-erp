@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
@@ -36,6 +37,7 @@ const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'pur
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const cfg = CFG[mode]
   const isSales = mode === 'sales'
+  const navigate = useNavigate()
   const [docs, setDocs] = useState<NormalDoc[]>([])
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -78,6 +80,31 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   async function confirmAct(d: NormalDoc, kind: 'confirm' | 'unconfirm') {
     try {
       await api.post(`/sales/${d.id}/${kind}`)
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
+  /** 전표 수정 — 입력 화면을 수정 모드로 연다. 원본도 조회에서 전표번호를 누르면 입력 팝업이 뜬다. */
+  function editDoc(d: NormalDoc) {
+    navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?edit=${d.id}`)
+  }
+
+  /**
+   * 전표 삭제. 서버가 재고를 되돌리고 지운다. 회계반영·확인·세금계산서 발행 전표는 서버가 거부한다.
+   * 되돌릴 수 없는 조작이라 한 번 더 묻는다.
+   */
+  async function deleteDoc(d: NormalDoc) {
+    const ok = window.confirm(
+      `${d.docNo} 전표를 삭제합니다.\n\n`
+      + `${isSales ? '출고' : '입고'}했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${won(d.totalAmount)}원).\n`
+      + '이 작업은 되돌릴 수 없습니다. 진행할까요?',
+    )
+    if (!ok) return
+    try {
+      await api.delete(`${cfg.url}/${d.id}`)
+      setOpenId(null)
       load()
     } catch (err) {
       alert(extractErrorMessage(err))
@@ -234,10 +261,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                         ))}
                       </tbody>
                     </table>
-                    <div style={{ padding: '4px 10px 8px' }}>
+                    <div style={{ padding: '4px 10px 8px', display: 'flex', gap: 6, alignItems: 'center' }}>
                       <button className="ec-btn ec-btn-primary" onClick={() => printStatement(d)}>
                         {isSales ? '거래명세서 인쇄' : '매입명세서 인쇄'}
                       </button>
+                      <button className="ec-btn" onClick={() => editDoc(d)}>수정</button>
+                      <button
+                        className="ec-btn"
+                        style={{ color: '#c60a2e', borderColor: '#e2b4bc' }}
+                        onClick={() => deleteDoc(d)}
+                      >
+                        삭제
+                      </button>
+                      <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+                        삭제하면 {isSales ? '출고' : '입고'}분이 재고로 되돌아갑니다.
+                        회계반영·확인{isSales ? '' : ''}·세금계산서 발행 전표는 먼저 취소해야 합니다.
+                      </span>
                     </div>
                     {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {d.remark}</div>}
                     {isSales && <div style={{ padding: '0 10px 8px' }}><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}

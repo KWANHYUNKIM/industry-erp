@@ -43,6 +43,24 @@ public class SalesController {
         return ResponseEntity.ok(salesService.create(req, principal.getUsername()));
     }
 
+    /** 판매입력의 '수정'. 재고를 되돌린 뒤 새 내용으로 다시 반영한다. */
+    @PutMapping("/{id}")
+    public SalesResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateSalesRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return salesService.update(id, req, principal.getUsername());
+    }
+
+    /** 판매조회의 '삭제'. 재고를 되돌린다. 회계반영·확인·세금계산서 발행 전표는 거부. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        salesService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
     /** 판매조회의 '확인' */
     @PostMapping("/{id}/confirm")
     public SalesResponse confirm(@PathVariable Long id) {

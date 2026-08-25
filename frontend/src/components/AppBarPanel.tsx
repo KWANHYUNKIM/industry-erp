@@ -2,18 +2,21 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../api/client'
 import type { NotificationResponse, UserNote, WorkspaceSearch } from '../api/types'
+import MessengerPanel from './MessengerPanel'
 
-export type PanelKind = 'search' | 'notifications' | 'notes'
+export type PanelKind = 'search' | 'notifications' | 'notes' | 'messenger'
 
 const TITLE: Record<PanelKind, string> = {
   search: '통합검색',
   notifications: '알림',
   notes: 'E Note (개인 메모)',
+  messenger: '메신저',
 }
 
 /**
  * 우측 앱바에서 여는 슬라이드 패널.
  * 통합검색·알림은 조회 결과에서 바로 해당 화면으로 이동하고, E Note 는 개인 메모를 관리한다.
+ * 메신저는 스스로 목록/대화 영역을 나눠 쓰므로 공용 여백·스크롤을 두지 않는다.
  */
 export default function AppBarPanel({ kind, onClose }: { kind: PanelKind; onClose: () => void }) {
   return (
@@ -30,9 +33,12 @@ export default function AppBarPanel({ kind, onClose }: { kind: PanelKind; onClos
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{TITLE[kind]}</span>
           <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
         </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
+        <div style={kind === 'messenger'
+          ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }
+          : { flex: 1, overflow: 'auto', padding: 14 }}>
           {kind === 'search' ? <SearchPanel onClose={onClose} />
             : kind === 'notifications' ? <NotificationPanel onClose={onClose} />
+            : kind === 'messenger' ? <MessengerPanel />
             : <NotePanel />}
         </div>
       </div>

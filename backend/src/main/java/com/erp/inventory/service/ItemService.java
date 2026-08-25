@@ -20,6 +20,8 @@ import com.erp.inventory.dto.ItemDtos;
 public class ItemService {
 
     private final ItemRepository itemRepository;
+    // 같은 inventory 모듈이지만 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
+    private final ManagementItemService managementItemService;
 
     @Transactional(readOnly = true)
     public List<ItemResponse> findAll() {
@@ -48,6 +50,7 @@ public class ItemService {
                 .safetyStock(req.safetyStock())
                 .barcode(req.barcode())
                 .udiDi(req.udiDi())
+                .managementItem(req.managementItemId() == null ? null : managementItemService.get(req.managementItemId()))
                 .active(true)
                 .build();
         return ItemResponse.from(itemRepository.save(item));
@@ -64,6 +67,7 @@ public class ItemService {
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
         item.setUdiDi(req.udiDi());
+        item.setManagementItem(req.managementItemId() == null ? null : managementItemService.get(req.managementItemId()));
         if (req.active() != null) {
             item.setActive(req.active());
         }
