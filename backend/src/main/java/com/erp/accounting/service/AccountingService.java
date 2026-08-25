@@ -4,7 +4,6 @@ import com.erp.production.domain.Bom;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
-import com.erp.accounting.dto.AccountingDtos.DailyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.ItemProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.MonthlyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.ProfitSummaryResponse;
@@ -123,32 +122,6 @@ public class AccountingService {
             BigDecimal cost = costByMonth.getOrDefault(month, BigDecimal.ZERO);
             BigDecimal profit = revenue.subtract(cost);
             result.add(new MonthlyProfitResponse(month, revenue, cost, profit, marginRate(profit, revenue)));
-        }
-        return result;
-    }
-
-    /** 일별 이익현황 (기간). revenue=매출 공급가, cost=매입 공급가 */
-    @Transactional(readOnly = true)
-    public List<DailyProfitResponse> dailyProfit(LocalDate from, LocalDate to) {
-        Map<String, BigDecimal> revenueByDay = new TreeMap<>();
-        Map<String, BigDecimal> costByDay = new TreeMap<>();
-        for (Sales s : salesRepository.findBySaleDateBetween(from, to)) {
-            revenueByDay.merge(s.getSaleDate().toString(), nz(s.getSupplyAmount()), BigDecimal::add);
-        }
-        for (Purchase p : purchaseRepository.findByPurchaseDateBetween(from, to)) {
-            costByDay.merge(p.getPurchaseDate().toString(), nz(p.getSupplyAmount()), BigDecimal::add);
-        }
-
-        Set<String> days = new TreeSet<>();
-        days.addAll(revenueByDay.keySet());
-        days.addAll(costByDay.keySet());
-
-        List<DailyProfitResponse> result = new ArrayList<>();
-        for (String day : days) {
-            BigDecimal revenue = revenueByDay.getOrDefault(day, BigDecimal.ZERO);
-            BigDecimal cost = costByDay.getOrDefault(day, BigDecimal.ZERO);
-            BigDecimal profit = revenue.subtract(cost);
-            result.add(new DailyProfitResponse(day, revenue, cost, profit, marginRate(profit, revenue)));
         }
         return result;
     }

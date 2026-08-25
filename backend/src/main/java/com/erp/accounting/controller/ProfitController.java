@@ -1,6 +1,5 @@
 package com.erp.accounting.controller;
 
-import com.erp.accounting.dto.AccountingDtos.DailyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.MonthlyProfitResponse;
 import com.erp.accounting.service.AccountingService;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +30,4 @@ public class ProfitController {
         return accountingService.monthlyProfit(y);
     }
 
-    /** 일별 이익현황 (from~to, 미지정 시 최근 30일) */
-    @GetMapping("/daily")
-    public List<DailyProfitResponse> daily(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        LocalDate end = to != null ? to : LocalDate.now();
-        LocalDate start = from != null ? from : end.minusDays(30);
-        return accountingService.dailyProfit(start, end);
-    }
 }

@@ -90,6 +90,20 @@ public class GlobalExceptionHandler {
                         + (FileStorageService.MAX_FILE_BYTES / 1024 / 1024) + "MB 까지 올릴 수 있습니다."));
     }
 
+    /**
+     * 없는 경로. 이게 없으면 아래 handleGeneral 이 받아서 <b>500</b> 을 내고,
+     * 메시지에 "No static resource api/..." 같은 내부 사정까지 그대로 실어 보낸다.
+     * 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되므로 404 로 돌려준다.
+     */
+    @ExceptionHandler({
+            org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class,
+    })
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(HttpStatus.NOT_FOUND, "요청한 경로를 찾을 수 없습니다."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

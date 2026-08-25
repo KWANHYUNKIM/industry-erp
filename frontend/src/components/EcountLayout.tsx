@@ -283,11 +283,19 @@ const MENU: TopMenu[] = [
               { label: '원가생성/수정', to: '/accounting/cost-build' },
               { label: '표준원가현황', to: '/accounting/standard-cost' },
               { label: '실제원가현황', to: '/accounting/actual-cost' },
-              { label: '원가차이분석', to: '/accounting/variance' },
+              { label: '차이분석', to: '/accounting/variance' },
               { label: '월별이익현황', to: '/accounting/monthly-profit' },
             ],
           },
-          { label: '일별이익', children: [{ label: '일별이익현황', to: '/accounting/daily-profit' }] },
+          {
+            // 원본은 일별재고현황을 여기(이익관리 > 일별이익)에 둔다 — 재고 평가와 이익 계산이
+            // 같은 원가 기준을 쓰기 때문이다. 출력물 > 기타에도 그대로 남겨 둔다.
+            label: '일별이익',
+            children: [
+              { label: '일별재고현황', to: '/inventory/daily-stock' },
+              { label: '일별이익현황', to: '/accounting/daily-profit' },
+            ],
+          },
         ],
       },
       {
