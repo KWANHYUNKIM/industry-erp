@@ -52,6 +52,12 @@ export default function ApprovalDraftPage() {
    */
   const [presets, setPresets] = useState<ApprovalPreset[]>([])
   const [presetId, setPresetId] = useState('')
+  // 원본 폼에 있는데 우리에게 없던 칸들. 기안서No.·결재문서는 백엔드에 이미 있었고 화면만 안 쓰고 있었다.
+  const [category, setCategory] = useState('')
+  const [printFormat, setPrintFormat] = useState('기안No.')
+  const [labelText, setLabelText] = useState('')
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -159,6 +165,22 @@ export default function ApprovalDraftPage() {
       .map((f) => f.label)
   }, [selected, formData])
 
+  /** 첨부. 공용 파일 저장(POST /api/files)에 먼저 올리고 그 id 를 기안서에 붙인다 - ECDrive 와 같은 흐름. */
+  async function uploadAttachment(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', form)
+      setAttachment({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function save(temporary: boolean) {
     setError('')
     if (!title.trim()) return setError('제목을 입력하세요.')
@@ -177,6 +199,10 @@ export default function ApprovalDraftPage() {
         formData,
         draftDate,
         department: department || undefined,
+        category: category || undefined,
+        printFormat: printFormat || undefined,
+        labelText: labelText || undefined,
+        attachmentId: attachment?.id,
         approverIds,
         referenceUserIds: referenceIds,
         shareUserIds: shareIds,
@@ -324,45 +350,109 @@ export default function ApprovalDraftPage() {
                     <th style={{ background: '#f5f7fa' }}>부서</th>
                     <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 부설연구소" style={{ width: 240 }} /></td>
                   </tr>
-                  {/* 원본 기안서작성의 맨 윗줄 [결재라인] — 저장해 둔 결재선을 고르면 결재자가 한 번에 채워진다. */}
+                  {/*
+                    원본은 결재라인·결재자·참조자·공유자를 [결재라인] 라벨 하나 아래 4줄로 묶는다.
+                    우리는 넷을 각각 별도 행으로 두어 같은 라벨이 네 번 나왔다.
+                  */}
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>결재라인</th>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CodePickerField
-                          label="결재라인" hideLabel placeholder="결재라인 선택" emptyLabel="선택 해제" width={260}
-                          value={presetId}
-                          onChange={(v) => applyPreset(v)}
-                          items={presets.map((p) => ({
-                            value: String(p.id),
-                            code: p.formTemplateName ?? '공통',
-                            name: p.name,
-                            sub: p.steps.map((st) => st.approverName).join(' → '),
-                          }))}
-                        />
-                        <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>
-                          {presets.length === 0
-                            ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
-                            : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span className="ec-line-tag">결재라인</span>
+                          <CodePickerField
+                            label="결재라인" hideLabel placeholder="결재라인 선택" emptyLabel="선택 해제" width={260}
+                            value={presetId}
+                            onChange={(v) => applyPreset(v)}
+                            items={presets.map((p) => ({
+                              value: String(p.id),
+                              code: p.formTemplateName ?? '공통',
+                              name: p.name,
+                              sub: p.steps.map((st) => st.approverName).join(' → '),
+                            }))}
+                          />
+                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>
+                            {presets.length === 0
+                              ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
+                              : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span className="ec-line-tag">결재자</span>
+                          {picker(approverIds, setApproverIds, '결재자 선택')}
+                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>선택 순서대로 결재 진행</span>
+                          {chips(approverIds, setApproverIds, true)}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span className="ec-line-tag">참조자</span>
+                          {picker(referenceIds, setReferenceIds, '참조자 선택')}
+                          {chips(referenceIds, setReferenceIds, false)}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span className="ec-line-tag">공유자</span>
+                          {picker(shareIds, setShareIds, '공유자 선택')}
+                          {chips(shareIds, setShareIds, false)}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {/* 원본은 [구분]과 [출력양식]이 한 줄에 좌우로 놓인다. */}
+                  <tr>
+                    <th style={{ background: '#f5f7fa' }}>구분</th>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                        <input className="ec-input" value={category} onChange={(e) => setCategory(e.target.value)}
+                               placeholder="문서 구분" style={{ width: 240 }} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>출력양식</span>
+                          <select className="ec-input" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)} style={{ width: 200 }}>
+                            <option>기안No.</option>
+                            <option>기안서No.</option>
+                          </select>
                         </span>
                       </div>
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>결재자<span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span></th>
+                    <th style={{ background: '#f5f7fa' }}>기안서No.</th>
                     <td>
-                      {picker(approverIds, setApproverIds, '결재자 선택')}
-                      <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>선택 순서대로 결재 진행</span>
-                      {chips(approverIds, setApproverIds, true)}
+                      <input className="ec-input" value="" readOnly placeholder="(저장 시 자동채번)"
+                             style={{ width: '100%', background: '#f7f8f9', color: '#8a929c' }} />
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>수신참조</th>
-                    <td>{picker(referenceIds, setReferenceIds, '수신참조 선택')}{chips(referenceIds, setReferenceIds, false)}</td>
+                    <th style={{ background: '#f5f7fa' }}>결재문서</th>
+                    <td style={{ fontSize: 12, color: '#8a929c' }}>
+                      전표 · 출력물 —{' '}
+                      <span style={{ color: '#62677e' }}>
+                        저장한 뒤 [내결재관리]에서 판매·구매·비용 전표를 연결합니다.
+                      </span>
+                    </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>공유자</th>
-                    <td>{picker(shareIds, setShareIds, '공유자 선택')}{chips(shareIds, setShareIds, false)}</td>
+                    <th style={{ background: '#f5f7fa' }}>첨부</th>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="file" style={{ fontSize: 12 }} disabled={uploading}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAttachment(f) }}
+                        />
+                        {uploading && <span style={{ fontSize: 11.5, color: '#8a929c' }}>올리는 중…</span>}
+                        {attachment && (
+                          <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                            {attachment.name}
+                            <span onClick={() => setAttachment(null)} style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th style={{ background: '#f5f7fa' }}>라벨</th>
+                    <td>
+                      <input className="ec-input" value={labelText} onChange={(e) => setLabelText(e.target.value)}
+                             placeholder="문서를 묶어 보는 꼬리표" style={{ width: 360 }} />
+                    </td>
                   </tr>
                 </tbody>
               </table>

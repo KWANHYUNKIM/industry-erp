@@ -401,6 +401,19 @@ main table,
   white-space: nowrap;
 }
 
+/* 결재라인 블록의 줄 이름표 — 원본은 결재라인/결재자/참조자/공유자를
+   한 칸 안에 4줄로 묶고 각 줄 앞에 작은 파란 배지를 단다. */
+.ec-line-tag {
+  flex: 0 0 auto;
+  min-width: 54px;
+  text-align: center;
+  background: var(--ec-blue-light);
+  color: var(--ec-blue-dark);
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
 /* ============================================================
    전자결재 기안서 본문 — 원본은 양식이 **에디터 본문 안의 표**로 들어간다.
    실측(휴가신청서): 7열 격자 · 표폭 621px · 테두리 1px solid #000 · 12px ·

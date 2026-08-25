@@ -32,6 +32,14 @@ public final class ApprovalDtos {
             String department,
             Long projectId,
             String reference,
+            /** 구분 — 원본 폼의 [구분] 코드도움 */
+            String category,
+            /** 출력양식 — 인쇄 서식 이름 */
+            String printFormat,
+            /** 라벨 — 문서를 묶어 보는 꼬리표 */
+            String labelText,
+            /** 첨부 파일 id (공용 stored_files). 업로드는 별도 엔드포인트로 먼저 한다. */
+            Long attachmentId,
             List<Long> approverIds,
             List<Long> referenceUserIds,
             List<Long> shareUserIds,
@@ -103,6 +111,8 @@ public final class ApprovalDtos {
             Long projectId, String projectName,
             ApprovalStatus status, String statusName,
             int currentStep, String reference,
+            String category, String printFormat, String labelText,
+            Long attachmentId, String attachmentName,
             boolean deleted,
             String currentApproverName,
             int voucherCount,
@@ -128,6 +138,9 @@ public final class ApprovalDtos {
                     d.getProject() != null ? d.getProject().getName() : null,
                     d.getStatus(), d.getStatus().getDisplayName(),
                     d.getCurrentStep(), d.getReference(),
+                    d.getCategory(), d.getPrintFormat(), d.getLabelText(),
+                    d.getAttachment() != null ? d.getAttachment().getId() : null,
+                    d.getAttachment() != null ? d.getAttachment().getName() : null,
                     d.isDeleted(),
                     currentApprover,
                     d.getVouchers().size(),

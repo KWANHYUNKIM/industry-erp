@@ -15,6 +15,24 @@ const num = (v: unknown) => {
 const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
 
 /**
+ * `row` 가 같은 필드들을 한 줄로 묶는다 — 원본의 「신청일자 | 시작 ~ 종료」 배치.
+ * `row` 가 없는 필드는 저마다 한 줄이다(기존 동작). 나온 순서를 지킨다.
+ */
+function groupRows(fields: ApprovalField[]): ApprovalField[][] {
+  const out: ApprovalField[][] = []
+  const byRow = new Map<number, ApprovalField[]>()
+  for (const f of fields) {
+    if (f.row == null) { out.push([f]); continue }
+    const g = byRow.get(f.row)
+    if (g) { g.push(f); continue }
+    const started = [f]
+    byRow.set(f.row, started)
+    out.push(started)
+  }
+  return out
+}
+
+/**
  * 기안서 본문 — 원본은 양식을 **에디터 본문 안의 표**로 그린다.
  * 제목(자간을 벌린 「휴 가 신 청 서」) 아래로 라벨/값 행이 이어지는 문서 서식이고,
  * 값 칸에 직접 입력한다. 우리는 이 필드들을 에디터 **위에** 별도 폼으로 두고 에디터는 자유 본문이었다 —
@@ -54,27 +72,37 @@ export default function ApprovalFormFields({
         <tr>
           <td className="doc-title" colSpan={COLS}>{title}</td>
         </tr>
-        {fields.map((f) => (
-          <tr key={f.key}>
-            <td className="doc-label" colSpan={LABEL_SPAN}>
-              {f.label}
-              {f.required && <span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span>}
-            </td>
-            <td colSpan={COLS - LABEL_SPAN}>
-              {f.type === 'table' ? (
-                <TableField
-                  field={f}
-                  rows={asRows(value[f.key])}
-                  onCell={(i, c, v) => setCell(f, i, c, v)}
-                  onAdd={() => addRow(f)}
-                  onRemove={(i) => removeRow(f, i)}
-                />
-              ) : (
-                <ScalarField field={f} value={value[f.key]} onChange={(v) => set(f.key, v)} />
-              )}
-            </td>
-          </tr>
-        ))}
+        {groupRows(fields).map((group) => {
+          const head = group[0]
+          return (
+            <tr key={head.key}>
+              <td className="doc-label" colSpan={LABEL_SPAN}>
+                {head.rowLabel ?? head.label}
+                {group.some((f) => f.required) && <span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span>}
+              </td>
+              <td colSpan={COLS - LABEL_SPAN}>
+                {group.length === 1 && head.type === 'table' ? (
+                  <TableField
+                    field={head}
+                    rows={asRows(value[head.key])}
+                    onCell={(i, c, v) => setCell(head, i, c, v)}
+                    onAdd={() => addRow(head)}
+                    onRemove={(i) => removeRow(head, i)}
+                  />
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {group.map((f, i) => (
+                      <span key={f.key} style={{ display: 'contents' }}>
+                        {i > 0 && f.sep && <span style={{ flex: '0 0 auto' }}>{f.sep}</span>}
+                        <ScalarField field={f} value={value[f.key]} onChange={(v) => set(f.key, v)} />
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )

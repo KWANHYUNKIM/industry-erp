@@ -390,6 +390,15 @@ export interface ApprovalField {
   /** 이 컬럼을 합계 낸다 (예: 여비 총계) */
   totalOf?: string
   totalLabel?: string
+  /**
+   * 셀 배치 — 원본은 「신청일자 | 시작 ~ 종료」처럼 여러 필드를 한 줄에 놓는다.
+   * 같은 `row` 값을 가진 필드들이 한 줄에 그려진다. 없으면 한 줄에 한 필드(기존 동작).
+   */
+  row?: number
+  /** 그 줄의 라벨. 줄의 첫 필드에만 준다. 없으면 첫 필드의 label 을 쓴다. */
+  rowLabel?: string
+  /** 앞 필드와 이 필드 사이에 넣을 글자 (예: '~'). */
+  sep?: string
 }
 
 export interface ApprovalFormTemplate {

@@ -1,6 +1,8 @@
 package com.erp.groupware.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.StoredFileRepository;
+import com.erp.common.StoredFile;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.groupware.domain.ApprovalDocument;
 import com.erp.groupware.domain.ApprovalDocumentVoucher;
@@ -54,6 +56,8 @@ public class ApprovalService {
     private final ExpenseRepository expenseRepository;
     /** 결재 진행 상황을 기안자·다음 결재자에게 쪽지 자동알림으로 알린다. */
     private final ShortMessageService shortMessageService;
+    // 첨부 파일 조회. 공용 파일 저장(V120)을 ECDrive·증빙센터와 함께 쓴다.
+    private final StoredFileRepository storedFileRepository;
 
     /**
      * 결재함 조회.
@@ -124,6 +128,11 @@ public class ApprovalService {
                 .department(req.department())
                 .project(resolveProject(req.projectId()))
                 .reference(req.reference())
+                .category(req.category())
+                .printFormat(req.printFormat())
+                .labelText(req.labelText())
+                // 첨부는 파일을 먼저 올려(공용 stored_files) 그 id 를 받는다 — ECDrive 와 같은 흐름이다.
+                .attachment(req.attachmentId() == null ? null : findStoredFile(req.attachmentId()))
                 .status(req.temporary() ? ApprovalStatus.DRAFTING : ApprovalStatus.IN_PROGRESS)
                 .currentStep(1)
                 .build();
@@ -331,6 +340,11 @@ public class ApprovalService {
         if (projectId == null) return null;
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + projectId));
+    }
+
+    private StoredFile findStoredFile(Long id) {
+        return storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
     }
 
     private User findUser(Long id, String what) {

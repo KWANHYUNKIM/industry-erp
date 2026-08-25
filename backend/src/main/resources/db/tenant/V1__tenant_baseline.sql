@@ -5215,3 +5215,40 @@ CREATE TABLE my_items (
 );
 
 CREATE INDEX idx_my_items_item ON my_items (item_id);
+
+-- ---- V130: V130__approval_draft_fields.sql ----
+-- 기안서작성 폼의 구분·출력양식·라벨·첨부. (기안서No.·결재문서는 이미 있었다.)
+
+ALTER TABLE approval_documents ADD COLUMN category      varchar(50);
+ALTER TABLE approval_documents ADD COLUMN print_format  varchar(50);
+ALTER TABLE approval_documents ADD COLUMN label_text    varchar(100);
+ALTER TABLE approval_documents ADD COLUMN attachment_id bigint;
+
+ALTER TABLE approval_documents ADD CONSTRAINT fk_approval_documents_attachment
+    FOREIGN KEY (attachment_id) REFERENCES stored_files (id);
+CREATE INDEX idx_approval_documents_attachment ON approval_documents (attachment_id);
+
+-- ---- V131: V131__approval_form_row_layout.sql ----
+-- 양식 셀 배치. field_schema(jsonb) 에 row/rowLabel/sep 키를 더해 시작·종료를 한 줄에 놓는다.
+-- (신규 회사 스키마는 V13 시드를 그대로 받으므로 같은 보정을 여기서도 돌린다.)
+
+WITH exploded AS (
+    SELECT t.id, e.ord, e.elem, e.elem->>'label' AS label
+    FROM approval_form_templates t,
+         jsonb_array_elements(t.field_schema) WITH ORDINALITY AS e(elem, ord)
+),
+laid_out AS (
+    SELECT id, ord,
+           CASE
+               WHEN label LIKE '%(시작)' THEN
+                   elem || jsonb_build_object('row', ord, 'rowLabel', left(label, length(label) - 4))
+               WHEN label LIKE '%(종료)' THEN
+                   elem || jsonb_build_object('row', ord - 1, 'sep', '~')
+               ELSE elem
+           END AS elem
+    FROM exploded
+)
+UPDATE approval_form_templates t
+SET field_schema = s.arr
+FROM (SELECT id, jsonb_agg(elem ORDER BY ord) AS arr FROM laid_out GROUP BY id) s
+WHERE t.id = s.id;
