@@ -1617,6 +1617,18 @@ async function scenarioGroupwareShared() {
   eq('상세 조회 시 조회수 증가', detail.views > anon.views, true)
 
   await must('DELETE', `/board/${anon.id}`)
+
+  // 익명게시판(E070252)은 제목 칸이 없는 글상자 하나다. 제목을 강제하면 그 화면을 만들 수 없다.
+  const wall = await must('POST', '/board', { content: `${P}익명 한마디
+둘째 줄`, anonymous: true })
+  eq('제목 없이 올리면 첫 줄이 제목이 된다', wall.title, `${P}익명 한마디`)
+  eq('본문은 통째로 남는다', wall.content, `${P}익명 한마디
+둘째 줄`)
+  eq('목록에도 본문이 실린다',
+    (await must('GET', '/board')).find((x) => x.id === wall.id).content, `${P}익명 한마디
+둘째 줄`)
+  await rejects('제목도 내용도 없으면 거부', 'POST', '/board', { anonymous: true }, '내용을 입력하세요')
+  await must('DELETE', `/board/${wall.id}`)
   await must('DELETE', `/board/${named.id}`)
 
   // ── 외근조회: 신청 → 승인/반려

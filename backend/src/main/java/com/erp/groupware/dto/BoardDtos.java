@@ -1,7 +1,6 @@
 package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.BoardPost;
-import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;
 
@@ -21,18 +20,28 @@ public final class BoardDtos {
         return p.isAnonymous() ? ANONYMOUS : p.getAuthor();
     }
 
+    /**
+     * 제목은 없어도 된다. 원본 익명게시판(E070252)은 제목 칸 없이 글상자 하나에 쓰고 [저장(F8)]
+     * 을 누르는 화면이라, 제목을 강제하면 그 화면을 만들 수가 없다. 비우면 본문 첫 줄을 제목으로 쓴다.
+     */
     public record CreatePostRequest(
-            @NotBlank(message = "제목을 입력하세요.") String title,
+            String title,
             String content,
             String category,
             /** 익명으로 올릴지. 작성자는 서버에 남지만 응답에서는 가려진다. */
             Boolean anonymous
     ) {}
 
-    /** 목록용 요약 (본문 제외). */
+    /**
+     * 목록용 요약.
+     *
+     * <p>본문도 같이 보낸다. 익명게시판(E070252)은 제목 없이 한마디 남기는 벽이라
+     * 목록이 곧 본문이고, 첫 줄만 보여주면 나머지를 볼 방법이 없다. 글이 짧아 문제되지 않는다.
+     */
     public record PostSummary(
             Long id,
             String title,
+            String content,
             String category,
             String author,
             boolean anonymous,
@@ -40,7 +49,7 @@ public final class BoardDtos {
             LocalDateTime createdAt
     ) {
         public static PostSummary from(BoardPost p) {
-            return new PostSummary(p.getId(), p.getTitle(), p.getCategory(),
+            return new PostSummary(p.getId(), p.getTitle(), p.getContent(), p.getCategory(),
                     authorOf(p), p.isAnonymous(), p.getViews(), p.getCreatedAt());
         }
     }

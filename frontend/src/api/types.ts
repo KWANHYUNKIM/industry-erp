@@ -2195,6 +2195,8 @@ export interface ProjectProfitSummary {
 export interface BoardPost {
   id: number
   title: string
+  /** 목록에도 본문이 실린다 — 익명게시판은 목록이 곧 본문이라서 */
+  content: string | null
   category: string | null
   author: string | null
   anonymous: boolean

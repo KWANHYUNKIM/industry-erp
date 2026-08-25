@@ -29,7 +29,7 @@ const PRINT_LABELS = ['인쇄', '출력']
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
-  renderForm, formTitle, formWidth, actions = [], help, searchable = true, children,
+  renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true, children,
 }: {
   title: string
   search?: string
@@ -47,6 +47,8 @@ export default function EcListShell({
   help?: ReactNode
   /** 원본에 검색창이 없는 화면(예: 주요전달사항)은 false. Option·도움말만 남는다. */
   searchable?: boolean
+  /** 원본에 [Option] 도 없는 화면(예: 익명게시판)은 false. 도움말만 남는다. */
+  option?: boolean
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -158,7 +160,7 @@ export default function EcListShell({
             />
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
-          <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+          {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
           {optionOpen && (
