@@ -1874,6 +1874,30 @@ async function scenarioWorkspace(f) {
   await must('DELETE', `/workspace/notes/${note.id}`)
   eq('내 메모는 삭제됨',
     (await must('GET', '/workspace/notes')).some((n) => n.id === note.id), false)
+
+  // My품목 — 전표 입력 툴바 [My품목 ▾]. E Note 와 같은 '개인 소유물' 계열이라 여기서 함께 검증한다.
+  // users × items 를 함께 참조해야 해서 백엔드에서는 groupware 모듈이 소유한다(모듈 규칙).
+  const mine0 = await must('GET', '/my-items')
+  const added = await must('POST', '/my-items', { itemId: f.product.id, defaultQty: 5 })
+  eq('My품목에 담기면 품목 정보가 함께 실린다', added.itemCode, f.product.code)
+  eq('기본수량이 저장된다', added.defaultQty, 5)
+  eq('단가는 품목 마스터에서 온다', Number(added.unitPrice), Number(f.product.unitPrice))
+
+  const added2 = await must('POST', '/my-items', { itemId: f.material.id })
+  eq('기본수량을 안 주면 1', added2.defaultQty, 1)
+  eq('나중에 담은 것이 뒤로 간다', added2.sortOrder > added.sortOrder, true)
+
+  await rejects('같은 품목을 두 번 담을 수 없다', 'POST', '/my-items',
+    { itemId: f.product.id }, '이미 My품목에')
+
+  eq('내 My품목 목록에 둘 다 잡힌다',
+    (await must('GET', '/my-items')).length, mine0.length + 2)
+
+  await must('DELETE', `/my-items/${f.product.id}`)
+  await must('DELETE', `/my-items/${f.material.id}`)
+  await rejects('없는 품목은 뺄 수 없다', 'DELETE', `/my-items/${f.product.id}`,
+    undefined, 'My품목에 없는')
+  eq('빼고 나면 원래 개수로 돌아온다', (await must('GET', '/my-items')).length, mine0.length)
 }
 
 async function scenarioCreatedByFk() {

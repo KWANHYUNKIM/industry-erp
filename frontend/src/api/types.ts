@@ -551,6 +551,23 @@ export interface ItemCost {
   varianceRate: number
 }
 
+/**
+ * My품목 (`GET /api/my-items`) — 전표 입력 툴바 [My품목 ▾] 의 즐겨찾기 품목.
+ * users × items 를 함께 참조해야 해서 백엔드에서는 groupware 모듈이 소유한다.
+ */
+export interface MyItem {
+  id: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  unit: string
+  unitPrice: number
+  /** 담을 기본 수량 */
+  defaultQty: number
+  sortOrder: number
+}
+
 export interface PriceOrderLine {
   functionName: string
   applyOrder: number
