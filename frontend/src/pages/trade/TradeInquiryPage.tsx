@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../api/types'
@@ -52,6 +53,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
+  const listRef = useRef<HTMLTableElement>(null)
   // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
   const [company, setCompany] = useState<DocParty | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
@@ -202,6 +205,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
   // + 판매만 있는 확인상태·확인 2개
   const colCount = 14 + (isSales ? 2 : 0)
+  useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
   return (
     <EcListShell
@@ -242,7 +246,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </span>
       </div>
 
-      <table className="w-full text-left">
+      <table ref={listRef} className="w-full text-left">
         <thead>
           <tr>
             {/* 원본 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 전표 입력 그리드와 같은 규칙. */}
@@ -390,11 +394,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            {/*
+              합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
+              앞 7칸(행머리·전표번호·일자·거래처·품목명·거래유형·창고) + 금액 3칸 + 나머지.
+              나머지를 colCount 에서 빼서 구한다 — 열을 늘릴 때 여기를 또 잊어도 어긋나지 않는다.
+            */}
+            <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
             <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
             <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
-            <td colSpan={(isSales ? 3 : 1) + 1}></td>
+            <td colSpan={colCount - 10}></td>
           </tr>
         </tfoot>
       </table>

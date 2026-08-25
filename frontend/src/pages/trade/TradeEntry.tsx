@@ -7,6 +7,7 @@ import type {
 } from '../../api/types'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
@@ -261,6 +262,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [hasTemp, setHasTemp] = useState(false)
 
   const gridRef = useRef<HTMLDivElement>(null)
+  // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
+  useTableColumnCheck(gridRef, '판매/구매입력 명세 그리드', [cols, lines.length])
   const tempKey = `ec-slip-temp:${mode}`
 
   const flash = (msg: string) => {
