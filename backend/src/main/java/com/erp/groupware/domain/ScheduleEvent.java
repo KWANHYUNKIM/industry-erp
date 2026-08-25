@@ -26,9 +26,13 @@ public class ScheduleEvent extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate eventDate;
 
-    /** 시간 (예: "14:00", 종일 일정이면 null) */
+    /** 시작시간 (예: "14:00", 종일 일정이면 null) */
     @Column(length = 10)
     private String startTime;
+
+    /** 종료시간. 원본 일정관리 목록에 시작시간과 나란히 있는 칸이다. */
+    @Column(length = 10)
+    private String endTime;
 
     /** 일정 제목 */
     @Column(nullable = false, length = 200)

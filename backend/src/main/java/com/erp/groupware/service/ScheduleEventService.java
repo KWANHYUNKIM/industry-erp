@@ -34,6 +34,7 @@ public class ScheduleEventService {
         ScheduleEvent e = ScheduleEvent.builder()
                 .eventDate(req.eventDate())
                 .startTime(req.startTime())
+                .endTime(req.endTime())
                 .title(req.title())
                 .category(req.category())
                 .owner(req.owner())
@@ -50,6 +51,7 @@ public class ScheduleEventService {
         ScheduleEvent e = get(id);
         if (req.eventDate() != null) e.setEventDate(req.eventDate());
         if (req.startTime() != null) e.setStartTime(req.startTime());
+        if (req.endTime() != null) e.setEndTime(req.endTime());
         if (req.title() != null) e.setTitle(req.title());
         if (req.category() != null) e.setCategory(req.category());
         if (req.owner() != null) e.setOwner(req.owner());

@@ -254,6 +254,35 @@ docker compose down -v && docker compose up -d
 
 새 빈 DB에서는 `V1`이 실제로 실행되어 전체 스키마를 만들고, 이어서 `V2`부터 순서대로 적용됩니다.
 
+### 7.4 스키마를 바꾸면 **본사와 테넌트 양쪽에** 넣습니다
+
+회사별 스키마 멀티테넌시라 마이그레이션 위치가 둘입니다.
+
+| 위치 | 대상 | 언제 실행되나 |
+|------|------|----------------|
+| `db/migration/V*.sql` | 본사(`public`) | Spring Boot 기동 시 Flyway 자동 |
+| `db/tenant/V*.sql` | 회사별 스키마(`co_0002` …) | 회사를 만들 때 + **기동할 때마다** `TenantMigrationRunner` |
+
+`ddl-auto: validate` 는 **기본 스키마만** 검사합니다. 테넌트 스키마가 뒤처져도 앱은 멀쩡히 뜨고,
+그 회사로 로그인해 해당 화면을 열 때 `column does not exist` 로 터집니다.
+실제로 이 규칙이 없어서 테넌트에 **테이블 15개·컬럼 25개**가 빠진 채로 굴러갔습니다
+(`short_messages` 통째, `schedule_events.location/attendees`, `sales_lines.lot_no` …).
+`db/tenant/V2__catch_up_with_public.sql` 이 그때 밀린 것을 한 번에 따라잡습니다.
+
+- **`db/tenant/V1__tenant_baseline.sql` 은 고치지 마세요.** 이미 만들어진 테넌트에 '적용됨'으로
+  박혀 있어서, 고치면 체크섬이 어긋나 그 회사의 마이그레이션이 통째로 멈춥니다.
+  과거에 이 파일을 여러 번 고쳐서 지금은 `TenantMigrationRunner` 가 `repair()` 로 한 번
+  맞춰 주고 있습니다. 새 변경은 `V2`, `V3` … 으로 추가하세요.
+- 어긋났는지 확인:
+  ```sql
+  select p.table_name, p.column_name from information_schema.columns p
+  left join information_schema.columns t
+    on t.table_schema='co_0002' and t.table_name=p.table_name and t.column_name=p.column_name
+  where p.table_schema='public' and t.column_name is null
+    and p.table_name in (select table_name from information_schema.tables where table_schema='co_0002');
+  ```
+  `companies`(테넌트 레지스트리)는 본사에만 있는 것이 정상입니다.
+
 ---
 
 ## 8. DTO

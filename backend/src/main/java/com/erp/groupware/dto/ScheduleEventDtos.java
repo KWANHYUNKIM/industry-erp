@@ -13,6 +13,7 @@ public final class ScheduleEventDtos {
     public record CreateScheduleEventRequest(
             @NotNull(message = "일자를 선택하세요.") LocalDate eventDate,
             String startTime,
+            String endTime,
             @NotBlank(message = "일정 제목을 입력하세요.") String title,
             String category,
             String owner,
@@ -25,6 +26,7 @@ public final class ScheduleEventDtos {
     public record UpdateScheduleEventRequest(
             LocalDate eventDate,
             String startTime,
+            String endTime,
             String title,
             String category,
             String owner,
@@ -34,13 +36,13 @@ public final class ScheduleEventDtos {
     ) {}
 
     public record ScheduleEventResponse(
-            Long id, LocalDate eventDate, String startTime, String title,
+            Long id, LocalDate eventDate, String startTime, String endTime, String title,
             String category, String owner, String location, String attendees,
             String remark, String createdBy
     ) {
         public static ScheduleEventResponse from(ScheduleEvent e) {
             return new ScheduleEventResponse(
-                    e.getId(), e.getEventDate(), e.getStartTime(), e.getTitle(),
+                    e.getId(), e.getEventDate(), e.getStartTime(), e.getEndTime(), e.getTitle(),
                     e.getCategory(), e.getOwner(), e.getLocation(), e.getAttendees(),
                     e.getRemark(), e.getCreatedBy());
         }
