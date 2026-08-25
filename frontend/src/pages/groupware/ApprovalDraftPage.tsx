@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import ApprovalFormFields from '../../components/approval/ApprovalFormFields'
+import CodePickerField from '../../components/CodePickerField'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { ApprovalDoc, ApprovalFormTemplate, MemberOption } from '../../api/types'
+import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../api/types'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -42,9 +43,14 @@ export default function ApprovalDraftPage() {
   const [approverIds, setApproverIds] = useState<number[]>([])
   const [referenceIds, setReferenceIds] = useState<number[]>([])
   const [shareIds, setShareIds] = useState<number[]>([])
-  const [pick, setPick] = useState('')
-  const [pickRef, setPickRef] = useState('')
-  const [pickShare, setPickShare] = useState('')
+  /**
+   * 결재라인 프리셋. 원본 기안서작성의 **맨 윗줄 [결재라인]** 이다 —
+   * 고르면 결재자가 그 순서대로 한 번에 채워진다.
+   * 우리는 `ApprovalSettingPage` 에서 프리셋을 만들 수는 있었는데 **기안 화면에서 쓰지 못했다.**
+   * 만들어 두고 못 쓰는 마스터였다.
+   */
+  const [presets, setPresets] = useState<ApprovalPreset[]>([])
+  const [presetId, setPresetId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -94,6 +100,10 @@ export default function ApprovalDraftPage() {
 
   useEffect(() => {
     api.get<MemberOption[]>('/meta/users').then((r) => setMembers(r.data)).catch(() => {})
+    // 결재라인 프리셋. 부가기능이라 못 불러와도 화면을 막지 않는다.
+    api.get<ApprovalPreset[]>('/approval-settings/presets')
+      .then((r) => setPresets(r.data.filter((p) => p.active)))
+      .catch(() => setPresets([]))
     api
       .get<ApprovalFormTemplate[]>('/approval-form-templates')
       .then((r) => {
@@ -122,16 +132,17 @@ export default function ApprovalDraftPage() {
 
   const memberName = (id: number) => members.find((m) => m.id === id)?.name ?? `#${id}`
 
-  const addTo = (
-    raw: string,
-    ids: number[],
-    setIds: (fn: (a: number[]) => number[]) => void,
-    clear: (v: string) => void,
-  ) => {
-    const id = Number(raw)
-    if (!id || ids.includes(id)) return
-    setIds((a) => [...a, id])
-    clear('')
+  /**
+   * 결재라인을 고르면 결재자를 그 순서대로 채운다.
+   * 프리셋의 `stepOrder` 가 곧 결재 순서라 정렬해서 넣는다 — 서버가 준 배열 순서에 기대지 않는다.
+   * 이미 찍어 둔 결재자는 **덮어쓴다**. 결재선을 고른다는 건 그 줄로 가겠다는 뜻이다.
+   */
+  function applyPreset(v: string) {
+    setPresetId(v)
+    if (!v) return
+    const p = presets.find((x) => String(x.id) === v)
+    if (!p) return
+    setApproverIds([...p.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((st) => st.approverId))
   }
 
   /** 필수 항목 검사. 서버도 막지만, 왕복 전에 알려준다. */
@@ -190,22 +201,27 @@ export default function ApprovalDraftPage() {
       </div>
     )
 
+  const memberItems = useMemo(
+    () => members.map((m) => ({ value: String(m.id), code: m.department ?? '', name: m.name, sub: m.department })),
+    [members],
+  )
+
+  /**
+   * 사람을 고르는 칸. 원본은 코드도움(🔍)이고 우리는 `<select>` 나열 + [+추가] 였다.
+   * 사원이 수십 명만 넘어가도 나열로는 못 찾는다 — 그래서 원본이 팝업을 쓰는 것이고 우리도 맞춘다.
+   * 다중 선택이라 고른 순서가 곧 결재 순서다.
+   */
   const picker = (
-    value: string,
-    setValue: (v: string) => void,
     ids: number[],
     setIds: (fn: (a: number[]) => number[]) => void,
     placeholder: string,
   ) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <select className="ec-input" value={value} onChange={(e) => setValue(e.target.value)} style={{ width: 200 }}>
-        <option value="">{placeholder}</option>
-        {members.filter((m) => !ids.includes(m.id)).map((m) => (
-          <option key={m.id} value={m.id}>{m.name}{m.department ? ` (${m.department})` : ''}</option>
-        ))}
-      </select>
-      <button className="ec-btn" onClick={() => addTo(value, ids, setIds, setValue)}>+ 추가</button>
-    </div>
+    <CodePickerField
+      label={placeholder} hideLabel multiple placeholder={placeholder} width={260}
+      values={ids.map(String)}
+      onChangeMulti={(vals) => setIds(() => vals.map(Number))}
+      items={memberItems}
+    />
   )
 
   return (
@@ -294,21 +310,45 @@ export default function ApprovalDraftPage() {
                     <th style={{ background: '#f5f7fa' }}>부서</th>
                     <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 부설연구소" style={{ width: 240 }} /></td>
                   </tr>
+                  {/* 원본 기안서작성의 맨 윗줄 [결재라인] — 저장해 둔 결재선을 고르면 결재자가 한 번에 채워진다. */}
+                  <tr>
+                    <th style={{ background: '#f5f7fa' }}>결재라인</th>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CodePickerField
+                          label="결재라인" hideLabel placeholder="결재라인 선택" emptyLabel="선택 해제" width={260}
+                          value={presetId}
+                          onChange={(v) => applyPreset(v)}
+                          items={presets.map((p) => ({
+                            value: String(p.id),
+                            code: p.formTemplateName ?? '공통',
+                            name: p.name,
+                            sub: p.steps.map((st) => st.approverName).join(' → '),
+                          }))}
+                        />
+                        <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>
+                          {presets.length === 0
+                            ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
+                            : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>결재자<span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span></th>
                     <td>
-                      {picker(pick, setPick, approverIds, setApproverIds, '결재자 선택')}
+                      {picker(approverIds, setApproverIds, '결재자 선택')}
                       <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>선택 순서대로 결재 진행</span>
                       {chips(approverIds, setApproverIds, true)}
                     </td>
                   </tr>
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>수신참조</th>
-                    <td>{picker(pickRef, setPickRef, referenceIds, setReferenceIds, '수신참조 선택')}{chips(referenceIds, setReferenceIds, false)}</td>
+                    <td>{picker(referenceIds, setReferenceIds, '수신참조 선택')}{chips(referenceIds, setReferenceIds, false)}</td>
                   </tr>
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>공유자</th>
-                    <td>{picker(pickShare, setPickShare, shareIds, setShareIds, '공유자 선택')}{chips(shareIds, setShareIds, false)}</td>
+                    <td>{picker(shareIds, setShareIds, '공유자 선택')}{chips(shareIds, setShareIds, false)}</td>
                   </tr>
                 </tbody>
               </table>
