@@ -19,6 +19,7 @@ const StockAnalysisPage = lazy(() => import('./pages/inventory/StockAnalysisPage
 const ExecutiveReportPage = lazy(() => import('./pages/inventory/ExecutiveReportPage'))
 const CurrentStockPage = lazy(() => import('./pages/inventory/CurrentStockPage'))
 const WarehouseStockPage = lazy(() => import('./pages/inventory/WarehouseStockPage'))
+const BomStockPage = lazy(() => import('./pages/inventory/BomStockPage'))
 const ManageItemsPage = lazy(() => import('./pages/inventory/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('./pages/inventory/PriceOrderPage'))
 const SpecialPriceGroupPage = lazy(() => import('./pages/inventory/SpecialPriceGroupPage'))
@@ -234,6 +235,7 @@ export default function App() {
         <Route path="/inventory/executive-report" element={<ExecutiveReportPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/warehouse-stock" element={<WarehouseStockPage />} />
+        <Route path="/inventory/bom-stock" element={<BomStockPage />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />

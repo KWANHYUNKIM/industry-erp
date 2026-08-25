@@ -159,6 +159,7 @@ const MENU: TopMenu[] = [
             children: [
               { label: '재고현황', to: '/inventory/current' },
               { label: '창고별재고현황', to: '/inventory/warehouse-stock' },
+              { label: 'BOM환산재고현황', to: '/inventory/bom-stock' },
               { label: '입출고', to: '/inventory/stock-io' },
               { label: '재고잔량분석표', to: '/inventory/stock-analysis' },
               { label: '재고수불부', to: '/inventory/ledger' },
