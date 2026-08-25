@@ -458,7 +458,15 @@ const MENU: TopMenu[] = [
           { label: '기안서작성', to: '/groupware/approval/draft' },
           { label: '내결재관리', to: '/groupware/approval/my' },
           { label: '기안서통합관리', to: '/groupware/approval/all' },
-          { label: '공통양식·결재선 설정', to: '/groupware/approval/settings' },
+          // 원본은 '기초자료등록' 묶음 아래 공통양식등록·결재설정 둘이다. 우리 설정 화면이
+          // 그 둘을 탭으로 갖고 있어서 같은 화면을 가리키고, 탭만 미리 골라 준다.
+          {
+            label: '기초자료등록',
+            children: [
+              { label: '공통양식등록', to: '/groupware/approval/settings?tab=공통양식등록' },
+              { label: '결재설정', to: '/groupware/approval/settings?tab=결재설정' },
+            ],
+          },
         ],
       },
       {
