@@ -234,6 +234,8 @@ export interface PurchaseDoc {
   createdBy: string | null
   /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
   vatBySlip: boolean
+  /** 회계반영 여부 (판매와 맞추려고 응답에 추가했다) */
+  accountingReflected: boolean
   /** 귀속 프로젝트 (백엔드 PurchaseResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
   projectId: number | null
   projectName: string | null

@@ -14,6 +14,7 @@ interface NormalDoc {
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
+  accountingReflected: boolean
   // 라인은 공용 타입을 그대로 쓴다 — 여기서 좁게 다시 적어 두면 백엔드가 필드를 늘려도 화면이 못 본다
   // (실제로 lotNo·부대비용·불러온전표가 늘었는데 이 화면만 모르고 있었다).
   lines: TradeLine[]
@@ -31,9 +32,9 @@ const confirmColor = (s?: SalesConfirmStatus) =>
   s === 'CONFIRMED' ? '#1c7c3c' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : '#8a929c'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; partnerLabel: string; accent: string }> = {
-  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', partnerLabel: '매출처', accent: 'var(--ec-blue)' },
-  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', partnerLabel: '매입처', accent: '#a5561b' },
+const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; partnerLabel: string; accent: string; entryTo: string }> = {
+  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', partnerLabel: '매출처', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
+  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', partnerLabel: '매입처', accent: '#a5561b', entryTo: '/sales/buy' },
 }
 
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
@@ -63,6 +64,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         createdBy: d.createdBy, remark: d.remark,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
+        accountingReflected: d.accountingReflected,
         // 라인은 그대로 넘긴다. 필드를 골라 담으면 백엔드가 늘린 것을 화면이 못 본다.
         lines: d.lines,
       }))))
@@ -166,35 +168,48 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const totals = shown.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, vat: a.vat + d.vatAmount, total: a.total + d.totalAmount }), { supply: 0, vat: 0, total: 0 })
 
   // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
-  // 번호 + 전표번호·일자·거래처·품목명(요약)·창고·공급가액·부가세·합계·담당·불러온전표·세금계산서
+  // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
   // + 판매만 있는 확인상태·확인 2개
-  const colCount = 12 + (isSales ? 2 : 0)
+  const colCount = 14 + (isSales ? 2 : 0)
 
   return (
-    <EcListShell title={cfg.title} search={keyword} onSearchChange={setKeyword} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</span>
-      </div>
-
+    <EcListShell
+      title={cfg.title} search={keyword} onSearchChange={setKeyword}
+      // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
+      // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
+      onNew={() => navigate(cfg.entryTo)}
+      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+    >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {isSales && (
-        // 원본은 밑줄 탭이 아니라 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
-        <div className="ec-pills" style={{ marginBottom: 6 }}>
-          {SALES_TABS.map((t) => (
-            <button
-              key={t} type="button" onClick={() => setTab(t)}
-              className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-            >
-              {t} ({tabCount(t)})
-            </button>
-          ))}
-        </div>
-      )}
+      {/*
+        원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.
+        우리는 기간을 왼쪽 위에 조건 폼으로 따로 두고 있었다. 기간은 조건이라기보다 '지금 뭘 보고 있나' 라
+        오른쪽이 맞다. 원본은 기간을 텍스트로만 보여 주지만, 우리는 바꿀 수 있게 남긴다 —
+        못 바꾸게 만들 이유가 없다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        {isSales && (
+          <div className="ec-pills">
+            {SALES_TABS.map((t) => (
+              <button
+                key={t} type="button" onClick={() => setTab(t)}
+                className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+              >
+                {t} ({tabCount(t)})
+              </button>
+            ))}
+          </div>
+        )}
+        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: '#9aa1ab' }}>
+          총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
+        </span>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
+          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span>~</span>
+          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        </span>
+      </div>
 
       <table className="w-full text-left">
         <thead>
@@ -203,10 +218,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th>
             {/* 원본 목록에 있는 열 — 무슨 물건을 판 전표인지 열지 않고도 알아야 한다 */}
             <th>품목명(요약)</th>
+            {/* 원본 목록의 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
+            <th>거래유형</th>
             <th>창고</th>
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th><th>담당</th>
             {/* 원본 목록의 '불러온전표' — 이 전표가 어느 수주/발주에서 왔는지 */}
             <th>불러온전표</th>
+            {/* 원본 목록의 '회계반영여부' */}
+            <th style={{ textAlign: 'center' }}>회계반영</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
             <th style={{ textAlign: 'center' }}>세금계산서</th>
           </tr>
@@ -224,6 +243,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td style={{ color: '#5a626e' }}>
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
+                <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
                 <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
@@ -236,6 +256,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     if (nos.length === 0) return ''
                     return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                   })()}
+                </td>
+                <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
+                  {d.accountingReflected ? '반영' : '미반영'}
                 </td>
                 {isSales && (
                   <>

@@ -80,6 +80,11 @@ public final class PurchaseDtos {
             String remark, String createdBy,
             /** 부가세를 전표 단위로 계산한 전표인가 (거래별부가세계산) */
             boolean vatBySlip,
+            /**
+             * 회계반영 여부. 엔티티에는 있었는데 응답에 빠져 있어서 구매조회가 이 열을 못 그렸다
+             * (판매는 SalesResponse 가 이미 주고 있다 — 두 쪽이 어긋나 있었다).
+             */
+            boolean accountingReflected,
             Long projectId, String projectName,
             Long employeeId, String employeeName,
             List<PurchaseLineResponse> lines
@@ -93,6 +98,7 @@ public final class PurchaseDtos {
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
                     p.getRemark(), p.getCreatedBy(),
                     p.isVatBySlip(),
+                    p.isAccountingReflected(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
