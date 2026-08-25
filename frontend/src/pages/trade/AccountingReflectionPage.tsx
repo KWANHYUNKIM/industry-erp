@@ -1,8 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 
-/** 판매/구매 > 회계반영 — 미반영 전표 목록 + 일괄 회계반영 (백엔드 /accounting-reflection 연동) */
+/**
+ * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
+ * 백엔드 /accounting-reflection 연동.
+ *
+ * 원본은 판매·구매가 별도 메뉴지만 화면 모양이 같아 한 컴포넌트로 두고 종류만 바꾼다.
+ * 어느 쪽으로 들어왔는지는 메뉴가 ?kind= 로 알려 준다.
+ *
+ * 원본 조건: 기준일(영업주기) · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 ·
+ * 거래처관리담당자 · 금액(범위). 우리 Slip 에는 창고·프로젝트·품목·거래유형이 없어
+ * **의도적 제외**(값 없는 컨트롤을 만들지 않는다). 전표일 구간·거래처·전표번호·금액 범위를 둔다.
+ */
 type Kind = 'sales' | 'purchase'
 
 interface Slip {
@@ -19,8 +32,11 @@ interface Slip {
 }
 
 export default function AccountingReflectionPage() {
+  const [params] = useSearchParams()
   const [slips, setSlips] = useState<Slip[]>([])
-  const [kind, setKind] = useState<Kind>('sales')
+  const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+  const [cond, setCond] = useState({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [onlyUnreflected, setOnlyUnreflected] = useState(true)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -47,7 +63,14 @@ export default function AccountingReflectionPage() {
     setOk('')
   }, [kind])
 
-  const shown = slips.filter((s) => !onlyUnreflected || !s.reflected)
+  const shown = slips
+    .filter((s) => !onlyUnreflected || !s.reflected)
+    .filter((s) => !cond.from || s.slipDate >= cond.from)
+    .filter((s) => !cond.to || s.slipDate <= cond.to)
+    .filter((s) => !cond.partner || s.partnerName.includes(cond.partner))
+    .filter((s) => !cond.docNo || s.docNo.includes(cond.docNo))
+    .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
+    .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
   const unreflectedCount = slips.filter((s) => !s.reflected).length
   const selectedTotal = useMemo(
     () => slips.filter((s) => checked.has(s.id)).reduce((sum, s) => sum + s.totalAmount, 0),
@@ -61,6 +84,11 @@ export default function AccountingReflectionPage() {
       return next
     })
   }
+
+  // 두 메뉴가 같은 경로를 가리키므로 서로 오갈 때 컴포넌트가 다시 만들어지지 않는다.
+  useEffect(() => { setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales') }, [params])
+
+  const reset = () => { setCond({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' }) }
 
   async function reflectSelected() {
     if (checked.size === 0) return setError('반영할 전표를 선택하세요.')
@@ -90,8 +118,36 @@ export default function AccountingReflectionPage() {
       title="회계반영 / 미반영현황"
       onNew={reflectSelected}
       newLabel={`선택 일괄반영(${checked.size})`}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: () => load(kind) },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
+      <EcStatusPanel
+        from={cond.from} to={cond.to}
+        onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        picks={INQUIRY_PICKS}
+      >
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
+                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="전표번호" pick>
+          <input className="ec-input" placeholder="전표번호 일부" value={cond.docNo}
+                 onChange={(e) => setC({ docNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="금액">
+          <input className="ec-input" type="number" value={cond.amtFrom}
+                 onChange={(e) => setC({ amtFrom: e.target.value })} style={{ width: 120 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input className="ec-input" type="number" value={cond.amtTo}
+                 onChange={(e) => setC({ amtTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+      </EcStatusPanel>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         {kindBtn('sales', '판매')}
         {kindBtn('purchase', '구매')}
