@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 영업 > 채권/채무현황 (이카운트 E040703) · 채권현황 (E040721)
@@ -18,7 +19,7 @@ type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
 
 const won = (n: number) => n.toLocaleString()
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) => ymd(d)
 
 export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?: Mode }) {
   const [mode, setMode] = useState<Mode>(defaultMode)

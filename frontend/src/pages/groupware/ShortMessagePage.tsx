@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, ShortMessage, User } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 그룹웨어 > 쪽지 (이카운트 E010851 쪽지수발신내역 · C000663 커뮤니케이션센터 — 원본 DOM 이 같은 화면이다)
@@ -21,7 +22,7 @@ const BOXES = [
 ] as const
 type BoxKey = (typeof BOXES)[number]['key']
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) => ymd(d)
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 
 export default function ShortMessagePage() {

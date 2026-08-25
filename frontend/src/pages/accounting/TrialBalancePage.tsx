@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TrialBalance } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const DIV_NAME: Record<string, string> = {
   ASSET: '자산', LIABILITY: '부채', EQUITY: '자본', REVENUE: '수익', EXPENSE: '비용',

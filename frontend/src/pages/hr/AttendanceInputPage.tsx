@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -30,7 +31,7 @@ function statusColor(s: string) {
   return '#c07a00'
 }
 
-const today = new Date().toISOString().slice(0, 10)
+const today = ymd(new Date())
 const emptyForm = { userId: '', date: today, clockIn: '09:00', clockOut: '18:00', note: '' }
 
 export default function AttendanceInputPage() {

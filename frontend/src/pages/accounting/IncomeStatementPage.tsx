@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeStatement, StatementRow } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 손익계산서 — 기간 내 수익 − 비용 = 당기순이익. */
 export default function IncomeStatementPage() {

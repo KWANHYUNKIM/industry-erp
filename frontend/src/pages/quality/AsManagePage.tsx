@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface AsPart {
   id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
@@ -21,7 +22,7 @@ interface AsRow {
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 export default function AsManagePage() {
   const [rows, setRows] = useState<AsRow[]>([])

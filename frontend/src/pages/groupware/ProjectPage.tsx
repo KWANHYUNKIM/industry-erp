@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -22,7 +23,7 @@ interface Project {
   createdBy: string | null
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 그룹웨어 > 프로젝트 — 프로젝트 진행/진척 관리 (실제 연동) */
 export default function ProjectPage() {

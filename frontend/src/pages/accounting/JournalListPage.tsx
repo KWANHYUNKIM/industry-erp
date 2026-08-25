@@ -2,10 +2,11 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const SRC_COLOR: Record<string, string> = {
   SALES: 'var(--ec-blue)', PURCHASE: '#a5561b', EXPENSE: '#7a4fb5', MANUAL: '#5a626e',

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const STATUS_TABS = ['전체', '작성', '발행', '전송', '승인'] as const
 type Tab = (typeof STATUS_TABS)[number]

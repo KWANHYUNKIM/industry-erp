@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -11,7 +12,7 @@ import Modal from '../../components/Modal'
  * 반영 시 일반 재고조정(ADJUST)을 생성해 실제 재고에 반영한다. 백엔드 신설: /api/staged-adjustments.
  */
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 type Tab = 'ALL' | StagedStatus
 const TABS: { v: Tab; label: string }[] = [
   { v: 'ALL', label: '전체' },

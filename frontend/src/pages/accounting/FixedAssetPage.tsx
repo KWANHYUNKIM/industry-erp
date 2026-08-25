@@ -3,9 +3,10 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const today = () => ymd(new Date())
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {

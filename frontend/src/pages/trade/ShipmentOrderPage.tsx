@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
@@ -18,7 +19,7 @@ interface Shipment {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
 

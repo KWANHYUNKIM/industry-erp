@@ -3,9 +3,10 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BudgetStatus } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /** 예산관리 — 계정별 편성액 대비 집행실적(회계전표 집계). 실적은 저장하지 않고 볼 때 계산한다. */
 export default function BudgetPage() {

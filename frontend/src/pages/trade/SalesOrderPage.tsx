@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
@@ -17,7 +18,7 @@ interface SalesOrder {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
 

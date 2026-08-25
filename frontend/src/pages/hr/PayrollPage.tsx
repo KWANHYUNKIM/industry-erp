@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayGroup, Payslip } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /** 급여계산/대장 — 귀속월의 사원별 급여명세. 미작성 사원은 계산, 작성분은 상세/확정. */
 export default function PayrollPage() {

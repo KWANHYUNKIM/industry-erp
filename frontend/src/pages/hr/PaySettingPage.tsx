@@ -4,9 +4,10 @@ import EcListShell from '../../components/EcListShell'
 import type {
   BankAccountRow, PayGroup, PayItem, Payslip, PayrollTransfer, PayslipLineKind,
 } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const today = () => ymd(new Date())
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['수당/공제 항목', '수당/공제 그룹', '급여이체'] as const

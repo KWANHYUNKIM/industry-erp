@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 집계표 (이카운트 E040710)
@@ -15,7 +16,7 @@ type GroupBy = 'partner' | 'item'
 interface PivotRow { key: string; name: string; months: number[]; total: number }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(new Date().toISOString().slice(0, 4))
+const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export default function PivotSummaryPage() {

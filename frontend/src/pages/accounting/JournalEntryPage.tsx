@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Row { accountId: string; debit: string; credit: string; description: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyRow = (): Row => ({ accountId: '', debit: '', credit: '', description: '' })
 
 /** 일반전표 입력 — 차변/대변 라인을 직접 입력해 회계전표를 만든다. 차변합=대변합이어야 저장된다. */

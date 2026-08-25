@@ -2,10 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const inputCls = 'ec-input w-full'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
 
 export default function StockIoPage() {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 월별채권/채무증감내역 (이카운트 E040713·E040714)
@@ -22,7 +23,7 @@ interface Settlement {
 interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(new Date().toISOString().slice(0, 4))
+const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const ym = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) })
 
 export default function MonthlyArApPage() {

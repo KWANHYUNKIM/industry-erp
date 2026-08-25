@@ -3,10 +3,11 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeType, OtherWithholding, OtherWithholdingSummary, Partner } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
-const today = () => new Date().toISOString().slice(0, 10)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
+const today = () => ymd(new Date())
 
 /** 소득구분별 세율. 화면 미리보기용 — 확정 계산은 서버가 한다. */
 const TYPES: { value: IncomeType; label: string; rate: number; expenseRate: number; hint: string }[] = [

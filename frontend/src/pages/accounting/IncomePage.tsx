@@ -3,9 +3,10 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const monthStart = () => today().slice(0, 8) + '01'
 
 type Tab = '수입등록' | '수입비용현황'

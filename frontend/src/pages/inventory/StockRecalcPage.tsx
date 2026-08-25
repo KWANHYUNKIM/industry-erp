@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 잔량재집계 (이카운트 E040607)
@@ -35,7 +36,7 @@ interface RecalcResult {
   rows: RecalcRow[]
 }
 
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const num = (v: string) => Number(v).toLocaleString()
 
 export default function StockRecalcPage() {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 회계 > 원가생성/수정 (실제 연동: /api/costs) */
 interface Item { id: number; code: string; name: string }
@@ -21,7 +22,7 @@ interface Cost {
   actualTotal: number
 }
 
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const emptyForm = () => ({
   itemId: '', period: thisMonth(),
   materialCost: '', laborCost: '', overheadCost: '',

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 I > 기타이동 > 재고실사 (이카운트 E040612 단계별재고실사)
@@ -15,7 +16,7 @@ import EcListShell from '../../components/EcListShell'
  *
  * 원본 Search 패널은 창고·담당자뿐. 담당자는 조정에 별도 필드가 없어(작성자로만 남음) 제외한다.
  */
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 interface CountRow extends StockRow {

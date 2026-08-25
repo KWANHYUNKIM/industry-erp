@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { ChatMessage, ChatRoom, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { ymd } from './EcPeriodPicks'
 
 /** 폴링 주기(ms). 소켓 대신 증분 폴링(afterId)이라 새 메시지만 내려온다. */
 const POLL_MS = 4000
@@ -443,6 +444,6 @@ function hhmm(iso: string) {
 /** 방 목록의 오른쪽 시각 — 오늘이면 HH:mm, 아니면 MM.DD */
 function shortTime(iso: string | null) {
   if (!iso) return ''
-  const today = new Date().toISOString().slice(0, 10)
+  const today = ymd(new Date())
   return iso.slice(0, 10) === today ? hhmm(iso) : iso.slice(5, 10).replace('-', '.')
 }

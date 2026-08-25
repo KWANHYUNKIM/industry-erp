@@ -4,8 +4,9 @@ import EcListShell from '../../components/EcListShell'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['계좌간이동', '법인카드 대금결제'] as const

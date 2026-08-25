@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 생산관리 > 작업내역입력 — 공정별 작업 실적 등록/삭제 (백엔드 /api/work-results 연동) */
 interface WorkResult {
@@ -20,7 +21,7 @@ interface WorkOrder { id: number; orderNo: string; productName: string }
 interface Process { id: number; name: string }
 
 const inputCls = 'ec-input w-full'
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyForm = { workOrderId: '', process: '', worker: '', goodQty: '', defectQty: '', workTimeMin: '', workDate: today() }
 
 export default function WorkResultPage() {

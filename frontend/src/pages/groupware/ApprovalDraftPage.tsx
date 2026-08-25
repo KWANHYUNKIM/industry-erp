@@ -8,6 +8,7 @@ import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -16,7 +17,7 @@ const FONT_FAMILY: Record<string, string> = {
   '맑은 고딕': '"Malgun Gothic", 맑은 고딕, sans-serif',
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 양식의 table 필드는 기본행(defaultRows)을 깔아준다. 예: 여비산정의 숙박비/교통비/… */
 function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {

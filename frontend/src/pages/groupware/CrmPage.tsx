@@ -3,8 +3,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { CrmActivity, CrmStage, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const STAGES: { v: CrmStage; label: string; color: string }[] = [
   { v: 'LEAD', label: '리드', color: '#8a929c' },

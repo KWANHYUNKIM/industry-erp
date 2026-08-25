@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, PurchaseDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 일보 (이카운트 E040708 일보)
@@ -11,7 +12,7 @@ import EcListShell from '../../components/EcListShell'
  */
 interface MovementRow { inQty: number; outQty: number }
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 export default function DailyReportPage() {
   const [date, setDate] = useState(today())
@@ -52,7 +53,7 @@ export default function DailyReportPage() {
 
   const shiftDay = (delta: number) => {
     const d = new Date(date); d.setDate(d.getDate() + delta)
-    setDate(d.toISOString().slice(0, 10))
+    setDate(ymd(d))
   }
 
   return (

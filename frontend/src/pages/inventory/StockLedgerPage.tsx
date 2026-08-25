@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -26,7 +27,7 @@ interface LedgerResponse { opening: number | null; rows: StockTransaction[] }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 interface ServerFilters { from: string; to: string; itemId: string; warehouseId: string }
 

@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -21,7 +22,7 @@ interface Settlement {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const METHODS = ['현금', '계좌이체', '어음', '카드']
 
 export default function SettlementPage() {

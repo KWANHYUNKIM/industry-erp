@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 회계 > 일별이익현황 (실제 연동: /api/profit/daily) */
 interface Row {
@@ -11,11 +12,11 @@ interface Row {
   marginRate: number
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const daysAgo = (n: number) => {
   const d = new Date()
   d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return ymd(d)
 }
 
 export default function DailyProfitPage() {

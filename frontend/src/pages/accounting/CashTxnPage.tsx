@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Partner { id: number; name: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 현금거래 — 입금/출금 간편입력. 입금은 차)현금·대)상대계정, 출금은 차)상대계정·대)현금 분개가 자동 생성된다. */
 export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) {

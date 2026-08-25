@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AccountLedger } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface AccountOpt { id: number; code: string; name: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 계정별원장 — 한 계정의 기간 내 분개 이력과 계정구분별 누적 잔액. */
 export default function AccountLedgerPage() {

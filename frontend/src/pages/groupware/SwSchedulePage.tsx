@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface Project {
   id: number
@@ -21,7 +22,7 @@ const STATUS_COLOR: Record<Project['status'], string> = {
   PLANNING: '#5a626e', IN_PROGRESS: '#c07a00', ON_HOLD: '#c60a2e', DONE: '#1c7c3c',
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 그룹웨어 > SW개발일정관리 — 개발 건(프로젝트)별 일정·진행률 관리 (실제 연동, /projects 재사용) */
 export default function SwSchedulePage() {

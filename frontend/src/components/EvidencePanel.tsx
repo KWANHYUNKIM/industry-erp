@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../api/types'
 import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
+import { ymd } from './EcPeriodPicks'
 
 /**
  * 전표 하나에 붙은 증빙(첨부파일)을 보고 등록·삭제하는 재사용 패널.
@@ -25,7 +26,7 @@ export default function EvidencePanel({
 }) {
   const [rows, setRows] = useState<EvidenceAttachment[]>([])
   const [method, setMethod] = useState<EvidenceMethod>('TAX_INVOICE')
-  const [evidenceDate, setEvidenceDate] = useState(docDate ?? new Date().toISOString().slice(0, 10))
+  const [evidenceDate, setEvidenceDate] = useState(docDate ?? ymd(new Date()))
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

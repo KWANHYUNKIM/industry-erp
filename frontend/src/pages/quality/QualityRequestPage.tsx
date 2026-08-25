@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 품질관리 — 품질검사요청 (이카운트 C000692·E040628~E040631)
@@ -10,7 +11,7 @@ import Modal from '../../components/Modal'
  * 데이터는 GET/POST/PATCH/DELETE /api/quality-inspection-requests (백엔드 신설).
  */
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TYPES: { v: QualityInspectionType; label: string }[] = [
   { v: 'INCOMING', label: '수입검사' },

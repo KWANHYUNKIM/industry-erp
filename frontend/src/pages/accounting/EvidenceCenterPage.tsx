@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 증빙센터 (이카운트 E040730)
@@ -27,7 +28,7 @@ const MENUS = [
   { value: 'PURCHASE', label: '구매' },
   { value: 'EXPENSE', label: '비용' },
 ]
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) => ymd(d)
 
 export default function EvidenceCenterPage() {
   const today = iso(new Date())

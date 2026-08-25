@@ -3,8 +3,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { CommonCode, Project } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 // 결제수단은 공통코드(PAYMENT_METHOD)에서 가져온다. 화면에 하드코딩하면 항목 하나 늘릴 때마다 배포해야 한다.
 
 interface Account { id: number; code: string; name: string; division: string }

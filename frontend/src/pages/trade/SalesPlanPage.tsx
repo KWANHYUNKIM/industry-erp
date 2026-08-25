@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -26,7 +27,7 @@ interface ComparisonRow {
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
-const thisYear = () => Number(new Date().toISOString().slice(0, 4))
+const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export default function SalesPlanPage() {

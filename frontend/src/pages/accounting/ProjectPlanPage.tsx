@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 회계 > 프로젝트 > 프로젝트계획 / 계획·실적현황 (이카운트 C000653·E040636·E040637)
@@ -28,7 +29,7 @@ interface ComparisonRow {
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
-const thisYear = () => Number(new Date().toISOString().slice(0, 4))
+const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 
 export default function ProjectPlanPage() {
   const [year, setYear] = useState<number>(thisYear())

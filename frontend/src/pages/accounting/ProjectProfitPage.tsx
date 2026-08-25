@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ProjectProfitSummary } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const firstOfMonth = () => new Date().toISOString().slice(0, 8) + '01'
-const today = () => new Date().toISOString().slice(0, 10)
+const firstOfMonth = () => ymd(new Date()).slice(0, 8) + '01'
+const today = () => ymd(new Date())
 
 /**
  * 회계 II > 프로젝트별 손익 — 전표에 붙은 프로젝트를 집계한다.

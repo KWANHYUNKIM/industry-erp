@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 interface MaterialIssue {
@@ -24,7 +25,7 @@ interface Warehouse { id: number; name: string }
 interface WorkOrder { id: number; orderNo: string; productName: string }
 
 const inputCls = 'ec-input w-full'
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyForm = { itemId: '', warehouseId: '', workOrderId: '', qty: '', issueDate: today(), note: '' }
 
 export default function IssuePage() {

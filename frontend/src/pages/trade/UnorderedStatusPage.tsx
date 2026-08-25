@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Quotation, QuotationStatus } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -51,7 +52,7 @@ const EMPTY_FILTERS: Filters = {
   dateFrom: '', dateTo: '', partner: '', quoteNo: '', item: '', expiredOnly: false, sortByDoc: false,
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => ymd(new Date())
 
 export default function UnorderedStatusPage() {
   const [rows, setRows] = useState<Row[]>([])

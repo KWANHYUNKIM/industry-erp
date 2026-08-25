@@ -3,9 +3,10 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '작성', '발송', '서명완료', '해지'] as const
 type Tab = (typeof TABS)[number]

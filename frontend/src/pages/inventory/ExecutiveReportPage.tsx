@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -14,7 +15,7 @@ import EcListShell from '../../components/EcListShell'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 interface NameAmt { key: string; name: string; amount: number }
 

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TYPES: { value: AssignmentType; label: string; hint: string }[] = [
   { value: 'TRANSFER', label: '전보', hint: '부서를 지정하세요.' },

@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 데이터센터 > 데이터내보내기 > 의료기기공급내역보고 (이카운트 E040231)
@@ -43,8 +44,8 @@ interface ReportHistory {
   createdAt: string | null
 }
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const iso = (d: Date) => ymd(d)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 export default function MedicalDeviceReportPage() {
   const today = iso(new Date())

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
-import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
@@ -9,7 +9,7 @@ import type { WorkJournal } from '../../api/types'
 
 const TITLE = '업무일지'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const dow = (d: string) => (d ? DOW[new Date(d).getDay()] : '')
 

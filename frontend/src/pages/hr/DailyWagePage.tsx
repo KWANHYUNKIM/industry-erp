@@ -3,10 +3,11 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
-const today = () => new Date().toISOString().slice(0, 10)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
+const today = () => ymd(new Date())
 
 /**
  * 관리 > 일용근로급여관리 — 출역(근무일) 단위 등록과 월별 급여대장.

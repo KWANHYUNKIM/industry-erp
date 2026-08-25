@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 현황누계표 (이카운트 E040709)
@@ -17,7 +18,7 @@ interface MonthRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(new Date().toISOString().slice(0, 4))
+const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 
 export default function MonthlyCumulativePage() {
   const [year, setYear] = useState<number>(thisYear())

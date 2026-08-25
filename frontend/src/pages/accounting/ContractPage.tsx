@@ -3,8 +3,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 

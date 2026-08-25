@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '보유', '결제완료', '할인', '부도'] as const
 type Tab = (typeof TABS)[number]

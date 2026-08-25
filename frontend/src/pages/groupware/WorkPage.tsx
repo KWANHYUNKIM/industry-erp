@@ -3,8 +3,9 @@ import { exportTableToXlsx } from '../../utils/excel'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 그룹웨어 > 업무관리 > WORK — 업무 게시글 목록 (실연동) */
 export default function WorkPage() {

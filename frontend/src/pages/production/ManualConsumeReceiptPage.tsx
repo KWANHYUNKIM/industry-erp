@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동)
@@ -52,7 +53,7 @@ interface FlatRow {
 }
 
 const inputCls = 'ec-input w-full'
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyForm = { workOrderId: '', producedQty: '', productionDate: today() }
 
 export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {

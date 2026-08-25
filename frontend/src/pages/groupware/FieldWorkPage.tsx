@@ -3,8 +3,9 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const monthStart = () => today().slice(0, 8) + '01'
 
 const TABS = ['전체', '신청', '승인', '반려'] as const

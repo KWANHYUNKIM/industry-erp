@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import { ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -18,7 +19,7 @@ interface MovementRow {
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 export default function StockMovementPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])

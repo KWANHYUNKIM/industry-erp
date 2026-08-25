@@ -4,10 +4,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse, WorkOrder } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const inputCls = 'ec-input'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const statusColor = (s: string) =>
   s === 'COMPLETED' ? '#1c7c3c' : s === 'IN_PROGRESS' ? '#b6791b' : '#7a828c'
