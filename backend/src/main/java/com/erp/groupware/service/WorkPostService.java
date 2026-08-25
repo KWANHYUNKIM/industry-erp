@@ -5,6 +5,8 @@ import com.erp.auth.repository.UserRepository;
 import com.erp.common.ApiException;
 import com.erp.groupware.domain.WorkPost;
 import com.erp.groupware.domain.WorkPostStatus;
+import com.erp.groupware.domain.enums.PostBoard;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.groupware.dto.WorkPostDtos.CreateWorkPostRequest;
 import com.erp.groupware.dto.WorkPostDtos.UpdateWorkPostStatusRequest;
 import com.erp.groupware.dto.WorkPostDtos.WorkPostResponse;
@@ -24,6 +26,7 @@ public class WorkPostService {
     private final WorkPostRepository workPostRepository;
     // writer 는 로그인 아이디다(FK). 화면에는 사람 이름을 보여야 하므로 여기서 옮긴다.
     private final UserRepository userRepository;
+    private final DocumentNoGenerator docNo;
 
     /** 로그인 아이디 → 표시 이름. 계정이 지워졌으면 아이디를 그대로 보여 준다. */
     private String displayName(String username) {
@@ -32,15 +35,19 @@ public class WorkPostService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkPostResponse> findAll() {
-        return workPostRepository.findAllOrdered().stream()
+    public List<WorkPostResponse> findAll(PostBoard board) {
+        return workPostRepository.findByBoardOrdered(board != null ? board : PostBoard.WORK).stream()
                 .map((post) -> WorkPostResponse.from(post, displayName(post.getWriter())))
                 .toList();
     }
 
     @Transactional
     public WorkPostResponse create(CreateWorkPostRequest req, String writer) {
+        // 게시글번호는 게시판을 가로질러 하나의 줄기다. max+1 이라 두 사람이 동시에 쓰면
+        // 같은 번호를 읽으므로 번호 공간에 락을 건다.
+        docNo.lockNumberSpace("WORK-POST-NO");
         WorkPost post = WorkPost.builder()
+                .board(req.board() != null ? req.board() : PostBoard.WORK)
                 .postNo(workPostRepository.maxPostNo() + 1)
                 .postDate(req.postDate() != null ? req.postDate() : LocalDate.now())
                 .title(req.title())

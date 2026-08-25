@@ -2,6 +2,7 @@ package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.WorkPost;
 import com.erp.groupware.domain.WorkPostStatus;
+import com.erp.groupware.domain.enums.PostBoard;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
@@ -11,6 +12,8 @@ public final class WorkPostDtos {
     private WorkPostDtos() {}
 
     public record CreateWorkPostRequest(
+            /** 안 주면 WORK 게시판. 공지사항은 NOTICE 로 보낸다. */
+            PostBoard board,
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
             String forwardTo,
@@ -22,7 +25,8 @@ public final class WorkPostDtos {
     ) {}
 
     public record WorkPostResponse(
-            Long id, int postNo, LocalDate postDate,
+            Long id, PostBoard board, String boardName,
+            int postNo, LocalDate postDate,
             String title, String content,
             /** 작성자 로그인 아이디 (users.username FK) */
             String writer,
@@ -33,7 +37,8 @@ public final class WorkPostDtos {
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             return new WorkPostResponse(
-                    p.getId(), p.getPostNo(), p.getPostDate(),
+                    p.getId(), p.getBoard(), p.getBoard().getDisplayName(),
+                    p.getPostNo(), p.getPostDate(),
                     p.getTitle(), p.getContent(), p.getWriter(), writerName, p.getForwardTo(),
                     p.getStatus(), p.getStatus().getDisplayName());
         }

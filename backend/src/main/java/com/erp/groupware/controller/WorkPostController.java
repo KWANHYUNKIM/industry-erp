@@ -1,5 +1,6 @@
 package com.erp.groupware.controller;
 
+import com.erp.groupware.domain.enums.PostBoard;
 import com.erp.groupware.dto.WorkPostDtos.CreateWorkPostRequest;
 import com.erp.groupware.dto.WorkPostDtos.UpdateWorkPostStatusRequest;
 import com.erp.groupware.dto.WorkPostDtos.WorkPostResponse;
@@ -21,9 +22,10 @@ public class WorkPostController {
 
     private final WorkPostService workPostService;
 
+    /** board 를 안 주면 WORK 게시판. 공지사항은 board=NOTICE. */
     @GetMapping
-    public List<WorkPostResponse> list() {
-        return workPostService.findAll();
+    public List<WorkPostResponse> list(@RequestParam(required = false) PostBoard board) {
+        return workPostService.findAll(board);
     }
 
     @PostMapping

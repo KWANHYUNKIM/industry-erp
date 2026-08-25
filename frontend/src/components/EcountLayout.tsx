@@ -465,10 +465,11 @@ const MENU: TopMenu[] = [
         label: '업무관리',
         nodes: [
           { label: 'ECDrive', to: '/groupware/drive' },
+          // 원본에서 '업무관리게시판'은 묶음이고 그 안에 게시판('WORK')이 있다.
+          // 우리가 따로 두던 '업무관리게시판' 화면은 WORK 와 같은 것이라 지웠다.
           {
             label: '업무관리게시판',
             children: [
-              { label: '업무관리게시판', to: '/groupware/board' },
               { label: 'WORK', to: '/groupware/work' },
             ],
           },

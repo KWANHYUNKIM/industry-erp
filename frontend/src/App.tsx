@@ -76,7 +76,6 @@ const MyApprovalPage = lazy(() => import('./pages/groupware/MyApprovalPage'))
 const ApprovalAllPage = lazy(() => import('./pages/groupware/ApprovalAllPage'))
 const ApprovalSettingPage = lazy(() => import('./pages/groupware/ApprovalSettingPage'))
 const EcDrivePage = lazy(() => import('./pages/groupware/EcDrivePage'))
-const BoardPage = lazy(() => import('./pages/groupware/BoardPage'))
 const AnonymousBoardPage = lazy(() => import('./pages/groupware/AnonymousBoardPage'))
 const FieldWorkPage = lazy(() => import('./pages/groupware/FieldWorkPage'))
 const WorkPage = lazy(() => import('./pages/groupware/WorkPage'))
@@ -395,7 +394,6 @@ export default function App() {
         <Route path="/groupware/approval/all" element={<ApprovalAllPage />} />
         <Route path="/groupware/approval/settings" element={<ApprovalSettingPage />} />
         <Route path="/groupware/drive" element={<EcDrivePage />} />
-        <Route path="/groupware/board" element={<BoardPage />} />
         <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
         <Route path="/groupware/field-works" element={<FieldWorkPage />} />
         <Route path="/groupware/work" element={<WorkPage />} />

@@ -7,8 +7,14 @@ import { ymd } from '../../components/EcPeriodPicks'
 
 const today = () => ymd(new Date())
 
-/** 그룹웨어 > 업무관리 > WORK — 업무 게시글 목록 (실연동) */
-export default function WorkPage() {
+/**
+ * 게시판 목록 화면. 원본은 게시판을 여러 개 두고 게시글을 그 아래 다는데,
+ * 화면 모양은 게시판마다 똑같다 — 업무관리 &gt; WORK 와 공유정보 &gt; 공지사항이 그렇다.
+ * 게시글번호도 게시판을 가로질러 한 줄기여서 목록 번호에 구멍이 보인다.
+ *
+ * 그래서 한 컴포넌트가 board 만 바꿔 두 화면을 낸다(내결재관리·기안서통합관리와 같은 방식).
+ */
+export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
   const [rows, setRows] = useState<WorkPost[]>([])
   const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
   const [keyword, setKeyword] = useState('')
@@ -23,7 +29,7 @@ export default function WorkPage() {
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<WorkPost[]>('/work-posts')
+      const r = await api.get<WorkPost[]>('/work-posts', { params: { board } })
       setRows(r.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -32,7 +38,7 @@ export default function WorkPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [board])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -42,7 +48,7 @@ export default function WorkPage() {
     if (!form.content.trim()) return setError('내용을 입력하세요.')
     try {
       await api.post('/work-posts', {
-        title: form.title, content: form.content,
+        board, title: form.title, content: form.content,
         forwardTo: form.forwardTo || undefined, postDate: form.postDate,
       })
       setForm({ title: '', content: '', forwardTo: '', postDate: today() })
@@ -115,7 +121,7 @@ export default function WorkPage() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>WORK</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 150 }} />
           <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>

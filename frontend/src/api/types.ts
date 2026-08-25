@@ -1137,6 +1137,9 @@ export type WorkPostStatus = 'IN_PROGRESS' | 'DONE'
 
 export interface WorkPost {
   id: number
+  /** 게시판. 게시글번호는 게시판을 가로질러 한 줄기라 목록 번호에 구멍이 보인다 */
+  board: 'WORK' | 'NOTICE'
+  boardName: string
   postNo: number
   postDate: string
   title: string

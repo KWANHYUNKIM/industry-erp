@@ -1629,6 +1629,27 @@ async function scenarioGroupwareShared() {
 둘째 줄`)
   await rejects('제목도 내용도 없으면 거부', 'POST', '/board', { anonymous: true }, '내용을 입력하세요')
   await must('DELETE', `/board/${wall.id}`)
+
+  // 게시글번호는 게시판을 가로질러 한 줄기다 — 원본 공지사항 목록의 번호에 구멍이 보이는 이유다.
+  const notice = await must('POST', '/work-posts', {
+    board: 'NOTICE', title: `${P}공지`, content: '공지 내용', forwardTo: '전 직원', postDate: '2026-08-25',
+  })
+  const work = await must('POST', '/work-posts', {
+    board: 'WORK', title: `${P}업무`, content: '업무 내용', postDate: '2026-08-25',
+  })
+  eq('게시판이 응답에 실린다', notice.boardName, '공지사항')
+  eq('board 를 안 주면 WORK', (await must('POST', '/work-posts',
+    { title: `${P}기본게시판`, content: '내용', postDate: '2026-08-25' })).boardName, 'WORK')
+  eq('게시글번호는 게시판을 가로질러 이어진다', work.postNo, notice.postNo + 1)
+  eq('공지사항 목록에는 공지만',
+    (await must('GET', '/work-posts?board=NOTICE')).every((p) => p.board === 'NOTICE'), true)
+  eq('WORK 목록에 공지는 안 낀다',
+    (await must('GET', '/work-posts?board=WORK')).some((p) => p.id === notice.id), false)
+  await must('DELETE', `/work-posts/${notice.id}`)
+  await must('DELETE', `/work-posts/${work.id}`)
+  for (const p of await must('GET', '/work-posts?board=WORK')) {
+    if (p.title === `${P}기본게시판`) await must('DELETE', `/work-posts/${p.id}`)
+  }
   await must('DELETE', `/board/${named.id}`)
 
   // ── 외근조회: 신청 → 승인/반려
