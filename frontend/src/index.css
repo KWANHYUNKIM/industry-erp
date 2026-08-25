@@ -8,15 +8,21 @@
   --ec-blue-light: #d3daf7;   /* --primary-light */
   --ec-lightblue: #668fe7;    /* --theme-lightblue */
   --ec-bookmark-bg: #f4f6f9;
-  --ec-border: #d5dbe2;
-  --ec-body-bg: #eef1f5;
-  --ec-text: #142444;         /* --text (진네이비) */
+  /* 아래 3개는 살아 있는 원본(loginad.ecount.com)에서 getComputedStyle 로 실측한 값이다.
+     짐작으로 고르지 말 것 — scratchpad/ecount-computed.md 에 대조표가 있다. */
+  --ec-border: #dee2e6;       /* rgb(222,226,230) — 원본의 기본 테두리 */
+  --ec-border-strong: #9bb0be;/* rgb(155,176,190) — 그리드 헤더 위쪽만 진하다 */
+  --ec-body-bg: #f7f8f9;      /* rgb(247,248,249) */
+  --ec-text: #142444;         /* --text (진네이비). 입력칸·버튼 글자색 */
+  --ec-text-grid: #000;       /* 그리드 셀은 순검정이다 */
+  --ec-label: #62677e;        /* rgb(98,103,126) — 헤더 폼 라벨 */
   /* 그림자 토큰 (네이비 톤, 은은하게 — 카드/표/버튼에 입체감) */
   --ec-shadow-sm: 0 1px 2px rgba(20, 36, 68, 0.08);
   --ec-shadow: 0 1px 3px rgba(20, 36, 68, 0.10), 0 1px 2px rgba(20, 36, 68, 0.06);
   --ec-shadow-lg: 0 6px 18px rgba(20, 36, 68, 0.14);
-  font-family: "DM Sans", "Noto Sans KR", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, "Malgun Gothic", "맑은 고딕", sans-serif;
+  /* 원본 그대로: 맑은 고딕이 1순위다. DM Sans 를 앞에 두면 글자 폭·자간이 달라져
+     같은 픽셀값을 줘도 화면 인상이 안 맞는다. */
+  font-family: "Malgun Gothic", "맑은 고딕", Arial, "Apple SD Gothic Neo", Gulim, sans-serif;
   font-size: 12px;
   color-scheme: light;
 }
@@ -30,8 +36,9 @@ body,
 
 body {
   background-color: var(--ec-body-bg);
-  color: var(--ec-text);
+  color: #000;          /* 원본 body 는 순검정이다. 컨트롤만 --ec-text 를 쓴다 */
   font-size: 12px;
+  line-height: 18px;    /* 원본 실측 */
 }
 
 /* 이카운트풍 조밀한 표 (Bootstrap table-striped/table-bordered 느낌) */
@@ -42,17 +49,20 @@ body {
   background: #fff;
   box-shadow: var(--ec-shadow);
 }
+/* 원본 실측: th bg #f7f8f9 · padding 10px 3px 8px · 위 테두리만 #9bb0be · 글자 12px 검정 */
 .ec-grid th {
-  background: #f2f5f8;
+  background: var(--ec-body-bg);
   border: 1px solid var(--ec-border);
-  padding: 5px 8px;
-  font-weight: 600;
-  color: #444;
+  border-top-color: var(--ec-border-strong);
+  padding: 10px 3px 8px;
+  font-weight: 400;
+  color: var(--ec-text-grid);
   white-space: nowrap;
 }
 .ec-grid td {
   border: 1px solid var(--ec-border);
-  padding: 4px 8px;
+  padding: 6px 3px;
+  color: var(--ec-text-grid);
 }
 .ec-grid tbody tr:nth-child(even) {
   background: #fafbfc;
@@ -62,28 +72,28 @@ body {
 }
 
 /* 이카운트풍 버튼 */
+/* 원본 실측: 푸터 버튼 h28 / padding 7px 10px / radius 5px / 흰 배경 / border #dee2e6.
+   그라데이션과 그림자는 원본에 없다(box-shadow: none). */
 .ec-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   font-size: 12px;
-  border: 1px solid #b8c0cc;
-  background: linear-gradient(#ffffff, #f1f3f6);
-  color: #333;
-  border-radius: 3px;
+  border: 1px solid var(--ec-border);
+  background: #fff;
+  color: var(--ec-text);
+  border-radius: 5px;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: var(--ec-shadow-sm);
 }
 .ec-btn:hover {
-  background: #eef2f7;
-  box-shadow: var(--ec-shadow);
+  background: #f1f3f5;
 }
 .ec-btn-primary {
-  border-color: var(--ec-blue-dark);
-  background: linear-gradient(var(--ec-blue), var(--ec-blue-dark));
+  border-color: var(--ec-blue);   /* 원본은 테두리도 같은 파랑이다 */
+  background: var(--ec-blue);     /* 그라데이션 아님 */
   color: #fff;
 }
 .ec-btn-primary:hover {
@@ -91,12 +101,14 @@ body {
 }
 
 /* 입력칸 */
+/* 원본 실측: h30 · padding 6px · radius 5px · border #dee2e6 */
 .ec-input {
-  height: 26px;
+  height: 30px;
   padding: 0 6px;
-  border: 1px solid #c3cad4;
-  border-radius: 2px;
+  border: 1px solid var(--ec-border);
+  border-radius: 5px;
   font-size: 12px;
+  color: var(--ec-text);
   background: #fff;
   outline: none;
 }
@@ -117,17 +129,18 @@ main table,
   border-collapse: collapse;
 }
 #root table:not(.no-ec) thead th {
-  background: #f2f5f8 !important;
+  background: var(--ec-body-bg) !important;
   border: 1px solid var(--ec-border) !important;
-  color: #3a4453 !important;
-  padding: 5px 8px !important;
-  font-weight: 600 !important;
+  border-top-color: var(--ec-border-strong) !important;
+  color: var(--ec-text-grid) !important;
+  padding: 10px 3px 8px !important;
+  font-weight: 400 !important;
   font-size: 12px !important;
   white-space: nowrap;
 }
 #root table:not(.no-ec) tbody td {
   border: 1px solid var(--ec-border) !important;
-  padding: 4px 8px !important;
+  padding: 6px 3px !important;
   font-size: 12px !important;
 }
 #root table:not(.no-ec) tbody tr:hover {
@@ -170,11 +183,12 @@ main table,
 /* 탭 활성 밑줄 */
 #root .border-indigo-600 { border-color: var(--ec-blue) !important; }
 
-/* 입력폼도 살짝 각지게 */
+/* 원본 실측: 입력칸 radius 는 5px 다(2px 로 각지게 하던 것을 되돌린다).
+   코드도움과 붙는 칸은 오른쪽만 각지므로 개별 규칙이 이길 수 있게 !important 를 뺀다. */
 #root input,
 #root select,
 #root textarea {
-  border-radius: 2px !important;
+  border-radius: 5px;
 }
 
 /* ============================================================
@@ -267,34 +281,33 @@ main table,
 }
 
 /* 헤더 항목 폼 (.wrapper-form: li > .title + .form) */
+/* 원본 판매입력의 헤더 폼은 **격자가 아니다** — 흰 바탕에 라벨 텍스트 + 입력칸이
+   2열로 놓일 뿐이고, 셀 테두리도 라벨 배경도 없다. 우리는 회색 라벨칸 + 격자선이었다.
+   라벨 실측: 12px · color #62677e · padding 3px 3px 3px 10px · height 24 · 배경 투명. */
 .ec-form {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 0;
+  /* 원본은 화면이 아무리 넓어도 **2열**이다(좌: 일자·담당자·거래유형·프로젝트 /
+     우: 거래처·출하창고·통화). 340px 로 두면 넓은 화면에서 4~6열로 퍼져 원본과 딴판이 된다. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
   list-style: none;
   margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--ec-border);
-  border-left: 1px solid var(--ec-border);
+  padding: 6px 0;
   background: #fff;
 }
 .ec-form > li {
   display: flex;
-  align-items: stretch;
-  border-right: 1px solid var(--ec-border);
-  border-bottom: 1px solid var(--ec-border);
-  min-height: 30px;
+  align-items: center;
+  min-height: 34px;
 }
 .ec-form > li > .title {
   flex: 0 0 92px;
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  background: #f2f5f8;
-  border-right: 1px solid var(--ec-border);
+  padding: 3px 3px 3px 10px;
   font-size: 12px;
-  font-weight: 600;
-  color: #3a4453;
+  font-weight: 400;
+  color: var(--ec-label);
   white-space: nowrap;
 }
 .ec-form > li > .title .req {
@@ -309,6 +322,11 @@ main table,
   gap: 3px;
   padding: 2px 4px;
 }
+/* 좁은 화면에서는 1열로 접는다(원본도 폭이 좁아지면 세로로 쌓인다). */
+@media (max-width: 1100px) {
+  .ec-form { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* 두 칸을 차지하는 항목(적요·장문 등) */
 .ec-form > li.wide {
   grid-column: 1 / -1;
@@ -362,10 +380,11 @@ main table,
   gap: 3px;
   padding: 5px 0;
 }
+/* 툴바 버튼. 원본 실측 h24 · 12px · padding 5px (11.5px 가 아니다) */
 .ec-btn-sm {
-  height: 23px;
-  padding: 0 7px;
-  font-size: 11.5px;
+  height: 24px;
+  padding: 0 5px;
+  font-size: 12px;
 }
 .ec-toolbar .sep {
   width: 1px;
@@ -377,8 +396,8 @@ main table,
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11.5px;
-  color: #3a4453;
+  font-size: 12px;
+  color: var(--ec-label);
   white-space: nowrap;
 }
 
@@ -388,30 +407,38 @@ main table,
   border-collapse: collapse;
   background: #fff;
 }
+/* 원본 실측: th padding 10px 3px 8px · 12px · 위 테두리 #9bb0be,
+   td padding 6px 3px, **행 높이 41px**. 우리는 25~33px 로 훨씬 촘촘했다. */
 .ec-grid-input th {
-  background: #f2f5f8;
+  background: var(--ec-body-bg);
   border: 1px solid var(--ec-border);
-  padding: 4px 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #3a4453;
+  border-top-color: var(--ec-border-strong);
+  padding: 10px 3px 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ec-text-grid);
   white-space: nowrap;
 }
 .ec-grid-input td {
   border: 1px solid var(--ec-border);
   padding: 0;
   font-size: 12px;
+  color: var(--ec-text-grid);
+}
+.ec-grid-input tbody tr {
+  height: 41px;
 }
 .ec-grid-input td.pad {
-  padding: 3px 6px;
+  padding: 6px 3px;
 }
 .ec-grid-input td > .cell {
   width: 100%;
-  height: 24px;
+  height: 27px;      /* 41 - (6+6) 세로 여백 - 테두리 */
   border: 0;
   outline: none;
   padding: 0 5px;
   font-size: 12px;
+  color: var(--ec-text-grid);
   background: transparent;
 }
 .ec-grid-input td > .cell:focus {
@@ -419,9 +446,9 @@ main table,
   box-shadow: inset 0 0 0 2px rgba(31, 72, 212, 0.35);
 }
 .ec-grid-input tfoot td {
-  background: #f7f9fb;
+  background: var(--ec-body-bg);
   font-weight: 700;
-  padding: 4px 6px;
+  padding: 6px 3px;
 }
 
 /* 하단 고정 버튼줄 (.footer) */

@@ -821,13 +821,16 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         title={editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
         activeFormTab="main"
-        relatedTabs={cfg.related.map((t) => ({
+        /*
+          원본은 저장 전에 연결전표 탭을 **비활성으로 보여 주지 않고 아예 감춘다**
+          (실제 화면에 `기본(수정불가) ▾` 와 `＋` 둘뿐이다). 회색 탭 세 개가 늘 떠 있으면
+          "왜 안 눌리지" 를 매번 묻게 된다 — 저장하고 나서 나타나는 편이 스스로 설명한다.
+        */
+        relatedTabs={savedDoc ? cfg.related.map((t) => ({
           id: t.label,
           label: t.label,
-          disabled: !savedDoc,
-          disabledReason: '전표를 저장한 뒤에 만들 수 있습니다.',
           onSelect: () => navigate(t.to),
-        }))}
+        })) : []}
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
         tempSave={hasTemp ? { onApply: applyTemp, onDelete: deleteTemp } : null}
         savedAt={savedAt}
@@ -973,41 +976,22 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           )))}
         </ul>
 
-        {/* ── 금액조정 합계 (원본 #totalsum) ────────────────── */}
-        <table className="ec-grid-input no-ec" style={{ marginTop: 8, maxWidth: 860 }}>
-          <thead>
-            <tr>
-              <th style={{ width: 200, textAlign: 'left' }}>금액조정항목명</th>
-              <th style={{ width: 130 }}>공급가액</th>
-              <th style={{ width: 130 }}>부가세</th>
-              <th style={{ width: 130 }}>합계</th>
-              <th style={{ width: 120 }}>외화금액</th>
-              <th style={{ width: 130 }}>원화금액</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="pad">합계</td>
-              <td className="pad" style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
-              <td className="pad" style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
-              <td className="pad" style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(totals.total)}</td>
-              <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>
-                {foreign && rate > 0 ? (totals.total / rate).toLocaleString('ko-KR', { maximumFractionDigits: 2 }) : '-'}
-              </td>
-              <td className="pad" style={{ textAlign: 'right' }}>{won(totals.total)}</td>
-            </tr>
-            {totals.extra > 0 && (
-              <tr>
-                <td className="pad" style={{ color: '#5a626e' }}>부대비용</td>
-                <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{won(totals.extra)}</td>
-                <td className="pad" />
-                <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{won(totals.extra)}</td>
-                <td className="pad" />
-                <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{won(totals.extra)}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {/*
+          원본 판매입력에는 "금액조정항목명/공급가액/부가세/합계/외화금액/원화금액" 표가 **없다**
+          (아카이브 DOM 전체에 '금액조정'·'외화금액'·'원화금액' 0건). 합계는 그리드 하단 합계행이 지고,
+          우리 표는 그것과 중복이었다. 원본 구조(헤더폼 → 툴바 → 그리드 → 합계행 → 푸터)에 맞춰 걷어낸다.
+          다만 외화 전표일 때의 환산액은 합계행이 못 보여 주므로 한 줄로 남긴다.
+        */}
+        {foreign && rate > 0 && (
+          <div style={{ marginTop: 6, textAlign: 'right', fontSize: 12, color: '#5a626e' }}>
+            외화금액{' '}
+            <b style={{ color: '#3a4453' }}>
+              {(totals.total / rate).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}
+            </b>
+            {'  ·  원화금액 '}
+            <b style={{ color: cfg.accent }}>{won(totals.total)}</b>
+          </div>
+        )}
 
         {/* ── 명세 탭 + 툴바 (원본 nav-tabs + wrapper-toolbar 2줄) ── */}
         <ul className="ec-tabs" style={{ marginTop: 10 }}>
@@ -1168,13 +1152,21 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             </colgroup>
             <thead>
               <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    checked={lineCount > 0 && checkedIdx.length === lineCount}
-                    onChange={(e) => setLines((ls) => ls.map((l) => (l.itemId ? { ...l, checked: e.target.checked } : l)))}
-                    title="전체 선택"
-                  />
+                {/*
+                  원본 그리드의 첫 두 열은 [행번호][⊕] 다 — **체크박스가 없다.**
+                  선택은 행번호 칸을 눌러서 한다(엑셀 행머리와 같다). 선택삭제·일괄단가조정이
+                  쓰는 checkedIdx 는 그대로라 기능은 하나도 안 바뀐다.
+                */}
+                <th
+                  style={{ cursor: lineCount > 0 ? 'pointer' : 'default' }}
+                  title="전체 선택 / 해제"
+                  onClick={() => {
+                    if (lineCount === 0) return
+                    const all = checkedIdx.length === lineCount
+                    setLines((ls) => ls.map((l) => (l.itemId ? { ...l, checked: !all } : l)))
+                  }}
+                >
+                  {lineCount > 0 && checkedIdx.length === lineCount ? '☑' : ''}
                 </th>
                 <th title="행 순서">⇅</th>
                 <th style={{ textAlign: 'left' }}>품목코드</th>
@@ -1212,12 +1204,22 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       background: l.checked && l.itemId ? '#fff8e1' : undefined,
                     }}
                   >
-                    <td style={{ textAlign: 'center' }}>
-                      {l.itemId
-                        ? <input type="checkbox" checked={l.checked} onChange={(e) => updateLine(idx, 'checked', e.target.checked)} />
-                        : <span style={{ color: '#c8ced6' }}>{idx + 1}</span>}
+                    {/* 행번호 칸 = 행머리. 원본처럼 회색이고, 눌러서 그 줄을 고른다. */}
+                    <td
+                      style={{
+                        textAlign: 'center',
+                        background: l.checked && l.itemId ? 'var(--ec-blue-light)' : '#f3f3f3',
+                        color: l.checked && l.itemId ? 'var(--ec-blue-dark)' : '#8a929c',
+                        fontWeight: l.checked && l.itemId ? 700 : 400,
+                        cursor: l.itemId ? 'pointer' : 'default',
+                        userSelect: 'none',
+                      }}
+                      title={l.itemId ? '눌러서 이 줄을 고릅니다' : undefined}
+                      onClick={() => { if (l.itemId) updateLine(idx, 'checked', !l.checked) }}
+                    >
+                      {idx + 1}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.itemId ? idx + 1 : ''}</td>
+                    <td style={{ textAlign: 'center', color: '#c8ced6' }}>{l.itemId ? '⇅' : ''}</td>
                     <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                       {it?.code ?? ''}
                     </td>
