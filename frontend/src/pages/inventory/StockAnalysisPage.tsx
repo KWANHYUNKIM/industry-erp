@@ -3,12 +3,24 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
  * 현재고를 품목별로 집계해 안전재고 대비 과부족·상태와 재고금액(수량×단가)을 분석한다.
  * 데이터는 GET /api/stock(현재고) + GET /api/items(단가) 를 조인(백엔드 무변경).
  * 재고금액은 품목 표준단가(Item.unitPrice) 기준 — 실제 입고단가 평가가 아닌 참고 평가액이다.
+ *
+ * 원본 조건: 기준일자(한 날짜) · 품목 · 기타(재고수량0포함 / 수량관리제외품목포함 /
+ * 사용중단품목포함 / 품목별안전재고설정미만표시).
+ * 재고현황과 같이 <b>기준일자가 한 날짜</b>다 — 재고는 시점을 보는 것이라서 빠른선택도 금일·전일뿐이다.
+ *
+ * 원본에는 창고 조건이 없다(품목별로 전 창고를 합쳐 보는 분석표라서). 우리는 창고 조건이
+ * 이미 있고 실제로 동작하므로 남긴다 — 원본에 없다고 되는 기능을 빼지는 않는다.
+ *
+ * 기준일자는 조회에 아직 쓰지 않는다. 백엔드 /stock 이 현재고만 주고 과거 시점 재고를
+ * 계산하지 않는다(재고현황과 같은 한계). 오늘이 아닌 날짜를 고르면 그 사실을 화면에 적는다.
  */
 
 interface AnalysisRow {
@@ -29,6 +41,10 @@ export default function StockAnalysisPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [shortageOnly, setShortageOnly] = useState(false)
+  /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
+  const [includeZero, setIncludeZero] = useState(false)
+  const [date, setDate] = useState(ymd(new Date()))
+  const today = ymd(new Date())
 
   async function load() {
     setLoading(true); setError('')
@@ -66,8 +82,14 @@ export default function StockAnalysisPage() {
     return out
       .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
       .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
+      // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
+      .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, shortageOnly])
+  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero])
+
+  const reset = () => {
+    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false); setDate(today)
+  }
 
   const totals = useMemo(() => ({
     count: rows.length,
@@ -75,7 +97,6 @@ export default function StockAnalysisPage() {
     shortage: rows.filter((r) => r.quantity < r.safetyStock).length,
   }), [rows])
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -83,27 +104,53 @@ export default function StockAnalysisPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">품목별 현재고를 안전재고와 대비 + 재고금액(수량×표준단가) 분석. 창고 미지정 시 전 창고 합산.</p>
-
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <CodePickerField label="창고" hideLabel width={170} value={warehouseId} onChange={setWarehouseId}
+      <EcStatusPanel
+        single
+        from={date} to={date}
+        onPeriod={(r) => setDate(r.from)}
+        picks={STOCK_PICKS}
+      >
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명·코드 일부" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
                            items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
-        </div>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={shortageOnly} onChange={(e) => setShortageOnly(e.target.checked)} />
-          안전재고 미달만
-        </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
-        </div>
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={includeZero}
+                   onChange={(e) => setIncludeZero(e.target.checked)} /> 재고수량0포함
+          </label>
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={shortageOnly}
+                   onChange={(e) => setShortageOnly(e.target.checked)} /> 품목별안전재고설정미만표시
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      {date !== today && (
+        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          지금 보는 것은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
+          숫자가 달라지지 않습니다.
+        </p>
+      )}
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
