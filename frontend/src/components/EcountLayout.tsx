@@ -491,9 +491,16 @@ const MENU: TopMenu[] = [
       {
         label: '고객관리',
         nodes: [
+          // 원본 순서·묶음 그대로. '고객관리게시판'은 묶음이고 그 안에 게시판이 둘 있다
+          // (영업활동관리·상담이력관리). 상담이력관리는 원본에서도 권한없음이라 근거가 없어 넣지 않았다.
           { label: '거래처등록', to: '/sales/partners' },
-          { label: '고객관리', to: '/groupware/crm' },
           { label: '명함관리', to: '/groupware/cards' },
+          {
+            label: '고객관리게시판',
+            children: [
+              { label: '영업활동관리', to: '/groupware/crm' },
+            ],
+          },
           { label: '거래처중심입력', to: '/sales/partner-entry' },
           { label: '품목중심입력', to: '/sales/item-entry' },
         ],

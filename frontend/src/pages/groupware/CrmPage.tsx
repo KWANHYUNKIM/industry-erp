@@ -16,7 +16,14 @@ const STAGES: { v: CrmStage; label: string; color: string }[] = [
 ]
 const stageColor = (v: CrmStage) => STAGES.find((s) => s.v === v)?.color ?? '#5a626e'
 
-/** 그룹웨어 > 고객관리 — 영업활동/상담 이력 (실연동) */
+/**
+ * 그룹웨어 > 고객관리 > 고객관리게시판 > 영업활동관리 (이카운트 E200319)
+ *
+ * 원본에서 '고객관리'는 단독 화면이 아니라 <b>고객관리게시판</b> 묶음이고, 그 안에
+ * 영업활동관리·상담이력관리 두 게시판이 있다. 우리 화면은 영업활동에 해당한다.
+ * 원본 두 화면은 이 계정에서 '권한없음'이라 컬럼을 대조하지 못했다 —
+ * 근거가 생기면 그때 맞춘다.
+ */
 export default function CrmPage() {
   const [rows, setRows] = useState<CrmActivity[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -80,7 +87,7 @@ export default function CrmPage() {
 
   return (
     <EcListShell
-      title="고객관리 (영업활동)"
+      title="영업활동관리"
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '활동등록(F2)'}
@@ -89,7 +96,7 @@ export default function CrmPage() {
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <Modal open={showForm} title="고객관리 (영업활동) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title="영업활동 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>영업활동 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
