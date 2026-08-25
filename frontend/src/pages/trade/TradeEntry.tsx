@@ -1446,7 +1446,15 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.extra)}</td>
+                {/*
+                  합계행은 헤더와 칸 수가 정확히 같아야 한다. 선택 열을 켜면 그만큼 빈 칸을 끼워야
+                  숫자가 제 열 아래에 선다. (관리항목은 부대비용과 적요 사이, 불러온 전표 3열은 적요 뒤다.)
+                */}
+                {cols.mgmtItem && <td />}
                 <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
+                {cols.srcType && <td />}
+                {cols.srcDate && <td />}
+                {cols.srcNo && <td />}
                 <td />
               </tr>
             </tfoot>
