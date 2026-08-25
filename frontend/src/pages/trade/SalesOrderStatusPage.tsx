@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 주문서현황 (이카운트 E040209)
  * 수주(SalesOrder) 전표를 품목라인 단위로 펼쳐, 주문/출하/미출하 진척과 금액을 보는 현황 화면.
  * 데이터는 GET /api/sales-orders (SalesOrderResponse[]) 를 그대로 사용한다.
  *
- * 이카운트 원본 Search 패널은 기준일자·거래처·창고·품목·프로젝트를 갖지만,
- * 우리 SalesOrderResponse 에는 창고·프로젝트 필드가 없어 두 조건은 **의도적으로 제외**한다
- * (구매현황 선례와 동일 — 값 없는 컨트롤을 흉내내지 않는다). 대신 수주 고유의 상태·미출하를 조건에 둔다.
+ * 원본 조건 패널은 접혀 있지 않다 — 화면을 열면 조건이 바로 보이고, 맨 위가 [메뉴 현황|집계],
+ * 그 아래 [비교기간], [기준일자]+기간 빠른선택 순이다. 우리는 조건을 '상세검색' 토글 뒤에
+ * 숨겨 두었고 메뉴·비교기간이 없었다. 이 판은 현황 화면들이 공통으로 쓰므로
+ * `EcStatusPanel` 로 빼서 같이 쓴다.
+ *
+ * 원본 조건 중 창고·프로젝트는 우리 SalesOrderResponse 에 필드가 없어 **의도적으로 제외**한다
+ * (값 없는 컨트롤을 흉내내지 않는다). 대신 수주 고유의 상태·미출하를 조건에 둔다.
  */
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 
@@ -87,9 +93,10 @@ export default function SalesOrderStatusPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
 
-  const [panelOpen, setPanelOpen] = useState(false)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
+  const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
+  const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
 
   async function load() {
     setLoading(true)
@@ -152,20 +159,39 @@ export default function SalesOrderStatusPage() {
     { supply: 0, vat: 0, unshipped: 0 },
   ), [shown])
 
-  const activeCount = useMemo(() => {
-    let n = 0
-    if (filters.dateFrom || filters.dateTo) n++
-    if (filters.partner) n++
-    if (filters.item) n++
-    if (filters.status) n++
-    if (filters.unshippedOnly) n++
-    if (filters.sortByDoc) n++
-    return n
-  }, [filters])
 
-  const applyDraft = () => { setFilters(draft); setPanelOpen(false) }
-  const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
-  const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
+  const reset = () => { setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('') }
+
+  /**
+   * 비교기간을 고르면 같은 길이의 앞 구간을 같은 조건으로 다시 집계한다.
+   * 목록을 두 벌 그리지 않고 합계만 견준다 — 원본도 비교는 숫자로 보여 준다.
+   */
+  const prevRange = comparePeriodOf(filters.dateFrom, filters.dateTo, compare)
+  const prevTotals = useMemo(() => {
+    if (!prevRange) return null
+    const f = filters
+    return rows
+      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
+      .filter((r) => !f.partner || r.partner.includes(f.partner))
+      .filter((r) => !f.item || r.itemName.includes(f.item))
+      .filter((r) => !f.status || r.status === f.status)
+      .filter((r) => !f.unshippedOnly || r.unshipped > 0)
+      .reduce((s2, r) => ({ supply: s2.supply + r.supply, qty: s2.qty + r.qty, count: s2.count + 1 }),
+        { supply: 0, qty: 0, count: 0 })
+  }, [rows, prevRange, filters])
+
+  /** 집계 보기 — 거래처별로 묶는다. 원본 [집계]도 같은 자료를 묶어서 본다. */
+  const grouped = useMemo(() => {
+    if (mode !== '집계') return []
+    const map = new Map<string, { partner: string; qty: number; shipped: number; unshipped: number; supply: number; vat: number; count: number }>()
+    shown.forEach((r) => {
+      const g = map.get(r.partner) ?? { partner: r.partner, qty: 0, shipped: 0, unshipped: 0, supply: 0, vat: 0, count: 0 }
+      g.qty += r.qty; g.shipped += r.shippedQty; g.unshipped += r.unshipped
+      g.supply += r.supply; g.vat += r.vat; g.count += 1
+      map.set(r.partner, g)
+    })
+    return [...map.values()].sort((a, b) => b.supply - a.supply)
+  }, [mode, shown])
 
   return (
     <EcListShell
@@ -173,29 +199,50 @@ export default function SalesOrderStatusPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <button className="ec-btn" onClick={openPanel}>
-          상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
-        </button>
-        {activeCount > 0 && !panelOpen && (
-          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: '#8a929c' }}>
-            조건 해제
-          </button>
-        )}
-      </div>
-
-      {panelOpen && (
-        <SearchPanel
-          draft={draft}
-          onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-          onApply={applyDraft}
-          onReset={resetDraft}
-        />
-      )}
+      <EcStatusPanel
+        mode={mode} onModeChange={setMode}
+        compare={compare} onCompareChange={setCompare}
+        from={filters.dateFrom} to={filters.dateTo}
+        onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
+      >
+        <EcCond label="진행상태">
+          <select className="ec-input" value={filters.status} style={{ width: 130 }}
+                  onChange={(e) => setF({ status: e.target.value as Filters['status'] })}>
+            <option value="">전체</option>
+            {(Object.keys(STATUS_LABEL) as OrderStatus[]).map((k) => (
+              <option key={k} value={k}>{STATUS_LABEL[k]}</option>
+            ))}
+          </select>
+          <label style={{ marginLeft: 10, fontSize: 12 }}>
+            <input type="checkbox" checked={filters.unshippedOnly}
+                   onChange={(e) => setF({ unshippedOnly: e.target.checked })} /> 미출하만
+          </label>
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <input className="ec-input" value={filters.partner} style={{ width: 200 }}
+                 onChange={(e) => setF({ partner: e.target.value })} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" value={filters.item} style={{ width: 200 }}
+                 onChange={(e) => setF({ item: e.target.value })} />
+        </EcCond>
+        <EcCond label="정렬기준">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.sortByDoc}
+                   onChange={(e) => setF({ sortByDoc: e.target.checked })} /> 주문번호순 (기본: 일자순)
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
@@ -206,6 +253,53 @@ export default function SalesOrderStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+
+      {prevTotals && (
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+          <span style={{ color: 'var(--ec-label)' }}>
+            비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
+          </span>
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          건수 {prevTotals.count.toLocaleString()} → {shown.length.toLocaleString()}
+          <Delta now={shown.length} prev={prevTotals.count} />
+          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
+          <Delta now={totals.supply} prev={prevTotals.supply} />
+        </div>
+      )}
+
+      {mode === '집계' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>거래처</th>
+              <th style={{ textAlign: 'right' }}>건수</th>
+              <th style={{ textAlign: 'right' }}>주문수량</th>
+              <th style={{ textAlign: 'right' }}>출하수량</th>
+              <th style={{ textAlign: 'right' }}>미출하</th>
+              <th style={{ textAlign: 'right' }}>공급가액</th>
+              <th style={{ textAlign: 'right' }}>부가세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            ) : grouped.map((g, i) => (
+              <tr key={g.partner}>
+                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td>{g.partner}</td>
+                <td style={{ textAlign: 'right' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.shipped.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: g.unshipped > 0 ? '#c07a00' : undefined }}>{g.unshipped.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -254,80 +348,19 @@ export default function SalesOrderStatusPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
 
-/** 이카운트 Search 패널 — 기준일자/거래처/품목/진행상태/기타 */
-function SearchPanel({
-  draft, onChange, onApply, onReset,
-}: {
-  draft: Filters
-  onChange: (patch: Partial<Filters>) => void
-  onApply: () => void
-  onReset: () => void
-}) {
-  const label: React.CSSProperties = {
-    width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
-    display: 'flex', alignItems: 'center', paddingRight: 8,
-  }
-  const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #eef1f5',
-  }
+/** 비교기간 증감 표시 — 늘면 초록, 줄면 빨강. */
+function Delta({ now, prev }: { now: number; prev: number }) {
+  if (prev === 0) return null
+  const pct = Math.round(((now - prev) / prev) * 100)
+  const up = now >= prev
   return (
-    <div
-      onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
-      style={{
-        border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe',
-        padding: '4px 14px 12px', marginBottom: 10,
-      }}
-    >
-      <div style={rowStyle}>
-        <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>거래처</span>
-        <input className="ec-input" placeholder="매출처명 일부" value={draft.partner}
-          onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>진행상태</span>
-        <select className="ec-input" value={draft.status}
-          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })} style={{ width: 150 }}>
-          <option value="">전체</option>
-          <option value="RECEIVED">접수</option>
-          <option value="IN_PROGRESS">진행중</option>
-          <option value="COMPLETED">완료</option>
-          <option value="CANCELED">취소</option>
-        </select>
-      </div>
-      <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>기타</span>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginRight: 16 }}>
-          <input type="checkbox" checked={draft.unshippedOnly}
-            onChange={(e) => onChange({ unshippedOnly: e.target.checked })} />
-          미출하만
-        </label>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={draft.sortByDoc}
-            onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
-          주문번호순(정렬)
-        </label>
-      </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
-        <button className="ec-btn" onClick={onReset}>초기화</button>
-        <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
-      </div>
-    </div>
+    <span style={{ marginLeft: 4, color: up ? '#1c7c3c' : '#c60a2e' }}>
+      ({up ? '+' : ''}{pct}%)
+    </span>
   )
 }

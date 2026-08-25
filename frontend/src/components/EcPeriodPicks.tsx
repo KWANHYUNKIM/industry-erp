@@ -126,10 +126,45 @@ export const PROJECT_PICKS = [
   '금일', '전일', '말일', '전주', '금주', '차주', '전월', '금월', '차월',
 ] as const
 
-/** 출/퇴근현황(ID) 묶음 — 판매현황과 같은데 '전월+금월' 대신 '종료일' 이다. */
-export const ATTENDANCE_PICKS = [
+/**
+ * 현황·조회 화면에서 가장 흔한 묶음 — 판매현황과 같은데 '전월+금월' 대신 '종료일' 이다.
+ * 원본에서 이 라인업을 확인한 화면: 출/퇴근현황(ID)(E070306) · 주문서현황(E040209).
+ */
+export const INQUIRY_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일',
 ] as const
+
+/**
+ * 비교기간 — 원본 현황 화면의 [사용안함 / 전년동일기간 / 전월동일기간 / 전주동일기간 / 전일동일기간].
+ * 지금 보는 구간을 통째로 한 해·한 달·한 주·하루 앞으로 옮긴 구간을 돌려준다.
+ * 길이를 유지하려고 <b>시작일을 옮기고 같은 일수를 더한다</b> —
+ * 월 단위로 두 끝을 각각 옮기면 말일(1/31 → 12/31 vs 2/28) 때문에 구간 길이가 달라진다.
+ */
+export type ComparePeriod = '사용안함' | '전년동일기간' | '전월동일기간' | '전주동일기간' | '전일동일기간'
+
+export const COMPARE_PERIODS: readonly ComparePeriod[] = [
+  '사용안함', '전년동일기간', '전월동일기간', '전주동일기간', '전일동일기간',
+]
+
+export function comparePeriodOf(from: string, to: string, kind: ComparePeriod): PeriodRange | null {
+  if (kind === '사용안함' || !from || !to) return null
+  const f = new Date(from + 'T00:00:00')
+  const t = new Date(to + 'T00:00:00')
+  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return null
+  const days = Math.round((t.getTime() - f.getTime()) / 86400000)
+
+  const start = new Date(f)
+  switch (kind) {
+    case '전년동일기간': start.setFullYear(start.getFullYear() - 1); break
+    case '전월동일기간': start.setMonth(start.getMonth() - 1); break
+    case '전주동일기간': start.setDate(start.getDate() - 7); break
+    case '전일동일기간': start.setDate(start.getDate() - 1); break
+    default: return null
+  }
+  const end = new Date(start)
+  end.setDate(end.getDate() + days)
+  return { from: ymd(start), to: ymd(end) }
+}
 
 export default function EcPeriodPicks({
   onPick,

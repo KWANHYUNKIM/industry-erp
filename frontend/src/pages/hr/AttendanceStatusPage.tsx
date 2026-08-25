@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { ATTENDANCE_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 관리 > 근태관리 > 근태현황 (= 이카운트 출/퇴근현황(ID), E070306)
@@ -113,7 +113,7 @@ export default function AttendanceStatusPage() {
             <td colSpan={3} style={{ paddingTop: 0 }}>
               <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                 <EcPeriodPicks
-                  labels={ATTENDANCE_PICKS}
+                  labels={INQUIRY_PICKS}
                   currentFrom={from}
                   onPick={(r) => { setAllDates(false); setFrom(r.from); setTo(r.to) }}
                 />

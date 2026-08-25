@@ -322,6 +322,44 @@ main table,
   gap: 3px;
   padding: 2px 4px;
 }
+/*
+ * 현황 화면의 조회 조건 패널. 전표입력의 `.ec-form`(2열)과 다르다 — 원본 현황류는
+ * 라벨을 **한 열로 세로로 쌓고** 라벨 칸이 134px 다(주문서현황 실측: 라벨 x=255, 폭 134, 행 24, 간격 38).
+ * 코드도움으로 고르는 조건(창고·프로젝트·거래처·품목)은 라벨이 파랗다 — 원본이 그렇게 구분한다.
+ */
+.ec-cond {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  background: #fff;
+  border: 1px solid var(--ec-border);
+}
+.ec-cond > li {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.ec-cond > li > .title {
+  flex: 0 0 134px;
+  padding: 3px 3px 3px 12px;
+  font-size: 12px;
+  color: var(--ec-label);
+  white-space: nowrap;
+}
+/* 코드도움 조건 */
+.ec-cond > li.pick > .title {
+  color: var(--ec-blue);
+}
+.ec-cond > li > .form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
 /* 좁은 화면에서는 1열로 접는다(원본도 폭이 좁아지면 세로로 쌓인다). */
 @media (max-width: 1100px) {
   .ec-form { grid-template-columns: minmax(0, 1fr); }
