@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
+import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
@@ -26,6 +27,29 @@ export default function WorkLogPage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+
+  /*
+   * 조회 조건. 원본 업무일지는 목록이 아니라 **조건 화면**이고, [검색(F8)] 을 눌러야 결과가 나온다.
+   * 조건은 업무보고일(기간) · 요일 · 부서 · 거래처 · 제목 · 내용 · 최초작성자다.
+   * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
+   */
+  const [cond, setCond] = useState(() => {
+    const m = periodOf('금월')!
+    return { from: m.from, to: m.to, dow: '', department: '', partnerName: '', title: '', content: '', author: '' }
+  })
+  const setC = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
+
+  /** 조건에 맞는 일지만. 문자열 조건은 부분일치 — 원본도 코드도움에서 고르되 부분일치로 찾는다. */
+  const has = (v: string | null | undefined, q: string) => !q || (v ?? '').includes(q)
+  const shown = rows.filter((r) =>
+    (!cond.from || r.reportDate >= cond.from)
+    && (!cond.to || r.reportDate <= cond.to)
+    && (!cond.dow || dow(r.reportDate) === cond.dow)
+    && has(r.department, cond.department)
+    && has(r.partnerName, cond.partnerName)
+    && has(r.title, cond.title)
+    && has(r.content, cond.content)
+    && has(r.authorName, cond.author))
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -167,6 +191,62 @@ export default function WorkLogPage() {
         </div>
       )}</Modal>
 
+      {/*
+        원본 조회 조건 — 업무보고일(기간) · 요일 · 부서 · 거래처 · 제목 · 내용 · 최초작성자.
+        그 아래에 [검색(F8)] 과 기간 빠른선택 버튼줄이 붙는다.
+      */}
+      <ul className="ec-form" style={{ marginBottom: 8 }}>
+        <li className="wide">
+          <div className="title">업무보고일</div>
+          <div className="form" style={{ gap: 6 }}>
+            <input type="date" className="ec-input" value={cond.from} onChange={(e) => setC('from', e.target.value)} style={{ width: 150 }} />
+            <span>~</span>
+            <input type="date" className="ec-input" value={cond.to} onChange={(e) => setC('to', e.target.value)} style={{ width: 150 }} />
+          </div>
+        </li>
+        <li>
+          <div className="title">요일</div>
+          <div className="form">
+            <select className="ec-input" value={cond.dow} onChange={(e) => setC('dow', e.target.value)} style={{ width: 120 }}>
+              <option value="">전체</option>
+              {DOW.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        </li>
+        <li>
+          <div className="title">부서</div>
+          <div className="form"><input className="ec-input" value={cond.department} onChange={(e) => setC('department', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">거래처</div>
+          <div className="form"><input className="ec-input" value={cond.partnerName} onChange={(e) => setC('partnerName', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">최초작성자</div>
+          <div className="form"><input className="ec-input" value={cond.author} onChange={(e) => setC('author', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">제목</div>
+          <div className="form"><input className="ec-input" value={cond.title} onChange={(e) => setC('title', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">내용</div>
+          <div className="form"><input className="ec-input" value={cond.content} onChange={(e) => setC('content', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+      </ul>
+
+      {/* 원본 하단: 검색(F8) + 기간 빠른선택 + 다시 작성 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', marginBottom: 10 }}>
+        <button className="ec-btn ec-btn-primary" onClick={() => flash(`조회 결과 ${shown.length}건`)}>검색(F8)</button>
+        <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
+        <button
+          className="ec-btn"
+          onClick={() => setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', partnerName: '', title: '', content: '', author: '' })}
+        >
+          다시 작성
+        </button>
+      </div>
+
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
         <table className="w-full text-left">
           <thead>
@@ -183,9 +263,9 @@ export default function WorkLogPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : rows.length === 0 ? (
+            ) : shown.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작성된 업무일지가 없습니다.</td></tr>
-            ) : rows.map((r, i) => (
+            ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.reportDate}</td>
