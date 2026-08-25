@@ -134,6 +134,55 @@ async function seed() {
 
 // ── 시나리오 ────────────────────────────────────────────────────────────────
 
+/** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
+async function scenarioUnsold(f) {
+  section('■ 시나리오 1-b. 수주 → 판매 전환 → 미판매현황')
+
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-11',
+    lines: [{ itemId: f.product.id, quantity: 50, unitPrice: 2000 }],
+  })
+  const lineId = order.lines[0].lineId
+  const un = async () => (await must('GET', '/sales-orders/unsold')).find((r) => r.orderLineId === lineId)
+
+  eq('판매 전 미판매 = 주문수량', (await un()).unsoldQty, 50)
+  eq('판매 전 미판매금액 = 수량 × 단가', (await un()).unsoldAmount, 100000)
+
+  // 근거전표(수주)를 달고 20개만 판매 → 미판매 30 남아야 한다
+  const sale1 = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-12',
+    lines: [{ itemId: f.product.id, quantity: 20, unitPrice: 2000, sourceOrderId: order.id }],
+  })
+  eq('부분 판매 후 판매수량 = 20', (await un()).soldQty, 20)
+  eq('부분 판매 후 미판매 = 30', (await un()).unsoldQty, 30)
+  eq('부분 판매 후 미판매금액 = 60000', (await un()).unsoldAmount, 60000)
+
+  // 근거전표 없이 판 줄은 이 수주의 미판매를 줄이지 않는다
+  const sale2 = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-12',
+    lines: [{ itemId: f.product.id, quantity: 5, unitPrice: 2000 }],
+  })
+  eq('근거전표 없는 판매는 미판매에 영향 없음', (await un()).unsoldQty, 30)
+
+  // 잔량을 마저 팔면 목록에서 빠진다
+  await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-13',
+    lines: [{ itemId: f.product.id, quantity: 30, unitPrice: 2000, sourceOrderId: order.id }],
+  })
+  eq('전량 판매 후 미판매 목록에서 사라짐',
+    (await must('GET', '/sales-orders/unsold')).filter((r) => r.orderLineId === lineId).length, 0)
+
+  // 주문보다 많이 팔아도 음수로 내려가지 않는다
+  await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-13',
+    lines: [{ itemId: f.product.id, quantity: 7, unitPrice: 2000, sourceOrderId: order.id }],
+  })
+  eq('초과 판매해도 미판매는 음수가 아니라 목록에서 빠진 채',
+    (await must('GET', '/sales-orders/unsold')).filter((r) => r.orderLineId === lineId).length, 0)
+
+  void sale1; void sale2
+}
+
 /** 수주 → 출하지시 → 출하완료 → 미출고 반영 */
 async function scenarioShipment(f) {
   section('■ 시나리오 1. 수주 → 출하 → 미출고현황')
@@ -2275,6 +2324,7 @@ async function main() {
   }
 
   await scenarioShipment(fixtures)
+  await scenarioUnsold(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

@@ -68,6 +68,36 @@ public final class SalesOrderDtos {
         }
     }
 
+    /**
+     * 미판매현황(이카운트 E040212) 한 줄.
+     * 미판매수량 = 주문수량 − 그 수주를 근거로 끊은 판매 전표의 같은 품목 수량 합.
+     */
+    public record UnsoldLineResponse(
+            Long orderId, String orderNo, Long orderLineId,
+            Long partnerId, String partnerName,
+            LocalDate orderDate, LocalDate dueDate,
+            SalesOrderStatus status, String statusName,
+            Long itemId, String itemCode, String itemName, String unit,
+            BigDecimal orderQty, BigDecimal soldQty, BigDecimal unsoldQty,
+            BigDecimal unitPrice, BigDecimal unsoldAmount
+    ) {
+        public static UnsoldLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal sold) {
+            BigDecimal orderQty = l.getQuantity();
+            BigDecimal soldQty = sold != null ? sold : BigDecimal.ZERO;
+            // 주문보다 많이 판 경우(추가 판매)는 미판매를 음수로 두지 않는다 — 0 이 사실에 가깝다.
+            BigDecimal unsold = orderQty.subtract(soldQty).max(BigDecimal.ZERO);
+            BigDecimal price = l.getUnitPrice() != null ? l.getUnitPrice() : BigDecimal.ZERO;
+            return new UnsoldLineResponse(
+                    o.getId(), o.getOrderNo(), l.getId(),
+                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getOrderDate(), o.getDueDate(),
+                    o.getStatus(), o.getStatus().getDisplayName(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    orderQty, soldQty, unsold,
+                    price, unsold.multiply(price));
+        }
+    }
+
     /** 출하처리 요청: 주문 라인별 출하수량. lines 비우면 전 라인 잔량 전체출하. */
     public record ShipLineRequest(
             @NotNull(message = "주문라인을 지정하세요.") Long orderLineId,

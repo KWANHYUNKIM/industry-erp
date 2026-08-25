@@ -185,6 +185,7 @@ const MENU: TopMenu[] = [
               { label: '출하현황', to: '/sales/shipment' },
               { label: '거래명세서인쇄', to: '/sales/statement' },
               { label: '미주문현황', to: '/sales/unordered' },
+              { label: '미판매현황', to: '/sales/unsold' },
               { label: '미출하현황', to: '/sales/unshipped' },
               { label: '거래처별채권', to: '/sales/ledger-receivable' },
               { label: '채권현황', to: '/sales/receivable-status' },

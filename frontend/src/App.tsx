@@ -147,6 +147,7 @@ const ShipmentPage = lazy(() => import('./pages/trade/ShipmentPage'))
 const ShipmentInquiryPage = lazy(() => import('./pages/trade/ShipmentInquiryPage'))
 const PriceRequestProgressPage = lazy(() => import('./pages/trade/PriceRequestProgressPage'))
 const UnshippedPage = lazy(() => import('./pages/trade/UnshippedPage'))
+const UnsoldStatusPage = lazy(() => import('./pages/trade/UnsoldStatusPage'))
 const CollectionPage = lazy(() => import('./pages/trade/CollectionPage'))
 const PaymentPage = lazy(() => import('./pages/trade/PaymentPage'))
 const PartnerLedgerPage = lazy(() => import('./pages/trade/PartnerLedgerPage'))
@@ -311,6 +312,7 @@ export default function App() {
         <Route path="/sales/shipment" element={<ShipmentPage />} />
         <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
         <Route path="/sales/unshipped" element={<UnshippedPage />} />
+        <Route path="/sales/unsold" element={<UnsoldStatusPage />} />
         <Route path="/sales/collection" element={<CollectionPage />} />
         <Route path="/sales/payment" element={<PaymentPage />} />
         <Route path="/sales/partner-ledger" element={<PartnerLedgerPage />} />

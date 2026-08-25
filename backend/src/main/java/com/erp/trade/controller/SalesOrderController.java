@@ -4,6 +4,7 @@ import com.erp.trade.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.dto.SalesOrderDtos.ShipRequest;
 import com.erp.trade.dto.SalesOrderDtos.UnshippedLineResponse;
+import com.erp.trade.dto.SalesOrderDtos.UnsoldLineResponse;
 import com.erp.trade.dto.SalesOrderDtos.UpdateStatusRequest;
 import com.erp.trade.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.security.UserPrincipal;
@@ -36,6 +37,12 @@ public class SalesOrderController {
     @GetMapping("/unshipped")
     public List<UnshippedLineResponse> unshipped() {
         return salesOrderService.findUnshipped();
+    }
+
+    /** 미판매현황 — 판매 전표로 아직 안 끊은 주문 잔량. */
+    @GetMapping("/unsold")
+    public List<UnsoldLineResponse> unsold() {
+        return salesOrderService.findUnsold();
     }
 
     @PostMapping

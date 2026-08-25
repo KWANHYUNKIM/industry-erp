@@ -11,8 +11,10 @@ import com.erp.trade.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.trade.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.dto.SalesOrderDtos.UnshippedLineResponse;
+import com.erp.trade.dto.SalesOrderDtos.UnsoldLineResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.inventory.repository.ItemRepository;
+import com.erp.trade.repository.SalesLineRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -22,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import com.erp.trade.dto.SalesOrderDtos;
 
 @Service
@@ -34,6 +38,7 @@ public class SalesOrderService {
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
+    private final SalesLineRepository salesLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -49,6 +54,24 @@ public class SalesOrderService {
         List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
         return salesOrderRepository.findByStatusesWithLines(open).stream()
                 .flatMap(o -> o.getLines().stream().map(l -> UnshippedLineResponse.of(o, l)))
+                .toList();
+    }
+
+    /**
+     * 미판매현황: 접수·진행중 주문의 라인 중 아직 판매 전표로 안 끊은 잔량.
+     * 미출하(출하 여부)와 다른 질문이다 — 출하는 됐는데 매출을 못 잡은 건도 여기 남는다.
+     */
+    @Transactional(readOnly = true)
+    public List<UnsoldLineResponse> findUnsold() {
+        Map<String, BigDecimal> sold = new HashMap<>();
+        for (SalesLineRepository.OrderItemAggregate a : salesLineRepository.aggregateSoldByOrderAndItem()) {
+            sold.merge(a.getOrderId() + ":" + a.getItemId(), a.getQty(), BigDecimal::add);
+        }
+        List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
+        return salesOrderRepository.findByStatusesWithLines(open).stream()
+                .flatMap(o -> o.getLines().stream()
+                        .map(l -> UnsoldLineResponse.of(o, l, sold.get(o.getId() + ":" + l.getItem().getId()))))
+                .filter(r -> r.unsoldQty().signum() > 0)
                 .toList();
     }
 
