@@ -50,6 +50,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [openId, setOpenId] = useState<number | null>(null)
   // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
   const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
+  // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
+  const [selected, setSelected] = useState<Set<number>>(new Set())
   // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
   const [company, setCompany] = useState<DocParty | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
@@ -162,6 +164,35 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), [docs, keyword, from, to, tab, isSales])
 
+  const toggleSelect = (id: number) => setSelected((s) => {
+    const next = new Set(s)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  /**
+   * 원본 하단 버튼줄의 [선택삭제]. 전표를 지우면 재고가 되돌아가고, 발주에서 입고전환된
+   * 구매전표라면 발주서도 '발주확정' 으로 풀린다(백엔드가 처리한다).
+   * 지울 수 없는 전표(회계반영·세금계산서 발행·확인됨 등)는 서버가 사유를 준다 — 그대로 보여 준다.
+   */
+  async function deleteSelected() {
+    const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
+    if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
+    if (!confirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`)) return
+    const failed: string[] = []
+    for (const id of ids) {
+      try {
+        await api.delete(`${cfg.url}/${id}`)
+      } catch (err) {
+        const doc = shown.find((d) => d.id === id)
+        failed.push(`${doc?.docNo ?? id}: ${extractErrorMessage(err)}`)
+      }
+    }
+    setSelected(new Set())
+    load()
+    setError(failed.length === 0 ? '' : `지우지 못한 전표 ${failed.length}건 — ${failed.join(' / ')}`)
+  }
+
   const tabCount = (t: SalesTab) =>
     docs.filter((d) => t === '전체' || d.confirmStatus === TAB_STATUS[t]).length
 
@@ -178,7 +209,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
       onNew={() => navigate(cfg.entryTo)}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      actions={[{ label: '선택삭제', onClick: () => void deleteSelected() }, { label: 'Excel' }, { label: '인쇄' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -214,7 +245,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            {/* 원본 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 전표 입력 그리드와 같은 규칙. */}
+            <th
+              style={{ width: 34, cursor: shown.length > 0 ? 'pointer' : 'default' }}
+              title="전체 선택 / 해제"
+              onClick={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((d) => d.id)))}
+            >
+              {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
+            </th>
             <th>전표번호 ▼</th><th>{mode === 'sales' ? '판매일' : '구매일'} ▼</th><th>{cfg.partnerLabel}</th>
             {/* 원본 목록에 있는 열 — 무슨 물건을 판 전표인지 열지 않고도 알아야 한다 */}
             <th>품목명(요약)</th>
@@ -236,7 +274,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           ) : shown.map((d, i) => (
             <Fragment key={d.id}>
               <tr onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td
+                  style={{
+                    textAlign: 'center',
+                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
+                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    fontWeight: selected.has(d.id) ? 700 : 400,
+                    cursor: 'pointer', userSelect: 'none',
+                  }}
+                  title="눌러서 이 전표를 고릅니다"
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(d.id) }}
+                >
+                  {i + 1}
+                </td>
                 <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>{openId === d.id ? '▾ ' : '▸ '}{d.docNo}</td>
                 <td>{d.date}</td>
                 <td>{d.partnerName}</td>
