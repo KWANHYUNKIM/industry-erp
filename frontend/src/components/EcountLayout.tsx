@@ -216,6 +216,31 @@ const MENU: TopMenu[] = [
             ],
           },
           {
+            // 원본 출력물은 재고현황·영업관리현황·구매관리현황 다음에 이 둘을 둔다.
+            // 화면은 있었는데 출력물 아래에 묶여 있지 않아 원본 순서를 따라 넣는다.
+            label: '생산/외주현황',
+            children: [
+              { label: '작업지시서현황', to: '/production/wo-status' },
+              { label: '작업지시서별진행현황', to: '/production/wo-progress' },
+              { label: '생산불출현황', to: '/production/issue-status' },
+              { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
+              { label: '작업내역현황', to: '/production/work-result-status' },
+              { label: '생산입고현황', to: '/production/receipt-status' },
+            ],
+          },
+          {
+            label: '기타이동현황',
+            children: [
+              { label: '창고이동현황', to: '/inventory/transfer-status' },
+              { label: '자가사용현황', to: '/inventory/self-use-status' },
+              { label: '불량처리현황', to: '/inventory/defect-status' },
+              { label: '대체사용현황', to: '/inventory/substitute-status' },
+              { label: '폐기현황', to: '/inventory/disposal-status' },
+              { label: '불량률파악보고서', to: '/quality/defect-report' },
+              { label: '재고조정현황', to: '/inventory/adjust-status' },
+            ],
+          },
+          {
             label: '기타',
             children: [
               { label: '거래이력조회', to: '/sales/trade-history' },

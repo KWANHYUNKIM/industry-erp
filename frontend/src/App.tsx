@@ -20,6 +20,8 @@ const ExecutiveReportPage = lazy(() => import('./pages/inventory/ExecutiveReport
 const CurrentStockPage = lazy(() => import('./pages/inventory/CurrentStockPage'))
 const WarehouseStockPage = lazy(() => import('./pages/inventory/WarehouseStockPage'))
 const BomStockPage = lazy(() => import('./pages/inventory/BomStockPage'))
+const TransferStatusPage = lazy(() => import('./pages/inventory/TransferStatusPage'))
+const StockMoveStatusPage = lazy(() => import('./pages/inventory/StockMoveStatusPage'))
 const ManageItemsPage = lazy(() => import('./pages/inventory/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('./pages/inventory/PriceOrderPage'))
 const SpecialPriceGroupPage = lazy(() => import('./pages/inventory/SpecialPriceGroupPage'))
@@ -237,6 +239,12 @@ export default function App() {
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/warehouse-stock" element={<WarehouseStockPage />} />
         <Route path="/inventory/bom-stock" element={<BomStockPage />} />
+        <Route path="/inventory/transfer-status" element={<TransferStatusPage />} />
+        <Route path="/inventory/self-use-status" element={<StockMoveStatusPage kind="SELF_USE" />} />
+        <Route path="/inventory/defect-status" element={<StockMoveStatusPage kind="DEFECT" />} />
+        <Route path="/inventory/substitute-status" element={<StockMoveStatusPage kind="SUBSTITUTE" />} />
+        <Route path="/inventory/disposal-status" element={<StockMoveStatusPage kind="DISPOSAL" />} />
+        <Route path="/inventory/adjust-status" element={<StockMoveStatusPage kind="ADJUST" />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
