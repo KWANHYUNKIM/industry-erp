@@ -77,6 +77,17 @@ export default function SettlementPage() {
 
   const inputCls = 'ec-input'
 
+  /**
+   * 정산 전표 삭제. 잘못 넣은 수금·지급을 지울 방법이 아예 없었고, 정산은 거래처 채권·채무
+   * 잔액에 그대로 반영되므로 오타 하나가 잔액을 영구히 틀리게 만든다.
+   */
+  async function remove(r: Settlement) {
+    if (!window.confirm(`${r.docNo} (${r.typeName} ${won(r.amount)}원) 전표를 삭제할까요?
+거래처 잔액에서 이 금액이 빠집니다.`)) return
+    try { await api.delete(`/settlements/${r.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   return (
     <EcListShell
       title="수금/지급 입력"
@@ -141,11 +152,12 @@ export default function SettlementPage() {
               <th>결제수단</th>
               <th style={{ textAlign: 'right' }}>금액</th>
               <th>비고</th>
+              <th style={{ width: 70, textAlign: 'center' }}>삭제</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수금/지급 내역이 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수금/지급 내역이 없습니다.</td></tr>
             ) : rows.map((r, idx) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
@@ -156,6 +168,9 @@ export default function SettlementPage() {
                 <td>{r.method ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401' }}>{won(r.amount)}</td>
                 <td>{r.note ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>
+                </td>
               </tr>
             ))}
           </tbody>

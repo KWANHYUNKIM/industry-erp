@@ -2220,6 +2220,41 @@ async function scenarioSurvey() {
     (await must('GET', '/surveys')).some((x) => x.title === `${P}설문`), false)
 }
 
+
+/**
+ * 정산(수금/지급). 삭제가 아예 없어서 잘못 넣은 전표를 지울 방법이 없었다 —
+ * 정산은 거래처 채권·채무 잔액에 그대로 반영되므로 오타 하나가 잔액을 영구히 틀리게 만든다.
+ */
+async function scenarioSettlement(f) {
+  section('■ 정산(수금/지급)')
+
+  const receipt = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 550000, method: '계좌이체',
+    settleDate: '2026-08-20', note: `${P} 수금`,
+  })
+  eq('수금 전표번호는 RC- 로 채번된다', receipt.docNo.startsWith('RC-'), true)
+  eq('유형 이름이 온다', receipt.typeName, '수금')
+
+  const payment = await must('POST', '/settlements', {
+    type: 'PAYMENT', partnerId: f.supplier.id, amount: 330000, method: '현금',
+    settleDate: '2026-08-21', note: `${P} 지급`,
+  })
+  eq('지급 전표번호는 PY- 로 채번된다', payment.docNo.startsWith('PY-'), true)
+
+  await rejects('금액이 0이면 거부', 'POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 0, settleDate: '2026-08-20',
+  }, '0보다')
+  await rejects('없는 거래처는 거부', 'POST', '/settlements', {
+    type: 'RECEIPT', partnerId: 999999, amount: 1000, settleDate: '2026-08-20',
+  }, '거래처를 찾을 수 없습니다')
+
+  await must('DELETE', `/settlements/${receipt.id}`)
+  await must('DELETE', `/settlements/${payment.id}`)
+  eq('지운 정산은 목록에서 빠진다',
+    (await must('GET', '/settlements')).some((x) => x.id === receipt.id), false)
+  await rejects('없는 정산 삭제는 404', 'DELETE', '/settlements/999999', undefined, '찾을 수 없습니다')
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -2272,6 +2307,7 @@ async function main() {
   await scenarioWorkspace(fixtures)
   await scenarioSupplyUsage()
   await scenarioSurvey()
+  await scenarioSettlement(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

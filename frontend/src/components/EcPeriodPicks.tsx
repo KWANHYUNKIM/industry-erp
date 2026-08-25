@@ -31,7 +31,11 @@ const mondayOf = (d: Date) => {
 export interface PeriodRange { from: string; to: string }
 
 /** 라벨 → 기간. 오늘을 인자로 받아 순수 함수로 둔다(시험하기 쉽게). */
-export function periodOf(label: string, today = new Date()): PeriodRange | null {
+/**
+ * @param fiscalStart 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 계산할 때만 쓴다.
+ *                    설정(Preference.fiscalStart)에서 온다 — 회사마다 다르므로 1월로 넘겨짚지 않는다.
+ */
+export function periodOf(label: string, today = new Date(), fiscalStart?: number): PeriodRange | null {
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   switch (label) {
     case '금일':
@@ -90,6 +94,22 @@ export function periodOf(label: string, today = new Date()): PeriodRange | null 
         from: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 1)),
         to: ymd(new Date(t.getFullYear(), t.getMonth() + 2, 0)),
       }
+    /*
+     * 회계 기수. 시작월이 4월이면 4/1~다음해 3/31 이 한 기수다.
+     * 오늘이 시작월 전이면 아직 지난해에 시작한 기수 안에 있다.
+     */
+    case '이번기수':
+    case '직전기수': {
+      if (!fiscalStart) return null   // 설정을 모르면 계산하지 않는다(1월이라고 넘겨짚지 않는다)
+      const m = fiscalStart - 1
+      let y = t.getFullYear()
+      if (t.getMonth() < m) y -= 1
+      if (label === '직전기수') y -= 1
+      return {
+        from: ymd(new Date(y, m, 1)),
+        to: ymd(new Date(y + 1, m, 0)),
+      }
+    }
     /**
      * 시작일은 그대로 두고 종료일만 오늘로 당긴다. 원본 버튼줄에 이 이름이 있다.
      * 시작일을 모르므로 빈 문자열을 돌려주는데, 이걸 그대로 넣으면 시작일이 지워진다 —
@@ -125,6 +145,9 @@ export const STATUS_PICKS = [...BASE_PICKS, '전월+금월'] as const
 
 /** 출/퇴근현황(ID)(E070306) · 주문서현황(E040209) */
 export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
+
+/** 수금현황(E040217) — 회계 기수 둘이 더 붙는다 */
+export const SETTLE_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종료일'] as const
 
 /** 미주문현황(E040211) — 둘 다 붙는다 */
 export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const
@@ -173,11 +196,17 @@ export default function EcPeriodPicks({
   onPick,
   labels = JOURNAL_PICKS,
   currentFrom,
+  fiscalStart,
+  onPickLabel,
 }: {
   onPick: (r: PeriodRange) => void
   labels?: readonly string[]
   /** 지금 화면의 시작일. '종료일' 처럼 시작일을 건드리지 않는 버튼이 이 값을 그대로 돌려준다. */
   currentFrom?: string
+  /** 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 쓰는 화면만 준다. */
+  fiscalStart?: number
+  /** 어떤 버튼을 눌렀는지 — 원본은 기준일자 옆에 그 이름을 적어 둔다. */
+  onPickLabel?: (label: string) => void
 }) {
   return (
     <>
@@ -187,9 +216,11 @@ export default function EcPeriodPicks({
           type="button"
           className="ec-btn"
           onClick={() => {
-            const r = periodOf(label)
+            const r = periodOf(label, new Date(), fiscalStart)
             // 시작일을 바꾸지 않는 버튼('종료일')은 빈 from 을 준다. 그대로 넣으면 시작일이 지워진다.
-            if (r) onPick(r.from ? r : { ...r, from: currentFrom ?? r.to })
+            if (!r) return
+            onPick(r.from ? r : { ...r, from: currentFrom ?? r.to })
+            onPickLabel?.(label)
           }}
         >
           {label}

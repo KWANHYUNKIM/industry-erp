@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
@@ -33,6 +33,7 @@ export default function EcStatusPanel({
   compare, onCompareChange,
   from, to, onPeriod,
   picks = INQUIRY_PICKS,
+  fiscalStart,
   children,
 }: {
   /** [메뉴] 현황·집계 토글. 안 주면 그 줄을 그리지 않는다. */
@@ -45,10 +46,14 @@ export default function EcStatusPanel({
   to: string
   onPeriod: (r: PeriodRange) => void
   picks?: readonly string[]
+  /** 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 쓰는 화면만 준다. */
+  fiscalStart?: number
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
   const prev = compare ? comparePeriodOf(from, to, compare) : null
+  /** 원본은 기준일자 옆에 마지막으로 누른 빠른선택 이름을 적어 둔다(예: '금월(~오늘)'). */
+  const [pickedLabel, setPickedLabel] = useState('')
 
   return (
     <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -87,15 +92,21 @@ export default function EcStatusPanel({
       )}
 
       <EcCond label="기준일자">
+        {pickedLabel && (
+          <span style={{ fontSize: 12, color: 'var(--ec-blue)', marginRight: 6 }}>{pickedLabel}</span>
+        )}
         <input type="date" className="ec-input" value={from}
-               onChange={(e) => onPeriod({ from: e.target.value, to })} style={{ width: 140 }} />
+               onChange={(e) => { setPickedLabel(''); onPeriod({ from: e.target.value, to }) }} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to}
-               onChange={(e) => onPeriod({ from, to: e.target.value })} style={{ width: 140 }} />
+               onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
       </EcCond>
 
       <EcCond label="">
-        <EcPeriodPicks labels={picks} currentFrom={from} onPick={onPeriod} />
+        <EcPeriodPicks
+          labels={picks} currentFrom={from} fiscalStart={fiscalStart}
+          onPick={onPeriod} onPickLabel={setPickedLabel}
+        />
       </EcCond>
 
       {children}
