@@ -2044,6 +2044,56 @@ async function scenarioPartnerLink(f) {
   eq('표시용 한글도 함께 온다', lot.statusName, { IN_STOCK: '재고', SHIPPED: '출고완료', HOLD: '보류' }[lot.status])
 }
 
+
+/**
+ * 공용품관리(E070204) — 공용품 사용/반납 내역.
+ * 이 화면은 공용품 마스터가 아니라 "누가 언제 무엇을 빌려 쓰고 반납했는가"다.
+ */
+async function scenarioSupplyUsage() {
+  section('■ 공용품 사용내역')
+
+  const item = await ensure('/supplies', 'code', `${P}SUP`, null, {
+    code: `${P}SUP`, name: 'QA공용품', category: '비품', unit: '개', stockQty: 1,
+  })
+  const me = (await must('GET', '/users')).find((u) => u.username === USER)
+
+  const usage = await must('POST', '/supply-usages', {
+    supplyItemId: item.id, userId: me.id, useDate: '2026-08-26',
+    startTime: '09:00', endTime: '10:00', allDay: false,
+    title: 'QA 사용내역', remark: 'QA 적요', returnStatus: 'NOT_RETURNED',
+  })
+  eq('사용내역에 공용품명이 실린다', usage.supplyItemName, 'QA공용품')
+  eq('사용자명도 같이 온다', usage.userName, me.name)
+  eq('반납여부 기본은 미반납', usage.returnStatusName, '미반납')
+
+  await rejects('종료시간이 시작보다 빠르면 거부', 'POST', '/supply-usages', {
+    supplyItemId: item.id, userId: me.id, useDate: '2026-08-26',
+    startTime: '19:00', endTime: '18:00', allDay: false, title: 'QA 거꾸로',
+  }, '종료시간')
+
+  // 종일이면 시간은 지워진다 — 목록에 '종일'로만 보이기 때문
+  const allDay = await must('POST', '/supply-usages', {
+    supplyItemId: item.id, userId: me.id, useDate: '2026-08-27',
+    startTime: '09:00', endTime: '10:00', allDay: true, title: 'QA 종일',
+  })
+  isNull('종일이면 시작시간은 비운다', allDay.startTime)
+  isNull('종일이면 종료시간도 비운다', allDay.endTime)
+
+  const returned = await must('PUT', `/supply-usages/${usage.id}`, { returnStatus: 'RETURNED' })
+  eq('반납으로 바꿀 수 있다', returned.returnStatusName, '반납')
+
+  await rejects('사용내역이 있는 공용품은 삭제 거부', 'DELETE', `/supplies/${item.id}`, undefined, '삭제할 수 없습니다')
+
+  const inPeriod = await must('GET', '/supply-usages?from=2026-08-26&to=2026-08-26')
+  eq('기간 밖 내역은 빠진다', inPeriod.filter((u) => u.supplyItemId === item.id).length, 1)
+
+  await must('DELETE', `/supply-usages/${usage.id}`)
+  await must('DELETE', `/supply-usages/${allDay.id}`)
+  await must('DELETE', `/supplies/${item.id}`)
+  eq('내역을 지우면 공용품도 지울 수 있다',
+    (await must('GET', '/supplies')).some((s) => s.code === `${P}SUP`), false)
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -2094,6 +2144,7 @@ async function main() {
   await scenarioPaySetting()
   await scenarioCashDetail()
   await scenarioWorkspace(fixtures)
+  await scenarioSupplyUsage()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
