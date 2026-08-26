@@ -14,14 +14,17 @@ import { api, extractErrorMessage } from '../../api/client'
  * 이 화면의 기간 빠른선택에는 **[이번기수][직전기수]** 가 있다 — 회계 기수다.
  * 시작월은 회사 설정(Preference.fiscalStart)에서 가져온다. 회사마다 다르므로 1월로 넘겨짚지 않는다.
  *
- * 부서·프로젝트·거래처관리담당자는 Settlement 에 필드가 없어 **의도적 제외**
- * (값 없는 컨트롤을 흉내내지 않는다).
+ * 거래처관리담당자는 <b>거래처 마스터에 있다</b>. Settlement 에 없다고 조건을 빼 뒀었는데,
+ * 원본도 정산이 아니라 거래처를 보고 거르는 것이라 거래처를 통해 이으면 된다.
+ * 부서·프로젝트는 정산에도 거래처에도 없어 여전히 만들지 않는다.
  */
 interface Settlement {
   id: number
   docNo: string
   type: 'RECEIPT' | 'PAYMENT'
   typeName: string
+  /** 거래처관리담당자를 잇는 열쇠. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  partnerId: number
   partnerName: string
   settleDate: string
   amount: number
@@ -40,14 +43,19 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', method: '' })
+  const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
+  const [cond, setCond] = useState({ from: '', to: '', partner: '', method: '', manager: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Settlement[]>('/settlements')
+      const [res, pt] = await Promise.all([
+        api.get<Settlement[]>('/settlements'),
+        api.get<{ id: number; manager: string | null }[]>('/partners'),
+      ])
       setRows(res.data.filter((s) => s.type === type))
+      setPartners(pt.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -68,15 +76,26 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const methods = useMemo(
     () => [...new Set(rows.map((r) => r.method).filter(Boolean))].sort() as string[], [rows])
 
+  const managerOf = useMemo(
+    () => new Map(partners.map((p) => [p.id, p.manager ?? ''])),
+    [partners],
+  )
+
   const shown = rows
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
     .filter((r) => !cond.method || r.method === cond.method)
+    // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
+    .filter((r) => !cond.manager
+      || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
-  const reset = () => { setCond({ from: '', to: '', partner: '', method: '' }); setKeyword('') }
+  const reset = () => {
+    setCond({ from: '', to: '', partner: '', method: '', manager: '' })
+    setKeyword('')
+  }
 
   return (
     <EcListShell
@@ -100,6 +119,10 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
                  onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <input className="ec-input" placeholder="담당자 일부" value={cond.manager}
+                 onChange={(e) => setC({ manager: e.target.value })} style={{ width: 180 }} />
         </EcCond>
         <EcCond label={moneyLabel === '수금' ? '수금방법' : '지급방법'}>
           <select className="ec-input" value={cond.method} onChange={(e) => setC({ method: e.target.value })} style={{ width: 220 }}>
