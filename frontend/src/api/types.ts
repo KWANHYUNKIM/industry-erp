@@ -77,6 +77,8 @@ export interface Item {
   category: string
   categoryName: string
   unitPrice: number
+  /** 구매(입고) 기준단가. 0 이면 안 정한 것이고, 구매할인현황이 할인을 계산하지 않는다. */
+  purchasePrice: number
   safetyStock: number
   barcode: string | null
   /** 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고 대상. */

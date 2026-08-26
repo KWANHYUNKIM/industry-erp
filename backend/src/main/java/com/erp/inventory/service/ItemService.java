@@ -6,6 +6,7 @@ import com.erp.inventory.dto.ItemDtos.CreateItemRequest;
 import com.erp.inventory.dto.ItemDtos.ItemResponse;
 import com.erp.inventory.dto.ItemDtos.UpdateItemRequest;
 import com.erp.inventory.repository.ItemRepository;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -47,6 +48,8 @@ public class ItemService {
                 .unit(req.unit())
                 .category(req.category())
                 .unitPrice(req.unitPrice())
+                // 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이고, 구매할인을 계산하지 않는다.
+                .purchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO)
                 .safetyStock(req.safetyStock())
                 .barcode(req.barcode())
                 .udiDi(req.udiDi())
@@ -64,6 +67,7 @@ public class ItemService {
         item.setUnit(req.unit());
         item.setCategory(req.category());
         item.setUnitPrice(req.unitPrice());
+        item.setPurchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO);
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
         item.setUdiDi(req.udiDi());

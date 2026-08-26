@@ -80,11 +80,20 @@ public class PurchaseService {
         List<PurchaseDiscountRow> rows = new ArrayList<>();
         for (Purchase p : purchaseRepository.findWithLinesByPurchaseDateBetween(f, t)) {
             for (PurchaseLine l : p.getLines()) {
-                BigDecimal base = l.getItem().getUnitPrice();
+                /*
+                 * 기준은 <b>구매단가</b>다. 예전에는 판매 기준단가(unitPrice)와 견줬는데,
+                 * 매입가가 판매가보다 높은 것이 이상할 이유가 없어서 개발 자료 488줄이
+                 * 전부 '할증' 으로 찍혔다 — 화면 이름은 할인현황인데 할인이 0건이었다.
+                 *
+                 * 구매단가가 0 이면 기준을 안 정한 것이므로 할인을 계산하지 않는다.
+                 * 없는 기준으로 만든 숫자를 보여 주느니 0 이 낫다.
+                 */
+                BigDecimal base = l.getItem().getPurchasePrice();
                 BigDecimal buy = l.getUnitPrice();
-                BigDecimal perUnit = base.subtract(buy);
+                boolean hasBase = base != null && base.signum() > 0;
+                BigDecimal perUnit = hasBase ? base.subtract(buy) : BigDecimal.ZERO;
                 BigDecimal amount = perUnit.multiply(l.getQuantity());
-                BigDecimal rate = base.compareTo(BigDecimal.ZERO) > 0
+                BigDecimal rate = hasBase
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new PurchaseDiscountRow(

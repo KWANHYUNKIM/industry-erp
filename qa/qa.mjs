@@ -139,6 +139,71 @@ async function seed() {
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
 /**
+ * <b>구매할인은 구매단가를 기준으로 잰다.</b>
+ *
+ * 품목 단가가 하나뿐이던 시절에는 구매할인현황이 <b>판매</b> 기준단가와 매입가를 견줬다.
+ * 매입가가 판매가보다 높은 것이 이상할 이유가 없어서 개발 자료 488줄이 전부 '할증' 으로
+ * 찍혔다 — 화면 이름은 할인현황인데 할인이 0건이었다.
+ * 원본 품목등록도 판매단가와 구매단가를 따로 둔다.
+ */
+async function scenarioPurchaseDiscountBase(f) {
+  section('■ 구매할인 기준단가')
+
+  /*
+   * 이 품목은 구매전표가 물려서 지울 수 없다(FK). 그래서 <b>있으면 그대로 쓴다</b> —
+   * 지난 회차 찌꺼기라고 지우려 들면 409 로 막히고 시나리오가 통째로 멈춘다.
+   * 기준단가만 0 으로 되돌려 놓고 시작한다.
+   */
+  const existing = (await must('GET', '/items')).find((i) => i.code === `${P}PPBASE`)
+  const item = existing
+    ? await must('PUT', `/items/${existing.id}`, {
+      name: '구매단가시험', unit: 'EA', category: 'MERCHANDISE',
+      unitPrice: 1000, purchasePrice: 0, safetyStock: 0, active: true,
+    })
+    : await must('POST', '/items', {
+      code: `${P}PPBASE`, name: '구매단가시험', unit: 'EA',
+      category: 'MERCHANDISE', unitPrice: 1000, purchasePrice: 0, safetyStock: 0,
+    })
+  eq('구매단가를 안 주면 0', Number(item.purchasePrice), 0)
+
+  const rowsOf = async () => (await must('GET', '/purchases/discounts?from=2026-07-15&to=2026-07-15'))
+    .filter((r) => r.itemCode === `${P}PPBASE`)
+  // 구매전표도 한 번만 만든다. 매 회차 만들면 재고와 채무가 계속 밀린다.
+  if ((await rowsOf()).length === 0) {
+    await must('POST', '/purchases', {
+      purchaseDate: '2026-07-15', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+      lines: [{ itemId: item.id, quantity: 10, unitPrice: 1200 }],
+    })
+  }
+
+  // 기준을 안 정했으면 계산하지 않는다 — 없는 기준으로 만든 숫자를 보여 주느니 0 이 낫다
+  const before = await rowsOf()
+  eq('구매단가가 0 이면 할인액도 0', Number(before[0].discountAmount), 0)
+  eq('그때는 할인율도 0', Number(before[0].discountRate), 0)
+
+  await must('PUT', `/items/${item.id}`, {
+    name: '구매단가시험', unit: 'EA', category: 'MERCHANDISE',
+    unitPrice: 1000, purchasePrice: 1500, safetyStock: 0, active: true,
+  })
+  const after = await rowsOf()
+  eq('기준을 정하면 구매단가로 잰다', Number(after[0].basePrice), 1500)
+  eq('1,500 짜리를 1,200 에 샀으니 단가차 300', Number(after[0].discountPerUnit), 300)
+  eq('10개면 할인액 3,000', Number(after[0].discountAmount), 3000)
+  eq('할인율 20%', Number(after[0].discountRate), 20)
+
+  // 판매단가(1,000)로 쟀다면 -200 × 10 = -2,000 (할증) 이 나왔을 것이다 — 그 값이 아님을 못 박는다
+  eq('판매단가 기준이 아니다', Number(after[0].discountAmount) === -2000, false)
+
+  // 구매전표가 물려 있어 품목은 못 지운다(FK). 다음 회차가 쓰도록 기준단가만 되돌린다.
+  await must('PUT', `/items/${item.id}`, {
+    name: '구매단가시험', unit: 'EA', category: 'MERCHANDISE',
+    unitPrice: 1000, purchasePrice: 0, safetyStock: 0, active: false,
+  })
+  eq('시험 품목은 사용중지로 남긴다',
+    (await must('GET', '/items')).find((i) => i.code === `${P}PPBASE`).active, false)
+}
+
+/**
  * <b>근거수주가 붙은 판매는 주문수량을 넘길 수 없다.</b>
  *
  * 출하는 잔량을 검사하는데(초과하면 거부) 판매는 아무 검사가 없었다. 그래서 수주 50개에
@@ -3397,6 +3462,7 @@ async function main() {
   await scenarioUnsold(fixtures)
   await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioSaleWithinOrder(fixtures)
+  await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

@@ -63,6 +63,19 @@ public class Item extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal unitPrice = BigDecimal.ZERO;
 
+    /**
+     * 구매(입고) 기준단가. 판매 기준단가(unitPrice)와 <b>따로</b> 둔다.
+     *
+     * <p>예전에는 단가가 하나뿐이라 구매할인현황이 판매 기준단가와 매입가를 견줬다.
+     * 매입가가 판매가보다 높은 것이 이상할 이유가 없어서 개발 자료 488줄이 전부
+     * '할증' 으로 찍혔다 — 화면 이름은 할인현황인데 할인이 0건이었다.
+     *
+     * <p>0 이면 "구매 기준단가를 안 정했다" 는 뜻이다. 그런 품목은 구매할인을 계산하지 않는다.
+     */
+    @Column(name = "purchase_price", nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal purchasePrice = BigDecimal.ZERO;
+
     /** 안전재고 (이 수량 미만이면 경고) */
     @Column(nullable = false, precision = 18, scale = 2)
     @Builder.Default

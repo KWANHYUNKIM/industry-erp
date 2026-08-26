@@ -14,6 +14,7 @@ const emptyForm = {
   unit: 'EA',
   category: 'RAW_MATERIAL',
   unitPrice: '0',
+  purchasePrice: '0',
   safetyStock: '0',
   barcode: '',
   udiDi: '',
@@ -67,6 +68,7 @@ export default function ItemsPage() {
       unit: item.unit,
       category: item.category,
       unitPrice: String(item.unitPrice),
+      purchasePrice: String(item.purchasePrice ?? 0),
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
       udiDi: item.udiDi ?? '',
@@ -85,6 +87,7 @@ export default function ItemsPage() {
     const payload = {
       ...form,
       unitPrice: Number(form.unitPrice),
+      purchasePrice: Number(form.purchasePrice),
       safetyStock: Number(form.safetyStock),
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
     }
@@ -185,8 +188,15 @@ export default function ItemsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">단가</label>
+              <label className="mb-1 block text-sm text-slate-600">판매단가</label>
               <input type="number" className={inputCls} value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
+            </div>
+            <div>
+              {/* 원본 품목등록도 판매단가와 구매단가를 따로 둔다. 하나로 쓰면 구매할인현황이
+                  매입가를 판매가와 견주게 되고, 그러면 화면 이름과 달리 늘 할증만 찍힌다. */}
+              <label className="mb-1 block text-sm text-slate-600">구매단가</label>
+              <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
+                     title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">안전재고</label>
@@ -233,7 +243,8 @@ export default function ItemsPage() {
               <th>규격정보</th>
               <th>단위</th>
               <th>품목구분 ▼</th>
-              <th style={{ textAlign: 'right' }}>단가</th>
+              <th style={{ textAlign: 'right' }}>판매단가</th>
+              <th style={{ textAlign: 'right' }}>구매단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
               <th>관리항목</th>
               <th>사용 ▼</th>
@@ -257,8 +268,11 @@ export default function ItemsPage() {
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
                   <td>[{it.categoryName}]</td>
-                  <td style={{ textAlign: 'right' }}>{it.unitPrice.toLocaleString()}</td>
-                  <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right' }}>{it.unitPrice.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right', color: (it.purchasePrice ?? 0) > 0 ? undefined : '#c9ced6' }}>
+                    {(it.purchasePrice ?? 0).toLocaleString('ko-KR')}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString('ko-KR')}</td>
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.active ? 'YES' : 'NO'}</td>
                   <td>
