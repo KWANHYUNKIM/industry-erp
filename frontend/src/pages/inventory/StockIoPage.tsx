@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useRef, useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useShortcut } from '../../utils/useShortcut'
 
 const inputCls = 'ec-input w-full'
 
@@ -85,8 +86,14 @@ export default function StockIoPage() {
       : t.type === 'OUTBOUND' ? { bg: '#fdf3ea', fg: '#a5561b' }
         : { bg: '#f3eefb', fg: '#6b3fb0' }
 
+  const formRef = useRef<HTMLFormElement>(null)
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. submit 버튼을 실제로 눌러
+  // form 의 검증·onSubmit 을 그대로 태운다(EcSlipShell 과 같은 방식).
+  useShortcut('F8', () => formRef.current
+    ?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
+
   return (
-    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* ☆ 제목 + 상단 툴바 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>

@@ -13,6 +13,7 @@ import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import Modal from '../../components/Modal'
 import { findDataTable } from '../../utils/tableExport'
+import { useShortcut } from '../../utils/useShortcut'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -216,6 +217,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     mgmtItem: false, srcType: false, srcDate: false, srcNo: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
+  // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
+  // 이미 열려 있으면 다시 열지 않는다.
+  useShortcut('F4', () => setColPickerOpen(true), !colPickerOpen)
 
   // ── 툴바 ──────────────────────────────────────────────
   const [toolbarExpanded, setToolbarExpanded] = useState(false)

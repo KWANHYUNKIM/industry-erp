@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useShortcut } from '../../utils/useShortcut'
 
 /** Self-Customizing > 정보관리 — 회사 기본정보 등록/수정 (실제 연동, 단일 레코드 upsert) */
 interface CompanyForm {
@@ -35,6 +36,9 @@ export default function CompanyInfoPage() {
   const [addrOpen, setAddrOpen] = useState(false)
   const [addrZip, setAddrZip] = useState('')
   const [addrRoad, setAddrRoad] = useState('')
+
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
+  useShortcut('F8', save, !saving)
 
   const openAddrSearch = () => {
     setAddrZip(form.zipcode)

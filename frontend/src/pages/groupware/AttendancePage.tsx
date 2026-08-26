@@ -5,6 +5,7 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Attendance } from '../../api/types'
+import { useShortcut } from '../../utils/useShortcut'
 
 const TITLE = '출/퇴근기록부(ID)'
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
@@ -41,6 +42,9 @@ export default function AttendancePage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', () => filterRows(search))
 
   const flash = (msg: string) => {
     setNotice(msg)

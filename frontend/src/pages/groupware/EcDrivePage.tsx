@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DriveDocument } from '../../api/types'
 import { downloadStoredFile } from '../../utils/fileDownload'
+import { useShortcut } from '../../utils/useShortcut'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -38,6 +39,9 @@ export default function EcDrivePage() {
   /** 열려 있는 [더보기] ⋮ 메뉴의 문서 id */
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [treeOpen, setTreeOpen] = useState(true)
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', () => load(sel))
   const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!

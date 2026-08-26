@@ -9,6 +9,7 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useShortcut } from '../../utils/useShortcut'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -93,6 +94,10 @@ export default function ApprovalDraftPage() {
     })
     if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
   }
+
+  // 버튼 라벨이 약속한 단축키들. 저장/결재는 처리 중이면 안 먹는다.
+  useShortcut('F3', () => filterRows(search))
+  useShortcut('F7', () => void save(false), !saving)
 
   async function doExcel() {
     const table = findDataTable(bodyRef.current)

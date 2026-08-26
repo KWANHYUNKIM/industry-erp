@@ -144,15 +144,24 @@ export default function EcSlipShell({
   const [bookmarked, setBookmarked] = useState(true)   // 원본은 page-bookmark-added 상태로 뜬다
   const footerRef = useRef<HTMLDivElement>(null)
 
-  // 저장(F8) — 원본과 같은 단축키. 입력칸 안에서도 먹어야 하므로 window 에 건다.
+  // 저장(F8)·저장/전표(F7) — 원본과 같은 단축키. 입력칸 안에서도 먹어야 하므로 window 에 건다.
+  // F7 은 라벨에 적혀만 있고 안 걸려 있었다(F8 만 잡고 있었다).
   useEffect(() => {
-    const save = actions.find((a) => a.submit && !a.disabled)
-    if (!save) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'F8') return
-      e.preventDefault()
-      // submit 버튼을 실제로 눌러 form 의 검증·onSubmit 을 그대로 태운다
-      footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+      if (e.repeat) return
+      if (e.key === 'F8') {
+        if (!actions.some((a) => a.submit && !a.disabled)) return
+        e.preventDefault()
+        // submit 버튼을 실제로 눌러 form 의 검증·onSubmit 을 그대로 태운다
+        footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+        return
+      }
+      if (e.key === 'F7') {
+        const a = actions.find((x) => x.label.includes('F7') && !x.disabled && x.onClick)
+        if (!a) return
+        e.preventDefault()
+        a.onClick!()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

@@ -7,6 +7,7 @@ import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { Project, WorkJournal } from '../../api/types'
+import { useShortcut } from '../../utils/useShortcut'
 
 const TITLE = '업무일지'
 
@@ -36,6 +37,9 @@ export default function WorkLogPage() {
    * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
    */
   const [cond, setCond] = useState(() => {
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', () => filterRows(search))
     const m = periodOf('금월')!
     return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
   })

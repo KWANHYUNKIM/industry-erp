@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PriceOrderLine } from '../../api/types'
+import { useShortcut } from '../../utils/useShortcut'
 
 type Cat = 'SALES' | 'PURCHASE'
 const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구매관리' }
@@ -12,6 +13,9 @@ export default function PriceOrderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
+  useShortcut('F8', save, !saving)
 
   async function load(c: Cat) {
     setLoading(true)

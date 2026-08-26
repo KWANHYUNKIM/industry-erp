@@ -150,17 +150,24 @@ export default function EcListShell({
    */
   // 호출부가 actions 를 인라인 배열로 넘기므로 resolved 는 매 렌더 새 배열이다.
   // 그걸 의존성으로 쓰면 렌더마다 리스너를 뗐다 붙인다 — 최신 핸들러만 ref 로 들고 한 번만 건다.
-  const f8Ref = useRef<(() => void) | undefined>(undefined)
-  // 등록 모달이 열려 있으면 뒤에 깔린 목록을 검색하지 않는다 — 보이지도 않는 화면이 바뀐다.
-  f8Ref.current = formOpen ? undefined
-    : (resolved.find((a) => a.label.includes('F8') && a.onClick)
-      ?? resolved.find((a) => a.primary && a.onClick))?.onClick
+  // 등록 모달이 열려 있으면 아무것도 안 먹는다 — 보이지도 않는 뒤쪽 화면이 바뀌면 안 된다.
+  const keyRef = useRef<Record<string, (() => void) | undefined>>({})
+  keyRef.current = formOpen ? {} : {
+    // 검색 — 라벨에 F8 이 적힌 버튼, 없으면 primary 버튼
+    F8: (resolved.find((a) => a.label.includes('F8') && a.onClick)
+      ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
+    // 신규 — 하단 좌측 버튼(모달 폼이 있으면 그걸 연다)
+    F2: (onNew || renderForm) ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined,
+    // Search — 목록 낱말 추리기. 검색상자를 숨긴 화면(searchable={false})에는 없다.
+    F3: searchable ? runSearch : undefined,
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'F8' || e.repeat || !f8Ref.current) return
+      const run = keyRef.current[e.key]
+      if (!run || e.repeat) return
       e.preventDefault()
-      f8Ref.current()
+      run()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

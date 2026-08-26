@@ -8,6 +8,7 @@ import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate, ApprovalStatus } from '../../api/types'
 import ApprovalDetailModal, { STATUS_LABEL, VOUCHER_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useShortcut } from '../../utils/useShortcut'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -89,6 +90,9 @@ export default function ApprovalListPage({
     })
     if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
   }
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', () => filterRows(search))
 
   async function doExcel() {
     const table = findDataTable(bodyRef.current)

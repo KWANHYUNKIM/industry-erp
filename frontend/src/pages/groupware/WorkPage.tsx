@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useShortcut } from '../../utils/useShortcut'
 
 const today = () => ymd(new Date())
 
@@ -25,6 +26,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', load)
 
   async function load() {
     setLoading(true)
