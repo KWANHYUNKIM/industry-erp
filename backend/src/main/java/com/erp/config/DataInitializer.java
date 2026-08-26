@@ -1,6 +1,7 @@
 package com.erp.config;
 
 import com.erp.common.MenuPermissionCatalog;
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.domain.Account;
 import com.erp.accounting.domain.AccountDivision;
 import com.erp.trade.domain.BusinessPartner;
@@ -93,32 +94,11 @@ public class DataInitializer implements CommandLineRunner {
 
     /** 표준 계정과목 (계정과목등록/비용관리 화면용). */
     private void seedAccounts() {
-        ensureAccount("101", "현금", AccountDivision.ASSET, "유동자산");
-        ensureAccount("102", "당좌예금", AccountDivision.ASSET, "유동자산");
-        ensureAccount("103", "보통예금", AccountDivision.ASSET, "유동자산");
-        ensureAccount("108", "외상매출금", AccountDivision.ASSET, "매출채권");
-        ensureAccount("104", "받을수표", AccountDivision.ASSET, "유동자산");
-        ensureAccount("134", "가지급금", AccountDivision.ASSET, "유동자산");
-        ensureAccount("146", "상품", AccountDivision.ASSET, "재고자산");
-        ensureAccount("203", "감가상각누계액", AccountDivision.ASSET, "유형자산");   // 자산 차감계정
-        ensureAccount("206", "기계장치", AccountDivision.ASSET, "유형자산");
-        ensureAccount("208", "차량운반구", AccountDivision.ASSET, "유형자산");
-        ensureAccount("212", "비품", AccountDivision.ASSET, "유형자산");
-        ensureAccount("251", "외상매입금", AccountDivision.LIABILITY, "매입채무");
-        ensureAccount("331", "자본금", AccountDivision.EQUITY, "자본금");
-        ensureAccount("401", "상품매출", AccountDivision.REVENUE, "매출액");
-        ensureAccount("451", "상품매출원가", AccountDivision.EXPENSE, "매출원가");
-        ensureAccount("811", "복리후생비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("812", "여비교통비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("814", "통신비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("815", "수도광열비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("830", "소모품비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("833", "광고선전비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("818", "감가상각비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("835", "대손상각비", AccountDivision.EXPENSE, "판매관리비");
-        ensureAccount("914", "유형자산처분이익", AccountDivision.REVENUE, "영업외수익");
-        ensureAccount("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용");
+        // 목록은 StandardAccounts 하나뿐이다 — 테넌트 시더도 같은 것을 쓴다.
+        // 예전엔 여기 안에만 있어서 새로 만든 회사는 계정과목이 0개로 시작했다.
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {
+            ensureAccount(a.code(), a.name(), a.division(), a.detail());
+        }
     }
 
     private void ensureAccount(String code, String name, AccountDivision division, String detail) {

@@ -2550,6 +2550,15 @@ async function scenarioTenantIsolation() {
   // 헤더를 아예 안 붙인 요청을 따로 보낸다.
   const anonymous = await fetch(`${BASE}/items`)
   eq('토큰이 없으면 401', anonymous.status, 401)
+
+  // 회사가 갈려도 <b>기준자료</b>는 있어야 한다. 계정과목이 없으면 그 회사는
+  // 회계반영·급여이체를 아예 못 한다 — 코드가 108·255·251·135·801·254 를
+  // 코드값으로 찾아 쓰기 때문이다("계정과목이 없습니다: 135").
+  const coAccounts = (await asTenant('GET', '/accounts')).data ?? []
+  const codes = new Set(coAccounts.map((a) => a.code))
+  const needed = ['108', '110', '135', '251', '252', '253', '254', '255', '801', '936']
+  eq('테넌트에도 코드가 찾아 쓰는 계정과목이 있다',
+    needed.filter((c) => !codes.has(c)).join(', ') || '없음', '없음')
 }
 
 /**

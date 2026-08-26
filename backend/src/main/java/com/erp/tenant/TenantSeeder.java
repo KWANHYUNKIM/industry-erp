@@ -1,5 +1,8 @@
 package com.erp.tenant;
 
+import com.erp.accounting.StandardAccounts;
+import com.erp.accounting.domain.Account;
+import com.erp.accounting.repository.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
 import com.erp.auth.domain.Permission;
 import com.erp.auth.domain.Role;
@@ -32,6 +35,7 @@ public class TenantSeeder {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -62,7 +66,34 @@ public class TenantSeeder {
                     .roles(Set.of(admin))
                     .build());
         }
+        ensureReferenceData();
         log.info("테넌트 시드 완료 → 관리자 {}", adminUsername);
+    }
+
+    /**
+     * 회사가 쓰려면 <b>반드시 있어야 하는</b> 기준자료를 채운다. 이미 있으면 건드리지 않는다.
+     *
+     * <p>계정과목이 그렇다. 회계반영은 108·255·251·135 를, 급여이체는 801·254 를
+     * <b>코드값으로 찾아</b> 쓰기 때문에, 없으면 "계정과목이 없습니다" 로 기능이 막힌다.
+     * 예전에는 목록이 본사 시더 안에만 있어서 새 회사는 계정과목 0개로 시작했다.
+     *
+     * <p>새 회사(TenantSeeder)와 이미 만들어진 회사(TenantMigrationRunner) 양쪽에서 부른다.
+     * 그래서 여러 번 불려도 안전해야 한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void ensureReferenceData() {
+        int added = 0;
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {
+            if (accountRepository.existsByCode(a.code())) continue;
+            accountRepository.save(Account.builder()
+                    .code(a.code()).name(a.name()).division(a.division())
+                    .detailCategory(a.detail()).active(true)
+                    .build());
+            added++;
+        }
+        if (added > 0) {
+            log.info("테넌트 기준자료 보충 → 계정과목 {}개", added);
+        }
     }
 
     private Role ensureRole(String name, String displayName, String description) {
