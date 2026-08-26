@@ -60,6 +60,14 @@ public class UserService {
         return UserResponse.from(userRepository.save(user));
     }
 
+    /** 사용여부만 바꾼다. 다른 필드는 건드리지 않는다. */
+    @Transactional
+    public UserResponse setEnabled(Long id, boolean enabled) {
+        User user = getUser(id);
+        user.setEnabled(enabled);
+        return UserResponse.from(user);
+    }
+
     @Transactional
     public UserResponse update(Long id, UpdateUserRequest request) {
         User user = getUser(id);

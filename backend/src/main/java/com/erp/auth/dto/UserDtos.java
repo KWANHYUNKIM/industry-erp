@@ -4,6 +4,7 @@ import com.erp.auth.domain.Role;
 import com.erp.auth.domain.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -47,6 +48,18 @@ public final class UserDtos {
             Boolean enabled,
             Set<String> roleNames,
             String password
+    ) {}
+
+    /**
+     * 사용여부만 바꾸는 요청.
+     *
+     * <p>목록에서 사용여부를 토글할 때 이름·이메일·부서·권한까지 함께 보내면,
+     * 그 행이 화면에 뜬 뒤 다른 사람이 바꾼 값을 <b>토글한 사람이 모르는 채로 되돌린다.</b>
+     * 사용여부만 바꾸겠다는 요청에는 사용여부만 싣는다. 계정과목이 이미 같은 방식이다
+     * ({@code PATCH /api/accounts/{id}}).
+     */
+    public record ToggleEnabledRequest(
+            @NotNull(message = "사용여부를 지정하세요.") Boolean enabled
     ) {}
 
     /** 사용자 응답 */

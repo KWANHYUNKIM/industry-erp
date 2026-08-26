@@ -2591,6 +2591,17 @@ async function scenarioPayrollReadGuard() {
   eq('조용히 STAFF 가 붙지 않는다',
     (await must('GET', '/users')).filter((u) => u.username.startsWith(`${P2.toLowerCase()}norole`)).length, 0)
 
+  // 목록의 사용여부 토글은 사용여부만 보낸다. 행 전체를 되돌려 보내면, 그 목록을 띄운 뒤
+  // 다른 사람이 바꾼 이름·권한을 토글한 사람이 모르는 채로 되돌린다.
+  const stale = await must('POST', '/users',
+    { username: `${P2.toLowerCase()}stale`, password: 'qatest1234', name: '토글전', roleNames: [`${P2}_NONE`] })
+  await must('PUT', `/users/${stale.id}`, { name: '토글후', roleNames: [`${P2}_PAY`] })
+  const toggled = await must('PATCH', `/users/${stale.id}`, { enabled: false })
+  eq('사용여부 토글은 사용여부만 바꾼다', toggled.enabled, false)
+  eq('그 사이 남이 바꾼 이름을 되돌리지 않는다', toggled.name, '토글후')
+  eq('그 사이 남이 바꾼 권한도 되돌리지 않는다', toggled.roles.join(), `${P2}_PAY`)
+  await must('DELETE', `/users/${stale.id}`)
+
   for (const u of [none, pay, acc]) await must('DELETE', `/users/${u.id}`)
   for (const r of (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2))) {
     await must('DELETE', `/roles/${r.id}`)

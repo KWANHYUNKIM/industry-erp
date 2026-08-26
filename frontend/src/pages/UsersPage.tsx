@@ -28,13 +28,9 @@ export default function UsersPage() {
 
   async function toggleEnabled(user: User) {
     try {
-      await api.put(`/users/${user.id}`, {
-        name: user.name,
-        email: user.email ?? undefined,
-        department: user.department ?? undefined,
-        enabled: !user.enabled,
-        roleNames: user.roles,
-      })
+      // 사용여부만 보낸다. 이름·권한까지 되돌려 보내면 이 목록을 띄운 뒤 다른 사람이
+      // 바꾼 값을 토글한 사람이 모르는 채로 되돌린다.
+      await api.patch(`/users/${user.id}`, { enabled: !user.enabled })
       loadAll()
     } catch (err) {
       alert(extractErrorMessage(err))
