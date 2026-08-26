@@ -104,6 +104,108 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.NOT_FOUND, "요청한 경로를 찾을 수 없습니다."));
     }
 
+    /**
+     * DB 제약 위반. 이게 없으면 아래 handleGeneral 이 받아 <b>500</b> 을 내고,
+     * 메시지에 Postgres 원문이 통째로 실린다 — 제약 이름·테이블명·SQL 까지.
+     * 쓰는 사람은 "지울 수 없다" 는 사실을 영어 DB 오류 더미에서 읽어내야 했다.
+     *
+     * <p>가장 흔한 경우는 <b>쓰는 중인 마스터를 지우려 할 때</b>다(품목·거래처·창고).
+     * 그건 서버 잘못이 아니라 요청이 성립하지 않는 것이므로 409 로 돌려준다.
+     */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException e) {
+        String sqlState = sqlStateOf(e);
+        String raw = rootMessage(e);
+
+        // 23503 foreign_key_violation — 다른 자료가 이 행을 가리키고 있다
+        if ("23503".equals(sqlState)) {
+            String where = referencingTable(raw);
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ErrorResponse.of(HttpStatus.CONFLICT,
+                            where == null
+                                    ? "다른 자료에서 쓰고 있어 지울 수 없습니다."
+                                    : "%s에서 쓰고 있어 지울 수 없습니다. 먼저 그쪽을 정리하세요.".formatted(where)));
+        }
+        // 23505 unique_violation
+        if ("23505".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ErrorResponse.of(HttpStatus.CONFLICT, "이미 같은 값이 등록돼 있습니다."));
+        }
+        // 23502 not_null_violation · 23514 check_violation — 값이 잘못된 것이라 400
+        if ("23502".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "필수 값이 비어 있습니다."));
+        }
+        if ("23514".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "허용되지 않는 값입니다."));
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(HttpStatus.CONFLICT, "저장할 수 없습니다. 자료가 서로 맞지 않습니다."));
+    }
+
+    private static String sqlStateOf(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof java.sql.SQLException sql && sql.getSQLState() != null) {
+                return sql.getSQLState();
+            }
+        }
+        return null;
+    }
+
+    private static String rootMessage(Throwable e) {
+        Throwable t = e;
+        while (t.getCause() != null) t = t.getCause();
+        return t.getMessage() != null ? t.getMessage() : "";
+    }
+
+    /**
+     * FK 위반 메시지에서 <b>가리키는 쪽</b> 테이블을 뽑아 사람 말로 바꾼다.
+     * Postgres 는 {@code ... on table "sales"} 형태로 알려 준다.
+     * 표에 없는 테이블이면 null 을 돌려 일반 문구를 쓰게 한다 — 테이블명을 그대로
+     * 보여 주면 결국 내부 사정을 노출하는 셈이다.
+     */
+    private static String referencingTable(String raw) {
+        // Postgres 메시지에는 on table 이 두 번 나온다:
+        //   update or delete on table "items" ... constraint "..." on table "stock_transactions"
+        // 앞엣것은 지우려는 테이블이고, 알려 줘야 할 건 뒤엣것(가리키는 쪽)이다.
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("on table \"(\\w+)\"").matcher(raw);
+        String last = null;
+        while (m.find()) last = m.group(1);
+        return last == null ? null : TABLE_LABELS.get(last);
+    }
+
+    private static final Map<String, String> TABLE_LABELS = Map.ofEntries(
+            Map.entry("sales", "판매전표"),
+            Map.entry("sales_lines", "판매전표"),
+            Map.entry("sales_orders", "주문서"),
+            Map.entry("sales_order_lines", "주문서"),
+            Map.entry("purchases", "구매전표"),
+            Map.entry("purchase_lines", "구매전표"),
+            Map.entry("purchase_orders", "발주서"),
+            Map.entry("quotations", "견적서"),
+            Map.entry("shipments", "출하"),
+            Map.entry("stocks", "재고"),
+            Map.entry("stock_transactions", "재고이동 내역"),
+            Map.entry("stock_transfers", "창고이동"),
+            Map.entry("stock_adjustments", "기타이동"),
+            Map.entry("staged_stock_adjustments", "재고실사"),
+            Map.entry("productions", "생산실적"),
+            Map.entry("work_orders", "작업지시"),
+            Map.entry("boms", "BOM"),
+            Map.entry("bom_lines", "BOM"),
+            Map.entry("material_issues", "생산불출"),
+            Map.entry("quality_inspections", "품질검사"),
+            Map.entry("as_requests", "A/S"),
+            Map.entry("settlements", "수금·지급"),
+            Map.entry("tax_invoices", "세금계산서"),
+            Map.entry("expenses", "비용전표"),
+            Map.entry("journal_entries", "회계전표"),
+            Map.entry("employees", "사원"),
+            Map.entry("payslips", "급여명세"));
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

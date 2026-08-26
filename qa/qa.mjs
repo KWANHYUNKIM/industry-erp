@@ -2501,6 +2501,37 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>쓰는 중인 마스터를 지우려 할 때.</b>
+ *
+ * 예전에는 500 이 나면서 Postgres 원문이 통째로 실려 나갔다 —
+ * 제약 이름·테이블명·SQL 까지. 쓰는 사람은 "지울 수 없다"는 사실을
+ * 영어 DB 오류 더미에서 읽어내야 했다.
+ *
+ * 서버가 고장난 게 아니라 요청이 성립하지 않는 것이므로 409 다.
+ */
+async function scenarioDeleteInUse(f) {
+  section('■ 쓰는 중인 마스터 삭제')
+
+  const cases = [
+    ['품목', `/items/${f.product.id}`],
+    ['거래처', `/partners/${f.customer.id}`],
+    ['창고', `/warehouses/${f.warehouse.id}`],
+  ]
+  for (const [label, path] of cases) {
+    const r = await call('DELETE', path)
+    eq(`${label}: 쓰고 있으면 409`, r.status, 409)
+    eq(`${label}: 어디서 쓰는지 알려 준다`,
+      /쓰고 있어 지울 수 없습니다/.test(String(r.data?.message ?? '')), true)
+    eq(`${label}: DB 원문이 새어 나가지 않는다`,
+      /foreign key|constraint|violates|SQL/i.test(String(r.data?.message ?? '')), false)
+  }
+
+  // 없는 것을 지우는 건 여전히 404 여야 한다(409 로 뭉뚱그리면 안 된다)
+  const missing = await call('DELETE', '/items/999999')
+  eq('없는 품목 삭제는 그대로 404', missing.status, 404)
+}
+
+/**
  * 없는 API 경로. 예전에는 <b>500</b> 이 나면서 "No static resource api/..." 라는
  * 내부 사정까지 실려 나갔다. 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되고,
  * 내부 구조까지 새어 나간다.
@@ -2610,6 +2641,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioDeleteInUse(fixtures)
   await scenarioNotFound()
 
   console.log(`\n${'─'.repeat(50)}`)
