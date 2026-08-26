@@ -139,6 +139,48 @@ async function seed() {
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
 /**
+ * <b>특별단가는 거래처별이 그룹별보다 먼저다.</b>
+ *
+ * 특별단가등록·단가적용순서설정 화면은 오래전부터 있었는데 <b>전표입력이 그 값을 한 번도
+ * 안 불렀다.</b> 특별단가를 등록해 놓고 판매입력을 열면 그냥 표준단가가 채워졌고,
+ * 두 마스터 화면은 저장만 되고 아무 데도 영향이 없었다.
+ * 이제 전표입력이 resolve 를 부른다 — 여기서 그 해석 규칙을 못 박는다.
+ */
+async function scenarioSpecialPrice(f) {
+  section('■ 특별단가 해석')
+
+  const ask = async () => (await must('GET',
+    `/special-prices/resolve?tradeType=SALES&itemId=${f.product.id}&partnerId=${f.customer.id}`))
+
+  // 지난 회차가 중간에 멈춰 남긴 것이 있으면 먼저 치운다 — 안 그러면 '등록 전' 이 성립하지 않는다.
+  for (const sp0 of (await must('GET', '/special-prices'))
+    .filter((x) => x.itemName === f.product.name && x.unitPrice === 77000)) {
+    await call('DELETE', `/special-prices/${sp0.id}`)
+  }
+
+  const before = await ask()
+  eq('등록 전에는 특별단가가 없다', before.found, false)
+  eq('없을 때 단가는 null 이다(0 이 아니다)', before.unitPrice, null)
+
+  const sp = await must('POST', '/special-prices', {
+    tradeType: 'SALES', itemId: f.product.id, partnerId: f.customer.id, unitPrice: 77000,
+  })
+  const after = await ask()
+  eq('거래처별 특별단가를 찾는다', after.found, true)
+  eq('그 단가를 그대로 준다', Number(after.unitPrice), 77000)
+  eq('어디서 왔는지 밝힌다', after.source, 'PARTNER')
+
+  // 껐다 켜면 해석도 따라간다 — 화면에서 '사용안함' 으로 돌린 단가가 계속 붙으면 안 된다
+  await must('PATCH', `/special-prices/${sp.id}/active?active=false`)
+  eq('사용안함으로 돌리면 안 찾는다', (await ask()).found, false)
+  await must('PATCH', `/special-prices/${sp.id}/active?active=true`)
+  eq('다시 켜면 또 찾는다', (await ask()).found, true)
+
+  await must('DELETE', `/special-prices/${sp.id}`)
+  eq('지우면 표준단가로 돌아간다', (await ask()).found, false)
+}
+
+/**
  * <b>단가일괄변경은 화면이 말한 단가만 바꾼다.</b>
  *
  * 품목 단가가 하나뿐이던 시절, 구매단가일괄변경도 판매단가를 바꿨다(주석에
@@ -3500,6 +3542,7 @@ async function main() {
   await scenarioSaleWithinOrder(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPriceBulkField(fixtures)
+  await scenarioSpecialPrice(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

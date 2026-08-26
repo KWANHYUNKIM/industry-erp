@@ -455,6 +455,28 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     return pp > 0 ? String(pp) : ''
   }
 
+  /**
+   * 거래처가 정해진 뒤 <b>특별단가</b>가 있으면 그 값으로 덮는다.
+   *
+   * <p>특별단가등록·단가적용순서설정 화면이 오래전부터 있었는데 <b>전표입력이 그 값을
+   * 한 번도 안 불렀다.</b> 특별단가를 등록해 놓고 판매입력을 열면 그냥 표준단가가 채워졌고,
+   * 두 마스터 화면은 저장만 되고 아무 데도 영향이 없었다.
+   *
+   * <p>서버가 이미 순서를 판단한다(거래처별 → 그 거래처의 단가그룹별). 화면은 부르기만 한다.
+   * 못 찾으면 표준단가를 그대로 둔다 — 특별단가가 없다는 뜻이지 0 이라는 뜻이 아니다.
+   */
+  async function applySpecialPrice(idx: number, itemId: string) {
+    const pid = partnerId
+    if (!pid || !itemId) return
+    try {
+      const r = await api.get<{ found: boolean; unitPrice: number | null }>('/special-prices/resolve', {
+        params: { tradeType: mode === 'sales' ? 'SALES' : 'PURCHASE', itemId, partnerId: pid },
+      })
+      if (!r.data.found || r.data.unitPrice == null) return
+      setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, unitPrice: String(r.data.unitPrice) } : l)))
+    } catch { /* 특별단가를 못 읽어도 전표입력은 계속돼야 한다 */ }
+  }
+
   // ── 라인 편집 ─────────────────────────────────────────
   function updateLine(idx: number, field: keyof LineInput, value: string | boolean) {
     setLines((ls) => {
@@ -463,6 +485,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         const it = itemById.get(String(value))
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
         if (!next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
+        // 표준단가를 채운 뒤 특별단가가 있으면 그것으로 덮는다(서버가 순서를 판단한다).
+        void applySpecialPrice(idx, String(value))
         if (idx === ls.length - 1) next.push(emptyLine())
       }
       return next
