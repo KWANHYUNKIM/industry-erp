@@ -439,13 +439,29 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     stocks.filter((s) => String(s.itemId) === itemId && String(s.warehouseId) === warehouseId)
       .reduce((a, s) => a + s.quantity, 0)
 
+  /**
+   * 이 화면이 라인에 채워 넣을 <b>기준단가</b>.
+   *
+   * <p>판매입력은 판매단가, 구매입력은 구매단가다. 예전에는 품목 단가가 하나뿐이라
+   * 구매입력도 <b>판매단가</b>를 채웠다 — 팔 값으로 사는 셈이라 매번 손으로 고쳐야 했고,
+   * 안 고치면 그 값이 그대로 매입가로 저장됐다.
+   *
+   * <p>구매단가를 안 정한 품목(0)은 빈칸으로 둔다. 판매단가를 대신 넣으면
+   * 그게 매입가인 줄 알고 그냥 저장하게 된다 — 틀린 값을 채워 주느니 비워 두는 게 낫다.
+   */
+  function basePriceOf(it: { unitPrice: number; purchasePrice?: number }): string {
+    if (mode === 'sales') return String(it.unitPrice)
+    const pp = it.purchasePrice ?? 0
+    return pp > 0 ? String(pp) : ''
+  }
+
   // ── 라인 편집 ─────────────────────────────────────────
   function updateLine(idx: number, field: keyof LineInput, value: string | boolean) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
       if (field === 'itemId' && value) {
         const it = itemById.get(String(value))
-        if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: String(it.unitPrice) }
+        if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
         if (!next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
         if (idx === ls.length - 1) next.push(emptyLine())
       }
@@ -466,7 +482,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         return next
       }
       const blank = ls.findIndex((l) => !l.itemId)
-      const filled: LineInput = { ...emptyLine(), itemId, quantity: String(qty), unitPrice: String(it.unitPrice) }
+      const filled: LineInput = { ...emptyLine(), itemId, quantity: String(qty), unitPrice: basePriceOf(it) }
       if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
       return [...ls, filled, emptyLine()]
     })
