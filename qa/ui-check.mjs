@@ -90,14 +90,15 @@ console.log('\n■ 조건부 열 표의 개발 모드 검사')
   let hooked = 0
   for (const f of pages) {
     const src = readFileSync(f, 'utf8')
-    const call = src.match(/useTableColumnCheck\(\s*(\w+)/)
-    if (!call) continue
-    hooked++
-    if (!new RegExp(`ref=\\{${call[1]}\\}`).test(src)) {
-      bad.push(`${f.split(sep).pop()}: ${call[1]} 를 요소에 안 달았다`)
+    // 한 화면에 표가 둘이면 훅도 둘이다 — 첫 번째만 보면 나머지는 그냥 새 나간다.
+    for (const call of src.matchAll(/useTableColumnCheck\(\s*(\w+)/g)) {
+      hooked++
+      if (!new RegExp(`ref=\\{${call[1]}\\}`).test(src)) {
+        bad.push(`${f.split(sep).pop()}: ${call[1]} 를 요소에 안 달았다`)
+      }
     }
   }
-  eq(`훅을 쓰는 화면 ${hooked}개가 ref 를 요소에 달았다`, bad.join('\n') || '없음', '없음')
+  eq(`훅 호출 ${hooked}개가 ref 를 요소에 달았다`, bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-c) tbody 의 넓은 칸 ─────────────────────────────────────────────────
