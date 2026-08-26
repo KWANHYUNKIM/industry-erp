@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel from '../../components/EcStatusPanel'
+import { STOCK_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BalanceSheet, StatementRow } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -47,13 +49,27 @@ export default function BalanceSheetPage() {
     </table>
   )
 
+  const reset = () => setAsOf(today())
+
   return (
-    <EcListShell title="재무상태표" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기준일</span>
-        <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-      </div>
+    <EcListShell
+      title="재무상태표"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      {/* 재무상태표는 한 시점의 잔액이라 기준일이 하나다 — 구간 빠른선택은 뜻이 없다. */}
+      <EcStatusPanel
+        single
+        from={asOf} to={asOf}
+        onPeriod={(r) => setAsOf(r.from)}
+        picks={STOCK_PICKS}
+        dateLabel="기준일"
+      />
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
