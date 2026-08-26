@@ -192,7 +192,10 @@ export default function PayablePage() {
                 <td>{r.name}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.purchased)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.paid)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: r.balance > 0 ? '#2f8401' : '#bbb' }}>{won(r.balance)}</td>
+                {/* 음수 = 줄 돈보다 더 준 것(선급금). 0 과 같은 회색으로 죽이면 놓친다. */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: r.balance > 0 ? '#2f8401' : r.balance < 0 ? '#c60a2e' : '#bbb' }}>
+                  {won(r.balance)}{r.balance < 0 ? ' (선급금)' : ''}
+                </td>
                 {r.buckets.map((v, bi) => (
                   <td key={bi} style={{ textAlign: 'right', color: v === 0 ? '#ccd1d7' : bi === 3 ? '#c60a2e' : '#5a626e' }}>{won(v)}</td>
                 ))}

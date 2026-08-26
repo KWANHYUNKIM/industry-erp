@@ -7,6 +7,23 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
+/**
+ * 잔액 칸 색.
+ *
+ * <p>음수는 <b>0 이 아니다.</b> 채권이 음수면 받을 돈보다 더 받은 것(선수금),
+ * 채무가 음수면 줄 돈보다 더 준 것(선급금)이다. 예전에는 {@code n > 0 ? 색 : 회색} 이라
+ * 선수금 100만원이 잔액 0 과 똑같이 흐린 회색으로 찍혔다 — 눈에 안 띄어 그냥 지나쳤다.
+ */
+const balanceStyle = (n: number, positive: string) => ({
+  textAlign: 'right' as const,
+  fontWeight: 600,
+  color: n > 0 ? positive : n < 0 ? '#c60a2e' : '#bbb',
+})
+
+/** 음수 잔액에 붙이는 꼬리표. 숫자만으로는 무슨 뜻인지 알 수 없다. */
+const balanceNote = (n: number, kind: '채권' | '채무') =>
+  n < 0 ? (kind === '채권' ? ' (선수금)' : ' (선급금)') : ''
+
 /** 채권만 / 채무만 / 둘 다. 원본은 거래처별채권(영업)과 거래처별채무(구매)가 <b>따로</b> 있다. */
 export type LedgerSide = 'AR' | 'AP' | 'BOTH'
 
@@ -158,8 +175,8 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ color: g.key === '(미지정)' ? '#9aa1ab' : undefined }}>{g.key}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(g.count)}</td>
-                {showAr && <td style={{ textAlign: 'right', fontWeight: 600, color: g.receivable > 0 ? 'var(--ec-blue)' : '#bbb' }}>{won(g.receivable)}</td>}
-                {showAp && <td style={{ textAlign: 'right', fontWeight: 600, color: g.payable > 0 ? '#2f8401' : '#bbb' }}>{won(g.payable)}</td>}
+                {showAr && <td style={balanceStyle(g.receivable, 'var(--ec-blue)')}>{won(g.receivable)}{balanceNote(g.receivable, '채권')}</td>}
+                {showAp && <td style={balanceStyle(g.payable, '#2f8401')}>{won(g.payable)}{balanceNote(g.payable, '채무')}</td>}
               </tr>
             ))}
           </tbody>
@@ -195,8 +212,8 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
-              {showAr && <td style={{ textAlign: 'right', fontWeight: 600, color: r.receivable > 0 ? 'var(--ec-blue)' : '#bbb' }}>{won(r.receivable)}</td>}
-              {showAp && <td style={{ textAlign: 'right', fontWeight: 600, color: r.payable > 0 ? '#2f8401' : '#bbb' }}>{won(r.payable)}</td>}
+              {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
+              {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{won(r.payable)}{balanceNote(r.payable, '채무')}</td>}
             </tr>
           ))}
         </tbody>
@@ -214,6 +231,7 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
 
       <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
         ※ 채권 = 판매 합계 − 수금, 채무 = 구매 합계 − 지급. 수금·지급 등록은 「수금현황」·「지급현황」에서 합니다.
+        <br />※ 채권이 음수면 받을 돈보다 더 받은 것(선수금), 채무가 음수면 줄 돈보다 더 준 것(선급금)입니다.
       </p>
     </EcListShell>
   )

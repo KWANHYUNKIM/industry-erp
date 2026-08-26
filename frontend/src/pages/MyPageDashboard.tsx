@@ -145,8 +145,10 @@ const REGISTRY: WidgetDef[] = [
             <tr key={b.partnerId}>
               <td>{b.name}</td>
               <td>{b.typeName}</td>
-              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : '#bbb' }}>{won(b.receivable)}</td>
-              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : '#bbb' }}>{won(b.payable)}</td>
+              {/* 음수는 0 이 아니다 — 채권 음수는 선수금, 채무 음수는 선급금이다.
+                  회색으로 죽이면 잔액 0 과 구분이 안 된다. */}
+              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : b.receivable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.receivable)}</td>
+              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : b.payable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.payable)}</td>
             </tr>
           ))}
         </tbody>

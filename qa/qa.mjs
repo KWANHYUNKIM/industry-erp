@@ -3350,6 +3350,22 @@ async function scenarioSettlement(f) {
   const apBack = await balanceOf(f.supplier.id)
   eq('수금은 채권에서 빠진다',
     Number(arBack.receivable) - Number(arAfter.receivable), 550000)
+
+  /*
+   * 받을 돈보다 더 받으면 채권이 <b>음수</b>가 된다(선수금). 그게 맞다 —
+   * 다만 화면이 음수를 0 과 같은 회색으로 죽여 놔서 선수금 100만원이 '값 없음' 처럼 보였다.
+   * 여기서는 서버가 음수를 제대로 내는지만 본다(색은 화면 몫이다).
+   */
+  const beforeAdvance = await balanceOf(f.customer.id)
+  const advance = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: Number(beforeAdvance.receivable) + 1000,
+    method: '현금', settleDate: '2026-08-22', note: `${P} 선수금`,
+  })
+  const negative = await balanceOf(f.customer.id)
+  eq('채권보다 많이 수금하면 음수(선수금)가 된다', Number(negative.receivable), -1000)
+  await must('DELETE', `/settlements/${advance.id}`)
+  eq('선수금을 지우면 원래 잔액으로 돌아온다',
+    Number((await balanceOf(f.customer.id)).receivable), Number(beforeAdvance.receivable))
   eq('지급은 채무에서 빠진다',
     Number(apBack.payable) - Number(apAfter.payable), 330000)
 
