@@ -237,6 +237,7 @@ const MENU: TopMenu[] = [
               { label: '대체사용현황', to: '/inventory/substitute-status' },
               { label: '폐기현황', to: '/inventory/disposal-status' },
               { label: '불량률파악보고서', to: '/quality/defect-report' },
+              { label: '재고실사현황', to: '/inventory/stocktake-status' },
               { label: '재고조정현황', to: '/inventory/adjust-status' },
             ],
           },
