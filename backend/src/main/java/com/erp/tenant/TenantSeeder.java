@@ -4,6 +4,8 @@ import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.domain.Account;
 import com.erp.accounting.repository.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
+import com.erp.settings.domain.CompanyInfo;
+import com.erp.settings.repository.CompanyInfoRepository;
 import com.erp.auth.domain.Permission;
 import com.erp.auth.domain.Role;
 import com.erp.auth.domain.User;
@@ -36,10 +38,11 @@ public class TenantSeeder {
     private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
+    private final CompanyInfoRepository companyInfoRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void seed(String adminUsername, String adminRawPassword, String adminName) {
+    public void seed(String companyName, String adminUsername, String adminRawPassword, String adminName) {
         Role admin = ensureRole("ADMIN", "관리자", "모든 기능 및 사용자 관리 권한");
         Role manager = ensureRole("MANAGER", "매니저", "모듈 관리 및 승인 권한");
         Role staff = ensureRole("STAFF", "사원", "일반 업무 처리 권한");
@@ -66,7 +69,7 @@ public class TenantSeeder {
                     .roles(Set.of(admin))
                     .build());
         }
-        ensureReferenceData();
+        ensureReferenceData(companyName);
         log.info("테넌트 시드 완료 → 관리자 {}", adminUsername);
     }
 
@@ -81,7 +84,7 @@ public class TenantSeeder {
      * 그래서 여러 번 불려도 안전해야 한다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void ensureReferenceData() {
+    public void ensureReferenceData(String companyName) {
         int added = 0;
         for (StandardAccounts.Spec a : StandardAccounts.ALL) {
             if (accountRepository.existsByCode(a.code())) continue;
@@ -91,9 +94,24 @@ public class TenantSeeder {
                     .build());
             added++;
         }
+        ensureCompanyInfo(companyName);
         if (added > 0) {
             log.info("테넌트 기준자료 보충 → 계정과목 {}개", added);
         }
+    }
+
+    /**
+     * 회사정보에 <b>상호만이라도</b> 넣어 둔다.
+     *
+     * <p>거래명세서·견적서·발주서는 공급자란을 회사정보에서 읽는다. 비어 있으면
+     * 인쇄물에 "(회사정보 미등록)" 이 찍힌다 — 거래처에 건네는 문서라 그대로 나가면 곤란하다.
+     * 회사를 만들 때 상호를 이미 받았으므로 그것만이라도 채운다.
+     * 사업자등록번호·대표자 같은 나머지는 업체가 회사정보 화면에서 채운다.
+     */
+    private void ensureCompanyInfo(String companyName) {
+        if (companyName == null || companyName.isBlank()) return;
+        if (companyInfoRepository.findFirstByOrderByIdAsc().isPresent()) return;
+        companyInfoRepository.save(CompanyInfo.builder().name(companyName.trim()).build());
     }
 
     private Role ensureRole(String name, String displayName, String description) {

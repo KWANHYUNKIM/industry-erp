@@ -104,7 +104,7 @@ public class CompanyService {
         try {
             String adminName = (req.adminName() == null || req.adminName().isBlank())
                     ? "관리자" : req.adminName();
-            tenantSeeder.seed(req.adminUsername(), req.adminPassword(), adminName);
+            tenantSeeder.seed(req.name(), req.adminUsername(), req.adminPassword(), adminName);
         } finally {
             TenantContext.set(prev);
         }

@@ -2559,6 +2559,12 @@ async function scenarioTenantIsolation() {
   const needed = ['108', '110', '135', '251', '252', '253', '254', '255', '801', '936']
   eq('테넌트에도 코드가 찾아 쓰는 계정과목이 있다',
     needed.filter((c) => !codes.has(c)).join(', ') || '없음', '없음')
+
+  // 회사정보(상호)도 있어야 한다. 비면 거래명세서·견적서·발주서 공급자란에
+  // "(회사정보 미등록)" 이 찍힌다 — 거래처에 건네는 문서라 그대로 나가면 곤란하다.
+  // 상호는 회사를 만들 때 이미 받은 값이라 비워 둘 이유가 없다.
+  const coInfo = (await asTenant('GET', '/company')).data
+  eq('테넌트 회사정보에 상호가 있다', Boolean(coInfo?.name), true)
 }
 
 /**

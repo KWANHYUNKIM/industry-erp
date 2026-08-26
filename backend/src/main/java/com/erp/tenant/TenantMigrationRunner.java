@@ -74,7 +74,7 @@ public class TenantMigrationRunner implements ApplicationRunner {
                     applied = flyway.migrate().migrationsExecuted;
                 }
                 if (applied > 0) log.info("테넌트 {} ({}) 마이그레이션 {}건 적용", c.getCode(), schema, applied);
-                ensureReferenceData(schema, c.getCode());
+                ensureReferenceData(schema, c.getCode(), c.getName());
             } catch (RuntimeException e) {
                 log.error("테넌트 {} ({}) 마이그레이션 실패 — 이 회사는 화면에서 오류가 날 수 있습니다: {}",
                         c.getCode(), schema, e.getMessage());
@@ -87,14 +87,16 @@ public class TenantMigrationRunner implements ApplicationRunner {
      *
      * <p>계정과목 목록이 예전에는 본사 시더 안에만 있어서, 그 전에 만들어진 회사는
      * 계정과목이 0개인 채로 남아 있다. 회계반영·급여이체가 계정을 코드값으로 찾아 쓰므로
-     * 그 회사들은 지금도 그 기능을 못 쓴다. 새 회사는 TenantSeeder 가 채우고,
-     * 이미 있는 회사는 여기서 채운다. 있으면 건드리지 않으므로 매 기동 불려도 안전하다.
+     * 그 회사들은 지금도 그 기능을 못 쓴다. 회사정보(상호)도 마찬가지로 비어 있어
+     * 인쇄물 공급자란에 "(회사정보 미등록)" 이 찍힌다 — 상호는 레지스트리가 알고 있다.
+     * 새 회사는 TenantSeeder 가 채우고, 이미 있는 회사는 여기서 채운다.
+     * 있으면 건드리지 않으므로 매 기동 불려도 안전하다.
      */
-    private void ensureReferenceData(String schema, String companyCode) {
+    private void ensureReferenceData(String schema, String companyCode, String companyName) {
         String prev = TenantContext.get();
         TenantContext.set(schema);
         try {
-            tenantSeeder.ensureReferenceData();
+            tenantSeeder.ensureReferenceData(companyName);
         } catch (RuntimeException e) {
             log.error("테넌트 {} ({}) 기준자료 보충 실패: {}", companyCode, schema, e.getMessage());
         } finally {
