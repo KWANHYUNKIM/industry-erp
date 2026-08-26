@@ -213,7 +213,7 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
       )}
 
       <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
-        ※ 채권 = 판매 합계, 채무 = 구매 합계. 수금/지급은 「거래처별 수금/지급(정산)」 화면에서 처리합니다.
+        ※ 채권 = 판매 합계 − 수금, 채무 = 구매 합계 − 지급. 수금·지급 등록은 「수금현황」·「지급현황」에서 합니다.
       </p>
     </EcListShell>
   )

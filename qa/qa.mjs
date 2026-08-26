@@ -3157,8 +3157,29 @@ async function scenarioSettlement(f) {
     type: 'RECEIPT', partnerId: 999999, amount: 1000, settleDate: '2026-08-20',
   }, '거래처를 찾을 수 없습니다')
 
+  /*
+   * <b>채권 = 판매 − 수금, 채무 = 구매 − 지급.</b>
+   *
+   * 이건 눈으로 못 본다. 거래처별채권 화면에는 오래도록 "채권 = 판매 합계" 라고 적혀 있었고,
+   * 그 말이 맞다면 수금을 넣어도 잔액이 그대로여야 한다. 실제 서버는 차감하고 있었으니
+   * <b>화면 설명이 틀린 것</b>이었는데, 어느 쪽이 맞는지 아무도 확인하지 않았다.
+   * 이제 여기서 확인한다 — 수금·지급을 넣었다 지우며 잔액이 오르내리는지 본다.
+   */
+  const balanceOf = async (partnerId) =>
+    (await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === partnerId)
+  const arAfter = await balanceOf(f.customer.id)
+  const apAfter = await balanceOf(f.supplier.id)
+
   await must('DELETE', `/settlements/${receipt.id}`)
   await must('DELETE', `/settlements/${payment.id}`)
+
+  const arBack = await balanceOf(f.customer.id)
+  const apBack = await balanceOf(f.supplier.id)
+  eq('수금은 채권에서 빠진다',
+    Number(arBack.receivable) - Number(arAfter.receivable), 550000)
+  eq('지급은 채무에서 빠진다',
+    Number(apBack.payable) - Number(apAfter.payable), 330000)
+
   eq('지운 정산은 목록에서 빠진다',
     (await must('GET', '/settlements')).some((x) => x.id === receipt.id), false)
   await rejects('없는 정산 삭제는 404', 'DELETE', '/settlements/999999', undefined, '찾을 수 없습니다')
