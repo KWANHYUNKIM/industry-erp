@@ -52,4 +52,10 @@ public class QuotationController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.convertToOrder(id, principal.getUsername()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

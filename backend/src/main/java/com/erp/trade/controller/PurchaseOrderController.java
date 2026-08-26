@@ -77,4 +77,10 @@ public class PurchaseOrderController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.receive(id, req, principal.getUsername()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

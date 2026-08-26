@@ -101,6 +101,12 @@ export default function SalesOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  async function remove(o: SalesOrder) {
+    if (!confirm(`${o.orderNo} 주문을 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try { await api.delete(`/sales-orders/${o.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   const shown = orders
     .filter((o) => statusFilter === 'ALL' || o.status === statusFilter)
     .filter((o) => !keyword || o.partnerName.includes(keyword) || o.orderNo.includes(keyword))
@@ -226,7 +232,8 @@ export default function SalesOrderPage() {
               <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
-                {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
+                {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
+                <button className="no-ec" onClick={() => remove(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

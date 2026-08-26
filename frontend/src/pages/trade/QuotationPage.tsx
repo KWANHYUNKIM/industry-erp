@@ -102,6 +102,14 @@ export default function QuotationPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  // 취소는 문서를 남긴 채 상태만 바꾼다. 잘못 만든 견적서는 지우는 게 맞다 —
+  // 취소로 덮어 두면 목록이 죽은 문서로 계속 불어난다.
+  async function remove(q: Quotation) {
+    if (!window.confirm(`${q.quoteNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try { await api.delete(`/quotations/${q.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   return (
     <EcListShell title="견적서" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -179,6 +187,7 @@ export default function QuotationPage() {
                     {q.status === 'DRAFT' && <button className="ec-btn ec-btn-sm" onClick={() => send(q)}>발송</button>}
                     {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => convert(q)}>수주전환</button>}
                     {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => cancel(q)}>취소</button>}
+                    <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => remove(q)}>삭제</button>
                   </div>
                 </td>
               </tr>

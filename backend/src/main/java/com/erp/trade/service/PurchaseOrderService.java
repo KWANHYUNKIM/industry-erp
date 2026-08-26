@@ -24,6 +24,7 @@ import com.erp.hr.repository.EmployeeRepository;
 import com.erp.trade.repository.PurchaseOrderRepository;
 import com.erp.inventory.service.ItemService;
 import com.erp.inventory.service.WarehouseService;
+import com.erp.trade.repository.PurchaseLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,7 @@ public class PurchaseOrderService {
     private final EmployeeRepository employeeRepository;
     private final WarehouseService warehouseService;
     private final PurchaseService purchaseService;
+    private final PurchaseLineRepository purchaseLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -248,6 +250,22 @@ public class PurchaseOrderService {
         if (po.getStatus() != required) {
             throw ApiException.badRequest(message + " (현재: " + po.getStatus().getDisplayName() + ")");
         }
+    }
+
+    /**
+     * 발주 삭제.
+     *
+     * <p>입고로 전환돼 구매전표가 생겼으면 막는다 — 구매전표가 이 발주를 출처로 가리키고 있어서
+     * 발주만 사라지면 그 전표의 근거가 없어진다. 구매전표를 먼저 지워야 한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        PurchaseOrder order = get(id);
+        if (purchaseLineRepository.existsBySourceOrderId(id)) {
+            throw ApiException.conflict(
+                    "입고된 구매전표가 있어 지울 수 없습니다. 먼저 구매전표를 지우세요: " + order.getOrderNo());
+        }
+        orderRepository.delete(order);
     }
 
     private PurchaseOrder get(Long id) {

@@ -16,6 +16,9 @@ import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.trade.repository.SalesLineRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.inventory.service.ItemService;
+import com.erp.trade.repository.ShipmentRepository;
+import com.erp.trade.repository.QuotationRepository;
+import com.erp.trade.domain.QuotationStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,8 @@ public class SalesOrderService {
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final SalesLineRepository salesLineRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final QuotationRepository quotationRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -129,6 +134,40 @@ public class SalesOrderService {
                 .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
         order.setStatus(status);
         return SalesOrderResponse.from(order);
+    }
+
+    /**
+     * 수주 삭제.
+     *
+     * <p>뒤에 붙은 것이 하나라도 있으면 막는다. 출하·판매전표가 이 수주를 근거로 가리키고
+     * 있는데 수주만 사라지면 그쪽 화면에서 출처가 빈칸이 되고, 미출하·미판매 집계가 어긋난다.
+     * 견적서도 전환 결과로 이 수주를 가리킨다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        if (shipmentRepository.existsBySalesOrderId(id)) {
+            throw ApiException.conflict(
+                    "출하가 있어 지울 수 없습니다. 먼저 출하를 지우세요: " + order.getOrderNo());
+        }
+        if (salesLineRepository.existsBySourceOrderId(id)) {
+            throw ApiException.conflict(
+                    "판매전표가 있어 지울 수 없습니다. 먼저 판매전표를 지우세요: " + order.getOrderNo());
+        }
+        // 견적서에서 전환된 수주면 그 견적서의 전환을 풀어 준다.
+        //
+        // 여기서 거절하면 아무것도 못 지운다 — 견적서는 "수주를 먼저 지우라" 하고
+        // 수주는 "견적서를 먼저 되돌리라" 해서 둘이 서로를 막는다. 전환을 되돌리는 기능도 없다.
+        // 수주가 사라지면 그 견적서는 전환된 적 없는 상태로 돌아가는 것이 맞다.
+        //
+        // 되돌릴 상태는 SENT 로 둔다. 발송 시각을 따로 저장하지 않아 전환 직전이 작성이었는지
+        // 발송이었는지 알 수 없는데, 견적은 보통 고객에게 보낸 뒤 수주로 넘어간다.
+        quotationRepository.findByConvertedOrderId(id).ifPresent(q -> {
+            q.setConvertedOrderId(null);
+            q.setStatus(QuotationStatus.SENT);
+        });
+        salesOrderRepository.delete(order);
     }
 
     private String generateOrderNo(LocalDate date) {

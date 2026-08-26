@@ -43,4 +43,10 @@ public class ShipmentController {
     public ShipmentResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req) {
         return shipmentService.updateStatus(id, req.status());
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        shipmentService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

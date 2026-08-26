@@ -2882,6 +2882,62 @@ async function scenarioDeleteInUse(f) {
 }
 
 /**
+ * <b>견적·수주·발주·출하를 지울 수 있는가.</b>
+ *
+ * 넷 다 삭제가 아예 없었다. 거래처나 단가를 잘못 넣어도 지울 방법이 없어 취소로 덮어 두는
+ * 수밖에 없었고, 목록이 죽은 문서로 불어났다. 정산에서 한 번 고쳤던 것과 같은 종류다.
+ *
+ * <p>뒤에 붙은 것이 있으면 막아야 한다. 출하·판매전표가 수주를 근거로 가리키는데 수주만
+ * 사라지면 그쪽 화면의 출처가 빈칸이 되고 미출하 집계가 어긋난다.
+ *
+ * <p>그런데 막기만 하면 <b>서로를 막는다</b> — 견적은 "수주를 먼저 지우라", 수주는 "견적의
+ * 전환을 되돌리라" 하는데 되돌리는 기능이 없다. 그래서 수주를 지우면 견적의 전환이 풀린다.
+ * 이 시나리오가 그 고리까지 같이 본다.
+ */
+async function scenarioSlipDelete(f) {
+  section('■ 견적·수주·발주·출하 삭제')
+
+  const today = new Date().toISOString().slice(0, 10)
+  const line = [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }]
+
+  for (const [label, path, body] of [
+    ['견적서', '/quotations', { partnerId: f.customer.id, quoteDate: today, lines: line }],
+    ['수주', '/sales-orders', { partnerId: f.customer.id, orderDate: today, lines: line }],
+    ['발주', '/purchase-orders',
+      { partnerId: f.supplier.id, orderDate: today, warehouseId: f.warehouse.id, lines: line }],
+    ['출하', '/shipments', { partnerId: f.customer.id, shipDate: today, lines: line }],
+  ]) {
+    const made = await must('POST', path, body)
+    eq(`${label}: 지울 수 있다`, (await call('DELETE', `${path}/${made.id}`)).status, 204)
+    eq(`${label}: 목록에서도 사라진다`,
+      (await must('GET', path)).some((x) => x.id === made.id), false)
+  }
+
+  // 뒤에 출하가 붙은 수주는 막힌다
+  const order = await must('POST', '/sales-orders',
+    { partnerId: f.customer.id, orderDate: today, lines: line })
+  const ship = await must('POST', `/sales-orders/${order.id}/ship`, { shipDate: today })
+  const blocked = await call('DELETE', `/sales-orders/${order.id}`)
+  eq('출하가 붙은 수주는 못 지운다', blocked.status, 409)
+  eq('무엇을 먼저 지워야 하는지 알려 준다',
+    /출하가 있어 지울 수 없습니다/.test(String(blocked.data?.message ?? '')), true)
+  await must('DELETE', `/shipments/${ship.id}`)
+  eq('출하를 지우면 수주도 지워진다', (await call('DELETE', `/sales-orders/${order.id}`)).status, 204)
+
+  // 견적 → 수주 전환쌍이 서로를 막지 않는다
+  const quote = await must('POST', '/quotations',
+    { partnerId: f.customer.id, quoteDate: today, lines: line })
+  const converted = await must('POST', `/quotations/${quote.id}/convert`)
+  const lockedQuote = await call('DELETE', `/quotations/${quote.id}`)
+  eq('전환된 견적서는 못 지운다', lockedQuote.status, 409)
+  eq('수주를 지우면 전환이 풀린다', (await call('DELETE', `/sales-orders/${converted.id}`)).status, 204)
+  const after = (await must('GET', '/quotations')).find((x) => x.id === quote.id)
+  eq('견적서가 전환 이전 상태로 돌아간다', after.status, 'SENT')
+  eq('전환된 수주번호도 지워진다', after.convertedOrderId ?? null, null)
+  eq('그러고 나면 견적서도 지워진다', (await call('DELETE', `/quotations/${quote.id}`)).status, 204)
+}
+
+/**
  * <b>사용중지한 마스터로 새 전표를 쓸 수 있는가.</b>
  *
  * 사용중지는 "더 이상 쓰지 말자"는 표시인데 지금까지는 표시만 되고 아무것도 막지 않았다.
@@ -3092,6 +3148,7 @@ async function main() {
   await scenarioDeleteInUse(fixtures)
   await scenarioNotFound()
   await scenarioInactiveMaster(fixtures)
+  await scenarioSlipDelete(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

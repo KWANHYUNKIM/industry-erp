@@ -230,6 +230,19 @@ public class ShipmentService {
         return map;
     }
 
+    /**
+     * 출하 삭제.
+     *
+     * <p>출하는 재고를 건드리지 않으므로(재고는 판매전표가 움직인다) 되돌릴 것이 없다.
+     * 지우면 그 라인이 근거로 삼던 수주 라인의 미출하수량이 다시 살아난다 — 그게 맞는 동작이다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Shipment shipment = shipmentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("출하를 찾을 수 없습니다. id=" + id));
+        shipmentRepository.delete(shipment);
+    }
+
     private String generateShipNo(LocalDate date) {
         return docNoGenerator.next("SH-", "shipments", "ship_no", "ship_date", date);
     }

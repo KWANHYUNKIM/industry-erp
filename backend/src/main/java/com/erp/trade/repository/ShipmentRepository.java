@@ -24,4 +24,7 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
             "where s.status = :status " +
             "order by s.shipDate desc, s.id desc")
     List<Shipment> findByStatusWithLines(@Param("status") ShipmentStatus status);
+
+    /** 이 수주에서 만든 출하가 있나. 수주 삭제 가능 여부를 본다. */
+    boolean existsBySalesOrderId(Long salesOrderId);
 }

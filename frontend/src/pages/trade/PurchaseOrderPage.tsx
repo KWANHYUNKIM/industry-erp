@@ -109,6 +109,12 @@ export default function PurchaseOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  async function remove(po: PurchaseOrder) {
+    if (!window.confirm(`${po.orderNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try { await api.delete(`/purchase-orders/${po.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   async function receive(po: PurchaseOrder) {
     if (warehouses.length === 0) return alert('입고할 창고가 없습니다. 창고를 먼저 등록하세요.')
     const wh = warehouses[0]
@@ -184,6 +190,7 @@ export default function PurchaseOrderPage() {
                     {po.status === 'PRICED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(po)}>발주확정</button>}
                     {po.status === 'ORDERED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => receive(po)}>입고전환</button>}
                     {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(po)}>취소</button>}
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(po)}>삭제</button>
                     {po.status === 'RECEIVED' && <span style={{ fontSize: 11, color: '#1c7c3c' }}>구매 #{po.convertedPurchaseId}</span>}
                   </div>
                 </td>

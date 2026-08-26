@@ -20,4 +20,7 @@ public interface PurchaseLineRepository extends JpaRepository<PurchaseLine, Long
         BigDecimal getQty();
         BigDecimal getAmount();
     }
+
+    /** 이 발주를 근거로 만든 구매 라인이 있나. 발주 삭제 가능 여부를 본다. */
+    boolean existsBySourceOrderId(Long sourceOrderId);
 }

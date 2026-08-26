@@ -65,4 +65,10 @@ public class SalesOrderController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(shipmentService.createFromOrder(id, req, principal.getUsername()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        salesOrderService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -34,4 +34,7 @@ public interface SalesLineRepository extends JpaRepository<SalesLine, Long> {
         BigDecimal getQty();
         BigDecimal getAmount();
     }
+
+    /** 이 수주를 근거로 만든 판매 라인이 있나. 수주 삭제 가능 여부를 본다. */
+    boolean existsBySourceOrderId(Long sourceOrderId);
 }

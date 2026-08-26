@@ -130,6 +130,25 @@ public class QuotationService {
         return order;
     }
 
+    /**
+     * 견적서 삭제.
+     *
+     * <p>지금까지 삭제가 아예 없었다. 거래처나 단가를 잘못 넣은 견적서를 지울 방법이 없어
+     * 취소로 덮어 두는 수밖에 없었고, 목록이 죽은 문서로 계속 불어났다.
+     *
+     * <p>수주로 전환된 견적서는 막는다 — 수주가 그 견적서를 출처로 가리키고 있어서
+     * 지우면 수주의 근거가 사라진다. 그 경우 수주를 먼저 지워야 한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Quotation q = get(id);
+        if (q.getConvertedOrderId() != null) {
+            throw ApiException.conflict(
+                    "수주로 전환된 견적서는 지울 수 없습니다. 먼저 수주를 지우세요: " + q.getQuoteNo());
+        }
+        quotationRepository.delete(q);
+    }
+
     private String generateQuoteNo(LocalDate date) {
         return docNoGenerator.next("QT-", "quotations", "quote_no", "quote_date", date);
     }

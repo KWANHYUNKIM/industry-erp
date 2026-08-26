@@ -93,6 +93,12 @@ export default function ShipmentOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  async function remove(s: Shipment) {
+    if (!confirm(`${s.shipNo} 출하지시를 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try { await api.delete(`/shipments/${s.id}`); load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   const shown = shipments.filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
@@ -199,7 +205,8 @@ export default function ShipmentOrderPage() {
               <td style={{ textAlign: 'center', color: STATUS_COLOR[s.status], fontWeight: 700 }}>{s.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
-                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
+                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
+                <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}
