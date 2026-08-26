@@ -75,6 +75,31 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
 eq(`표 ${compared}개의 헤더와 합계행 열 수가 같다 (조건부 열 ${skipped}개는 정적으로 셀 수 없어 건너뜀)`,
   mismatches.join('\n') || '없음', '없음')
 
+// ── 1-b) 조건부 열 표의 런타임 검사 ────────────────────────────────────────
+console.log('\n■ 조건부 열 표의 개발 모드 검사')
+
+/**
+ * 위 정적 검사는 조건부 열(&&, ?:)이 섞인 표를 셀 수 없어 건너뛴다.
+ * 그 표들은 useTableColumnCheck 훅이 렌더된 DOM 을 직접 재서 잡는데,
+ * <b>훅만 부르고 ref 를 요소에 안 달면 조용히 아무것도 안 한다</b> — 실제로 그렇게 넣었다가 고쳤다.
+ * 훅을 쓰는 화면은 ref 가 실제로 달려 있어야 한다.
+ */
+{
+  const pages = walk('frontend/src/pages').filter((f) => f.endsWith('.tsx'))
+  const bad = []
+  let hooked = 0
+  for (const f of pages) {
+    const src = readFileSync(f, 'utf8')
+    const call = src.match(/useTableColumnCheck\(\s*(\w+)/)
+    if (!call) continue
+    hooked++
+    if (!new RegExp(`ref=\\{${call[1]}\\}`).test(src)) {
+      bad.push(`${f.split(sep).pop()}: ${call[1]} 를 요소에 안 달았다`)
+    }
+  }
+  eq(`훅을 쓰는 화면 ${hooked}개가 ref 를 요소에 달았다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { periodOf, STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import type { Item, Partner, SalesDoc, Warehouse } from '../../api/types'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
 interface Row {
@@ -171,6 +172,11 @@ export default function SalesStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, mgmtItem, taxType, keyword, items])
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '판매현황 집계', [group1, group2, grouped.length])
+
   return (
     <EcListShell
       title="판매현황"
@@ -282,7 +288,7 @@ export default function SalesStatusPage() {
         부가세 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {mode === '집계' ? (
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>

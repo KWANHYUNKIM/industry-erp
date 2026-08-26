@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 관리 > 일별근무시간 (이카운트 E070309 일별근무시간(ID))
@@ -77,6 +78,11 @@ export default function DailyWorkHoursPage() {
   const thBase: React.CSSProperties = { position: 'sticky', top: 0, background: '#f5f7fa', zIndex: 1, whiteSpace: 'nowrap' }
   const nameCol: React.CSSProperties = { position: 'sticky', left: 0, background: '#fff', zIndex: 1, whiteSpace: 'nowrap', minWidth: 90 }
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '일별근무시간', [month, days.length, rows.length])
+
   return (
     <EcListShell title="일별근무시간" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
@@ -94,7 +100,7 @@ export default function DailyWorkHoursPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ overflowX: 'auto', border: '1px solid var(--ec-border)' }}>
-        <table className="w-full text-left" style={{ borderCollapse: 'collapse', fontSize: 12 }}>
+        <table ref={tableRef} className="w-full text-left" style={{ borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr>
               <th style={{ ...thBase, ...nameCol, left: 0 }}>사원</th>

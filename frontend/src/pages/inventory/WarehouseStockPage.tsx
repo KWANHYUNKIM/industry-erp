@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 재고 > 창고별재고현황 (이카운트 E040711)
@@ -103,6 +104,11 @@ export default function WarehouseStockPage() {
   const flatCols = 6 + (cond.safety ? 1 : 0)
   const wideCols = 5 + shownWarehouses.length + 1 + (cond.safety ? 1 : 0)
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '창고별재고현황', [mode, cond.safety, shownWarehouses.length, shownItems.length])
+
   return (
     <EcListShell
       title="창고별재고현황"
@@ -174,7 +180,7 @@ export default function WarehouseStockPage() {
         재고수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(grandTotal)}</b>
       </div>
 
-      <div className="overflow-x-auto">
+      <div ref={tableRef} className="overflow-x-auto">
         {mode === '종' ? (
           <table className="w-full text-left">
             <thead>

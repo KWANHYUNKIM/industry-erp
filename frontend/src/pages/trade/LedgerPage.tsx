@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -32,6 +33,11 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
   const totalReceivable = rows.reduce((a, r) => a + r.receivable, 0)
   const totalPayable = rows.reduce((a, r) => a + r.payable, 0)
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, rows.length])
+
   return (
     <EcListShell title={TITLE[side]} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       {/* 요약 박스 */}
@@ -48,7 +54,7 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>

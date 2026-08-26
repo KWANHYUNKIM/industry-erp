@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 이익관리 > 일별이익현황 (이카운트 C000140)
@@ -190,6 +191,11 @@ export default function DailyProfitPage() {
   const heads = HEADS[mode]
   const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + 4
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '일별이익현황', [mode, basis, withVat, rows.length])
+
   return (
     <EcListShell
       title="일별이익현황"
@@ -279,7 +285,7 @@ export default function DailyProfitPage() {
         {!allUnknown && <span style={{ color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
-      <div className="overflow-x-auto">
+      <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>

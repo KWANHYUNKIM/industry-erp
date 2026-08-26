@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 이익관리 > 월별이익현황
@@ -132,6 +133,11 @@ export default function MonthlyProfitPage() {
   const heads = mode === '품목별' ? ['품목코드', '품목명'] : [mode === '월별' ? '월' : '거래처']
   const colCount = 1 + heads.length + 1 + 4
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '월별이익현황', [mode, basis, withVat, rows.length])
+
   return (
     <EcListShell
       title="월별이익현황"
@@ -190,7 +196,7 @@ export default function MonthlyProfitPage() {
         {!allUnknown && <span style={{ color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
-      <div className="overflow-x-auto">
+      <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>

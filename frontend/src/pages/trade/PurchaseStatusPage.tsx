@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
 import { STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 interface Row {
@@ -145,6 +146,11 @@ export default function PurchaseStatusPage() {
     setGroup1('품목별'); setGroup2('')
   }
 
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '구매현황 집계', [group1, group2, grouped.length])
+
   return (
     <EcListShell
       title="구매현황"
@@ -224,7 +230,7 @@ export default function PurchaseStatusPage() {
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {mode === '집계' ? (
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
