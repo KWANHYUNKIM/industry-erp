@@ -327,6 +327,17 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
 ```
 
+순수 로직은 Node 내장 러너로 못 박습니다(의존성 없음):
+
+```bash
+cd frontend && npm run test:unit    # node --test, src/**/*.test.ts
+```
+
+기간 계산(`components/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
+정하는데 여기가 하루 밀리면 **모든 현황 화면이 조용히 틀린 기간을 봅니다.**
+테스트 파일은 `tsconfig.app.json` 의 `exclude` 로 앱 빌드에서 빼 뒀습니다(node 타입이 없어
+넣어 두면 typecheck·build 가 깨집니다).
+
 타입체크가 통과해도 화면에서 어긋나는 것들은 따로 봅니다:
 
 ```bash
