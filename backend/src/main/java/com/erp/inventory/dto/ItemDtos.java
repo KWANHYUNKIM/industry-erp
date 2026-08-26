@@ -26,7 +26,13 @@ public final class ItemDtos {
             /** 의료기기 표준코드(UDI-DI). 있으면 의료기기공급내역보고 대상. */
             String udiDi,
             /** 관리항목 (선택). 전표 라인에는 이 값이 읽기전용으로 따라 붙는다. */
-            Long managementItemId
+            Long managementItemId,
+            /**
+             * 그룹 (선택). 엔티티에는 관계가 있는데 <b>요청에만 빠져 있어</b> 아무도 그룹을
+             * 지정할 수 없었다 — 그래서 채권/채무현황의 거래처그룹 소계가 늘 '(미지정)' 하나였고,
+             * 특별단가의 '그룹별' 도 걸릴 일이 없었다.
+             */
+            Long itemGroupId
     ) {}
 
     public record UpdateItemRequest(
@@ -43,6 +49,7 @@ public final class ItemDtos {
             String barcode,
             String udiDi,
             Long managementItemId,
+            Long itemGroupId,
             Boolean active
     ) {}
 
@@ -57,6 +64,8 @@ public final class ItemDtos {
             BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 0 이면 안 정한 것이다. */
             BigDecimal purchasePrice,
+            Long itemGroupId,
+            String itemGroupName,
             BigDecimal safetyStock,
             String barcode,
             String udiDi,
@@ -75,6 +84,8 @@ public final class ItemDtos {
                     item.getCategory().getDisplayName(),
                     item.getUnitPrice(),
                     item.getPurchasePrice(),
+                    item.getItemGroup() != null ? item.getItemGroup().getId() : null,
+                    item.getItemGroup() != null ? item.getItemGroup().getName() : null,
                     item.getSafetyStock(),
                     item.getBarcode(),
                     item.getUdiDi(),

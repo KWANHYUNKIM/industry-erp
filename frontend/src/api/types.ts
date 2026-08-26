@@ -89,6 +89,21 @@ export interface Item {
    */
   managementItemId: number | null
   managementItemName: string | null
+  /**
+   * 품목그룹 (원본 품목등록 리스트의 '품목그룹1명' 열).
+   * 오랫동안 엔티티에만 있고 등록 요청에는 없어서 아무도 지정할 수 없었다.
+   */
+  itemGroupId: number | null
+  itemGroupName: string | null
+  active: boolean
+}
+
+/** 품목그룹·거래처그룹 마스터. 두 그룹의 모양이 같아 한 타입으로 쓴다. */
+export interface GroupMaster {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
   active: boolean
 }
 

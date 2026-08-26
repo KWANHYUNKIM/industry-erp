@@ -2,9 +2,11 @@ package com.erp.inventory.service;
 
 import com.erp.common.ApiException;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.domain.ItemGroup;
 import com.erp.inventory.dto.ItemDtos.CreateItemRequest;
 import com.erp.inventory.dto.ItemDtos.ItemResponse;
 import com.erp.inventory.dto.ItemDtos.UpdateItemRequest;
+import com.erp.inventory.repository.ItemGroupRepository;
 import com.erp.inventory.repository.ItemRepository;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import com.erp.inventory.dto.ItemDtos;
 public class ItemService {
 
     private final ItemRepository itemRepository;
+    private final ItemGroupRepository itemGroupRepository;
     // 같은 inventory 모듈이지만 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
     private final ManagementItemService managementItemService;
 
@@ -50,6 +53,7 @@ public class ItemService {
                 .unitPrice(req.unitPrice())
                 // 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이고, 구매할인을 계산하지 않는다.
                 .purchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO)
+                .itemGroup(groupOf(req.itemGroupId()))
                 .safetyStock(req.safetyStock())
                 .barcode(req.barcode())
                 .udiDi(req.udiDi())
@@ -68,6 +72,7 @@ public class ItemService {
         item.setCategory(req.category());
         item.setUnitPrice(req.unitPrice());
         item.setPurchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO);
+        item.setItemGroup(groupOf(req.itemGroupId()));
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
         item.setUdiDi(req.udiDi());
@@ -105,6 +110,13 @@ public class ItemService {
                     "사용중지된 품목입니다: " + item.getCode() + " " + item.getName());
         }
         return item;
+    }
+
+    /** 품목그룹. null 이면 그룹 없음 — 없는 id 를 주면 조용히 무시하지 않고 알린다. */
+    private ItemGroup groupOf(Long groupId) {
+        if (groupId == null) return null;
+        return itemGroupRepository.findById(groupId)
+                .orElseThrow(() -> ApiException.badRequest("품목그룹을 찾을 수 없습니다. id=" + groupId));
     }
 
     private Item getItem(Long id) {

@@ -3432,6 +3432,60 @@ async function scenarioInactiveMaster(f) {
  * 내부 사정까지 실려 나갔다. 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되고,
  * 내부 구조까지 새어 나간다.
  */
+/**
+ * 품목그룹·거래처그룹. 마스터 테이블과 엔티티 관계는 오래전부터 있었는데
+ * <b>등록/수정 요청 DTO 에만 그룹 id 가 빠져 있어</b> 아무도 그룹을 지정할 수 없었다.
+ * 그래서 채권/채무현황의 거래처그룹 소계는 늘 '(미지정)' 한 줄이었고,
+ * 조건검색의 '그룹 전체' 도 언제나 자기 자신 한 건만 나왔다.
+ * 지정 → 되읽기 → 해제 왕복을 못 박는다.
+ */
+async function scenarioGroups(f) {
+  section('■ 품목그룹·거래처그룹')
+
+  // 이전 실행이 중간에 끊겨 남아 있을 수 있다 — 있으면 그것을 쓴다.
+  const groupOf = async (endpoint, code, name) => {
+    const found = (await must('GET', endpoint)).find((g) => g.code === code)
+    return found ?? await must('POST', endpoint, { code, name, sortOrder: 0 })
+  }
+  const pg = await groupOf('/partner-groups', `${P}PG`, `${P}거래처그룹`)
+  const ig = await groupOf('/item-groups', `${P}IG`, `${P}품목그룹`)
+
+  // 단건 GET 은 없다 — 원본도 목록에서 행을 열어 수정한다.
+  const pt = (await must('GET', '/partners')).find((x) => x.id === f.customer.id)
+  const pBody = {
+    code: pt.code, name: pt.name, type: pt.type,
+    bizRegNo: pt.bizRegNo, ceoName: pt.ceoName, manager: pt.manager,
+    phone: pt.phone, address: pt.address, active: true,
+  }
+  const upd = await must('PUT', `/partners/${f.customer.id}`, { ...pBody, partnerGroupId: pg.id })
+  eq('거래처에 그룹을 지정할 수 있다', upd.partnerGroupName, `${P}거래처그룹`)
+
+  const bal = await must('GET', '/ledger/partner-balances')
+  const mine = bal.find((b) => b.partnerId === f.customer.id)
+  eq('채권/채무현황에 그룹명이 실려 나온다', mine?.partnerGroupName, `${P}거래처그룹`)
+
+  const it = await must('GET', `/items/${f.product.id}`)
+  const iBody = {
+    name: it.name, spec: it.spec, unit: it.unit, category: it.category,
+    unitPrice: it.unitPrice, purchasePrice: it.purchasePrice, safetyStock: it.safetyStock,
+    barcode: it.barcode, udiDi: it.udiDi, managementItemId: it.managementItemId, active: true,
+  }
+  const iu = await must('PUT', `/items/${f.product.id}`, { ...iBody, itemGroupId: ig.id })
+  eq('품목에 그룹을 지정할 수 있다', iu.itemGroupName, `${P}품목그룹`)
+  eq('다시 읽어도 남아 있다', (await must('GET', `/items/${f.product.id}`)).itemGroupId, ig.id)
+
+  const bad = await call('PUT', `/items/${f.product.id}`, { ...iBody, itemGroupId: 99999999 })
+  eq('없는 그룹 id 는 조용히 무시하지 않고 400', bad.status, 400)
+
+  // 해제: null 을 주면 그룹이 떨어진다
+  eq('그룹 해제', (await must('PUT', `/items/${f.product.id}`, { ...iBody, itemGroupId: null })).itemGroupId, null)
+  eq('거래처 그룹 해제',
+    (await must('PUT', `/partners/${f.customer.id}`, { ...pBody, partnerGroupId: null })).partnerGroupId, null)
+
+  await call('DELETE', `/item-groups/${ig.id}`)
+  await call('DELETE', `/partner-groups/${pg.id}`)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -3591,6 +3645,7 @@ async function main() {
   await scenarioSlipDelete(fixtures)
   await scenarioValidationMessages(fixtures)
   await scenarioStockRecalc()
+  await scenarioGroups(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

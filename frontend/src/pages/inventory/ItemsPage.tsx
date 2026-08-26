@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, Item, ManagementItem } from '../../api/types'
+import type { CodeOption, GroupMaster, Item, ManagementItem } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import GroupMasterModal from '../../components/GroupMasterModal'
 
 const inputCls = 'ec-input w-full'
 
@@ -19,12 +20,15 @@ const emptyForm = {
   barcode: '',
   udiDi: '',
   managementItemId: '',
+  itemGroupId: '',
 }
 
 export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([])
   const [categories, setCategories] = useState<CodeOption[]>([])
   const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
+  const [itemGroups, setItemGroups] = useState<GroupMaster[]>([])
+  const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -34,14 +38,16 @@ export default function ItemsPage() {
   async function load() {
     setLoading(true)
     try {
-      const [i, c, m] = await Promise.all([
+      const [i, c, m, g] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<CodeOption[]>('/meta/item-categories'),
         api.get<ManagementItem[]>('/management-items'),
+        api.get<GroupMaster[]>('/item-groups'),
       ])
       setItems(i.data)
       setCategories(c.data)
       setMgmtItems(m.data)
+      setItemGroups(g.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -73,6 +79,7 @@ export default function ItemsPage() {
       barcode: item.barcode ?? '',
       udiDi: item.udiDi ?? '',
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
+      itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
     })
     setShowForm(true)
   }
@@ -90,6 +97,7 @@ export default function ItemsPage() {
       purchasePrice: Number(form.purchasePrice),
       safetyStock: Number(form.safetyStock),
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
+      itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
     }
     try {
       if (editId) {
@@ -153,7 +161,7 @@ export default function ItemsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onNew={showForm ? () => setShowForm(false) : openCreate}
-      actions={[{ label: 'Excel' }, { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
+      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
@@ -219,6 +227,14 @@ export default function ItemsPage() {
                 items={mgmtItems.map((m) => ({ value: String(m.id), code: m.code, name: m.name, sub: m.description }))}
               />
             </div>
+            {/* 원본 품목등록 리스트의 '품목그룹1명'. 우리는 그룹이 하나라 1/2 구분을 두지 않는다. */}
+            <div>
+              <CodePickerField
+                label="품목그룹" placeholder="품목그룹 선택" emptyLabel="선택 해제"
+                value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
+                items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+              />
+            </div>
           </div>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
@@ -247,15 +263,16 @@ export default function ItemsPage() {
               <th style={{ textAlign: 'right' }}>구매단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
               <th>관리항목</th>
+              <th>품목그룹 ▼</th>
               <th>사용 ▼</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
@@ -274,6 +291,7 @@ export default function ItemsPage() {
                   </td>
                   <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString('ko-KR')}</td>
                   <td>{it.managementItemName ?? ''}</td>
+                  <td>{it.itemGroupName ?? ''}</td>
                   <td>{it.active ? 'YES' : 'NO'}</td>
                   <td>
                     <button onClick={() => openEdit(it)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
@@ -285,6 +303,22 @@ export default function ItemsPage() {
           </tbody>
         </table>
       </div>
+
+      {groupOpen && (
+        <GroupMasterModal
+          title="품목그룹" endpoint="/item-groups"
+          members={(() => {
+            const m = new Map<string, string[]>()
+            for (const it of items) {
+              const k = it.itemGroupName ?? '(미지정)'
+              if (!m.has(k)) m.set(k, [])
+              m.get(k)!.push(`[${it.code}] ${it.name}`)
+            }
+            return m
+          })()}
+          onClose={() => setGroupOpen(false)} onChanged={load}
+        />
+      )}
 
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

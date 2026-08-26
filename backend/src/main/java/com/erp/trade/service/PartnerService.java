@@ -2,11 +2,13 @@ package com.erp.trade.service;
 
 import com.erp.common.ApiException;
 import com.erp.trade.domain.BusinessPartner;
+import com.erp.trade.domain.PartnerGroup;
 import com.erp.trade.dto.PartnerDtos.CreatePartnerRequest;
 import com.erp.trade.dto.PartnerDtos.PartnerResponse;
 import com.erp.trade.dto.PartnerDtos.UpdatePartnerRequest;
 import com.erp.trade.dto.PartnerDtos.UpdatePriceGroupRequest;
 import com.erp.trade.repository.BusinessPartnerRepository;
+import com.erp.trade.repository.PartnerGroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,6 +23,7 @@ import com.erp.trade.dto.PartnerDtos;
 public class PartnerService {
 
     private final BusinessPartnerRepository partnerRepository;
+    private final PartnerGroupRepository partnerGroupRepository;
 
     @Transactional(readOnly = true)
     public List<PartnerResponse> findAll() {
@@ -45,6 +48,7 @@ public class PartnerService {
                 .manager(req.manager())
                 .phone(req.phone())
                 .address(req.address())
+                .partnerGroup(groupOf(req.partnerGroupId()))
                 .active(true)
                 .build();
         return PartnerResponse.from(partnerRepository.save(p));
@@ -62,6 +66,7 @@ public class PartnerService {
         p.setManager(req.manager());
         p.setPhone(req.phone());
         p.setAddress(req.address());
+        p.setPartnerGroup(groupOf(req.partnerGroupId()));
         if (req.active() != null) {
             p.setActive(req.active());
         }
@@ -89,6 +94,13 @@ public class PartnerService {
     @Transactional(readOnly = true)
     public BusinessPartner get(Long id) {
         return getPartner(id);
+    }
+
+    /** 거래처그룹. null 이면 그룹 없음 — 없는 id 를 주면 조용히 무시하지 않고 알린다. */
+    private PartnerGroup groupOf(Long groupId) {
+        if (groupId == null) return null;
+        return partnerGroupRepository.findById(groupId)
+                .orElseThrow(() -> ApiException.badRequest("거래처그룹을 찾을 수 없습니다. id=" + groupId));
     }
 
     private BusinessPartner getPartner(Long id) {

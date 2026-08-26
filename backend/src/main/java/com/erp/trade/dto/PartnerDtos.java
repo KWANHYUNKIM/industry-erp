@@ -19,7 +19,13 @@ public final class PartnerDtos {
             String bizItem,
             String manager,
             String phone,
-            String address
+            String address,
+            /**
+             * 그룹 (선택). 엔티티에는 관계가 있는데 <b>요청에만 빠져 있어</b> 아무도 그룹을
+             * 지정할 수 없었다 — 그래서 채권/채무현황의 거래처그룹 소계가 늘 '(미지정)' 하나였고,
+             * 특별단가의 '그룹별' 도 걸릴 일이 없었다.
+             */
+            Long partnerGroupId
     ) {}
 
     public record UpdatePartnerRequest(
@@ -32,6 +38,8 @@ public final class PartnerDtos {
             String manager,
             String phone,
             String address,
+            /** 그룹 (선택). 자세한 설명은 CreatePartnerRequest 쪽에 있다. */
+            Long partnerGroupId,
             Boolean active
     ) {}
 
