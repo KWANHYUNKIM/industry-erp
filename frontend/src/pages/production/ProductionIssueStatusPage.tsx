@@ -24,6 +24,22 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
  * 같은 출력물 묶음에서 실측한 조건 모양(구분 · 일자 구간 기본 금월(~오늘) · 창고 · 품목)을
  * 따랐다. 원본을 다시 열면 대조할 것.
  */
+/**
+ * 원본 [구분] 실측(사본 · 생산입고/소모현황 I):
+ *   거래별 | 생산품목별집계 | 소모품목별집계 | 품목별집계 | 생산품목라인별집계
+ * 우리는 [내역 | 품목별] 둘뿐이었다 — 생산품과 소모자재를 갈라 볼 수가 없어
+ * "이 자재가 어디에 얼마나 들어갔나" 를 못 봤다.
+ *
+ * <p>이름도 원본을 따른다. '내역'이 아니라 <b>거래별</b>(전표 한 줄씩)이다.
+ * '생산품목라인별집계'는 생산품목 × 소모자재 조합으로, 한 완제품에 어떤 자재가
+ * 얼마나 들어갔는지 보는 자리다.
+ *
+ * <p>원본의 [단가표시](입고단가·입고단가(VAT포함)·월별원가)는 생산입고에 단가가 없어
+ * 아직 못 한다. 담당자도 마찬가지다.
+ */
+type Mode = '거래별' | '생산품목별집계' | '소모품목별집계' | '품목별집계' | '생산품목라인별집계'
+const MODES = ['거래별', '생산품목별집계', '소모품목별집계', '품목별집계', '생산품목라인별집계'] as const
+
 interface ProductionMaterial {
   componentId: number
   componentCode: string
@@ -57,7 +73,7 @@ export default function ProductionIssueStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [mode, setMode] = useState<'내역' | '품목별'>('내역')
+  const [mode, setMode] = useState<Mode>('거래별')
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
@@ -112,6 +128,56 @@ export default function ProductionIssueStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, cond])
 
+  /** 생산품목별집계 — 완제품 기준 입고수량. */
+  const byProduct = useMemo(() => {
+    const m = new Map<number, { itemId: number; code: string; name: string; unit: string; qty: number; count: number }>()
+    for (const p of shown) {
+      const g = m.get(p.productId)
+        ?? { itemId: p.productId, code: p.productCode, name: p.productName, unit: p.productUnit, qty: 0, count: 0 }
+      g.qty += p.producedQty
+      g.count += 1
+      m.set(p.productId, g)
+    }
+    return [...m.values()].sort((a, b) => b.qty - a.qty)
+  }, [shown])
+
+  /** 소모품목별집계 — 자재 기준 소모수량. */
+  const byMaterial = useMemo(() => {
+    const m = new Map<number, { itemId: number; code: string; name: string; unit: string; qty: number; count: number }>()
+    for (const p of shown) {
+      for (const mt of p.materials) {
+        const g = m.get(mt.componentId)
+          ?? { itemId: mt.componentId, code: mt.componentCode, name: mt.componentName, unit: mt.unit, qty: 0, count: 0 }
+        g.qty += mt.quantity
+        g.count += 1
+        m.set(mt.componentId, g)
+      }
+    }
+    return [...m.values()].sort((a, b) => b.qty - a.qty)
+  }, [shown])
+
+  /** 생산품목라인별집계 — 완제품 × 소모자재. 한 완제품에 무엇이 얼마나 들어갔나. */
+  const byProductLine = useMemo(() => {
+    const m = new Map<string, {
+      key: string; product: string; material: string; unit: string; producedQty: number; usedQty: number; count: number
+    }>()
+    for (const p of shown) {
+      for (const mt of p.materials) {
+        const key = `${p.productId}-${mt.componentId}`
+        const g = m.get(key) ?? {
+          key, product: `[${p.productCode}] ${p.productName}`,
+          material: `[${mt.componentCode}] ${mt.componentName}`,
+          unit: mt.unit, producedQty: 0, usedQty: 0, count: 0,
+        }
+        g.producedQty += p.producedQty
+        g.usedQty += mt.quantity
+        g.count += 1
+        m.set(key, g)
+      }
+    }
+    return [...m.values()].sort((a, b) => b.usedQty - a.usedQty)
+  }, [shown])
+
   const totals = shown.reduce(
     (a, p) => ({
       inQty: a.inQty + p.producedQty,
@@ -122,7 +188,7 @@ export default function ProductionIssueStatusPage() {
   )
 
   const reset = () => {
-    setMode('내역')
+    setMode('거래별')
     setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '' })
   }
 
@@ -145,7 +211,7 @@ export default function ProductionIssueStatusPage() {
       >
         <EcCond label="구분">
           <div className="ec-pills">
-            {(['내역', '품목별'] as const).map((m) => (
+            {MODES.map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                       onClick={() => setMode(m)}>
                 {m}
@@ -173,8 +239,14 @@ export default function ProductionIssueStatusPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        {mode === '내역' ? '생산' : '품목'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '내역' ? shown.length : byItem.length)}</b>
+        {mode === '거래별' ? '생산' : '묶음'}{' '}
+        <b style={{ color: '#3c4553' }}>{num(
+          mode === '거래별' ? shown.length
+            : mode === '생산품목별집계' ? byProduct.length
+              : mode === '소모품목별집계' ? byMaterial.length
+                : mode === '생산품목라인별집계' ? byProductLine.length
+                  : byItem.length,
+        )}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         입고 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
@@ -182,7 +254,7 @@ export default function ProductionIssueStatusPage() {
       </div>
 
       <div className="overflow-x-auto">
-        {mode === '내역' ? (
+        {mode === '거래별' ? (
           <table className="w-full text-left">
             <colgroup>
               <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
@@ -248,6 +320,102 @@ export default function ProductionIssueStatusPage() {
                 </tr>
               </tfoot>
             )}
+          </table>
+        ) : mode === '생산품목별집계' ? (
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th style={{ width: 140 }}>품목코드</th>
+                <th>생산품목</th>
+                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
+                <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+              ) : byProduct.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : byProduct.map((g, i) => (
+                <tr key={g.itemId}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td>{g.name}</td>
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{num(g.qty)} {g.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byProduct.length}품목)</td>
+                <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        ) : mode === '소모품목별집계' ? (
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th style={{ width: 140 }}>품목코드</th>
+                <th>소모자재</th>
+                <th style={{ width: 100, textAlign: 'right' }}>소모건수</th>
+                <th style={{ width: 130, textAlign: 'right' }}>소모수량</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+              ) : byMaterial.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : byMaterial.map((g, i) => (
+                <tr key={g.itemId}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td>{g.name}</td>
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)} {g.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byMaterial.length}자재)</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        ) : mode === '생산품목라인별집계' ? (
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>생산품목</th>
+                <th>소모자재</th>
+                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
+                <th style={{ width: 120, textAlign: 'right' }}>입고수량</th>
+                <th style={{ width: 120, textAlign: 'right' }}>소모수량</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+              ) : byProductLine.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : byProductLine.map((g, i) => (
+                <tr key={g.key}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td>{g.product}</td>
+                  <td>{g.material}</td>
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.producedQty)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.usedQty)} {g.unit}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         ) : (
           <table className="w-full text-left">
