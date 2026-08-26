@@ -16,6 +16,10 @@
  *     validate 는 기본 스키마만 본다. 테넌트가 뒤처져도 앱은 멀쩡히 뜨고,
  *     그 회사로 로그인해 그 화면을 열 때만 터진다(CLAUDE.md §7.4).
  *
+ *  3) 장부 정합성 — 재고 잔량 = 재고이동 합, 회계전표 대차평형
+ *     어긋나도 아무도 안 알려 준다. 화면은 멀쩡히 숫자를 보여 주고,
+ *     보통 재고를 세어 보거나 결산이 안 맞을 때야 알아챈다.
+ *
  * 사전 조건: docker compose up -d (컨테이너 이름 erp-postgres)
  */
 import { execFileSync } from 'node:child_process'
@@ -33,10 +37,18 @@ const eq = (label, actual, expected) => {
   ok ? pass++ : fail++
 }
 
+/**
+ * 열 구분자. 눈에 보이지 않는 제어문자(SOH)를 쓴다 — 자료에 절대 안 나오는 값이라야
+ * 이름·정의 문자열에 파이프나 쉼표가 들어 있어도 열이 안 밀린다.
+ * 소스에 리터럴로 박아 두면 편집기에서 빈 문자열처럼 보여서, 다음 사람이 '고치다가'
+ * split('') 로 만들어 버린다(그러면 글자 단위로 쪼개진다). 그래서 이스케이프로 적는다.
+ */
+const SEP = '\x01'
+
 const psql = (sql) => execFileSync(
-  'docker', ['exec', CONTAINER, 'psql', '-U', 'erp', '-d', 'erp', '-t', '-A', '-F', '', '-c', sql],
+  'docker', ['exec', CONTAINER, 'psql', '-U', 'erp', '-d', 'erp', '-t', '-A', '-F', SEP, '-c', sql],
   { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
-).split('\n').filter((l) => l.trim()).map((l) => l.split(''))
+).split('\n').filter((l) => l.trim()).map((l) => l.split(SEP))
 
 /** CHECK 정의 문자열에서 허용값만 뽑는다. 표기(ARRAY[...] 중첩 캐스팅)는 스키마마다 달라서 값만 본다. */
 const allowedValues = (def) => new Set(
@@ -155,6 +167,41 @@ if (!tenants.length) {
     }
     eq(`${t}: CHECK 제약 허용값 일치`, bad.join(', ') || '없음', '없음')
   }
+}
+
+// ── 3) 장부 정합성 ────────────────────────────────────────────────────────
+console.log('\n■ 장부 정합성')
+
+/**
+ * 이 둘은 어긋나도 아무도 안 알려 준다. 화면은 멀쩡히 숫자를 보여 주고,
+ * 어긋난 걸 알아채는 건 보통 재고를 세어 보거나 결산이 안 맞을 때다.
+ */
+for (const schema of ['public', ...tenants]) {
+  // 잔량 = 그 품목·창고의 재고이동 합. 한쪽만 갱신하는 코드가 생기면 여기서 갈린다.
+  const drift = psql(`
+    with tx as (
+      select item_id, warehouse_id, sum(quantity_change) as moved
+      from ${schema}.stock_transactions group by item_id, warehouse_id
+    )
+    select coalesce(s.item_id, tx.item_id) || '/' || coalesce(s.warehouse_id, tx.warehouse_id)
+           || ': 잔량 ' || coalesce(s.quantity,0) || ' vs 이동합 ' || coalesce(tx.moved,0)
+    from ${schema}.stocks s
+    full outer join tx on tx.item_id = s.item_id and tx.warehouse_id = s.warehouse_id
+    where coalesce(s.quantity,0) <> coalesce(tx.moved,0)`).map((r) => r[0])
+  eq(`${schema}: 재고 잔량 = 재고이동 합`, drift.join(' / ') || '없음', '없음')
+
+  // 대차평형. 한쪽만 쓰는 분개가 끼면 시산표가 영영 안 맞는다.
+  const unbalanced = psql(`
+    select je.doc_no || ': 차변 ' || sum(l.debit) || ' vs 대변 ' || sum(l.credit)
+    from ${schema}.journal_entries je join ${schema}.journal_lines l on l.entry_id = je.id
+    group by je.id, je.doc_no having sum(l.debit) <> sum(l.credit)`).map((r) => r[0])
+  eq(`${schema}: 회계전표 대차평형`, unbalanced.join(' / ') || '없음', '없음')
+
+  // 라인이 없는 전표는 금액이 0 인 유령이다.
+  const empty = psql(`
+    select je.doc_no from ${schema}.journal_entries je
+    where not exists (select 1 from ${schema}.journal_lines l where l.entry_id = je.id)`).map((r) => r[0])
+  eq(`${schema}: 라인 없는 회계전표 없음`, empty.join(', ') || '없음', '없음')
 }
 
 console.log('\n' + '─'.repeat(50))
