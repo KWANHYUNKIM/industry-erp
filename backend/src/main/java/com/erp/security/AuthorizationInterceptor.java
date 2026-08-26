@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.util.List;
+
 /**
  * 메뉴 권한 인가. 인증(JWT 필터)은 이미 끝난 뒤 이 인터셉터가 "이 사용자가 이 API 를 쓸 수 있나"를 본다.
  *
@@ -27,16 +29,39 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class AuthorizationInterceptor implements HandlerInterceptor {
 
+    /**
+     * <b>읽기까지 막는 경로.</b> 나머지 조회는 v1 정책대로 인증만 되면 통과하지만,
+     * 여기 있는 것은 "권한 없는 사람이 봐도 그만"이라고 할 수 없다.
+     *
+     * <p>급여가 그렇다. 권한이 하나도 없는 계정으로도 전 직원 급여명세가 그대로 읽혔다.
+     * 남의 급여를 보는 것은 v1 이냐 아니냐의 문제가 아니라 애초에 열려 있으면 안 되는 것이고,
+     * 이걸 막는다고 다른 화면이 깨지지도 않는다(급여 화면은 PAYROLL 을 가진 사람이 쓴다).
+     *
+     * <p>여기에 경로를 더할 때는 <b>그 화면이 그 권한 없이 열릴 일이 없는지</b> 확인해야 한다.
+     * 읽기를 막으면 그 자료를 곁다리로 참조하던 다른 화면이 조용히 빈칸이 된다 —
+     * 읽기 차단을 한꺼번에 안 하고 이렇게 하나씩 여는 이유다.
+     */
+    private static final List<String> READ_GUARDED = List.of(
+            "/api/payslips",       // 급여명세
+            "/api/pay-settings");  // 급여 항목·그룹·이체 내역
+
+    private static boolean isReadGuarded(String uri) {
+        return READ_GUARDED.stream().anyMatch(p -> uri.equals(p) || uri.startsWith(p + "/")
+                || uri.startsWith(p + "?"));
+    }
+
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request,
                              @NonNull HttpServletResponse response,
                              @NonNull Object handler) {
 
-        // 조회는 인증만 되면 통과 (읽기 차단은 v1 범위 밖).
+        // 조회는 인증만 되면 통과 (읽기 차단은 v1 범위 밖) — 단 아래 READ_GUARDED 는 예외.
         String method = request.getMethod();
         if (HttpMethod.GET.matches(method) || HttpMethod.HEAD.matches(method)
                 || HttpMethod.OPTIONS.matches(method)) {
-            return true;
+            if (!isReadGuarded(request.getRequestURI())) {
+                return true;
+            }
         }
 
         String required = MenuPermissionCatalog.requiredCode(request.getRequestURI());

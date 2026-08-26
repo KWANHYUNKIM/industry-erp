@@ -2501,6 +2501,55 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>급여는 권한 없이 읽히면 안 된다.</b>
+ *
+ * 이 시스템의 v1 정책은 "조회는 인증만 되면 통과" 다. 리소스끼리 참조 조회가 많아
+ * 읽기를 한꺼번에 막으면 정상 화면이 깨지기 때문이고, 그건 납득할 만한 결정이다.
+ * 다만 급여는 예외다 — 권한이 <b>하나도 없는</b> 계정으로도 전 직원 급여명세가 그대로 읽혔다.
+ * 남의 급여를 보는 건 v1 이냐 아니냐의 문제가 아니다.
+ */
+async function scenarioPayrollReadGuard() {
+  section('■ 급여 조회 권한')
+
+  const P2 = `${P}READGUARD`
+  const asUser = async (username, password, path) => {
+    const login = await call('POST', '/auth/login', { username, password })
+    if (!login.ok) return { status: login.status, data: login.data }
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}` } })
+    return { status: res.status }
+  }
+
+  // 권한이 하나도 없는 역할·사용자
+  await must('POST', '/roles', { name: `${P2}_NONE`, displayName: '권한없음', permissionCodes: [] })
+  const none = await must('POST', '/users', {
+    username: `${P2.toLowerCase()}none`, password: 'qatest1234', name: '권한없음', roleNames: [`${P2}_NONE`],
+  })
+  // PAYROLL 만 가진 역할·사용자
+  await must('POST', '/roles', { name: `${P2}_PAY`, displayName: '급여만', permissionCodes: ['PAYROLL'] })
+  const pay = await must('POST', '/users', {
+    username: `${P2.toLowerCase()}pay`, password: 'qatest1234', name: '급여담당', roleNames: [`${P2}_PAY`],
+  })
+
+  eq('권한 없는 계정은 급여명세를 못 읽는다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/payslips?month=2027-01')).status, 403)
+  eq('권한 없는 계정은 급여설정도 못 읽는다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/pay-settings/items')).status, 403)
+  eq('PAYROLL 이 있으면 읽는다',
+    (await asUser(`${P2.toLowerCase()}pay`, 'qatest1234', '/payslips?month=2027-01')).status, 200)
+
+  // 나머지 조회는 v1 정책대로 열려 있어야 한다 — 급여만 막은 것이지 전체를 막은 게 아니다
+  eq('다른 조회는 그대로 열려 있다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 200)
+
+  for (const u of [none, pay]) await must('DELETE', `/users/${u.id}`)
+  for (const r of (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2))) {
+    await must('DELETE', `/roles/${r.id}`)
+  }
+  eq('검증용 역할·사용자는 남기지 않는다',
+    (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2)).length, 0)
+}
+
+/**
  * <b>회사별 스키마 격리.</b>
  *
  * 회사코드로 로그인하면 그 회사 스키마(co_0002 …)를 보고, 본사는 public 을 본다.
@@ -2881,6 +2930,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioPayrollReadGuard()
   await scenarioTenantIsolation()
   await scenarioDocNo(fixtures)
   await scenarioDoubleProcess(fixtures)
