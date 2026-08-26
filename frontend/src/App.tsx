@@ -160,6 +160,7 @@ const ArApStatusPage = lazy(() => import('./pages/trade/ArApStatusPage'))
 const AttendanceInputPage = lazy(() => import('./pages/hr/AttendanceInputPage'))
 const AttendanceListPage = lazy(() => import('./pages/hr/AttendanceListPage'))
 const AttendanceStatusPage = lazy(() => import('./pages/hr/AttendanceStatusPage'))
+const AttendanceKindStatusPage = lazy(() => import('./pages/hr/AttendanceKindStatusPage'))
 const LateArrivalPage = lazy(() => import('./pages/hr/LateArrivalPage'))
 const DailyWorkHoursPage = lazy(() => import('./pages/hr/DailyWorkHoursPage'))
 const WorkIntegratedPage = lazy(() => import('./pages/hr/WorkIntegratedPage'))
@@ -456,6 +457,7 @@ export default function App() {
         <Route path="/hr/attendance-input" element={<AttendanceInputPage />} />
         <Route path="/hr/attendance-list" element={<AttendanceListPage />} />
         <Route path="/hr/attendance-status" element={<AttendanceStatusPage />} />
+        <Route path="/hr/attendance-kind-status" element={<AttendanceKindStatusPage />} />
         <Route path="/hr/attendance-late" element={<LateArrivalPage />} />
         <Route path="/hr/daily-hours" element={<DailyWorkHoursPage />} />
         <Route path="/hr/work-integrated" element={<WorkIntegratedPage />} />

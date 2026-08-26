@@ -481,7 +481,7 @@ const MENU: TopMenu[] = [
             children: [
               { label: '근태입력', to: '/hr/attendance-input' },
               { label: '근태조회', to: '/hr/attendance-list' },
-              { label: '근태현황', to: '/hr/attendance-status' },
+              { label: '근태현황', to: '/hr/attendance-kind-status' },
               { label: '지각현황', to: '/hr/attendance-late' },
               { label: '일별근무시간', to: '/hr/daily-hours' },
               { label: '출퇴근/근태/일정 통합현황', to: '/hr/work-integrated' },
