@@ -8,6 +8,7 @@ import com.erp.groupware.domain.enums.SurveyQuestionType;
 import com.erp.groupware.domain.enums.SurveyResultVisibility;
 import com.erp.groupware.domain.enums.SurveyTargetScope;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,8 +22,8 @@ public final class SurveyDtos {
 
     public record QuestionRequest(
             int seq,
-            SurveyQuestionType type,
-            String content,
+            @NotNull(message = "문항 유형을 선택하세요.") SurveyQuestionType type,
+            @NotBlank(message = "문항 내용을 입력하세요.") String content,
             String option1, String option2, String option3, String option4, String option5,
             boolean required
     ) {}
@@ -35,7 +36,8 @@ public final class SurveyDtos {
             SurveyResultVisibility resultVisibility,
             String headerText,
             List<Long> targetUserIds,
-            List<QuestionRequest> questions,
+            /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
+            List<@jakarta.validation.Valid QuestionRequest> questions,
             /** true 면 초안으로 저장. false 면 바로 진행중(발송). */
             boolean draft
     ) {}
@@ -49,7 +51,8 @@ public final class SurveyDtos {
             SurveyResultVisibility resultVisibility,
             String headerText,
             List<Long> targetUserIds,
-            List<QuestionRequest> questions,
+            /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
+            List<@jakarta.validation.Valid QuestionRequest> questions,
             SurveyStatus status
     ) {}
 

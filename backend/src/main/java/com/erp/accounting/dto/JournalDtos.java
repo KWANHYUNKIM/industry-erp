@@ -28,7 +28,8 @@ public final class JournalDtos {
             LocalDate entryDate,
             @NotBlank(message = "적요를 입력하세요.") String description,
             Long partnerId,
-            List<ManualLineInput> lines
+            /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
+            List<@jakarta.validation.Valid ManualLineInput> lines
     ) {}
 
     /** 현금거래 간편입력. 입금이면 차)현금·대)상대계정, 출금이면 차)상대계정·대)현금. */

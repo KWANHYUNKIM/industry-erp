@@ -3280,6 +3280,68 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * <b>리스트 안쪽 제약이 실제로 걸리는가.</b>
+ *
+ * <p>{@code List<LineInput>} 에 원소마다 {@code @Valid} 를 안 붙이면 그 안의
+ * {@code @NotNull}·{@code @NotBlank} 가 <b>통째로 무시된다.</b> 컴파일도 되고 기동도 되고
+ * 단위 시험도 통과하는데 실행 때만 조용히 안 걸린다.
+ *
+ * <p>실제로 단가일괄변경에서 음수 단가가 그대로 저장돼 공급가액이 음수가 됐고,
+ * 일반전표는 계정 없는 라인을 받아 500(“The given id must not be null”)으로 터졌다 —
+ * 사용자에게는 서버 내부 사정이 그대로 보였다.
+ *
+ * <p>네 화면(일반전표·급여명세·설문·단가적용순서)이 같은 상태였다. 다시 빠지면 여기서 잡는다.
+ */
+async function scenarioNestedValidation(f) {
+  section('■ 리스트 안쪽 검증')
+
+  const journal = await call('POST', '/journals', {
+    entryDate: '2026-08-01', description: `${P}중첩검증`,
+    lines: [{ accountId: null, debit: 1000, credit: 0 }, { accountId: null, debit: 0, credit: 1000 }],
+  })
+  eq('일반전표: 계정 없는 라인은 400', journal.status, 400)
+  eq('일반전표: 무엇을 고쳐야 하는지 말한다', String(journal.data?.message ?? '').includes('계정'), true)
+  eq('일반전표: 500 으로 터지지 않는다',
+    /given id must not be null|서버 오류/.test(String(journal.data?.message ?? '')), false)
+
+  const survey = await call('POST', '/surveys', {
+    title: `${P}중첩검증`,
+    questions: [{ seq: 1, type: 'SINGLE', content: '', required: true }],
+  })
+  eq('설문: 내용 없는 문항은 400', survey.status, 400)
+  eq('설문: 문항 내용을 지적한다', String(survey.data?.message ?? '').includes('문항'), true)
+
+  const emps = await must('GET', '/employees')
+  if (emps.length > 0) {
+    const slip = await call('POST', '/payslips', {
+      employeeId: emps[0].id, payMonth: '2026-08',
+      lines: [{ kind: 'ALLOWANCE', name: '', amount: 100, taxable: true }],
+    })
+    eq('급여명세: 항목명 빈 라인은 400', slip.status, 400)
+    eq('급여명세: 항목명을 지적한다', String(slip.data?.message ?? '').includes('항목명'), true)
+  }
+
+  const order = await call('PUT', '/price-order-settings', {
+    settings: [{ functionName: '', applyOrder: 1, active: true }],
+  })
+  eq('단가적용순서: 기능명 빈 줄은 400', order.status, 400)
+  eq('단가적용순서: 기능명을 지적한다', String(order.data?.message ?? '').includes('기능명'), true)
+
+  // 단가일괄변경도 같은 종류였다 — 음수 단가가 그대로 들어가 공급가액이 음수가 됐다.
+  const rows = await must('GET', '/price-bulk/lines?tradeType=SALES&from=2020-01-01&to=2030-12-31')
+  const line = rows.find((r) => r.editable)
+  if (line) {
+    const neg = await call('PUT', '/price-bulk/lines', {
+      tradeType: 'SALES', changes: [{ lineId: line.lineId, unitPrice: -1 }],
+    })
+    eq('단가일괄변경: 음수 단가는 400', neg.status, 400)
+    const same = (await must('GET', '/price-bulk/lines?tradeType=SALES&from=2020-01-01&to=2030-12-31'))
+      .find((r) => r.lineId === line.lineId)
+    eq('거절된 요청은 아무것도 바꾸지 않는다', same.unitPrice, line.unitPrice)
+  }
+}
+
+/**
  * <b>견적·수주·발주·출하를 지울 수 있는가.</b>
  *
  * 넷 다 삭제가 아예 없었다. 거래처나 단가를 잘못 넣어도 지울 방법이 없어 취소로 덮어 두는
@@ -3715,6 +3777,7 @@ async function main() {
   await scenarioStockRecalc()
   await scenarioGroups(fixtures)
   await scenarioSlipPriceBulk(fixtures)
+  await scenarioNestedValidation(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

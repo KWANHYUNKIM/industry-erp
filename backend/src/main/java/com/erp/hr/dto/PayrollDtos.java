@@ -31,8 +31,11 @@ public final class PayrollDtos {
             BigDecimal baseSalary,
             /** 수당/공제 그룹. 지정하면 그룹의 항목들이 명세 라인으로 들어간다. */
             Long payGroupId,
-            /** 그룹에 없는 이번 달만의 수당·수동공제. 4대보험은 서버가 자동 추가한다. */
-            List<LineInput> lines,
+            /**
+             * 그룹에 없는 이번 달만의 수당·수동공제. 4대보험은 서버가 자동 추가한다.
+             * 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다.
+             */
+            List<@jakarta.validation.Valid LineInput> lines,
             String remark
     ) {}
 
