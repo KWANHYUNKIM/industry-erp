@@ -52,6 +52,10 @@ public class EmployeeDtos {
         }
     }
 
+    /**
+     * 사원 한 줄. <b>기본급은 볼 수 있는 사람에게만</b> 담는다 —
+     * {@link #maskSalary()} 를 참고.
+     */
     public record EmployeeResponse(
             Long id,
             String code,
@@ -72,6 +76,21 @@ public class EmployeeDtos {
                     e.getJobTitle() != null ? e.getJobTitle() : "",
                     e.getBaseSalary(),
                     e.getHireDate(), e.getResignDate(), e.isActive());
+        }
+
+        /**
+         * 기본급을 지운 사본.
+         *
+         * <p>사원 목록은 담당자 드롭다운으로 여기저기서 쓰인다(9개 화면 중 6개가 그 용도다).
+         * 그래서 목록 자체를 권한으로 막으면 멀쩡한 화면이 줄줄이 빈칸이 된다.
+         * 대신 <b>급여 칸만</b> 가린다 — 급여를 실제로 쓰는 곳은 사원등록·근로계약·급여 세 화면뿐이고
+         * 그 화면들은 HR·PAYROLL 을 가진 사람이 연다.
+         *
+         * <p>이걸 안 하면 급여명세를 막아 놔도 사원 목록으로 기본급이 그대로 새어 나간다.
+         */
+        public EmployeeResponse maskSalary() {
+            return new EmployeeResponse(id, code, name, departmentId, department, jobTitle,
+                    null, hireDate, resignDate, active);
         }
     }
 }

@@ -42,14 +42,35 @@ public class EmployeeController {
     }
 
     @GetMapping
-    public List<EmployeeResponse> list() {
-        return employeeService.findAll();
+    public List<EmployeeResponse> list(@AuthenticationPrincipal UserPrincipal principal) {
+        return maskIfNeeded(employeeService.findAll(), principal);
     }
 
     /** 퇴사자를 포함한 전 사원 (인사관리) */
     @GetMapping("/all")
-    public List<EmployeeResponse> listAll() {
-        return employeeService.findAllIncludingResigned();
+    public List<EmployeeResponse> listAll(@AuthenticationPrincipal UserPrincipal principal) {
+        return maskIfNeeded(employeeService.findAllIncludingResigned(), principal);
+    }
+
+    /**
+     * 기본급은 인사·급여 권한이 있는 사람에게만 보낸다.
+     *
+     * <p>사원 목록 자체는 막을 수 없다 — 담당자 드롭다운으로 여기저기서 쓰기 때문이다.
+     * 그래서 목록은 열어 두고 <b>급여 칸만</b> 가린다. 이걸 안 하면 급여명세를 막아 놔도
+     * 사원 목록으로 기본급이 그대로 새어 나간다(실제로 그랬다).
+     */
+    private List<EmployeeResponse> maskIfNeeded(List<EmployeeResponse> rows, UserPrincipal principal) {
+        if (canSeeSalary(principal)) {
+            return rows;
+        }
+        return rows.stream().map(EmployeeResponse::maskSalary).toList();
+    }
+
+    private boolean canSeeSalary(UserPrincipal principal) {
+        if (principal == null) return false;
+        if (principal.isAdmin()) return true;
+        return principal.getPermissionCodes().contains("PAYROLL")
+                || principal.getPermissionCodes().contains("HR");
     }
 
     /** 사원별 발령이력 */

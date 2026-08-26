@@ -2541,6 +2541,25 @@ async function scenarioPayrollReadGuard() {
   eq('다른 조회는 그대로 열려 있다',
     (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 200)
 
+  // 사원 목록은 담당자 드롭다운으로 여기저기 쓰여 막을 수 없다. 대신 급여 칸만 가린다 —
+  // 안 그러면 급여명세를 막아 놔도 사원 목록으로 기본급이 그대로 새어 나간다.
+  const rowsOf = async (username) => {
+    const login = await call('POST', '/auth/login', { username, password: 'qatest1234' })
+    const res = await fetch(`${BASE}/employees`, {
+      headers: { Authorization: `Bearer ${login.data.token}` },
+    })
+    return res.json()
+  }
+  const noneRows = await rowsOf(`${P2.toLowerCase()}none`)
+  eq('권한 없는 계정에게는 기본급을 안 보낸다',
+    noneRows.every((r) => r.baseSalary === null), true)
+  eq('사원 목록 자체는 열려 있다(담당자 드롭다운이 쓴다)',
+    noneRows.length > 0 && noneRows.every((r) => r.id && r.name), true)
+
+  const payRows = await rowsOf(`${P2.toLowerCase()}pay`)
+  eq('PAYROLL 이 있으면 기본급이 온다',
+    payRows.some((r) => Number(r.baseSalary) > 0), true)
+
   for (const u of [none, pay]) await must('DELETE', `/users/${u.id}`)
   for (const r of (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2))) {
     await must('DELETE', `/roles/${r.id}`)
