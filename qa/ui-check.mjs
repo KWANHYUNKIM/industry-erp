@@ -129,6 +129,75 @@ const dead = [...menuTargets.keys()].filter((p) => !matches(p)).sort()
 eq('메뉴가 가리키는 경로에 라우트가 다 있다',
   dead.map((p) => `${p}  (${menuTargets.get(p).join(', ')})`).join('\n') || '없음', '없음')
 
+// ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
+console.log('\n■ 같은 메뉴 그룹은 같은 권한')
+
+/**
+ * 한 메뉴 그룹(재고현황·영업관리현황 …) 안의 화면들은 같은 권한으로 묶여야 한다.
+ * 하나만 다른 바구니에 들어가면 메뉴가 사람마다 들쭉날쭉해진다 —
+ * STOCK_MOVE 만 가진 사람에게 재고현황은 보이는데 창고별재고현황은 안 보이는 식이다.
+ *
+ * 실제로 새로 만든 재고현황 8개가 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다.
+ */
+{
+  const menuSrc = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
+  const permSrc = readFileSync('frontend/src/auth/menuPermissions.ts', 'utf8')
+
+  // menuPermissions 의 규칙을 그대로 읽어 같은 방식(최장 접두어)으로 푼다.
+  const rules = [...permSrc.matchAll(/\['(\/[^']*)',\s*(?:'(\w+)'|null)\]/g)]
+    .map((m) => [m[1], m[2] ?? null])
+  const permFor = (path) => {
+    let best = null
+    for (const [prefix, code] of rules) {
+      if (prefix === '/') continue
+      if (path === prefix || path.startsWith(prefix + '/')) {
+        if (!best || prefix.length > best[0].length) best = [prefix, code]
+      }
+    }
+    return best ? best[1] : null
+  }
+
+  // children 배열을 가진 그룹을 통째로 떠서 그 안의 to: 들을 모은다.
+  const groups = []
+  for (const m of menuSrc.matchAll(/label: '([^']+)',\s*\n?\s*children: \[([\s\S]*?)\n(\s*)\],/g)) {
+    const paths = [...m[2].matchAll(/to: '([^']+)'/g)].map((x) => x[1].split('?')[0])
+    if (paths.length > 1) groups.push([m[1], paths])
+  }
+
+  /**
+   * 섞여도 되는 그룹. 성격이 다른 화면을 한 묶음에 둔 것이라 권한도 갈리는 게 맞다.
+   * 늘릴 때는 <b>왜 섞이는지</b> 한 줄로 적는다 — 적을 말이 없으면 그건 새는 것이다.
+   */
+  const MIXED_BY_DESIGN = new Map([
+    ['판매일괄회계반영', '회계반영 화면이라 ACCOUNTING 이 섞인다'],
+    ['영업관리현황', '회계미반영현황(판매)만 ACCOUNTING'],
+    ['구매관리현황', '채무 화면이 /sales 경로를 쓰고, 회계미반영현황은 ACCOUNTING'],
+    ['기타이동현황', '불량률파악보고서만 QUALITY'],
+    ['기타', '거래이력·집계표·경영자보고서를 모아 둔 잡동사니 묶음'],
+    ['일별이익', '일별재고현황(STOCK_MOVE)과 일별이익현황(PROFIT)을 나란히 둔다'],
+    ['기본사항등록', '회계 기초와 인사 기초가 같은 이름을 쓴다 — 각자 제 권한'],
+    ['출/퇴근(사원)', '근태(HR)와 그룹웨어 화면이 섞인다'],
+    ['출/퇴근', '위와 같다'],
+    ['조직도관리', '사원(HR)과 조직도·연락처(GROUPWARE)가 섞인다'],
+  ])
+
+  const mixed = []
+  for (const [name, paths] of groups) {
+    const byPerm = new Map()
+    for (const p of paths) {
+      const code = permFor(p) ?? '(권한없음)'
+      byPerm.set(code, [...(byPerm.get(code) ?? []), p])
+    }
+    if (byPerm.size > 1 && !MIXED_BY_DESIGN.has(name)) {
+      const detail = [...byPerm.entries()]
+        .map(([c, ps]) => `${c}(${ps.join(', ')})`).join(' / ')
+      mixed.push(`${name} — ${detail}`)
+    }
+  }
+  eq(`메뉴 그룹 ${groups.length}개 중 섞인 것은 이유가 적힌 ${MIXED_BY_DESIGN.size}개뿐`,
+    mixed.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

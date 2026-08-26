@@ -22,6 +22,23 @@ const RULES: Rule[] = [
   ['/inventory/stocktake', 'STOCK_MOVE'],
   ['/inventory/staged-adjustment', 'STOCK_MOVE'],
   ['/inventory/reports', 'STOCK_MOVE'],
+  // 재고현황 그룹에 새로 붙은 화면들. 접두어 규칙만 두면 아래 ['/inventory', 'INV_MASTER'] 에
+  // 걸려 형제 화면(재고현황·재고수불부)과 다른 권한 바구니에 들어간다 —
+  // STOCK_MOVE 만 가진 사람에게 재고현황은 보이는데 창고별재고현황은 안 보이게 된다.
+  ['/inventory/warehouse-stock', 'STOCK_MOVE'],
+  ['/inventory/bom-stock', 'STOCK_MOVE'],
+  ['/inventory/daily-stock', 'STOCK_MOVE'],
+  ['/inventory/stocktake-status', 'STOCK_MOVE'],
+  ['/inventory/transfer-status', 'STOCK_MOVE'],
+  ['/inventory/self-use-status', 'STOCK_MOVE'],
+  ['/inventory/defect-status', 'STOCK_MOVE'],
+  ['/inventory/substitute-status', 'STOCK_MOVE'],
+  ['/inventory/disposal-status', 'STOCK_MOVE'],
+  ['/inventory/adjust-status', 'STOCK_MOVE'],
+  // 잔량재집계·일보도 재고현황 그룹인데 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다
+  // (내가 만든 화면이 아니라 원래부터 그랬다).
+  ['/inventory/recalc', 'STOCK_MOVE'],
+  ['/inventory/daily-report', 'STOCK_MOVE'],
   ['/inventory/price-order', 'SALES'],
   ['/inventory/special-price-group', 'SALES'],
   ['/sales/special-price', 'SALES'],
