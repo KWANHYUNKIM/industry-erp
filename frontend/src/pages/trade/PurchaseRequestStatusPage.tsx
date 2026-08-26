@@ -223,7 +223,7 @@ export default function PurchaseRequestStatusPage({
       </div>
 
       <EcStatusPanel
-        mode={mode} onModeChange={setMode}
+        modes={['현황', '집계']} mode={mode} onModeChange={(m) => setMode(m as '현황' | '집계')}
         compare={compare} onCompareChange={setCompare}
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}

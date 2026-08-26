@@ -29,7 +29,7 @@ export function EcCond({ label, pick, children }: { label: string; pick?: boolea
 }
 
 export default function EcStatusPanel({
-  mode, onModeChange,
+  modes, mode, onModeChange,
   compare, onCompareChange,
   from, to, onPeriod,
   picks = INQUIRY_PICKS,
@@ -38,9 +38,17 @@ export default function EcStatusPanel({
   dateLabel = '기준일자',
   children,
 }: {
-  /** [메뉴] 현황·집계 토글. 안 주면 그 줄을 그리지 않는다. */
-  mode?: '현황' | '집계'
-  onModeChange?: (m: '현황' | '집계') => void
+  /**
+   * [구분] 토글. 안 주면 그 줄을 그리지 않는다.
+   *
+   * <p>원본 사본 7종(판매현황·구매현황·출하현황·생산입고현황·미출하현황·일별이익현황·
+   * 월별이익현황)에서 이 줄의 라벨은 모두 <b>구분</b>이었다. 선택지는 화면마다 다르다 —
+   * 판매·구매·출하·생산입고는 [내역 | 집계 | 라인별], 미출하는 [품목별 | 라인별],
+   * 이익현황은 [라인별 | 품목별 | 거래처별 | …]. 그래서 목록을 받는다.
+   */
+  modes?: readonly string[]
+  mode?: string
+  onModeChange?: (m: string) => void
   /** [비교기간]. 안 주면 그 줄을 그리지 않는다. */
   compare?: ComparePeriod
   onCompareChange?: (c: ComparePeriod) => void
@@ -67,9 +75,9 @@ export default function EcStatusPanel({
   return (
     <ul className="ec-cond" style={{ marginBottom: 8 }}>
       {mode && onModeChange && (
-        <EcCond label="메뉴">
+        <EcCond label="구분">
           <div className="ec-pills">
-            {(['현황', '집계'] as const).map((m) => (
+            {(modes ?? ['내역', '집계', '라인별']).map((m) => (
               <button
                 key={m} type="button"
                 className={`ec-pill no-ec${mode === m ? ' active' : ''}`}

@@ -210,7 +210,7 @@ export default function SalesOrderStatusPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <EcStatusPanel
-        mode={mode} onModeChange={setMode}
+        modes={['현황', '집계']} mode={mode} onModeChange={(m) => setMode(m as '현황' | '집계')}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}

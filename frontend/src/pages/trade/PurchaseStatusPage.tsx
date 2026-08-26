@@ -8,6 +8,9 @@ import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregat
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
+type Mode = '내역' | '집계' | '라인별'
+const MODES = ['내역', '집계', '라인별'] as const
+
 interface Row {
   key: string
   date: string
@@ -45,7 +48,11 @@ export default function PurchaseStatusPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   // 원본 상단의 메뉴 토글 — 판매현황과 같은 규칙이다(집계 계산은 utils/statusAggregate 가 진다).
-  const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  /*
+   * 원본 구매현황의 [구분] 도 판매현황과 같이 <b>내역 · 집계 · 라인별</b> 세 가지다(사본 실측).
+   * 우리가 '현황' 이라 부르던 것이 원본의 '라인별'이고, '내역'(전표 단위)이 없었다.
+   */
+  const [mode, setMode] = useState<Mode>('내역')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
 
@@ -106,6 +113,32 @@ export default function PurchaseStatusPage() {
     return out
   }, [rows, keyword, filters])
 
+  /**
+   * 내역 — 전표 하나를 한 줄로 접는다. 원본 구매조회 격자와 같은 칸 구성
+   * (일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명).
+   */
+  const slips = useMemo(() => {
+    const by = new Map<string, {
+      date: string; docNo: string; partner: string; itemName: string; lineCount: number
+      qty: number; supply: number; vat: number; warehouse: string
+    }>()
+    for (const r of shown) {
+      const cur = by.get(r.docNo)
+      if (!cur) {
+        by.set(r.docNo, {
+          date: r.date, docNo: r.docNo, partner: r.partner, itemName: r.itemName, lineCount: 1,
+          qty: r.qty, supply: r.supply, vat: r.vat, warehouse: r.warehouse,
+        })
+      } else {
+        cur.lineCount += 1
+        cur.qty += r.qty
+        cur.supply += r.supply
+        cur.vat += r.vat
+      }
+    }
+    return [...by.values()]
+  }, [shown])
+
   /** 집계는 판매현황과 같은 규칙을 쓴다 — 계산은 utils/statusAggregate 가 진다. */
   const grouped = useMemo(
     () => (mode !== '집계' ? [] : aggregate(
@@ -141,7 +174,7 @@ export default function PurchaseStatusPage() {
   }, [rows, prevRange, filters, keyword])
 
   const reset = () => {
-    setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('')
+    setFilters(EMPTY_FILTERS); setMode('내역'); setCompare('사용안함'); setKeyword('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -169,7 +202,7 @@ export default function PurchaseStatusPage() {
 
       {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
       <EcStatusPanel
-        mode={mode} onModeChange={setMode}
+        modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
@@ -269,6 +302,55 @@ export default function PurchaseStatusPage() {
               <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : mode === '내역' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th style={{ width: 190 }}>일자-No.</th>
+              <th>매입처</th>
+              <th>품목명(요약)</th>
+              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 120, textAlign: 'right' }}>부가세</th>
+              <th style={{ width: 130, textAlign: 'right' }}>금액합계</th>
+              <th style={{ width: 110 }}>창고명</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : slips.length === 0 ? (
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>구매 내역이 없습니다.</td></tr>
+            ) : slips.map((sl, i) => (
+              <tr key={sl.docNo}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{sl.date} {sl.docNo}</td>
+                <td>{sl.partner}</td>
+                <td>{sl.itemName}{sl.lineCount > 1 ? ` 외 ${sl.lineCount - 1}건` : ''}</td>
+                <td style={{ textAlign: 'right' }}>{sl.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{sl.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{sl.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>
+                  {(sl.supply + sl.vat).toLocaleString()}
+                </td>
+                <td>{sl.warehouse}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({slips.length}건)</td>
+              <td style={{ textAlign: 'right' }}>{slips.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#1c6b32' }}>
+                {(totals.supply + totals.vat).toLocaleString()}
+              </td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
