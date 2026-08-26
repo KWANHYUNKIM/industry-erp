@@ -25,6 +25,10 @@ interface Slip {
   slipDate: string
   partnerId: number
   partnerName: string
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
+  itemSummary: string
   supplyAmount: number
   vatAmount: number
   totalAmount: number
@@ -35,7 +39,18 @@ export default function AccountingReflectionPage() {
   const [params] = useSearchParams()
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' })
+  /*
+   * 원본 조건 판 실측(사본 · 회계미반영현황(판매)/(구매)):
+   *   기준일(영업주기) · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 ·
+   *   거래처관리담당자 · 금액
+   * 우리는 거래처·전표번호·금액뿐이었다. 창고·프로젝트·품목·담당자는 전표에 있는데
+   * 응답에 안 실려 거를 수가 없었다 — 백엔드에서 같이 보내도록 고치고 조건으로 붙였다.
+   * 거래유형(과세/면세)은 이 목록이 전표 단위라 아직 없다.
+   */
+  const [cond, setCond] = useState({
+    from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
+    warehouse: '', project: '', item: '', employee: '',
+  })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [onlyUnreflected, setOnlyUnreflected] = useState(true)
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -71,6 +86,10 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.docNo || s.docNo.includes(cond.docNo))
     .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
     .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
+    .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
+    .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
+    .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
+    .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
   const unreflectedCount = slips.filter((s) => !s.reflected).length
   const selectedTotal = useMemo(
     () => slips.filter((s) => checked.has(s.id)).reduce((sum, s) => sum + s.totalAmount, 0),
@@ -89,7 +108,10 @@ export default function AccountingReflectionPage() {
   useEffect(() => { setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales') }, [params])
 
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' })
+    setCond({
+      from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
+      warehouse: '', project: '', item: '', employee: '',
+    })
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
     // 화면에 보이지도 않는 전표를 회계반영하게 된다.
@@ -136,6 +158,7 @@ export default function AccountingReflectionPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
+        dateLabel="기준일(영업주기)"
       >
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
@@ -144,6 +167,22 @@ export default function AccountingReflectionPage() {
         <EcCond label="전표번호" pick>
           <input className="ec-input" placeholder="전표번호 일부" value={cond.docNo}
                  onChange={(e) => setC({ docNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={cond.warehouse}
+                 onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={cond.project}
+                 onChange={(e) => setC({ project: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명 일부" value={cond.item}
+                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <input className="ec-input" placeholder="담당자 일부" value={cond.employee}
+                 onChange={(e) => setC({ employee: e.target.value })} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="금액">
           <input className="ec-input" type="number" value={cond.amtFrom}
@@ -178,6 +217,8 @@ export default function AccountingReflectionPage() {
             <th style={{ width: 100 }}>전표일 ▼</th>
             <th style={{ width: 150 }}>전표번호 ▼</th>
             <th>거래처 ▼</th>
+            <th>품목명(요약)</th>
+            <th style={{ width: 120 }}>창고명</th>
             <th style={{ width: 120, textAlign: 'right' }}>공급가액</th>
             <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
             <th style={{ width: 90, textAlign: 'center' }}>회계반영 ▼</th>
@@ -185,9 +226,9 @@ export default function AccountingReflectionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
@@ -196,8 +237,10 @@ export default function AccountingReflectionPage() {
               <td style={{ fontFamily: 'monospace' }}>{s.slipDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
               <td>{s.partnerName}</td>
-              <td style={{ textAlign: 'right' }}>{s.supplyAmount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{s.vatAmount.toLocaleString()}</td>
+              <td>{s.itemSummary}</td>
+              <td>{s.warehouseName ?? ''}</td>
+              <td style={{ textAlign: 'right' }}>{s.supplyAmount.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'right' }}>{s.vatAmount.toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'center', color: s.reflected ? '#1c7c3c' : '#c60a2e', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
             </tr>
           ))}
