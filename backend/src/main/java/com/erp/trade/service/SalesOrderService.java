@@ -13,9 +13,9 @@ import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.dto.SalesOrderDtos.UnshippedLineResponse;
 import com.erp.trade.dto.SalesOrderDtos.UnsoldLineResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.SalesLineRepository;
 import com.erp.trade.repository.SalesOrderRepository;
+import com.erp.inventory.service.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class SalesOrderService {
 
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final SalesLineRepository salesLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -77,8 +77,8 @@ public class SalesOrderService {
 
     @Transactional
     public SalesOrderResponse create(CreateSalesOrderRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 주문을 받을 수 없습니다: " + partner.getName());
         }
@@ -100,8 +100,7 @@ public class SalesOrderService {
         BigDecimal totalVat = BigDecimal.ZERO;
 
         for (OrderLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 

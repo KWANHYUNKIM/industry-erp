@@ -14,8 +14,8 @@ import com.erp.trade.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.trade.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.QuotationRepository;
+import com.erp.inventory.service.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +35,7 @@ public class QuotationService {
 
     private final QuotationRepository quotationRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -48,8 +48,8 @@ public class QuotationService {
 
     @Transactional
     public QuotationResponse create(CreateQuotationRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 견적을 낼 수 없습니다: " + partner.getName());
         }
@@ -69,8 +69,7 @@ public class QuotationService {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
         for (QuoteLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE) : BigDecimal.ZERO;
             q.addLine(QuotationLine.builder()

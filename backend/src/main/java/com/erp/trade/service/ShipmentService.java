@@ -16,10 +16,10 @@ import com.erp.trade.dto.ShipmentDtos.CreateShipmentRequest;
 import com.erp.trade.dto.ShipmentDtos.ShipLineRequest;
 import com.erp.trade.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.trade.repository.ShipmentLineRepository;
 import com.erp.trade.repository.ShipmentRepository;
+import com.erp.inventory.service.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +43,7 @@ public class ShipmentService {
     private final ShipmentLineRepository shipmentLineRepository;
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -63,8 +63,8 @@ public class ShipmentService {
 
     @Transactional
     public ShipmentResponse create(CreateShipmentRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처로는 출하할 수 없습니다: " + partner.getName());
         }
@@ -84,8 +84,7 @@ public class ShipmentService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (ShipLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
             BigDecimal amount = lr.quantity().multiply(unitPrice);
 

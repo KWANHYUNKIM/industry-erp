@@ -2935,6 +2935,26 @@ async function scenarioInactiveMaster(f) {
   })
   eq('구매전표도 마찬가지다', purchase.status, 400)
 
+  // 판매·구매만 막고 끝내면 옆문이 남는다 — 견적서로 쓰고 수주로 전환하면 그만이다.
+  // 품목·거래처를 받는 전표 전부에 같은 검사를 건다.
+  const line = (itemId) => [{ itemId, quantity: 1, unitPrice: 1000 }]
+  const others = [
+    ['견적서', '/quotations', (pid, iid) => ({ partnerId: pid, quoteDate: today, lines: line(iid) })],
+    ['수주', '/sales-orders', (pid, iid) => ({ partnerId: pid, orderDate: today, lines: line(iid) })],
+    ['발주', '/purchase-orders',
+      (pid, iid) => ({ partnerId: pid, orderDate: today, warehouseId: f.warehouse.id, lines: line(iid) })],
+    ['출하', '/shipments', (pid, iid) => ({ partnerId: pid, shipDate: today, lines: line(iid) })],
+  ]
+  for (const [label, path, body] of others) {
+    const partnerId = path === '/purchase-orders' ? f.supplier.id : f.customer.id
+    const byItem = await call('POST', path, body(partnerId, item.id))
+    eq(`${label}: 중지된 품목을 막는다`, byItem.status, 400)
+    eq(`${label}: 사유가 품목이라고 나온다`,
+      /사용중지된 품목입니다/.test(String(byItem.data?.message ?? '')), true)
+    const byPartner = await call('POST', path, body(partner.id, f.product.id))
+    eq(`${label}: 중지된 거래처를 막는다`, byPartner.status, 400)
+  }
+
   // 중지 전에 쓴 전표는 여전히 읽히고 고쳐진다
   // 단건 조회 엔드포인트는 없다 — 화면도 목록에서 행을 열므로 목록에 남아 있는지로 본다.
   eq('중지 전에 쓴 전표는 목록에 그대로 남는다',

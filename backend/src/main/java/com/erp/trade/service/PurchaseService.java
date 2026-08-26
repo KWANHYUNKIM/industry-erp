@@ -184,11 +184,7 @@ public class PurchaseService {
      * 새로 쓰는 자리에서만 막는다.
      */
     private void requireUsableMasters(CreatePurchaseRequest req) {
-        BusinessPartner partner = resolvePartner(req.partnerId());
-        if (!partner.isActive()) {
-            throw ApiException.badRequest(
-                    "사용중지된 거래처입니다: " + partner.getCode() + " " + partner.getName());
-        }
+        TradeMasters.requireUsable(resolvePartner(req.partnerId()));
         req.lines().forEach(l -> itemService.getUsable(l.itemId()));
     }
 
