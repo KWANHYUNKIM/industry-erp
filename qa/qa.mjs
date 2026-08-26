@@ -2501,6 +2501,59 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>되돌릴 수 없는 처리를 두 번 하려 할 때.</b>
+ *
+ * 이런 곳은 서비스 코드에 가드가 있어도 테스트가 없으면, 나중에 리팩터링하다
+ * 조용히 풀린다. 풀리면 재고나 장부가 두 번 움직이는데 에러는 안 난다.
+ * 훑어 보니 아래는 다 제대로 막혀 있었다 — 막힌 채로 두려고 묶는다.
+ */
+async function scenarioDoubleProcess(f) {
+  section('■ 두 번 처리 방지')
+
+  const qtyOf = async (itemId, warehouseId) => {
+    const row = (await must('GET', '/stock'))
+      .find((r) => r.itemId === itemId && r.warehouseId === warehouseId)
+    return row ? Number(row.quantity) : 0
+  }
+
+  // ── 재고실사 반영: 두 번 하면 재고가 두 번 바뀐다
+  const before = await qtyOf(f.product.id, f.warehouse.id)
+  const staged = await must('POST', '/staged-adjustments', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: before + 10,
+    requestDate: '2026-07-14', reason: `${P}이중반영검증`,
+  })
+  await must('POST', `/staged-adjustments/${staged.id}/apply`)
+  const afterOnce = await qtyOf(f.product.id, f.warehouse.id)
+  eq('실사 반영은 차이만큼만 움직인다', afterOnce, before + 10)
+
+  await rejects('반영된 실사를 또 반영하면 거부', 'POST', `/staged-adjustments/${staged.id}/apply`,
+    undefined, '이미 처리된')
+  eq('거부됐으니 재고는 그대로', await qtyOf(f.product.id, f.warehouse.id), afterOnce)
+
+  await rejects('반영된 실사는 반려도 안 된다', 'POST', `/staged-adjustments/${staged.id}/reject`,
+    undefined, '이미 처리된')
+  await rejects('반영된 실사는 삭제도 안 된다', 'DELETE', `/staged-adjustments/${staged.id}`,
+    undefined, '이미 반영된')
+
+  // 되돌린다 — 반영된 실사는 지울 수 없으므로 반대 방향 조정으로 원복한다
+  await must('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id,
+    actualQty: before, adjustDate: '2026-07-14', reason: `${P}이중반영검증 원복`,
+  })
+  eq('원복하면 처음 재고로 돌아온다', await qtyOf(f.product.id, f.warehouse.id), before)
+
+  // ── 발주서: 단계를 건너뛸 수 없다
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, orderDate: '2026-07-14',
+    lines: [{ itemId: f.product.id, quantity: 5, unitPrice: 1000 }],
+  })
+  eq('새 발주서는 발주요청', po.statusName, '발주요청')
+  await rejects('단가확정 전에는 발주확정 불가', 'POST', `/purchase-orders/${po.id}/confirm`,
+    undefined, '단가가 확정된 발주서만')
+  await must('POST', `/purchase-orders/${po.id}/cancel`)
+}
+
+/**
  * 판매전표 확인·확인취소의 상태 전이.
  *
  * 이미 확인된 전표를 또 확인하면 markConfirmed 가 <b>확인일시를 지금으로 덮어썼다.</b>
@@ -2721,6 +2774,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioDoubleProcess(fixtures)
   await scenarioConfirmTransition(fixtures)
   await scenarioHttpProtocol()
   await scenarioDeleteInUse(fixtures)
