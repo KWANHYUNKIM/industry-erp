@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.LocalTime;
 import java.time.Year;
 import java.util.ArrayList;
@@ -125,6 +126,20 @@ public class HrService {
         if (req.endDate().isBefore(req.startDate())) {
             throw ApiException.badRequest("종료일이 시작일보다 빠를 수 없습니다.");
         }
+        /*
+         * 일수는 <b>기간 안이어야 한다.</b> 예전에는 클라이언트가 보낸 값을 그대로 저장해서
+         * 하루짜리 휴가에 100일을 넣어도 통과했고, 그 값이 잔여일수현황에 그대로 더해졌다.
+         * 반차(0.5)를 써야 하므로 하한은 0 초과로 두고, 상한만 달력 일수로 막는다.
+         */
+        long span = ChronoUnit.DAYS.between(req.startDate(), req.endDate()) + 1;
+        if (req.days().signum() <= 0) {
+            throw ApiException.badRequest("사용일수는 0보다 커야 합니다.");
+        }
+        if (req.days().compareTo(BigDecimal.valueOf(span)) > 0) {
+            throw ApiException.badRequest(
+                    "사용일수가 기간보다 많습니다. " + req.startDate() + "~" + req.endDate()
+                            + " 은 " + span + "일인데 " + req.days().stripTrailingZeros().toPlainString() + "일을 넣었습니다.");
+        }
         VacationRequest v = VacationRequest.builder()
                 .user(user)
                 .type(req.type())
@@ -135,6 +150,20 @@ public class HrService {
                 .status(VacationStatus.PENDING)
                 .build();
         return VacationRow.from(vacationRepository.save(v));
+    }
+
+    /**
+     * 근태(휴가) 삭제.
+     *
+     * <p>지금까지 지울 방법이 아예 없었다. 잘못 넣은 근태는 잔여일수에 그대로 남는데
+     * 상태를 반려로 바꿔도 <b>줄이 사라지지는 않아</b> 근태현황이 계속 지저분해진다.
+     * 승인된 것도 지울 수 있게 둔다 — 정정이 필요한 자리이고, 지우면 잔여일수도 같이 돌아온다.
+     */
+    @Transactional
+    public void deleteVacation(Long id) {
+        VacationRequest v = vacationRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("휴가 신청을 찾을 수 없습니다. id=" + id));
+        vacationRepository.delete(v);
     }
 
     /** 상태 전이는 enum 이 강제한다 — 잘못된 값은 요청 역직렬화에서 이미 걸린다. */
@@ -153,7 +182,10 @@ public class HrService {
 
         Map<Long, BigDecimal> usedByUser = new LinkedHashMap<>();
         for (VacationRequest v : list) {
-            if ("승인".equals(v.getStatus())) {
+            // status 는 enum 이다. 예전에는 "승인".equals(v.getStatus()) 로 비교했는데
+            // String 과 enum 이라 <b>언제나 거짓</b>이었고, 그래서 휴가잔여일수현황의
+            // 사용일수가 늘 0 · 잔여가 늘 15일로 나왔다(승인된 휴가가 227건 있어도).
+            if (v.getStatus() == VacationStatus.APPROVED) {
                 usedByUser.merge(v.getUser().getId(),
                         v.getDays() == null ? BigDecimal.ZERO : v.getDays(),
                         BigDecimal::add);

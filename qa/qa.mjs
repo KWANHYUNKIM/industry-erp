@@ -2077,6 +2077,52 @@ async function scenarioPersonRefs() {
   const listed = (await must('GET', '/hr/vacations?year=2026')).find((v) => v.id === vac.id)
   eq('목록에서도 enum 으로 나온다', listed.status, 'APPROVED')
 
+  /*
+   * 승인된 휴가는 잔여일수에서 빠져야 한다.
+   *
+   * 예전에는 집계가 "승인".equals(v.getStatus()) 로 비교했는데 String 과 enum 이라
+   * <b>언제나 거짓</b>이었다. 승인된 휴가가 227건 229.5일 있어도 잔여일수현황은
+   * 전원 '사용 0일 · 잔여 15일' 로 나왔다. 화면은 멀쩡해 보이고 숫자만 틀린다.
+   */
+  const before = (await must('GET', '/hr/vacations/summary?year=2026'))
+    .find((r) => r.empName === me.name)
+  const extra = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: '2026-05-06', endDate: '2026-05-06',
+    days: 1, reason: 'QA 잔여일수',
+  })
+  await must('PUT', `/hr/vacations/${extra.id}/status`, { status: 'APPROVED' })
+  const after = (await must('GET', '/hr/vacations/summary?year=2026'))
+    .find((r) => r.empName === me.name)
+  eq('승인한 만큼 사용일수가 는다', Number(after.usedDays) - Number(before.usedDays), 1)
+  eq('잔여일수도 그만큼 준다', Number(before.remainingDays) - Number(after.remainingDays), 1)
+
+  // 일수는 기간 안이어야 한다 — 하루짜리에 100일을 넣으면 잔여일수가 통째로 틀어진다
+  await rejects('기간보다 많은 일수는 거부', 'POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: '2026-05-07', endDate: '2026-05-07',
+    days: 100, reason: 'QA 과다일수',
+  })
+  await rejects('0일짜리 휴가도 거부', 'POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: '2026-05-07', endDate: '2026-05-07',
+    days: 0, reason: 'QA 0일',
+  })
+  // 반차(0.5)는 되어야 한다 — 상한만 막고 하한은 0 초과다
+  const half = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '반차', startDate: '2026-05-08', endDate: '2026-05-08',
+    days: 0.5, reason: 'QA 반차',
+  })
+  eq('반차는 그대로 들어간다', Number(half.days), 0.5)
+
+  // 근태는 지울 수 있어야 한다. 안 그러면 잘못 넣은 근태가 잔여일수에 영원히 남는다
+  // (하네스가 만든 것도 매 회차 쌓여 잔여일수를 왜곡했다).
+  eq('근태를 지울 수 있다', (await call('DELETE', `/hr/vacations/${half.id}`)).status, 204)
+  eq('승인된 근태도 지울 수 있다(정정)', (await call('DELETE', `/hr/vacations/${extra.id}`)).status, 204)
+  eq('지우면 잔여일수가 돌아온다',
+    Number(((await must('GET', '/hr/vacations/summary?year=2026'))
+      .find((r) => r.empName === me.name)).remainingDays), Number(before.remainingDays))
+  await must('DELETE', `/hr/vacations/${vac.id}`)
+  eq('시험용 근태는 남기지 않는다',
+    (await must('GET', '/hr/vacations?year=2026')).filter((v) => (v.reason ?? '').startsWith('QA ')).length, 0)
+
   // ── 게시글 작성자는 users(username) FK 로 묶여 있다
   const post = await must('POST', '/board', {
     title: `${P}작성자 FK`, category: '자유', content: 'QA', anonymous: false,

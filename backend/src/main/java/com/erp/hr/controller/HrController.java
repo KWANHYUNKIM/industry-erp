@@ -76,6 +76,12 @@ public class HrController {
         return hrService.updateVacationStatus(id, req.status());
     }
 
+    @DeleteMapping("/vacations/{id}")
+    public ResponseEntity<Void> deleteVacation(@PathVariable Long id) {
+        hrService.deleteVacation(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/vacations/summary")
     public List<VacationSummaryRow> vacationSummary(@RequestParam(required = false) Integer year) {
         return hrService.vacationSummary(year);
