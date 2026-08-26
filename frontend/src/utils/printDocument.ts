@@ -1,6 +1,7 @@
 import { api } from '../api/client'
 import { fillAndPrint, openPrintWindow, type PrintSignLine } from './print'
 import { amountToKorean } from './amountToKorean'
+import { escapeHtml } from './escapeHtml'
 
 export { amountToKorean }
 
@@ -52,10 +53,6 @@ export interface PrintDocumentOptions {
   signLine?: PrintSignLine | null
 }
 
-const escapeHtml = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
-  )
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 

@@ -1,4 +1,5 @@
 import { tableToMatrix } from './tableExport'
+import { escapeHtml } from './escapeHtml'
 
 const PRINT_CSS = `
   * { box-sizing: border-box; }
@@ -19,10 +20,6 @@ const PRINT_CSS = `
   table.signline td.sign { height: 42px; min-width: 56px; text-align: center; vertical-align: bottom; font-size: 10px; }
 `
 
-const escapeHtml = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
-  )
 
 /** 화면의 테이블을 인쇄용 창으로 띄운다. 인쇄할 행이 없으면 false. */
 /** 인쇄용 결재란. 슬롯 이름이 비면 도장을 찍을 빈 칸으로 나간다. */
