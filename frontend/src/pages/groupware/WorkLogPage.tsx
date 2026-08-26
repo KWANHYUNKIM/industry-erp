@@ -37,9 +37,6 @@ export default function WorkLogPage() {
    * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
    */
   const [cond, setCond] = useState(() => {
-
-  // Search(F3) — 버튼 라벨이 약속한 단축키
-  useShortcut('F3', () => filterRows(search))
     const m = periodOf('금월')!
     return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
   })
@@ -78,6 +75,12 @@ export default function WorkLogPage() {
     })
     if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
   }
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키.
+  // 훅은 반드시 컴포넌트 본문 최상위에서 부른다. 예전에 이 줄이 useState 초기화 함수
+  // 안에 들어가 있었다 — 초기화는 첫 렌더에만 돌아서 두 번째 렌더에 훅 개수가 달라지고,
+  // React 가 "Rendered fewer hooks than expected" 로 화면을 통째로 죽인다.
+  useShortcut('F3', () => filterRows(search))
 
   async function doExcel() {
     const table = findDataTable(bodyRef.current)

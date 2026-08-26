@@ -153,6 +153,53 @@ console.log('\n■ tbody 의 넓은 칸이 표 너비와 맞나')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-d) 훅이 콜백 안에 들어갔나 ──────────────────────────────────────────
+console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
+
+/**
+ * React 훅은 컴포넌트 본문 <b>최상위</b>에서만 불러야 한다. 콜백 안에 들어가면
+ * 그 콜백이 도는 렌더에서만 훅이 세어져 다음 렌더에 개수가 달라지고,
+ * React 가 "Rendered fewer hooks than expected" 로 화면을 통째로 죽인다.
+ *
+ * <p>특히 <b>useState(() => {…}) 의 초기화 함수</b>가 위험하다. 첫 렌더에만 돌기 때문이다.
+ * 실제로 업무일지에서 useShortcut 한 줄이 그 안에 들어가 있었다 — 스크립트로 훅을
+ * "마지막 useState 다음 줄"에 끼워 넣다가 여러 줄짜리 초기화 함수 안에 떨어진 것이다.
+ * 타입체크는 아무 말도 안 한다.
+ */
+{
+  const HOOK = /\buse[A-Z]\w*\s*\(/
+  const bad = []
+  let checked = 0
+  for (const f of walk('frontend/src').filter((x) => x.endsWith('.tsx') || x.endsWith('.ts'))) {
+    const src = readFileSync(f, 'utf8')
+    const lines = src.split('\n')
+    // 아주 단순한 중괄호 깊이 추적: 컴포넌트 본문(깊이 1)보다 깊은 곳의 훅 호출을 본다.
+    let depth = 0
+    let inComponent = false
+    lines.forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '')
+      if (/^(export default )?function [A-Z]/.test(code.trim()) || /^const [A-Z]\w* = \(/.test(code.trim())) {
+        inComponent = true
+        depth = 0
+      }
+      const opens = (code.match(/[{(]/g) ?? []).length
+      const closes = (code.match(/[})]/g) ?? []).length
+      const before = depth
+      depth += opens - closes
+      if (!inComponent) return
+      if (!HOOK.test(code)) return
+      // 훅 줄이 시작될 때의 깊이가 1(컴포넌트 본문)보다 깊으면 콜백 안이다.
+      if (before > 1) {
+        checked++
+        bad.push(`${f.split(sep).pop()}:${i + 1}  ${code.trim().slice(0, 60)}`)
+      } else {
+        checked++
+      }
+    })
+  }
+  eq(`훅 호출 ${checked}개가 컴포넌트 최상위에 있다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 
