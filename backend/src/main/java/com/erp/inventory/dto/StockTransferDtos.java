@@ -15,7 +15,7 @@ public final class StockTransferDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "출고창고를 선택하세요.") Long fromWarehouseId,
             @NotNull(message = "입고창고를 선택하세요.") Long toWarehouseId,
-            @NotNull @Positive(message = "이동수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "이동수량을 입력하세요.") @Positive(message = "이동수량은 0보다 커야 합니다.") BigDecimal quantity,
             LocalDate transferDate,
             String reason
     ) {}

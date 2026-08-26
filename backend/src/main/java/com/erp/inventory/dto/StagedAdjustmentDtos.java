@@ -15,7 +15,7 @@ public final class StagedAdjustmentDtos {
     public record CreateStagedRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull @PositiveOrZero(message = "실사수량은 0 이상이어야 합니다.") BigDecimal actualQty,
+            @NotNull(message = "실사수량을 입력하세요.") @PositiveOrZero(message = "실사수량은 0 이상이어야 합니다.") BigDecimal actualQty,
             LocalDate requestDate,
             String reason
     ) {}

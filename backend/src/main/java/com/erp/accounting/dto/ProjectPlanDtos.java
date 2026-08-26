@@ -13,9 +13,9 @@ public final class ProjectPlanDtos {
 
     public record CreateProjectPlanRequest(
             @NotNull(message = "프로젝트를 선택하세요.") Long projectId,
-            @NotNull @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
-            @NotNull @PositiveOrZero(message = "계획매출은 0 이상이어야 합니다.") BigDecimal planRevenue,
-            @NotNull @PositiveOrZero(message = "계획원가는 0 이상이어야 합니다.") BigDecimal planCost,
+            @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
+            @NotNull(message = "계획매출을 입력하세요.") @PositiveOrZero(message = "계획매출은 0 이상이어야 합니다.") BigDecimal planRevenue,
+            @NotNull(message = "계획원가를 입력하세요.") @PositiveOrZero(message = "계획원가는 0 이상이어야 합니다.") BigDecimal planCost,
             String remark
     ) {}
 

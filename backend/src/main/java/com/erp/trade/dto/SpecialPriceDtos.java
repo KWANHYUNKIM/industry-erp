@@ -20,7 +20,7 @@ public final class SpecialPriceDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             Long partnerId,
             String priceGroup,
-            @NotNull @PositiveOrZero(message = "특별단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @NotNull(message = "특별단가를 입력하세요.") @PositiveOrZero(message = "특별단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             String remark
     ) {}
 

@@ -18,8 +18,8 @@ public final class SalesOrderDtos {
 
     public record OrderLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
     ) {}
 
     public record CreateSalesOrderRequest(
@@ -32,7 +32,7 @@ public final class SalesOrderDtos {
     ) {}
 
     public record UpdateStatusRequest(
-            @NotNull SalesOrderStatus status
+            @NotNull(message = "진행상태를 선택하세요.") SalesOrderStatus status
     ) {}
 
     public record OrderLineResponse(
@@ -101,7 +101,7 @@ public final class SalesOrderDtos {
     /** 출하처리 요청: 주문 라인별 출하수량. lines 비우면 전 라인 잔량 전체출하. */
     public record ShipLineRequest(
             @NotNull(message = "주문라인을 지정하세요.") Long orderLineId,
-            @NotNull @Positive(message = "출하수량은 0보다 커야 합니다.") BigDecimal qty
+            @NotNull(message = "출하수량을 입력하세요.") @Positive(message = "출하수량은 0보다 커야 합니다.") BigDecimal qty
     ) {}
 
     public record ShipRequest(

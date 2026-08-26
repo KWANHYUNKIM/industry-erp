@@ -2882,6 +2882,42 @@ async function scenarioDeleteInUse(f) {
 }
 
 /**
+ * <b>검증 실패 문구.</b>
+ *
+ * 제약에 message 를 안 적으면 Hibernate 가 자기 한국어 번역을 쓴다. 품목 등록 실패 응답이
+ * 실제로 이랬다: {@code "널이어서는 안됩니다 품목분류를 선택하세요. 널이어서는 안됩니다"}.
+ * 무엇을 고쳐야 하는지 알 수 없고, 같은 문구가 여러 번 반복된다.
+ *
+ * <p>ValidationMessages.properties 로 기본 문구를 갈고, 자주 닿는 제약 58곳에 항목 이름을
+ * 넣은 문구를 달았다. 여기서는 <b>사람이 읽을 수 있는 문구가 나오는지</b>를 못 박는다 —
+ * 다음에 message 없이 제약을 하나 더 달면 이 단언이 잡는다.
+ */
+async function scenarioValidationMessages(f) {
+  section('■ 검증 실패 문구')
+
+  const cases = [
+    ['품목', '/items', { code: `${P}VMSG`, name: '문구시험', unit: 'EA' }, ['단가', '안전재고', '품목분류']],
+    ['판매', '/sales', { saleDate: '2026-08-26' }, ['거래처', '창고', '품목']],
+    ['판매 라인', '/sales',
+      { saleDate: '2026-08-26', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+        lines: [{ itemId: f.product.id }] }, ['수량', '단가']],
+    ['판매계획', '/sales-plans', { itemId: f.product.id }, ['계획연도', '계획월', '계획수량']],
+  ]
+
+  for (const [label, path, body, expected] of cases) {
+    const r = await call('POST', path, body)
+    const message = String(r.data?.message ?? '')
+    eq(`${label}: 400 으로 거절한다`, r.status, 400)
+    eq(`${label}: 무엇을 고쳐야 하는지 한글로 말한다`,
+      expected.filter((w) => message.includes(w)).join() || message, expected.join())
+    eq(`${label}: Hibernate 기본 번역이 새어 나가지 않는다`,
+      /널이어서는|must not be null|must not be blank/.test(message), false)
+    eq(`${label}: 영문 필드명이 그대로 보이지 않는다`,
+      /(unitPrice|safetyStock|quantity|planQty|planYear)/.test(message), false)
+  }
+}
+
+/**
  * <b>견적·수주·발주·출하를 지울 수 있는가.</b>
  *
  * 넷 다 삭제가 아예 없었다. 거래처나 단가를 잘못 넣어도 지울 방법이 없어 취소로 덮어 두는
@@ -3149,6 +3185,7 @@ async function main() {
   await scenarioNotFound()
   await scenarioInactiveMaster(fixtures)
   await scenarioSlipDelete(fixtures)
+  await scenarioValidationMessages(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

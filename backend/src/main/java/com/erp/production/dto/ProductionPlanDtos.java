@@ -15,13 +15,15 @@ public final class ProductionPlanDtos {
     public record CreatePlanRequest(
             @NotNull(message = "제품을 선택하세요.") Long productId,
             @NotBlank(message = "계획주차를 입력하세요.") String planWeek,
-            @NotNull @PositiveOrZero BigDecimal demandQty,
-            @NotNull @PositiveOrZero BigDecimal planQty,
+            @NotNull(message = "소요량을 입력하세요.")
+            @PositiveOrZero(message = "소요량은 0 이상이어야 합니다.") BigDecimal demandQty,
+            @NotNull(message = "계획수량을 입력하세요.")
+            @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
             String remark
     ) {}
 
     public record UpdatePlanStatusRequest(
-            @NotNull ProductionPlanStatus status
+            @NotNull(message = "진행상태를 선택하세요.") ProductionPlanStatus status
     ) {}
 
     public record PlanResponse(

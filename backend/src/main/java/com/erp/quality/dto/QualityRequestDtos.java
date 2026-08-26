@@ -18,14 +18,14 @@ public final class QualityRequestDtos {
             @NotNull(message = "검사구분을 선택하세요.") QualityInspectionType type,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             String lotNo,
-            @NotNull @Positive(message = "요청수량은 0보다 커야 합니다.") BigDecimal requestQty,
+            @NotNull(message = "요청수량을 입력하세요.") @Positive(message = "요청수량은 0보다 커야 합니다.") BigDecimal requestQty,
             LocalDate dueDate,
             String requester,
             String remark
     ) {}
 
     public record UpdateStatusReq(
-            @NotNull QualityRequestStatus status
+            @NotNull(message = "진행상태를 선택하세요.") QualityRequestStatus status
     ) {}
 
     public record RequestResponse(

@@ -21,7 +21,7 @@ public final class PromissoryNoteDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             LocalDate issueDate,
             @NotNull(message = "만기일을 입력하세요.") LocalDate dueDate,
-            @NotNull @Positive(message = "어음 금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "어음 금액을 입력하세요.") @Positive(message = "어음 금액은 0보다 커야 합니다.") BigDecimal amount,
             String bankName,
             String remark
     ) {}
@@ -36,7 +36,7 @@ public final class PromissoryNoteDtos {
     public record DiscountRequest(
             Long bankAccountId,
             LocalDate discountDate,
-            @NotNull @PositiveOrZero(message = "할인료는 0 이상이어야 합니다.") BigDecimal discountFee
+            @NotNull(message = "할인료를 입력하세요.") @PositiveOrZero(message = "할인료는 0 이상이어야 합니다.") BigDecimal discountFee
     ) {}
 
     /** 부도(받을어음 전용). 어음채권을 외상매출금으로 되돌린다. */

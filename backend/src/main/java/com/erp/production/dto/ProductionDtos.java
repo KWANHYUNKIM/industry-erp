@@ -21,7 +21,7 @@ public final class ProductionDtos {
     public record CreateWorkOrderRequest(
             @NotNull(message = "제품을 선택하세요.") Long productId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull @Positive(message = "지시수량은 0보다 커야 합니다.") BigDecimal plannedQty,
+            @NotNull(message = "지시수량을 입력하세요.") @Positive(message = "지시수량은 0보다 커야 합니다.") BigDecimal plannedQty,
             LocalDate orderDate,
             LocalDate dueDate,
             String remark
@@ -51,7 +51,7 @@ public final class ProductionDtos {
 
     public record CreateProductionRequest(
             @NotNull(message = "작업지시를 선택하세요.") Long workOrderId,
-            @NotNull @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal producedQty,
+            @NotNull(message = "생산수량을 입력하세요.") @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal producedQty,
             LocalDate productionDate,
             /** 선택: 수동 소모자재 목록. 있으면 이 목록대로 소모, 없으면 BOM 자동소모 */
             List<@Valid ManualConsumeLine> materials
@@ -59,7 +59,7 @@ public final class ProductionDtos {
 
     public record ManualConsumeLine(
             @NotNull(message = "소모자재를 선택하세요.") Long componentId,
-            @NotNull @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity
+            @NotNull(message = "소모수량을 입력하세요.") @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     public record ProductionMaterialResponse(

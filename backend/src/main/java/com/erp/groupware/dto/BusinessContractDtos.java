@@ -22,7 +22,7 @@ public final class BusinessContractDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "계약 시작일을 입력하세요.") LocalDate startDate,
             @NotNull(message = "계약 종료일을 입력하세요.") LocalDate endDate,
-            @NotNull @PositiveOrZero(message = "계약금액은 0보다 작을 수 없습니다.") BigDecimal amount,
+            @NotNull(message = "계약금액을 입력하세요.") @PositiveOrZero(message = "계약금액은 0보다 작을 수 없습니다.") BigDecimal amount,
             String paymentTerms,
             String content
     ) {}

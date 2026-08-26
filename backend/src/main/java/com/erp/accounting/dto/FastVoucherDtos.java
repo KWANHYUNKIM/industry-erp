@@ -19,7 +19,7 @@ public final class FastVoucherDtos {
 
     public record LineInput(
             @NotNull(message = "계정을 선택하세요.") Long accountId,
-            @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             String description
     ) {}
 

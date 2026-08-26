@@ -17,7 +17,7 @@ public final class AsDtos {
     public record CreateAsPartRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             BigDecimal unitPrice,
             String remark
     ) {}

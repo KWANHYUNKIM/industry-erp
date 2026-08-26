@@ -79,7 +79,7 @@ public final class BankCardDtos {
     public record BankTxnRequest(
             @NotNull(message = "계좌를 선택하세요.") Long bankAccountId,
             @NotNull(message = "입금/출금을 선택하세요.") Boolean deposit,
-            @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             @NotNull(message = "상대계정을 선택하세요.") Long counterAccountId,
             Long partnerId,
             LocalDate txnDate,
@@ -117,7 +117,7 @@ public final class BankCardDtos {
             @NotNull(message = "카드를 선택하세요.") Long cardId,
             @NotBlank(message = "가맹점을 입력하세요.") String merchant,
             @NotNull(message = "비용계정을 선택하세요.") Long expenseAccountId,
-            @NotNull @Positive(message = "공급가액은 0보다 커야 합니다.") BigDecimal supplyAmount,
+            @NotNull(message = "공급가액을 입력하세요.") @Positive(message = "공급가액은 0보다 커야 합니다.") BigDecimal supplyAmount,
             /** 미입력 시 공급가액의 10% */
             @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vatAmount,
             LocalDate usageDate,

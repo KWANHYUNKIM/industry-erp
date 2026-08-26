@@ -16,9 +16,9 @@ public final class PayrollDtos {
 
     /** 수당/공제 수동 항목 입력 */
     public record LineInput(
-            @NotNull PayslipLineKind kind,
-            @NotBlank String name,
-            @NotNull BigDecimal amount,
+            @NotNull(message = "지급·공제 구분을 선택하세요.") PayslipLineKind kind,
+            @NotBlank(message = "항목명을 입력하세요.") String name,
+            @NotNull(message = "금액을 입력하세요.") BigDecimal amount,
             /** 비과세 수당(식대 등)이면 false. 비우면 과세로 본다. */
             Boolean taxable
     ) {}

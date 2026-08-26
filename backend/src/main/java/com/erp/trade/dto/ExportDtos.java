@@ -18,8 +18,8 @@ public final class ExportDtos {
 
     public record ExportLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull @Positive(message = "외화 단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "외화 단가를 입력하세요.") @Positive(message = "외화 단가를 입력하세요.") BigDecimal unitPrice
     ) {}
 
     /** 수출 인보이스 발행. 원화 환산은 발행일 고시환율로 서버가 고정한다. */

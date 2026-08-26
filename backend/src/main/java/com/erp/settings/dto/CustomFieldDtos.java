@@ -49,7 +49,7 @@ public final class CustomFieldDtos {
     // ── 값(value) ──
     /** 특정 전표의 사용자정의 값 저장: fieldKey → value 맵 */
     public record SaveValuesRequest(
-            @NotNull Map<String, String> values
+            @NotNull(message = "저장할 값을 넣으세요.") Map<String, String> values
     ) {}
 
     /** 활성 정의 + 해당 전표의 값 을 함께 반환(폼 렌더용) */

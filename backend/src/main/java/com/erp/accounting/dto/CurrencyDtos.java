@@ -38,7 +38,7 @@ public final class CurrencyDtos {
     public record RateRequest(
             @NotNull(message = "통화를 선택하세요.") Long currencyId,
             @NotNull(message = "고시일자를 입력하세요.") LocalDate rateDate,
-            @NotNull @Positive(message = "환율은 0보다 커야 합니다.") BigDecimal rate
+            @NotNull(message = "환율을 입력하세요.") @Positive(message = "환율은 0보다 커야 합니다.") BigDecimal rate
     ) {}
 
     public record RateResponse(

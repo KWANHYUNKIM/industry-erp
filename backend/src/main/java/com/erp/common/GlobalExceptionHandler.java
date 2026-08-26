@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -46,13 +47,51 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."));
     }
 
+    /**
+     * {@code ValidationMessages.properties} 가 주는 일반 문구.
+     *
+     * <p>이 문구만으로는 어느 항목이 잘못됐는지 알 수 없으므로 필드명을 앞에 붙인다.
+     * 제약에 직접 적은 문구("품목분류를 선택하세요.")는 이미 항목을 말하고 있으니 그대로 둔다.
+     */
+    private static final Set<String> GENERIC_MESSAGES = Set.of(
+            "필수 항목입니다.",
+            "하나 이상 입력하세요.",
+            "0보다 커야 합니다.",
+            "0 이상이어야 합니다.",
+            "0보다 작아야 합니다.",
+            "0 이하여야 합니다.",
+            "올바른 이메일 형식이 아닙니다.",
+            "형식이 올바르지 않습니다.");
+
+    /**
+     * 요청 본문 검증 실패.
+     *
+     * <p>예전에는 필드 오류 문구를 공백으로 이어 붙이기만 해서
+     * {@code "널이어서는 안됩니다 품목분류를 선택하세요. 널이어서는 안됩니다"} 같은 것이 나갔다.
+     * 무엇을 고쳐야 하는지 알 수 없고, 같은 문구가 여러 번 반복된다.
+     *
+     * <p>이제 (1) 일반 문구에는 필드명을 붙이고 (2) 같은 문구를 겹쳐 쓰지 않고
+     * (3) 항목을 쉼표로 나눈다.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+                .map(GlobalExceptionHandler::describe)
+                .distinct()
                 .collect(Collectors.joining(" "));
+        if (message.isBlank()) {
+            message = "입력값이 올바르지 않습니다.";
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
+    }
+
+    private static String describe(FieldError error) {
+        String message = error.getDefaultMessage();
+        if (message == null || message.isBlank()) {
+            return error.getField() + ": 값이 올바르지 않습니다.";
+        }
+        return GENERIC_MESSAGES.contains(message) ? error.getField() + ": " + message : message;
     }
 
     /**

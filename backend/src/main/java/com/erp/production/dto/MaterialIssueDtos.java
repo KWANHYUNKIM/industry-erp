@@ -15,7 +15,7 @@ public final class MaterialIssueDtos {
             @NotNull(message = "자재(품목)를 선택하세요.") Long itemId,
             Long warehouseId,
             Long workOrderId,
-            @NotNull @Positive(message = "불출수량은 0보다 커야 합니다.") BigDecimal qty,
+            @NotNull(message = "불출수량을 입력하세요.") @Positive(message = "불출수량은 0보다 커야 합니다.") BigDecimal qty,
             LocalDate issueDate,
             String note
     ) {}

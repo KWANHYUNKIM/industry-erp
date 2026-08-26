@@ -46,11 +46,11 @@ public final class LotDtos {
             Long warehouseId,
             LocalDate inboundDate,
             LocalDate expireDate,
-            @NotNull @Positive(message = "입고수량은 0보다 커야 합니다.") BigDecimal inboundQty
+            @NotNull(message = "입고수량을 입력하세요.") @Positive(message = "입고수량은 0보다 커야 합니다.") BigDecimal inboundQty
     ) {}
 
     public record ConsumeLotRequest(
-            @NotNull @Positive(message = "출고수량은 0보다 커야 합니다.") BigDecimal qty
+            @NotNull(message = "출고수량을 입력하세요.") @Positive(message = "출고수량은 0보다 커야 합니다.") BigDecimal qty
     ) {}
 
     public record HoldLotRequest(

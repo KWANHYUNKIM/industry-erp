@@ -16,7 +16,7 @@ public final class BomDtos {
 
     public record BomLineRequest(
             @NotNull(message = "자재를 선택하세요.") Long componentId,
-            @NotNull @Positive(message = "소요량은 0보다 커야 합니다.") BigDecimal quantity
+            @NotNull(message = "소요량을 입력하세요.") @Positive(message = "소요량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     /** BOM 생성/수정 (제품 기준으로 upsert) */

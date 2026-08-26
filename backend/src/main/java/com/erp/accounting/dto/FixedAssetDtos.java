@@ -21,9 +21,9 @@ public final class FixedAssetDtos {
             @NotBlank(message = "자산명을 입력하세요.") String name,
             @NotNull(message = "자산계정을 선택하세요.") Long assetAccountId,
             @NotNull(message = "취득일을 입력하세요.") LocalDate acquisitionDate,
-            @NotNull @Positive(message = "취득가액은 0보다 커야 합니다.") BigDecimal acquisitionCost,
+            @NotNull(message = "취득가액을 입력하세요.") @Positive(message = "취득가액은 0보다 커야 합니다.") BigDecimal acquisitionCost,
             @PositiveOrZero(message = "잔존가액은 0보다 작을 수 없습니다.") BigDecimal salvageValue,
-            @NotNull @Positive(message = "내용연수는 1년 이상이어야 합니다.") Integer usefulLifeYears,
+            @NotNull(message = "내용연수를 입력하세요.") @Positive(message = "내용연수는 1년 이상이어야 합니다.") Integer usefulLifeYears,
             @NotNull(message = "상각방법을 선택하세요.") DepreciationMethod method,
             /** 정률법일 때만. 연 상각률(%) */
             BigDecimal declineRate,
@@ -33,7 +33,7 @@ public final class FixedAssetDtos {
     public record DisposeRequest(
             @NotNull(message = "처분일을 입력하세요.") LocalDate disposalDate,
             /** 처분가액(매각대금). 폐기면 0 */
-            @NotNull @PositiveOrZero(message = "처분가액은 0보다 작을 수 없습니다.") BigDecimal disposalAmount
+            @NotNull(message = "처분가액을 입력하세요.") @PositiveOrZero(message = "처분가액은 0보다 작을 수 없습니다.") BigDecimal disposalAmount
     ) {}
 
     /** 특정 월(yyyy-MM)의 감가상각을 일괄 처리 */

@@ -11,7 +11,7 @@ public final class PriceOrderDtos {
     private PriceOrderDtos() {}
 
     public record PriceOrderLine(
-            @NotBlank String functionName,
+            @NotBlank(message = "기능명을 입력하세요.") String functionName,
             int applyOrder,
             boolean active
     ) {
@@ -22,6 +22,6 @@ public final class PriceOrderDtos {
 
     public record SavePriceOrderRequest(
             @NotBlank(message = "구분(category)을 지정하세요.") String category,
-            @NotNull List<PriceOrderLine> settings
+            @NotNull(message = "단가 순서를 넣으세요.") List<PriceOrderLine> settings
     ) {}
 }

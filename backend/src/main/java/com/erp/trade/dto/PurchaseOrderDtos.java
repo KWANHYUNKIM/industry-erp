@@ -20,7 +20,7 @@ public final class PurchaseOrderDtos {
     /** 발주요청 라인. 단가는 이 시점에 모를 수 있어 선택값이다(미입력 시 품목 기준단가). */
     public record OrderLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 라인 거래처(선택). 미지정 시 헤더 매입처 기준. */
             Long partnerId,
@@ -45,7 +45,7 @@ public final class PurchaseOrderDtos {
     /** 단가요청 결과 반영: 매입처가 회신한 단가를 라인별로 확정한다. */
     public record LinePriceRequest(
             @NotNull(message = "라인을 지정하세요.") Long lineId,
-            @NotNull @Positive(message = "단가는 0보다 커야 합니다.") BigDecimal unitPrice
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가는 0보다 커야 합니다.") BigDecimal unitPrice
     ) {}
 
     public record ApplyPricesRequest(

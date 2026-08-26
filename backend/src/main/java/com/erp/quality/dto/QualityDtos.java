@@ -19,7 +19,7 @@ public final class QualityDtos {
             @NotNull(message = "검사구분을 선택하세요.") QualityInspectionType type,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             String lotNo,
-            @NotNull @PositiveOrZero(message = "검사수량은 0 이상이어야 합니다.") BigDecimal inspectedQty,
+            @NotNull(message = "검사수량을 입력하세요.") @PositiveOrZero(message = "검사수량은 0 이상이어야 합니다.") BigDecimal inspectedQty,
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             QualityResult result,
             String inspector,

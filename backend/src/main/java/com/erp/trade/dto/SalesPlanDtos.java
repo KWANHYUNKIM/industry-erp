@@ -14,10 +14,10 @@ public final class SalesPlanDtos {
 
     public record CreateSalesPlanRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
-            @NotNull @Min(1) @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
-            @NotNull @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
-            @NotNull @PositiveOrZero(message = "계획금액은 0 이상이어야 합니다.") BigDecimal planAmount,
+            @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
+            @NotNull(message = "계획월을 입력하세요.") @Min(value = 1, message = "월은 1~12 입니다.") @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
+            @NotNull(message = "계획수량을 입력하세요.") @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
+            @NotNull(message = "계획금액을 입력하세요.") @PositiveOrZero(message = "계획금액은 0 이상이어야 합니다.") BigDecimal planAmount,
             String remark
     ) {}
 

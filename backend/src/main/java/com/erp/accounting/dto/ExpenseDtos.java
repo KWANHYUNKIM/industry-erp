@@ -16,7 +16,7 @@ public final class ExpenseDtos {
             LocalDate expenseDate,
             String content,
             String partnerName,
-            @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             String paymentMethod,
             String department,
             /** 귀속 프로젝트 (선택) */

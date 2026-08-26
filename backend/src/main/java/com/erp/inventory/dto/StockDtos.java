@@ -59,7 +59,7 @@ public final class StockDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             @NotNull(message = "유형을 선택하세요.") StockTransactionType type,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             /** ADJUST 시 증가(true)/감소(false). INBOUND/OUTBOUND 에서는 무시 */
             Boolean increase,
             BigDecimal unitPrice,

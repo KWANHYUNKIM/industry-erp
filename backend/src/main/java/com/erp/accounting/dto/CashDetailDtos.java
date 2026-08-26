@@ -19,7 +19,7 @@ public final class CashDetailDtos {
     public record AccountTransferRequest(
             @NotNull(message = "출금 계좌를 선택하세요.") Long fromAccountId,
             @NotNull(message = "입금 계좌를 선택하세요.") Long toAccountId,
-            @NotNull @Positive(message = "이동 금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "이동 금액을 입력하세요.") @Positive(message = "이동 금액은 0보다 커야 합니다.") BigDecimal amount,
             LocalDate transferDate,
             String description
     ) {}
