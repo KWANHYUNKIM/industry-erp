@@ -65,6 +65,12 @@ public class SalesService {
         if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
             throw ApiException.badRequest("전자결재 진행중인 전표입니다. 결재가 끝나면 확인 처리됩니다.");
         }
+        // 이미 확인된 전표를 또 확인하면 markConfirmed 가 확인일시를 지금으로 덮어쓴다.
+        // 확인일시는 마감·감사에서 "언제 확정했나"의 근거라, 더블클릭 한 번에 조용히
+        // 바뀌면 안 된다. 되돌리려면 확인취소를 거치게 한다.
+        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("이미 확인된 전표입니다: " + s.getDocNo());
+        }
         s.markConfirmed();
         return SalesResponse.from(s);
     }
@@ -75,6 +81,9 @@ public class SalesService {
         Sales s = getSales(id);
         if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
             throw ApiException.badRequest("전자결재 진행중인 전표는 확인취소할 수 없습니다.");
+        }
+        if (s.getConfirmStatus() != SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인되지 않은 전표입니다: " + s.getDocNo());
         }
         s.markUnconfirmed();
         return SalesResponse.from(s);

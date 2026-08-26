@@ -2501,6 +2501,42 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * 판매전표 확인·확인취소의 상태 전이.
+ *
+ * 이미 확인된 전표를 또 확인하면 markConfirmed 가 <b>확인일시를 지금으로 덮어썼다.</b>
+ * 확인일시는 마감·감사에서 "언제 확정했나"의 근거라, 더블클릭 한 번에 조용히 바뀌면 안 된다.
+ */
+async function scenarioConfirmTransition(f) {
+  section('■ 판매전표 확인 상태 전이')
+
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-14',
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+
+  await rejects('확인 안 된 전표의 확인취소는 거부', 'POST', `/sales/${sale.id}/unconfirm`, undefined, '확인되지 않은')
+
+  const first = await must('POST', `/sales/${sale.id}/confirm`)
+  eq('확인하면 상태가 확인', first.confirmStatusName, '확인')
+
+  await rejects('이미 확인된 전표의 재확인은 거부', 'POST', `/sales/${sale.id}/confirm`, undefined, '이미 확인된')
+
+  // 재확인이 막혔으니 확인일시가 그대로여야 한다.
+  // 문자열로 비교하면 안 된다 — 목록 응답은 나노초 끝자리를 다르게 찍는다
+  // (11:13:32.1894579 vs .189458). 같은 시각인데 다르다고 나온다.
+  const after = (await must('GET', '/sales')).find((x) => x.id === sale.id)
+  eq('확인일시가 덮어써지지 않는다',
+    new Date(after.confirmedAt).getTime(), new Date(first.confirmedAt).getTime())
+
+  await rejects('확인된 전표는 삭제 불가', 'DELETE', `/sales/${sale.id}`, undefined, '확인된 전표는 삭제할 수 없습니다')
+
+  await must('POST', `/sales/${sale.id}/unconfirm`)
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('확인취소 후에는 지워진다',
+    (await must('GET', '/sales')).some((x) => x.id === sale.id), false)
+}
+
+/**
  * HTTP 규약 수준의 잘못된 요청. 전부 <b>500</b> 으로 나가고 있었다 —
  * "Request method 'PUT' is not supported" 같은 내부 문구까지 실어서.
  *
@@ -2685,6 +2721,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioConfirmTransition(fixtures)
   await scenarioHttpProtocol()
   await scenarioDeleteInUse(fixtures)
   await scenarioNotFound()
