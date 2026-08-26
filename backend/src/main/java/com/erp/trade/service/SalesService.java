@@ -126,7 +126,11 @@ public class SalesService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new SalesDiscountRow(
-                        s.getSaleDate(), s.getDocNo(), s.getPartner().getName(), l.getItem().getName(),
+                        s.getSaleDate(), s.getDocNo(), s.getPartner().getName(),
+                        l.getItem().getCode(), l.getItem().getName(),
+                        s.getWarehouse() != null ? s.getWarehouse().getName() : null,
+                        s.getProject() != null ? s.getProject().getName() : null,
+                        s.getEmployee() != null ? s.getEmployee().getName() : null,
                         l.getQuantity(), base, sale, perUnit, amount, rate));
             }
         }

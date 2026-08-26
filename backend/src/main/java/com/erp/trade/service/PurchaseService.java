@@ -82,7 +82,11 @@ public class PurchaseService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new PurchaseDiscountRow(
-                        p.getPurchaseDate(), p.getDocNo(), p.getPartner().getName(), l.getItem().getName(),
+                        p.getPurchaseDate(), p.getDocNo(), p.getPartner().getName(),
+                        l.getItem().getCode(), l.getItem().getName(),
+                        p.getWarehouse() != null ? p.getWarehouse().getName() : null,
+                        p.getProject() != null ? p.getProject().getName() : null,
+                        p.getEmployee() != null ? p.getEmployee().getName() : null,
                         l.getQuantity(), base, buy, perUnit, amount, rate));
             }
         }

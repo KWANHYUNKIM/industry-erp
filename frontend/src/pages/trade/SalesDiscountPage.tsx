@@ -1,13 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
-/** 영업 > 판매할인현황 — 품목 기준단가 대비 실판매가 할인 내역 (GET /api/sales/discounts 연동) */
+/**
+ * 영업 > 판매할인현황 — 품목 기준단가 대비 실거래가 할인 내역 (GET /sales/discounts)
+ *
+ * <p>원본 조건 판 실측(사본):
+ *   기준일자(금월(~오늘)) · 거래유형 · 창고 · 거래처 · 프로젝트 · 거래처관리담당자 ·
+ *   <b>할인금액</b> · 양식 · 정렬/소계기준
+ * 우리는 날짜 두 칸과 검색어가 전부였고, 기간 빠른선택도 없었다.
+ *
+ * <p>창고·프로젝트·담당자는 전표에 있는데 할인 응답에 안 실려 거를 수가 없었다.
+ * 응답에 같이 싣도록 고치고(SalesDtos·PurchaseDtos) 조건으로 붙였다.
+ * 거래유형(과세/면세)은 할인 계산에 안 쓰여 아직 없다.
+ */
 interface DiscountRow {
   date: string
   docNo: string
   partnerName: string
+  itemCode: string
   itemName: string
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
   qty: number
   basePrice: number
   salePrice: number
@@ -21,8 +38,13 @@ export default function SalesDiscountPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [warehouse, setWarehouse] = useState('')
+  const [project, setProject] = useState('')
+  const [employee, setEmployee] = useState('')
+  const [minDiscount, setMinDiscount] = useState('')
 
   async function load() {
     setLoading(true)
@@ -41,7 +63,15 @@ export default function SalesDiscountPage() {
 
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || r.itemName.includes(keyword))
+  const shown = rows.filter((r) => {
+    if (keyword && !(r.partnerName.includes(keyword) || r.itemName.includes(keyword)
+      || r.itemCode.includes(keyword))) return false
+    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (project && !(r.projectName ?? '').includes(project)) return false
+    if (employee && !(r.employeeName ?? '').includes(employee)) return false
+    if (minDiscount && r.discountAmount < Number(minDiscount)) return false
+    return true
+  })
   const totalDiscount = useMemo(
     () => shown.reduce((s, r) => s + r.discountAmount, 0),
     [shown],
@@ -50,21 +80,49 @@ export default function SalesDiscountPage() {
   return (
     <EcListShell
       title="판매할인현황"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: () => {
+          setFrom(init.from); setTo(init.to)
+          setKeyword(''); setWarehouse(''); setProject(''); setEmployee(''); setMinDiscount('')
+        } },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>기간</span>
-        <input type="date" className="ec-input" style={{ width: 140 }} value={from} onChange={(e) => setFrom(e.target.value)} />
-        <span style={{ color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" style={{ width: 140 }} value={to} onChange={(e) => setTo(e.target.value)} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          할인액 합계 <b style={{ color: '#c60a2e', fontSize: 14 }}>{totalDiscount.toLocaleString()}</b>
-        </span>
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={STATUS_PICKS}
+      >
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="거래처·품목 일부" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
+                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
+                 onChange={(e) => setProject(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <input className="ec-input" placeholder="담당자 일부" value={employee}
+                 onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="할인금액">
+          <input className="ec-input" type="number" placeholder="이 금액 이상" value={minDiscount}
+                 onChange={(e) => setMinDiscount(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+      </EcStatusPanel>
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        할인 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        할인액 합계 <b style={{ color: '#c60a2e', fontSize: 14 }}>{totalDiscount.toLocaleString('ko-KR')}</b>
       </div>
       <table className="w-full text-left">
         <thead>

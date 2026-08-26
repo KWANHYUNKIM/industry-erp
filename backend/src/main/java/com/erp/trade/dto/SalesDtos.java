@@ -68,8 +68,15 @@ public final class SalesDtos {
     }
 
     /** 판매할인현황 라인 행 (품목 기준단가 대비 실판매단가 할인) */
+    /**
+     * 할인 한 줄.
+     *
+     * <p>원본 할인현황의 조건 판은 창고·프로젝트·거래처관리담당자로도 거른다.
+     * 그 값들은 전표에 이미 있는데 응답에 안 실어서 화면이 거를 수가 없었다 — 같이 보낸다.
+     */
     public record SalesDiscountRow(
-            LocalDate date, String docNo, String partnerName, String itemName,
+            LocalDate date, String docNo, String partnerName, String itemCode, String itemName,
+            String warehouseName, String projectName, String employeeName,
             BigDecimal qty, BigDecimal basePrice, BigDecimal salePrice,
             BigDecimal discountPerUnit, BigDecimal discountAmount, BigDecimal discountRate
     ) {}
