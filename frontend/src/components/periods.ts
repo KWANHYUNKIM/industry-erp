@@ -99,6 +99,22 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
      * 회계 기수. 시작월이 4월이면 4/1~다음해 3/31 이 한 기수다.
      * 오늘이 시작월 전이면 아직 지난해에 시작한 기수 안에 있다.
      */
+    /*
+     * 이번 기수의 시작부터 <b>지난달 말일까지</b>. 원본 결제내역자료비교의 버튼이다.
+     * 이번 달은 아직 마감 전이라 대사에서 빼고 보는 자리다.
+     * 기수가 이번 달에 막 시작했으면 볼 구간이 없으므로 시작일 하루로 접는다.
+     */
+    case '이번기수(~전월)': {
+      if (!fiscalStart) return null
+      const m = fiscalStart - 1
+      let y = t.getFullYear()
+      if (t.getMonth() < m) y -= 1
+      const start = new Date(y, m, 1)
+      const end = new Date(t.getFullYear(), t.getMonth(), 0)   // 지난달 말일
+      return end < start
+        ? { from: ymd(start), to: ymd(start) }
+        : { from: ymd(start), to: ymd(end) }
+    }
     case '이번기수':
     case '직전기수': {
       if (!fiscalStart) return null   // 설정을 모르면 계산하지 않는다(1월이라고 넘겨짚지 않는다)
@@ -155,6 +171,14 @@ export const STOCK_PICKS = ['금일', '전일'] as const
 
 /** 수금현황(E040217) — 회계 기수 둘이 더 붙는다 */
 export const SETTLE_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종료일'] as const
+
+/**
+ * 결제내역자료비교(E040220) — 원본 사본 실측. <b>'전월' 이 없고</b> 대신
+ * '이번기수(~전월)' 이 붙는다. 대사는 마감된 구간을 보는 자리라 이번 달을 빼고 본다.
+ */
+export const COMPARE_PICKS = [
+  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '종료일', '이번기수(~전월)',
+] as const
 
 /** 미주문현황(E040211) — 둘 다 붙는다 */
 export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const
