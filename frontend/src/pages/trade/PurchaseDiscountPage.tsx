@@ -61,6 +61,20 @@ export default function PurchaseDiscountPage() {
     if (minDiscount && r.discountAmount < Number(minDiscount)) return false
     return true
   })
+  /**
+   * 할인(+)과 할증(−)을 나눠 센다.
+   *
+   * <p>할인액이 음수면 기준단가보다 <b>비싸게</b> 거래한 것이다(할증). 예전에는 그 줄을
+   * 잔액 0 과 같은 회색으로 죽여 놔서 눈에 띄지 않았고, 합계도 할인과 상쇄돼 버렸다.
+   */
+  const discountSide = shown.reduce(
+    (a, r) => (r.discountAmount > 0 ? { count: a.count + 1, sum: a.sum + r.discountAmount } : a),
+    { count: 0, sum: 0 },
+  )
+  const premiumSide = shown.reduce(
+    (a, r) => (r.discountAmount < 0 ? { count: a.count + 1, sum: a.sum + r.discountAmount } : a),
+    { count: 0, sum: 0 },
+  )
   const totalDiscount = useMemo(
     () => shown.reduce((s, r) => s + r.discountAmount, 0),
     [shown],
@@ -103,15 +117,26 @@ export default function PurchaseDiscountPage() {
                  onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="할인금액">
-          <input className="ec-input" type="number" placeholder="이 금액 이상" value={minDiscount}
+          <input className="ec-input" type="number" placeholder="이 금액 이상(할증은 음수)" value={minDiscount}
                  onChange={(e) => setMinDiscount(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
+      {/*
+        할인과 할증을 <b>합쳐서</b> 한 숫자로 보여 주면 서로 상쇄돼 실제 규모가 감춰진다.
+        구매할인현황은 488줄 중 244줄이 할증인데, 합계 하나만 보면 그 사실이 안 보인다.
+        그래서 두 방향을 나눠 적는다.
+      */}
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        할인 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
+        전체 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
         <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        할인액 합계 <b style={{ color: '#c60a2e', fontSize: 14 }}>{totalDiscount.toLocaleString('ko-KR')}</b>
+        할인 {discountSide.count}건 <b style={{ color: '#c60a2e', fontSize: 14 }}>{discountSide.sum.toLocaleString('ko-KR')}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        할증 {premiumSide.count}건 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{premiumSide.sum.toLocaleString('ko-KR')}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        순액 <b style={{ color: totalDiscount < 0 ? 'var(--ec-blue)' : '#c60a2e', fontSize: 14 }}>
+          {totalDiscount.toLocaleString('ko-KR')}
+        </b>
       </div>
       <table className="w-full text-left">
         <thead>
@@ -138,7 +163,13 @@ export default function PurchaseDiscountPage() {
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.basePrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.buyPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.discountAmount > 0 ? '#c60a2e' : '#9aa1ab' }}>{r.discountAmount.toLocaleString()}</td>
+              {/* 음수 = 기준단가보다 비싸게 거래한 것(할증). 회색으로 죽이면 놓친다. */}
+              <td style={{
+                textAlign: 'right', fontWeight: r.discountAmount === 0 ? 400 : 600,
+                color: r.discountAmount > 0 ? '#c60a2e' : r.discountAmount < 0 ? 'var(--ec-blue)' : '#9aa1ab',
+              }}>
+                {r.discountAmount.toLocaleString('ko-KR')}{r.discountAmount < 0 ? ' (할증)' : ''}
+              </td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.discountRate.toLocaleString()}</td>
             </tr>
           ))}

@@ -144,7 +144,7 @@ export default function OutsourcingDiscountPage() {
                  onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="할인금액">
-          <input className="ec-input" type="number" placeholder="이 금액 이상" value={minDiscount}
+          <input className="ec-input" type="number" placeholder="이 금액 이상(할증은 음수)" value={minDiscount}
                  onChange={(e) => setMinDiscount(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
@@ -185,7 +185,13 @@ export default function OutsourcingDiscountPage() {
               <td>{r.process}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.listAmount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.discountAmount > 0 ? '#c60a2e' : '#9aa1ab' }}>{r.discountAmount.toLocaleString()}</td>
+              {/* 음수 = 정상외주비보다 비싸게 준 것(할증). 회색으로 죽이면 놓친다. */}
+              <td style={{
+                textAlign: 'right', fontWeight: r.discountAmount === 0 ? 400 : 600,
+                color: r.discountAmount > 0 ? '#c60a2e' : r.discountAmount < 0 ? 'var(--ec-blue)' : '#9aa1ab',
+              }}>
+                {r.discountAmount.toLocaleString('ko-KR')}{r.discountAmount < 0 ? ' (할증)' : ''}
+              </td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{(r.listAmount - r.discountAmount).toLocaleString()}</td>
             </tr>
           ))}
