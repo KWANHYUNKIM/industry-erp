@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
-import { ymd } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel from '../../components/EcStatusPanel'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -96,15 +97,25 @@ export default function ExecutiveReportPage() {
       title="경영자보고서"
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.</p>
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      />
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 40, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
-        <span style={{ marginLeft: 12, fontSize: 12, color: '#8a929c' }}>매출 {report.saleCount}건 · 매입 {report.buyCount}건</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        매출 <b style={{ color: '#3c4553' }}>{report.saleCount}</b>건
+        <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
+        매입 <b style={{ color: '#3c4553' }}>{report.buyCount}</b>건
       </div>
+
+      {/*
+        매출총이익을 (기간 매출 − 기간 매입)으로 잡는다. 일별·월별이익현황에서 이 계산을
+        고쳤지만 여기는 그대로 뒀다 — 화면이 '추정치'라고 말하고 있고, 경영자보고서는
+        기간 현금흐름에 가까운 요약이라서다. 정확한 이익은 일별이익현황(원가 기준 선택)을 본다.
+      */}
+      <p className="mb-2 text-xs text-slate-500">기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.</p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

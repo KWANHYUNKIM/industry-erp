@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, StockAdjustment } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 품질관리 — 불량률파악보고서 (이카운트 E040512)
@@ -76,31 +78,38 @@ export default function DefectReportPage() {
     handled: s.handled + r.defectHandled, disposed: s.disposed + r.disposed,
   }), { inspected: 0, defect: 0, handled: 0, disposed: 0 }), [rows])
   const overallRate = totals.inspected > 0 ? (totals.defect / totals.inspected) * 100 : 0
-  const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+  const reset = () => { setFrom(''); setTo(''); setKeyword('') }
 
   return (
     <EcListShell
       title="불량률파악보고서"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명·코드 일부" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+        </EcCond>
+      </EcStatusPanel>
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
-        </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          전체 불량률 <b style={{ color: rateColor(overallRate), fontSize: 15 }}>{overallRate.toFixed(2)}%</b>
-          <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
-          폐기계 <b style={{ color: '#6b3fb0', fontSize: 14 }}>{won(totals.disposed)}</b>
-        </div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        전체 불량률 <b style={{ color: rateColor(overallRate), fontSize: 15 }}>{overallRate.toFixed(2)}%</b>
+        <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
+        폐기계 <b style={{ color: '#6b3fb0', fontSize: 14 }}>{won(totals.disposed)}</b>
       </div>
+
+      <p className="mb-2 text-xs text-slate-500">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 
 /**
  * 관리 > 지각현황 (이카운트 E070307 지각현황(ID))
@@ -78,18 +80,34 @@ export default function LateArrivalPage() {
   }, [late])
 
   const totalMin = useMemo(() => late.reduce((s, r) => s + r.lateMin, 0), [late])
+  const reset = () => { setFrom(''); setTo(''); setKeyword('') }
 
   return (
-    <EcListShell title="지각현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
-      onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn" onClick={load}>조회</button>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>출근기준 {WORK_START} 이후 = 지각</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
+    <EcListShell
+      title="지각현황"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="사원" pick>
+          <input className="ec-input" placeholder="사원명 일부" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+        </EcCond>
+      </EcStatusPanel>
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
+        <span style={{ color: '#9aa1ab' }}>출근기준 {WORK_START} 이후 = 지각</span>
+        <span style={{ marginLeft: 'auto' }}>
           지각 <b style={{ color: '#c60a2e', fontSize: 14 }}>{late.length}</b>건
           <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
           총 지각시간 <b style={{ color: '#c07a00', fontSize: 14 }}>{totalMin.toLocaleString()}</b>분
