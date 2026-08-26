@@ -139,6 +139,56 @@ async function seed() {
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
 /**
+ * <b>근거수주가 붙은 판매는 주문수량을 넘길 수 없다.</b>
+ *
+ * 출하는 잔량을 검사하는데(초과하면 거부) 판매는 아무 검사가 없었다. 그래서 수주 50개에
+ * 판매전표를 57개까지 끊을 수 있었다 — 개발 DB 에 실제로 <b>146건</b>이 그 상태였다.
+ * 미판매현황은 음수를 0 으로 잘라 보여 주므로 화면상으로는 멀쩡해 보였고,
+ * 그래서 아무도 몰랐다.
+ */
+async function scenarioSaleWithinOrder(f) {
+  section('■ 근거수주 잔량 검사(판매)')
+
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-13',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
+  })
+  const line = (qty) => ({
+    saleDate: '2026-07-13', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: qty, unitPrice: 1000, sourceOrderId: order.id }],
+  })
+
+  const first = await must('POST', '/sales', line(6))
+  eq('잔량 안이면 통과', first.lines[0].quantity, 6)
+  const second = await must('POST', '/sales', line(4))
+  eq('남은 만큼도 통과', second.lines[0].quantity, 4)
+
+  const over = await call('POST', '/sales', line(1))
+  eq('주문수량을 넘기면 거부', over.status, 400)
+  eq('얼마나 넘쳤는지 알려 준다',
+    /근거수주의 잔량을 초과합니다/.test(String(over.data?.message ?? '')), true)
+
+  // 수량을 그대로 둔 수정은 통과해야 한다 — 자기 수량을 두 번 세면 멀쩡한 수정이 막힌다
+  const edited = await call('PUT', `/sales/${first.id}`, { ...line(6), remark: 'QA 그대로 수정' })
+  eq('수량 그대로 수정은 통과', edited.status, 200)
+  // 줄이는 수정도 통과, 늘리는 수정은 잔량만큼만
+  eq('줄이는 수정은 통과', (await call('PUT', `/sales/${first.id}`, line(5))).status, 200)
+  eq('늘리는 수정도 잔량 안이면 통과', (await call('PUT', `/sales/${first.id}`, line(6))).status, 200)
+  eq('잔량을 넘기는 수정은 거부', (await call('PUT', `/sales/${first.id}`, line(7))).status, 400)
+
+  // 근거수주에 없는 품목은 애초에 붙일 수 없다
+  const other = await call('POST', '/sales', {
+    saleDate: '2026-07-13', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 100, sourceOrderId: order.id }],
+  })
+  eq('근거수주에 없는 품목은 거부', other.status, 400)
+
+  await must('DELETE', `/sales/${second.id}`)
+  await must('DELETE', `/sales/${first.id}`)
+  await must('DELETE', `/sales-orders/${order.id}`)
+}
+
+/**
  * <b>미출하현황이 말하는 미출하수량 = 실제로 낼 수 있는 잔량.</b>
  *
  * 예전에는 미출하수량을 "주문 − 출하<b>완료</b>" 로 냈다. 출하지시(READY)만 낸 수량은
@@ -214,22 +264,31 @@ async function scenarioUnsold(f) {
   eq('근거전표 없는 판매는 미판매에 영향 없음', (await un()).unsoldQty, 30)
 
   // 잔량을 마저 팔면 목록에서 빠진다
-  await must('POST', '/sales', {
+  const sale3 = await must('POST', '/sales', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-13',
     lines: [{ itemId: f.product.id, quantity: 30, unitPrice: 2000, sourceOrderId: order.id }],
   })
   eq('전량 판매 후 미판매 목록에서 사라짐',
     (await must('GET', '/sales-orders/unsold')).filter((r) => r.orderLineId === lineId).length, 0)
 
-  // 주문보다 많이 팔아도 음수로 내려가지 않는다
-  await must('POST', '/sales', {
+  /*
+   * 예전에는 여기서 "주문보다 많이 팔아도 음수로 내려가지 않는다" 를 못 박았다.
+   * 즉 <b>초과 판매가 되는 것을 정상으로 적어 둔 것</b>이고, 이 시나리오가 매 회차
+   * 7개씩 초과 판매를 만들어 개발 DB 에 146건이 쌓였다.
+   * 미판매현황이 음수를 0 으로 잘라 보여 주니 화면은 멀쩡해 보였다.
+   * 이제 판매도 출하처럼 근거수주의 잔량을 넘길 수 없다.
+   */
+  const over = await call('POST', '/sales', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-13',
     lines: [{ itemId: f.product.id, quantity: 7, unitPrice: 2000, sourceOrderId: order.id }],
   })
-  eq('초과 판매해도 미판매는 음수가 아니라 목록에서 빠진 채',
+  eq('주문보다 많이 팔 수 없다', over.status, 400)
+  eq('그래서 미판매 목록에도 안 나타난다',
     (await must('GET', '/sales-orders/unsold')).filter((r) => r.orderLineId === lineId).length, 0)
 
-  void sale1; void sale2
+  // 만든 전표는 치운다 — 안 지우면 매 회차 쌓여 재고와 채권을 밀어낸다
+  for (const x of [sale3, sale2, sale1]) await must('DELETE', `/sales/${x.id}`)
+  await must('DELETE', `/sales-orders/${order.id}`)
 }
 
 /** 수주 → 출하지시 → 출하완료 → 미출고 반영 */
@@ -3301,6 +3360,7 @@ async function main() {
   await scenarioShipment(fixtures)
   await scenarioUnsold(fixtures)
   await scenarioUnshippedMatchesRemaining(fixtures)
+  await scenarioSaleWithinOrder(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

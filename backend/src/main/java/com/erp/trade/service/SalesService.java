@@ -5,6 +5,8 @@ import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.SalesOrder;
+import com.erp.trade.domain.SalesOrderLine;
 import com.erp.trade.domain.SalesConfirmStatus;
 import com.erp.trade.domain.SalesLine;
 import com.erp.inventory.domain.StockTransactionType;
@@ -15,6 +17,7 @@ import com.erp.trade.dto.SalesDtos.SalesLineRequest;
 import com.erp.trade.dto.SalesDtos.SalesResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.trade.repository.MallOrderRepository;
+import com.erp.trade.repository.SalesLineRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.trade.repository.SalesRepository;
 import com.erp.trade.repository.TaxInvoiceRepository;
@@ -28,6 +31,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import com.erp.hr.service.EmployeeService;
 import com.erp.inventory.service.ItemService;
@@ -56,6 +61,7 @@ public class SalesService {
     private final TaxInvoiceRepository taxInvoiceRepository;
     // 명세 라인의 근거전표(수주). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
     private final SalesOrderRepository salesOrderRepository;
+    private final SalesLineRepository salesLineRepository;
     private final MallOrderRepository mallOrderRepository;
 
     /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
@@ -141,6 +147,7 @@ public class SalesService {
     public SalesResponse create(CreateSalesRequest req, String username) {
         LocalDate saleDate = req.saleDate() != null ? req.saleDate() : LocalDate.now();
         requireUsableMasters(req);
+        requireWithinOrderQty(req, null);
 
         Sales sales = Sales.builder()
                 .docNo(generateDocNo(saleDate))
@@ -164,6 +171,8 @@ public class SalesService {
     public SalesResponse update(Long id, CreateSalesRequest req, String username) {
         Sales sales = getSales(id);
         ensureEditable(sales, "수정");
+        // 자기 자신은 빼고 센다 — 안 그러면 수량을 그대로 둔 수정도 "잔량 초과" 로 거부된다.
+        requireWithinOrderQty(req, id);
 
         // 되돌리기는 반드시 '바꾸기 전' 창고·일자로 해야 한다. 창고를 옮기는 수정이면
         // 옛 창고에 되돌리고 새 창고에서 빼야 재고가 맞는다.
@@ -249,6 +258,59 @@ public class SalesService {
     }
 
     /** 헤더 부가정보 + 라인 + 합계 + 재고 출고. create/update 가 공유한다. */
+    /**
+     * 근거수주가 붙은 라인은 <b>주문수량을 넘길 수 없다.</b>
+     *
+     * <p>출하는 잔량을 검사하는데(초과하면 거부) 판매는 아무 검사가 없었다. 그래서 수주 50개에
+     * 판매전표를 57개까지 끊을 수 있었고(개발 DB 에 실제로 146건), 미판매현황은 음수를
+     * 0 으로 잘라 보여 줘서 <b>화면상으로는 멀쩡해 보였다</b>.
+     *
+     * <p>판매 라인은 수주 <b>헤더</b>만 가리키므로 라인 대 라인이 아니라 품목으로 맞춘다
+     * (미판매현황이 쓰는 것과 같은 규칙).
+     *
+     * @param excludeSalesId 수정 중인 전표. 자기 수량을 두 번 세면 멀쩡한 수정이 거부된다.
+     */
+    private void requireWithinOrderQty(CreateSalesRequest req, Long excludeSalesId) {
+        Map<Long, Map<Long, BigDecimal>> wanted = new HashMap<>();
+        for (SalesLineRequest lr : req.lines()) {
+            if (lr.sourceOrderId() == null) continue;
+            wanted.computeIfAbsent(lr.sourceOrderId(), k -> new HashMap<>())
+                    .merge(lr.itemId(), lr.quantity(), BigDecimal::add);
+        }
+        for (Map.Entry<Long, Map<Long, BigDecimal>> e : wanted.entrySet()) {
+            SalesOrder order = salesOrderRepository.findById(e.getKey())
+                    .orElseThrow(() -> ApiException.notFound("근거전표(수주)를 찾을 수 없습니다. id=" + e.getKey()));
+
+            Map<Long, BigDecimal> ordered = new HashMap<>();
+            for (SalesOrderLine ol : order.getLines()) {
+                ordered.merge(ol.getItem().getId(), ol.getQuantity(), BigDecimal::add);
+            }
+            Map<Long, BigDecimal> already = new HashMap<>();
+            for (SalesLineRepository.OrderItemAggregate a
+                    : salesLineRepository.aggregateSoldByOrder(e.getKey(), excludeSalesId)) {
+                already.merge(a.getItemId(), a.getQty(), BigDecimal::add);
+            }
+
+            for (Map.Entry<Long, BigDecimal> w : e.getValue().entrySet()) {
+                BigDecimal orderQty = ordered.getOrDefault(w.getKey(), BigDecimal.ZERO);
+                if (orderQty.signum() == 0) {
+                    throw ApiException.badRequest(
+                            "근거수주 " + order.getOrderNo() + " 에 없는 품목입니다: "
+                                    + itemService.get(w.getKey()).getName());
+                }
+                BigDecimal remain = orderQty.subtract(already.getOrDefault(w.getKey(), BigDecimal.ZERO));
+                if (w.getValue().compareTo(remain) > 0) {
+                    throw ApiException.badRequest(String.format(
+                            "근거수주의 잔량을 초과합니다. 수주=%s, 품목=%s, 주문=%s, 이미판매=%s, 잔량=%s, 요청=%s",
+                            order.getOrderNo(), itemService.get(w.getKey()).getName(),
+                            orderQty.toPlainString(),
+                            already.getOrDefault(w.getKey(), BigDecimal.ZERO).toPlainString(),
+                            remain.toPlainString(), w.getValue().toPlainString()));
+                }
+            }
+        }
+    }
+
     private void applyContent(Sales sales, CreateSalesRequest req, String username) {
         boolean taxable = req.taxable() == null || req.taxable();
         sales.setRemark(req.remark());
