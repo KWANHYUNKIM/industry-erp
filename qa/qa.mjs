@@ -139,6 +139,42 @@ async function seed() {
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
 /**
+ * <b>단가일괄변경은 화면이 말한 단가만 바꾼다.</b>
+ *
+ * 품목 단가가 하나뿐이던 시절, 구매단가일괄변경도 판매단가를 바꿨다(주석에
+ * "둘 다 표준단가 unitPrice 를 변경" 이라고 적혀 있었다). 매입가를 올리려고 눌렀는데
+ * <b>판매가가 올라가</b> 그 뒤의 판매·이익·채권이 전부 딸려 움직였다.
+ */
+async function scenarioPriceBulkField(f) {
+  section('■ 단가일괄변경 대상')
+
+  const before = (await must('GET', '/price-bulk/items')).find((r) => r.id === f.product.id)
+  const sale0 = Number(before.unitPrice)
+  const buy0 = Number(before.purchasePrice)
+
+  await must('POST', '/price-bulk/apply',
+    { field: 'purchase', mode: 'amount', value: 500, itemIds: [f.product.id] })
+  const afterBuy = (await must('GET', '/price-bulk/items')).find((r) => r.id === f.product.id)
+  eq('구매단가일괄변경은 구매단가를 바꾼다', Number(afterBuy.purchasePrice), buy0 + 500)
+  eq('그때 판매단가는 그대로다', Number(afterBuy.unitPrice), sale0)
+
+  await must('POST', '/price-bulk/apply',
+    { field: 'sale', mode: 'amount', value: 100, itemIds: [f.product.id] })
+  const afterSale = (await must('GET', '/price-bulk/items')).find((r) => r.id === f.product.id)
+  eq('판매단가일괄변경은 판매단가를 바꾼다', Number(afterSale.unitPrice), sale0 + 100)
+  eq('그때 구매단가는 그대로다', Number(afterSale.purchasePrice), buy0 + 500)
+
+  // 되돌린다 — 안 되돌리면 뒤 시나리오의 금액이 매 회차 밀린다
+  await must('POST', '/price-bulk/apply',
+    { field: 'purchase', mode: 'amount', value: -500, itemIds: [f.product.id] })
+  await must('POST', '/price-bulk/apply',
+    { field: 'sale', mode: 'amount', value: -100, itemIds: [f.product.id] })
+  const back = (await must('GET', '/price-bulk/items')).find((r) => r.id === f.product.id)
+  eq('되돌리면 원래 판매단가', Number(back.unitPrice), sale0)
+  eq('되돌리면 원래 구매단가', Number(back.purchasePrice), buy0)
+}
+
+/**
  * <b>구매할인은 구매단가를 기준으로 잰다.</b>
  *
  * 품목 단가가 하나뿐이던 시절에는 구매할인현황이 <b>판매</b> 기준단가와 매입가를 견줬다.
@@ -3463,6 +3499,7 @@ async function main() {
   await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioSaleWithinOrder(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
+  await scenarioPriceBulkField(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

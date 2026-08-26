@@ -10,11 +10,20 @@ interface PriceBulkItem {
   spec: string | null
   unit: string
   unitPrice: number
+  /** 구매단가. 0 이면 안 정한 것이다. */
+  purchasePrice: number
   avgSalePrice: number | null
   avgPurchasePrice: number | null
 }
 
 export default function SalesPriceBulkPage() {
+  /**
+   * 이 화면이 바꾸는 단가. 판매단가일괄변경은 판매단가, 구매단가일괄변경은 구매단가다.
+   * 예전에는 응답에 판매단가밖에 없어 <b>구매 화면의 '현재단가' 도 판매단가</b>였고,
+   * 서버도 둘 다 판매단가를 바꿨다 — 구매단가를 올리려다 판매가가 올랐다.
+   */
+  const priceOf = (r: PriceBulkItem) => r.unitPrice
+
   const [rows, setRows] = useState<PriceBulkItem[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [mode, setMode] = useState<'rate' | 'amount'>('rate')
@@ -126,7 +135,7 @@ export default function SalesPriceBulkPage() {
             </th>
             <th>품목코드</th><th>품목명</th>
             <th style={{ textAlign: 'right' }}>판매평균단가</th>
-            <th style={{ textAlign: 'right' }}>현재단가</th><th style={{ textAlign: 'right' }}>변경단가</th>
+            <th style={{ textAlign: 'right' }}>현재판매단가</th><th style={{ textAlign: 'right' }}>변경단가</th>
             <th style={{ textAlign: 'right' }}>증감</th><th style={{ textAlign: 'right' }}>증감율(%)</th>
           </tr>
         </thead>
@@ -137,9 +146,9 @@ export default function SalesPriceBulkPage() {
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>품목이 없습니다.</td></tr>
           ) : shown.map((r) => {
             const checked = selected.has(r.id)
-            const newPrice = previewPrice(r.unitPrice, checked)
-            const diff = newPrice - r.unitPrice
-            const rate = r.unitPrice ? Math.round(diff / r.unitPrice * 100) : 0
+            const newPrice = previewPrice(priceOf(r), checked)
+            const diff = newPrice - priceOf(r)
+            const rate = priceOf(r) ? Math.round(diff / priceOf(r) * 100) : 0
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -148,7 +157,7 @@ export default function SalesPriceBulkPage() {
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
                 <td>{r.name}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.avgSalePrice != null ? r.avgSalePrice.toLocaleString() : '-'}</td>
-                <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{priceOf(r).toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: checked ? 600 : 400 }}>{newPrice.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', color: diff > 0 ? '#c60a2e' : diff < 0 ? '#1c7c3c' : '#9aa1ab' }}>{diff.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{rate.toLocaleString()}</td>

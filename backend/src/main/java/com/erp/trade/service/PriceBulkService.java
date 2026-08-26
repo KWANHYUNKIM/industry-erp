@@ -24,7 +24,9 @@ import com.erp.trade.dto.PriceBulkDtos;
 
 /**
  * 판매/구매 단가일괄변경 서비스.
- * 기존 ItemRepository 를 재사용하며, Item 의 표준단가(unitPrice)만 변경한다(컬럼 추가 금지).
+ * field 에 따라 <b>판매단가(unitPrice)</b> 또는 <b>구매단가(purchasePrice)</b> 를 바꾼다.
+ * 예전에는 컬럼이 하나뿐이라 구매단가일괄변경도 판매단가를 바꿨다 — 화면 이름과 다른 값을
+ * 건드리는 셈이라, 구매단가를 올리려다 판매가가 올랐다.
  * 판매/구매 평균단가는 판매·구매 라인 집계(공급가액 합 / 수량 합)로 파생해 참고용으로 내려준다.
  */
 @Service
@@ -57,6 +59,7 @@ public class PriceBulkService {
                 .map(i -> new PriceBulkItemResponse(
                         i.getId(), i.getCode(), i.getName(), i.getSpec(), i.getUnit(),
                         i.getUnitPrice(),
+                        i.getPurchasePrice(),
                         avgSale.get(i.getId()),
                         avgPurchase.get(i.getId())))
                 .toList();
@@ -79,8 +82,10 @@ public class PriceBulkService {
         }
 
         List<PriceBulkUpdatedItem> updated = new ArrayList<>();
+        boolean sale = "sale".equals(field);
         for (Item item : items) {
-            BigDecimal oldPrice = item.getUnitPrice();
+            // 화면이 말한 단가를 바꾼다. 판매단가일괄변경은 판매단가, 구매단가일괄변경은 구매단가.
+            BigDecimal oldPrice = sale ? item.getUnitPrice() : item.getPurchasePrice();
             BigDecimal newPrice;
             if ("rate".equals(mode)) {
                 // 증감율(%): new = old * (1 + value/100)
@@ -94,7 +99,11 @@ public class PriceBulkService {
             if (newPrice.compareTo(BigDecimal.ZERO) < 0) {
                 newPrice = BigDecimal.ZERO;
             }
-            item.setUnitPrice(newPrice);
+            if (sale) {
+                item.setUnitPrice(newPrice);
+            } else {
+                item.setPurchasePrice(newPrice);
+            }
             updated.add(new PriceBulkUpdatedItem(item.getId(), item.getCode(), item.getName(), oldPrice, newPrice));
         }
         return new PriceBulkApplyResponse(updated.size(), updated);

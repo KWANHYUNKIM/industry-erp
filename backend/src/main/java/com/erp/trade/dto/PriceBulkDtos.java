@@ -23,14 +23,17 @@ public final class PriceBulkDtos {
             String name,
             String spec,
             String unit,
+            /** 판매단가. 판매단가일괄변경의 '현재단가'. */
             BigDecimal unitPrice,
+            /** 구매단가. 구매단가일괄변경의 '현재단가'. 0 이면 안 정한 것이다. */
+            BigDecimal purchasePrice,
             BigDecimal avgSalePrice,
             BigDecimal avgPurchasePrice
     ) {}
 
     /**
      * 일괄변경 요청.
-     * field: "sale" | "purchase" (화면 구분용 — 둘 다 표준단가 unitPrice 를 변경)
+     * field: "sale" 이면 판매단가(unitPrice), "purchase" 면 구매단가(purchasePrice) 를 바꾼다.
      * mode:  "rate"(증감율 %, 음수 가능) | "amount"(증감액, 음수 가능)
      */
     public record PriceBulkApplyRequest(
