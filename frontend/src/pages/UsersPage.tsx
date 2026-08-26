@@ -188,7 +188,7 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
       </div>
 
       <div className="mt-4">
-        <label className="mb-2 block text-sm text-slate-600">권한</label>
+        <label className="mb-2 block text-sm text-slate-600">권한 *</label>
         <div className="flex flex-wrap gap-3">
           {roles.map((r) => (
             <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
@@ -203,10 +203,22 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
         </div>
       </div>
 
+      {/* 권한을 전부 해제하면 예전에는 서버가 STAFF(권한 22개)를 조용히 붙였다.
+          이제 서버가 거절하므로, 여기서도 눌리기 전에 이유를 보여 준다. */}
+      {selectedRoles.length === 0 && (
+        <p style={{ marginTop: 8, color: '#c60a2e', fontSize: 12.5 }}>
+          권한그룹을 하나 이상 선택하세요.
+        </p>
+      )}
+
       {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-        <button type="submit" disabled={submitting} className="ec-btn ec-btn-primary">
+        <button
+          type="submit"
+          disabled={submitting || selectedRoles.length === 0}
+          className="ec-btn ec-btn-primary"
+        >
           {submitting ? '등록 중…' : '등록'}
         </button>
       </div>

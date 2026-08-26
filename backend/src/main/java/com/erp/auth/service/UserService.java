@@ -115,13 +115,21 @@ public class UserService {
                 .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다. id=" + id));
     }
 
+    /**
+     * 역할 이름을 실제 역할로 바꾼다.
+     *
+     * <p><b>비어 있으면 거절한다.</b> 예전에는 역할을 안 주면 STAFF 를 자동으로 붙였는데,
+     * STAFF 는 권한을 22개 가진 역할이다. 화면에서 권한 체크박스를 전부 해제하고 등록하면
+     * "권한 없음"으로 만든 줄 알지만 실제로는 거의 전권을 가진 계정이 생겼다.
+     * 실수로 빠뜨린 것과 일부러 비운 것을 서버가 구분할 수 없으니, 조용히 고르지 말고 물어야 한다.
+     *
+     * <p>수정({@code update})에서 {@code roleNames} 가 {@code null} 인 것은 "역할은 그대로"라는
+     * 뜻이고 호출부가 걸러낸다. 여기까지 왔다는 것은 역할을 정하겠다는 뜻이다.
+     */
     private Set<Role> resolveRoles(Set<String> roleNames) {
         Set<Role> roles = new HashSet<>();
         if (roleNames == null || roleNames.isEmpty()) {
-            // 역할 미지정 시 기본 STAFF 부여
-            roles.add(roleRepository.findByName("STAFF")
-                    .orElseThrow(() -> ApiException.badRequest("기본 역할(STAFF)이 존재하지 않습니다.")));
-            return roles;
+            throw ApiException.badRequest("권한그룹을 하나 이상 선택하세요.");
         }
         for (String name : roleNames) {
             Role role = roleRepository.findByName(name)

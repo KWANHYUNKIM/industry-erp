@@ -2578,6 +2578,19 @@ async function scenarioPayrollReadGuard() {
   eq('PAYROLL(급여이체)도 계좌 드롭다운을 쓴다',
     (await asUser(`${P2.toLowerCase()}pay`, 'qatest1234', '/bank-cards/accounts')).status, 200)
 
+  // 역할을 안 고르고 등록하면 예전에는 STAFF 가 조용히 붙었다. STAFF 는 권한이 22개라,
+  // 권한 체크박스를 전부 해제하고 만든 계정이 사실상 전권을 가졌다.
+  // 실수로 빠뜨린 것과 일부러 비운 것을 서버는 구분할 수 없으니 거절해야 한다.
+  const noRole = await call('POST', '/users',
+    { username: `${P2.toLowerCase()}norole`, password: 'qatest1234', name: '역할없음', roleNames: [] })
+  eq('역할을 안 고르면 등록이 거절된다', noRole.status, 400)
+  eq('거절 사유를 알려 준다', noRole.data?.message, '권한그룹을 하나 이상 선택하세요.')
+  const noField = await call('POST', '/users',
+    { username: `${P2.toLowerCase()}norole2`, password: 'qatest1234', name: '역할없음' })
+  eq('roleNames 를 아예 빠뜨려도 마찬가지다', noField.status, 400)
+  eq('조용히 STAFF 가 붙지 않는다',
+    (await must('GET', '/users')).filter((u) => u.username.startsWith(`${P2.toLowerCase()}norole`)).length, 0)
+
   for (const u of [none, pay, acc]) await must('DELETE', `/users/${u.id}`)
   for (const r of (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2))) {
     await must('DELETE', `/roles/${r.id}`)
