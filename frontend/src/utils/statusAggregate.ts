@@ -45,7 +45,12 @@ export function weekOfYear(iso: string): number {
   return Math.floor((days + ((jan1.getDay() + 6) % 7)) / 7) + 1
 }
 
-/** 한 행이 어느 그룹에 속하는지. 값이 없으면 묶어서 보여 준다 — 빈칸이 흩어지면 못 읽는다. */
+/**
+ * 한 행이 어느 그룹에 속하는지. 값이 없으면 묶어서 보여 준다 — 빈칸이 흩어지면 못 읽는다.
+ *
+ * <p>'값이 없다'는 null 뿐 아니라 <b>빈 문자열</b>도 포함한다. 예전엔 관리항목만 빈 문자열을
+ * 묶고 담당자·프로젝트는 안 묶어서, 이름이 빈 값이면 이름 없는 그룹이 따로 생겼다.
+ */
 export function groupValue(r: AggregatableRow, key: GroupKey | ''): string {
   if (!key) return ''
   const month = Number(r.date.slice(5, 7))
@@ -56,11 +61,11 @@ export function groupValue(r: AggregatableRow, key: GroupKey | ''): string {
     case '분기별': return `${r.date.slice(0, 4)} ${Math.floor((month - 1) / 3) + 1}분기`
     case '반기별': return `${r.date.slice(0, 4)} ${month <= 6 ? '상' : '하'}반기`
     case '연별': return r.date.slice(0, 4)
-    case '담당자별': return r.employeeName ?? '(미지정)'
+    case '담당자별': return r.employeeName || '(미지정)'
     case '창고별': return r.warehouseName
     case '거래유형별': return r.taxable ? '과세' : '면세'
     case '거래처별': return r.partner
-    case '프로젝트별': return r.projectName ?? '(없음)'
+    case '프로젝트별': return r.projectName || '(없음)'
     case '전표별': return r.docNo
     case '관리항목별': return r.managementItemName || '(없음)'
     case '품목별': return r.itemName
