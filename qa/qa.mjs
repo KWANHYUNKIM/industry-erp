@@ -2343,6 +2343,43 @@ function scenarioSourceRules() {
     .map(([f]) => baseName(f))
     .sort()
   eq('@Transactional 은 service 에만 (§6)', strayTx.join(',') || '없음', '없음')
+
+  // §6 뒤집은 쪽 — service 에서 쓰기를 하는데 트랜잭션이 없으면, 여러 번 저장하는 흐름이
+  // 중간에 실패했을 때 앞부분만 남는다. readOnly=true 인데 쓰는 것도 같은 부류다.
+  //
+  // CompanyService.create 는 예외다: 스키마 DDL·Flyway 를 각자 커밋해야 해서 일부러
+  // 트랜잭션 밖이다(그 파일 주석에 근거가 있다).
+  const TX_EXEMPT = new Set(['CompanyService.create'])
+  const writeWithoutTx = []
+  for (const [f, src] of sources) {
+    if (!inLayer(f, 'service')) continue
+    const classTx = /@Transactional[^\n]*\s*(?:public\s+)?class\s/.test(src)
+    const methods = src.matchAll(
+      /((?:@\w+(?:\([^)]*\))?\s*)*)public\s+[\w<>,[\]. ]+\s+(\w+)\s*\([^)]*\)\s*\{/g)
+    for (const m of methods) {
+      const [, anns, name] = m
+      // 메서드 본문을 중괄호 짝으로 잘라낸다
+      let depth = 1
+      let i = m.index + m[0].length
+      const start = i
+      while (i < src.length && depth > 0) {
+        if (src[i] === '{') depth++
+        else if (src[i] === '}') depth--
+        i++
+      }
+      const body = src.slice(start, i)
+      if (!/\.(save|saveAll|delete|deleteAll|deleteById)\s*\(/.test(body)) continue
+
+      const hasTx = anns.includes('@Transactional')
+      const readOnly = /@Transactional\s*\(\s*readOnly\s*=\s*true/.test(anns)
+      const id = `${baseName(f).replace('.java', '')}.${name}`
+      if (TX_EXEMPT.has(id)) continue
+      if (readOnly) writeWithoutTx.push(`${id}(readOnly인데 쓰기)`)
+      else if (!hasTx && !classTx) writeWithoutTx.push(id)
+    }
+  }
+  eq('service 의 쓰기 메서드는 트랜잭션 안에서 (§6)',
+    writeWithoutTx.sort().join(',') || '없음', '없음')
 }
 
 /**

@@ -50,6 +50,7 @@ public class BoardService {
         return first.length() > 200 ? first.substring(0, 200) : first;
     }
 
+    @Transactional
     public PostDetail create(CreatePostRequest req, String author) {
         // 익명 글도 작성자는 남긴다. 본인 확인 없이 삭제를 허용할 수 없고, 문제가 생기면
         // 추적할 수 있어야 한다. 가리는 것은 응답(BoardDtos)이다.
