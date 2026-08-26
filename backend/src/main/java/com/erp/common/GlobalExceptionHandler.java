@@ -91,6 +91,50 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * HTTP 규약 수준의 요청 잘못. 이것들도 없으면 handleGeneral 이 500 으로 받아
+     * "Request method 'PUT' is not supported" 같은 내부 문구를 그대로 흘린다.
+     * 서버가 고장난 게 아니라 요청이 규약에 안 맞는 것이므로 제 상태코드로 돌려준다.
+     */
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            org.springframework.web.HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ErrorResponse.of(HttpStatus.METHOD_NOT_ALLOWED,
+                        "이 주소에서 지원하지 않는 방식입니다: " + e.getMethod()));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+            org.springframework.web.HttpMediaTypeNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ErrorResponse.of(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                        "본문 형식을 지원하지 않습니다. JSON 으로 보내세요."));
+    }
+
+    /**
+     * Accept 헤더로 우리가 못 만드는 형식을 요구한 경우.
+     * <p>이게 없으면 <b>401</b> 이 나갔다 — 예외가 /error 로 넘어가면서 인증 정보가 없는
+     * 디스패치로 다시 평가되기 때문이다. 토큰이 멀쩡한데 로그인 화면으로 쫓겨나는 셈이라,
+     * 왜 그런지 알아낼 방법이 없었다.
+     */
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(
+            org.springframework.web.HttpMediaTypeNotAcceptableException e) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(ErrorResponse.of(HttpStatus.NOT_ACCEPTABLE,
+                        "요청한 응답 형식을 만들 수 없습니다. 이 API 는 JSON 만 돌려줍니다."));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipart(
+            org.springframework.web.multipart.MultipartException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST,
+                        "파일 업로드 형식이 아닙니다. multipart/form-data 로 보내세요."));
+    }
+
+    /**
      * 없는 경로. 이게 없으면 아래 handleGeneral 이 받아서 <b>500</b> 을 내고,
      * 메시지에 "No static resource api/..." 같은 내부 사정까지 그대로 실어 보낸다.
      * 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되므로 404 로 돌려준다.

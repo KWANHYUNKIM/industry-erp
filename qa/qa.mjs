@@ -2501,6 +2501,50 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * HTTP 규약 수준의 잘못된 요청. 전부 <b>500</b> 으로 나가고 있었다 —
+ * "Request method 'PUT' is not supported" 같은 내부 문구까지 실어서.
+ *
+ * 그중 Accept 건은 더 나빴다: 토큰이 멀쩡한데 <b>401</b> 이 나갔다.
+ * 쓰는 사람 눈에는 멀쩡히 로그인한 상태에서 갑자기 로그인 화면으로 쫓겨나는 것으로 보인다.
+ */
+async function scenarioHttpProtocol() {
+  section('■ HTTP 규약 위반 요청')
+
+  const raw = async (method, path, headers, body) => {
+    const res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
+      ...(body !== undefined ? { body } : {}),
+    })
+    const text = await res.text()
+    let data = null
+    try { data = text ? JSON.parse(text) : null } catch { data = text }
+    return { status: res.status, data }
+  }
+
+  const put = await raw('PUT', '/items', { 'Content-Type': 'application/json' }, '{}')
+  eq('지원 안 하는 메서드는 405', put.status, 405)
+
+  const text = await raw('POST', '/items', { 'Content-Type': 'text/plain' }, 'x')
+  eq('지원 안 하는 본문 형식은 415', text.status, 415)
+
+  const xml = await raw('GET', '/items', { Accept: 'application/xml' })
+  eq('만들 수 없는 응답 형식은 406', xml.status, 406)
+  eq('토큰이 멀쩡한데 401 로 쫓아내지 않는다', xml.status === 401, false)
+
+  const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
+  eq('multipart 가 아니면 400', notMultipart.status, 400)
+
+  for (const [label, r] of [['405', put], ['415', text], ['406', xml], ['400', notMultipart]]) {
+    eq(`${label}: 내부 문구가 새어 나가지 않는다`,
+      /Exception|not supported|Current request|org\.|com\.erp/.test(String(r.data?.message ?? '')), false)
+  }
+
+  // 정상 요청은 그대로여야 한다
+  eq('정상 요청은 200', (await call('GET', '/items')).status, 200)
+}
+
+/**
  * <b>쓰는 중인 마스터를 지우려 할 때.</b>
  *
  * 예전에는 500 이 나면서 Postgres 원문이 통째로 실려 나갔다 —
@@ -2641,6 +2685,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioHttpProtocol()
   await scenarioDeleteInUse(fixtures)
   await scenarioNotFound()
 
