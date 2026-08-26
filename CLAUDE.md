@@ -273,7 +273,16 @@ docker compose down -v && docker compose up -d
   박혀 있어서, 고치면 체크섬이 어긋나 그 회사의 마이그레이션이 통째로 멈춥니다.
   과거에 이 파일을 여러 번 고쳐서 지금은 `TenantMigrationRunner` 가 `repair()` 로 한 번
   맞춰 주고 있습니다. 새 변경은 `V2`, `V3` … 으로 추가하세요.
-- 어긋났는지 확인:
+- **어긋났는지 한 번에 확인:**
+  ```bash
+  node qa/schema-check.mjs
+  ```
+  자바 enum 상수 vs CHECK 제약 허용값, 본사 vs 회사 스키마의 테이블·컬럼·CHECK 를 대조한다.
+  `ddl-auto: validate` 는 기본 스키마만 보고 CHECK 내용은 아예 안 보기 때문에,
+  enum 에 값을 하나 늘리고 마이그레이션을 잊으면 기동은 멀쩡하고 그 값을 처음 저장할 때
+  23514 로 터진다. 그걸 미리 잡는다.
+
+- 직접 SQL 로 확인하려면:
   ```sql
   select p.table_name, p.column_name from information_schema.columns p
   left join information_schema.columns t
