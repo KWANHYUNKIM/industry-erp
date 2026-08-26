@@ -111,6 +111,18 @@ public class AccountingService {
         Map<Long, Bom> bomByProduct;
         Map<Long, Cost> memo = new HashMap<>();
 
+        /**
+         * 매입평균도 BOM 도 없을 때 쓰는 원가 — 품목의 <b>구매단가</b>.
+         *
+         * <p>예전에는 판매단가(unitPrice)를 썼다. 원가에 판매가를 넣으면 이익이 0 근처로
+         * 나오는데 숫자가 그럴듯해서 눈으로는 안 걸린다. 구매단가를 안 정한 품목은 0 을
+         * 돌려주고 이름을 '미상' 으로 남긴다 — 판매가를 원가라고 우기는 것보다 낫다.
+         */
+        private BigDecimal fallbackCost(Item item) {
+            BigDecimal pp = item.getPurchasePrice();
+            return pp != null && pp.signum() > 0 ? pp : BigDecimal.ZERO;
+        }
+
         Cost costOf(Long itemId) {
             return resolve(itemId, new HashSet<>());
         }
@@ -120,8 +132,8 @@ public class AccountingService {
             Item item = items.get(itemId);
             if (item == null) return new Cost(BigDecimal.ZERO, "미상");
             if (!visiting.add(itemId)) {
-                // 순환 방지: 기준단가로 대체
-                return new Cost(item.getUnitPrice(), "기준단가");
+                // 순환 방지: 품목 구매단가로 대체
+                return new Cost(fallbackCost(item), "구매단가");
             }
 
             Cost cost;
@@ -137,7 +149,7 @@ public class AccountingService {
                 }
                 cost = new Cost(sum.setScale(MONEY_SCALE, RoundingMode.HALF_UP), "제조원가");
             } else {
-                cost = new Cost(item.getUnitPrice(), "기준단가");
+                cost = new Cost(fallbackCost(item), "구매단가");
             }
 
             visiting.remove(itemId);

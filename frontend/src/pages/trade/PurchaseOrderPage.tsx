@@ -318,7 +318,10 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
   }
   function pickItem(i: number, itemId: string) {
     const it = items.find((x) => String(x.id) === itemId)
-    setLine(i, { itemId, unitPrice: it ? String(it.unitPrice) : '' })
+    // 발주는 사는 쪽이다 — 판매단가가 아니라 <b>구매단가</b>를 채운다.
+    // 구매단가를 안 정한 품목(0)은 비워 둔다. 판매가를 채우면 그게 발주단가로 굳는다.
+    const pp = it?.purchasePrice ?? 0
+    setLine(i, { itemId, unitPrice: pp > 0 ? String(pp) : '' })
   }
 
   const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))

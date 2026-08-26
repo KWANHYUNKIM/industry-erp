@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { costOf as pickCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 
@@ -16,8 +17,9 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  *
  *   월별원가 — GET /api/costs?period=YYYY-MM 의 표준원가(standardTotal). 기준일자의 월을 쓴다
  *   최종구매가 — 그 품목을 마지막으로 산 구매 라인의 단가
- *   품목단가 — Item.unitPrice. 원본 '입고단가(품목)'에 대응하지만 우리는 단가가 하나뿐이라
- *              매입/매출 구분이 없다. 이름을 그대로 쓰면 거짓이 되므로 '품목단가'라고 적는다
+ *   입고단가(품목) — 품목의 <b>구매단가</b>. 예전에는 품목 단가가 하나뿐이라 판매단가를 읽었고,
+ *              이름을 그대로 쓰면 거짓이 되므로 '품목단가'라고 적어 뒀었다.
+ *              이제 구매단가가 따로 있으니 원본 이름을 그대로 쓴다
  *
  * <b>선입선출은 빼놨다</b> — 우리는 입고 레이어를 남기지 않아서 계산할 수가 없다.
  * 있는 척하고 다른 값을 보여 주는 것보다 없는 편이 낫다.
@@ -25,7 +27,7 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * 원본 기타 중 '결재방표시'·'수량관리제외품목포함'은 대응 개념이 없다.
  * 기준일자는 재고현황과 같은 이유로 조회에 쓰지 않는다 — 백엔드 `/stock` 이 현재고만 준다.
  */
-type Basis = '월별원가' | '최종구매가' | '품목단가'
+type Basis = CostBasis
 
 interface CostRow {
   itemId: number
@@ -42,13 +44,14 @@ export default function DailyStockPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
+  /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [costNote, setCostNote] = useState('')
 
   const today = ymd(new Date())
-  const [basis, setBasis] = useState<Basis>('품목단가')
+  const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [cond, setCond] = useState({ date: today, warehouseId: '', item: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -62,12 +65,13 @@ export default function DailyStockPage() {
         api.get<StockRow[]>('/stock'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<PurchaseDoc[]>('/purchases'),
-        api.get<{ id: number; unitPrice: number }[]>('/items'),
+        // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
+        api.get<{ id: number; purchasePrice: number }[]>('/items'),
       ])
       setStock(s.data)
       setWarehouses(w.data)
       setPurchases(p.data)
-      setUnitPrices(new Map(i.data.map((it) => [it.id, it.unitPrice])))
+      setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
 
       // 원가는 기간이 없으면 빈 배열이 온다 — 그 사실을 화면에 적는다(0 원으로 뭉개지 않게).
       const c = await api.get<CostRow[]>('/costs', { params: { period } })
@@ -97,9 +101,12 @@ export default function DailyStockPage() {
 
   /** 고른 기준의 단가. 값이 없으면 null — 0 으로 채우면 재고금액이 조용히 틀어진다. */
   const priceOf = (itemId: number): number | null => {
-    if (basis === '월별원가') return costOf.get(itemId) ?? null
-    if (basis === '최종구매가') return lastPurchasePrice.get(itemId)?.price ?? null
-    return unitPrices.get(itemId) ?? null
+    // 규칙은 utils/costBasis 에 있다 — 이익현황과 같은 규칙을 쓴다.
+    return pickCost(basis, {
+      monthlyCost: costOf.get(itemId) ?? null,
+      lastPurchasePrice: lastPurchasePrice.get(itemId)?.price ?? null,
+      itemPurchasePrice: unitPrices.get(itemId) ?? null,
+    })
   }
 
   const shown = stock
@@ -115,7 +122,7 @@ export default function DailyStockPage() {
   const totalAmount = shown.reduce((n, r) => n + (r.amount ?? 0), 0)
   const missing = shown.filter((r) => r.price === null).length
 
-  const reset = () => { setBasis('품목단가'); setCond({ date: today, warehouseId: '', item: '' }) }
+  const reset = () => { setBasis('입고단가(품목)'); setCond({ date: today, warehouseId: '', item: '' }) }
 
   return (
     <EcListShell
@@ -147,7 +154,7 @@ export default function DailyStockPage() {
         </EcCond>
         <EcCond label="원가">
           <div className="ec-pills">
-            {(['월별원가', '최종구매가', '품목단가'] as const).map((b) => (
+            {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
               <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                       onClick={() => setBasis(b)}>
                 {b}
