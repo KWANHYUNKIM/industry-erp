@@ -19,6 +19,8 @@ import com.erp.inventory.service.ItemService;
 import com.erp.trade.repository.ShipmentRepository;
 import com.erp.trade.repository.QuotationRepository;
 import com.erp.trade.domain.QuotationStatus;
+import com.erp.trade.domain.ShipmentStatus;
+import com.erp.trade.repository.ShipmentLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class SalesOrderService {
     private final SalesLineRepository salesLineRepository;
     private final ShipmentRepository shipmentRepository;
     private final QuotationRepository quotationRepository;
+    private final ShipmentLineRepository shipmentLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -53,12 +56,29 @@ public class SalesOrderService {
                 .toList();
     }
 
-    /** 미출하현황: 접수·진행중 주문의 라인들(완료·취소 제외). 미출하잔량 = 주문수량 − 누적 출하완료수량 */
+    /**
+     * 미출하현황: 접수·진행중 주문의 라인들(완료·취소 제외).
+     *
+     * <p><b>미출하잔량 = 주문수량 − (출하지시 + 출하완료)</b>. 취소된 출하는 빠진다.
+     * 예전에는 출하<b>완료</b>분만 뺐는데, 그러면 출하지시만 낸 수량이 계속 미출하로 남아
+     * 화면을 믿고 또 지시를 내면 "출하수량이 잔량을 초과합니다" 로 거부당했다.
+     * 화면이 말하는 미출하수량과 실제로 낼 수 있는 잔량이 서로 달랐다.
+     */
     @Transactional(readOnly = true)
     public List<UnshippedLineResponse> findUnshipped() {
         List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
+        Map<Long, BigDecimal> committed = new HashMap<>();
+        for (Object[] row : shipmentLineRepository.sumQuantityByOrderLineAll(
+                List.of(ShipmentStatus.READY, ShipmentStatus.SHIPPED))) {
+            committed.put((Long) row[0], (BigDecimal) row[1]);
+        }
         return salesOrderRepository.findByStatusesWithLines(open).stream()
-                .flatMap(o -> o.getLines().stream().map(l -> UnshippedLineResponse.of(o, l)))
+                .flatMap(o -> o.getLines().stream()
+                        .map(l -> UnshippedLineResponse.of(o, l,
+                                committed.getOrDefault(l.getId(), BigDecimal.ZERO))))
+                // 미출하가 남은 줄만. 다 낸 줄이 목록에 남아 있으면 이름과 달리
+                // "아직 낼 게 있다" 고 읽히고, 출하지시 버튼도 0 짜리로 눌린다.
+                .filter(r -> r.unshippedQty().signum() > 0)
                 .toList();
     }
 

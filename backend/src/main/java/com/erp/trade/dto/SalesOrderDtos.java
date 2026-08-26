@@ -55,9 +55,17 @@ public final class SalesOrderDtos {
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal orderQty, BigDecimal shippedQty, BigDecimal unshippedQty
     ) {
-        public static UnshippedLineResponse of(SalesOrder o, SalesOrderLine l) {
+        /**
+         * @param committed 이 라인에 <b>이미 잡힌</b> 출하수량 — 출하지시(READY)와 출하완료(SHIPPED)를 더한 값.
+         *
+         * <p>예전에는 {@code l.getShippedQty()}(출하<b>완료</b>분)로 미출하를 냈다.
+         * 그러면 출하지시만 낸 수량이 계속 '미출하'로 남아, 화면을 믿고 다시 지시를 내면
+         * "출하수량이 잔량을 초과합니다" 로 거부당했다. 화면이 말하는 미출하수량과
+         * 실제로 낼 수 있는 잔량이 서로 달랐던 것이다.
+         */
+        public static UnshippedLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal committed) {
             BigDecimal orderQty = l.getQuantity();
-            BigDecimal shipped = l.getShippedQty() != null ? l.getShippedQty() : BigDecimal.ZERO;
+            BigDecimal shipped = committed != null ? committed : BigDecimal.ZERO;
             return new UnshippedLineResponse(
                     o.getId(), o.getOrderNo(), l.getId(),
                     o.getPartner().getId(), o.getPartner().getName(),

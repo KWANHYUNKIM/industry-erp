@@ -138,6 +138,52 @@ async function seed() {
 // ── 시나리오 ────────────────────────────────────────────────────────────────
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
+/**
+ * <b>미출하현황이 말하는 미출하수량 = 실제로 낼 수 있는 잔량.</b>
+ *
+ * 예전에는 미출하수량을 "주문 − 출하<b>완료</b>" 로 냈다. 출하지시(READY)만 낸 수량은
+ * 계속 미출하로 남아, 화면을 믿고 또 지시를 내면 서버가
+ * "출하수량이 잔량을 초과합니다" 로 거부했다. 화면이 말하는 숫자와 서버가 허락하는
+ * 숫자가 서로 달랐고, 둘 다 자기 딴에는 일관돼서 어느 쪽이 틀렸는지 알 수 없었다.
+ *
+ * <p>이제 둘 다 "주문 − (출하지시 + 출하완료)" 를 본다. 여기서 그 일치를 못 박는다.
+ */
+async function scenarioUnshippedMatchesRemaining(f) {
+  section('■ 미출하수량 = 출하 가능 잔량')
+
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-12',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
+  })
+  const lineId = order.lines[0].lineId
+  const unshippedOf = async () =>
+    (await must('GET', '/sales-orders/unshipped')).find((u) => u.orderId === order.id)
+
+  eq('출하 전에는 주문수량이 그대로 미출하', Number((await unshippedOf()).unshippedQty), 10)
+
+  const ship = await must('POST', `/sales-orders/${order.id}/ship`,
+    { shipDate: '2026-07-12', lines: [{ orderLineId: lineId, qty: 4 }] })
+  const after = await unshippedOf()
+  eq('출하지시를 내면 그만큼 미출하가 준다', Number(after.unshippedQty), 6)
+  eq('출하수량 칸도 지시분을 센다', Number(after.shippedQty), 4)
+
+  // 화면이 말하는 미출하수량(6)을 그대로 내면 통과해야 한다 — 이게 핵심이다
+  const ship2 = await must('POST', `/sales-orders/${order.id}/ship`,
+    { shipDate: '2026-07-12', lines: [{ orderLineId: lineId, qty: 6 }] })
+  eq('미출하수량만큼은 그대로 낼 수 있다', ship2.totalQuantity, 6)
+  eq('다 내면 미출하 목록에서 빠진다', (await unshippedOf()) === undefined, true)
+
+  // 취소하면 되돌아온다
+  await must('PATCH', `/shipments/${ship2.id}/status`, { status: 'CANCELED' })
+  eq('출하를 취소하면 미출하가 되살아난다', Number((await unshippedOf()).unshippedQty), 6)
+
+  await must('DELETE', `/shipments/${ship2.id}`)
+  await must('DELETE', `/shipments/${ship.id}`)
+  eq('출하를 지우면 주문수량 전부가 미출하로 돌아온다',
+    Number((await unshippedOf()).unshippedQty), 10)
+  await must('DELETE', `/sales-orders/${order.id}`)
+}
+
 async function scenarioUnsold(f) {
   section('■ 시나리오 1-b. 수주 → 판매 전환 → 미판매현황')
 
@@ -203,7 +249,15 @@ async function scenarioShipment(f) {
   const ship1 = await must('POST', `/sales-orders/${order.id}/ship`, { lines: [{ orderLineId: lineId, qty: 30 }] })
   eq('출하지시에 근거주문이 연결됨', ship1.salesOrderNo, order.orderNo)
   eq('출하지시 직후 상태는 출하지시', ship1.statusName, '출하지시')
-  eq('출하지시(READY)는 아직 출하로 치지 않음', (await un()).shippedQty, 0)
+  /*
+   * 예전에는 여기서 "출하지시(READY)는 아직 출하로 치지 않음 → shippedQty 0" 을 못 박았다.
+   * 그런데 <b>서버는 잔량을 낼 때 출하지시분까지 뺀다</b>(초과 출하 검사가 그 기준이다).
+   * 그래서 미출하현황이 "100 남았다" 고 말해도 100 을 내려 하면 거부당했다.
+   * 두 규칙이 어긋나 있었고 둘 다 자기 딴에는 일관돼서 어느 쪽이 틀렸는지 알 수 없었다.
+   * 지금은 양쪽 다 "주문 − (지시 + 완료)" 로 본다.
+   */
+  eq('출하지시도 미출하에서 뺀다', (await un()).shippedQty, 30)
+  eq('그래서 미출하는 70', (await un()).unshippedQty, 70)
 
   await rejects('잔량(70) 초과 출하는 거부', 'POST', `/sales-orders/${order.id}/ship`,
     { lines: [{ orderLineId: lineId, qty: 80 }] }, '초과')
@@ -3246,6 +3300,7 @@ async function main() {
 
   await scenarioShipment(fixtures)
   await scenarioUnsold(fixtures)
+  await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioPlan(fixtures)
   await scenarioProduction(fixtures)
   await scenarioRelations(fixtures)

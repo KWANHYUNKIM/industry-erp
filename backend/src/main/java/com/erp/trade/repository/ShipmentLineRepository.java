@@ -25,4 +25,16 @@ public interface ShipmentLineRepository extends JpaRepository<ShipmentLine, Long
             "group by sl.orderLine.id")
     List<Object[]> sumQuantityByOrderLine(@Param("orderId") Long orderId,
                                           @Param("statuses") Collection<ShipmentStatus> statuses);
+
+    /**
+     * 주문 라인별 <b>이미 잡힌</b> 출하수량 — 미출하현황이 쓴다.
+     *
+     * <p>주문 하나씩이 아니라 한 번에 모은다. 미출하현황은 열려 있는 주문 전부를 훑으므로
+     * 주문마다 쿼리를 날리면 N+1 이 된다.
+     */
+    @Query("select sl.orderLine.id, coalesce(sum(sl.quantity), 0) " +
+            "from ShipmentLine sl " +
+            "where sl.shipment.status in :statuses " +
+            "group by sl.orderLine.id")
+    List<Object[]> sumQuantityByOrderLineAll(@Param("statuses") Collection<ShipmentStatus> statuses);
 }
