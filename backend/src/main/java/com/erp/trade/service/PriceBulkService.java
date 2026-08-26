@@ -7,6 +7,17 @@ import com.erp.trade.dto.PriceBulkDtos.PriceBulkApplyResponse;
 import com.erp.trade.dto.PriceBulkDtos.PriceBulkItemResponse;
 import com.erp.trade.dto.PriceBulkDtos.PriceBulkUpdatedItem;
 import com.erp.inventory.repository.ItemRepository;
+import com.erp.trade.domain.Purchase;
+import com.erp.trade.domain.PurchaseLine;
+import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.SalesLine;
+import com.erp.trade.domain.SalesConfirmStatus;
+import com.erp.trade.dto.PriceBulkDtos.SlipLineRow;
+import com.erp.trade.dto.PriceBulkDtos.SlipPriceApplyRequest;
+import com.erp.trade.dto.PriceBulkDtos.SlipPriceApplyResponse;
+import com.erp.trade.dto.PriceBulkDtos.SlipPriceChange;
+import com.erp.trade.repository.PurchaseRepository;
+import com.erp.trade.repository.SalesRepository;
 import com.erp.trade.repository.PurchaseLineRepository;
 import com.erp.trade.repository.SalesLineRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +48,95 @@ import com.erp.trade.dto.PriceBulkDtos;
 public class PriceBulkService {
 
     private final ItemRepository itemRepository;
+    private final SalesRepository salesRepository;
+    private final PurchaseRepository purchaseRepository;
+    private final SalesService salesService;
+    private final PurchaseService purchaseService;
     private final SalesLineRepository salesLineRepository;
     private final PurchaseLineRepository purchaseLineRepository;
+
+
+    /**
+     * 전표 라인 조회 (단가일괄변경 화면의 [검색(F8)]).
+     *
+     * <p>원본은 기준일자·거래처·품목·창고·진행상태로 <b>이미 입력한 전표</b>를 뽑아
+     * 그 자리에서 단가를 고친다. 우리 화면은 오랫동안 품목 표준단가만 바꿔서,
+     * 지난 전표의 단가를 고치는 일은 전표를 하나씩 열어 수정하는 수밖에 없었다.
+     *
+     * @param status "ALL" | "UNCONFIRMED"(미확인) | "CONFIRMED"(확인)
+     */
+    @Transactional(readOnly = true)
+    public List<SlipLineRow> findSlipLines(String tradeType, LocalDate from, LocalDate to,
+                                           Long partnerId, Long itemId, Long warehouseId, String status) {
+        boolean sale = !"PURCHASE".equalsIgnoreCase(tradeType);
+        List<SlipLineRow> rows = new ArrayList<>();
+
+        if (sale) {
+            for (Sales s : salesRepository.findWithLinesBySaleDateBetween(from, to)) {
+                if (partnerId != null && !partnerId.equals(s.getPartner().getId())) continue;
+                if (warehouseId != null && !warehouseId.equals(s.getWarehouse().getId())) continue;
+                boolean confirmed = s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED;
+                if (!statusMatches(status, confirmed)) continue;
+                String lock = salesService.editLockReason(s);
+                for (SalesLine l : s.getLines()) {
+                    if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
+                    rows.add(new SlipLineRow(
+                            l.getId(), s.getId(), s.getDocNo(), s.getSaleDate(),
+                            s.getPartner().getName(),
+                            s.getEmployee() != null ? s.getEmployee().getName() : null,
+                            s.getWarehouse().getName(),
+                            s.getVatAmount().signum() != 0 ? "과세" : "면세",
+                            l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
+                            l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                            lock == null, lock));
+                }
+            }
+        } else {
+            for (Purchase p : purchaseRepository.findWithLinesByPurchaseDateBetween(from, to)) {
+                if (partnerId != null && !partnerId.equals(p.getPartner().getId())) continue;
+                if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
+                // 구매전표에는 확인(진행상태) 개념이 없다 — 그래서 화면 조건에도 두지 않는다.
+                String lock = purchaseService.editLockReason(p);
+                for (PurchaseLine l : p.getLines()) {
+                    if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
+                    rows.add(new SlipLineRow(
+                            l.getId(), p.getId(), p.getDocNo(), p.getPurchaseDate(),
+                            p.getPartner().getName(),
+                            p.getEmployee() != null ? p.getEmployee().getName() : null,
+                            p.getWarehouse().getName(),
+                            p.getVatAmount().signum() != 0 ? "과세" : "면세",
+                            l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
+                            l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                            lock == null, lock));
+                }
+            }
+        }
+        rows.sort(Comparator.comparing(SlipLineRow::slipDate).reversed()
+                .thenComparing(SlipLineRow::docNo, Comparator.reverseOrder())
+                .thenComparing(SlipLineRow::lineId));
+        return rows;
+    }
+
+    private boolean statusMatches(String status, boolean confirmed) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) return true;
+        return "CONFIRMED".equalsIgnoreCase(status) == confirmed;
+    }
+
+    /** 전표 라인 단가 일괄 적용. 금액 재계산은 각 전표를 소유한 서비스가 한다. */
+    @Transactional
+    public SlipPriceApplyResponse applySlipPrices(SlipPriceApplyRequest req) {
+        Map<Long, BigDecimal> prices = new LinkedHashMap<>();
+        for (SlipPriceChange c : req.changes()) {
+            prices.put(c.lineId(), c.unitPrice());
+        }
+        List<String> docNos = new ArrayList<>();
+        if ("PURCHASE".equalsIgnoreCase(req.tradeType())) {
+            purchaseService.changeLinePrices(prices).forEach(p -> docNos.add(p.getDocNo()));
+        } else {
+            salesService.changeLinePrices(prices).forEach(s -> docNos.add(s.getDocNo()));
+        }
+        return new SlipPriceApplyResponse(prices.size(), docNos.size(), docNos);
+    }
 
     @Transactional(readOnly = true)
     public List<PriceBulkItemResponse> findItems() {

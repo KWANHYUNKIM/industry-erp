@@ -31,6 +31,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
 import com.erp.hr.service.EmployeeService;
@@ -175,6 +176,75 @@ public class PurchaseService {
     private Purchase getPurchase(Long id) {
         return purchaseRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("구매전표를 찾을 수 없습니다. id=" + id));
+    }
+
+    /**
+     * 구매 전표 <b>라인 단가</b>를 바꾼다. (단가일괄변경 화면)
+     *
+     * <p>수량은 건드리지 않으므로 재고는 움직이지 않는다. 공급가액·부가세·전표합계만
+     * 다시 계산한다. 부가세 배분 규칙(라인별 반올림 / 거래별부가세계산)은 입력할 때와
+     * 같은 {@link VatAllocator} 를 쓴다 — 여기서 따로 계산하면 두 경로가 갈라진다.
+     *
+     * <p>과세 여부는 전표에 저장돼 있지 않다(입력 때 계산에만 쓰인다). 그래서
+     * <b>원래 부가세가 0 이었으면 면세로 보고 0 을 유지</b>한다. 면세 전표의 단가를 고쳤다고
+     * 갑자기 부가세가 붙으면 안 된다.
+     *
+     * <p>수정 가능 여부는 {@code ensureEditable} 이 그대로 판단한다 — 확인·회계반영·
+     * 세금계산서 발행된 전표는 단가도 못 고친다.
+     *
+     * @param prices 라인 id → 새 단가
+     * @return 실제로 바뀐 전표 (같은 전표의 여러 라인을 한 번에 줘도 한 번만 담긴다)
+     */
+    @Transactional
+    public List<Purchase> changeLinePrices(Map<Long, BigDecimal> prices) {
+        if (prices.isEmpty()) return List.of();
+
+        Map<Long, Purchase> touched = new LinkedHashMap<>();
+        for (Map.Entry<Long, BigDecimal> e : prices.entrySet()) {
+            PurchaseLine line = purchaseLineRepository.findById(e.getKey())
+                    .orElseThrow(() -> ApiException.notFound("전표 라인을 찾을 수 없습니다. id=" + e.getKey()));
+            Purchase slip = line.getPurchase();
+            if (!touched.containsKey(slip.getId())) {
+                ensureEditable(slip, "단가변경");
+                touched.put(slip.getId(), slip);
+            }
+            line.setUnitPrice(e.getValue());
+        }
+        touched.values().forEach(this::recalcAmounts);
+        return List.copyOf(touched.values());
+    }
+
+    /** 라인 단가가 바뀐 뒤 공급가액·부가세·전표합계를 다시 맞춘다. */
+    private void recalcAmounts(Purchase slip) {
+        boolean taxable = slip.getVatAmount().signum() != 0;
+        List<PurchaseLine> lines = slip.getLines();
+        List<BigDecimal> supplies = lines.stream()
+                .map(l -> l.getQuantity().multiply(l.getUnitPrice()))
+                .toList();
+        List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, slip.isVatBySlip());
+
+        BigDecimal totalSupply = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+        for (int i = 0; i < lines.size(); i++) {
+            lines.get(i).setSupplyAmount(supplies.get(i));
+            lines.get(i).setVatAmount(vats.get(i));
+            totalSupply = totalSupply.add(supplies.get(i));
+            totalVat = totalVat.add(vats.get(i));
+        }
+        slip.setSupplyAmount(totalSupply);
+        slip.setVatAmount(totalVat);
+        slip.setTotalAmount(totalSupply.add(totalVat));
+    }
+
+    /** 왜 못 고치는지 한 마디로. 고칠 수 있으면 null. ensureEditable 과 같은 조건을 본다. */
+    @Transactional(readOnly = true)
+    public String editLockReason(Purchase p) {
+        try {
+            ensureEditable(p, "수정");
+            return null;
+        } catch (ApiException e) {
+            return e.getMessage();
+        }
     }
 
     private void ensureEditable(Purchase p, String action) {

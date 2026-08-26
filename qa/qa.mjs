@@ -3486,6 +3486,74 @@ async function scenarioGroups(f) {
   await call('DELETE', `/partner-groups/${pg.id}`)
 }
 
+/**
+ * 단가일괄변경(전표). 원본은 <b>이미 입력한 전표의 단가</b>를 고치는 화면인데
+ * 우리는 오랫동안 품목 표준단가만 바꿨다 — 이름이 같고 하는 일이 달랐다.
+ * 단가를 고치면 공급가액·부가세·전표합계가 함께 맞아야 한다. 안 맞으면
+ * 매출 합계가 조용히 틀어져 채권·부가세신고까지 번진다.
+ */
+async function scenarioSlipPriceBulk(f) {
+  section('■ 단가일괄변경(전표 단가)')
+
+  const q = `from=2020-01-01&to=2030-12-31`
+  const rows = await must('GET', `/price-bulk/lines?tradeType=SALES&${q}`)
+  eq('전표 라인이 조회된다', rows.length > 0, true)
+
+  const mine = rows.find((r) => r.docNo && r.editable && r.quantity > 0)
+  eq('고칠 수 있는 라인이 있다', !!mine, true)
+
+  const before = (await must('GET', '/sales')).find((s) => s.id === mine.slipId)
+  const newPrice = Number(mine.unitPrice) + 1000
+  const res = await must('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: mine.lineId, unitPrice: newPrice }],
+  })
+  eq('한 줄 바꾸면 한 전표', res.changedSlips, 1)
+
+  const after = (await must('GET', `/price-bulk/lines?tradeType=SALES&${q}`))
+    .find((r) => r.lineId === mine.lineId)
+  eq('단가가 바뀐다', after.unitPrice, newPrice)
+  eq('공급가액 = 수량 × 단가', after.supplyAmount, mine.quantity * newPrice)
+
+  const slip = (await must('GET', '/sales')).find((s) => s.id === mine.slipId)
+  const lineSum = (await must('GET', `/price-bulk/lines?tradeType=SALES&${q}`))
+    .filter((r) => r.slipId === mine.slipId)
+    .reduce((a, r) => ({ supply: a.supply + r.supplyAmount, vat: a.vat + r.vatAmount }), { supply: 0, vat: 0 })
+  eq('전표 공급가액 = 라인 합', slip.supplyAmount, lineSum.supply)
+  eq('전표 부가세 = 라인 합', slip.vatAmount, lineSum.vat)
+  eq('전표 합계 = 공급가액 + 부가세', slip.totalAmount, slip.supplyAmount + slip.vatAmount)
+  eq('금액이 실제로 늘었다', slip.supplyAmount > before.supplyAmount, true)
+
+  // 면세 전표였다면 단가를 고쳐도 부가세가 생기면 안 된다(과세 여부는 전표에 없다).
+  if (mine.taxTypeName === '면세') eq('면세는 면세로 남는다', slip.vatAmount, 0)
+
+  await must('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: mine.lineId, unitPrice: mine.unitPrice }],
+  })
+  const restored = (await must('GET', '/sales')).find((s) => s.id === mine.slipId)
+  eq('되돌리면 원래 금액', restored.totalAmount, before.totalAmount)
+
+  const locked = rows.find((r) => !r.editable)
+  if (locked) {
+    const bad = await call('PUT', '/price-bulk/lines', {
+      tradeType: 'SALES', changes: [{ lineId: locked.lineId, unitPrice: 1 }],
+    })
+    eq('잠긴 전표는 단가도 못 고친다', bad.status, 400)
+  }
+
+  const missing = await call('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: 99999999, unitPrice: 1 }],
+  })
+  eq('없는 라인은 404', missing.status, 404)
+
+  const neg = await call('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: mine.lineId, unitPrice: -1 }],
+  })
+  eq('음수 단가는 400', neg.status, 400)
+
+  eq('구매도 같은 방식으로 조회된다',
+    Array.isArray(await must('GET', `/price-bulk/lines?tradeType=PURCHASE&${q}`)), true)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -3646,6 +3714,7 @@ async function main() {
   await scenarioValidationMessages(fixtures)
   await scenarioStockRecalc()
   await scenarioGroups(fixtures)
+  await scenarioSlipPriceBulk(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
