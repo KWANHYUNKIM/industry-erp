@@ -5,6 +5,8 @@ import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.Purchase;
+import com.erp.trade.domain.PurchaseOrderLine;
+import com.erp.trade.domain.PurchaseOrder;
 import com.erp.trade.domain.PurchaseLine;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
@@ -14,6 +16,7 @@ import com.erp.trade.dto.PurchaseDtos.PurchaseLineRequest;
 import com.erp.trade.dto.PurchaseDtos.PurchaseResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.trade.domain.PurchaseOrderStatus;
+import com.erp.trade.repository.PurchaseLineRepository;
 import com.erp.trade.repository.PurchaseOrderRepository;
 import com.erp.trade.repository.PurchaseRepository;
 import com.erp.trade.repository.TaxInvoiceRepository;
@@ -27,6 +30,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import com.erp.hr.service.EmployeeService;
 import com.erp.inventory.service.ItemService;
@@ -55,6 +60,7 @@ public class PurchaseService {
     private final TaxInvoiceRepository taxInvoiceRepository;
     // 명세 라인의 근거전표(발주서). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
     private final PurchaseOrderRepository purchaseOrderRepository;
+    private final PurchaseLineRepository purchaseLineRepository;
 
     @Transactional(readOnly = true)
     public List<PurchaseResponse> findAll() {
@@ -97,6 +103,7 @@ public class PurchaseService {
     public PurchaseResponse create(CreatePurchaseRequest req, String username) {
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         requireUsableMasters(req);
+        requireWithinOrderQty(req, null);
 
         Purchase purchase = Purchase.builder()
                 .docNo(generateDocNo(purchaseDate))
@@ -119,6 +126,8 @@ public class PurchaseService {
     public PurchaseResponse update(Long id, CreatePurchaseRequest req, String username) {
         Purchase purchase = getPurchase(id);
         ensureEditable(purchase, "수정");
+        // 자기 자신은 빼고 센다 — 안 그러면 수량을 그대로 둔 수정도 "잔량 초과" 로 거부된다.
+        requireWithinOrderQty(req, id);
 
         revertStock(purchase, "구매수정 원복", username);
         purchase.getLines().clear();
@@ -202,6 +211,53 @@ public class PurchaseService {
     }
 
     /** 헤더 부가정보 + 라인 + 합계 + 재고 입고. create/update 가 공유한다. */
+    /**
+     * 근거발주가 붙은 라인은 <b>발주수량을 넘길 수 없다.</b> 판매 쪽과 같은 규칙이다
+     * (SalesService.requireWithinOrderQty). 구매도 검사가 없어 발주 10 에 15 를 살 수 있었다.
+     *
+     * @param excludePurchaseId 수정 중인 전표. 자기 수량을 두 번 세면 멀쩡한 수정이 거부된다.
+     */
+    private void requireWithinOrderQty(CreatePurchaseRequest req, Long excludePurchaseId) {
+        Map<Long, Map<Long, BigDecimal>> wanted = new HashMap<>();
+        for (PurchaseLineRequest lr : req.lines()) {
+            if (lr.sourceOrderId() == null) continue;
+            wanted.computeIfAbsent(lr.sourceOrderId(), k -> new HashMap<>())
+                    .merge(lr.itemId(), lr.quantity(), BigDecimal::add);
+        }
+        for (Map.Entry<Long, Map<Long, BigDecimal>> e : wanted.entrySet()) {
+            PurchaseOrder order = purchaseOrderRepository.findById(e.getKey())
+                    .orElseThrow(() -> ApiException.notFound("근거전표(발주서)를 찾을 수 없습니다. id=" + e.getKey()));
+
+            Map<Long, BigDecimal> ordered = new HashMap<>();
+            for (PurchaseOrderLine ol : order.getLines()) {
+                ordered.merge(ol.getItem().getId(), ol.getQuantity(), BigDecimal::add);
+            }
+            Map<Long, BigDecimal> already = new HashMap<>();
+            for (PurchaseLineRepository.OrderItemAggregate a
+                    : purchaseLineRepository.aggregateBoughtByOrder(e.getKey(), excludePurchaseId)) {
+                already.merge(a.getItemId(), a.getQty(), BigDecimal::add);
+            }
+
+            for (Map.Entry<Long, BigDecimal> w : e.getValue().entrySet()) {
+                BigDecimal orderQty = ordered.getOrDefault(w.getKey(), BigDecimal.ZERO);
+                if (orderQty.signum() == 0) {
+                    throw ApiException.badRequest(
+                            "근거발주 " + order.getOrderNo() + " 에 없는 품목입니다: "
+                                    + itemService.get(w.getKey()).getName());
+                }
+                BigDecimal remain = orderQty.subtract(already.getOrDefault(w.getKey(), BigDecimal.ZERO));
+                if (w.getValue().compareTo(remain) > 0) {
+                    throw ApiException.badRequest(String.format(
+                            "근거발주의 잔량을 초과합니다. 발주=%s, 품목=%s, 발주=%s, 이미구매=%s, 잔량=%s, 요청=%s",
+                            order.getOrderNo(), itemService.get(w.getKey()).getName(),
+                            orderQty.toPlainString(),
+                            already.getOrDefault(w.getKey(), BigDecimal.ZERO).toPlainString(),
+                            remain.toPlainString(), w.getValue().toPlainString()));
+                }
+            }
+        }
+    }
+
     private void applyContent(Purchase purchase, CreatePurchaseRequest req, String username) {
         boolean taxable = req.taxable() == null || req.taxable();
         purchase.setRemark(req.remark());

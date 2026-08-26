@@ -147,7 +147,7 @@ async function seed() {
  * 그래서 아무도 몰랐다.
  */
 async function scenarioSaleWithinOrder(f) {
-  section('■ 근거수주 잔량 검사(판매)')
+  section('■ 근거전표 잔량 검사(판매·구매)')
 
   const order = await must('POST', '/sales-orders', {
     partnerId: f.customer.id, orderDate: '2026-07-13',
@@ -186,6 +186,26 @@ async function scenarioSaleWithinOrder(f) {
   await must('DELETE', `/sales/${second.id}`)
   await must('DELETE', `/sales/${first.id}`)
   await must('DELETE', `/sales-orders/${order.id}`)
+
+  // ── 구매도 같은 규칙이다. 판매만 막고 구매를 놔두면 반쪽짜리다.
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-13', warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 10, unitPrice: 500 }],
+  })
+  const buy = (qty) => ({
+    purchaseDate: '2026-07-13', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: qty, unitPrice: 500, sourceOrderId: po.id }],
+  })
+  const bought = await must('POST', '/purchases', buy(7))
+  eq('발주 잔량 안이면 통과', bought.lines[0].quantity, 7)
+  const overBuy = await call('POST', '/purchases', buy(4))
+  eq('발주수량을 넘기면 거부', overBuy.status, 400)
+  eq('구매도 얼마나 넘쳤는지 알려 준다',
+    /근거발주의 잔량을 초과합니다/.test(String(overBuy.data?.message ?? '')), true)
+  eq('구매도 수량 그대로 수정은 통과',
+    (await call('PUT', `/purchases/${bought.id}`, { ...buy(7), remark: 'QA 그대로' })).status, 200)
+  await must('DELETE', `/purchases/${bought.id}`)
+  await must('DELETE', `/purchase-orders/${po.id}`)
 }
 
 /**
