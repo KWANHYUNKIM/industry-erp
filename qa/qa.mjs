@@ -13,7 +13,7 @@
  * (권한 카탈로그 검사만 예외로 백엔드 소스를 읽는다 — 아래 scenarioPermissionCoverage 참고)
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 const BASE = process.env.ERP_API ?? 'http://localhost:8081/api'
 const USER = process.env.ERP_USER ?? 'admin'
@@ -1575,24 +1575,34 @@ async function scenarioPaySetting() {
   const employees = await must('GET', '/employees')
   const emp = employees[0]
 
-  // 다른 흐름이 만든 명세를 건드리지 않도록, 이 사원의 명세가 아직 없는 달을 골라 쓴다.
-  // 확정·이체된 명세는 지울 수 없으므로 매 실행마다 한 달씩 소진된다. 넉넉한 범위를 훑는다.
+  // 다른 흐름이 만든 명세를 건드리지 않도록, 명세가 아직 없는 (사원, 귀속월) 자리를 골라 쓴다.
+  // 확정·이체된 명세는 지울 수 없으므로(급여는 확정 후 지우면 안 되는 게 맞다) 매 실행 한 자리씩 소진된다.
+  //
+  // 예전엔 employees[0] 한 사원에만 매달려서 120번(10년×12달) 돌리면 하드 스톱이 났다.
+  // 사원 축까지 훑으면 여유가 사원 수만큼 곱해진다. 달을 바깥 루프에 두는 건
+  // /payslips?month= 한 번으로 그 달의 모든 사원을 한꺼번에 걸러내기 위해서다.
   let month = null
-  for (let y = 2027; y <= 2036 && month === null; y++) {
-    for (let m = 1; m <= 12 && month === null; m++) {
+  let payEmp = emp
+  outer:
+  for (let y = 2027; y <= 2036; y++) {
+    for (let m = 1; m <= 12; m++) {
       const candidate = `${y}-${String(m).padStart(2, '0')}`
-      const slips = await must('GET', `/payslips?month=${candidate}`)
-      if (!slips.some((p) => p.employeeId === emp.id)) {
+      const taken = new Set((await must('GET', `/payslips?month=${candidate}`)).map((p) => p.employeeId))
+      const free = employees.find((e) => !taken.has(e.id))
+      if (free) {
         month = candidate
+        payEmp = free
+        break outer
       }
     }
   }
   if (month === null) {
-    throw new Error('2027~2036년에 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.')
+    throw new Error(
+      `2027~2036년에 사원 ${employees.length}명 모두 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.`)
   }
 
   const slip = await must('POST', '/payslips', {
-    employeeId: emp.id, payMonth: month, payGroupId: group.id, lines: [],
+    employeeId: payEmp.id, payMonth: month, payGroupId: group.id, lines: [],
   })
   eq('그룹의 수당이 명세에 들어감', Number(slip.allowanceTotal), 500_000)
 
@@ -2274,6 +2284,68 @@ async function scenarioSurvey() {
 
 
 /**
+ * CLAUDE.md 에 적힌, <b>어겨도 조용한</b> 규칙들을 소스에서 확인한다.
+ * 컴파일도 되고 테스트도 통과하지만 나중에 아프게 무는 것들이라 여기서 잡는다.
+ */
+function scenarioSourceRules() {
+  section('■ 소스 규칙 (CLAUDE.md)')
+
+  const SRC = 'backend/src/main/java/com/erp'
+  const walk = (dir) => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+
+  let javaFiles
+  try {
+    javaFiles = walk(SRC).filter((f) => f.endsWith('.java'))
+  } catch {
+    eq('백엔드 소스를 찾을 수 없어 소스 규칙 검사를 건너뜀', 'skipped', 'ok')
+    return
+  }
+  /**
+   * 주석을 걷어내고 본다. 안 그러면 주석 처리된 코드나 설명문에 든 단어가
+   * 실제 호출인 척한다 — 실제로 lockNumberSpace 를 주석으로 만들어도 통과했다.
+   */
+  const stripComments = (src) => src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+
+  const read = (f) => [f, stripComments(readFileSync(f, 'utf8'))]
+  const sources = javaFiles.map(read)
+
+  /** 경로 구분자가 OS 마다 달라서 파일명만 뽑아 비교한다. */
+  const baseName = (f) => f.split(sep).pop()
+
+  // §5.2 — 모든 연관관계는 LAZY. 유일한 예외가 User.roles 다.
+  // EAGER 를 새로 넣으면 목록 한 번 부를 때마다 딸린 것들이 통째로 끌려온다.
+  const eager = sources
+    .filter(([, src]) => src.includes('FetchType.EAGER'))
+    .map(([f]) => baseName(f))
+    .sort()
+  eq('EAGER 는 User.roles 하나뿐 (§5.2)', eager.join(',') || '없음', 'User.java')
+
+  // 채번을 count()+1 로 하면 중간 것을 지웠을 때 이미 쓰는 번호를 가리키고,
+  // 동시에 부르면 같은 번호를 준다. 번호 공간 락 없이 쓰면 안 된다.
+  const unlockedCounting = sources
+    .filter(([, src]) => /count\(\)\s*\+\s*1/.test(src) && !src.includes('lockNumberSpace'))
+    .map(([f]) => baseName(f))
+    .sort()
+  eq('count()+1 채번은 번호 공간을 잠근 곳만',
+    unlockedCounting.join(',') || '없음', '없음')
+
+  // §6 — @Transactional 은 service 에만. controller/repository 에 붙으면
+  // 트랜잭션 경계가 두 군데가 되어 롤백 범위를 아무도 설명할 수 없게 된다.
+  const inLayer = (f, layer) => f.split(sep).includes(layer)
+  const strayTx = sources
+    .filter(([f, src]) =>
+      (inLayer(f, 'controller') || inLayer(f, 'repository')) && src.includes('@Transactional'))
+    .map(([f]) => baseName(f))
+    .sort()
+  eq('@Transactional 은 service 에만 (§6)', strayTx.join(',') || '없음', '없음')
+}
+
+/**
  * <b>권한 카탈로그에 빠진 컨트롤러 찾기.</b>
  *
  * AuthorizationInterceptor 는 카탈로그에 없는 경로를 그냥 통과시킨다
@@ -2498,6 +2570,7 @@ async function main() {
   await scenarioSupplyUsage()
   await scenarioSurvey()
   await scenarioSettlement(fixtures)
+  scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
   await scenarioNotFound()
