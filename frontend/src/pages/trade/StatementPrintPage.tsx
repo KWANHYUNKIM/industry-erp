@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, SalesDoc } from '../../api/types'
@@ -16,9 +18,22 @@ export default function StatementPrintPage() {
   const [docs, setDocs] = useState<SalesDoc[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [supplier, setSupplier] = useState<DocParty | null>(null)
+  /*
+   * 원본 조건 판 실측(사본 · 거래명세서인쇄):
+   *   기준일자(금월(~오늘)) · [내.외자구분] 전체 | 내자 | 외자 · 창고 · 프로젝트 ·
+   *   거래처 · 품목 · 담당자
+   *
+   * 우리는 거래처와 날짜 두 칸이 전부였고 기간 빠른선택도 없었다.
+   * 내·외자구분은 우리 판매전표에 그 개념이 없어 칸을 만들지 않는다.
+   */
   const [partnerId, setPartnerId] = useState<number | ''>('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+  const init = periodOf('금월(~오늘)')!
+  const [fromDate, setFromDate] = useState(init.from)
+  const [toDate, setToDate] = useState(init.to)
+  const [warehouse, setWarehouse] = useState('')
+  const [project, setProject] = useState('')
+  const [item, setItem] = useState('')
+  const [employee, setEmployee] = useState('')
   const [checked, setChecked] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -50,11 +65,17 @@ export default function StatementPrintPage() {
   }, [])
 
   const selectedPartner = partners.find((p) => p.id === partnerId)
-  const shown = docs.filter((d) =>
-    (!selectedPartner || d.partnerId === selectedPartner.id)
-    && (!fromDate || d.saleDate >= fromDate)
-    && (!toDate || d.saleDate <= toDate)
-    && (!keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword)))
+  const shown = docs.filter((d) => {
+    if (selectedPartner && d.partnerId !== selectedPartner.id) return false
+    if (fromDate && d.saleDate < fromDate) return false
+    if (toDate && d.saleDate > toDate) return false
+    if (keyword && !(d.partnerName.includes(keyword) || d.docNo.includes(keyword))) return false
+    if (warehouse && !(d.warehouseName ?? '').includes(warehouse)) return false
+    if (project && !(d.projectName ?? '').includes(project)) return false
+    if (employee && !(d.employeeName ?? '').includes(employee)) return false
+    if (item && !d.lines.some((l) => `${l.itemCode ?? ''} ${l.itemName}`.includes(item))) return false
+    return true
+  })
   const total = useMemo(() => shown.reduce((s, d) => s + d.supplyAmount + d.vatAmount, 0), [shown])
 
   /** 판매 전표 → 거래명세서 서식 */
@@ -136,18 +157,39 @@ export default function StatementPrintPage() {
         </p>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <CodePickerField label="거래처" value={partnerId === '' ? '' : String(partnerId)} width={180}
-                         onChange={(v) => setPartnerId(v ? Number(v) : '')}
-                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
-        <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 6 }}>기간</span>
-        <input type="date" className="ec-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
-        <input type="date" className="ec-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          {checked.length > 0 && <>선택 <b style={{ color: 'var(--ec-blue)' }}>{checked.length}</b>건 · </>}
-          합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
-        </span>
+      <EcStatusPanel
+        from={fromDate} to={toDate}
+        onPeriod={(r) => { setFromDate(r.from); setToDate(r.to) }}
+        picks={STATUS_PICKS}
+      >
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel value={partnerId === '' ? '' : String(partnerId)} width={220}
+                           onChange={(v) => setPartnerId(v ? Number(v) : '')}
+                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
+                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
+                 onChange={(e) => setProject(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
+                 onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <input className="ec-input" placeholder="담당자 일부" value={employee}
+                 onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+      </EcStatusPanel>
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        명세서 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
+        {checked.length > 0 && <> · 선택 <b style={{ color: 'var(--ec-blue)' }}>{checked.length}</b>건</>}
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
       </div>
 
       <table className="w-full text-left">
