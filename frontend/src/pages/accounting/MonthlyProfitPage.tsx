@@ -13,10 +13,14 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * 이익은 판 물건의 원가로 재야 한다: 이익 = 판매액 − (판매수량 × 원가단가).
  *
  * 원가 기준은 일별이익현황(C000140)에서 <b>실측한</b> 것을 그대로 쓴다.
- * 이 화면 자체의 조건 판은 원본 세션이 끊겨 실측하지 못했다 — 나중에 다시 열어 대조해야 한다.
- * 지금 고치는 것은 조건 판의 모양이 아니라 <b>이익의 정의</b>라서 실측 없이도 맞다.
+ *
+ * <p>조건 판은 한동안 실측을 못 해 미뤄 뒀는데, 원본 화면 사본으로 대조했다.
+ * 원본 [구분]은 <b>품목별 | 거래처별 | 품목별거래처별 | 거래처별품목별</b> 넷이고,
+ * 우리에겐 뒤 둘이 없었다. '월별'은 원본에 없는 우리 것이라 맨 뒤에 남긴다 —
+ * 월별이익현황이니 달을 접어 보는 쪽도 쓸모가 있다.
  */
-type Mode = '월별' | '품목별' | '거래처별'
+type Mode = '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '월별'
+const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처별품목별', '월별'] as const
 type Basis = '월별원가' | '최종구매가' | '품목단가'
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
@@ -36,7 +40,7 @@ export default function MonthlyProfitPage() {
   const [error, setError] = useState('')
 
   const [year, setYear] = useState(nowYear())
-  const [mode, setMode] = useState<Mode>('월별')
+  const [mode, setMode] = useState<Mode>('품목별')
   const [basis, setBasis] = useState<Basis>('품목단가')
   const [withVat, setWithVat] = useState(false)
 
@@ -97,11 +101,17 @@ export default function MonthlyProfitPage() {
 
   const rows = useMemo(() => {
     const keyOf = (l: typeof lines[number]) =>
-      mode === '월별' ? l.month : mode === '품목별' ? String(l.itemId) : String(l.partnerId)
+      mode === '월별' ? l.month
+        : mode === '품목별' ? String(l.itemId)
+          : mode === '거래처별' ? String(l.partnerId)
+            : mode === '거래처별품목별' ? `${l.partnerId}:${l.itemId}`
+              : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
-      mode === '월별' ? [`${Number(l.month.slice(5))}월`, '']
-        : mode === '품목별' ? [l.itemCode, l.itemName]
-          : [l.partnerName, '']
+      mode === '월별' ? [`${Number(l.month.slice(5))}월`, '', '']
+        : mode === '품목별' ? [l.itemCode, l.itemName, '']
+          : mode === '거래처별' ? [l.partnerName, '', '']
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName]
+              : [l.itemCode, l.itemName, l.partnerName]
 
     const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number }>()
     lines.forEach((l) => {
@@ -130,7 +140,15 @@ export default function MonthlyProfitPage() {
   const allUnknown = lines.length > 0 && known.length === 0
 
   const years = [nowYear(), nowYear() - 1, nowYear() - 2]
-  const heads = mode === '품목별' ? ['품목코드', '품목명'] : [mode === '월별' ? '월' : '거래처']
+  /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
+  const HEADS: Record<Mode, string[]> = {
+    품목별: ['품목코드', '품목명'],
+    거래처별: ['거래처'],
+    품목별거래처별: ['품목코드', '품목명', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명'],
+    월별: ['월'],
+  }
+  const heads = HEADS[mode]
   const colCount = 1 + heads.length + 1 + 4
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
@@ -157,7 +175,7 @@ export default function MonthlyProfitPage() {
         </select>
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</span>
         <div className="ec-pills">
-          {(['월별', '품목별', '거래처별'] as const).map((m) => (
+          {MODES.map((m) => (
             <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                     onClick={() => setMode(m)}>{m}</button>
           ))}

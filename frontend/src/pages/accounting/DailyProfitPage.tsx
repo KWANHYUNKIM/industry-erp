@@ -29,7 +29,17 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  *   결재방표시·수량관리제외품목 — 대응 개념이 없다
  * 대신 원본에 없는 <b>일자별</b>을 구분에 넣었다 — 화면 이름이 '일별'이라 하루 단위 줄이 있어야 한다.
  */
-type Mode = '일자별' | '라인별' | '품목별' | '거래처별' | '품목별거래처별'
+/**
+ * [구분]. 원본 일별이익현황 사본 실측:
+ *   라인별 | 품목별 | 거래처별 | 품목별거래처별 | 거래처별품목별 | 사용자지정집계
+ * 우리에겐 거래처별품목별이 없었다 — 품목별거래처별과 <b>묶는 순서가 반대</b>다.
+ * 같은 거래처의 품목을 나란히 보려면 이쪽이라야 한다.
+ *
+ * <p>'일자별' 은 원본에 없는 우리 것이다. 일별이익현황이니 하루 단위로 접어 보는 쪽이
+ * 쓸모가 있어 맨 뒤에 남겼다. '사용자지정집계'(저장해 둔 집계 조합)는 아직 없다.
+ */
+type Mode = '라인별' | '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '일자별'
+const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별', '거래처별품목별', '일자별'] as const
 type Basis = '월별원가' | '최종구매가' | '품목단가'
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
@@ -51,7 +61,7 @@ export default function DailyProfitPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [mode, setMode] = useState<Mode>('일자별')
+  const [mode, setMode] = useState<Mode>('라인별')
   const [basis, setBasis] = useState<Basis>('품목단가')
   const [withVat, setWithVat] = useState(false)
   // 원본 기본값이 금월(~오늘)이다.
@@ -136,12 +146,14 @@ export default function DailyProfitPage() {
       mode === '일자별' ? l.date
         : mode === '품목별' ? String(l.itemId)
           : mode === '거래처별' ? String(l.partnerId)
-            : `${l.itemId}:${l.partnerId}`
+            : mode === '거래처별품목별' ? `${l.partnerId}:${l.itemId}`
+              : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
       mode === '일자별' ? [l.date.replace(/-/g, '/'), '', '', '']
         : mode === '품목별' ? [l.itemCode, l.itemName, '', '']
           : mode === '거래처별' ? [l.partnerName, '', '', '']
-            : [l.itemCode, l.itemName, l.partnerName, '']
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName, '']
+              : [l.itemCode, l.itemName, l.partnerName, '']
 
     const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number }>()
     lines.forEach((l) => {
@@ -176,7 +188,7 @@ export default function DailyProfitPage() {
   const allUnknown = lines.length > 0 && known.length === 0
 
   const reset = () => {
-    setMode('일자별'); setBasis('품목단가'); setWithVat(false)
+    setMode('라인별'); setBasis('품목단가'); setWithVat(false)
     setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '' })
   }
 
@@ -187,6 +199,7 @@ export default function DailyProfitPage() {
     품목별: ['품목코드', '품목명'],
     거래처별: ['거래처'],
     품목별거래처별: ['품목코드', '품목명', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명'],
   }
   const heads = HEADS[mode]
   const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + 4
@@ -214,7 +227,7 @@ export default function DailyProfitPage() {
       >
         <EcCond label="구분">
           <div className="ec-pills">
-            {(['일자별', '라인별', '품목별', '거래처별', '품목별거래처별'] as const).map((m) => (
+            {MODES.map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                       onClick={() => setMode(m)}>
                 {m}
