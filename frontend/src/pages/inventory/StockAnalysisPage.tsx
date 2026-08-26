@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { stockCostMap } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -10,7 +11,9 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * 재고 > 재고잔량분석표 (이카운트 E040727)
  * 현재고를 품목별로 집계해 안전재고 대비 과부족·상태와 재고금액(수량×단가)을 분석한다.
  * 데이터는 GET /api/stock(현재고) + GET /api/items(단가) 를 조인(백엔드 무변경).
- * 재고금액은 품목 표준단가(Item.unitPrice) 기준 — 실제 입고단가 평가가 아닌 참고 평가액이다.
+ * 재고금액은 <b>취득원가</b>로 평가한다 — 실제 입고단가가 있으면 그것, 없으면 품목 구매단가.
+ * 예전에는 판매단가(Item.unitPrice)로 평가해서 아직 팔지도 않은 이익이 재고에 얹혔다
+ * (개발 자료에서 1억 8,457만 vs 3,490만, 5배 차이). 기준이 없으면 0 이 아니라 평가에서 뺀다.
  *
  * 원본 조건: 기준일자(한 날짜) · 품목 · 기타(재고수량0포함 / 수량관리제외품목포함 /
  * 사용중단품목포함 / 품목별안전재고설정미만표시).
@@ -43,24 +46,27 @@ export default function StockAnalysisPage() {
   const [shortageOnly, setShortageOnly] = useState(false)
   /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
   const [includeZero, setIncludeZero] = useState(false)
+  /** 재고 평가에 쓸 구매전표. 마지막 입고단가를 여기서 뽑는다. */
+  const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
   const [date, setDate] = useState(ymd(new Date()))
   const today = ymd(new Date())
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, i, w] = await Promise.all([
+      const [s, i, w, b] = await Promise.all([
         api.get<StockRow[]>('/stock'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
       ])
-      setStocks(s.data); setItems(i.data); setWarehouses(w.data)
+      setStocks(s.data); setItems(i.data); setWarehouses(w.data); setBuys(b.data)
     } catch (err) { setError(extractErrorMessage(err)); setStocks([]) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
-  const priceById = useMemo(() => new Map(items.map((it) => [it.id, it.unitPrice])), [items])
+  const priceById = useMemo(() => stockCostMap(items, buys), [items, buys])
 
   const rows = useMemo(() => {
     const wid = warehouseId ? Number(warehouseId) : null
