@@ -86,6 +86,23 @@ public class ItemService {
         return getItem(id);
     }
 
+    /**
+     * 새 전표에 <b>쓸 수 있는</b> 품목을 얻는다. 사용중지된 품목이면 거절한다.
+     *
+     * <p>{@link #get(Long)} 은 그대로 둔다 — 이미 저장된 전표를 읽거나 지울 때는
+     * 그 품목이 지금 중지됐는지와 상관없이 꺼내 와야 하기 때문이다.
+     * "지금부터 새로 쓰겠다"는 자리에서만 이쪽을 부른다.
+     */
+    @Transactional(readOnly = true)
+    public Item getUsable(Long id) {
+        Item item = getItem(id);
+        if (!item.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 품목입니다: " + item.getCode() + " " + item.getName());
+        }
+        return item;
+    }
+
     private Item getItem(Long id) {
         return itemRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + id));

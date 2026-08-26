@@ -2882,6 +2882,78 @@ async function scenarioDeleteInUse(f) {
 }
 
 /**
+ * <b>사용중지한 마스터로 새 전표를 쓸 수 있는가.</b>
+ *
+ * 사용중지는 "더 이상 쓰지 말자"는 표시인데 지금까지는 표시만 되고 아무것도 막지 않았다.
+ * 중지한 품목·거래처로 판매·구매 전표가 그대로 저장됐고, 코드도움 목록에도 남아 있어
+ * 실수로 고르기 쉬웠다. 잘못 고르면 재고와 채권 잔액이 조용히 움직인다.
+ *
+ * <p>수정은 일부러 막지 않는다 — 그때는 살아 있던 품목이 든 옛 전표의 비고 한 줄도
+ * 못 고치게 되기 때문이다. 여기서도 그 성질을 같이 못 박는다.
+ */
+async function scenarioInactiveMaster(f) {
+  section('■ 사용중지한 마스터')
+
+  const today = new Date().toISOString().slice(0, 10)
+  const item = await must('POST', '/items', {
+    code: `${P}DEADITEM`, name: '중지품목', unit: 'EA',
+    category: 'MERCHANDISE', unitPrice: 1000, safetyStock: 0,
+  })
+  const partner = await must('POST', '/partners',
+    { code: `${P}DEADPT`, name: '중지거래처', type: 'CUSTOMER' })
+
+  // 살아 있는 동안 만든 전표는 그대로 남아야 한다 — 중지가 소급되면 안 된다
+  const before = await must('POST', '/sales', {
+    saleDate: today, partnerId: partner.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+
+  await must('PUT', `/items/${item.id}`, {
+    name: '중지품목', unit: 'EA', category: 'MERCHANDISE',
+    unitPrice: 1000, safetyStock: 0, active: false,
+  })
+  await must('PUT', `/partners/${partner.id}`,
+    { code: `${P}DEADPT`, name: '중지거래처', type: 'CUSTOMER', active: false })
+
+  const withDeadItem = await call('POST', '/sales', {
+    saleDate: today, partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: item.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('중지된 품목으로는 판매전표를 못 쓴다', withDeadItem.status, 400)
+  eq('어느 품목인지 알려 준다',
+    /사용중지된 품목입니다/.test(String(withDeadItem.data?.message ?? '')), true)
+
+  const withDeadPartner = await call('POST', '/sales', {
+    saleDate: today, partnerId: partner.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('중지된 거래처로는 판매전표를 못 쓴다', withDeadPartner.status, 400)
+
+  const purchase = await call('POST', '/purchases', {
+    purchaseDate: today, partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: item.id, quantity: 1, unitPrice: 500 }],
+  })
+  eq('구매전표도 마찬가지다', purchase.status, 400)
+
+  // 중지 전에 쓴 전표는 여전히 읽히고 고쳐진다
+  // 단건 조회 엔드포인트는 없다 — 화면도 목록에서 행을 열므로 목록에 남아 있는지로 본다.
+  eq('중지 전에 쓴 전표는 목록에 그대로 남는다',
+    (await must('GET', '/sales')).some((x) => x.id === before.id), true)
+  const edit = await call('PUT', `/sales/${before.id}`, {
+    saleDate: today, partnerId: partner.id, warehouseId: f.warehouse.id,
+    remark: '중지 뒤에도 비고는 고쳐진다',
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('중지된 거래처의 옛 전표도 수정은 된다', edit.status, 200)
+
+  await must('DELETE', `/sales/${before.id}`)
+  await must('DELETE', `/partners/${partner.id}`)
+  await must('DELETE', `/items/${item.id}`)
+  eq('시험 자료는 남기지 않는다',
+    (await must('GET', '/items')).filter((i) => i.code === `${P}DEADITEM`).length, 0)
+}
+
+/**
  * 없는 API 경로. 예전에는 <b>500</b> 이 나면서 "No static resource api/..." 라는
  * 내부 사정까지 실려 나갔다. 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되고,
  * 내부 구조까지 새어 나간다.
@@ -2999,6 +3071,7 @@ async function main() {
   await scenarioHttpProtocol()
   await scenarioDeleteInUse(fixtures)
   await scenarioNotFound()
+  await scenarioInactiveMaster(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

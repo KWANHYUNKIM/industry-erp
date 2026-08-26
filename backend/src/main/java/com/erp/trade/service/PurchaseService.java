@@ -92,11 +92,12 @@ public class PurchaseService {
     @Transactional
     public PurchaseResponse create(CreatePurchaseRequest req, String username) {
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
+        requireUsableMasters(req);
 
         Purchase purchase = Purchase.builder()
                 .docNo(generateDocNo(purchaseDate))
                 .partner(resolvePartner(req.partnerId()))
-                .warehouse(warehouseService.get(req.warehouseId()))
+                .warehouse(warehouseService.getUsable(req.warehouseId()))
                 .purchaseDate(purchaseDate)
                 .createdBy(username)
                 .build();
@@ -170,6 +171,25 @@ public class PurchaseService {
                     StockTransactionType.OUTBOUND, l.getUnitPrice(), p.getPurchaseDate(),
                     note + " " + p.getDocNo(), username);
         }
+    }
+
+    /**
+     * 새 전표에 사용중지된 마스터를 쓰지 못하게 막는다.
+     *
+     * <p>사용중지는 "더 이상 쓰지 말자"는 표시인데, 지금까지는 표시만 되고 아무것도 막지 않아서
+     * 중지한 품목·거래처로 전표가 그대로 저장됐다. 코드도움 목록에도 남아 있어 실수로 고르기 쉽다.
+     *
+     * <p><b>수정(update)은 막지 않는다.</b> 이미 저장된 전표에 그때는 살아 있던 품목이 들어 있는데,
+     * 나중에 그 품목을 중지했다고 해서 비고 한 줄 고치는 것까지 막으면 옛 전표를 손댈 수 없게 된다.
+     * 새로 쓰는 자리에서만 막는다.
+     */
+    private void requireUsableMasters(CreatePurchaseRequest req) {
+        BusinessPartner partner = resolvePartner(req.partnerId());
+        if (!partner.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 거래처입니다: " + partner.getCode() + " " + partner.getName());
+        }
+        req.lines().forEach(l -> itemService.getUsable(l.itemId()));
     }
 
     private BusinessPartner resolvePartner(Long partnerId) {

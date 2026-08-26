@@ -63,6 +63,17 @@ public class WarehouseService {
         return getWarehouse(id);
     }
 
+    /** 새 전표에 쓸 수 있는 창고. 사용중지된 창고면 거절한다. ({@link #get(Long)} 은 조회·삭제용) */
+    @Transactional(readOnly = true)
+    public Warehouse getUsable(Long id) {
+        Warehouse warehouse = getWarehouse(id);
+        if (!warehouse.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 창고입니다: " + warehouse.getCode() + " " + warehouse.getName());
+        }
+        return warehouse;
+    }
+
     private Warehouse getWarehouse(Long id) {
         return warehouseRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + id));
