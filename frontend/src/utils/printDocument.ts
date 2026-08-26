@@ -1,5 +1,8 @@
 import { api } from '../api/client'
 import { fillAndPrint, openPrintWindow, type PrintSignLine } from './print'
+import { amountToKorean } from './amountToKorean'
+
+export { amountToKorean }
 
 /**
  * 전표 서식 인쇄 — 거래명세서·견적서·발주서처럼 <b>머리글(공급자/공급받는자) + 품목 명세 + 합계</b>
@@ -55,40 +58,6 @@ const escapeHtml = (v: unknown) =>
   )
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-
-const DIGITS = ['영', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구']
-const SMALL_UNITS = ['', '십', '백', '천']
-const BIG_UNITS = ['', '만', '억', '조', '경']
-
-/**
- * 금액을 한글로 (예: 1,230,000 → "일백이십삼만"). 거래명세서·견적서 하단의 "일금 …원정" 자리.
- *
- * 일상 표기(십일)와 달리 <b>자릿수의 1 도 적는다</b>(일십일) — 이 칸은 금액 위조를 막으려고 있는
- * 자리라, 앞에 글자를 덧붙여 금액을 키우지 못하게 하는 수표·어음 표기법을 따른다.
- */
-export function amountToKorean(amount: number): string {
-  const n = Math.floor(Math.abs(amount))
-  if (n === 0) return '영'
-
-  const groups: string[] = []
-  let rest = n
-  let big = 0
-  while (rest > 0 && big < BIG_UNITS.length) {
-    const chunk = rest % 10000
-    if (chunk > 0) {
-      let s = ''
-      for (let i = 0; i < 4; i++) {
-        const d = Math.floor(chunk / 10 ** i) % 10
-        if (d === 0) continue
-        s = DIGITS[d] + SMALL_UNITS[i] + s
-      }
-      groups.unshift(s + BIG_UNITS[big])
-    }
-    rest = Math.floor(rest / 10000)
-    big++
-  }
-  return (amount < 0 ? '마이너스 ' : '') + groups.join('')
-}
 
 function partyHtml(p: DocParty): string {
   const row = (label: string, value: unknown) =>
