@@ -10,7 +10,10 @@
  * 완전 초기화가 필요하면: docker compose down -v && docker compose up -d 후 백엔드 재기동
  *
  * 의존성 없음. Node 18+ 의 전역 fetch 를 쓴다.
+ * (권한 카탈로그 검사만 예외로 백엔드 소스를 읽는다 — 아래 scenarioPermissionCoverage 참고)
  */
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 
 const BASE = process.env.ERP_API ?? 'http://localhost:8081/api'
 const USER = process.env.ERP_USER ?? 'admin'
@@ -2271,6 +2274,62 @@ async function scenarioSurvey() {
 
 
 /**
+ * <b>권한 카탈로그에 빠진 컨트롤러 찾기.</b>
+ *
+ * AuthorizationInterceptor 는 카탈로그에 없는 경로를 그냥 통과시킨다
+ * (required == null → return true). 그래서 컨트롤러를 새로 만들고 카탈로그에 넣는 걸
+ * 잊으면 <b>그 기능이 역할과 무관하게 열린다</b> — 에러도 경고도 없이.
+ * 실제로 재고실사·매출계획·자금계획·품질검사요청이 그렇게 뚫려 있었다.
+ *
+ * API 로는 확인할 수 없는 규칙이라 여기서만 소스를 읽는다.
+ */
+function scenarioPermissionCoverage() {
+  section('■ 권한 카탈로그 커버리지')
+
+  const SRC = 'backend/src/main/java/com/erp'
+  const walk = (dir) => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+
+  let files
+  try {
+    files = walk(SRC).filter((f) => f.endsWith('Controller.java'))
+  } catch {
+    // 저장소 밖에서 돌리면 검사할 수 없다 — 조용히 건너뛰지 않고 그 사실을 말한다.
+    eq('백엔드 소스를 찾을 수 없어 권한 커버리지 검사를 건너뜀', 'skipped', 'ok')
+    return
+  }
+
+  const catalog = readFileSync(join(SRC, 'common/MenuPermissionCatalog.java'), 'utf8')
+  const mapped = new Set(
+    [...catalog.matchAll(/"\/api\/([a-z0-9-]+)/g)].map((m) => m[1]),
+  )
+
+  /** 역할로 막을 대상이 아닌 것들. 늘릴 때는 왜 여는지 이유가 있어야 한다. */
+  const OPEN_BY_DESIGN = new Set([
+    'auth',       // 로그인 자체
+    'me',         // 내 정보
+    'meta',       // 화면 메타
+    'health',     // 헬스체크
+    'files',      // 첨부 업/다운로드(개별 권한은 소유 화면이 본다)
+    'workspace',  // 개인 메모·알림·통합검색 — 자기 것만 본다
+    'my-items',   // My품목 — 개인 소유물(컨트롤러 주석에도 그렇게 적혀 있다)
+  ])
+
+  const roots = new Set()
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8')
+    const m = src.match(/@RequestMapping\("\/api\/([a-z0-9-]+)/)
+    if (m) roots.add(m[1])
+  }
+
+  const holes = [...roots].filter((r) => !mapped.has(r) && !OPEN_BY_DESIGN.has(r)).sort()
+  eq(`컨트롤러 ${roots.size}개가 모두 카탈로그에 있거나 의도적으로 열려 있다`,
+    holes.length ? `빠짐: ${holes.join(', ')}` : 'ok', 'ok')
+}
+
+/**
  * 현황 화면이 기대는 응답 필드. 화면은 대부분 프론트에서 계산하므로,
  * 백엔드가 필드를 하나 빼도 <b>에러 없이 빈칸이나 0</b>이 뜬다 — 그게 제일 나쁘다.
  * 그래서 계산의 재료가 되는 필드만 콕 집어 묶어 둔다.
@@ -2439,6 +2498,7 @@ async function main() {
   await scenarioSupplyUsage()
   await scenarioSurvey()
   await scenarioSettlement(fixtures)
+  scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
   await scenarioNotFound()
 
