@@ -179,6 +179,23 @@ export const COMPARE_PERIODS: readonly ComparePeriod[] = [
   '사용안함', '전년동일기간', '전월동일기간', '전주동일기간', '전일동일기간',
 ]
 
+/**
+ * 달을 옮긴다. 옮긴 달에 그 날짜가 없으면 <b>그 달의 말일로 당긴다.</b>
+ *
+ * <p>Date.setMonth 를 그냥 쓰면 없는 날짜가 다음 달로 넘어간다. 3월 31일에서 한 달을 빼면
+ * 2월 31일 → <b>3월 3일</b>이 됐다. '전월동일기간'을 골랐는데 비교 대상이 같은 달로 돌아와
+ * 지금 보는 구간과 겹쳤다. 2028년 2월 29일의 전년은 2027년 3월 1일이 됐다.
+ *
+ * <p>말일로 당기는 것이 맞다 — 3월 31일의 한 달 전은 2월 28일(윤년이면 29일)이다.
+ */
+export function shiftMonths(d: Date, months: number): Date {
+  const day = d.getDate()
+  const moved = new Date(d.getFullYear(), d.getMonth() + months, 1)
+  const lastDay = new Date(moved.getFullYear(), moved.getMonth() + 1, 0).getDate()
+  moved.setDate(Math.min(day, lastDay))
+  return moved
+}
+
 export function comparePeriodOf(from: string, to: string, kind: ComparePeriod): PeriodRange | null {
   if (kind === '사용안함' || !from || !to) return null
   const f = new Date(from + 'T00:00:00')
@@ -186,12 +203,12 @@ export function comparePeriodOf(from: string, to: string, kind: ComparePeriod): 
   if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return null
   const days = Math.round((t.getTime() - f.getTime()) / 86400000)
 
-  const start = new Date(f)
+  let start: Date
   switch (kind) {
-    case '전년동일기간': start.setFullYear(start.getFullYear() - 1); break
-    case '전월동일기간': start.setMonth(start.getMonth() - 1); break
-    case '전주동일기간': start.setDate(start.getDate() - 7); break
-    case '전일동일기간': start.setDate(start.getDate() - 1); break
+    case '전년동일기간': start = shiftMonths(f, -12); break
+    case '전월동일기간': start = shiftMonths(f, -1); break
+    case '전주동일기간': start = new Date(f); start.setDate(start.getDate() - 7); break
+    case '전일동일기간': start = new Date(f); start.setDate(start.getDate() - 1); break
     default: return null
   }
   const end = new Date(start)

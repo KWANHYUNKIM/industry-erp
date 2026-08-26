@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, ShortMessage, User } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { shiftMonths, ymd } from '../../components/EcPeriodPicks'
 
 /**
  * 그룹웨어 > 쪽지 (이카운트 E010851 쪽지수발신내역 · C000663 커뮤니케이션센터 — 원본 DOM 이 같은 화면이다)
@@ -77,7 +77,8 @@ export default function ShortMessagePage() {
     if (mode === 'today') { setFrom(iso(t)); setTo(iso(t)) }
     else if (mode === 'week') { const f = new Date(); f.setDate(f.getDate() - 6); setFrom(iso(f)); setTo(iso(t)) }
     else if (mode === 'month') { setFrom(iso(t).slice(0, 8) + '01'); setTo(iso(t)) }
-    else { const f = new Date(); f.setMonth(f.getMonth() - 3); setFrom(iso(f)); setTo(iso(t)) }
+    // setMonth 를 그냥 쓰면 5월 31일에서 3개월 전이 3월 3일로 넘어간다(2월 31일 → 3월 3일).
+    else { setFrom(iso(shiftMonths(t, -3))); setTo(iso(t)) }
   }
 
   const toggle = (id: number) =>

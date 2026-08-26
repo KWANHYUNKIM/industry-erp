@@ -16,7 +16,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { comparePeriodOf, periodOf, ymd } from './periods.ts'
+import { comparePeriodOf, periodOf, shiftMonths, ymd } from './periods.ts'
 
 /** 로컬 시각으로 Date 를 만든다. new Date('2026-08-26') 은 UTC 로 읽혀서 하루 밀린다. */
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h)
@@ -114,4 +114,27 @@ test('비교기간 — 사용안함이거나 날짜가 비면 null', () => {
   assert.equal(comparePeriodOf('', '2026-08-31', '전년동일기간'), null)
   assert.equal(comparePeriodOf('2026-08-01', '', '전년동일기간'), null)
   assert.equal(comparePeriodOf('말도안됨', '2026-08-31', '전년동일기간'), null)
+})
+
+test('달을 옮길 때 없는 날짜는 말일로 당긴다', () => {
+  // Date.setMonth 를 그냥 쓰면 2월 31일이 3월 3일로 넘어간다. 그러면 '전월동일기간'을
+  // 골랐는데 비교 대상이 <b>지금 보는 달</b>로 돌아와 구간이 겹친다. 실제로 그랬다.
+  assert.equal(ymd(shiftMonths(new Date(2026, 2, 31), -1)), '2026-02-28')   // 3/31 → 2/28
+  assert.equal(ymd(shiftMonths(new Date(2026, 4, 31), -1)), '2026-04-30')   // 5/31 → 4/30
+  assert.equal(ymd(shiftMonths(new Date(2028, 1, 29), -12)), '2027-02-28')  // 윤년 2/29 → 2/28
+  assert.equal(ymd(shiftMonths(new Date(2026, 0, 31), -1)), '2025-12-31')   // 넘침이 없으면 그대로
+  assert.equal(ymd(shiftMonths(new Date(2026, 4, 31), -3)), '2026-02-28')   // 3개월 전
+  assert.equal(ymd(shiftMonths(new Date(2026, 7, 26), 1)), '2026-09-26')    // 앞으로도 같다
+})
+
+test('비교기간이 월말에서 같은 달로 돌아오지 않는다', () => {
+  assert.deepEqual(comparePeriodOf('2026-03-31', '2026-03-31', '전월동일기간'),
+    { from: '2026-02-28', to: '2026-02-28' })
+  assert.deepEqual(comparePeriodOf('2026-05-31', '2026-05-31', '전월동일기간'),
+    { from: '2026-04-30', to: '2026-04-30' })
+  assert.deepEqual(comparePeriodOf('2028-02-29', '2028-02-29', '전년동일기간'),
+    { from: '2027-02-28', to: '2027-02-28' })
+  // 구간 길이는 그대로 지킨다 — 시작만 옮기고 같은 일수를 더한다
+  assert.deepEqual(comparePeriodOf('2026-03-29', '2026-03-31', '전월동일기간'),
+    { from: '2026-02-28', to: '2026-03-02' })
 })
