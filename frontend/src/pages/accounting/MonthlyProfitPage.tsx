@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { costOf, type CostBasis } from '../../utils/costBasis'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
@@ -21,7 +22,19 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  */
 type Mode = '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '월별'
 const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처별품목별', '월별'] as const
-type Basis = '월별원가' | '최종구매가' | '품목단가'
+/**
+ * 원가 기준.
+ *
+ * <p>원본 실측: [원가] 선입선출(판매) | 월별원가 | <b>입고단가(품목)</b> | 입고단가(품목) - VAT 제외
+ *
+ * <p>우리 '품목단가' 가 원본의 '입고단가(품목)' 에 해당하는데, 품목 단가가 하나뿐이던 시절
+ * <b>판매단가</b>를 읽고 있었다. 원가에 판매가를 넣으면 이익이 0 근처로 나오는데
+ * 숫자가 그럴듯해서 눈으로는 안 걸린다. 이제 품목의 구매단가를 읽는다.
+ * 구매단가를 안 정한 품목(0)은 기준이 없는 것이므로 원가·이익을 '—' 로 둔다.
+ *
+ * <p>선입선출은 아직 없다 — 로트별 입고원가를 따라가야 해서 자료가 더 필요하다.
+ */
+type Basis = CostBasis
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
 interface PurchaseLite { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }
@@ -35,13 +48,14 @@ export default function MonthlyProfitPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [purchases, setPurchases] = useState<PurchaseLite[]>([])
+  /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [year, setYear] = useState(nowYear())
   const [mode, setMode] = useState<Mode>('품목별')
-  const [basis, setBasis] = useState<Basis>('품목단가')
+  const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [withVat, setWithVat] = useState(false)
 
   function load() {
@@ -51,11 +65,12 @@ export default function MonthlyProfitPage() {
       api.get<SalesDoc[]>('/sales'),
       api.get<CostRow[]>('/costs'),
       api.get<PurchaseLite[]>('/purchases'),
-      api.get<{ id: number; unitPrice: number }[]>('/items'),
+      // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
+      api.get<{ id: number; purchasePrice: number }[]>('/items'),
     ])
       .then(([s, c, p, i]) => {
         setSales(s.data); setCosts(c.data); setPurchases(p.data)
-        setUnitPrices(new Map(i.data.map((it) => [it.id, it.unitPrice])))
+        setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -75,12 +90,12 @@ export default function MonthlyProfitPage() {
     return m
   }, [purchases])
 
-  /** 원가단가. 못 찾으면 null — 0 으로 채우면 이익이 매출 전액이 돼 버린다. */
-  const costPrice = (itemId: number, saleDate: string): number | null => {
-    if (basis === '월별원가') return costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null
-    if (basis === '최종구매가') return lastPurchasePrice.get(itemId)?.price ?? null
-    return unitPrices.get(itemId) ?? null
-  }
+  /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
+  const costPrice = (itemId: number, saleDate: string): number | null => costOf(basis, {
+    monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
+    lastPurchasePrice: lastPurchasePrice.get(itemId)?.price ?? null,
+    itemPurchasePrice: unitPrices.get(itemId) ?? null,
+  })
 
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
@@ -189,7 +204,7 @@ export default function MonthlyProfitPage() {
         </div>
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>원가</span>
         <div className="ec-pills">
-          {(['월별원가', '최종구매가', '품목단가'] as const).map((b) => (
+          {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
             <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                     onClick={() => setBasis(b)}>{b}</button>
           ))}
