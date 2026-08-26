@@ -92,10 +92,18 @@ export default function ExecutiveReportPage() {
 
   const margin = report.saleAmt > 0 ? (report.grossProfit / report.saleAmt) * 100 : 0
 
+  const reset = () => { setFrom(firstOfMonth()); setTo(today()) }
+
   return (
     <EcListShell
       title="경영자보고서"
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       <EcStatusPanel
         from={from} to={to}

@@ -49,7 +49,11 @@ export default function AccountLedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
 
-  const reset = () => { setFrom(firstOfYear()); setTo(today()) }
+  // 계정은 이 화면의 핵심 조건이다. 기간만 되돌리면 '다시 작성'이 절반만 한 셈이 된다.
+  const reset = () => {
+    setFrom(firstOfYear()); setTo(today())
+    setAccountId(accounts.length ? accounts[0].id : null)
+  }
 
   return (
     <EcListShell

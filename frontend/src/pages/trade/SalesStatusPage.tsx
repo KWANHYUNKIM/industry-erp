@@ -150,6 +150,8 @@ export default function SalesStatusPage() {
     setMode('현황'); setCompare('사용안함')
     setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')
     setMgmtItem(''); setLotNo(''); setTaxType('전체'); setKeyword('')
+    // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
+    setGroup1('품목별'); setGroup2('')
   }
 
   const prevRange = comparePeriodOf(from, to, compare)

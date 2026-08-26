@@ -139,7 +139,11 @@ export default function PurchaseStatusPage() {
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
   }, [rows, prevRange, filters, keyword])
 
-  const reset = () => { setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('') }
+  const reset = () => {
+    setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('')
+    // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
+    setGroup1('품목별'); setGroup2('')
+  }
 
   return (
     <EcListShell

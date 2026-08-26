@@ -88,7 +88,13 @@ export default function AccountingReflectionPage() {
   // 두 메뉴가 같은 경로를 가리키므로 서로 오갈 때 컴포넌트가 다시 만들어지지 않는다.
   useEffect(() => { setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales') }, [params])
 
-  const reset = () => { setCond({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' }) }
+  const reset = () => {
+    setCond({ from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '' })
+    setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
+    // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
+    // 화면에 보이지도 않는 전표를 회계반영하게 된다.
+    setChecked(new Set())
+  }
 
   async function reflectSelected() {
     if (checked.size === 0) return setError('반영할 전표를 선택하세요.')
