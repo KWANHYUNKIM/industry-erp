@@ -140,6 +140,32 @@ export default function EcListShell({
     return { ...a, onClick: handler }
   })
 
+  /**
+   * 검색(F8) — 원본 현황 화면의 단축키다. 우리 하단 버튼은 라벨만 `검색(F8)` 이었고
+   * 실제로는 아무 데도 F8 을 걸어 두지 않아, 없는 단축키를 광고하고 있었다.
+   *
+   * 조건 판의 입력칸 안에서 눌러도 먹어야 하므로(그게 이 단축키를 쓰는 이유다)
+   * window 에 건다. 대상은 라벨에 F8 이 적힌 버튼이고, 없으면 primary 버튼을 쓴다.
+   * 전표입력의 저장(F8)은 EcSlipShell 이 따로 잡으므로 서로 겹치지 않는다.
+   */
+  // 호출부가 actions 를 인라인 배열로 넘기므로 resolved 는 매 렌더 새 배열이다.
+  // 그걸 의존성으로 쓰면 렌더마다 리스너를 뗐다 붙인다 — 최신 핸들러만 ref 로 들고 한 번만 건다.
+  const f8Ref = useRef<(() => void) | undefined>(undefined)
+  // 등록 모달이 열려 있으면 뒤에 깔린 목록을 검색하지 않는다 — 보이지도 않는 화면이 바뀐다.
+  f8Ref.current = formOpen ? undefined
+    : (resolved.find((a) => a.label.includes('F8') && a.onClick)
+      ?? resolved.find((a) => a.primary && a.onClick))?.onClick
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F8' || e.repeat || !f8Ref.current) return
+      e.preventDefault()
+      f8Ref.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
 
   return (
