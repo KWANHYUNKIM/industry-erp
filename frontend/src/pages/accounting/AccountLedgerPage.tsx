@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AccountLedger } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 interface AccountOpt { id: number; code: string; name: string }
 
@@ -10,7 +11,13 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
 const today = () => ymd(new Date())
 
-/** 계정별원장 — 한 계정의 기간 내 분개 이력과 계정구분별 누적 잔액. */
+/**
+ * 회계 > 계정별원장 — 한 계정의 기간 내 분개 이력과 누적 잔액.
+ *
+ * 조건이 날짜 칸 두 개짜리 한 줄이었다. 원본 현황 화면들은 전부 같은 모양의 조건 판을 쓰고
+ * 기간 빠른선택([금월(~오늘)][전월] …)이 붙어 있다 — 원장은 "지난달 것"을 보는 일이 잦아
+ * 빠른선택이 없으면 매번 날짜를 두 번 고쳐야 한다. 실측한 EcStatusPanel 로 맞춘다.
+ */
 export default function AccountLedgerPage() {
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [accountId, setAccountId] = useState<number | null>(null)
@@ -42,19 +49,32 @@ export default function AccountLedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
 
+  const reset = () => { setFrom(firstOfYear()); setTo(today()) }
+
   return (
-    <EcListShell title="계정별원장" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
-        <span>계정</span>
-        <select className="ec-input" value={accountId ?? ''} onChange={(e) => setAccountId(Number(e.target.value))} style={{ width: 220 }}>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-        </select>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-      </div>
+    <EcListShell
+      title="계정별원장"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="계정" pick>
+          <select className="ec-input" value={accountId ?? ''}
+                  onChange={(e) => setAccountId(Number(e.target.value))} style={{ width: 260 }}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+          </select>
+        </EcCond>
+      </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

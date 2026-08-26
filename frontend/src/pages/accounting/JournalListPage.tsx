@@ -2,7 +2,8 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
@@ -38,16 +39,34 @@ export default function JournalListPage() {
   ), [rows, keyword])
 
   const total = shown.reduce((a, r) => a + r.totalDebit, 0)
+  const reset = () => { setFrom(firstOfYear()); setTo(today()); setKeyword('') }
 
   return (
-    <EcListShell title="회계전표조회" search={keyword} onSearchChange={setKeyword} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>총 {shown.length}건 · 행을 클릭하면 분개가 펼쳐집니다.</span>
+    <EcListShell
+      title="회계전표조회"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="검색어">
+          <input className="ec-input" placeholder="전표번호·적요·거래처 일부" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+        </EcCond>
+      </EcStatusPanel>
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        총 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
+        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>행을 클릭하면 분개가 펼쳐집니다.</span>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
