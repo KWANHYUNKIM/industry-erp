@@ -226,6 +226,7 @@ const MENU: TopMenu[] = [
               { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
               { label: '작업내역현황', to: '/production/work-result-status' },
               { label: '생산입고현황', to: '/production/receipt-status' },
+              { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
             ],
           },
           {
