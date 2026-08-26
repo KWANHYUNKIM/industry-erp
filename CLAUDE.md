@@ -327,6 +327,16 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
 ```
 
+타입체크가 통과해도 화면에서 어긋나는 것들은 따로 봅니다:
+
+```bash
+node qa/ui-check.mjs     # 표 헤더 ↔ 합계행 열 수, 메뉴 ↔ 라우트
+```
+
+합계행 `colSpan` 을 잘못 잡으면 합계 칸이 밀려 엉뚱한 열 아래 붙는데 타입체크는 아무 말도 안 합니다.
+이 저장소에서 가장 자주 낸 실수라 못 박아 뒀습니다. 메뉴가 없는 경로를 가리키면 눌렀을 때
+빈 화면이 뜨는 것도 같이 봅니다.
+
 `frontend/tsconfig.json` 은 `"files": []` + `references` 만 있는 **솔루션 스타일 설정**입니다.
 그래서 `npx tsc --noEmit` 은 **아무 파일도 검사하지 않고 조용히 성공합니다.** 통과했다고 안심하면
 정의되지 않은 식별자 같은 오류가 그대로 빠져나가 런타임에서 화면이 하얗게 뜹니다(실제로 겪었습니다).
