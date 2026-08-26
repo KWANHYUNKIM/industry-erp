@@ -2501,6 +2501,58 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>회사별 스키마 격리.</b>
+ *
+ * 회사코드로 로그인하면 그 회사 스키마(co_0002 …)를 보고, 본사는 public 을 본다.
+ * 한 회사가 다른 회사 자료를 보게 되는 것이 이 시스템에서 제일 나쁜 실패다 —
+ * 에러도 안 나고, 숫자가 그럴듯해서 한참 뒤에야 드러난다.
+ *
+ * 지금까지 하네스는 본사만 봤다. 스키마 구조는 qa/schema-check.mjs 가 대조하지만
+ * <b>동작</b>은 아무도 안 봤다.
+ */
+async function scenarioTenantIsolation() {
+  section('■ 회사별 스키마 격리')
+
+  const co = await call('POST', '/auth/login',
+    { companyCode: '0002', username: 'testco', password: 'testco1234' })
+  if (!co.ok) {
+    // 테넌트 회사가 없는 환경(새 DB 등)에서는 건너뛴다 — 조용히 통과시키지 않고 그 사실을 적는다.
+    eq('테넌트 회사(0002)가 없어 격리 검사를 건너뜀', 'skipped', 'skipped')
+    return
+  }
+  const coToken = co.data.token
+
+  /** 테넌트 토큰으로 부른다. 전역 token 을 건드리면 뒤 시나리오가 남의 회사에서 돈다. */
+  const asTenant = async (method, path) => {
+    const res = await fetch(`${BASE}${path}`, {
+      method, headers: { Authorization: `Bearer ${coToken}` },
+    })
+    const text = await res.text()
+    return { status: res.status, data: text ? JSON.parse(text) : null }
+  }
+
+  const hqItems = await must('GET', '/items')
+  const coItems = (await asTenant('GET', '/items')).data
+  eq('본사와 테넌트가 서로 다른 품목 목록을 본다',
+    hqItems.length === coItems.length && hqItems.every((h, i) => h.id === coItems[i]?.id), false)
+
+  const hqCodes = new Set(hqItems.map((i) => i.code))
+  eq('본사 품목이 테넌트에 섞여 보이지 않는다',
+    coItems.filter((i) => hqCodes.has(i.code)).length, 0)
+
+  const hqSales = await must('GET', '/sales')
+  const coSales = (await asTenant('GET', '/sales')).data
+  const hqIds = new Set(hqSales.map((x) => x.id))
+  eq('본사 판매전표가 테넌트에 섞여 보이지 않는다',
+    coSales.filter((x) => hqIds.has(x.id) && x.docNo === hqSales.find((h) => h.id === x.id)?.docNo).length, 0)
+
+  // call() 은 전역 토큰을 붙이므로 이걸로는 '토큰 없음'을 시험할 수 없다 —
+  // 헤더를 아예 안 붙인 요청을 따로 보낸다.
+  const anonymous = await fetch(`${BASE}/items`)
+  eq('토큰이 없으면 401', anonymous.status, 401)
+}
+
+/**
  * <b>전표번호 채번.</b>
  *
  * 번호가 겹치면 그 뒤로 전부 어긋난다 — 조회에서 두 전표가 같은 번호로 뜨고,
@@ -2814,6 +2866,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioTenantIsolation()
   await scenarioDocNo(fixtures)
   await scenarioDoubleProcess(fixtures)
   await scenarioConfirmTransition(fixtures)
