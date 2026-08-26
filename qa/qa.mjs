@@ -2501,6 +2501,46 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>전표번호 채번.</b>
+ *
+ * 번호가 겹치면 그 뒤로 전부 어긋난다 — 조회에서 두 전표가 같은 번호로 뜨고,
+ * 세금계산서·회계전표가 어느 쪽을 가리키는지 알 수 없게 된다.
+ * DocumentNoGenerator 는 max(seq)+1 을 읽기 전에 번호 공간을 잠가서 이를 막는데,
+ * 그 락이 사라져도 평상시에는 아무 일도 안 일어난다(동시에 저장할 때만 드러난다).
+ * 실제로 부서코드가 락 없이 count()+1 을 읽다가 같은 코드를 내주고 있었다.
+ */
+async function scenarioDocNo(f) {
+  section('■ 전표번호 채번')
+
+  const DAY = '2026-09-09'   // 다른 시나리오가 안 쓰는 날짜
+  const make = (date = DAY) => must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: date,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 100 }],
+  })
+  const countOn = async (date) =>
+    (await must('GET', '/sales')).filter((x) => x.saleDate === date).length
+
+  // 앞선 실행이 중간에 끊겨 남긴 게 있을 수 있다. '1번부터'를 기대하면 그때 깨진다 —
+  // 번호가 겹치지 않고 <b>연달아</b> 붙는지를 본다(그게 실제로 지켜야 할 성질이다).
+  const before = await countOn(DAY)
+
+  const made = await Promise.all(Array.from({ length: 8 }, () => make()))
+  const seqs = made.map((d) => Number(d.docNo.split('-')[2])).sort((a, b) => a - b)
+  eq('동시에 8건을 저장해도 전표번호가 겹치지 않는다', new Set(seqs).size, 8)
+  eq('번호가 빈틈없이 이어진다', seqs[7] - seqs[0], 7)
+  eq('번호는 그날 접두어를 쓴다',
+    made.every((d) => d.docNo.startsWith('SO-20260909-')), true)
+
+  // 날짜가 다르면 번호 공간도 다르다
+  const otherDay = await make('2026-09-10')
+  eq('날짜가 바뀌면 번호가 이어지지 않는다',
+    Number(otherDay.docNo.split('-')[2]), (await countOn('2026-09-10')))
+
+  for (const d of [...made, otherDay]) await must('DELETE', `/sales/${d.id}`)
+  eq('검증용 전표는 남기지 않는다', await countOn(DAY), before)
+}
+
+/**
  * <b>되돌릴 수 없는 처리를 두 번 하려 할 때.</b>
  *
  * 이런 곳은 서비스 코드에 가드가 있어도 테스트가 없으면, 나중에 리팩터링하다
@@ -2774,6 +2814,7 @@ async function main() {
   scenarioSourceRules()
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
+  await scenarioDocNo(fixtures)
   await scenarioDoubleProcess(fixtures)
   await scenarioConfirmTransition(fixtures)
   await scenarioHttpProtocol()
