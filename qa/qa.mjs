@@ -2271,6 +2271,68 @@ async function scenarioSurvey() {
 
 
 /**
+ * 현황 화면이 기대는 응답 필드. 화면은 대부분 프론트에서 계산하므로,
+ * 백엔드가 필드를 하나 빼도 <b>에러 없이 빈칸이나 0</b>이 뜬다 — 그게 제일 나쁘다.
+ * 그래서 계산의 재료가 되는 필드만 콕 집어 묶어 둔다.
+ */
+async function scenarioStatusScreenContracts(f) {
+  section('■ 현황 화면이 기대는 응답 필드')
+
+  const has = (label, obj, keys) => {
+    const missing = keys.filter((k) => obj === undefined || obj === null || obj[k] === undefined)
+    eq(label, missing.length ? `빠짐: ${missing.join(',')}` : 'ok', 'ok')
+  }
+
+  // 창고별재고현황 — 품목×창고 격자를 만들려면 양쪽 id 가 다 있어야 한다
+  const stock = await must('GET', '/stock')
+  has('재고현황: 품목×창고 필드', stock[0], ['itemId', 'warehouseId', 'quantity', 'unit', 'safetyStock'])
+
+  // BOM환산재고현황 — 소요량이 없으면 환산 자체가 안 된다
+  const boms = await must('GET', '/boms')
+  has('BOM: 모품목·구성 필드', boms[0], ['productId', 'productUnit', 'active', 'lines'])
+  has('BOM 라인: 구성품목·소요량', boms[0]?.lines?.[0], ['componentId', 'componentCode', 'quantity', 'unit'])
+
+  // 기타이동현황 5종 — type 으로 화면이 갈린다. 이전/증감/이후가 다 있어야 이력이 뜻이 있다
+  const adj = await must('GET', '/stock-adjustments')
+  has('기타이동: 유형·증감 필드', adj[0], ['type', 'typeName', 'adjustDate', 'beforeQty', 'quantityChange', 'afterQty', 'warehouseId'])
+  eq('기타이동 유형이 다섯 중 하나',
+    ['SELF_USE', 'DEFECT', 'SUBSTITUTE', 'DISPOSAL', 'ADJUST'].includes(adj[0]?.type), true)
+
+  // 생산입고/소모현황 — 생산실적이 소모자재를 같이 들고 와야 한 화면에서 맞댈 수 있다
+  const prods = await must('GET', '/productions')
+  has('생산실적: 입고 필드', prods[0], ['prodNo', 'productionDate', 'productId', 'producedQty', 'warehouseId', 'materials'])
+  eq('생산실적이 소모자재를 같이 준다', Array.isArray(prods[0]?.materials), true)
+  if (prods[0]?.materials?.length) {
+    has('생산실적 소모자재 필드', prods[0].materials[0], ['componentId', 'componentCode', 'quantity', 'unit'])
+  }
+
+  // 재고실사현황 — 장부/실사/차이 세 값이 한 벌이다. 만들고 확인하고 지운다
+  const staged = await must('POST', '/staged-adjustments', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 7,
+    requestDate: '2026-07-20', reason: `${P}실사계약검증`,
+  })
+  has('재고실사: 장부·실사·차이·상태', staged,
+    ['adjustNo', 'requestDate', 'bookQty', 'actualQty', 'diff', 'status', 'statusName', 'warehouseId'])
+  eq('차이 = 실사 − 장부', staged.diff, staged.actualQty - staged.bookQty)
+  eq('새 실사요청 상태는 요청', staged.statusName, '요청')
+  await must('DELETE', `/staged-adjustments/${staged.id}`)
+  eq('지운 실사요청은 목록에서 빠진다',
+    (await must('GET', '/staged-adjustments')).some((x) => x.id === staged.id), false)
+
+  // 일별재고현황·이익현황의 '월별원가' 기준
+  const costs = await must('GET', '/costs')
+  if (costs.length) has('원가: 기간·표준원가', costs[0], ['itemId', 'period', 'standardTotal'])
+
+  // 창고이동현황 — 전표를 만들면 재고가 움직이고 되돌릴 API 가 없다. 자료가 있을 때만 모양을 본다.
+  const transfers = await must('GET', '/stock-transfers')
+  eq('창고이동 목록은 배열', Array.isArray(transfers), true)
+  if (transfers.length) {
+    has('창고이동: 출고·입고창고와 수량', transfers[0],
+      ['transferNo', 'transferDate', 'itemId', 'fromWarehouseId', 'toWarehouseId', 'quantity'])
+  }
+}
+
+/**
  * 없는 API 경로. 예전에는 <b>500</b> 이 나면서 "No static resource api/..." 라는
  * 내부 사정까지 실려 나갔다. 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되고,
  * 내부 구조까지 새어 나간다.
@@ -2377,6 +2439,7 @@ async function main() {
   await scenarioSupplyUsage()
   await scenarioSurvey()
   await scenarioSettlement(fixtures)
+  await scenarioStatusScreenContracts(fixtures)
   await scenarioNotFound()
 
   console.log(`\n${'─'.repeat(50)}`)
