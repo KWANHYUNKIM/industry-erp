@@ -2271,6 +2271,25 @@ async function scenarioSurvey() {
 
 
 /**
+ * 없는 API 경로. 예전에는 <b>500</b> 이 나면서 "No static resource api/..." 라는
+ * 내부 사정까지 실려 나갔다. 프론트가 오타를 낸 건지 서버가 죽은 건지 구분이 안 되고,
+ * 내부 구조까지 새어 나간다.
+ */
+async function scenarioNotFound() {
+  section('■ 없는 경로')
+
+  const r = await call('GET', '/definitely-not-a-real-path')
+  eq('없는 경로는 404', r.status, 404)
+  eq('메시지가 내부 사정을 흘리지 않는다', r.data?.message, '요청한 경로를 찾을 수 없습니다.')
+  eq('"No static resource" 가 새어 나가지 않는다',
+    String(r.data?.message ?? '').includes('No static resource'), false)
+
+  // 지운 이익현황 엔드포인트가 되살아나면 여기서 잡힌다(매출−매입을 '이익'이라 부르던 것들).
+  eq('/profit/daily 는 지워진 채로 있다', (await call('GET', '/profit/daily')).status, 404)
+  eq('/profit/monthly 는 지워진 채로 있다', (await call('GET', '/profit/monthly')).status, 404)
+}
+
+/**
  * 정산(수금/지급). 삭제가 아예 없어서 잘못 넣은 전표를 지울 방법이 없었다 —
  * 정산은 거래처 채권·채무 잔액에 그대로 반영되므로 오타 하나가 잔액을 영구히 틀리게 만든다.
  */
@@ -2358,6 +2377,7 @@ async function main() {
   await scenarioSupplyUsage()
   await scenarioSurvey()
   await scenarioSettlement(fixtures)
+  await scenarioNotFound()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

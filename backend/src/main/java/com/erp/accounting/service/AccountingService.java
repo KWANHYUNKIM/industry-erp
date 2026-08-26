@@ -92,8 +92,6 @@ public class AccountingService {
         return new ProfitSummaryResponse(totalSales, totalCost, gross, margin);
     }
 
-    // ===== 이익현황 (매출 - 매입, 공급가 기준) =====
-
     private static BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
     }
