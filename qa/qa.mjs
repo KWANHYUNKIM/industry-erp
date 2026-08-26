@@ -2560,7 +2560,25 @@ async function scenarioPayrollReadGuard() {
   eq('PAYROLL 이 있으면 기본급이 온다',
     payRows.some((r) => Number(r.baseSalary) > 0), true)
 
-  for (const u of [none, pay]) await must('DELETE', `/users/${u.id}`)
+  // 계좌번호·카드번호도 권한 없이 읽혔다. 다만 계좌 목록은 자금 화면 전용이 아니라
+  // 전표입력·수입금액·급여이체가 드롭다운으로 같이 쓴다 — BANK 하나만 요구하면
+  // 그 화면들이 조용히 빈 드롭다운이 되므로 넷 중 하나라도 있으면 통과시킨다.
+  await must('POST', '/roles',
+    { name: `${P2}_ACC`, displayName: '전표만', permissionCodes: ['ACCOUNTING'] })
+  const acc = await must('POST', '/users', {
+    username: `${P2.toLowerCase()}acc`, password: 'qatest1234', name: '전표담당', roleNames: [`${P2}_ACC`],
+  })
+  for (const path of ['/bank-cards/accounts', '/bank-cards/cards',
+    '/bank-cards/transactions', '/bank-cards/usages']) {
+    eq(`권한 없는 계정은 ${path} 를 못 읽는다`,
+      (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', path)).status, 403)
+  }
+  eq('BANK 이 없어도 ACCOUNTING 이면 계좌 드롭다운은 뜬다',
+    (await asUser(`${P2.toLowerCase()}acc`, 'qatest1234', '/bank-cards/accounts')).status, 200)
+  eq('PAYROLL(급여이체)도 계좌 드롭다운을 쓴다',
+    (await asUser(`${P2.toLowerCase()}pay`, 'qatest1234', '/bank-cards/accounts')).status, 200)
+
+  for (const u of [none, pay, acc]) await must('DELETE', `/users/${u.id}`)
   for (const r of (await must('GET', '/roles')).filter((r) => r.name.startsWith(P2))) {
     await must('DELETE', `/roles/${r.id}`)
   }
