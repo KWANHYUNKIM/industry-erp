@@ -2928,6 +2928,46 @@ async function scenarioDeleteInUse(f) {
 }
 
 /**
+ * <b>잔량재집계.</b>
+ *
+ * 거래별 잔량(balanceAfter)은 <b>입력 순서</b>로 매겨진다. 과거 일자 거래를 뒤늦게 넣으면
+ * 일자순으로 읽을 때의 잔량과 어긋난다. 실제로 개발 DB 에서 거래 7,385건 중
+ * <b>7,224건</b>이 어긋난 채였다 — 재고 수량 자체는 멀쩡했고, 어긋난 것을 알려 주는
+ * 화면이 없어 아무도 몰랐다.
+ *
+ * <p>재집계가 그걸 고치는 기능인데, 고치고 나면 다시 점검했을 때 0 이어야 한다.
+ * 그 <b>멱등성</b>을 여기서 못 박는다 — 재집계가 반쪽만 고치면 여기서 걸린다.
+ */
+async function scenarioStockRecalc() {
+  section('■ 잔량재집계')
+
+  const ALL = 'from=1900-01-01&to=2999-12-31'
+  const applied = await must('POST', `/stock/recalc?${ALL}`)
+  eq('재집계는 실제로 고친다(applied)', applied.applied, true)
+  eq('재고 수량 자체는 어긋나지 않는다', applied.quantityMismatch, 0)
+
+  const after = await must('GET', `/stock/recalc?${ALL}`)
+  eq('재집계 뒤 다시 점검하면 어긋난 잔량이 없다', after.balanceMismatch, 0)
+  eq('점검은 고치지 않는다', after.applied, false)
+  eq('본 거래 수는 그대로', after.scannedTx, applied.scannedTx)
+
+  // 과거 일자 거래를 하나 넣으면 그 뒤 잔량이 어긋나는 것이 정상이다 —
+  // 재집계가 필요한 상황을 만들어, 재집계가 그걸 실제로 잡는지 본다.
+  const item = (await must('GET', '/items')).find((i) => i.active)
+  const wh = (await must('GET', '/warehouses'))[0]
+  await must('POST', '/stock/transactions', {
+    itemId: item.id, warehouseId: wh.id, type: 'INBOUND',
+    quantity: 7, unitPrice: 100, transactionDate: '2000-01-05', note: `${P} 과거일자`,
+  })
+  const dirty = await must('GET', `/stock/recalc?${ALL}`)
+  eq('과거 일자 거래를 넣으면 잔량이 어긋난다', dirty.balanceMismatch > 0, true)
+  const fixed = await must('POST', `/stock/recalc?${ALL}`)
+  eq('재집계가 그만큼 고친다', fixed.balanceMismatch, dirty.balanceMismatch)
+  eq('고친 뒤에는 다시 0',
+    (await must('GET', `/stock/recalc?${ALL}`)).balanceMismatch, 0)
+}
+
+/**
  * <b>검증 실패 문구.</b>
  *
  * 제약에 message 를 안 적으면 Hibernate 가 자기 한국어 번역을 쓴다. 품목 등록 실패 응답이
@@ -3253,6 +3293,7 @@ async function main() {
   await scenarioInactiveMaster(fixtures)
   await scenarioSlipDelete(fixtures)
   await scenarioValidationMessages(fixtures)
+  await scenarioStockRecalc()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

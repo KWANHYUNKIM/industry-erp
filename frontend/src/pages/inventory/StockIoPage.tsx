@@ -179,7 +179,10 @@ export default function StockIoPage() {
                 <th>품목</th>
                 <th>창고</th>
                 <th style={{ textAlign: 'right' }}>변동</th>
-                <th style={{ textAlign: 'right' }}>잔량</th>
+                {/* 저장된 잔량은 <b>입력 순서</b>로 매겨진다. 과거 일자 거래를 뒤늦게 넣으면
+                    일자순으로 읽을 때의 잔량과 어긋난다 — 실제로 거래 7,385건 중 7,224건이
+                    어긋난 채였다. 「잔량재집계」가 정규화한다. 칸 이름으로 그 성질을 밝힌다. */}
+                <th style={{ textAlign: 'right' }} title="입력 순서로 매겨진 잔량입니다. 과거 일자 거래를 넣은 뒤에는 「잔량재집계」를 돌려야 일자순 잔량과 맞습니다.">잔량(입력순)</th>
                 <th>비고</th>
               </tr>
             </thead>
