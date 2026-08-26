@@ -17,6 +17,14 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
  * **의도적 제외**(값 없는 컨트롤을 흉내내지 않는다). 대신 우리 데이터로 실제 거를 수 있는
  * 납기일 구간·거래처·품목·주문번호·미출하수량 범위를 둔다.
  */
+/**
+ * 원본 미출하현황의 [구분] 은 <b>품목별 · 라인별</b> 둘이다(원본 사본 실측).
+ * 우리는 라인별 하나뿐이었다. 품목별은 같은 품목의 미출하수량을 주문서를 가로질러 모은다 —
+ * "이 품목을 얼마나 더 내보내야 하나"를 보는 쪽이다.
+ */
+type Mode = '품목별' | '라인별'
+const MODES = ['품목별', '라인별'] as const
+
 interface UnshippedLine {
   orderId: number
   orderNo: string
@@ -111,6 +119,30 @@ export default function UnshippedPage() {
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unshippedQty <= Number(cond.qtyTo))
+  const [mode, setMode] = useState<Mode>('라인별')
+
+  /** 품목별 — 주문서를 가로질러 같은 품목을 모은다. */
+  const byItem = useMemo(() => {
+    const m = new Map<number, {
+      itemId: number; itemCode: string; itemName: string; unit: string
+      orderQty: number; unshippedQty: number; orderCount: number
+    }>()
+    for (const r of shown) {
+      const cur = m.get(r.itemId)
+      if (!cur) {
+        m.set(r.itemId, {
+          itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName, unit: r.unit,
+          orderQty: r.orderQty, unshippedQty: r.unshippedQty, orderCount: 1,
+        })
+      } else {
+        cur.orderQty += r.orderQty
+        cur.unshippedQty += r.unshippedQty
+        cur.orderCount += 1
+      }
+    }
+    return [...m.values()].sort((a, b) => b.unshippedQty - a.unshippedQty)
+  }, [shown])
+
   const totalUnshipped = useMemo(() => shown.reduce((s, r) => s + r.unshippedQty, 0), [shown])
 
   const reset = () => {
@@ -137,6 +169,7 @@ export default function UnshippedPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
+        modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
       >
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
@@ -173,36 +206,78 @@ export default function UnshippedPage() {
         </p>
       )}
 
+      {mode === '품목별' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th style={{ width: 130 }}>품목코드</th>
+              <th>품목명(규격)</th>
+              <th style={{ width: 90, textAlign: 'right' }}>주문건수</th>
+              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 110, textAlign: 'right' }}>미출하수량</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : byItem.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>미출하 내역이 없습니다.</td></tr>
+            ) : byItem.map((g, i) => (
+              <tr key={g.itemId}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                <td>{g.itemName}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.orderCount.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.orderQty.toLocaleString()} {g.unit}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>
+                  {g.unshippedQty.toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
+              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderCount, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderQty, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{totalUnshipped.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/* 칸 순서·이름은 원본 미출하현황 격자 그대로:
+                일자-No. · 품목명(규격) · 수량 · 미출하수량 · 거래처명 · 출하예정일.
+                원본의 창고명·적요는 우리 주문서에 그 값이 없어 칸을 만들지 않는다.
+                맨 끝 [출하지시] 는 우리 화면의 것이다 — 여기서 바로 출하지시서를 낸다. */}
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 150 }}>주문번호 ▼</th>
-            <th>거래처 ▼</th>
-            <th style={{ width: 100 }}>납기일 ▼</th>
-            <th>품목 ▼</th>
-            <th style={{ width: 90, textAlign: 'right' }}>주문수량</th>
-            <th style={{ width: 90, textAlign: 'right' }}>출하수량</th>
+            <th style={{ width: 170 }}>일자-No. ▼</th>
+            <th>품목명(규격) ▼</th>
+            <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             <th style={{ width: 90, textAlign: 'right' }}>미출하수량</th>
+            <th>거래처명 ▼</th>
+            <th style={{ width: 100 }}>출하예정일 ▼</th>
             <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
             <th style={{ width: 150, textAlign: 'center' }}>출하지시</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>미출하 주문이 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>미출하 주문이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
-              <td>{r.partnerName}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.orderDate} {r.orderNo}</td>
               <td>[{r.itemCode}] {r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
-              <td style={{ textAlign: 'right' }}>{r.shippedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
+              <td>{r.partnerName}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{r.dueDate ?? '-'}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <input
@@ -227,6 +302,7 @@ export default function UnshippedPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }

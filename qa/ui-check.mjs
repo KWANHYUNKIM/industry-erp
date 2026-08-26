@@ -100,6 +100,59 @@ console.log('\n■ 조건부 열 표의 개발 모드 검사')
   eq(`훅을 쓰는 화면 ${hooked}개가 ref 를 요소에 달았다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-c) tbody 의 넓은 칸 ─────────────────────────────────────────────────
+console.log('\n■ tbody 의 넓은 칸이 표 너비와 맞나')
+
+/**
+ * "내역이 없습니다" 한 줄은 표 전체를 가로질러야 하고, 소계 줄의 넓은 칸도 남는 칸을
+ * 정확히 덮어야 한다. colSpan 이 모자라면 문구가 왼쪽에만 붙고 오른쪽이 비고,
+ * 넘치면 표가 옆으로 삐져나온다.
+ *
+ * <p>열을 빼거나 더할 때 이 숫자를 같이 안 고쳐서 생긴다 — 실제로 미출하현황에서
+ * 열을 10개에서 9개로 줄이면서 colSpan={10} 을 그대로 뒀다.
+ * 위 1) 검사는 헤더와 <b>합계행(tfoot)</b>만 보므로 tbody 의 이 줄은 아무도 안 봤다.
+ *
+ * <p><b>칸 하나가 아니라 줄 전체로 센다.</b> 4칸 표의 "납부세액 | colSpan=3" 처럼
+ * 다른 칸과 나눠 덮는 줄이 흔하다. colSpan 만 보면 그게 전부 오류로 잡힌다.
+ */
+{
+  /** map 이 칸을 찍어 내는 표(기간 버킷·피벗 열)는 열 수가 자료에 따라 달라 못 센다. */
+  const hasMappedCell = (block) => /\.map\([\s\S]{0,300}?<t[hd]\b/.test(block)
+
+  const bad = []
+  let checked = 0
+  let skipped = 0
+  for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const tm of src.matchAll(/<table\b[\s\S]*?<\/table>/g)) {
+      const t = tm[0]
+      const head = t.match(/<thead\b[\s\S]*?<\/thead>/)?.[0]
+      const body = t.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0]
+      if (!head || !body) continue
+      if (hasConditionalCell(head) || hasMappedCell(head)) { skipped++; continue }
+      const hRow = firstRow(head)
+      if (!hRow) continue
+      const cols = countCells(hRow, 'th')
+      if (!cols) continue
+      for (const rm of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)) {
+        const row = rm[1]
+        // 넓은 칸(3칸 이상)이 있는 줄만 본다 — 보통 빈 상태 문구나 소계 줄이다.
+        if (!/colSpan=\{([3-9]|\d\d+)\}/.test(row)) continue
+        if (hasConditionalCell(row) || hasMappedCell(row)) { skipped++; continue }
+        const width = countCells(row, 'td')
+        if (width === null || !width) continue
+        checked++
+        if (width !== cols) {
+          const line = src.slice(0, tm.index + rm.index).split('\n').length
+          bad.push(`${f.split(sep).pop()}:${line}  열 ${cols}칸인데 줄은 ${width}칸`)
+        }
+      }
+    }
+  }
+  eq(`넓은 칸이 든 줄 ${checked}개가 표 너비와 맞는다 (열이 자료에 따라 변하는 ${skipped}개는 건너뜀)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 
