@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
@@ -30,7 +31,13 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   const [group, setGroup] = useState('전체')
   const [manager, setManager] = useState('전체')
-  const [keyword, setKeyword] = useState('')
+  /**
+ * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
+ * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,
+ * 그러면 허브가 있으나 마나다.
+ */
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('partner') ?? '')
   const [partnerCode, setPartnerCode] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [hideZero, setHideZero] = useState(true)

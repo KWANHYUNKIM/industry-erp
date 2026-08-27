@@ -196,6 +196,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   // 같은 입력 화면이 수정 모드로 열린다.
   const [searchParams, setSearchParams] = useSearchParams()
   const editId = searchParams.get('edit')
+  /** 거래처중심입력에서 넘어오면 거래처를 미리 골라 둔다(?partnerId=). */
+  const presetPartnerId = searchParams.get('partnerId')
 
   // ── 마스터 ─────────────────────────────────────────────
   const [partners, setPartners] = useState<Partner[]>([])
@@ -318,6 +320,19 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     setHasTemp(!!localStorage.getItem(tempKey))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
+
+  /**
+   * `?partnerId=` 로 들어오면 거래처를 미리 골라 둔다(거래처중심입력 → [전표입력]).
+   *
+   * <p>수정으로 들어온 경우(`?edit=`)에는 손대지 않는다 — 그 전표의 거래처가 맞다.
+   * 사람이 이미 다른 거래처를 골랐다면 그것도 덮지 않는다.
+   */
+  useEffect(() => {
+    if (!presetPartnerId || editId || partnerId) return
+    if (!partners.some((p) => String(p.id) === presetPartnerId)) return
+    setPartnerId(presetPartnerId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetPartnerId, editId, partners])
 
   /**
    * `?edit=` 로 들어오면 그 전표를 화면에 펼친다. 목록(`loadDocs`)이 도착한 뒤에 한 번만 채운다 —

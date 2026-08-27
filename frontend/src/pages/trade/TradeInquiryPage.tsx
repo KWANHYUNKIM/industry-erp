@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
@@ -46,7 +47,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
   const [docs, setDocs] = useState<NormalDoc[]>([])
   const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
+  /**
+ * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
+ * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,
+ * 그러면 허브가 있으나 마나다.
+ */
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('partner') ?? '')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')

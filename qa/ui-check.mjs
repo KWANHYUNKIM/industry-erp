@@ -24,6 +24,14 @@ const eq = (label, actual, expected) => {
   ok ? pass++ : fail++
 }
 
+/**
+ * `to={'/a/b'}` · `to="/a/b"` · `to: (p) => `/a/b`` · `navigate('/a/b')` 를 잡는다.
+ * 템플릿 문자열은 ${ 앞까지만 본다. 문자 범위로 자르면 한글이 든 경로가
+ * 조용히 잘려 나가 '/sales/' 같은 조각이 되고, 그러면 깨진 길을 못 잡는다.
+ * 처음엔 `to=` 만 봤는데, 정작 바로가기 목록을 배열로 두면 `to:` 라서 하나도 안 잡혔다.
+ */
+const LINK_RE = /(?:to=\{?|to:\s*(?:\([^)]*\)\s*=>\s*)?|navigate\()\s*[`'"](\/[^`'"$\s)]*)/g
+const SEP = /[\\/]/
 const walk = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f)
   return statSync(p).isDirectory() ? walk(p) : [p]
@@ -229,6 +237,29 @@ const matches = (path) => {
 const dead = [...menuTargets.keys()].filter((p) => !matches(p)).sort()
 eq('메뉴가 가리키는 경로에 라우트가 다 있다',
   dead.map((p) => `${p}  (${menuTargets.get(p).join(', ')})`).join('\n') || '없음', '없음')
+
+// ── 2-b) 화면 안에서 코드로 만드는 바로가기도 살아 있나 ────────────────────
+console.log('\n■ 화면 안 바로가기 ↔ 라우트')
+
+/*
+ * 메뉴에 없는 <Link to=...> 나 navigate(...) 로 가는 길이 있다. 거래처중심입력의
+ * 바로가기 묶음이 그렇다 — 라우트를 옮기거나 지우면 그 버튼은 눌러야만 죽은 것이 드러난다.
+ * 쿼리스트링은 ? 앞까지만 본다.
+ */
+{
+  const pageFiles = walk('frontend/src/pages')
+  const bad = []
+  for (const f of pageFiles) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(LINK_RE)) {
+      const path = m[1].split('?')[0].replace(/\/$/, '')
+      if (!path || path === '/') continue
+      if (!matches(path)) bad.push(f.split(SEP).pop() + "  " + path)
+    }
+  }
+  eq('화면 안 바로가기가 가리키는 경로에 라우트가 다 있다',
+    [...new Set(bad)].sort().join('\n') || '없음', '없음')
+}
 
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')

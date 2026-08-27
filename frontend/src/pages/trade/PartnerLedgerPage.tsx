@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -64,7 +65,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [to, setTo] = useState(init.to)
   const [side, setSide] = useState<Side>(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
   const [group, setGroup] = useState<Group>('전표별')
-  const [partner, setPartner] = useState('')
+  /**
+ * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
+ * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,
+ * 그러면 허브가 있으나 마나다.
+ */
+  const [searchParams] = useSearchParams()
+  const [partner, setPartner] = useState(searchParams.get('partner') ?? '')
 
   async function load() {
     setLoading(true)
