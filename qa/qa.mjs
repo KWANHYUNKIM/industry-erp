@@ -7489,6 +7489,30 @@ async function scenarioReturnSlip(f) {
   eq('근거전표를 적요에 남긴다', partial.remark.includes(buy.docNo), true)
   await must('DELETE', `/purchases/${partial.id}`)
 
+  /*
+   * 원본 구매입력 격자의 <b>[품질검사요청]</b>(열 id qcRequest_chk).
+   *
+   * <p>켜 두고 저장하면 그 줄의 품목·수량으로 입고검사 요청이 만들어진다. 지금까지는
+   * 사 온 물건을 검사하려면 품질검사요청 화면에 가서 품목·수량을 <b>다시 적어야</b> 했고,
+   * 옮겨 적는 사이에 수량이 어긋나면 검사한 것과 산 것이 다른 물건이 된다.
+   *
+   * <p>화면이 전표를 저장한 <b>뒤에</b> 요청을 만든다(생산입고 III 과 같은 흐름).
+   * 여기서는 그 요청이 실제로 만들어지고 <b>산 수량 그대로</b> 실리는지를 잰다.
+   */
+  const qcBefore = (await must('GET', '/quality-inspection-requests')).length
+  const qc = await must('POST', '/quality-inspection-requests', {
+    type: 'INCOMING', itemId: f.material.id, requestQty: 10,
+    requestDate: '2026-07-20', remark: `구매 ${buy.docNo}`,
+  })
+  eq('입고검사 요청이 만들어진다', qc.type, 'INCOMING')
+  eq('수입검사로 표시된다', qc.typeName, '수입검사')
+  eq('산 수량 그대로 실린다', Number(qc.requestQty), 10)
+  eq('어느 구매에서 왔는지 남는다', qc.remark, `구매 ${buy.docNo}`)
+  eq('요청 상태로 시작한다', qc.status, 'REQUESTED')
+  await must('DELETE', `/quality-inspection-requests/${qc.id}`)
+  eq('시험용 검사요청은 남기지 않는다',
+    (await must('GET', '/quality-inspection-requests')).length, qcBefore)
+
   // 뒷정리 — 시험용 전표와 재고를 되돌린다
   await must('DELETE', `/purchases/${pRet.id}`)
   await must('DELETE', `/purchases/${buy.id}`)

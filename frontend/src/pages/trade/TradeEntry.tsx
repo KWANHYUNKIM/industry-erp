@@ -42,6 +42,16 @@ interface LineInput {
   lotNo: string
   /** 부대비용 (원본 cust_amt). 합계 금액에는 더하지 않는다. */
   extraCost: string
+  /**
+   * 원본 구매입력 격자의 <b>[품질검사요청]</b>(열 id qcRequest_chk).
+   *
+   * <p>켜 두고 저장하면 그 줄의 품목·수량으로 <b>입고검사 요청</b>이 만들어진다.
+   * 지금까지는 사 온 물건을 검사하려면 품질검사요청 화면에 가서 품목·수량을 다시 적어야 했다 —
+   * 옮겨 적는 사이에 수량이 어긋나면 검사한 것과 산 것이 다른 물건이 된다.
+   *
+   * <p>판매에는 없다. 원본 판매입력 격자에도 이 열이 없다 — 파는 물건을 우리가 입고검사할 일이 없다.
+   */
+  qcRequest: boolean
   remark: string
   /**
    * 불러온 근거전표 — 원본 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열.
@@ -73,6 +83,7 @@ const today = () => {
 }
 const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lotNo: '', extraCost: '', remark: '',
+  qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
   custom: {}, lineId: null,
 })
@@ -187,6 +198,8 @@ const OPTIONAL_COLS = [
   { id: 'srcType', title: '불러온 전표', width: 80 },
   { id: 'srcDate', title: '불러온 전표일자', width: 100 },
   { id: 'srcNo', title: '불러온 전표No.', width: 120 },
+  /* 원본 구매입력 격자의 [품질검사요청](qcRequest_chk). 판매입력 격자에는 없는 열이다. */
+  { id: 'qcRequest', title: '품질검사요청', width: 90 },
 ] as const
 type OptionalColId = typeof OPTIONAL_COLS[number]['id']
 
@@ -243,7 +256,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [lines, setLines] = useState<LineInput[]>(emptyLines)
   const [cols, setCols] = useState<Record<OptionalColId, boolean>>({
     stockAll: false, stockWh: false, unit: false, priceVat: false,
-    mgmtItem: false, srcType: false, srcDate: false, srcNo: false,
+    mgmtItem: false, srcType: false, srcDate: false, srcNo: false, qcRequest: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
   // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
@@ -1006,6 +1019,32 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           }),
         ]).catch(() => flash('전표는 저장했지만 라인 추가항목 저장에 실패했습니다.'))
       }
+      /*
+       * 원본 구매입력 격자의 <b>[품질검사요청]</b>(qcRequest_chk). 켠 줄의 품목·수량으로
+       * 입고검사 요청을 만든다 — 생산입고 III 이 하는 것과 같은 흐름이다.
+       *
+       * <p>요청 생성이 실패해도 <b>구매는 이미 끝난 일</b>이라 되돌리지 않고 사유만 알린다.
+       * 여기서 전표를 롤백하면 물건은 들어왔는데 산 기록이 없어진다.
+       */
+      const qcLines = mode === 'purchase'
+        ? keptLines.filter((l) => l.qcRequest && l.itemId)
+        : []
+      if (qcLines.length > 0) {
+        const made = await Promise.all(qcLines.map((l) => api.post('/quality-inspection-requests', {
+          type: 'INCOMING',
+          itemId: Number(l.itemId),
+          requestQty: num(l.quantity),
+          lotNo: l.lotNo.trim() || undefined,
+          requestDate: date,
+          remark: `구매 ${res.data.docNo}`,
+        }).then(() => true).catch(() => false)))
+        const okCount = made.filter(Boolean).length
+        if (okCount < qcLines.length) {
+          flash(`품질검사요청 ${qcLines.length}건 중 ${okCount}건만 만들어졌습니다.`)
+        } else {
+          flash(`입고검사 요청 ${okCount}건을 만들었습니다.`)
+        }
+      }
       setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
       deleteTemp()
@@ -1469,6 +1508,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               {cols.srcType && <col style={{ width: 80 }} />}
               {cols.srcDate && <col style={{ width: 100 }} />}
               {cols.srcNo && <col style={{ width: 120 }} />}
+              {cols.qcRequest && <col style={{ width: 90 }} />}
               <col style={{ width: 30 }} />
             </colgroup>
             <thead>
@@ -1513,6 +1553,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 {cols.srcType && <th>불러온 전표</th>}
                 {cols.srcDate && <th>불러온 전표일자</th>}
                 {cols.srcNo && <th style={{ textAlign: 'left' }}>불러온 전표No.</th>}
+                {/* 원본 구매입력 격자의 [품질검사요청]. 켜고 저장하면 입고검사 요청이 생긴다. */}
+                {cols.qcRequest && <th>품질검사요청</th>}
                 <th />
               </tr>
             </thead>
@@ -1648,6 +1690,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                         {l.sourceDocNo}
                       </td>
                     )}
+                    {cols.qcRequest && (
+                      <td className="pad" style={{ textAlign: 'center' }}>
+                        <input type="checkbox" checked={l.qcRequest} disabled={!l.itemId}
+                               onChange={(e) => updateLine(idx, 'qcRequest', e.target.checked)} />
+                      </td>
+                    )}
                     <td style={{ textAlign: 'center' }}>
                       {l.itemId && (
                         <button type="button" onClick={() => removeLine(idx)} className="no-ec"
@@ -1703,7 +1751,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         <p style={{ fontSize: 12, color: '#5a626e', marginTop: 0 }}>
           원본에서 기본 숨김으로 깔려 있는 열입니다. 켜면 그리드에 나타납니다.
         </p>
-        {OPTIONAL_COLS.map((c) => (
+        {OPTIONAL_COLS.filter((c) => c.id !== 'qcRequest' || mode === 'purchase').map((c) => (
           <label key={c.id} style={{ display: 'block', padding: '5px 0', fontSize: 12.5 }}>
             <input
               type="checkbox" checked={cols[c.id]} style={{ marginRight: 6 }}
