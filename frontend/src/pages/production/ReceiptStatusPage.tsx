@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
@@ -133,24 +134,29 @@ export default function ReceiptStatusPage() {
   }), [rows, from, to, warehouseId, item, worker, project, note])
 
   /** 집계 — 품목 단위로 입고수량을 모은다. */
+  /*
+   * 원본 [정렬/소계기준]. 우리는 <b>품목으로만</b> 묶었는데, 같은 입고를
+   * 창고별·프로젝트별로 보고 싶은 사람이 따로 있다.
+   */
+  const SUBTOTALS = ['품목', '입고창고', '출고창고', '프로젝트'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목')
+
   const byItem = useMemo(() => {
-    const m = new Map<number, {
-      itemId: number; code: string; name: string; unit: string; qty: number; count: number
-    }>()
-    for (const r of shown) {
-      const cur = m.get(r.productId)
-      if (!cur) {
-        m.set(r.productId, {
-          itemId: r.productId, code: r.productCode, name: r.productName,
-          unit: r.productUnit, qty: r.producedQty, count: 1,
-        })
-      } else {
-        cur.qty += r.producedQty
-        cur.count += 1
-      }
-    }
-    return [...m.values()].sort((a, b) => b.qty - a.qty)
-  }, [shown])
+    const keyOf = (r: Production) => (
+      subtotal === '입고창고' ? r.warehouseName
+        : subtotal === '출고창고' ? (r.fromWarehouseName ?? r.warehouseName)
+          : subtotal === '프로젝트' ? r.projectName
+            : r.productName)
+    return subtotalBy(shown, keyOf, { qty: (r) => r.producedQty }).map((g) => ({
+      key: g.label,
+      // 코드 칸은 품목으로 묶을 때만 뜻이 있다 — 창고·프로젝트에는 코드가 없다.
+      code: subtotal === '품목' ? (g.rows[0]?.productCode ?? '') : '',
+      name: g.label,
+      unit: subtotal === '품목' ? (g.rows[0]?.productUnit ?? '') : '',
+      qty: g.sums.qty,
+      count: g.count,
+    })).sort((a, b) => b.qty - a.qty)
+  }, [shown, subtotal])
 
   /** 라인별 — 전표 하나에 소모자재가 여러 줄이므로 자재 줄까지 펼친다. */
   const lines = useMemo(() => shown.flatMap((r) =>
@@ -195,6 +201,8 @@ export default function ReceiptStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -243,8 +251,8 @@ export default function ReceiptStatusPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 140 }}>품목코드</th>
-              <th>품목명</th>
+              <th style={{ width: 140 }}>{subtotal === '품목' ? '품목코드' : '코드'}</th>
+              <th>{subtotal === '품목' ? '품목명' : subtotal}</th>
               <th style={{ width: 100, textAlign: 'right' }}>건수</th>
               <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
             </tr>
@@ -255,7 +263,7 @@ export default function ReceiptStatusPage() {
             ) : byItem.length === 0 ? (
               <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
-              <tr key={g.itemId}>
+              <tr key={g.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
                 <td>{g.name}</td>
@@ -268,7 +276,7 @@ export default function ReceiptStatusPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
+              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}건 묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</td>
             </tr>

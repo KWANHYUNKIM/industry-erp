@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcBarChart from '../../components/EcBarChart'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -78,16 +79,16 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
     (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable }),
     { receivable: 0, payable: 0 }), [shown])
 
-  /** 거래처그룹 소계 (그룹 미지정은 '미지정'으로 묶는다) */
-  const subtotals = useMemo(() => {
-    const m = new Map<string, { receivable: number; payable: number; count: number }>()
-    shown.forEach((r) => {
-      const k = r.partnerGroupName ?? '(미지정)'
-      const cur = m.get(k) ?? { receivable: 0, payable: 0, count: 0 }
-      m.set(k, { receivable: cur.receivable + r.receivable, payable: cur.payable + r.payable, count: cur.count + 1 })
-    })
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [shown])
+  /*
+   * 원본 [정렬/소계기준]. 우리는 <b>거래처그룹으로만</b> 묶었는데, 받을 돈을 나눠 맡는
+   * 곳에서는 <b>관리담당자별</b>로 보는 것이 실제로 쓰는 축이다.
+   */
+  const SUBTOTALS = ['거래처그룹', '관리담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처그룹')
+  const subtotals = useMemo(
+    () => subtotalBy(shown, (r) => (subtotal === '관리담당자' ? r.manager : r.partnerGroupName),
+      { receivable: (r) => r.receivable, payable: (r) => r.payable }),
+    [shown, subtotal])
 
   const [view, setView] = useState<'표' | '그래프'>('표')
   /*
@@ -151,6 +152,16 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
           잔액 0 숨김
         </label>
+        {/* 원본 [정렬/소계기준]. 데이터 보기형식 바로 앞줄이다(사본 실측). */}
+        <div style={{ fontSize: 12.5 }}>
+          <div style={{ color: '#5a626e', marginBottom: 3 }}>정렬/소계기준</div>
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
+        </div>
         {/* 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 쓰지 않아 여기에 둔다. */}
         <div style={{ fontSize: 12.5 }}>
           <div style={{ color: '#5a626e', marginBottom: 3 }}>데이터 보기형식</div>
@@ -242,21 +253,21 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
       {shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>거래처그룹 소계</h3>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
-              <th>거래처그룹</th>
+              <th>{subtotal}</th>
               <th style={{ width: 90, textAlign: 'right' }}>거래처수</th>
               {showR && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
               {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
             </tr></thead>
             <tbody>
-              {subtotals.map(([name, v]) => (
-                <tr key={name}>
-                  <td style={{ fontWeight: 600 }}>{name}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{v.count}</td>
-                  {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(v.receivable)}</td>}
-                  {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(v.payable)}</td>}
+              {subtotals.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                  {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.receivable)}</td>}
+                  {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.payable)}</td>}
                 </tr>
               ))}
             </tbody>

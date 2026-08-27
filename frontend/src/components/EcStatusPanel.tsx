@@ -33,6 +33,7 @@ export default function EcStatusPanel({
   compare, onCompareChange,
   from, to, onPeriod,
   view, onViewChange,
+  subtotal, subtotals, onSubtotalChange,
   picks = INQUIRY_PICKS,
   fiscalStart,
   single,
@@ -72,6 +73,15 @@ export default function EcStatusPanel({
    */
   view?: '표' | '그래프'
   onViewChange?: (v: '표' | '그래프') => void
+  /**
+   * [정렬/소계기준] — 목록을 무엇으로 묶어 소계를 낼지. 원본 현황 여섯에 있는 줄이다.
+   *
+   * <p>안 주면 그 줄을 그리지 않는다. 화면마다 묶을 수 있는 축이 다르므로
+   * 이름만 받고, 실제로 묶는 일은 화면이 <code>subtotalBy</code> 로 한다.
+   */
+  subtotal?: string
+  subtotals?: readonly string[]
+  onSubtotalChange?: (v: string) => void
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
@@ -143,6 +153,23 @@ export default function EcStatusPanel({
       </EcCond>
 
       {children}
+
+      {/* 원본 차례: … 정렬/소계기준 · 데이터 보기형식 (사본 실측). */}
+      {subtotal && subtotals && onSubtotalChange && (
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {subtotals.map((v) => (
+              <button
+                key={v} type="button"
+                className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                onClick={() => onSubtotalChange(v)}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </EcCond>
+      )}
 
       {/* 원본 [데이터 보기형식] — 조건 판의 맨 아래줄이다(사본 실측). */}
       {view && onViewChange && (

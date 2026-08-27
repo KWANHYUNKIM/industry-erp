@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
@@ -155,17 +156,26 @@ export default function WorkResultListPage() {
   }, [shown])
 
   /** 집계 — 공정(원본의 '작업') 단위로 모은다. */
+  /*
+   * 원본 [정렬/소계기준]. 우리는 <b>공정으로만</b> 묶고 있었는데, 같은 자료를
+   * 생산품목별로 보고 싶은 사람과 작업자별·생산공장별로 보고 싶은 사람이 따로 있다.
+   */
+  const SUBTOTALS = ['작업(공정)', '생산품목', '작업자', '생산공장'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('작업(공정)')
+  const keyOf = (r: WorkResult) => (
+    subtotal === '생산품목' ? r.productName
+      : subtotal === '작업자' ? r.worker
+        : subtotal === '생산공장' ? r.warehouseName
+          : r.process)
+
   const byProcess = useMemo(() => {
-    const m = new Map<string, {
-      process: string; count: number; good: number; defect: number; time: number
-    }>()
-    for (const r of shown) {
-      const cur = m.get(r.process)
-      if (!cur) m.set(r.process, { process: r.process, count: 1, good: r.goodQty, defect: r.defectQty, time: r.workTimeMin })
-      else { cur.count += 1; cur.good += r.goodQty; cur.defect += r.defectQty; cur.time += r.workTimeMin }
-    }
-    return [...m.values()].sort((a, b) => b.good - a.good)
-  }, [shown])
+    return subtotalBy(shown, keyOf, {
+      good: (r) => r.goodQty, defect: (r) => r.defectQty, time: (r) => r.workTimeMin,
+    })
+      .map((g) => ({ process: g.label, count: g.count, good: g.sums.good, defect: g.sums.defect, time: g.sums.time }))
+      .sort((a, b) => b.good - a.good)
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [shown, subtotal])
   const [view, setView] = useState<'표' | '그래프'>('표')
   /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
   const chartRows = useMemo(() =>
@@ -191,6 +201,8 @@ export default function WorkResultListPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="작업(공정)" pick>
           <input className="ec-input" placeholder="공정명 일부" value={process}
@@ -249,7 +261,7 @@ export default function WorkResultListPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>작업(공정)</th>
+              <th>{subtotal}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 110, textAlign: 'right' }}>양품</th>
               <th style={{ width: 110, textAlign: 'right' }}>불량</th>
@@ -276,7 +288,7 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byProcess.length}공정)</td>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byProcess.length}건 묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
