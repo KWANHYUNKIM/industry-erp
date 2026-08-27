@@ -590,6 +590,38 @@ async function scenarioProduction(f) {
 
   eq('실적이 없어지면 작업지시도 지울 수 있다', (await call('DELETE', `/work-orders/${wo.id}`)).status, 204)
 
+  /*
+   * 수동소모 — BOM 과 다르게 넣으면 <b>그대로</b> 들어가야 한다.
+   *
+   * 생산입고/소모현황 I 과 작업지시서효율현황은 "BOM 대로 썼다면(표준) 대 정말 쓴 것(실제)"
+   * 의 차이를 보여 준다. 수동으로 넣은 수량이 BOM 값으로 덮어써지면 그 차이가 영원히 0 이라
+   * 두 화면이 통째로 쓸모없어진다. 재고도 넣은 만큼 빠져야 한다.
+   */
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 20,
+  })
+  const matBefore2 = await stockOf(f.material.id)
+  const wo2 = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 1, orderDate: '2026-07-10',
+  })
+  const manual = await must('POST', '/productions', {
+    workOrderId: wo2.id, producedQty: 1, productionDate: '2026-07-10',
+    materials: [{ componentId: f.material.id, quantity: 6 }],
+  })
+  eq('수동소모 수량이 그대로 저장된다', Number(manual.materials[0].quantity), 6)
+  eq('수동으로 넣은 만큼 재고가 빠진다', await stockOf(f.material.id), matBefore2 - 6)
+
+  // BOM 표준은 완제품 1개당 원자재 2개다. 6 을 넣었으니 표준 2 · 실제 6 · 차이 4 가 보여야 한다.
+  const reread = (await must('GET', '/productions')).find((x) => x.id === manual.id)
+  eq('현황 화면이 볼 수 있게 실제 투입량이 응답에 실린다', Number(reread.materials[0].quantity), 6)
+
+  eq('수동소모 실적도 지울 수 있다', (await call('DELETE', `/productions/${manual.id}`)).status, 204)
+  eq('지우면 수동으로 넣은 만큼 돌아온다', await stockOf(f.material.id), matBefore2)
+  await must('DELETE', `/work-orders/${wo2.id}`)
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 20,
+  })
+
   // 입고했던 원자재 200개도 되돌린다 — 안 그러면 회차마다 재고가 200씩 는다.
   await must('POST', '/stock/transactions', {
     itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 200,
