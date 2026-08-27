@@ -4,6 +4,8 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useAuth } from '../../auth/AuthContext'
+import { isMyEvent } from '../../utils/myCalendar'
 
 interface ScheduleEvent {
   id: number
@@ -32,8 +34,24 @@ const DOW = ['일', '월', '화', '수', '목', '금', '토']
  * 원본 하단 버튼줄은 [신규(F2)][미리보기][라벨변경][인쇄][선택삭제][Excel] 인데,
  * 미리보기·라벨변경은 그 화면이 실제로 무엇을 하는지 확인하지 못해 넣지 않았다.
  * 눌러도 아무 일 없는 버튼을 늘리는 건 원본을 닮은 게 아니다.
+ *
+ * <p>원본 왼쪽에는 <b>캘린더 고르기</b>가 있다(사본 실측): 내 캘린더 · [기본] 공유일정캘린더 ·
+ * 다른 캘린더 · 근태현황. 우리는 그 자리가 없어 <b>온 회사의 일정이 늘 한 줄로 섞여</b>
+ * 나왔다. 사람이 늘수록 자기 일정을 찾을 수가 없다.
+ *
+ * <p>일정에는 <b>만든 사람(createdBy)</b>이 진작 실려 있었다 — 응답에도 있었는데 화면이
+ * 안 봤을 뿐이다. 그걸로 가른다. 개인/공개 구분은 우리 자료에 없으므로
+ * [공유일정캘린더]는 <b>전체</b>다 — 없는 구분을 지어내지 않는다.
+ * [근태현황]은 일정이 아니라 근태 자료라 이 화면에서 겹쳐 보이지 않는다.
  */
+/** 원본 왼쪽 캘린더 목록. '다른 캘린더' 는 사람을 골라 그 사람 일정만 본다. */
+const CALENDARS = ['내 캘린더', '[기본] 공유일정캘린더', '다른 캘린더'] as const
+type Calendar = typeof CALENDARS[number]
+
 export default function SchedulePage() {
+  const { user } = useAuth()
+  const [calendar, setCalendar] = useState<Calendar>('[기본] 공유일정캘린더')
+  const [otherOwner, setOtherOwner] = useState('')
   const [rows, setRows] = useState<ScheduleEvent[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -93,7 +111,17 @@ export default function SchedulePage() {
   const toggle = (id: number) =>
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
+  /** 규칙은 utils/myCalendar 에 있다 — 조용히 좁아지기 쉬운 자리라 단위시험을 붙였다. */
+  const isMine = (r: ScheduleEvent) =>
+    isMyEvent(r, { name: user?.name, username: user?.username })
+
+  /** 만든 사람 목록 — [다른 캘린더] 에서 고른다. */
+  const owners = [...new Set(rows.map((r) => (r.createdBy ?? '').trim()).filter(Boolean))].sort()
+
   const shown = rows
+    // 원본 왼쪽 [캘린더]. 공유일정캘린더는 전체다.
+    .filter((r) => calendar === '[기본] 공유일정캘린더'
+      || (calendar === '내 캘린더' ? isMine(r) : !otherOwner || (r.createdBy ?? '') === otherOwner))
     // 달력에서 고른 날이 있으면 그날만. 없으면 전체 — 원본도 같은 규칙이다.
     .filter((r) => !pickedDate || r.eventDate === pickedDate)
     .filter((r) => !keyword
@@ -113,6 +141,30 @@ export default function SchedulePage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '인쇄' }, { label: '선택삭제', onClick: removeSelected }, { label: 'Excel' }]}
     >
+      {/* 원본 왼쪽의 캘린더 고르기. 우리 화면은 좌우가 달력·목록이라 위에 한 줄로 둔다. */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 10px',
+        border: '1px solid var(--ec-border)', background: '#f7f9fb', flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>캘린더</span>
+        <div className="ec-pills">
+          {CALENDARS.map((c) => (
+            <button key={c} type="button" className={`ec-pill no-ec${calendar === c ? ' active' : ''}`}
+                    onClick={() => setCalendar(c)}>{c}</button>
+          ))}
+        </div>
+        {calendar === '다른 캘린더' && (
+          <select className="ec-input" value={otherOwner}
+                  onChange={(e) => setOtherOwner(e.target.value)} style={{ width: 160 }}>
+            <option value="">전체</option>
+            {owners.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>
+          내 캘린더는 내가 만들었거나 담당·참석자에 내가 있는 일정입니다.
+        </span>
+      </div>
+
       <Modal open={showForm} title="일정 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
           <table className="w-full text-left">
