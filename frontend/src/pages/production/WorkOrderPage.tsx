@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { Link } from 'react-router-dom'
+import { printDocuments } from '../../utils/printDocument'
 
 const inputCls = 'ec-input'
 
@@ -30,6 +31,34 @@ const LINKS = [
 ]
 
 const today = () => ymd(new Date())
+
+/**
+ * 원본 작업지시서조회 격자의 마지막 열 <b>[인쇄]</b> — 그 지시 한 건을 작업지시서로 찍는다.
+ * 작업지시에는 금액이 없다(무엇을 얼마나 만들라는 지시다) — 금액 칸을 안 그린다.
+ */
+async function printOne(o: WorkOrder, empName: (id: number | null) => string) {
+  await printDocuments([{
+    title: '작 업 지 시 서',
+    docNo: o.orderNo,
+    docDate: o.orderDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '납품처', value: o.partnerName },
+      { label: '담당자', value: o.employeeId ? empName(o.employeeId) : null },
+      { label: '창고', value: o.warehouseName },
+      { label: '납기일자', value: o.dueDate },
+      { label: '진행상태', value: o.statusName },
+    ],
+    remark: o.remark,
+    lines: [{
+      itemCode: o.productCode, itemName: o.productName, unit: o.productUnit,
+      quantity: o.plannedQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    }],
+  }])
+}
 
 const statusColor = (s: string) =>
   s === 'COMPLETED' ? '#1c7c3c' : s === 'IN_PROGRESS' ? '#b6791b' : '#7a828c'
@@ -195,13 +224,15 @@ export default function WorkOrderPage() {
             <th>지시일</th>
             <th style={{ width: 100 }}>납기일자</th>
             <th style={{ width: 150, textAlign: 'center' }}>현황</th>
+            {/* 원본 작업지시서조회의 마지막 열 [인쇄] — 그 지시 한 건을 작업지시서로 찍는다. */}
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업지시가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업지시가 없습니다.</td></tr>
           ) : (
             shown.map((o, idx) => (
               <tr key={o.id}>
@@ -224,6 +255,9 @@ export default function WorkOrderPage() {
                       <Link to={l.to} title={l.title} style={{ color: 'var(--ec-blue)' }}>{l.label}</Link>
                     </span>
                   ))}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => printOne(o, empName)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>
             ))

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -42,6 +43,35 @@ interface Row {
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
+
+/**
+ * 원본 작업내역조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 작업내역서로 찍는다.
+ * 작업내역에는 금액이 없다. 0 으로 채워 그리면 "0원짜리 거래" 로 읽히므로 금액 칸을 안 그린다.
+ */
+async function printOne(r: Row) {
+  await printDocuments([{
+    title: '작업내역서',
+    docNo: r.workOrderNo ? `${r.workDate} / ${r.workOrderNo}` : r.workDate,
+    docDate: r.workDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '생산공장', value: r.warehouseName },
+      { label: '작업(공정)', value: r.process },
+      { label: '생산품목', value: r.productName },
+      { label: '자원', value: r.resourceName },
+      { label: '담당자', value: r.worker },
+      { label: '작업시간(분)', value: String(r.workTimeMin) },
+    ],
+    remark: r.note,
+    lines: [{
+      itemCode: r.workItemCode, itemName: r.workItemName ?? r.process, spec: r.workItemSpec,
+      quantity: r.goodQty + r.defectQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    }],
+  }])
+}
 
 export default function WorkResultInquiryPage() {
   const navigate = useNavigate()
@@ -172,13 +202,15 @@ export default function WorkResultInquiryPage() {
               <th style={{ width: 110, textAlign: 'right' }}>작업수량</th>
               <th style={{ width: 110, textAlign: 'right' }}>작업시간</th>
               <th style={{ width: 160 }}>적요</th>
+              {/* 원본 작업내역조회의 마지막 열 [인쇄] — 그 한 건을 작업내역서로 찍는다. */}
+              <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -198,6 +230,9 @@ export default function WorkResultInquiryPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
                 <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -206,7 +241,8 @@ export default function WorkResultInquiryPage() {
               <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right' }}>{num(totals.qty)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
-              <td></td>
+              {/* 적요 · 인쇄 */}
+              <td colSpan={2}></td>
             </tr>
           </tfoot>
         </table>

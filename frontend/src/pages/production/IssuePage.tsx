@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
+import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -124,6 +125,35 @@ export default function IssuePage() {
     }
   }
 
+  /**
+   * 원본 생산불출조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 불출증으로 찍는다.
+   *
+   * <p>금액 칸은 안 그린다. 불출은 사내 이동이라 금액이 없다 — 0 으로 채워 그리면
+   * "0원짜리 거래" 로 읽힌다. 공급자/공급받는자 칸도 없다(거래 상대가 없다).
+   */
+  async function printOne(r: MaterialIssue) {
+    await printDocuments([{
+      title: '생산불출증',
+      docNo: r.workOrderNo ? `${r.issueDate} / ${r.workOrderNo}` : r.issueDate,
+      docDate: r.issueDate,
+      hideAmounts: true,
+      hideParties: true,
+      supplier: { label: '', name: '' },
+      customer: { label: '', name: '' },
+      extra: [
+        { label: '보내는창고', value: r.warehouseName },
+        { label: '받는공장', value: r.toWarehouseName },
+        { label: '담당자', value: r.employeeId ? empName(r.employeeId) : null },
+        { label: '생산품목', value: r.productName },
+      ],
+      remark: r.note,
+      lines: [{
+        itemCode: r.itemCode, itemName: r.itemName, unit: r.unit,
+        quantity: r.qty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      }],
+    }])
+  }
+
   async function remove(r: MaterialIssue) {
     if (!confirm(`'${r.itemName}' 불출내역을 삭제할까요?`)) return
     try {
@@ -223,14 +253,16 @@ export default function IssuePage() {
             <th>보내는창고</th>
             <th>받는공장</th>
             <th>비고</th>
+            {/* 원본 생산불출조회의 마지막 열 [인쇄] — 그 한 건을 불출증으로 찍는다. */}
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -246,6 +278,9 @@ export default function IssuePage() {
               <td>{r.warehouseName ?? '-'}</td>
               <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
               <td>{r.note ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+              </td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>

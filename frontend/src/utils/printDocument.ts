@@ -50,6 +50,17 @@ export interface PrintDocumentOptions {
   remark?: string | null
   /** 표 아래 안내 문구 (예: 미수금 잔액, 인수 확인란 설명) */
   footNote?: string
+  /**
+   * <b>금액 칸을 아예 안 그린다</b> — 생산 전표(불출·입고·작업내역)처럼 금액이 없는 양식.
+   *
+   * <p>0 으로 채워 그리면 "0원짜리 거래" 로 읽힌다. 없는 값과 0 은 다르다.
+   */
+  hideAmounts?: boolean
+  /**
+   * 거래 상대가 없는 양식(사내 이동)은 공급자·공급받는자 칸을 안 그린다.
+   * 빈 상자 두 개를 남겨 두면 인쇄물이 미완성으로 보인다.
+   */
+  hideParties?: boolean
   signLine?: PrintSignLine | null
 }
 
@@ -122,8 +133,11 @@ function documentHtml(o: PrintDocumentOptions): string {
     .map((e) => `<div>${escapeHtml(e.label)}: <b>${escapeHtml(e.value)}</b></div>`)
     .join('')
 
+  // 금액 없는 양식은 단가·공급가액·부가세 세 칸을 아예 안 그린다(0 으로 채우면 0원 거래로 읽힌다)
+  const money = !o.hideAmounts
+  const cols = money ? 8 : 5
   const body = o.lines.length === 0
-    ? `<tr><td colspan="8" class="center" style="padding:16px;color:#8a929c">품목이 없습니다.</td></tr>`
+    ? `<tr><td colspan="${cols}" class="center" style="padding:16px;color:#8a929c">품목이 없습니다.</td></tr>`
     : o.lines.map((l, i) => `
         <tr>
           <td class="center">${i + 1}</td>
@@ -131,9 +145,9 @@ function documentHtml(o: PrintDocumentOptions): string {
           <td>${escapeHtml(l.spec ?? '')}</td>
           <td class="center">${escapeHtml(l.unit ?? '')}</td>
           <td class="num">${won(Number(l.quantity))}</td>
-          <td class="num">${won(Number(l.unitPrice))}</td>
+          ${money ? `<td class="num">${won(Number(l.unitPrice))}</td>
           <td class="num">${won(Number(l.supplyAmount))}</td>
-          <td class="num">${won(Number(l.vatAmount))}</td>
+          <td class="num">${won(Number(l.vatAmount))}</td>` : ''}
         </tr>`).join('')
 
   return `
@@ -148,10 +162,10 @@ function documentHtml(o: PrintDocumentOptions): string {
         ${signLineHtml(o.signLine)}
       </div>
 
-      <div class="parties">
+      ${o.hideParties ? '' : `<div class="parties">
         ${partyHtml(o.supplier)}
         ${partyHtml(o.customer)}
-      </div>
+      </div>`}
 
       <table class="lines">
         <thead>
@@ -161,25 +175,30 @@ function documentHtml(o: PrintDocumentOptions): string {
             <th style="width:110px">규격</th>
             <th style="width:44px">단위</th>
             <th style="width:70px">수량</th>
-            <th style="width:88px">단가</th>
+            ${money ? `<th style="width:88px">단가</th>
             <th style="width:100px">공급가액</th>
-            <th style="width:88px">부가세</th>
+            <th style="width:88px">부가세</th>` : ''}
           </tr>
         </thead>
         <tbody>${body}</tbody>
-        <tfoot>
+        ${money ? `<tfoot>
           <tr>
             <td colspan="6" class="center">합 계</td>
             <td class="num">${won(supply)}</td>
             <td class="num">${won(vat)}</td>
           </tr>
-        </tfoot>
+        </tfoot>` : `<tfoot>
+          <tr>
+            <td colspan="4" class="center">합 계</td>
+            <td class="num">${won(o.lines.reduce((a, l) => a + Number(l.quantity || 0), 0))}</td>
+          </tr>
+        </tfoot>`}
       </table>
 
-      <div class="sum">
+      ${money ? `<div class="sum">
         <div class="korean">일금 <b>${escapeHtml(amountToKorean(total))}</b>원정 (₩${won(total)})</div>
         <div>합계금액 <b style="font-size:14px">${won(total)}</b> 원</div>
-      </div>
+      </div>` : ''}
 
       ${o.remark ? `<div class="remark">비고: ${escapeHtml(o.remark)}</div>` : ''}
       ${o.footNote ? `<div class="foot">${escapeHtml(o.footNote)}</div>` : ''}

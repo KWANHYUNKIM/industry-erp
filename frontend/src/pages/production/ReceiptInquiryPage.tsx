@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { printDocuments } from '../../utils/printDocument'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -21,6 +22,32 @@ interface Row {
   producedQty: number
   productionDate: string
   createdBy: string | null
+}
+
+/**
+ * 원본 생산입고조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 생산입고증으로 찍는다.
+ * 금액 칸은 안 그린다(생산입고는 사내 이동이라 금액이 없다 — 0 으로 채우면 0원 거래로 읽힌다).
+ */
+async function printOne(r: Row) {
+  await printDocuments([{
+    title: '생산입고증',
+    docNo: r.prodNo,
+    docDate: r.productionDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '생산된공장', value: r.fromWarehouseName ?? r.warehouseName },
+      { label: '받는창고', value: r.warehouseName },
+      { label: '작업지시서', value: r.workOrderNo },
+      { label: '담당자', value: r.createdBy },
+    ],
+    lines: [{
+      itemCode: r.productCode, itemName: r.productName, unit: r.productUnit,
+      quantity: r.producedQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    }],
+  }])
 }
 
 export default function ReceiptInquiryPage() {
@@ -68,13 +95,15 @@ export default function ReceiptInquiryPage() {
             <th>생산된공장</th>
             <th>받는창고</th>
             <th>담당자</th>
+            {/* 원본 생산입고조회의 마지막 열 [인쇄]. */}
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -87,6 +116,9 @@ export default function ReceiptInquiryPage() {
               <td>{r.fromWarehouseName ?? r.warehouseName}</td>
               <td>{r.warehouseName}</td>
               <td>{r.createdBy ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+              </td>
             </tr>
           ))}
         </tbody>
