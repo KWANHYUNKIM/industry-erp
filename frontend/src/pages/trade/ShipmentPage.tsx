@@ -36,6 +36,8 @@ interface ShipLine {
   quantity: number
   unitPrice: number
   amount: number
+  /** 줄 적요. 원본 출하현황의 마지막 열. */
+  remark: string | null
 }
 
 interface Shipment {
@@ -49,6 +51,8 @@ interface Shipment {
   totalQuantity: number
   totalAmount: number
   salesOrderNo: string | null
+  /** 창고명. 원본 출하현황의 [창고명] 열 — 어느 창고에서 나갔는지가 안 보였다. */
+  warehouseName: string | null
   remark: string | null
   createdBy: string | null
   lines: ShipLine[]
@@ -238,15 +242,17 @@ export default function ShipmentPage() {
               <th style={{ width: 100, textAlign: 'right' }}>수량</th>
               <th style={{ width: 110, textAlign: 'right' }}>단가</th>
               <th style={{ width: 130, textAlign: 'right' }}>금액</th>
+              <th style={{ width: 120 }}>창고명</th>
               <th>거래처명</th>
+              <th style={{ width: 150 }}>적요</th>
               <th style={{ width: 90, textAlign: 'center' }}>상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lines.map((x, i) => (
               <tr key={x.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -255,7 +261,10 @@ export default function ShipmentPage() {
                 <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(x.l.amount)}</td>
+                <td style={{ color: x.r.warehouseName ? undefined : '#c9ced6' }}>{x.r.warehouseName ?? '-'}</td>
                 <td>{x.r.partnerName}</td>
+                {/* 줄 적요가 없으면 전표 적요를 보여 준다 — 원본도 한 칸이다. */}
+                <td style={{ color: '#8a929c' }}>{x.l.remark || x.r.remark || ''}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[x.r.status], fontWeight: 700 }}>{x.r.statusName}</td>
               </tr>
             ))}

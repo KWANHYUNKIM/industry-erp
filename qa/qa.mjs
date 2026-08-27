@@ -3444,6 +3444,42 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 출하 <b>줄 적요</b>.
+ *
+ * <p>원본 출하지시서입력 그리드의 마지막 열이 적요다(품목 · 품목명 · 규격 · 수량 · 적요).
+ * 출하지시서현황·출하현황의 결과 열에도 적요가 들어간다.
+ *
+ * <p>우리 출하에는 전표 적요만 있어서 "이 품목만 왜 따로 보내는지" 를 줄에 적을 자리가
+ * 없었다. 판매·구매·생산불출 라인은 이미 다 들고 있다.
+ *
+ * <p>전표 적요와 줄 적요는 <b>따로</b>여야 한다. 하나로 합치면 줄마다 다른 말을 못 적는다.
+ */
+async function scenarioShipmentLineRemark(f) {
+  section('■ 출하 줄 적요')
+
+  const ship = await must('POST', '/shipments', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, shipDate: '2096-11-12',
+    remark: `${P}전표적요`,
+    lines: [
+      { itemId: f.product.id, quantity: 1, unitPrice: 10000, remark: `${P}줄적요1` },
+      { itemId: f.material.id, quantity: 2, unitPrice: 500 },
+    ],
+  })
+  eq('줄 적요가 실린다', ship.lines[0].remark, `${P}줄적요1`)
+  isNull('안 적은 줄은 null', ship.lines[1].remark)
+  eq('전표 적요는 따로다', ship.remark, `${P}전표적요`)
+
+  const re = (await must('GET', '/shipments')).find((x) => x.id === ship.id)
+  eq('다시 조회해도 줄 적요가 남는다', re.lines[0].remark, `${P}줄적요1`)
+  // 출하현황이 [창고명] 칸을 찍는다 — id 만 오면 화면이 창고 목록을 따로 뒤져야 한다.
+  eq('창고명이 실린다', re.warehouseName, f.warehouse.name)
+
+  await must('DELETE', `/shipments/${ship.id}`)
+  eq('시험용 출하는 남기지 않는다',
+    (await must('GET', '/shipments')).filter((x) => x.shipDate === '2096-11-12').length, 0)
+}
+
+/**
  * 판매 라인의 <b>부대비용</b>이 응답에 실리고 합계에는 안 들어가는가.
  *
  * <p>원본 이익현황의 열은 … 원가 · 이익 · 이익율 · <b>이익금액(부대비용포함)</b> ·
@@ -5512,6 +5548,7 @@ async function main() {
   await scenarioWorkPostEdit()
   await scenarioReflectionLines(fixtures)
   await scenarioSalesExtraCost(fixtures)
+  await scenarioShipmentLineRemark(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

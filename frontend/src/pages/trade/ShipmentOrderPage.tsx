@@ -9,7 +9,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
 
-interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; amount: number }
+interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; amount: number; remark: string | null }
 interface Shipment {
   id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
   /** 미출하현황에서 생성한 출하면 근거 주문이 실려온다. 직접 등록한 출하는 null. */
@@ -25,8 +25,12 @@ interface Shipment {
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
-interface LineInput { itemId: string; quantity: string; unitPrice: string }
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
+/**
+ * 원본 출하지시서입력 그리드 실측(사본): 품목 · 품목명 · 규격 · 수량 · <b>적요</b>.
+ * 전표 적요만으로는 "이 품목만 왜 따로 보내는지" 를 줄에 적을 자리가 없다.
+ */
+interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
 
 export default function ShipmentOrderPage() {
   const [shipments, setShipments] = useState<Shipment[]>([])
@@ -95,7 +99,7 @@ export default function ShipmentOrderPage() {
     e.preventDefault()
     setError(''); setOk('')
     const validLines = lines.filter((l) => l.itemId && Number(l.quantity) > 0)
-      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: l.unitPrice ? Number(l.unitPrice) : undefined }))
+      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: l.unitPrice ? Number(l.unitPrice) : undefined, remark: l.remark || null }))
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량을 1줄 이상 입력하세요.')
     try {
@@ -206,6 +210,7 @@ export default function ShipmentOrderPage() {
                 <th style={{ width: 120, textAlign: 'right' }}>수량</th>
                 <th style={{ width: 140, textAlign: 'right' }}>단가</th>
                 <th style={{ width: 150, textAlign: 'right' }}>금액</th>
+                <th style={{ width: 180 }}>적요</th>
               </tr>
             </thead>
             <tbody>
@@ -221,6 +226,8 @@ export default function ShipmentOrderPage() {
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
                   <td style={{ textAlign: 'right' }}>{won(computed[idx])}</td>
+                  <td><input className={inputCls} style={{ width: '100%' }} value={l.remark}
+                             onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -230,6 +237,7 @@ export default function ShipmentOrderPage() {
                 <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
                 <td></td>
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -252,12 +260,13 @@ export default function ShipmentOrderPage() {
             <th>출하번호 ▼</th><th style={{ width: 130 }}>근거주문</th><th>출하일 ▼</th>
             <th style={{ width: 100 }}>출하예정일</th><th>거래처 ▼</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
+            <th style={{ width: 110 }}>연락처</th><th style={{ width: 150 }}>적요</th>
             <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -272,6 +281,8 @@ export default function ShipmentOrderPage() {
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(s.totalQuantity)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
+              <td style={{ color: s.contact ? undefined : '#c9ced6' }}>{s.contact || '-'}</td>
+              <td style={{ color: '#8a929c' }}>{s.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[s.status], fontWeight: 700 }}>{s.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}

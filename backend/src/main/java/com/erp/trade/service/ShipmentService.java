@@ -108,6 +108,7 @@ public class ShipmentService {
                     .quantity(lr.quantity())
                     .unitPrice(unitPrice)
                     .amount(amount)
+                    .remark(lr.remark())
                     .build());
 
             totalQty = totalQty.add(lr.quantity());
@@ -182,6 +183,8 @@ public class ShipmentService {
                     .quantity(t.qty())
                     .unitPrice(line.getUnitPrice())
                     .amount(amount)
+                    // 주문에서 만든 출하는 줄 적요가 비어 나간다 — 주문 라인에
+                    // 적요 칸이 없어 이어받을 것이 없다. 출하 화면에서 직접 적는다.
                     .build());
 
             totalQty = totalQty.add(t.qty());

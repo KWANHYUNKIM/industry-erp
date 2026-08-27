@@ -20,7 +20,9 @@ public final class ShipmentDtos {
     public record ShipLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            BigDecimal unitPrice
+            BigDecimal unitPrice,
+            /** 줄 적요. 원본 출하지시서입력 그리드의 마지막 열. */
+            String remark
     ) {}
 
     public record CreateShipmentRequest(
@@ -45,13 +47,15 @@ public final class ShipmentDtos {
     public record ShipLineResponse(
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
+            /** 줄 적요. 원본 출하현황·출하지시서현황의 결과 열. */
+            String remark,
             /** 근거 주문 라인. 직접 등록한 출하면 null. */
             Long orderLineId
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getQuantity(), l.getUnitPrice(), l.getAmount(),
+                    l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
                     l.getOrderLine() != null ? l.getOrderLine().getId() : null);
         }
     }
