@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 회계 > 표준원가현황 (/api/costs)
@@ -61,6 +62,13 @@ export default function StandardCostPage() {
   }
   useEffect(() => { load() }, [])
 
+  /*
+   * 원본 [정렬/소계기준]. 표준원가는 품목마다 한 줄이라 기준월이 여럿 섞이면
+   * <b>어느 달의 원가가 얼마인지</b>를 눈으로 갈라 봐야 했다.
+   */
+  const SUBTOTALS = ['기준월', '품목'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('기준월')
+
   const periods = useMemo(() => Array.from(new Set(rows.map((r) => r.period))), [rows])
   const shown = rows
     .filter((r) => period === '전체' || r.period === period)
@@ -98,6 +106,16 @@ export default function StandardCostPage() {
             <input type="checkbox" checked={showTotal} onChange={(e) => setShowTotal(e.target.checked)} />
             합계표시
           </label>
+        </EcCond>
+        {/* 원본 [정렬/소계기준]. 조건 판의 아래쪽 줄이다(사본 실측). */}
+        <EcCond label="정렬/소계기준">
+
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
       </ul>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
@@ -148,6 +166,42 @@ export default function StandardCostPage() {
           </tfoot>
         )}
       </table>
+
+      {shown.length > 0 && (() => {
+        const groups = subtotalBy(shown, (r) => (subtotal === '품목' ? r.itemName : r.period), {
+          material: (r) => r.materialCost, labor: (r) => r.laborCost,
+          overhead: (r) => r.overheadCost, total: (r) => r.standardTotal,
+        })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 80, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 130, textAlign: 'right' }}>재료비</th>
+                <th style={{ width: 130, textAlign: 'right' }}>노무비</th>
+                <th style={{ width: 130, textAlign: 'right' }}>경비</th>
+                <th style={{ width: 140, textAlign: 'right' }}>표준원가</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.material.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.labor.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.overhead.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                      {g.sums.total.toLocaleString('ko-KR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

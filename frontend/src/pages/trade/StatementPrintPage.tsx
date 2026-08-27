@@ -8,6 +8,7 @@ import type { Partner, SalesDoc } from '../../api/types'
 import { loadSupplierParty, printDocuments, type DocParty, type PrintDocumentOptions } from '../../utils/printDocument'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 영업 > 거래명세서인쇄 (이카운트 E040210)
@@ -28,6 +29,8 @@ export default function StatementPrintPage() {
   const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
   const [docs, setDocs] = useState<SalesDoc[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  /** 원본 거래명세서인쇄 조건의 [거래처관리담당자]. 거래처에 달려 있다. */
+  const [partnerManager, setPartnerManager] = useState('')
   const [supplier, setSupplier] = useState<DocParty | null>(null)
   /*
    * 원본 조건 판 실측(사본 · 거래명세서인쇄):
@@ -91,6 +94,13 @@ export default function StatementPrintPage() {
       .catch(() => setBalances(new Map()))
   }, [withReceivable, toDate])
 
+  /*
+   * 원본 [정렬/소계기준]. 명세서를 뽑기 전에 <b>어느 거래처에 얼마를 보내는지</b>를
+   * 눈으로 모아 봐야 하는데, 줄이 전표마다 하나씩이라 같은 거래처가 흩어져 있었다.
+   */
+  const SUBTOTALS = ['거래처', '거래처관리담당자', '창고'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+
   const selectedPartner = partners.find((p) => p.id === partnerId)
   const shown = docs.filter((d) => {
     if (selectedPartner && d.partnerId !== selectedPartner.id) return false
@@ -98,6 +108,7 @@ export default function StatementPrintPage() {
     if (toDate && d.saleDate > toDate) return false
     if (keyword && !(d.partnerName.includes(keyword) || d.docNo.includes(keyword))) return false
     if (warehouse && !(d.warehouseName ?? '').includes(warehouse)) return false
+    if (partnerManager && !(partners.find((p) => p.id === d.partnerId)?.manager ?? '').includes(partnerManager)) return false
     if (project && !(d.projectName ?? '').includes(project)) return false
     if (employee && !(d.employeeName ?? '').includes(employee)) return false
     if (item && !d.lines.some((l) => `${l.itemCode ?? ''} ${l.itemName}`.includes(item))) return false
@@ -222,6 +233,21 @@ export default function StatementPrintPage() {
                            value={employee} onChange={(v) => setEmployee(v)}
                            items={pickers.employees} />
         </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partnerManager} onChange={(v) => setPartnerManager(v)}
+                           items={[...new Set(partners.map((p) => p.manager).filter(Boolean))]
+                             .map((m) => ({ value: m as string, name: m as string }))} />
+        </EcCond>
+        {/* 원본 [정렬/소계기준]. 데이터 보기형식 앞줄이다(사본 실측). */}
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
+        </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withReceivable} onChange={(e) => setWithReceivable(e.target.checked)} />
@@ -318,6 +344,41 @@ export default function StatementPrintPage() {
           ))}
         </tbody>
       </table>
+
+      {shown.length > 0 && (() => {
+        const managerOf = new Map(partners.map((p) => [p.id, p.manager ?? '']))
+        const groups = subtotalBy(shown,
+          (d) => (subtotal === '거래처관리담당자' ? (managerOf.get(d.partnerId) || null)
+            : subtotal === '창고' ? d.warehouseName : d.partnerName),
+          { supply: (d) => d.supplyAmount, vat: (d) => d.vatAmount })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 150, textAlign: 'right' }}>공급가액</th>
+                <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
+                <th style={{ width: 150, textAlign: 'right' }}>합계</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.supply.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.vat.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                      {(g.sums.supply + g.sums.vat).toLocaleString('ko-KR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

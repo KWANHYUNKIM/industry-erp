@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
@@ -146,6 +147,13 @@ export default function PaymentComparePage() {
     return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partnerName.localeCompare(b.partnerName)))
   }, [sales, rows, from, to])
 
+  /*
+   * 원본 [정렬/소계기준]. 줄이 (일자 × 거래처)라 한 거래처가 여러 줄로 흩어진다 —
+   * <b>어느 거래처에서 매출과 수금이 얼마나 어긋났는지</b>를 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['거래처', '일자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+
   const shown = useMemo(() => compared.filter((r) => {
     if (partner && !(r.partnerName.includes(partner)
       || r.saleDocNos.some((n) => n.includes(partner))
@@ -182,6 +190,8 @@ export default function PaymentComparePage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={COMPARE_PICKS}
         fiscalStart={fiscalStart}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -281,6 +291,41 @@ export default function PaymentComparePage() {
             </tfoot>
           )}
         </table>
+        {shown.length > 0 && (() => {
+          const groups = subtotalBy(shown, (r) => (subtotal === '일자' ? r.date : r.partnerName),
+            { sale: (r) => r.saleTotal, pay: (r) => r.payTotal })
+          return (
+            <>
+              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <table className="w-full text-left">
+                <thead><tr>
+                  <th>{subtotal}</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>매출</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>수금</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>차액</th>
+                </tr></thead>
+                <tbody>
+                  {groups.map((g) => {
+                    const gap = g.sums.sale - g.sums.pay
+                    return (
+                      <tr key={g.label}>
+                        <td style={{ fontWeight: 600 }}>{g.label}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.sale.toLocaleString('ko-KR')}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.pay.toLocaleString('ko-KR')}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
+                                     color: Math.abs(gap) < 0.005 ? '#9aa1ab' : '#c60a2e' }}>
+                          {gap.toLocaleString('ko-KR')}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
+          )
+        })()}
         {shown.length > 300 && (
           <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
             * 앞의 300줄만 보여 줍니다({shown.length}줄 중). 기간이나 거래처를 좁혀 주세요.

@@ -192,11 +192,22 @@ export default function AccountingReflectionPage() {
    * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다.
    * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
    */
+  /*
+   * 원본 [정렬/소계기준]. 소계 자체는 이미 넣고 있었지만 <b>축이 월로 박혀</b> 있었다.
+   * 회계로 넘길 것을 고르는 화면이라 거래처별·담당자별로 모아 보는 쪽이 실제로 쓰인다.
+   */
+  const SUBTOTALS = ['월', '거래처', '담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('월')
+
   const lineRows = useMemo(() => {
     type Row =
       | { kind: 'line'; key: string; no: number; slip: Slip; line: SlipLine }
       | { kind: 'subtotal'; key: string; month: string; supply: number; vat: number }
-    const sorted = [...shown].sort((a, b) => (a.slipDate < b.slipDate ? -1 : a.slipDate > b.slipDate ? 1 : a.id - b.id))
+    /* 축이 바뀌면 그 축으로 먼저 모아야 소계가 한 덩어리로 잡힌다. */
+    const keyOf = (x: Slip) => (subtotal === '거래처' ? x.partnerName
+      : subtotal === '담당자' ? (x.employeeName || '') : x.slipDate.slice(0, 7))
+    const sorted = [...shown].sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : keyOf(a) > keyOf(b) ? 1
+      : a.slipDate < b.slipDate ? -1 : a.slipDate > b.slipDate ? 1 : a.id - b.id))
     const out: Row[] = []
     let month = ''
     // 줄 번호는 소계 줄을 빼고 센다 — 소계까지 세면 번호에 구멍이 뚫린다.
@@ -209,7 +220,9 @@ export default function AccountingReflectionPage() {
       vat = 0
     }
     for (const sl of sorted) {
-      const m = sl.slipDate.slice(0, 7).replace('-', '/')
+      const m = subtotal === '거래처' ? sl.partnerName
+        : subtotal === '담당자' ? (sl.employeeName || '(미지정)')
+          : sl.slipDate.slice(0, 7).replace('-', '/')
       if (m !== month) { flush(); month = m }
       for (const [i, line] of (sl.lines ?? []).entries()) {
         out.push({ kind: 'line', key: `${sl.id}-${i}`, no: ++no, slip: sl, line })
@@ -307,6 +320,15 @@ export default function AccountingReflectionPage() {
         picks={INQUIRY_PICKS}
         dateLabel="기준일(영업주기)"
       >
+        {/* 원본 [정렬/소계기준]. */}
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
+        </EcCond>
         <EcCond label="구분">
           <div className="ec-pills">
             {MODES.map((m) => (

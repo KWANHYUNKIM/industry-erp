@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { SurveyDoc } from '../../api/types'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사현황 (이카운트 E070258)
@@ -54,6 +55,13 @@ export default function SurveyStatusPage() {
     setTo(ymd(today))
     setScope(''); setUseEnd(false); setTitle(''); setQuestion(''); setWriter(''); setPostNo('')
   }
+
+  /*
+   * 원본 [정렬/소계기준]. 설문이 쌓이면 <b>누가 얼마나 냈고 응답이 얼마나 왔는지</b>를
+   * 눈으로 모아야 했다.
+   */
+  const SUBTOTALS = ['작성자', '설문대상구분', '진행상태'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('작성자')
 
   const shown = useMemo(() => {
     const writerName = users.find((u) => String(u.id) === writer)?.name
@@ -148,6 +156,18 @@ export default function SurveyStatusPage() {
               <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
             </td>
           </tr>
+          <tr>
+            {/* 원본 [정렬/소계기준]. 조건 판의 아래쪽 줄이다(사본 실측). */}
+            <th style={th}>정렬/소계기준</th>
+            <td colSpan={3}>
+              <div className="ec-pills">
+                {SUBTOTALS.map((v) => (
+                  <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                          onClick={() => setSubtotal(v)}>{v}</button>
+                ))}
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
 
@@ -199,6 +219,40 @@ export default function SurveyStatusPage() {
           </tfoot>
         )}
       </table>
+
+      {shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === '설문대상구분' ? r.targetScopeName
+            : subtotal === '진행상태' ? r.statusName : r.writerName),
+          { targets: (r) => r.targetCount, responses: (r) => r.responseCount })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>설문수</th>
+                <th style={{ width: 110, textAlign: 'right' }}>대상</th>
+                <th style={{ width: 110, textAlign: 'right' }}>응답</th>
+                <th style={{ width: 110, textAlign: 'right' }}>응답률</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.targets.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.responses.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
+                      {g.sums.targets > 0 ? Math.round((g.sums.responses * 100) / g.sums.targets) : 0}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
