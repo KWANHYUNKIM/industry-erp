@@ -107,6 +107,7 @@ public class BorService {
      * 총액을 넣고 배부하지 않아도 단위 노무비가 나온다. 라우팅이 없으면 null —
      * 0 을 돌려주면 "노무비가 안 드는 품목" 과 "라우팅을 아직 안 세운 품목" 이 같아진다.
      */
+
     @Transactional(readOnly = true)
     public BigDecimal standardLaborCost(Long productId) {
         List<BorOperation> ops = borRepository.findActiveByProduct(productId);
@@ -121,6 +122,34 @@ public class BorService {
             sum = sum.add(hoursPerUnit.multiply(rate));
         }
         return sum.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 그 품목 라우팅의 <b>시간당 요율</b> — 표준노무비 ÷ 1개당 표준시간.
+     *
+     * <p>실제노무비를 낼 때 쓴다: 실제시간 × <b>이 요율</b>. 요율을 따로 지어내지 않고
+     * 표준과 같은 것을 쓰는 이유는, 요율까지 바꾸면 차이가 시간 때문인지 요율 때문인지
+     * 알 수 없게 되기 때문이다.
+     *
+     * <p>라우팅이 없거나 시간이 0 이면 null 이다 — 나눌 수가 없다.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal hourlyRate(Long productId) {
+        List<BorOperation> ops = borRepository.findActiveByProduct(productId);
+        if (ops.isEmpty()) return null;
+        BigDecimal hours = BigDecimal.ZERO;
+        BigDecimal cost = BigDecimal.ZERO;
+        for (BorOperation o : ops) {
+            BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
+                    ? BigDecimal.ONE : o.getBaseQty();
+            BigDecimal hoursPerUnit = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            BigDecimal rate = o.getProcess().getCostPerHr() != null
+                    ? o.getProcess().getCostPerHr() : BigDecimal.ZERO;
+            hours = hours.add(hoursPerUnit);
+            cost = cost.add(hoursPerUnit.multiply(rate));
+        }
+        if (hours.signum() <= 0) return null;
+        return cost.divide(hours, 4, java.math.RoundingMode.HALF_UP);
     }
 
     /**

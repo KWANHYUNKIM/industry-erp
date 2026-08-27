@@ -86,6 +86,8 @@ public final class ProductionDtos {
             Long projectId,
             /** 적요. 원본 생산입고현황·생산입고 III 그리드의 마지막 열. */
             String note,
+            /** 원본 [노무시간](분). 안 주면 null 이다 — 0 과 다르다. */
+            Integer laborMinutes,
             /** 선택: 수동 소모자재 목록. 있으면 이 목록대로 소모, 없으면 BOM 자동소모 */
             List<@Valid ManualConsumeLine> materials
     ) {
@@ -99,7 +101,7 @@ public final class ProductionDtos {
         public static CreateProductionRequest of(Long workOrderId, BigDecimal producedQty,
                                                  LocalDate productionDate) {
             return new CreateProductionRequest(
-                    workOrderId, producedQty, productionDate, null, null, null, null, null);
+                    workOrderId, producedQty, productionDate, null, null, null, null, null, null);
         }
     }
 
@@ -131,6 +133,8 @@ public final class ProductionDtos {
             Long projectId, String projectName,
             /** 적요. 원본 생산입고현황의 마지막 열. */
             String note,
+            /** 원본 [노무시간](분). 안 적었으면 null — 0 과 다르다. */
+            Integer laborMinutes,
             List<ProductionMaterialResponse> materials
     ) {
         public static ProductionResponse from(Production p) {
@@ -144,7 +148,7 @@ public final class ProductionDtos {
                     p.getProducedQty(), p.getProductionDate(), p.getCreatedBy(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
-                    p.getNote(),
+                    p.getNote(), p.getLaborMinutes(),
                     p.getMaterials().stream().map(ProductionMaterialResponse::from).toList());
         }
     }

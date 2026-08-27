@@ -408,6 +408,8 @@ export interface Production {
   projectName: string | null
   /** 적요. 원본 생산입고현황의 마지막 열. */
   note: string | null
+  /** 원본 생산입고 I·II 의 [노무시간](분). 안 적었으면 null — 0 과 다르다. */
+  laborMinutes: number | null
   producedQty: number
   productionDate: string
   createdBy: string | null

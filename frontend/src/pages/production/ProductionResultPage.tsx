@@ -20,6 +20,14 @@ export default function ProductionResultPage() {
   const [date, setDate] = useState(today())
   /** 적요 — 원본 생산입고현황의 마지막 열. 전표에 왜 이 입고를 했는지 남긴다. */
   const [note, setNote] = useState('')
+  /**
+   * 원본 생산입고 I·II 그리드의 <b>[노무시간]</b>(분).
+   *
+   * <p>실제 노무비를 잴 유일한 근거다. 이 값이 없으면 원가생성은 실제노무비를 표준과
+   * 같게 깔아 둘 수밖에 없고, 그러면 차이분석이 늘 0 이다.
+   * <b>안 적으면 null 이다</b> — 0(노무가 안 들었다)과 다르다.
+   */
+  const [laborMinutes, setLaborMinutes] = useState('')
   /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
   const [projectId, setProjectId] = useState('')
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
@@ -95,6 +103,7 @@ export default function ProductionResultPage() {
         fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
         warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
         note: note || null,
+        laborMinutes: laborMinutes.trim() === '' ? null : Number(laborMinutes),
         projectId: projectId ? Number(projectId) : null,
       })
       setOk(`${res.data.prodNo} 생산 완료 · 완제품 ${won(res.data.producedQty)} 입고, 자재 ${res.data.materials.length}종 출고`)
@@ -197,10 +206,23 @@ export default function ProductionResultPage() {
                 </td>
               </tr>
               <tr>
+                {/* 원본 그리드의 마지막 두 열 — 적요 · 노무시간. */}
                 <th style={th}>적요</th>
                 <td>
                   <input className="ec-input" value={note} onChange={(e) => setNote(e.target.value)}
                          style={{ width: '100%' }} />
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>노무시간</th>
+                <td>
+                  <input className="ec-input" type="number" min={0} value={laborMinutes}
+                         onChange={(e) => setLaborMinutes(e.target.value)}
+                         placeholder="분" style={{ width: 120 }} />
+                  <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
+                    분 단위. 적어 두면 실제원가의 노무비를 <b>이 시간</b>으로 냅니다
+                    (요율은 표준과 같습니다). 비워 두면 표준값을 씁니다.
+                  </span>
                 </td>
               </tr>
             </tbody>

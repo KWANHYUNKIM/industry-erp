@@ -102,6 +102,7 @@ public class ProductionService {
                 .fromWarehouse(req.fromWarehouseId() != null ? from : null)
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
+                .laborMinutes(req.laborMinutes())
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)

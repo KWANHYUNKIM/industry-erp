@@ -3602,6 +3602,99 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * 생산입고의 <b>[노무시간]</b>과 그것으로 낸 실제노무비.
+ *
+ * <p>원본 생산입고 I·II 그리드의 마지막 열이 노무시간이다. 우리에겐 그 칸이 없어서
+ * <b>실제 노무비를 잴 근거가 아무것도 없었다</b> — 원가생성은 실제노무비를 표준과 같게
+ * 깔아 두고 "실적이 들어오면 사람이 고친다" 고 적어 뒀는데, 고칠 근거가 화면에 없었다.
+ * 그래서 차이분석이 늘 0 이었다.
+ *
+ * <p>요율은 표준과 <b>같은 것</b>을 쓰고 시간만 실제로 바꾼다. 요율까지 지어내면
+ * 차이가 시간 때문인지 요율 때문인지 알 수 없게 된다.
+ *
+ * <p>노무시간을 안 적은 품목은 <b>표준 그대로</b>다. 0 으로 두면 "노무비가 안 들었다" 로
+ * 읽혀 원가가 통째로 낮아지고, 그게 이익으로 둔갑한다.
+ */
+async function scenarioProductionLaborMinutes(f) {
+  section('■ 생산입고 노무시간 → 실제노무비')
+
+  const D = '2086-09-09'
+  const period = '2086-09'
+  const clearAll = async () => {
+    for (const pr of (await must('GET', '/productions')).filter((x) => x.productionDate === D)) {
+      await call('DELETE', `/productions/${pr.id}`)
+    }
+    for (const w of (await must('GET', '/work-orders')).filter((x) => x.orderDate === D)) {
+      await call('DELETE', `/work-orders/${w.id}`)
+    }
+    for (const c of (await must('GET', '/costs')).filter((x) => x.period === period)) {
+      await call('DELETE', `/costs/${c.id}`)
+    }
+  }
+  await clearAll()
+
+  /*
+    * 이 품목에 <b>라우팅(BOR)</b>을 깔아 둔다. 없으면 표준노무비가 0 이고, 실제노무비도
+    * 표준(0)으로 떨어져 <b>핵심 단언이 아무것도 재지 못한다.</b> 처음 쓴 판이 그랬다 —
+    * 조건문 안에 넣어 뒀더니 통과는 하는데 실제로는 건너뛰고 있었다.
+    */
+  const proc = (await must('GET', '/processes')).find((x) => Number(x.costPerHr) > 0)
+    ?? (await must('GET', '/processes'))[0]
+  const bor = await must('POST', '/bor', {
+    productId: f.product.id, processId: proc.id, seq: 1,
+    workName: `${P}노무시험`, baseQty: 1, workHours: 2,
+  })
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 10, orderDate: D,
+  })
+
+  // 노무시간을 안 적은 입고 — 실제노무비는 표준 그대로여야 한다.
+  const plain = await must('POST', '/productions', {
+    workOrderId: wo.id, producedQty: 5, productionDate: D,
+  })
+  isNull('안 적으면 null 이다', plain.laborMinutes)
+
+  await must('POST', `/costs/build?period=${period}`)
+  const c1 = (await must('GET', '/costs')).find((x) => x.period === period && x.itemId === f.product.id)
+  eq('원가가 만들어진다', !!c1, true)
+  eq('노무시간이 없으면 실제 = 표준', Number(c1.actualLabor), Number(c1.laborCost))
+
+  // 노무시간을 적고 다시 만든다.
+  await call('DELETE', `/productions/${plain.id}`)
+  for (const c of (await must('GET', '/costs')).filter((x) => x.period === period)) {
+    await call('DELETE', `/costs/${c.id}`)
+  }
+  const timed = await must('POST', '/productions', {
+    // 표준은 1개당 2시간이다. 5개에 300분(=1개당 1시간)이면 <b>실제가 표준의 절반</b>이라
+    // 단언이 실제로 문다. 600분으로 두면 1개당 2시간이 되어 표준과 같아져 아무것도 못 잰다.
+    workOrderId: wo.id, producedQty: 5, productionDate: D, laborMinutes: 300,
+  })
+  eq('노무시간이 실린다', timed.laborMinutes, 300)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/productions')).find((x) => x.id === timed.id).laborMinutes, 300)
+
+  await must('POST', `/costs/build?period=${period}`)
+  const c2 = (await must('GET', '/costs')).find((x) => x.period === period && x.itemId === f.product.id)
+  eq('원가가 다시 만들어진다', !!c2, true)
+  eq('라우팅이 있어 표준노무비가 0 이 아니다', Number(c1.laborCost) > 0, true)
+  eq('실제노무비가 0 은 아니다', Number(c2.actualLabor) > 0, true)
+  // 실제가 표준의 절반이므로 노무비도 절반이어야 한다 — 요율은 같은 것을 쓰기 때문이다.
+  eq('실제노무비 = 실제시간 × 표준요율(= 표준의 절반)',
+    Number(c2.actualLabor), Math.round(Number(c1.laborCost) * 50) / 100)
+  eq('실제와 표준이 실제로 다르다', Number(c2.actualLabor) !== Number(c2.laborCost), true)
+
+  await clearAll()
+  await call('DELETE', `/bor/${bor.id}`)
+  eq('시험용 라우팅은 남기지 않는다',
+    (await must('GET', '/bor')).some((x) => x.id === bor.id), false)
+  eq('시험용 생산은 남기지 않는다',
+    (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, 0)
+  eq('시험용 원가도 남기지 않는다',
+    (await must('GET', '/costs')).filter((x) => x.period === period).length, 0)
+}
+
+/**
  * <b>기준일자 시점의 재고</b> — GET /stock?asOf=.
  *
  * <p>재고현황 · 창고별재고현황 · 일별재고현황 · BOM기준재고 다섯 화면이 [기준일자] 칸을
@@ -7151,6 +7244,7 @@ async function main() {
   await scenarioWorkPostAttachment()
   await scenarioSurveyAttachment()
   await scenarioStockAsOf(fixtures)
+  await scenarioProductionLaborMinutes(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

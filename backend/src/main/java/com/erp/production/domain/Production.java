@@ -82,6 +82,18 @@ public class Production extends BaseTimeEntity {
     @Column(length = 255)
     private String note;
 
+    /**
+     * 원본 생산입고 I·II 그리드의 <b>[노무시간]</b>. 분 단위다.
+     *
+     * <p>실제 노무비를 잴 유일한 근거다. 이 값이 없으면 원가생성은 실제노무비를
+     * 표준과 같게 깔아 둘 수밖에 없다 — 그러면 차이분석이 늘 0 이다.
+     *
+     * <p>시간이 아니라 <b>분</b>인 이유: 작업내역(WorkResult)의 작업시간도 분이고,
+     * 시간으로 들면 30분을 0.5 로 적어야 해서 현장에서 틀리기 쉽다.
+     */
+    @Column(name = "labor_minutes")
+    private Integer laborMinutes;
+
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

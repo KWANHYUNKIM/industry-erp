@@ -165,14 +165,55 @@ public class CostService {
                      * 지어낼 근거가 전혀 없다.
                      */
                     .overheadCost(BigDecimal.ZERO)
-                    // 실제원가 초기값은 표준과 같게 둔다(실적이 들어오면 사람이 고친다). 그때 차이는 0.
                     .actualMaterial(mat)
-                    .actualLabor(lab)
+                    /*
+                     * <b>실제노무비</b>. 예전에는 표준과 같게 깔아 두고 "실적이 들어오면 사람이
+                     * 고친다" 고 적어 뒀는데, 고칠 근거가 화면 어디에도 없었다 — 생산입고에
+                     * 노무시간을 적을 칸이 없었기 때문이다. 그래서 차이분석이 늘 0 이었다.
+                     *
+                     * <p>이제 생산입고의 [노무시간]으로 낸다:
+                     *   실제노무비 = (그 달 노무시간 합 / 그 달 생산수량 합) × 시간당요율
+                     * <b>요율은 표준과 같은 것을 쓴다.</b> 시간만 실제로 바꾼다 — 요율까지
+                     * 지어내면 차이가 무엇 때문에 났는지 알 수 없게 된다.
+                     *
+                     * <p>노무시간을 하나도 안 적은 품목은 <b>표준 그대로</b> 둔다.
+                     * 0 으로 두면 "노무비가 안 들었다" 로 읽혀 원가가 통째로 낮아진다.
+                     */
+                    .actualLabor(actualLabor(item.getId(), p, lab))
                     .actualOverhead(BigDecimal.ZERO)
                     .build();
             created.add(CostResponse.from(itemCostRepository.save(c)));
         }
         return created;
+    }
+
+    /**
+     * 생산입고에 적힌 <b>실제 노무시간</b>으로 낸 1개당 노무비.
+     *
+     * <p>노무시간을 하나도 안 적었거나 그 달 생산이 없으면 <b>표준값을 그대로</b> 돌려준다 —
+     * 0 을 돌려주면 원가가 통째로 낮아지고, 그게 이익으로 둔갑한다.
+     */
+    private BigDecimal actualLabor(Long itemId, String period, BigDecimal standard) {
+        BigDecimal minutes = BigDecimal.ZERO;
+        BigDecimal qty = BigDecimal.ZERO;
+        for (Production pr : productionRepository.findAllWithRefs()) {
+            if (pr.getProductionDate() == null
+                    || !pr.getProductionDate().toString().startsWith(period)) continue;
+            if (!pr.getProduct().getId().equals(itemId)) continue;
+            if (pr.getLaborMinutes() == null) continue;
+            minutes = minutes.add(BigDecimal.valueOf(pr.getLaborMinutes()));
+            qty = qty.add(pr.getProducedQty());
+        }
+        if (minutes.signum() <= 0 || qty.signum() <= 0) return standard;
+
+        BigDecimal rate = borService.hourlyRate(itemId);
+        if (rate == null || rate.signum() <= 0) return standard;
+
+        // 분 → 시간, 1개당으로 나눈 뒤 요율을 곱한다.
+        BigDecimal hoursPerUnit = minutes
+                .divide(BigDecimal.valueOf(60), 6, java.math.RoundingMode.HALF_UP)
+                .divide(qty, 6, java.math.RoundingMode.HALF_UP);
+        return hoursPerUnit.multiply(rate).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**
