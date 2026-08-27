@@ -7,10 +7,15 @@ import { EcCond } from '../../components/EcStatusPanel'
 interface Row {
   empName: string
   department: string | null
+  /** 재직 여부. 원본의 [재직구분] 조건이 이 값을 본다. */
+  active: boolean
   totalDays: number
   usedDays: number
   remainingDays: number
 }
+
+/** 원본 [재직구분]. 값은 서버가 그대로 받는다. */
+const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
 
 export default function VacationRemainPage() {
   const [rows, setRows] = useState<Row[]>([])
@@ -18,12 +23,18 @@ export default function VacationRemainPage() {
   const [error, setError] = useState('')
   const [emp, setEmp] = useState('')
   const [dept, setDept] = useState('')
-  const [decimals, setDecimals] = useState(true)
+  /**
+   * 표시 자릿수. 원본은 15.000 · 9.375 처럼 <b>소수 3자리</b>로 보여 준다.
+   * 시간 단위 휴가가 0.125일(1시간)씩 쌓이므로 1자리로 줄이면 합이 안 맞는다 —
+   * 실제로 서버가 1자리로 반올림하던 시절 사용 0.1 · 잔여 14.9 로 나와 더해도 15가 아니었다.
+   */
+  const [decimals, setDecimals] = useState(3)
+  const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Row[]>('/hr/vacations/summary')
+      const res = await api.get<Row[]>('/hr/vacations/summary', { params: { employment } })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -32,7 +43,7 @@ export default function VacationRemainPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [employment])
 
   /*
    * 원본 조건 판 실측(사본): 휴가코드 · 사원 · 부서 · 프로젝트 · 적요 · 상태 · 재직구분 ·
@@ -45,7 +56,9 @@ export default function VacationRemainPage() {
     if (dept && !(r.department ?? '').includes(dept)) return false
     return true
   })
-  const days = (n: number) => (decimals ? n : Math.round(n)).toLocaleString('ko-KR')
+  const days = (n: number) => n.toLocaleString('ko-KR', {
+    minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+  })
   const totals = shown.reduce(
     (a, r) => ({ total: a.total + r.totalDays, used: a.used + r.usedDays, remain: a.remain + r.remainingDays }),
     { total: 0, used: 0, remain: 0 },
@@ -58,7 +71,7 @@ export default function VacationRemainPage() {
       onNew={undefined}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setDecimals(true) } },
+        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setDecimals(3); setEmployment('ACTIVE') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -72,11 +85,22 @@ export default function VacationRemainPage() {
           <input className="ec-input" placeholder="부서명 일부" value={dept}
                  onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
         </EcCond>
-        <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={decimals} onChange={(e) => setDecimals(e.target.checked)} />
-            소수점
-          </label>
+        <EcCond label="재직구분">
+          <div className="ec-pills">
+            {EMPLOYMENTS.map(([v, label]) => (
+              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
+                      onClick={() => setEmployment(v)}>{label}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="소수점">
+          <select className="ec-input" style={{ width: 90 }} value={decimals}
+                  onChange={(e) => setDecimals(Number(e.target.value))}>
+            <option value={0}>0자리</option>
+            <option value={1}>1자리</option>
+            <option value={2}>2자리</option>
+            <option value={3}>3자리</option>
+          </select>
         </EcCond>
       </ul>
 
@@ -91,11 +115,11 @@ export default function VacationRemainPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>사원명</th>
-            <th>부서</th>
-            <th style={{ textAlign: 'right' }}>부여일수</th>
-            <th style={{ textAlign: 'right' }}>사용일수</th>
-            <th style={{ textAlign: 'right' }}>잔여일수</th>
+            <th>부서명</th>
+            <th>성명</th>
+            <th style={{ textAlign: 'right' }}>휴가일수</th>
+            <th style={{ textAlign: 'right' }}>휴가사용일수</th>
+            <th style={{ textAlign: 'right' }}>휴가잔여일수</th>
           </tr>
         </thead>
         <tbody>
@@ -106,8 +130,8 @@ export default function VacationRemainPage() {
           ) : shown.map((r, i) => (
             <tr key={r.empName + i}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
+              <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
               <td style={{ textAlign: 'right' }}>{days(r.totalDays)}</td>
               <td style={{ textAlign: 'right' }}>{days(r.usedDays)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? '#c60a2e' : undefined }}>{days(r.remainingDays)}</td>

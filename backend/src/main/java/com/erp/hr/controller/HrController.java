@@ -83,7 +83,10 @@ public class HrController {
     }
 
     @GetMapping("/vacations/summary")
-    public List<VacationSummaryRow> vacationSummary(@RequestParam(required = false) Integer year) {
-        return hrService.vacationSummary(year);
+    public List<VacationSummaryRow> vacationSummary(
+            @RequestParam(required = false) Integer year,
+            /** 재직구분: ACTIVE(기본) | RESIGNED | ALL */
+            @RequestParam(required = false) String employment) {
+        return hrService.vacationSummary(year, employment);
     }
 }

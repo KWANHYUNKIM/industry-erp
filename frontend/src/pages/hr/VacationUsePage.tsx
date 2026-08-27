@@ -21,7 +21,15 @@ interface Row {
 
 type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
+/** 휴가잔여일수현황과 같은 요약. 여기서는 사원별 <b>휴가일수(부여)</b>를 가져오는 데 쓴다. */
+interface SummaryRow {
+  empName: string
+  totalDays: number
+}
+
 const mono = { fontFamily: 'monospace' as const }
+/** 원본은 0.50 · 0.13 처럼 소수 두 자리로 적는다(시간 단위 휴가가 0.125일씩 쌓인다). */
+const days = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })
 function statusColor(s: VacationStatus) {
   if (s === 'APPROVED') return '#1c7c3c'
   if (s === 'REJECTED') return '#c60a2e'
@@ -37,12 +45,17 @@ export default function VacationUsePage() {
   const [vtype, setVtype] = useState('')
   const [reason, setReason] = useState('')
   const [status, setStatus] = useState('전체')
+  const [grants, setGrants] = useState<Map<string, number>>(new Map())
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Row[]>('/hr/vacations')
+      const [res, sum] = await Promise.all([
+        api.get<Row[]>('/hr/vacations'),
+        api.get<SummaryRow[]>('/hr/vacations/summary', { params: { employment: 'ALL' } }),
+      ])
       setRows(res.data)
+      setGrants(new Map(sum.data.map((x) => [x.empName, x.totalDays])))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -79,6 +92,33 @@ export default function VacationUsePage() {
     return true
   })
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
+
+  /**
+   * 원본은 사원별로 묶어 <b>쓸 때마다 줄어드는 잔여</b>를 한 줄씩 보여 준다
+   * (휴가일수 16.00 → 0.50 쓰면 15.50 → 1.00 쓰면 14.00 …).
+   * 우리 화면은 그냥 목록이라 "지금 몇 일 남았나"를 이 화면에서 알 수 없었다.
+   *
+   * <p>차감은 <b>확인(승인)된 것만</b> 한다. 결재중·반려까지 빼면 마지막 줄의 잔여가
+   * 휴가잔여일수현황과 어긋난다 — 두 화면이 다른 숫자를 말하면 둘 다 못 믿게 된다.
+   */
+  const withRemain = (() => {
+    const byEmp = new Map<string, Row[]>()
+    for (const r of shown) {
+      if (!byEmp.has(r.empName)) byEmp.set(r.empName, [])
+      byEmp.get(r.empName)!.push(r)
+    }
+    const out: { row: Row; grant: number | null; remain: number | null; first: boolean }[] = []
+    for (const [name, list] of [...byEmp.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      list.sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
+      const grant = grants.get(name)
+      let remain = grant ?? null
+      list.forEach((row, idx) => {
+        if (remain != null && row.status === 'APPROVED') remain = Math.round((remain - row.days) * 1000) / 1000
+        out.push({ row, grant: idx === 0 ? (grant ?? null) : null, remain, first: idx === 0 })
+      })
+    }
+    return out
+  })()
 
   return (
     <EcListShell
@@ -135,26 +175,32 @@ export default function VacationUsePage() {
             <th>휴가종류</th>
             <th>시작일</th>
             <th>종료일</th>
-            <th style={{ textAlign: 'right' }}>사용일수</th>
-            <th>사유</th>
+            <th style={{ textAlign: 'right' }}>휴가일수</th>
+            <th style={{ textAlign: 'right' }}>휴가사용일수</th>
+            <th style={{ textAlign: 'right' }}>휴가잔여일수</th>
+            <th>적요</th>
             <th style={{ textAlign: 'center' }}>상태</th>
             <th style={{ width: 90, textAlign: 'center' }}>결재</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.id}>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+          ) : withRemain.map(({ row: r, grant, remain, first }, i) => (
+            <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.empName}</td>
-              <td>{r.department ?? ''}</td>
+              <td>{first ? r.empName : ''}</td>
+              <td>{first ? (r.department ?? '') : ''}</td>
               <td style={{ textAlign: 'center' }}>{r.type}</td>
               <td style={mono}>{r.startDate}</td>
               <td style={mono}>{r.endDate}</td>
-              <td style={{ textAlign: 'right' }}>{r.days.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#5a626e' }}>{grant != null ? days(grant) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: remain != null && remain < 0 ? '#c60a2e' : undefined }}>
+                {remain != null ? days(remain) : ''}
+              </td>
               <td>{r.reason ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>

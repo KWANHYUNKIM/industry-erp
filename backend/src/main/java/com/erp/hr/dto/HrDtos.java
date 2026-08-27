@@ -167,18 +167,27 @@ public final class HrDtos {
     public record VacationSummaryRow(
             String empName,
             String department,
+            /** 재직 여부. 원본의 [재직구분] 조건이 이 값을 본다. */
+            boolean active,
             BigDecimal totalDays,
             BigDecimal usedDays,
             BigDecimal remainingDays
     ) {
-        public static VacationSummaryRow of(User u, BigDecimal totalDays, BigDecimal usedDays) {
+        /**
+         * 소수 <b>3자리</b>로 낸다. 예전에는 1자리로 반올림해서, 시간 단위 휴가(0.125일=1시간)를
+         * 쓰면 사용일수가 0.1 로 뭉개지고 잔여가 14.9 로 나왔다 — 더하면 15가 안 된다.
+         * 원본도 15.000 · 9.375 처럼 3자리로 보여 준다. 표시 자릿수는 화면의 [소수점]이 정한다.
+         */
+        public static VacationSummaryRow of(User u, BigDecimal usedDays) {
             BigDecimal used = usedDays == null ? BigDecimal.ZERO : usedDays;
+            BigDecimal total = u.getAnnualLeaveDays() == null ? BigDecimal.ZERO : u.getAnnualLeaveDays();
             return new VacationSummaryRow(
                     u.getName(),
                     u.getDepartment(),
-                    totalDays.setScale(1, RoundingMode.HALF_UP),
-                    used.setScale(1, RoundingMode.HALF_UP),
-                    totalDays.subtract(used).setScale(1, RoundingMode.HALF_UP));
+                    u.isEnabled(),
+                    total.setScale(3, RoundingMode.HALF_UP),
+                    used.setScale(3, RoundingMode.HALF_UP),
+                    total.subtract(used).setScale(3, RoundingMode.HALF_UP));
         }
     }
 }

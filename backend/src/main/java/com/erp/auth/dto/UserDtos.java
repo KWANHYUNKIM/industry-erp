@@ -3,6 +3,9 @@ package com.erp.auth.dto;
 import com.erp.auth.domain.Role;
 import com.erp.auth.domain.User;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.PositiveOrZero;
+
+import java.math.BigDecimal;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -36,6 +39,15 @@ public final class UserDtos {
 
             String department,
 
+            /**
+             * 연간 휴가 부여일수. 안 주면 15일.
+             *
+             * <p>예전에는 이 값이 서비스 상수 하나였다 — 휴가잔여일수현황이 전원을 15일로
+             * 보여줬는데, 근속연수에 따라 사람마다 다르다(15일에서 시작해 3년차부터 2년마다
+             * +1일, 최대 25일). 소수 3자리인 이유는 시간 단위 휴가가 0.125일씩 쌓이기 때문이다.
+             */
+            @PositiveOrZero(message = "휴가일수는 0 이상이어야 합니다.") BigDecimal annualLeaveDays,
+
             /** 부여할 역할 코드 목록 (예: ["ADMIN", "STAFF"]) */
             Set<String> roleNames
     ) {}
@@ -45,6 +57,14 @@ public final class UserDtos {
             @NotBlank(message = "이름을 입력하세요.") String name,
             @Email(message = "올바른 이메일 형식이 아닙니다.") String email,
             String department,
+            /**
+             * 연간 휴가 부여일수. 안 주면 15일.
+             *
+             * <p>예전에는 이 값이 서비스 상수 하나였다 — 휴가잔여일수현황이 전원을 15일로
+             * 보여줬는데, 근속연수에 따라 사람마다 다르다(15일에서 시작해 3년차부터 2년마다
+             * +1일, 최대 25일). 소수 3자리인 이유는 시간 단위 휴가가 0.125일씩 쌓이기 때문이다.
+             */
+            @PositiveOrZero(message = "휴가일수는 0 이상이어야 합니다.") BigDecimal annualLeaveDays,
             Boolean enabled,
             Set<String> roleNames,
             String password
@@ -69,6 +89,8 @@ public final class UserDtos {
             String name,
             String email,
             String department,
+            /** 연간 휴가 부여일수. 휴가잔여일수현황의 '휴가일수' 열이 이 값이다. */
+            BigDecimal annualLeaveDays,
             boolean enabled,
             List<String> roles
     ) {
@@ -83,6 +105,7 @@ public final class UserDtos {
                     user.getName(),
                     user.getEmail(),
                     user.getDepartment(),
+                    user.getAnnualLeaveDays(),
                     user.isEnabled(),
                     roleNames
             );

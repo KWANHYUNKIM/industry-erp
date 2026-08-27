@@ -2388,6 +2388,53 @@ async function scenarioPersonRefs() {
   })
   eq('반차는 그대로 들어간다', Number(half.days), 0.5)
 
+  /*
+   * 시간 단위 휴가(0.125일 = 1시간).
+   *
+   * vacation_requests.days 가 numeric(5,1) 이라 DB 가 0.125 를 <b>0.1 로 잘랐다.</b>
+   * 집계도 소수 1자리로 반올림해서 '사용 0.1 · 잔여 14.9' 가 나왔다 — 더하면 15가 아니다.
+   * 원본(이카운트) 휴가사용실적현황에는 0.13 · 0.25 같은 값이 그대로 남아 있다.
+   */
+  const hourly = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: '2026-05-09', endDate: '2026-05-09',
+    days: 0.125, reason: 'QA 시간단위',
+  })
+  eq('시간 단위 휴가가 잘리지 않는다', Number(hourly.days), 0.125)
+  await must('PUT', `/hr/vacations/${hourly.id}/status`, { status: 'APPROVED' })
+  const fine = (await must('GET', '/hr/vacations/summary?year=2026')).find((r) => r.empName === me.name)
+  eq('사용 + 잔여 = 휴가일수', Number(fine.usedDays) + Number(fine.remainingDays), Number(fine.totalDays))
+  // 바로 앞 시점(after)과 비교한다 — before 시점에는 1일짜리가 아직 없다.
+  eq('사용일수에 0.125 가 그대로 반영된다',
+    Math.round((Number(fine.usedDays) - Number(after.usedDays)) * 1000) / 1000, 0.125)
+  await must('DELETE', `/hr/vacations/${hourly.id}`)
+
+  /*
+   * 휴가일수(부여)는 사람마다 다르다.
+   * 예전에는 HrService 의 상수 15일을 전원에게 똑같이 썼다 — 근속연수에 따라 다르고,
+   * 원본에서도 사람마다 15.000 · 16.000 으로 갈린다.
+   */
+  const allUsers = await must('GET', '/users')
+  const target = allUsers.find((u) => u.id === me.id) ?? allUsers[0]
+  const orig = Number(target.annualLeaveDays)
+  eq('사용자 응답에 휴가일수가 있다', Number.isFinite(orig), true)
+  const patched = await must('PUT', `/users/${target.id}`, {
+    name: target.name, email: target.email, department: target.department,
+    annualLeaveDays: 16.5, enabled: true, roleNames: target.roles,
+  })
+  eq('사람마다 휴가일수를 정할 수 있다', Number(patched.annualLeaveDays), 16.5)
+  eq('잔여일수현황이 그 값을 쓴다',
+    Number((await must('GET', '/hr/vacations/summary?year=2026'))
+      .find((r) => r.empName === target.name).totalDays), 16.5)
+  await must('PUT', `/users/${target.id}`, {
+    name: target.name, email: target.email, department: target.department,
+    annualLeaveDays: orig, enabled: true, roleNames: target.roles,
+  })
+
+  // 재직구분: 예전에는 재직자만 무조건 걸러 퇴사자의 미사용 연차를 볼 수 없었다.
+  eq('재직구분 전체가 재직자보다 적지 않다',
+    (await must('GET', '/hr/vacations/summary?employment=ALL')).length >=
+    (await must('GET', '/hr/vacations/summary')).length, true)
+
   // 근태는 지울 수 있어야 한다. 안 그러면 잘못 넣은 근태가 잔여일수에 영원히 남는다
   // (하네스가 만든 것도 매 회차 쌓여 잔여일수를 왜곡했다).
   eq('근태를 지울 수 있다', (await call('DELETE', `/hr/vacations/${half.id}`)).status, 204)

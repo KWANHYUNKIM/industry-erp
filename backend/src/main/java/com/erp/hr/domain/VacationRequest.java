@@ -39,8 +39,11 @@ public class VacationRequest extends BaseTimeEntity {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    /** 사용 일수 (반차 0.5 등) */
-    @Column(nullable = false, precision = 5, scale = 1)
+    /**
+     * 사용 일수. 반차 0.5, 시간 단위 0.125(1시간) 까지 담는다.
+     * scale=1 이던 시절 DB 가 0.125 를 0.1 로 잘라, 쓴 만큼과 잔여가 어긋났다.
+     */
+    @Column(nullable = false, precision = 6, scale = 3)
     @Builder.Default
     private BigDecimal days = BigDecimal.ZERO;
 

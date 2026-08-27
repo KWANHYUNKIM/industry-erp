@@ -41,7 +41,6 @@ import com.erp.hr.dto.HrDtos;
 public class HrService {
 
     /** 기본 연차 부여 일수 */
-    private static final BigDecimal DEFAULT_ANNUAL_DAYS = BigDecimal.valueOf(15);
 
     private final AttendanceRepository attendanceRepository;
     private final VacationRepository vacationRepository;
@@ -176,7 +175,7 @@ public class HrService {
     }
 
     @Transactional(readOnly = true)
-    public List<VacationSummaryRow> vacationSummary(Integer year) {
+    public List<VacationSummaryRow> vacationSummary(Integer year, String employment) {
         LocalDate[] range = yearRange(year);
         List<VacationRequest> list = vacationRepository.findByStartDateBetweenWithUser(range[0], range[1]);
 
@@ -192,11 +191,19 @@ public class HrService {
             }
         }
 
+        // 재직구분: 원본 휴가잔여일수현황의 조건이다(재직자/퇴사자/기타).
+        // 예전에는 재직자만 무조건 걸러서 퇴사자의 미사용 연차(정산 대상)를 볼 방법이 없었다.
         return userRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
-                .filter(User::isEnabled)
-                .map(u -> VacationSummaryRow.of(u, DEFAULT_ANNUAL_DAYS,
-                        usedByUser.getOrDefault(u.getId(), BigDecimal.ZERO)))
+                .filter(u -> employmentMatches(employment, u))
+                .map(u -> VacationSummaryRow.of(u, usedByUser.getOrDefault(u.getId(), BigDecimal.ZERO)))
                 .toList();
+    }
+
+    /** "ACTIVE"(재직자) | "RESIGNED"(퇴사자) | "ALL"(전체). 안 주면 재직자. */
+    private boolean employmentMatches(String employment, User u) {
+        if ("ALL".equalsIgnoreCase(employment)) return true;
+        if ("RESIGNED".equalsIgnoreCase(employment)) return !u.isEnabled();
+        return u.isEnabled();
     }
 
     // -------------------------------------------------------------- 내부 유틸

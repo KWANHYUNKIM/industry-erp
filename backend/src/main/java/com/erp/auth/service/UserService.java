@@ -53,6 +53,9 @@ public class UserService {
                 .name(request.name())
                 .email(request.email())
                 .department(request.department())
+                // 안 주면 엔티티 기본값 15일. 0 을 명시하면 0 이다(휴가를 안 주는 계정).
+                .annualLeaveDays(request.annualLeaveDays() != null
+                        ? request.annualLeaveDays() : java.math.BigDecimal.valueOf(15))
                 .enabled(true)
                 .roles(resolveRoles(request.roleNames()))
                 .build();
@@ -74,6 +77,9 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         user.setDepartment(request.department());
+        if (request.annualLeaveDays() != null) {
+            user.setAnnualLeaveDays(request.annualLeaveDays());
+        }
         if (request.enabled() != null) {
             user.setEnabled(request.enabled());
         }
