@@ -519,6 +519,11 @@ async function scenarioPlan(f) {
   })
   isNull('계획 생성 직후 작업지시 없음', plan.workOrderId)
 
+  // 확정해야 지시로 넘어간다. 예전에는 서버가 상태를 안 봐서 검토 중인 계획도 그대로
+  // 작업지시가 됐고, 이 시나리오가 그 <b>틀린 동작을 그대로 담고</b> 있었다 —
+  // 화면은 진작 확정한 계획에만 버튼을 보여 주고 있었는데 API 는 아무나 받아 줬다.
+  await must('PATCH', `/production-plans/${plan.id}/status`, { status: 'CONFIRMED' })
+
   const ordered = await must('POST', `/production-plans/${plan.id}/work-order`)
   eq('작업지시가 실제 FK로 연결됨', typeof ordered.workOrderId, 'number')
   eq('작업지시번호가 응답에 실림', String(ordered.workOrderNo).startsWith('WO-'), 'true')
@@ -3444,6 +3449,51 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 생산계획에서 <b>작업지시서생성</b>.
+ *
+ * <p>원본 생산계획/MRP리스트의 버튼이다(생산계획계산 · MRP계산 ·
+ * <b>작업지시서생성</b> · 발주계획/발주서생성 …). 우리 생산계획(MPS) 화면에는 있었는데
+ * MRP리스트에는 없어서, 같은 자료를 보면서 한쪽에서만 일을 할 수 있었다.
+ *
+ * <p><b>확정한 계획만</b> 넘어가야 한다. 검토 중인 계획으로 지시를 내면 아직 정하지도 않은
+ * 수량이 현장으로 나간다. 이미 지시를 낸 계획을 또 넘기면 같은 것을 두 번 만든다.
+ */
+async function scenarioPlanToWorkOrder(f) {
+  section('■ 생산계획 → 작업지시')
+
+  const week = '2089-W15'
+  for (const x of (await must('GET', '/production-plans')).filter((p) => p.planWeek === week)) {
+    await call('DELETE', `/production-plans/${x.id}`)
+  }
+
+  const plan = await must('POST', '/production-plans', {
+    productId: f.product.id, planWeek: week, demandQty: 5, planQty: 5, remark: `${P}계획`,
+  })
+  eq('처음엔 검토 상태다', plan.status, 'REVIEW')
+
+  // 검토 중인 계획은 지시로 넘어가면 안 된다.
+  const early = await call('POST', `/production-plans/${plan.id}/work-order`)
+  eq('검토 중인 계획은 거절된다', early.status >= 400, true)
+
+  await must('PATCH', `/production-plans/${plan.id}/status`, { status: 'CONFIRMED' })
+  const made = await must('POST', `/production-plans/${plan.id}/work-order`)
+  eq('확정하면 작업지시가 생긴다', !!made.workOrderNo, true)
+  eq('상태가 지시완료로 바뀐다', made.status, 'ORDERED')
+
+  // 두 번 넘기면 같은 것을 두 번 만든다.
+  const again = await call('POST', `/production-plans/${plan.id}/work-order`)
+  eq('이미 지시한 계획은 다시 안 넘어간다', again.status >= 400, true)
+
+  // 작업지시를 먼저 지운다 — 계획만 사라지고 지시가 남으면
+  // "이 작업지시는 어느 계획에서 나왔나" 에 답할 수 없어 서버가 막는다.
+  const wo = (await must('GET', '/work-orders')).find((w) => w.orderNo === made.workOrderNo)
+  if (wo) await must('DELETE', `/work-orders/${wo.id}`)
+  await must('DELETE', `/production-plans/${plan.id}`)
+  eq('시험용 계획은 남기지 않는다',
+    (await must('GET', '/production-plans')).filter((x) => x.planWeek === week).length, 0)
+}
+
+/**
  * 출하·정산의 <b>프로젝트</b>.
  *
  * <p>원본 조건 판 실측(사본):
@@ -6097,6 +6147,7 @@ async function main() {
   await scenarioWorkOrderPartner(fixtures)
   await scenarioIssueEmployee(fixtures)
   await scenarioShipmentSettlementProject(fixtures)
+  await scenarioPlanToWorkOrder(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

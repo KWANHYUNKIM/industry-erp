@@ -99,6 +99,17 @@ public class ProductionPlanService {
         if (plan.getPlanQty().signum() <= 0) {
             throw ApiException.badRequest("계획수량이 0이면 작업지시를 생성할 수 없습니다.");
         }
+        /*
+         * <b>확정한 계획만</b> 지시로 넘긴다.
+         *
+         * <p>예전에는 상태를 안 봤다 — 검토 중인 계획도 그대로 작업지시가 됐다.
+         * 아직 정하지도 않은 수량이 현장으로 나가는 것이라, 화면에서 버튼을 감추는 것만으로는
+         * 부족하다(API 를 직접 부르면 그대로 통과한다).
+         */
+        if (plan.getStatus() != ProductionPlanStatus.CONFIRMED) {
+            throw ApiException.badRequest(
+                    "확정한 계획만 작업지시로 넘길 수 있습니다. 현재 상태: " + plan.getStatus().getDisplayName());
+        }
         Warehouse warehouse = warehouseRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> ApiException.badRequest("등록된 창고가 없습니다."));
 
