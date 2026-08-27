@@ -14,6 +14,9 @@ const empty = {
   bankName: '', accountNo: '', accountHolder: '',
   postalCode: '', address: '', partnerGroupId: '',
   salesPriceGroup: '', purchasePriceGroup: '', searchKeyword: '',
+  regNoKind: '사업자등록번호', industryKind: '일반', subBizNo: '',
+  postalCode2: '', address2: '', homepage: '', remark: '',
+  taxReport: true, shipmentTarget: true,
   /**
    * 사용구분. 예전에는 저장할 때 늘 true 를 보냈다 —
    * <b>사용중단한 거래처를 고치기만 해도 조용히 되살아났다.</b>
@@ -113,6 +116,10 @@ export default function PartnersPage() {
       postalCode: p.postalCode ?? '', address: p.address ?? '',
       salesPriceGroup: p.salesPriceGroup ?? '', purchasePriceGroup: p.purchasePriceGroup ?? '',
       searchKeyword: p.searchKeyword ?? '',
+      regNoKind: p.regNoKind ?? '사업자등록번호', industryKind: p.industryKind ?? '일반',
+      subBizNo: p.subBizNo ?? '', postalCode2: p.postalCode2 ?? '', address2: p.address2 ?? '',
+      homepage: p.homepage ?? '', remark: p.remark ?? '',
+      taxReport: p.taxReport, shipmentTarget: p.shipmentTarget,
       active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
     })
@@ -254,9 +261,25 @@ export default function PartnersPage() {
                 {types.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select>
             </div>
+            {/*
+              원본 [거래처코드구분]. 그냥 두는 값이 아니다 — 등록번호 자릿수가 여기서 갈린다
+              (사업자 10 · 주민 13). 세금계산서에 그대로 찍히는 값이라 서버가 막는다.
+            */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">사업자번호</label>
-              <input className={inputCls} value={form.bizRegNo} onChange={(e) => set('bizRegNo', e.target.value)} />
+              <label className="mb-1 block text-sm text-slate-600">거래처코드구분</label>
+              <select className={inputCls} value={form.regNoKind} onChange={(e) => set('regNoKind', e.target.value)}>
+                {['사업자등록번호', '주민등록번호', '외국인'].map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">{form.regNoKind === '외국인' ? '등록번호' : form.regNoKind}</label>
+              <input className={inputCls} value={form.bizRegNo} onChange={(e) => set('bizRegNo', e.target.value)}
+                     placeholder={form.regNoKind === '주민등록번호' ? '숫자 13자리'
+                       : form.regNoKind === '외국인' ? '형식 검사 없음' : '숫자 10자리'} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">종사업장번호</label>
+              <input className={inputCls} value={form.subBizNo} onChange={(e) => set('subBizNo', e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
@@ -273,6 +296,55 @@ export default function PartnersPage() {
                 value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
                 items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">업종별구분</label>
+              <select className={inputCls} value={form.industryKind} onChange={(e) => set('industryKind', e.target.value)}>
+                {['일반', '관세사', '외화거래처'].map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">주소2 우편번호</label>
+              <input className={inputCls} value={form.postalCode2} onChange={(e) => set('postalCode2', e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm text-slate-600">주소2</label>
+              <input className={inputCls} value={form.address2} onChange={(e) => set('address2', e.target.value)}
+                     placeholder="배송지 등 주소1과 다른 곳" />
+            </div>
+            {/*
+              원본 거래처검색 조건의 [검색창내용]. 공식 상호 말고 사람들이 실제로 부르는
+              이름을 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
+            */}
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <input className={inputCls} value={form.searchKeyword}
+                     onChange={(e) => set('searchKeyword', e.target.value)}
+                     placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">홈페이지</label>
+              <input className={inputCls} value={form.homepage} onChange={(e) => set('homepage', e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">세무신고거래처</label>
+              <select className={inputCls} value={form.taxReport ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, taxReport: e.target.value === 'Y' }))}>
+                <option value="Y">대상</option>
+                <option value="N">제외</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">출하대상거래처</label>
+              <select className={inputCls} value={form.shipmentTarget ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, shipmentTarget: e.target.value === 'Y' }))}>
+                <option value="Y">대상</option>
+                <option value="N">제외</option>
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">사용구분</label>
@@ -298,16 +370,6 @@ export default function PartnersPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">구매단가그룹</label>
               <input className={inputCls} value={form.purchasePriceGroup} onChange={(e) => set('purchasePriceGroup', e.target.value)} />
-            </div>
-            {/*
-              원본 거래처검색 조건의 [검색창내용]. 공식 상호 말고 사람들이 실제로 부르는
-              이름을 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
-            */}
-            <div className="sm:col-span-3">
-              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
-              <input className={inputCls} value={form.searchKeyword}
-                     onChange={(e) => set('searchKeyword', e.target.value)}
-                     placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
             </div>
             <div className="sm:col-span-3" style={{ fontSize: 11.5, color: '#8a929c' }}>
               ※ 여신한도는 원본 탭 안을 열어 보지 못해(탭을 누르기 전에는 화면에 없습니다) 만들지 않았습니다.

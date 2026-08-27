@@ -44,6 +44,20 @@ public final class PartnerDtos {
             String purchasePriceGroup,
             /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
+            /** 원본 [거래처코드구분] — 사업자등록번호 · 주민등록번호 · 외국인. 안 주면 사업자등록번호. */
+            String regNoKind,
+            /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. 안 주면 일반. */
+            String industryKind,
+            /** 원본 [종사업장번호]. */
+            String subBizNo,
+            String postalCode2,
+            String address2,
+            String homepage,
+            String remark,
+            /** 원본 [세무신고거래처]. 안 주면 대상. */
+            Boolean taxReport,
+            /** 원본 [출하대상거래처]. 안 주면 대상. */
+            Boolean shipmentTarget,
             Long partnerGroupId
     ) {}
 
@@ -77,6 +91,20 @@ public final class PartnerDtos {
             String purchasePriceGroup,
             /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
+            /** 원본 [거래처코드구분] — 사업자등록번호 · 주민등록번호 · 외국인. 안 주면 사업자등록번호. */
+            String regNoKind,
+            /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. 안 주면 일반. */
+            String industryKind,
+            /** 원본 [종사업장번호]. */
+            String subBizNo,
+            String postalCode2,
+            String address2,
+            String homepage,
+            String remark,
+            /** 원본 [세무신고거래처]. 안 주면 대상. */
+            Boolean taxReport,
+            /** 원본 [출하대상거래처]. 안 주면 대상. */
+            Boolean shipmentTarget,
             Long partnerGroupId,
             Boolean active
     ) {}
@@ -110,6 +138,15 @@ public final class PartnerDtos {
             String salesPriceGroup,
             String purchasePriceGroup,
             String searchKeyword,
+            String regNoKind,
+            String industryKind,
+            String subBizNo,
+            String postalCode2,
+            String address2,
+            String homepage,
+            String remark,
+            boolean taxReport,
+            boolean shipmentTarget,
             Long partnerGroupId,
             String partnerGroupName,
             boolean active
@@ -122,6 +159,9 @@ public final class PartnerDtos {
                     p.getMobile(), p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
                     p.getPostalCode(), p.getAddress(),
                     p.getSalesPriceGroup(), p.getPurchasePriceGroup(), p.getSearchKeyword(),
+                    p.getRegNoKind(), p.getIndustryKind(), p.getSubBizNo(),
+                    p.getPostalCode2(), p.getAddress2(), p.getHomepage(), p.getRemark(),
+                    p.isTaxReport(), p.isShipmentTarget(),
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
                     p.isActive());

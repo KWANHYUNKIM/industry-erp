@@ -208,6 +208,19 @@ export interface Partner {
   purchasePriceGroup: string | null
   /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾는다. */
   searchKeyword: string | null
+  /** 원본 [거래처코드구분] — 사업자등록번호 · 주민등록번호 · 외국인. */
+  regNoKind: string
+  /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. */
+  industryKind: string
+  subBizNo: string | null
+  postalCode2: string | null
+  address2: string | null
+  homepage: string | null
+  remark: string | null
+  /** 원본 [세무신고거래처]. */
+  taxReport: boolean
+  /** 원본 [출하대상거래처]. */
+  shipmentTarget: boolean
   partnerGroupId: number | null
   partnerGroupName: string | null
   active: boolean

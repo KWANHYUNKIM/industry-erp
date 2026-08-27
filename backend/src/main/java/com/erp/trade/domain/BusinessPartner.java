@@ -102,6 +102,46 @@ public class BusinessPartner extends BaseTimeEntity {
     private String purchasePriceGroup;
 
     /**
+     * 원본 [거래처코드구분] — 사업자등록번호 · 주민등록번호 · 외국인.
+     * 등록번호가 무엇인지 정한다. 자릿수 검증이 여기서 갈린다.
+     */
+    @Column(name = "reg_no_kind", nullable = false, length = 20)
+    @Builder.Default
+    private String regNoKind = "사업자등록번호";
+
+    /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. */
+    @Column(name = "industry_kind", nullable = false, length = 20)
+    @Builder.Default
+    private String industryKind = "일반";
+
+    /** 원본 [종사업장번호]. 사업장이 여럿인 거래처. 세금계산서에 찍힌다. */
+    @Column(name = "sub_biz_no", length = 20)
+    private String subBizNo;
+
+    /** 원본 [주소2] 와 그 우편번호. 주소1과 따로 둔다(배송지 등). */
+    @Column(name = "postal_code2", length = 20)
+    private String postalCode2;
+
+    @Column(length = 300)
+    private String address2;
+
+    @Column(length = 200)
+    private String homepage;
+
+    @Column(length = 500)
+    private String remark;
+
+    /** 원본 [세무신고거래처]. 부가세 신고 대상으로 잡을지. */
+    @Column(name = "tax_report", nullable = false)
+    @Builder.Default
+    private boolean taxReport = true;
+
+    /** 원본 [출하대상거래처]. 출하 대상으로 뜰지. */
+    @Column(name = "shipment_target", nullable = false)
+    @Builder.Default
+    private boolean shipmentTarget = true;
+
+    /**
      * 원본 거래처검색·거래처리스트의 <b>[검색창내용]</b>.
      * 공식 이름 말고 사람들이 실제로 부르는 이름(약칭·영문명·옛 상호)을 적어 두고 그걸로 찾는다.
      */

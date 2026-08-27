@@ -4054,6 +4054,70 @@ async function scenarioPartnerContactAndBank() {
   const re = (await must('GET', '/partners')).find((x) => x.id === made.id)
   eq('다시 조회해도 이체정보가 남는다', re.accountNo, '123-45-678910')
 
+  /*
+   * 원본 [거래처정보] 탭의 나머지 칸들.
+   *
+   * <p>거래처코드구분은 그냥 두는 값이 아니다 — 등록번호 자릿수가 여기서 갈린다.
+   * 세금계산서에 그대로 찍히는 값인데 우리는 지금까지 아무 글자나 받았다.
+   * 틀린 채로 들어가면 발행하고 나서야 안다.
+   */
+  const baseBody = {
+    name: made.name, type: made.type, ceoName: made.ceoName,
+    manager: made.manager, phone: made.phone, address: made.address,
+  }
+  eq('안 주면 사업자등록번호다', made.regNoKind, '사업자등록번호')
+  eq('안 주면 일반 업종이다', made.industryKind, '일반')
+  eq('안 주면 세무신고 대상이다', made.taxReport, true)
+  eq('안 주면 출하 대상이다', made.shipmentTarget, true)
+
+  const short = await call('PUT', `/partners/${made.id}`, { ...baseBody, bizRegNo: '123-45' })
+  eq('사업자번호가 10자리가 아니면 거부', short.status, 400)
+  eq('몇 자리인지 말해 준다', /10자리/.test(String(short.data?.message ?? '')), true)
+
+  const ok10 = await must('PUT', `/partners/${made.id}`, { ...baseBody, bizRegNo: '123-45-67890' })
+  eq('구분자가 섞여 있어도 숫자 10자리면 된다', ok10.bizRegNo, '123-45-67890')
+
+  const rrnShort = await call('PUT', `/partners/${made.id}`,
+    { ...baseBody, regNoKind: '주민등록번호', bizRegNo: '123-45-67890' })
+  eq('주민등록번호로 바꾸면 13자리를 요구한다', rrnShort.status, 400)
+  const rrn = await must('PUT', `/partners/${made.id}`,
+    { ...baseBody, regNoKind: '주민등록번호', bizRegNo: '900101-1234567' })
+  eq('주민등록번호 13자리는 통과', rrn.regNoKind, '주민등록번호')
+
+  // 외국인은 나라마다 형식이 달라 검사할 규칙이 없다. 막으면 넣을 방법이 없어진다.
+  const foreign = await must('PUT', `/partners/${made.id}`,
+    { ...baseBody, regNoKind: '외국인', bizRegNo: 'US-TAX-9' })
+  eq('외국인은 형식을 따지지 않는다', foreign.bizRegNo, 'US-TAX-9')
+
+  const badKind = await call('PUT', `/partners/${made.id}`,
+    { ...baseBody, regNoKind: '여권번호' })
+  eq('없는 거래처코드구분은 거부', badKind.status, 400)
+
+  const filled = await must('PUT', `/partners/${made.id}`, {
+    ...baseBody, regNoKind: '외국인', bizRegNo: 'US-TAX-9',
+    industryKind: '관세사', subBizNo: '0001',
+    postalCode2: '06236', address2: '서울 강남구 배송지',
+    homepage: 'https://example.test', remark: '적요 시험',
+    taxReport: false, shipmentTarget: false,
+  })
+  eq('업종별구분이 저장된다', filled.industryKind, '관세사')
+  eq('종사업장번호가 저장된다', filled.subBizNo, '0001')
+  eq('주소2가 저장된다', filled.address2, '서울 강남구 배송지')
+  eq('주소2 우편번호가 저장된다', filled.postalCode2, '06236')
+  eq('홈페이지가 저장된다', filled.homepage, 'https://example.test')
+  eq('적요가 저장된다', filled.remark, '적요 시험')
+  eq('세무신고 제외로 내릴 수 있다', filled.taxReport, false)
+  eq('출하 제외로 내릴 수 있다', filled.shipmentTarget, false)
+
+  const badIndustry = await call('PUT', `/partners/${made.id}`,
+    { ...baseBody, regNoKind: '외국인', industryKind: '제조업' })
+  eq('없는 업종별구분은 거부', badIndustry.status, 400)
+
+  // 다시 조회해도 남는가 — 응답만 채우고 저장은 안 하는 실수를 잡는다.
+  const again = (await must('GET', '/partners')).find((x) => x.id === made.id)
+  eq('다시 조회해도 남는다', `${again.industryKind}|${again.subBizNo}|${again.taxReport}`,
+    '관세사|0001|false')
+
   // 사용중단 → 고쳐도 되살아나면 안 된다.
   const body = {
     name: made.name, type: made.type, phone: made.phone, mobile: made.mobile,
