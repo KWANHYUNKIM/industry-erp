@@ -3427,6 +3427,61 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 차이분석이 기대는 자료.
+ *
+ * <p>원본 [구분] 은 원가비교집계표 · 재료비단가차이 · 소모수량차이 · 노무비/경비/외주비차이다.
+ * 총액 차이 한 줄로는 <b>왜</b> 차이가 났는지 알 수 없다 — 비싸게 산 것인지 많이 쓴 것인지가
+ * 갈려야 손 쓸 곳이 정해진다. 세 갈래가 각각 다른 자료에 기대므로 그 자료를 못 박는다.
+ *
+ * <p>특히 원가(ItemCost)에 <b>표준과 실제가 항목별로</b> 실려 있어야 한다. 총액만 남고
+ * 노무비·경비가 사라지면 '노무비·경비차이' 갈래가 통째로 빈 화면이 된다.
+ */
+async function scenarioVarianceInputs(f) {
+  section('■ 차이분석이 기대는 자료')
+
+  const costs = await must('GET', '/costs')
+  eq('원가 자료가 있다', costs.length > 0, true)
+  const c = costs[0]
+  for (const k of ['materialCost', 'laborCost', 'overheadCost', 'standardTotal',
+    'actualMaterial', 'actualLabor', 'actualOverhead', 'actualTotal']) {
+    eq(`원가에 ${k} 가 실린다`, typeof c[k], 'number')
+  }
+  eq('표준 총액 = 재료비 + 노무비 + 경비',
+    Number(c.standardTotal),
+    Number(c.materialCost) + Number(c.laborCost) + Number(c.overheadCost))
+  eq('실제 총액 = 실제재료비 + 실제노무비 + 실제경비',
+    Number(c.actualTotal),
+    Number(c.actualMaterial) + Number(c.actualLabor) + Number(c.actualOverhead))
+  eq('차이 = 실제 − 표준', Number(c.variance), Number(c.actualTotal) - Number(c.standardTotal))
+
+  /*
+   * 재료비단가차이는 <b>품목의 기준(구매)단가</b>가 있어야 잴 수 있다.
+   * 기준이 0 이면 재지 않는다 — 없는 기준으로 만든 숫자를 보여 주느니 '기준 없음' 이 낫다.
+   * 구매할인현황에서 이미 같은 결정을 했고, 여기서도 같은 필드를 본다.
+   */
+  const item = (await must('GET', '/items')).find((x) => x.id === f.material.id)
+  eq('품목에 기준단가 칸이 있다', typeof item.purchasePrice, 'number')
+
+  const before = Number(item.purchasePrice)
+  const body = {
+    name: item.name, spec: item.spec, unit: item.unit, category: item.category,
+    unitPrice: item.unitPrice, safetyStock: item.safetyStock, barcode: item.barcode,
+    udiDi: item.udiDi, managementItemId: item.managementItemId, active: true,
+  }
+  const withBase = await must('PUT', `/items/${f.material.id}`, { ...body, purchasePrice: 900 })
+  eq('기준단가를 정할 수 있다', Number(withBase.purchasePrice), 900)
+  await must('PUT', `/items/${f.material.id}`, { ...body, purchasePrice: before })
+  eq('되돌려 놓는다',
+    Number((await must('GET', `/items/${f.material.id}`)).purchasePrice), before)
+
+  // 소모수량차이는 BOM(표준)과 생산실적의 투입자재(실제) 둘 다 있어야 한다.
+  const boms = await must('GET', '/boms')
+  eq('BOM 에 소요량이 있다', typeof boms[0]?.lines?.[0]?.quantity, 'number')
+  const prodWithMat = (await must('GET', '/productions')).find((x) => (x.materials ?? []).length > 0)
+  eq('생산실적에 실제 투입량이 있다', typeof prodWithMat?.materials?.[0]?.quantity, 'number')
+}
+
+/**
  * 실제원가현황(원가집계표)의 <b>롤포워드 항등식</b>.
  *
  * <p>원본 원가집계표는 기초 → 증가 → 감소 → 기말을 수량·단가·금액으로 늘어놓는다
@@ -4013,6 +4068,7 @@ async function main() {
   await scenarioNestedValidation(fixtures)
   await scenarioWoEfficiencyFields()
   await scenarioCostRollForward()
+  await scenarioVarianceInputs(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
