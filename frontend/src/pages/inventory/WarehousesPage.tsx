@@ -12,7 +12,8 @@ const inputCls = 'ec-input w-full'
  */
 const KINDS = ['창고', '공장', '외주'] as const
 
-interface ProcessRow { id: number; name: string }
+/** active — 원본은 사용중단한 공정을 코드도움에 안 띄운다. */
+interface ProcessRow { id: number; name: string; active: boolean }
 interface PartnerRow { id: number; code: string; name: string; type: string }
 
 export default function WarehousesPage() {

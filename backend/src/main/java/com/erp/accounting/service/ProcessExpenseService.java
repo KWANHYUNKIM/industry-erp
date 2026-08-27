@@ -25,6 +25,7 @@ public class ProcessExpenseService {
 
     private final ProcessExpenseRepository repository;
     private final ProcessRepository processRepository;
+    private final com.erp.production.service.ProcessService processService;
     private final WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
@@ -91,8 +92,12 @@ public class ProcessExpenseService {
                 .orElseThrow(() -> ApiException.notFound("노무비/경비를 찾을 수 없습니다. id=" + id));
     }
 
+    /**
+     * 사용중지한 공정에 새 경비를 달 수는 없다 — 원본은 코드도움에 띄우지도 않는다.
+     * production 의 공개 service 를 거친다(CLAUDE.md 4.2). accounting → production 은
+     * 이미 있는 방향이라 순환이 아니다(표준원가 생성이 BomService 를 쓴다).
+     */
     private ProductionProcess getProcess(Long id) {
-        return processRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("공정을 찾을 수 없습니다. id=" + id));
+        return processService.getUsable(id);
     }
 }

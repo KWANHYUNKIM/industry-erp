@@ -29,6 +29,7 @@ public class BorService {
 
     private final BorRepository borRepository;
     private final ProcessRepository processRepository;
+    private final ProcessService processService;
     private final ItemService itemService;
 
     @Transactional(readOnly = true)
@@ -39,7 +40,8 @@ public class BorService {
     @Transactional
     public BorResponse create(SaveBorRequest req) {
         Item product = itemService.get(req.productId());
-        ProductionProcess process = getProcess(req.processId());
+        // 사용중지한 공정으로 새 작업을 올릴 수는 없다(원본은 코드도움에 띄우지도 않는다).
+        ProductionProcess process = processService.getUsable(req.processId());
         requireFreeSeq(req.productId(), req.seq(), null);
 
         BorOperation o = BorOperation.builder()
@@ -61,7 +63,7 @@ public class BorService {
         requireFreeSeq(req.productId(), req.seq(), id);
 
         o.setProduct(itemService.get(req.productId()));
-        o.setProcess(getProcess(req.processId()));
+        o.setProcess(processService.getUsable(req.processId()));
         o.setSeq(req.seq());
         o.setWorkName(req.workName().trim());
         o.setBaseQty(req.baseQty() != null ? req.baseQty() : BigDecimal.ONE);

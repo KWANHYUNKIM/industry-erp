@@ -40,7 +40,8 @@ interface BorRow {
   active: boolean
 }
 
-interface ProcessRow { id: number; code: string; name: string; workcenter: string | null }
+/** active — 원본은 사용중단한 공정을 코드도움에 안 띄운다. */
+interface ProcessRow { id: number; code: string; name: string; workcenter: string | null; active: boolean }
 
 const emptyForm = { productId: '', processId: '', seq: '1', workName: '', baseQty: '1', workHours: '', remark: '' }
 
@@ -172,7 +173,7 @@ export default function BorPage() {
             <CodePickerField
               label="생산공정 *" placeholder="공정 선택"
               value={form.processId} onChange={(v) => set('processId', v)}
-              items={processes.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.workcenter ?? undefined }))}
+              items={processes.filter((p) => p.active !== false).map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.workcenter ?? undefined }))}
             />
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업순서 *</label>

@@ -3602,6 +3602,60 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * <b>사용중지한 공정</b>으로 새로 고를 수 없다.
+ *
+ * <p>원본 공정등록에는 [사용중단/재사용]이 있고, 사용중단한 공정은 코드도움에 안 뜬다.
+ * 우리는 사용 여부를 <b>저장만 하고 아무 데서도 보지 않았다</b> — 화면에 내릴 버튼도
+ * 없었고, 서버도 그 값을 안 봤다. 실측했더니 공정작업 · 자원 · 공정별경비가 전부 통과했다.
+ *
+ * <p><b>창고(공장)의 생산공정은 못 막는다.</b> inventory 는 아무 모듈에도 의존하지 않는
+ * 기반층이라(CLAUDE.md 4.1) 거기서 production 을 참조하면 순환이 된다. 창고의 공정이
+ * @ManyToOne 이 아니라 평범한 Long processId 인 것도 같은 이유다. 화면 목록이 거른다.
+ */
+async function scenarioInactiveProcessGuards() {
+  section('■ 사용중지 공정으로 새로 만들 수 없다')
+
+  const procs = await must('GET', '/processes')
+  const proc = procs[0]
+  eq('공정이 하나 이상 있다', !!proc, true)
+
+  const body = {
+    code: proc.code, name: proc.name, workcenter: proc.workcenter,
+    stdTimeMin: proc.stdTimeMin, costPerHr: proc.costPerHr, sortOrder: proc.sortOrder,
+  }
+  const stopped = await must('PUT', `/processes/${proc.id}`, { ...body, active: false })
+  eq('공정을 사용중지로 내릴 수 있다', stopped.active, false)
+  eq('관리 목록에는 남는다',
+    (await must('GET', '/processes')).some((x) => x.id === proc.id), true)
+
+  const blocked = [
+    ['공정작업(작업코드)', '/process-operations',
+      { processId: proc.id, code: `${P}OP`, name: `${P}작업코드` }],
+    ['자원등록', '/resources',
+      { code: `${P}RES`, name: `${P}설비`, processId: proc.id, kind: '설비' }],
+    ['공정별경비', '/process-expenses',
+      { period: '2093-01', processId: proc.id, laborCost: 1000, overheadCost: 1000 }],
+  ]
+  for (const [label, path, payload] of blocked) {
+    const r = await call('POST', path, payload)
+    eq(`${label}: 사용중지 공정은 거부`, r.status, 400)
+    eq(`${label}: 무엇이 막혔는지 말한다`,
+      /사용중지된 공정/.test(String(r.data?.message ?? '')), true)
+  }
+
+  await must('PUT', `/processes/${proc.id}`, { ...body, active: true })
+  eq('되살리면 다시 쓸 수 있다',
+    (await must('GET', '/processes')).find((x) => x.id === proc.id).active, true)
+
+  const op = await must('POST', '/process-operations',
+    { processId: proc.id, code: `${P}OP`, name: `${P}작업코드` })
+  eq('되살린 뒤에는 통과한다', op.processId, proc.id)
+  await must('DELETE', `/process-operations/${op.id}`)
+  eq('시험용 작업코드는 남기지 않는다',
+    (await must('GET', '/process-operations')).some((x) => x.id === op.id), false)
+}
+
+/**
  * 원본 <b>생산계획/MRP생성</b> — [생산계획대상-전표] <b>미판매</b> 기준.
  *
  * <p>주문은 받았는데 아직 매출로 못 끊은 잔량에서 <b>현재고를 뺀 부족분</b>만큼
@@ -5359,8 +5413,11 @@ async function scenarioResourceLocation() {
   isNull('위치를 비울 수 있다', cleared.warehouseId)
   isNull('대상작업도 비울 수 있다', cleared.processId)
 
+  // 없는 id 는 404 다. 예전에는 이 자리만 400 을 냈는데, 사용중지 검사를 붙이면서
+  // 품목·창고와 같은 경로(ProcessService.getUsable)를 쓰게 돼 응답이 맞춰졌다.
+  // 400 은 '요청이 잘못됐다', 404 는 '그런 것이 없다' 다 — 후자가 맞다.
   const bad = await call('PUT', `/resources/${made.id}`, { ...body, processId: 99999999 })
-  eq('없는 공정은 400', bad.status, 400)
+  eq('없는 공정은 404', bad.status, 404)
   eq('무엇이 없는지 말한다', /공정/.test(String(bad.data?.message ?? '')), true)
 
   // 원본 자원등록의 버튼은 [삭제]가 아니라 <b>사용중단/재사용</b>이다.
@@ -6774,6 +6831,7 @@ async function main() {
   await scenarioSettlementAccounting(fixtures)
   await scenarioBookmarks()
   await scenarioPlanGenerate(fixtures)
+  await scenarioInactiveProcessGuards()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

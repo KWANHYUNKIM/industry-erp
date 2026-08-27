@@ -20,6 +20,7 @@ public class ProcessOperationService {
 
     private final ProcessOperationRepository repository;
     private final ProcessRepository processRepository;
+    private final ProcessService processService;
 
     @Transactional(readOnly = true)
     public List<OperationResponse> findAll() {
@@ -33,7 +34,7 @@ public class ProcessOperationService {
             throw ApiException.conflict("이미 존재하는 작업코드입니다: " + code);
         }
         ProcessOperation o = ProcessOperation.builder()
-                .process(getProcess(req.processId()))
+                .process(processService.getUsable(req.processId()))
                 .code(code)
                 .name(req.name().trim())
                 .seq(req.seq() != null ? req.seq() : 0)
@@ -50,7 +51,7 @@ public class ProcessOperationService {
         if (!o.getCode().equals(code) && repository.existsByCode(code)) {
             throw ApiException.conflict("이미 존재하는 작업코드입니다: " + code);
         }
-        o.setProcess(getProcess(req.processId()));
+        o.setProcess(processService.getUsable(req.processId()));
         o.setCode(code);
         o.setName(req.name().trim());
         if (req.seq() != null) {

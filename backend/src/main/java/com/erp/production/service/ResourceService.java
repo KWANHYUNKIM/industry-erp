@@ -24,6 +24,7 @@ public class ResourceService {
 
     private final ResourceRepository resourceRepository;
     private final ProcessRepository processRepository;
+    private final ProcessService processService;
     private final WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
@@ -76,10 +77,10 @@ public class ResourceService {
     }
 
     /** 대상작업(공정). 없는 id 를 주면 조용히 무시하지 않고 알린다. */
+    /** 사용중지한 공정에 설비를 새로 붙일 수는 없다. 안 정할 수는 있다. */
     private ProductionProcess processOf(Long processId) {
         if (processId == null) return null;
-        return processRepository.findById(processId)
-                .orElseThrow(() -> ApiException.badRequest("공정을 찾을 수 없습니다. id=" + processId));
+        return processService.getUsable(processId);
     }
 
     @Transactional

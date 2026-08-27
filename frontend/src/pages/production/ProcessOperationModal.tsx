@@ -21,7 +21,8 @@ interface Row {
   active: boolean
 }
 
-interface ProcessRow { id: number; code: string; name: string; sortOrder: number }
+/** active — 원본은 사용중단한 공정을 코드도움에 안 띄운다. */
+interface ProcessRow { id: number; code: string; name: string; sortOrder: number; active: boolean }
 
 export default function ProcessOperationModal({ processes, onClose }: {
   processes: ProcessRow[]
@@ -94,7 +95,7 @@ export default function ProcessOperationModal({ processes, onClose }: {
               <select className="ec-input" value={form.processId} style={{ width: 170 }}
                       onChange={(e) => setForm({ ...form, processId: e.target.value })}>
                 <option value="">선택</option>
-                {processes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {processes.filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
             <label style={{ fontSize: 12.5 }}>

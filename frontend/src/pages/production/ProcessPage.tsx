@@ -64,6 +64,23 @@ export default function ProcessPage() {
     }
   }
 
+  /**
+   * 원본 [사용중단/재사용]. 지우지 않고 내린다 — 지난 작업·경비가 이 공정을 물고 있어서
+   * 지우면 그 자료의 근거가 사라진다. 내려 두면 새로 고를 수만 없다.
+   */
+  async function toggleActive(r: ProductionProcess) {
+    try {
+      await api.put(`/processes/${r.id}`, {
+        code: r.code, name: r.name, workcenter: r.workcenter,
+        stdTimeMin: r.stdTimeMin, costPerHr: r.costPerHr, sortOrder: r.sortOrder,
+        active: !r.active,
+      })
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
   async function remove(p: ProductionProcess) {
     if (!confirm(`공정 '${p.name}'을(를) 삭제할까요?`)) return
     try {
@@ -93,11 +110,11 @@ export default function ProcessPage() {
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 공정 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">공정코드 *</label>
+              <label className="mb-1 block text-sm text-slate-600">생산공정코드 *</label>
               <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="PRC-060" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">공정명 *</label>
+              <label className="mb-1 block text-sm text-slate-600">생산공정명 *</label>
               <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
@@ -129,7 +146,7 @@ export default function ProcessPage() {
 
       {opOpen && (
         <ProcessOperationModal
-          processes={rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sortOrder: r.sortOrder }))}
+          processes={rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sortOrder: r.sortOrder, active: r.active }))}
           onClose={() => setOpOpen(false)}
         />
       )}
@@ -139,19 +156,20 @@ export default function ProcessPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 60, textAlign: 'right' }}>순번</th>
-            <th>공정코드</th>
-            <th>공정명</th>
+            <th>생산공정코드</th>
+            <th>생산공정명</th>
             <th>작업장</th>
             <th style={{ textAlign: 'right' }}>표준시간(분)</th>
             <th style={{ textAlign: 'right' }}>시간당비용</th>
+            <th style={{ width: 110, textAlign: 'center' }}>사용</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 공정이 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 공정이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -161,6 +179,19 @@ export default function ProcessPage() {
               <td>{r.workcenter ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.stdTimeMin.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
+              {/*
+                원본 공정등록의 [사용중단/재사용]. 사용 여부는 진작 저장하고 있었는데
+                화면에 없어서 아무도 내릴 수가 없었고, 서버도 그 값을 안 봤다.
+              */}
+              <td style={{ textAlign: 'center' }}>
+                <button className="ec-btn no-ec" onClick={() => toggleActive(r)}
+                        style={{
+                          border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
+                          fontWeight: 700, color: r.active ? '#1c7c3c' : '#c07a00',
+                        }}>
+                  {r.active ? '사용' : '사용중단'}
+                </button>
+              </td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
