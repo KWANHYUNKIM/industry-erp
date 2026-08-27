@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -42,9 +43,36 @@ const TITLE: Record<LedgerSide, string> = {
  * 특히 [구분] 담당자별이 없어 "이 담당자가 걷어야 할 돈이 얼마인가"를 볼 수가 없었다.
  *
  * <p>대표거래처 합산·거래처관계기준은 거래처 관계 마스터가 있어야 해서 아직 못 한다.
- * 기준일자는 잔액 API 가 asOf 한 날짜만 받으므로 채권/채무현황(ArApStatusPage)이 그쪽을 맡는다.
+ *
+ * <p><b>원본 결과 열 실측(사본)</b>:
+ * 채권 — 거래처명 · 기초채권 · 재고매출 · 회계매출 · 수금합계 · 기타할인등차액 · 잔액,
+ * 채무 — 거래처명 · 기초채무 · 재고매입 · 회계매입 · 지급합계 · 기타할인등차액 · 잔액.
+ * 우리는 <b>잔액 한 칸</b>뿐이었다. 잔액만 보면 왜 움직였는지 알 수 없다 — 새로 판 것 때문인지
+ * 수금이 안 들어온 것인지 구분이 안 된다. 그래서 기준일자 구간을 받아 잔액을 쪼갠다
+ * (GET /api/ledger/partner-movements).
+ *
+ * <p>[기타할인등차액]은 <b>나머지</b>다: 잔액 − (기초 + 재고 + 회계 − 수금). 0 이 아니면
+ * 우리가 이름 붙여 세지 못한 움직임이 있다는 뜻이다. 지금은 <b>회계전표가 외상매출금·
+ * 외상매입금을 직접 움직인 것</b>(어음·수표·상계)이 잔액 공식에 안 들어가 있어 여기 남는다.
+ * 감추지 않고 그대로 보여 준다 — 감추면 채권이 왜 안 줄었는지 영영 못 찾는다.
+ *
+ * <p>채권·채무를 한 화면에서 보는 [BOTH]는 원본에 없는 우리 화면이라 예전 두 칸 표를 유지한다.
  */
 type Group = '거래처별' | '담당자별'
+
+/** 거래처별채권·채무의 기간 움직임 (GET /api/ledger/partner-movements). */
+interface Movement {
+  partnerId: number
+  code: string
+  name: string
+  manager: string | null
+  opening: number
+  stockAmount: number
+  accountingAmount: number
+  settledAmount: number
+  otherDiff: number
+  closing: number
+}
 
 export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
   const showAr = side !== 'AP'
@@ -57,6 +85,11 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
   const [manager, setManager] = useState('')
   const [withInactive, setWithInactive] = useState(false)
   const [onlyOpen, setOnlyOpen] = useState(false)
+  /** 원본 조건 판의 기준일자. 기본값도 원본 그대로 [전월+금월] 이다. */
+  const init = periodOf('전월+금월')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [moves, setMoves] = useState<Movement[]>([])
 
   useEffect(() => {
     api
@@ -65,6 +98,16 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [])
+
+  // 채권·채무를 한쪽만 보는 화면(원본의 거래처별채권/채무)에서만 열을 쪼갠다.
+  const oneSide = side !== 'BOTH'
+  useEffect(() => {
+    if (!oneSide) return
+    api
+      .get<Movement[]>('/ledger/partner-movements', { params: { from, to, side } })
+      .then((res) => setMoves(res.data))
+      .catch((err) => setError(extractErrorMessage(err)))
+  }, [oneSide, side, from, to])
 
   const shown = useMemo(() => rows.filter((r) => {
     if (partner && !(r.name.includes(partner) || r.code.includes(partner))) return false
@@ -88,6 +131,20 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
     }
     return [...m.values()].sort((a, b) => (b.receivable + b.payable) - (a.receivable + a.payable))
   }, [shown])
+
+  /** 조건(거래처·담당자)을 움직임 표에도 그대로 건다. */
+  const shownMoves = useMemo(() => moves.filter((m) => {
+    if (partner && !(m.name.includes(partner) || m.code.includes(partner))) return false
+    if (manager && !(m.manager ?? '').includes(manager)) return false
+    if (onlyOpen && m.closing === 0) return false
+    return true
+  }), [moves, partner, manager, onlyOpen])
+
+  const moveTotal = useMemo(() => shownMoves.reduce((t, m) => ({
+    opening: t.opening + m.opening, stock: t.stock + m.stockAmount,
+    acct: t.acct + m.accountingAmount, settled: t.settled + m.settledAmount,
+    other: t.other + m.otherDiff, closing: t.closing + m.closing,
+  }), { opening: 0, stock: 0, acct: 0, settled: 0, other: 0, closing: 0 }), [shownMoves])
 
   const totalReceivable = shown.reduce((a, r) => a + r.receivable, 0)
   const totalPayable = shown.reduce((a, r) => a + r.payable, 0)
@@ -120,6 +177,23 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
             ))}
           </div>
         </EcCond>
+        {oneSide && (
+          <EcCond label="기준일자">
+            <input type="date" className="ec-input" value={from}
+                   onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+            <span style={{ margin: '0 4px' }}>~</span>
+            <input type="date" className="ec-input" value={to}
+                   onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            <span style={{ marginLeft: 6, display: 'inline-flex', gap: 3 }}>
+              {STATUS_PICKS.map((label) => (
+                <button key={label} type="button" className="ec-btn"
+                        onClick={() => { const r = periodOf(label); if (r) { setFrom(r.from); setTo(r.to) } }}>
+                  {label}
+                </button>
+              ))}
+            </span>
+          </EcCond>
+        )}
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명·코드 일부" value={partner}
                  onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
@@ -189,6 +263,52 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
             </tr>
           </tfoot>
         </table>
+      ) : oneSide ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>거래처명</th>
+              <th style={{ width: 140, textAlign: 'right' }}>{showAr ? '기초채권' : '기초채무'}</th>
+              <th style={{ width: 140, textAlign: 'right' }}>{showAr ? '재고매출' : '재고매입'}</th>
+              <th style={{ width: 140, textAlign: 'right' }}>{showAr ? '회계매출' : '회계매입'}</th>
+              <th style={{ width: 140, textAlign: 'right' }}>{showAr ? '수금합계' : '지급합계'}</th>
+              <th style={{ width: 150, textAlign: 'right' }}>기타할인등차액</th>
+              <th style={{ width: 150, textAlign: 'right' }}>잔액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shownMoves.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : shownMoves.map((m, i) => (
+              <tr key={m.partnerId}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td>{m.name}</td>
+                <td style={{ textAlign: 'right' }}>{won(m.opening)}</td>
+                <td style={{ textAlign: 'right' }}>{won(m.stockAmount)}</td>
+                <td style={{ textAlign: 'right', color: m.accountingAmount === 0 ? '#c9ced6' : undefined }}>{won(m.accountingAmount)}</td>
+                <td style={{ textAlign: 'right' }}>{won(m.settledAmount)}</td>
+                <td style={{ textAlign: 'right', color: m.otherDiff === 0 ? '#c9ced6' : '#c07a00', fontWeight: m.otherDiff === 0 ? 400 : 700 }}>
+                  {won(m.otherDiff)}
+                </td>
+                <td style={balanceStyle(m.closing, showAr ? 'var(--ec-blue)' : '#2f8401')}>
+                  {won(m.closing)}{balanceNote(m.closing, showAr ? '채권' : '채무')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({shownMoves.length}곳)</td>
+              <td style={{ textAlign: 'right' }}>{won(moveTotal.opening)}</td>
+              <td style={{ textAlign: 'right' }}>{won(moveTotal.stock)}</td>
+              <td style={{ textAlign: 'right' }}>{won(moveTotal.acct)}</td>
+              <td style={{ textAlign: 'right' }}>{won(moveTotal.settled)}</td>
+              <td style={{ textAlign: 'right', color: moveTotal.other === 0 ? undefined : '#c07a00' }}>{won(moveTotal.other)}</td>
+              <td style={{ textAlign: 'right', color: showAr ? 'var(--ec-blue)' : '#2f8401' }}>{won(moveTotal.closing)}</td>
+            </tr>
+          </tfoot>
+        </table>
       ) : (
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -232,6 +352,13 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
       <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
         ※ 채권 = 판매 합계 − 수금, 채무 = 구매 합계 − 지급. 수금·지급 등록은 「수금현황」·「지급현황」에서 합니다.
         <br />※ 채권이 음수면 받을 돈보다 더 받은 것(선수금), 채무가 음수면 줄 돈보다 더 준 것(선급금)입니다.
+        {oneSide && (
+          <>
+            <br />※ [기타할인등차액] = 잔액 − (기초 + 재고 + {showAr ? '회계매출 − 수금' : '회계매입 − 지급'}).
+            0 이 아니면 이름 붙여 세지 못한 움직임이 있다는 뜻입니다 — 지금은 회계전표가
+            외상매출금·외상매입금을 직접 움직인 것(어음·수표·상계)이 잔액 공식에 안 들어가 여기 남습니다.
+          </>
+        )}
       </p>
     </EcListShell>
   )

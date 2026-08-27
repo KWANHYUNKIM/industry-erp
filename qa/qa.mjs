@@ -3444,6 +3444,73 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 거래처별채권·거래처별채무의 <b>잔액 분해</b>.
+ *
+ * <p>원본 열 실측(사본): 거래처명 · 기초채권 · 재고매출 · 회계매출 · 수금합계 ·
+ * 기타할인등차액 · 잔액(채무는 기초채무 · 재고매입 · 회계매입 · 지급합계 · …).
+ * 우리는 잔액 한 칸뿐이라 왜 움직였는지 알 수가 없었다 — 새로 판 것 때문인지
+ * 수금이 안 들어온 것인지 구분이 안 됐다.
+ *
+ * <p>이 화면의 값어치는 <b>항등식</b>에 있다:
+ * 기초 + 재고 + 회계 − 수금 + 기타차액 = 잔액.
+ * 기타차액은 나머지라 우리가 이름 붙여 세지 못한 움직임이 있으면 거기 남는다.
+ * 항등식이 깨지면 어느 칸이 거짓말을 하고 있다는 뜻이라 못 박아 둔다.
+ */
+async function scenarioPartnerMovements(f) {
+  section('■ 거래처별채권 잔액분해')
+
+  const day = '2091-03-11'
+  const from = '2091-03-01'
+  const to = '2091-03-31'
+  const get = async (side) => must('GET',
+    `/ledger/partner-movements?from=${from}&to=${to}&side=${side}`)
+
+  const before = (await get('AR')).find((m) => m.partnerId === f.customer.id)
+  const openBefore = before ? before.opening : 0
+
+  // 기간 안에 판매 하나, 수금 하나.
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: day,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 50000 }],
+  })
+  const settle = await must('POST', '/settlements', {
+    partnerId: f.customer.id, type: 'RECEIPT', settleDate: day, amount: 30000,
+    method: '현금', note: `${P}분해`,
+  })
+
+  const row = (await get('AR')).find((m) => m.partnerId === f.customer.id)
+  eq('그 거래처 줄이 나온다', !!row, true)
+  eq('기초는 기간 전날까지의 잔액이라 안 움직인다', row.opening, openBefore)
+  eq('재고매출에 판매전표가 잡힌다', Number(row.stockAmount), Number(sale.totalAmount))
+  eq('수금합계에 수금전표가 잡힌다', Number(row.settledAmount) >= 30000, true)
+
+  // 항등식 — 모든 줄에서 성립해야 한다.
+  //
+  // 시험용 기간만 재면 소용이 없다. 그 기간에는 회계전표가 없어 기타차액이 0 이고,
+  // 기타차액을 아예 0 으로 고정해도 항등식이 그냥 통과한다(실제로 그렇게 만들어 확인했다).
+  // 그래서 <b>전 기간</b>으로 잰다 — 회계전표가 통제계정을 움직인 것까지 들어와야
+  // 기타차액이 제 일을 하는지 알 수 있다.
+  const holds = (rows) => rows.every((m) =>
+    Math.abs((m.opening + m.stockAmount + m.accountingAmount - m.settledAmount + m.otherDiff) - m.closing) < 0.5)
+  const wide = async (side) => must('GET',
+    `/ledger/partner-movements?from=1900-01-01&to=2099-12-31&side=${side}`)
+  eq('채권 분해가 항등식을 지킨다', holds(await wide('AR')), true)
+  eq('채무 분해가 항등식을 지킨다', holds(await wide('AP')), true)
+  eq('시험 기간에서도 항등식을 지킨다', holds(await get('AR')), true)
+
+  // 아무 일도 없던 거래처는 줄을 만들지 않는다 — 빈 줄로 표를 채우면 못 읽는다.
+  const quiet = (await get('AR')).filter((m) =>
+    m.opening === 0 && m.closing === 0 && m.stockAmount === 0
+    && m.accountingAmount === 0 && m.settledAmount === 0)
+  eq('아무 움직임 없는 거래처는 줄이 없다', quiet.length, 0)
+
+  await must('DELETE', `/settlements/${settle.id}`)
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await get('AR')).filter((m) => m.partnerId === f.customer.id && m.stockAmount !== 0).length, 0)
+}
+
+/**
  * 생산입고가 <b>생산된공장 → 받는창고</b>로 옮기는가.
  *
  * <p>원본 생산입고조회의 열은 일자-No. · <b>생산된공장명</b> · <b>받는창고명</b> ·
@@ -5305,6 +5372,7 @@ async function main() {
   await scenarioProcessOrderAndOperations()
   await scenarioLeaveDocNo()
   await scenarioProductionWarehouses(fixtures)
+  await scenarioPartnerMovements(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
