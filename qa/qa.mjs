@@ -3427,6 +3427,52 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 소요시간계산이 기대는 것 — 품목 라우팅의 <b>1개당 시간 합</b>.
+ *
+ * <p>원본 소요시간계산은 생산품목과 수량을 넣고 [계산(F8)] 하면 시간을 돌려준다.
+ * 우리 화면은 공정마다 수량을 넣는 계산기였다 — "이 제품 100개를 만들면 몇 시간" 이 아니라
+ * "절단 공정에 100개를 태우면 몇 분" 을 묻는 셈이라, 정작 제품 기준 시간은 사람이
+ * 공정을 하나씩 골라 더해야 했다.
+ *
+ * <p>BOR 이 생겨 품목 하나로 답이 나온다. 그 답이 성립하려면 <b>같은 품목의 작업들이
+ * 순서대로, 1개당 시간으로 환산돼</b> 와야 한다. 환산을 빠뜨리면 로트 배수만큼 틀린다.
+ */
+async function scenarioTimeCalc(f) {
+  section('■ 소요시간계산 근거')
+
+  for (const o of (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)) {
+    await call('DELETE', `/bor/${o.id}`)
+  }
+  const procs = await must('GET', '/processes')
+
+  // 10개 기준 0.5H, 10개 기준 1.25H, 1개 기준 0.2H → 1개당 0.05 + 0.125 + 0.2 = 0.375H
+  const specs = [[procs[0], 10, 0.5], [procs[1], 10, 1.25], [procs[2], 1, 0.2]]
+  const ops = []
+  for (const [i, spec] of specs.entries()) {
+    const [pc, base, hours] = spec
+    ops.push(await must('POST', '/bor', {
+      productId: f.product.id, processId: pc.id, seq: 70 + i,
+      workName: `${P}소요${i}`, baseQty: base, workHours: hours,
+    }))
+  }
+
+  const mine = (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)
+  eq('같은 품목의 작업이 모두 온다', mine.length, 3)
+  eq('작업순서대로 온다', mine.map((x) => x.seq).join(','), '70,71,72')
+
+  const perUnit = mine.reduce((n, x) => n + Number(x.hoursPerUnit), 0)
+  eq('1개당 시간 합', Math.round(perUnit * 10000) / 10000, 0.375)
+
+  // 화면은 (수량 + 추가수량) 을 곱한다. 곱셈 자체가 아니라 '환산이 됐는지' 가 요점이다.
+  eq('100개면 37.5시간', Math.round(perUnit * 100 * 100) / 100, 37.5)
+  eq('추가수량 5를 더하면 105개분', Math.round(perUnit * 105 * 100) / 100, 39.38)
+
+  for (const o of ops) await must('DELETE', `/bor/${o.id}`)
+  eq('시험용 라우팅은 남기지 않는다',
+    (await must('GET', '/bor')).filter((x) => x.productId === f.product.id).length, 0)
+}
+
+/**
  * 비용 전표번호.
  *
  * <p>원본 비용내역현황의 첫 열이 [일자-No.] 다. 비용도 전표인데 우리에겐 번호가 없어서
@@ -4576,6 +4622,7 @@ async function main() {
   await scenarioPaymentCompare(fixtures)
   await scenarioStatementReceivable(fixtures)
   await scenarioExpenseDocNo()
+  await scenarioTimeCalc(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
