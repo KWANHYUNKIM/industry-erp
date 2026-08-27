@@ -2985,6 +2985,7 @@ function scenarioPermissionCoverage() {
     'files',      // 첨부 업/다운로드(개별 권한은 소유 화면이 본다)
     'workspace',  // 개인 메모·알림·통합검색 — 자기 것만 본다
     'my-items',   // My품목 — 개인 소유물(컨트롤러 주석에도 그렇게 적혀 있다)
+    'bookmarks',  // 상단 북마크바 — 자기 것만 담고 뺀다(남의 것을 볼 경로가 없다)
   ])
 
   const roots = new Set()
@@ -3598,6 +3599,55 @@ async function scenarioInactiveItemGuards(f) {
   eq('시험이 끝나면 자재는 다시 사용중이다', listed.active, true)
   eq('BOM 은 늘어나지 않았다',
     (await must('GET', '/boms')).filter((b) => b.productId === f.material.id).length, 0)
+}
+
+/**
+ * 상단 <b>북마크바</b>(즐겨찾기).
+ *
+ * <p>원본은 [즐겨찾기]로 지금 화면을 담거나 뺀다. 사람마다 매일 여는 화면이 다르다.
+ * 우리 북마크바는 코드에 박힌 6개라 아무도 자기 화면을 담을 수 없었고, 담을 수 없으니
+ * 쓸 이유도 없었다.
+ *
+ * <p>까다로운 자리는 <b>처음 담는 순간</b>이다. 기본 여섯을 같이 저장하지 않으면
+ * 하나를 담는 순간 여섯이 통째로 사라진다 — 담은 적 없는 것이 지워지는 셈이다.
+ */
+async function scenarioBookmarks() {
+  section('■ 상단 북마크바')
+
+  const start = await must('GET', '/bookmarks')
+  eq('아무것도 안 담았으면 기본이 내려온다', start.length, 6)
+  eq('기본은 아직 저장된 것이 아니다', start[0].id, null)
+
+  const NEW = '/production/work-orders'
+  const added = await must('POST', '/bookmarks', { label: '작업지시서', path: NEW })
+  eq('담으면 일곱이 된다', added.length, 7)
+  eq('기본 여섯이 살아남는다',
+    added.filter((b) => b.path === '/inventory/items').length, 1)
+  eq('담은 것이 맨 뒤에 붙는다', added[added.length - 1].path, NEW)
+  eq('이제는 진짜 저장된 것이다', added.every((b) => b.id > 0), true)
+
+  const dup = await call('POST', '/bookmarks', { label: '작업지시서', path: NEW })
+  eq('같은 화면을 두 번 담을 수 없다', dup.status, 409)
+
+  const removed = await must('DELETE', `/bookmarks?path=${encodeURIComponent(NEW)}`)
+  eq('빼면 다시 여섯', removed.length, 6)
+
+  // 기본 여섯 중 하나를 빼는 것도 된다 — 안 되면 '고정 6개' 시절과 다를 게 없다.
+  const less = await must('DELETE', '/bookmarks?path=%2Finventory%2Fitems')
+  eq('기본에 있던 것도 뺄 수 있다', less.length, 5)
+  eq('뺀 것이 실제로 없다', less.some((b) => b.path === '/inventory/items'), false)
+  eq('다시 조회해도 다섯', (await must('GET', '/bookmarks')).length, 5)
+
+  await must('POST', '/bookmarks', { label: '품목등록', path: '/inventory/items' })
+  eq('되돌리면 여섯', (await must('GET', '/bookmarks')).length, 6)
+
+  // 담은 것을 전부 빼면 저장된 행이 하나도 없어 다시 '기본' 상태다 — 시험 전과 같다.
+  for (const b of await must('GET', '/bookmarks')) {
+    await must('DELETE', `/bookmarks?path=${encodeURIComponent(b.path)}`)
+  }
+  const back = await must('GET', '/bookmarks')
+  eq('시험이 끝나면 처음 상태로 돌아온다', back.length, 6)
+  eq('저장된 행은 남기지 않는다', back[0].id, null)
 }
 
 /**
@@ -6601,6 +6651,7 @@ async function main() {
   await scenarioCostBasis(fixtures)
   await scenarioInactiveItemGuards(fixtures)
   await scenarioSettlementAccounting(fixtures)
+  await scenarioBookmarks()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

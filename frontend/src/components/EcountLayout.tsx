@@ -658,22 +658,30 @@ const MENU: TopMenu[] = [
   },
 ]
 
-const BOOKMARKS: { label: string; to: string }[] = [
-  { label: '품목등록', to: '/inventory/items' },
-  { label: '거래처등록', to: '/sales/partners' },
-  { label: '구매입력', to: '/sales/buy' },
-  { label: '판매입력', to: '/sales/sell' },
-  { label: '채권·채무현황', to: '/sales/ledger' },
-  { label: '거래처관리대장', to: '/sales/partner-ledger' },
-]
+/**
+ * 상단 북마크바 한 칸. 원본은 [즐겨찾기]로 지금 화면을 담거나 뺀다 — 사람마다 매일 여는
+ * 화면이 다르다. 우리는 코드에 6개를 박아 둬서 아무도 자기 화면을 담을 수 없었고,
+ * 담을 수 없으니 쓸 이유도 없었다. 이제 서버가 사용자별로 들고 있다.
+ *
+ * <p>브라우저에 저장하지 않은 이유: 그러면 집 PC 와 회사 PC 의 북마크가 달라진다.
+ */
+interface Bookmark { id: number | null; label: string; path: string; sortOrder: number }
 
-// 우측 세로 앱바 아이콘. to가 있으면 라우트 이동, print면 화면 인쇄, 나머지는 안내 문구
-interface AppIcon { icon: string; title: string; to?: string; print?: boolean; panel?: PanelKind }
+/*
+ * 우측 세로 앱바 아이콘. 이름은 <b>원본 그대로</b> 쓴다(사본 172장 전부의 상단바에 있다).
+ * to 면 라우트 이동, print 면 화면 인쇄, newWindow 면 지금 화면을 새 창으로, 나머지는 안내.
+ *
+ * <p>다크모드로보기·업무지원AI·원격지원은 아직 안내만 띄운다.
+ * 다크모드는 색이 화면마다 인라인으로 박혀 있어(토큰 사용 1,069곳 vs 하드코딩 4,716곳)
+ * 토큰만 바꾸면 <b>절반만 어두워진다.</b> 흰 배경에 흰 글씨가 되는 화면이 생기느니
+ * 안내를 띄우는 편이 낫다. 색을 토큰으로 모으는 것이 먼저다.
+ */
+interface AppIcon { icon: string; title: string; to?: string; print?: boolean; newWindow?: boolean; panel?: PanelKind }
 const APPS: AppIcon[] = [
-  { icon: '🌙', title: '테마' },
-  { icon: '🤖', title: 'AI 도우미' },
+  { icon: '🌙', title: '다크모드로보기' },
+  { icon: '🤖', title: '업무지원AI' },
   { icon: '🔍', title: '통합검색', panel: 'search' },
-  { icon: '🎧', title: '고객지원' },
+  { icon: '🎧', title: '원격지원' },
   { icon: '➕', title: '빠른등록' },
   { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
   { icon: '🔔', title: '알림', panel: 'notifications' },
@@ -681,9 +689,9 @@ const APPS: AppIcon[] = [
   { icon: '📨', title: '쪽지' },
   { icon: '📝', title: 'E Note', panel: 'notes' },
   { icon: '🖨️', title: '화면 인쇄', print: true },
-  { icon: '🔖', title: '즐겨찾기' },
+  { icon: '🗗', title: '새창열기', newWindow: true },
   { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
-  { icon: '🕒', title: '최근 사용' },
+  { icon: '🕒', title: '타임라인' },
   { icon: '📌', title: '화면 고정' },
   { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
 ]
@@ -735,6 +743,7 @@ export default function EcountLayout() {
   const location = useLocation()
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
   const [menuQuery, setMenuQuery] = useState('')                // 메뉴검색 입력값
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])    // 상단 북마크바 (사용자별)
   const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
@@ -762,6 +771,40 @@ export default function EcountLayout() {
     const t = window.setInterval(count, 30000)
     return () => window.clearInterval(t)
   }, [panel])
+
+  // 상단 북마크바. 아무것도 담지 않은 사람에게는 서버가 기본 여섯을 내려 준다.
+  useEffect(() => {
+    api.get<Bookmark[]>('/bookmarks')
+      .then((r) => setBookmarks(r.data))
+      .catch(() => setBookmarks([]))
+  }, [])
+
+  /*
+   * 지금 화면이 메뉴의 어느 항목인가. <b>가장 구체적인 것</b>을 고른다 —
+   * '/sales' 가 '/sales/partners' 를 삼키면 북마크 이름이 엉뚱해진다.
+   * 메뉴에 없는 화면(상세·모달 경로)은 이름을 붙일 수 없어 담지 않는다.
+   */
+  const currentLeaf = useMemo(() => {
+    let best: FlatItem | null = null
+    for (const f of FLAT_MENU) {
+      if (matchLength(f.to, location.pathname) > 0
+          && (!best || f.to.length > best.to.length)) best = f
+    }
+    return best
+  }, [location.pathname])
+  const bookmarked = !!currentLeaf && bookmarks.some((b) => b.path === currentLeaf.to)
+
+  async function toggleBookmark() {
+    if (!currentLeaf) return
+    try {
+      const res = bookmarked
+        ? await api.delete<Bookmark[]>(`/bookmarks?path=${encodeURIComponent(currentLeaf.to)}`)
+        : await api.post<Bookmark[]>('/bookmarks', { label: currentLeaf.label, path: currentLeaf.to })
+      setBookmarks(res.data)
+    } catch {
+      /* 북마크는 곁다리다 — 실패해도 화면을 막지 않는다. */
+    }
+  }
 
   const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
   const activeTop = MENU[topIdx]
@@ -802,6 +845,11 @@ export default function EcountLayout() {
     if (app.panel) return setPanel(app.panel)
     if (app.to) return navigate(app.to)
     if (app.print) return window.print()
+    // 원본 [새창열기] — 지금 화면을 그대로 새 창에. 두 화면을 나란히 놓고 보라는 것이다.
+    if (app.newWindow) {
+      window.open(window.location.href, '_blank', 'noopener,noreferrer')
+      return
+    }
     setAppNotice(`${app.title} 기능은 준비 중입니다.`)
     window.setTimeout(() => setAppNotice(''), 2200)
   }
@@ -899,14 +947,24 @@ export default function EcountLayout() {
           )}
         </div>
         <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
-        {BOOKMARKS.map((b, i) => (
-          <NavLink key={i} to={b.to} style={({ isActive }) => ({
+        {bookmarks.map((b, i) => (
+          <NavLink key={b.path + i} to={b.path} style={({ isActive }) => ({
             padding: '0 10px', height: 24, display: 'flex', alignItems: 'center', textDecoration: 'none',
             color: isActive ? 'var(--ec-blue)' : '#4a5260', fontWeight: isActive ? 700 : 400,
           })}>
             {b.label}
           </NavLink>
         ))}
+        {/* 지금 화면을 담거나 뺀다. 메뉴에 없는 화면은 이름을 붙일 수 없어 담지 않는다. */}
+        <button className="ec-btn no-ec" title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
+                onClick={toggleBookmark} disabled={!currentLeaf}
+                style={{
+                  marginLeft: 6, height: 22, border: 'none', background: 'none',
+                  cursor: currentLeaf ? 'pointer' : 'default',
+                  color: bookmarked ? '#e8a33d' : '#c9ced6', fontSize: 13,
+                }}>
+          {bookmarked ? '★' : '☆'}
+        </button>
         <span style={{ marginLeft: 'auto', color: '#b6bcc4' }}>📌</span>
       </div>
 
