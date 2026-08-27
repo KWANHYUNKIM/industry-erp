@@ -3427,6 +3427,83 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 작업지시서작업처리가 기대는 것 — <b>공정별 진행</b>과 직전작업 잔량.
+ *
+ * <p>원본 조건에 [잔량기준] 직전작업이 있다. <b>앞 공정이 끝낸 만큼만</b> 다음 공정을 할 수
+ * 있다는 뜻이다. 이걸 안 보면 조립을 하나도 안 했는데 검사를 100개 했다고 적을 수 있다.
+ *
+ * <p>화면이 그걸 세려면 작업내역이 <b>어느 작업지시의 어느 공정</b>인지 실어 와야 한다.
+ * processId 가 null 로 오면(마스터에 없는 자유입력 공정) 그 줄은 어느 공정도 못 채운다.
+ */
+async function scenarioWorkProcess(f) {
+  section('■ 작업지시서작업처리 근거')
+
+  for (const o of (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)) {
+    await call('DELETE', `/bor/${o.id}`)
+  }
+  const procs = await must('GET', '/processes')
+  const ops = []
+  for (const [i, pc] of [procs[0], procs[1], procs[2]].entries()) {
+    ops.push(await must('POST', '/bor', {
+      productId: f.product.id, processId: pc.id, seq: 60 + i,
+      workName: `${P}공정${i}`, baseQty: 1, workHours: 0.1,
+    }))
+  }
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 100, orderDate: '2026-07-11',
+  })
+
+  /** 그 작업지시의 공정별 완료 수량. 화면이 이 셈으로 미작업량을 낸다. */
+  const doneOf = async () => {
+    const rows = (await must('GET', '/work-results')).filter((r) => r.workOrderId === wo.id)
+    const m = new Map()
+    for (const r of rows) {
+      if (r.processId == null) continue
+      m.set(r.processId, (m.get(r.processId) ?? 0) + Number(r.goodQty) + Number(r.defectQty))
+    }
+    return m
+  }
+  /** 직전작업 기준 미작업량. 첫 공정의 상한은 지시수량이다. */
+  const remainOf = (done) => {
+    let prev = Number(wo.plannedQty)
+    return ops.map((o) => {
+      const d = done.get(o.processId) ?? 0
+      const r = Math.max(0, Math.min(Number(wo.plannedQty) - d, prev - d))
+      prev = d
+      return r
+    })
+  }
+
+  eq('처음엔 첫 공정만 열린다', remainOf(await doneOf()).join(','), '100,0,0')
+
+  const first = await must('POST', '/work-results', {
+    workOrderId: wo.id, process: procs[0].name, goodQty: 40, defectQty: 0,
+    workTimeMin: 60, workDate: '2026-07-11',
+  })
+  eq('작업내역이 작업지시를 가리킨다', first.workOrderId, wo.id)
+  eq('마스터에 있는 공정이면 processId 가 채워진다', first.processId, procs[0].id)
+
+  eq('앞 공정이 40 끝나면 다음 공정도 40 까지만 열린다',
+    remainOf(await doneOf()).join(','), '60,40,0')
+
+  // 불량도 '한 것' 이다 — 양품만 세면 불량 낸 만큼 다음 공정이 영영 안 열린다.
+  await must('POST', '/work-results', {
+    workOrderId: wo.id, process: procs[1].name, goodQty: 30, defectQty: 10,
+    workTimeMin: 40, workDate: '2026-07-11',
+  })
+  eq('불량도 진행에 포함된다', remainOf(await doneOf()).join(','), '60,0,40')
+
+  for (const r of (await must('GET', '/work-results')).filter((x) => x.workOrderId === wo.id)) {
+    await must('DELETE', `/work-results/${r.id}`)
+  }
+  await must('DELETE', `/work-orders/${wo.id}`)
+  for (const o of ops) await must('DELETE', `/bor/${o.id}`)
+  eq('시험용 자료는 남기지 않는다',
+    (await must('GET', '/bor')).filter((x) => x.productId === f.product.id).length, 0)
+}
+
+/**
  * 자원(설비)의 <b>위치</b>와 <b>대상작업</b>.
  *
  * <p>원본 자원등록의 열은 자원코드 · 자원명 · 위치 · 대상작업이다
@@ -4786,6 +4863,7 @@ async function main() {
   await scenarioLineCustomFields(fixtures)
   await scenarioAccountingReflectionByPartner(fixtures)
   await scenarioResourceLocation()
+  await scenarioWorkProcess(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

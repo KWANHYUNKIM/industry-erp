@@ -138,6 +138,7 @@ const MENU: TopMenu[] = [
           { label: '소요시간계산', to: '/production/time-calc' },
           { label: '작업지시', to: '/production/work-orders' },
           { label: '작업지시서현황', to: '/production/wo-status' },
+          { label: '작업지시서작업처리', to: '/production/wo-work' },
           { label: '작업지시서별진행현황', to: '/production/wo-progress' },
           { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
           { label: '생산불출', to: '/production/issue' },

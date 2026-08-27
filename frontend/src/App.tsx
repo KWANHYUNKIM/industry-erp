@@ -124,6 +124,7 @@ const WoStatusPage = lazy(() => import('./pages/production/WoStatusPage'))
 const WoEfficiencyPage = lazy(() => import('./pages/production/WoEfficiencyPage'))
 const IssuePage = lazy(() => import('./pages/production/IssuePage'))
 const WorkResultPage = lazy(() => import('./pages/production/WorkResultPage'))
+const WorkProcessPage = lazy(() => import('./pages/production/WorkProcessPage'))
 const CostBuildPage = lazy(() => import('./pages/accounting/CostBuildPage'))
 const StandardCostPage = lazy(() => import('./pages/accounting/StandardCostPage'))
 const ActualCostPage = lazy(() => import('./pages/accounting/ActualCostPage'))
@@ -275,6 +276,7 @@ export default function App() {
         <Route path="/production/work-result-status" element={<WorkResultListPage />} />
         <Route path="/production/time-calc" element={<TimeCalcPage />} />
         <Route path="/production/receipt-status" element={<ReceiptStatusPage />} />
+        <Route path="/production/wo-work" element={<WorkProcessPage />} />
         <Route path="/production/wo-progress" element={<WoProgressPage />} />
         <Route path="/production/receipt-bom" element={<BomConsumeReceiptPage />} />
         <Route path="/production/receipt-manual" element={<ManualConsumeReceiptPage />} />
