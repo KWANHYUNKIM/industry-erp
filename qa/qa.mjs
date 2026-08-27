@@ -3427,6 +3427,68 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 창고의 <b>구분</b>(창고·공장·외주)과 생산공정·외주거래처.
+ *
+ * <p>원본 창고등록리스트의 열은 창고코드 · 창고명 · <b>구분</b> · 생산공정명 ·
+ * 외주거래처명 · 사용 · 추가사업장명이다. 실제 자료에서 구분이 '창고'/'공장' 으로 갈리고
+ * 공장인 곳에는 생산공정이 붙어 있다(반제품제조=반제품공정).
+ *
+ * <p>우리 창고에는 코드·이름·위치뿐이라 생산이 일어나는 <b>공장</b>과 그냥 쌓아 두는
+ * <b>창고</b>를 구분할 수 없었고, 외주처에 나가 있는 자재를 담을 자리도 없었다.
+ *
+ * <p>공정·거래처는 <b>id 로만</b> 든다. inventory 는 아무 모듈에도 의존하지 않는 기반층이라
+ * (CLAUDE.md 4.1) 여기서 production·trade 엔티티를 참조하면 순환이 된다.
+ */
+async function scenarioWarehouseKind() {
+  section('■ 창고 구분·생산공정·외주거래처')
+
+  const procs = await must('GET', '/processes')
+  const partners = await must('GET', '/partners')
+  const supplier = partners.find((p2) => p2.type !== 'CUSTOMER')
+
+  /*
+   * 접두어를 'QA-WHT' 로 잡는다. 픽스처 창고 코드가 'QA-WH' 라서 'QA-WH' 로 걸면
+   * <b>픽스처를 지우려 든다</b> — 처음에 그렇게 썼다가 409(생산실적이 쓰는 중)로 막혔고,
+   * 막히지 않았더라면 뒤따르는 시나리오가 통째로 무너졌을 자리다.
+   */
+  const WH = `${P}WHT`
+  for (const w of (await must('GET', '/warehouses')).filter((x) => x.code.startsWith(WH))) {
+    await call('DELETE', `/warehouses/${w.id}`)
+  }
+
+  const plain = await must('POST', '/warehouses', { code: `${WH}1`, name: `${P}보관창고` })
+  eq('구분을 안 주면 창고다', plain.kind, '창고')
+
+  const plant = await must('POST', '/warehouses', {
+    code: `${WH}2`, name: `${P}완제품제조`, kind: '공장', processId: procs[0].id,
+  })
+  eq('공장으로 등록된다', plant.kind, '공장')
+  eq('공장에 생산공정이 붙는다', plant.processId, procs[0].id)
+
+  const noPartner = await call('POST', '/warehouses', { code: `${WH}3`, name: `${P}외주`, kind: '외주' })
+  eq('외주 창고인데 거래처가 없으면 거부', noPartner.status, 400)
+  eq('무엇이 없는지 말한다', /외주거래처/.test(String(noPartner.data?.message ?? '')), true)
+
+  const outsourced = await must('POST', '/warehouses', {
+    code: `${WH}3`, name: `${P}외주`, kind: '외주', outsourcingPartnerId: supplier.id,
+  })
+  eq('외주 창고에 거래처가 붙는다', outsourced.outsourcingPartnerId, supplier.id)
+
+  const badKind = await call('POST', '/warehouses', { code: `${WH}4`, name: `${P}이상`, kind: '창고아님' })
+  eq('없는 구분은 거부', badKind.status, 400)
+
+  // 구분을 바꾸면 안 맞는 연결은 끊는다 — 창고인데 생산공정이 붙어 있으면 뜻이 없다.
+  const changed = await must('PUT', `/warehouses/${plant.id}`, {
+    name: plant.name, kind: '창고', processId: procs[0].id, active: true,
+  })
+  isNull('공장에서 창고로 바꾸면 공정이 떨어진다', changed.processId)
+
+  for (const w of [plain, plant, outsourced]) await call('DELETE', `/warehouses/${w.id}`)
+  eq('시험용 창고는 남기지 않는다',
+    (await must('GET', '/warehouses')).filter((x) => x.code.startsWith(WH)).length, 0)
+}
+
+/**
  * 출하지시서의 <b>배송지</b>와 출하예정일.
  *
  * <p>원본 출하지시서입력의 머리는 일자-No. · 거래처 · 담당자 · 출하창고 · 연락처 ·
@@ -4910,6 +4972,7 @@ async function main() {
   await scenarioResourceLocation()
   await scenarioWorkProcess(fixtures)
   await scenarioShipmentDelivery(fixtures)
+  await scenarioWarehouseKind()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

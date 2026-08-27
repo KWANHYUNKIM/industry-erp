@@ -6,12 +6,23 @@ import Modal from '../../components/Modal'
 
 const inputCls = 'ec-input w-full'
 
+/**
+ * 원본 창고등록리스트의 [구분]. 실제 자료에서 '창고'/'공장' 이 쓰였고,
+ * 공장인 곳에는 생산공정이 붙어 있었다(반제품제조=반제품공정).
+ */
+const KINDS = ['창고', '공장', '외주'] as const
+
+interface ProcessRow { id: number; name: string }
+interface PartnerRow { id: number; code: string; name: string; type: string }
+
 export default function WarehousesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', location: '' })
+  const [form, setForm] = useState({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
+  const [processes, setProcesses] = useState<ProcessRow[]>([])
+  const [partners, setPartners] = useState<PartnerRow[]>([])
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [webOpen, setWebOpen] = useState(false)      // 웹자료올리기 모달
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
@@ -26,8 +37,14 @@ export default function WarehousesPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Warehouse[]>('/warehouses')
+      const [res, pr, pt] = await Promise.all([
+        api.get<Warehouse[]>('/warehouses'),
+        api.get<ProcessRow[]>('/processes'),
+        api.get<PartnerRow[]>('/partners'),
+      ])
       setWarehouses(res.data)
+      setProcesses(pr.data)
+      setPartners(pt.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -43,8 +60,13 @@ export default function WarehousesPage() {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/warehouses', form)
-      setForm({ code: '', name: '', location: '' })
+      await api.post('/warehouses', {
+        code: form.code, name: form.name, location: form.location, kind: form.kind,
+        processId: form.kind === '공장' && form.processId ? Number(form.processId) : null,
+        outsourcingPartnerId: form.kind === '외주' && form.outsourcingPartnerId
+          ? Number(form.outsourcingPartnerId) : null,
+      })
+      setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
       setShowForm(false)
       load()
     } catch (err) {
@@ -86,6 +108,35 @@ export default function WarehousesPage() {
               <label className="mb-1 block text-sm text-slate-600">위치</label>
               <input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">구분</label>
+              <select className={inputCls} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+                {KINDS.map((k) => <option key={k}>{k}</option>)}
+              </select>
+            </div>
+            {/* 구분에 맞는 칸만 낸다. 창고인데 생산공정을 고르게 두면 뜻 없는 값이 쌓인다. */}
+            {form.kind === '공장' && (
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">생산공정</label>
+                <select className={inputCls} value={form.processId}
+                        onChange={(e) => setForm({ ...form, processId: e.target.value })}>
+                  <option value="">선택 안 함</option>
+                  {processes.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                </select>
+              </div>
+            )}
+            {form.kind === '외주' && (
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">외주거래처 *</label>
+                <select className={inputCls} value={form.outsourcingPartnerId}
+                        onChange={(e) => setForm({ ...form, outsourcingPartnerId: e.target.value })}>
+                  <option value="">선택하세요</option>
+                  {partners.filter((pt) => pt.type !== 'CUSTOMER').map((pt) => (
+                    <option key={pt.id} value={pt.id}>[{pt.code}] {pt.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
@@ -100,6 +151,9 @@ export default function WarehousesPage() {
               <th style={{ width: 34 }}></th>
               <th>창고코드 ▼</th>
               <th>창고명 ▼</th>
+              <th style={{ width: 70, textAlign: 'center' }}>구분</th>
+              <th style={{ width: 120 }}>생산공정명</th>
+              <th style={{ width: 140 }}>외주거래처명</th>
               <th>위치</th>
               <th>사용 ▼</th>
               <th>관리</th>
@@ -107,15 +161,25 @@ export default function WarehousesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : warehouses.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
             ) : (
               warehouses.map((w, idx) => (
                 <tr key={w.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{w.code}</td>
                   <td>{w.name}</td>
+                  <td style={{ textAlign: 'center', color: w.kind === '창고' ? '#5a626e' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
+                    {w.kind}
+                  </td>
+                  {/* 이름은 화면이 붙인다 — 서버는 id 만 준다(inventory 가 다른 모듈을 참조할 수 없다). */}
+                  <td style={{ color: '#5a626e' }}>
+                    {processes.find((pr) => pr.id === w.processId)?.name ?? ''}
+                  </td>
+                  <td style={{ color: '#5a626e' }}>
+                    {partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name ?? ''}
+                  </td>
                   <td>{w.location ?? ''}</td>
                   <td>{w.active ? 'YES' : 'NO'}</td>
                   <td>

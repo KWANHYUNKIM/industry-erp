@@ -18,6 +18,8 @@ import com.erp.inventory.dto.WarehouseDtos;
 @RequiredArgsConstructor
 public class WarehouseService {
 
+    private static final java.util.List<String> KINDS = java.util.List.of("창고", "공장", "외주");
+
     private final WarehouseRepository warehouseRepository;
 
     @Transactional(readOnly = true)
@@ -32,10 +34,15 @@ public class WarehouseService {
         if (warehouseRepository.existsByCode(req.code())) {
             throw ApiException.conflict("이미 존재하는 창고코드입니다: " + req.code());
         }
+        String kind = normalizeKind(req.kind());
+        requireOutsourcingPartner(kind, req.outsourcingPartnerId());
         Warehouse w = Warehouse.builder()
                 .code(req.code())
                 .name(req.name())
                 .location(req.location())
+                .kind(kind)
+                .processId(req.processId())
+                .outsourcingPartnerId(req.outsourcingPartnerId())
                 .active(true)
                 .build();
         return WarehouseResponse.from(warehouseRepository.save(w));
@@ -44,12 +51,38 @@ public class WarehouseService {
     @Transactional
     public WarehouseResponse update(Long id, UpdateWarehouseRequest req) {
         Warehouse w = getWarehouse(id);
+        String kind = normalizeKind(req.kind());
+        requireOutsourcingPartner(kind, req.outsourcingPartnerId());
         w.setName(req.name());
         w.setLocation(req.location());
+        w.setKind(kind);
+        // 구분을 바꾸면 안 맞는 연결은 끊는다 — 공장이 아닌데 공정이 붙어 있으면 뜻이 없다.
+        w.setProcessId("공장".equals(kind) ? req.processId() : null);
+        w.setOutsourcingPartnerId("외주".equals(kind) ? req.outsourcingPartnerId() : null);
         if (req.active() != null) {
             w.setActive(req.active());
         }
         return WarehouseResponse.from(w);
+    }
+
+    /** 구분은 창고·공장·외주 셋이다. 안 주면 창고. */
+    private String normalizeKind(String kind) {
+        if (kind == null || kind.isBlank()) return "창고";
+        String k = kind.trim();
+        if (!KINDS.contains(k)) {
+            throw ApiException.badRequest("창고 구분은 " + String.join(" · ", KINDS) + " 중 하나여야 합니다: " + k);
+        }
+        return k;
+    }
+
+    /**
+     * 외주 창고인데 외주거래처가 없으면 막는다.
+     * 어느 외주처에 나가 있는 자재인지 모르는 외주 창고는 이름만 외주인 창고다.
+     */
+    private void requireOutsourcingPartner(String kind, Long partnerId) {
+        if ("외주".equals(kind) && partnerId == null) {
+            throw ApiException.badRequest("외주 창고는 외주거래처를 지정해야 합니다.");
+        }
     }
 
     @Transactional

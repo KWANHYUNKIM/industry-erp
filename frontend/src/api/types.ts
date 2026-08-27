@@ -113,6 +113,14 @@ export interface Warehouse {
   name: string
   location: string | null
   active: boolean
+  /**
+   * 구분 — 창고 · 공장 · 외주. 원본 창고등록리스트의 [구분] 열.
+   * 공정·외주거래처는 <b>id 만</b> 온다 — inventory 는 다른 모듈을 참조할 수 없어
+   * 서버가 이름을 붙이지 못한다(CLAUDE.md 4.1). 화면이 각자 목록에서 붙인다.
+   */
+  kind: string
+  processId: number | null
+  outsourcingPartnerId: number | null
 }
 
 export type StockTxType = 'INBOUND' | 'OUTBOUND' | 'ADJUST'
