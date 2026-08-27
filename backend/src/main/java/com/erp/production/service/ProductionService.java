@@ -128,6 +128,51 @@ public class ProductionService {
         return ProductionResponse.from(productionRepository.save(production));
     }
 
+    /**
+     * 생산실적 삭제. 원본(이카운트) 생산입고조회의 [선택삭제] 에 해당한다.
+     *
+     * <p>삭제가 아예 없었다. 수량을 잘못 넣은 생산실적은 되돌릴 방법이 없어서
+     * 완제품 재고와 자재 재고가 그대로 틀린 채 남았고, 작업지시는 영영 '완료' 였다.
+     * 판매·구매·견적·수주에서 같은 것을 이미 한 번 고쳤다.
+     *
+     * <p>재고는 <b>지우지 않고 반대 거래를 남긴다</b> — 완제품을 출고하고 자재를 되돌린다.
+     * 이력을 지우면 왜 재고가 움직였는지 아무도 설명할 수 없게 된다.
+     */
+    @Transactional
+    public void delete(Long id, String username) {
+        Production p = productionRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("생산실적을 찾을 수 없습니다. id=" + id));
+
+        LocalDate date = p.getProductionDate();
+        Warehouse warehouse = p.getWarehouse();
+
+        // 1) 완제품을 도로 뺀다. 이미 팔려 나가 재고가 모자라면 여기서 막힌다 —
+        //    그 편이 맞다. 없는 물건을 지워서 재고를 음수로 만들면 안 된다.
+        stockService.applyDelta(p.getProduct(), warehouse, p.getProducedQty().negate(),
+                StockTransactionType.OUTBOUND, null, date,
+                "생산입고취소 " + p.getProdNo(), username);
+
+        // 2) 소모했던 자재를 되돌린다.
+        for (ProductionMaterial m : p.getMaterials()) {
+            stockService.applyDelta(m.getComponent(), warehouse, m.getQuantity(),
+                    StockTransactionType.INBOUND, null, date,
+                    "생산소요취소 " + p.getProdNo(), username);
+        }
+
+        // 3) 작업지시 진척을 되돌린다. 완료였던 것이 다시 진행중/계획으로 돌아간다.
+        WorkOrder wo = p.getWorkOrder();
+        if (wo != null) {
+            BigDecimal left = wo.getProducedQty().subtract(p.getProducedQty());
+            wo.setProducedQty(left.signum() < 0 ? BigDecimal.ZERO : left);
+            wo.setStatus(wo.getProducedQty().signum() == 0
+                    ? WorkOrderStatus.PLANNED
+                    : (wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
+                            ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS));
+        }
+
+        productionRepository.delete(p);
+    }
+
     private WorkOrder getWorkOrder(Long id) {
         return workOrderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + id));

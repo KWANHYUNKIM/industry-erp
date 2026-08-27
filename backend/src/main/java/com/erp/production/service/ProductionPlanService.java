@@ -63,6 +63,25 @@ public class ProductionPlanService {
         return PlanResponse.from(plan, currentStockByItem().getOrDefault(product.getId(), BigDecimal.ZERO));
     }
 
+    /**
+     * 생산계획 삭제. 원본(이카운트) 생산계획/MRP리스트의 [삭제] 에 해당한다.
+     *
+     * <p>작업지시로 이미 전환된 계획은 막는다. 계획만 사라지고 작업지시가 남으면
+     * "이 작업지시는 어느 계획에서 나왔나"에 답할 수 없게 된다. 작업지시를 먼저 지우면
+     * 이 계획도 지울 수 있다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        ProductionPlan plan = planRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("생산계획을 찾을 수 없습니다. id=" + id));
+        if (plan.getWorkOrder() != null) {
+            throw ApiException.badRequest(
+                    "작업지시로 전환된 계획은 삭제할 수 없습니다. 작업지시를 먼저 지우세요: "
+                            + plan.getWorkOrder().getOrderNo());
+        }
+        planRepository.delete(plan);
+    }
+
     @Transactional
     public PlanResponse updateStatus(Long id, ProductionPlanStatus status) {
         ProductionPlan plan = getPlan(id);

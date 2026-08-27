@@ -9,6 +9,9 @@ import com.erp.production.dto.ProductionDtos.CreateWorkOrderRequest;
 import com.erp.production.dto.ProductionDtos.WorkOrderResponse;
 import com.erp.inventory.repository.ItemRepository;
 import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.production.domain.ProductionPlanStatus;
+import com.erp.production.repository.ProductionPlanRepository;
+import com.erp.production.repository.ProductionRepository;
 import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,12 +29,46 @@ public class WorkOrderService {
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final ProductionRepository productionRepository;
+    private final ProductionPlanRepository planRepository;
 
     @Transactional(readOnly = true)
     public List<WorkOrderResponse> findAll() {
         return workOrderRepository.findAllWithRefs().stream()
                 .map(WorkOrderResponse::from)
                 .toList();
+    }
+
+    /**
+     * 작업지시 삭제.
+     *
+     * <p>삭제가 아예 없었다. 품목이나 수량을 잘못 넣은 작업지시는 지울 방법이 없어
+     * 목록에 죽은 지시가 계속 쌓였다 — 견적·수주·발주·출하에서 이미 한 번 고친 것과 같다.
+     *
+     * <p>생산실적이 붙어 있으면 막는다. 실적만 남고 지시가 사라지면 재고가 왜 움직였는지
+     * 설명할 수 없고 효율현황의 계획수량이 통째로 비어 버린다. 실적을 먼저 지우면 된다.
+     *
+     * <p>생산계획에서 나온 지시라면 계획의 연결을 풀어 준다. 안 그러면 계획이 '지시완료' 인
+     * 채로 다시 지시할 수도 없는 상태가 된다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        WorkOrder wo = workOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + id));
+
+        long results = productionRepository.countByWorkOrder_Id(id);
+        if (results > 0) {
+            throw ApiException.badRequest(
+                    "생산실적이 있는 작업지시는 삭제할 수 없습니다. 실적 " + results + "건을 먼저 지우세요: "
+                            + wo.getOrderNo());
+        }
+
+        planRepository.findByWorkOrder_Id(id).forEach(plan -> {
+            plan.setWorkOrder(null);
+            plan.setStatus(ProductionPlanStatus.CONFIRMED);
+        });
+
+        workOrderRepository.delete(wo);
     }
 
     @Transactional

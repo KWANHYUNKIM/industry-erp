@@ -26,6 +26,13 @@ public class ProductionPlanController {
         return planService.findAll();
     }
 
+    /** 생산계획 삭제. 작업지시로 전환된 계획은 거부한다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        planService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping
     public ResponseEntity<PlanResponse> create(
             @Valid @RequestBody CreatePlanRequest req,

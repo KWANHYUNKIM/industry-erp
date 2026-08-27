@@ -35,6 +35,13 @@ public class ProductionController {
         return productionService.materialPreview(workOrderId, qty);
     }
 
+    /** 생산실적 삭제. 재고와 작업지시 진척을 함께 되돌린다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, java.security.Principal principal) {
+        productionService.delete(id, principal != null ? principal.getName() : null);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping
     public ResponseEntity<ProductionResponse> create(
             @Valid @RequestBody CreateProductionRequest req,

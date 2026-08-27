@@ -504,6 +504,10 @@ async function scenarioShipment(f) {
   const afterCancel = await un()
   eq('출하 취소 시 출하수량 롤백 = 30', afterCancel.shippedQty, 30)
   eq('출하 취소 시 주문은 진행중으로 복귀', afterCancel.statusName, '진행중')
+
+  // 치운다. 출하를 먼저 지워야 수주가 지워진다(출하가 수주를 근거로 가리킨다).
+  for (const sh of [ship2, ship1]) await must('DELETE', `/shipments/${sh.id}`)
+  await must('DELETE', `/sales-orders/${order.id}`)
 }
 
 /** 생산계획 → 작업지시 관계 */
@@ -521,6 +525,18 @@ async function scenarioPlan(f) {
   eq('계획 상태는 지시완료', ordered.statusName, '지시완료')
 
   await rejects('같은 계획 재지시는 거부', 'POST', `/production-plans/${plan.id}/work-order`, undefined, '이미')
+
+  // 전환된 계획은 못 지운다 — 계획만 사라지고 작업지시가 남으면 그 지시의 출처를 알 수 없다.
+  const lockedPlan = await call('DELETE', `/production-plans/${plan.id}`)
+  eq('작업지시로 전환된 계획은 못 지운다', lockedPlan.status, 400)
+  eq('작업지시를 먼저 지우라고 말한다',
+    /작업지시/.test(String(lockedPlan.data?.message ?? '')), true)
+
+  eq('작업지시를 지울 수 있다', (await call('DELETE', `/work-orders/${ordered.workOrderId}`)).status, 204)
+  const unlinked = (await must('GET', '/production-plans')).find((x) => x.id === plan.id)
+  isNull('작업지시를 지우면 계획의 연결이 풀린다', unlinked.workOrderId)
+  eq('계획 상태도 지시완료에서 돌아온다', unlinked.statusName !== '지시완료', true)
+  eq('그러고 나면 계획도 지워진다', (await call('DELETE', `/production-plans/${plan.id}`)).status, 204)
 }
 
 /** 생산실적 → BOM 자재 자동 소모 + 완제품 입고 */
@@ -547,6 +563,37 @@ async function scenarioProduction(f) {
 
   eq('완제품 50개 입고', await stockOf(f.product.id), prodBefore + 50)
   eq('BOM대로 원자재 100개 자동 출고', await stockOf(f.material.id), matBefore - 100)
+
+  /*
+   * 생산실적·작업지시 삭제.
+   *
+   * 둘 다 삭제가 아예 없었다. 수량을 잘못 넣은 생산실적은 되돌릴 방법이 없어 완제품과
+   * 자재 재고가 틀린 채 남았고 작업지시는 영영 '완료' 였다. 원본에는 생산입고조회에
+   * [선택삭제], 생산계획/MRP리스트에 [삭제] 가 있다.
+   *
+   * 하네스가 매 회차 만든 것을 못 치운 것도 같은 이유다 — 개발 DB 의 작업지시가
+   * 560건까지 불어나 현황 화면을 실측할 수 없었다.
+   */
+  const prod = (await must('GET', '/productions')).find((x) => x.workOrderId === wo.id)
+  const blocked = await call('DELETE', `/work-orders/${wo.id}`)
+  eq('생산실적이 있는 작업지시는 못 지운다', blocked.status, 400)
+  eq('무엇을 먼저 지워야 하는지 말한다',
+    /생산실적/.test(String(blocked.data?.message ?? '')), true)
+
+  eq('생산실적을 지울 수 있다', (await call('DELETE', `/productions/${prod.id}`)).status, 204)
+  eq('지우면 완제품 입고가 취소된다', await stockOf(f.product.id), prodBefore)
+  eq('지우면 소모했던 자재가 돌아온다', await stockOf(f.material.id), matBefore)
+
+  const reverted = (await must('GET', '/work-orders')).find((x) => x.id === wo.id)
+  eq('작업지시 진척도 되돌아온다', Number(reverted.producedQty), 0)
+  eq('완료였던 작업지시가 계획으로 돌아온다', reverted.statusName, '계획')
+
+  eq('실적이 없어지면 작업지시도 지울 수 있다', (await call('DELETE', `/work-orders/${wo.id}`)).status, 204)
+
+  // 입고했던 원자재 200개도 되돌린다 — 안 그러면 회차마다 재고가 200씩 는다.
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 200,
+  })
 }
 
 /** 문자열이던 관계가 마스터와 일치할 때만 FK로 채워지는지 */
@@ -649,6 +696,11 @@ async function scenarioQuotation(f) {
   })
   await must('POST', `/quotations/${dead.id}/cancel`)
   await rejects('취소된 견적은 수주전환 불가', 'POST', `/quotations/${dead.id}/convert`, undefined, '취소')
+
+  // 만든 문서는 치운다. 순서가 있다 — 수주를 먼저 지워야 견적의 전환이 풀린다.
+  await must('DELETE', `/sales-orders/${order.id}`)
+  await must('DELETE', `/quotations/${quote.id}`)
+  await must('DELETE', `/quotations/${dead.id}`)
 }
 
 async function scenarioPurchaseOrder(f) {
@@ -767,6 +819,12 @@ async function scenarioPurchaseOrder(f) {
 
   await must('DELETE', `/purchases/${byLine.id}`)
   await must('DELETE', `/purchases/${bySlip.id}`)
+
+  // 이 시나리오가 만든 발주·입고전표도 치운다. 입고전표를 지우면 발주가 '발주확정' 으로
+  // 돌아가므로 순서는 입고 → 발주다. 매 회차 입고전표 1장이 남던 자리다.
+  await must('DELETE', `/purchases/${purchase2.id}`)
+  await must('DELETE', `/purchase-orders/${po.id}`)
+  await must('DELETE', `/purchase-orders/${dead.id}`)
 }
 
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
@@ -2096,6 +2154,14 @@ async function scenarioPerformance(f) {
   const afterBuy = (await must('GET', `/employees/performance?from=${FROM}&to=${TO}`))
     .rows.find((r) => r.employeeId === emp.id)
   eq('담당자 매입액이 증가', Number(afterBuy.purchaseAmount) >= Number(buy.totalAmount), true)
+
+  // 만든 전표는 치운다. 안 치우면 매 회차 판매 2장·구매 1장이 쌓이는데,
+  // 실제로 그렇게 개발 DB 의 전표가 통째로 QA 것이 되어 현황 화면을 실측할 수 없었다.
+  for (const d of [sale, noOwner]) await must('DELETE', `/sales/${d.id}`)
+  await must('DELETE', `/purchases/${buy.id}`)
+  const cleaned = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  eq('치우고 나면 실적이 원래대로',
+    Number(cleaned.rows.find((r) => r.employeeId === emp.id)?.salesAmount ?? 0), beforeSales)
 }
 
 /** 현금거래 세분류 — 계좌간이동 · 법인카드 대금결제 */
@@ -3137,6 +3203,8 @@ async function scenarioDoubleProcess(f) {
   await rejects('단가확정 전에는 발주확정 불가', 'POST', `/purchase-orders/${po.id}/confirm`,
     undefined, '단가가 확정된 발주서만')
   await must('POST', `/purchase-orders/${po.id}/cancel`)
+  // 취소만 하고 두면 매 회차 죽은 발주가 한 장씩 쌓인다.
+  await must('DELETE', `/purchase-orders/${po.id}`)
 }
 
 /**

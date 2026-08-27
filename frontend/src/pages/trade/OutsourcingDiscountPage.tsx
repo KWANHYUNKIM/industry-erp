@@ -3,46 +3,44 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import type { PurchaseDoc } from '../../api/types'
 
 /**
- * 판매/구매 > 외주비할인현황 — 구매(외주) 라인의 기준단가 대비 실구매 단가 차이를 할인으로 집계
- * (/api/purchases + /api/items: 정상외주비 = 품목 기준단가 × 수량, 실외주비 = 구매 공급가액)
+ * 생산/외주 > 외주비할인현황.
  *
- * <p>원본 조건 판 실측(사본):
- *   기준일자(금월(~오늘)) · 창고 · 거래처 · 프로젝트 · 거래처관리담당자 · <b>할인금액</b> ·
- *   양식 · 정렬/소계기준
- * 우리는 <b>기간 조건이 아예 없어</b> 구매 전표 전체가 늘 한 화면에 쏟아졌다.
- * 판매·구매할인현황과 같은 조건 판을 붙인다.
+ * <p><b>이름만 '할인'이고 하는 일은 다르다.</b> 원본 사본의 표 열 id 가 그것을 말해 준다 —
+ * CUST(거래처명) · ORG_AMT(생산금액) · REQ_AMT(회계반영금액) · ORG_SUB_REQ(차액) · REMARKS(적요).
+ * 즉 <b>외주 생산금액 중 아직 회계로 넘어가지 않은 금액</b>을 일자·거래처로 묶어 보는 화면이다.
+ * 메뉴에서도 [지급현황] · [외주비할인현황] · [외주비회계반영] 이 나란히 붙어 있다.
+ *
+ * <p>우리 화면은 "품목 기준단가 대비 실매입가 차이"를 할인이라 부르며 라인별로 늘어놓았다.
+ * 이름은 같은데 뜻이 달랐고, 게다가 기준단가로 <b>판매단가</b>를 읽었다 — 매입가가 판매가보다
+ * 높은 것이 이상할 이유가 없어서 개발 자료가 통째로 '할증' 으로 찍혔다. 같은 실수를 서버의
+ * 구매할인현황에서 이미 한 번 고쳤는데, 이 화면은 서버를 안 쓰고 프론트에서 따로 계산해서
+ * 고친 것이 여기까지 오지 않았다.
+ *
+ * <p>원본 조건 판 실측(사본): 기준일자(금월(~오늘)) · 창고 · 거래처 · 거래처관리담당자 ·
+ * <b>할인금액</b> · 양식 · 정렬/소계기준.
+ * '할인금액' 은 원본 그대로 두되 이 화면에서 뜻하는 값(차액)의 하한으로 쓴다.
+ *
+ * <p>외주 전용 도메인이 없으므로 외주비는 <b>구매전표</b>로 본다. 회계반영은 전표 단위라
+ * 반영금액은 '반영됐으면 전액, 아니면 0' 이다 — 부분반영이라는 것이 없다.
  */
-interface PurchaseLine { itemId: number; itemName: string; quantity: number; unitPrice: number; supplyAmount: number }
-interface PurchaseDoc {
-  id: number
-  docNo: string
-  partnerName: string
-  purchaseDate: string
-  warehouseName: string | null
-  projectName: string | null
-  employeeName: string | null
-  lines: PurchaseLine[]
-}
-interface ItemMaster { id: number; unitPrice: number }
-
 interface Row {
-  key: string
   date: string
-  docNo: string
   partner: string
-  process: string
   warehouse: string | null
-  project: string | null
   employee: string | null
-  qty: number
-  listAmount: number
-  discountAmount: number
+  /** 외주(구매) 공급가액 합 */
+  orgAmount: number
+  /** 그중 회계로 넘어간 금액 */
+  reflectedAmount: number
+  remarks: string[]
+  docNos: string[]
 }
 
 export default function OutsourcingDiscountPage() {
-  const [rows, setRows] = useState<Row[]>([])
+  const [docs, setDocs] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -50,41 +48,15 @@ export default function OutsourcingDiscountPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
-  const [project, setProject] = useState('')
   const [employee, setEmployee] = useState('')
-  const [minDiscount, setMinDiscount] = useState('')
+  const [minDiff, setMinDiff] = useState('')
 
   async function load() {
     setLoading(true)
+    setError('')
     try {
-      const [p, it] = await Promise.all([
-        api.get<PurchaseDoc[]>('/purchases'),
-        api.get<ItemMaster[]>('/items'),
-      ])
-      const stdPrice = new Map<number, number>(it.data.map((x) => [x.id, x.unitPrice]))
-      const flat: Row[] = []
-      for (const d of p.data) {
-        d.lines.forEach((l, idx) => {
-          const std = stdPrice.get(l.itemId) ?? 0
-          // 기준단가가 있으면 정상외주비 = 기준단가×수량, 없으면 실구매액 그대로(할인 0)
-          const listAmount = std > 0 ? std * l.quantity : l.supplyAmount
-          flat.push({
-            key: `${d.id}-${idx}`,
-            date: d.purchaseDate,
-            docNo: d.docNo,
-            partner: d.partnerName,
-            process: l.itemName,
-            warehouse: d.warehouseName,
-            project: d.projectName,
-            employee: d.employeeName,
-            qty: l.quantity,
-            listAmount,
-            discountAmount: listAmount - l.supplyAmount,
-          })
-        })
-      }
-      flat.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-      setRows(flat)
+      const res = await api.get<PurchaseDoc[]>('/purchases')
+      setDocs(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -94,29 +66,54 @@ export default function OutsourcingDiscountPage() {
 
   useEffect(() => { load() }, [])
 
+  /** 원본은 한 줄이 <b>일자 × 거래처</b>다. 전표가 여럿이면 합쳐 한 줄로 낸다. */
+  const rows = useMemo(() => {
+    const m = new Map<string, Row>()
+    for (const d of docs) {
+      if (d.purchaseDate < from || d.purchaseDate > to) continue
+      const key = `${d.purchaseDate}|${d.partnerName}`
+      const cur = m.get(key) ?? {
+        date: d.purchaseDate, partner: d.partnerName,
+        warehouse: d.warehouseName, employee: d.employeeName,
+        orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
+      }
+      cur.orgAmount += d.supplyAmount
+      if (d.accountingReflected) cur.reflectedAmount += d.supplyAmount
+      if (d.remark) cur.remarks.push(d.remark)
+      cur.docNos.push(d.docNo)
+      m.set(key, cur)
+    }
+    return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partner.localeCompare(b.partner)))
+  }, [docs, from, to])
+
+  const min = Number(minDiff)
   const shown = rows.filter((r) => {
-    if (r.date < from || r.date > to) return false
-    if (keyword && !(r.partner.includes(keyword) || r.process.includes(keyword))) return false
+    if (keyword && !r.partner.includes(keyword)) return false
     if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
-    if (project && !(r.project ?? '').includes(project)) return false
     if (employee && !(r.employee ?? '').includes(employee)) return false
-    if (minDiscount && r.discountAmount < Number(minDiscount)) return false
+    if (minDiff && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
     return true
   })
-  const totalList = useMemo(() => shown.reduce((s, r) => s + r.listAmount, 0), [shown])
-  const totalDisc = useMemo(() => shown.reduce((s, r) => s + r.discountAmount, 0), [shown])
-  const rate = totalList > 0 ? (totalDisc / totalList) * 100 : 0
+
+  const totals = shown.reduce(
+    (a, r) => ({ org: a.org + r.orgAmount, ref: a.ref + r.reflectedAmount }),
+    { org: 0, ref: 0 },
+  )
+  const won = (n: number) => n.toLocaleString('ko-KR')
+  /** 원본 [월/일] 은 연도를 빼고 적는다(조회 기간이 이미 연도를 말해 준다). */
+  const monthDay = (d: string) => d.slice(5).replace('-', '/')
 
   return (
     <EcListShell
       title="외주비할인현황"
-      searchable={false}
-      onNew={undefined}
+      search={keyword}
+      onSearchChange={setKeyword}
+      onSearch={load}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to)
-          setKeyword(''); setWarehouse(''); setProject(''); setEmployee(''); setMinDiscount('')
+          setKeyword(''); setWarehouse(''); setEmployee(''); setMinDiff('')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -127,75 +124,80 @@ export default function OutsourcingDiscountPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
       >
-        <EcCond label="외주처" pick>
-          <input className="ec-input" placeholder="외주처·품목 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
-        </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+          <input className="ec-input" placeholder="전체" value={warehouse}
+                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }} />
         </EcCond>
-        <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
-                 onChange={(e) => setProject(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="전체" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="담당자 일부" value={employee}
+          <input className="ec-input" placeholder="전체" value={employee}
                  onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="할인금액">
-          <input className="ec-input" type="number" placeholder="이 금액 이상(할증은 음수)" value={minDiscount}
-                 onChange={(e) => setMinDiscount(e.target.value)} style={{ width: 140 }} />
+          <input className="ec-input" type="number" placeholder="차액 이상" value={minDiff}
+                 onChange={(e) => setMinDiff(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        정상외주비 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totalList.toLocaleString()}</b>
+        {shown.length}줄
         <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        할인액 <b style={{ color: '#c60a2e', fontSize: 14 }}>{totalDisc.toLocaleString()}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        할인율 <b style={{ color: '#c60a2e', fontSize: 14 }}>{rate.toFixed(1)}%</b>
+        회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+          {won(totals.org - totals.ref)}
+        </b>
       </div>
-      <table className="w-full text-left">
+
+      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      <table className="ec-grid w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>일자 ▼</th>
-            <th style={{ width: 170 }}>전표번호</th>
-            <th>외주처 ▼</th>
-            <th>외주품목/공정 ▼</th>
-            <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-            <th style={{ width: 120, textAlign: 'right' }}>정상외주비</th>
-            <th style={{ width: 110, textAlign: 'right' }}>할인액</th>
-            <th style={{ width: 110, textAlign: 'right' }}>실외주비</th>
+            <th style={{ width: 80 }}>월/일</th>
+            <th>거래처명</th>
+            <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
+            <th style={{ width: 130, textAlign: 'right' }}>회계반영금액</th>
+            <th style={{ width: 130, textAlign: 'right' }}>차액</th>
+            <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>외주 할인 내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.docNo}</td>
-              <td>{r.partner}</td>
-              <td>{r.process}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.listAmount.toLocaleString()}</td>
-              {/* 음수 = 정상외주비보다 비싸게 준 것(할증). 회색으로 죽이면 놓친다. */}
-              <td style={{
-                textAlign: 'right', fontWeight: r.discountAmount === 0 ? 400 : 600,
-                color: r.discountAmount > 0 ? '#c60a2e' : r.discountAmount < 0 ? 'var(--ec-blue)' : '#9aa1ab',
-              }}>
-                {r.discountAmount.toLocaleString('ko-KR')}{r.discountAmount < 0 ? ' (할증)' : ''}
-              </td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{(r.listAmount - r.discountAmount).toLocaleString()}</td>
-            </tr>
-          ))}
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r, i) => {
+            const diff = r.orgAmount - r.reflectedAmount
+            return (
+              <tr key={`${r.date}-${r.partner}`}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
+                <td>{r.partner}</td>
+                <td style={{ textAlign: 'right' }}>{won(r.orgAmount)}</td>
+                <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? '#c9ced6' : undefined }}>
+                  {won(r.reflectedAmount)}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? '#c60a2e' : '#8a929c' }}>{won(diff)}</td>
+                <td style={{ color: '#5a626e' }} title={r.docNos.join(', ')}>
+                  {r.remarks.length > 0 ? r.remarks.join(' / ') : r.docNos.join(', ')}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.org)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.ref)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(totals.org - totals.ref)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )

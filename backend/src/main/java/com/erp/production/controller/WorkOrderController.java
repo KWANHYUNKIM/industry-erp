@@ -25,6 +25,13 @@ public class WorkOrderController {
         return workOrderService.findAll();
     }
 
+    /** 작업지시 삭제. 생산실적이 붙어 있으면 거부한다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        workOrderService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping
     public ResponseEntity<WorkOrderResponse> create(
             @Valid @RequestBody CreateWorkOrderRequest req,
