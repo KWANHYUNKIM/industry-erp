@@ -35,6 +35,16 @@ public class MaterialIssue extends BaseTimeEntity {
     @JoinColumn(name = "warehouse_id")
     private Warehouse warehouse;
 
+    /**
+     * 받는공장 — 자재가 도착하는 창고(구분이 '공장' 인 창고). 원본 [받는공장] 이다.
+     *
+     * <p>보내는창고에서 빼고 여기에 넣는다. 예전에는 이 칸이 없어 어디로 갔는지 알 수 없었고,
+     * 재고도 아예 안 움직였다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "to_warehouse_id")
+    private Warehouse toWarehouse;
+
     /** 연결 작업지시 (선택) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_order_id")

@@ -13,7 +13,10 @@ public final class MaterialIssueDtos {
 
     public record CreateMaterialIssueRequest(
             @NotNull(message = "자재(품목)를 선택하세요.") Long itemId,
+            /** 보내는창고 */
             Long warehouseId,
+            /** 받는공장. 원본은 이 둘 사이를 옮기는 전표다. */
+            Long toWarehouseId,
             Long workOrderId,
             @NotNull(message = "불출수량을 입력하세요.") @Positive(message = "불출수량은 0보다 커야 합니다.") BigDecimal qty,
             LocalDate issueDate,
@@ -24,6 +27,8 @@ public final class MaterialIssueDtos {
             Long id,
             Long itemId, String itemCode, String itemName, String unit,
             Long warehouseId, String warehouseName,
+            /** 받는공장 */
+            Long toWarehouseId, String toWarehouseName,
             Long workOrderId, String workOrderNo,
             BigDecimal qty, LocalDate issueDate, String note
     ) {
@@ -33,6 +38,8 @@ public final class MaterialIssueDtos {
                     mi.getItem().getId(), mi.getItem().getCode(), mi.getItem().getName(), mi.getItem().getUnit(),
                     mi.getWarehouse() != null ? mi.getWarehouse().getId() : null,
                     mi.getWarehouse() != null ? mi.getWarehouse().getName() : null,
+                    mi.getToWarehouse() != null ? mi.getToWarehouse().getId() : null,
+                    mi.getToWarehouse() != null ? mi.getToWarehouse().getName() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getId() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getOrderNo() : null,
                     mi.getQty(), mi.getIssueDate(), mi.getNote());

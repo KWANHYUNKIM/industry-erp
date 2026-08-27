@@ -14,6 +14,8 @@ interface MaterialIssue {
   unit: string
   warehouseId: number | null
   warehouseName: string | null
+  toWarehouseId: number | null
+  toWarehouseName: string | null
   workOrderId: number | null
   workOrderNo: string | null
   qty: number
@@ -21,12 +23,13 @@ interface MaterialIssue {
   note: string | null
 }
 interface Item { id: number; code: string; name: string; unit: string }
-interface Warehouse { id: number; name: string }
+/** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
+interface Warehouse { id: number; name: string; kind: string }
 interface WorkOrder { id: number; orderNo: string; productName: string }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
-const emptyForm = { itemId: '', warehouseId: '', workOrderId: '', qty: '', issueDate: today(), note: '' }
+const emptyForm = { itemId: '', warehouseId: '', toWarehouseId: '', workOrderId: '', qty: '', issueDate: today(), note: '' }
 
 export default function IssuePage() {
   const [rows, setRows] = useState<MaterialIssue[]>([])
@@ -75,6 +78,7 @@ export default function IssuePage() {
       await api.post('/material-issues', {
         itemId: Number(form.itemId),
         warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
+        toWarehouseId: form.toWarehouseId === '' ? null : Number(form.toWarehouseId),
         workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
         qty: form.qty === '' ? 0 : Number(form.qty),
         issueDate: form.issueDate || null,
@@ -121,11 +125,22 @@ export default function IssuePage() {
                                value={form.itemId} onChange={(v) => setForm({ ...form, itemId: v })}
                                items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.unit }))} />
             </div>
+            {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">창고</label>
+              <label className="mb-1 block text-sm text-slate-600">보내는창고</label>
               <select className={inputCls} value={form.warehouseId} onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}>
                 <option value="">선택</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">받는공장</label>
+              <select className={inputCls} value={form.toWarehouseId} onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}>
+                <option value="">선택</option>
+                {/* 구분이 공장인 창고를 앞에 둔다 — 받는 쪽은 대개 공장이다. */}
+                {[...warehouses].sort((a, b) => (a.kind === '공장' ? -1 : 1) - (b.kind === '공장' ? -1 : 1))
+                  .filter((w) => String(w.id) !== form.warehouseId)
+                  .map((w) => <option key={w.id} value={w.id}>{w.name}{w.kind !== '창고' ? ` (${w.kind})` : ''}</option>)}
               </select>
             </div>
             <div>
@@ -163,16 +178,17 @@ export default function IssuePage() {
             <th>자재명</th>
             <th style={{ textAlign: 'right' }}>불출수량</th>
             <th>단위</th>
-            <th>창고</th>
+            <th>보내는창고</th>
+            <th>받는공장</th>
             <th>비고</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -182,6 +198,7 @@ export default function IssuePage() {
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
               <td>{r.warehouseName ?? '-'}</td>
+              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
               <td>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

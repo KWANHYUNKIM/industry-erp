@@ -3427,6 +3427,64 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 생산불출이 <b>재고를 실제로 옮기는가.</b>
+ *
+ * <p>원본 생산불출입력의 머리는 일자 · 담당자 · <b>보내는창고</b> · <b>받는공장</b> · 생산품목이다.
+ * 우리에겐 창고가 하나뿐이라 "어디서 어디로" 가 아니라 "어디서" 만 있었고, 그마저
+ * <b>재고를 전혀 움직이지 않았다</b> — 자재를 공장으로 보냈는데 창고에는 그대로 있는 것으로
+ * 보였고, 재고현황과 불출현황이 서로 다른 말을 했다.
+ */
+async function scenarioMaterialIssueMove(f) {
+  section('■ 생산불출 창고 이동')
+
+  const warehouses = await must('GET', '/warehouses')
+  const to = warehouses.find((w) => w.id !== f.warehouse.id)
+  eq('옮길 창고가 둘 이상 있다', !!to, true)
+
+  const stockOf = async (warehouseId) => {
+    const rows = await must('GET', '/stock')
+    const r = rows.find((x) => x.itemId === f.material.id && x.warehouseId === warehouseId)
+    return r ? Number(r.quantity) : 0
+  }
+
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 50,
+  })
+  const fromBefore = await stockOf(f.warehouse.id)
+  const toBefore = await stockOf(to.id)
+
+  const issue = await must('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: to.id,
+    qty: 20, issueDate: '2026-07-13', note: `${P} 불출`,
+  })
+  eq('보내는창고가 실린다', issue.warehouseId, f.warehouse.id)
+  eq('받는공장이 실린다', issue.toWarehouseId, to.id)
+  eq('보내는창고에서 빠진다', await stockOf(f.warehouse.id), fromBefore - 20)
+  eq('받는공장에 들어온다', await stockOf(to.id), toBefore + 20)
+
+  const same = await call('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: f.warehouse.id, qty: 1,
+  })
+  eq('보내는창고와 받는공장이 같으면 거부', same.status, 400)
+
+  // 재고보다 많이 보낼 수 없다 — 받는 쪽만 늘고 보내는 쪽이 음수가 되면 안 된다.
+  const over = await call('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: to.id, toWarehouseId: f.warehouse.id,
+    qty: (await stockOf(to.id)) + 1,
+  })
+  eq('재고보다 많이 보내면 거부', over.status, 400)
+  eq('거절된 요청은 재고를 건드리지 않는다', await stockOf(to.id), toBefore + 20)
+
+  eq('불출을 지울 수 있다', (await call('DELETE', `/material-issues/${issue.id}`)).status, 204)
+  eq('지우면 보내는창고로 돌아온다', await stockOf(f.warehouse.id), fromBefore)
+  eq('지우면 받는공장에서 빠진다', await stockOf(to.id), toBefore)
+
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 50,
+  })
+}
+
+/**
  * 창고의 <b>구분</b>(창고·공장·외주)과 생산공정·외주거래처.
  *
  * <p>원본 창고등록리스트의 열은 창고코드 · 창고명 · <b>구분</b> · 생산공정명 ·
@@ -4973,6 +5031,7 @@ async function main() {
   await scenarioWorkProcess(fixtures)
   await scenarioShipmentDelivery(fixtures)
   await scenarioWarehouseKind()
+  await scenarioMaterialIssueMove(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
