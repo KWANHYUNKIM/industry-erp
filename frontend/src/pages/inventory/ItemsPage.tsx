@@ -6,6 +6,7 @@ import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import GroupMasterModal from '../../components/GroupMasterModal'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 const inputCls = 'ec-input w-full'
 
@@ -296,7 +297,7 @@ export default function ItemsPage() {
               <CodePickerField
                 label="구매처" placeholder="구매처 선택" emptyLabel="선택 해제"
                 value={form.supplierId} onChange={(v) => set('supplierId', v)}
-                items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))}
+                items={partnerCodeItems(partners)}
               />
             </div>
             {/*

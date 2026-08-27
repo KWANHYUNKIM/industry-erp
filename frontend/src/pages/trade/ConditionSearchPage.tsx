@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../api/types'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 그룹웨어 > 공유정보 > 조건별검색 (이카운트 E070203)
@@ -141,12 +142,12 @@ export default function ConditionSearchPage() {
               {basis !== 'SELECTED' ? (
                 <CodePickerField label="거래처" hideLabel width={210} placeholder="선택하세요"
                                  value={partnerId} onChange={(v) => { setPartnerId(v); setRan(false) }}
-                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.partnerGroupName }))} />
+                                 items={partnerCodeItems(partners)} />
               ) : (
                 <CodePickerField label="거래처(다중)" hideLabel multiple width={230} placeholder="거래처를 고르세요"
                                  values={selectedIds.map(String)}
                                  onChangeMulti={(vals) => { setSelectedIds(vals.map(Number)); setRan(false) }}
-                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.partnerGroupName }))} />
+                                 items={partnerCodeItems(partners)} />
               )}
             </td>
             <th style={th}>프로젝트</th>

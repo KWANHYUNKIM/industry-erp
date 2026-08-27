@@ -26,6 +26,15 @@ export interface CodeItem {
    * 공식 상호·품목명 말고 사람들이 실제로 부르는 이름(약칭·영문명·옛 상호)이다.
    */
   alias?: string | null
+  /**
+   * 화면에는 안 보이고 <b>찾는 데만</b> 쓰는 글자들.
+   *
+   * <p>원본 거래처검색 팝업은 탭 네 개에 대표자명·업태·종목·전화·모바일·주소·홈페이지·적요까지
+   * 조건이 있다. 우리 코드도움은 코드와 이름 둘로만 찾아서, "대표가 함승학인 그 회사" 처럼
+   * 사람이 실제로 기억하는 단서로는 찾을 수가 없었다. 창을 네 탭으로 늘리는 대신
+   * <b>그 창이 찾던 항목들을 한 칸에서 다 찾게</b> 한다. (utils/codeItems)
+   */
+  extra?: string | null
 }
 
 export default function CodePickerField({
@@ -72,7 +81,8 @@ export default function CodePickerField({
     const needle = q.trim().toLowerCase()
     if (!needle) return items
     return items.filter((i) =>
-      `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''}`.toLowerCase().includes(needle))
+      `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''} ${i.extra ?? ''}`
+        .toLowerCase().includes(needle))
   }, [items, q])
 
   /** 단일 선택 — 고르는 즉시 닫는다. */
@@ -183,7 +193,7 @@ export default function CodePickerField({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && shown.length === 1) pick(shown[0]) }}
-            placeholder="코드 또는 이름으로 검색"
+            placeholder={items.some((i) => i.extra) ? '코드·이름 외에 대표자·전화·주소로도 찾습니다' : '코드 또는 이름으로 검색'}
             style={{ flex: 1 }}
           />
           <span style={{ fontSize: 12.5, color: '#8a929c', alignSelf: 'center' }}>{shown.length}건</span>

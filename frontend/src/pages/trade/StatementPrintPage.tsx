@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, SalesDoc } from '../../api/types'
 import { loadSupplierParty, printDocuments, type DocParty, type PrintDocumentOptions } from '../../utils/printDocument'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 영업 > 거래명세서인쇄 (이카운트 E040210)
@@ -196,7 +197,7 @@ export default function StatementPrintPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel value={partnerId === '' ? '' : String(partnerId)} width={220}
                            onChange={(v) => setPartnerId(v ? Number(v) : '')}
-                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
+                           items={partnerCodeItems(partners)} />
         </EcCond>
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}

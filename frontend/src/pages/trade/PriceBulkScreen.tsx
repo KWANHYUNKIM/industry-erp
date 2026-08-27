@@ -6,6 +6,7 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/periods'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Partner, Item, Warehouse } from '../../api/types'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 판매·구매 단가일괄변경.
@@ -183,7 +184,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
               <CodePickerField
                 label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
                 value={partnerId} onChange={setPartnerId}
-                items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))}
+                items={partnerCodeItems(partners)}
               />
             </EcCond>
             <EcCond label="품목" pick>

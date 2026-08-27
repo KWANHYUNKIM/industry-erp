@@ -14,6 +14,7 @@ import EcDateField from '../../components/EcDateField'
 import Modal from '../../components/Modal'
 import { findDataTable } from '../../utils/tableExport'
 import { useShortcut } from '../../utils/useShortcut'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -1085,7 +1086,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               <CodePickerField
                 label={cfg.partnerLabel} hideLabel pair
                 value={partnerId} onChange={setPartnerId}
-                items={usablePartners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))}
+                items={partnerCodeItems(usablePartners)}
               />
             </div>
           </li>

@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import type { Item, Partner, SalesDoc, Warehouse } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
 type Mode = '내역' | '집계' | '라인별'
@@ -310,7 +311,7 @@ export default function SalesStatusPage() {
           <CodePickerField
             label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
             value={partnerId} onChange={setPartnerId}
-            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))}
+            items={partnerCodeItems(partners)}
           />
         </EcCond>
         <EcCond label="품목" pick>

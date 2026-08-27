@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 영업관리 > 거래이력조회 (이카운트 E040716)
@@ -128,7 +129,7 @@ export default function TradeHistoryPage() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
-                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
+                           items={partnerCodeItems(partners)} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>기간</span>

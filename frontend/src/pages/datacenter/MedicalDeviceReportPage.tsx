@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 데이터센터 > 데이터내보내기 > 의료기기공급내역보고 (이카운트 E040231)
@@ -142,7 +143,7 @@ export default function MedicalDeviceReportPage() {
             <option value="DISPOSAL">폐기</option>
           </select></label>
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
-                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
+                         items={partnerCodeItems(partners)} />
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <label style={{ fontSize: 12.5 }}>{label('보고기준월')}
