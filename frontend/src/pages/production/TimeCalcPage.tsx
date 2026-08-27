@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
+import { mergeLoadedLines } from '../../utils/mergeLines'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
@@ -21,8 +22,15 @@ import type { Item } from '../../api/types'
  * 1개당 시간을 모두 더해 수량을 곱한다. BOR 이 없는 품목은 <b>0 이 아니라 '라우팅 없음'</b>
  * 이다. 0 시간이라고 하면 "안 걸린다" 로 읽힌다.
  *
- * <p>생산공장은 우리에게 없다(재고는 창고 단위다). 주문·바코드로 불러오는 것도 아직 없어
- * 칸을 만들지 않았다 — 없는 조건을 그려 두면 눌러도 아무 일이 없다.
+ * <p>생산공장은 우리에게 없다(재고는 창고 단위다). 바코드로 불러오는 것도 없어 칸을
+ * 만들지 않았다 — 없는 조건을 그려 두면 눌러도 아무 일이 없다.
+ *
+ * <p>그런데 <b>[일자]가 정확히 그 상태였다.</b> 칸을 그려 놓고 아무 데서도 쓰지 않았다 —
+ * 날짜를 바꿔도 계산이 달라지지 않는다. 원칙을 적어 두고 같은 화면에서 어겼다.
+ *
+ * <p>이제 그 날짜로 <b>작업지시를 불러온다</b>(원본 [주문] 자리에 해당한다). 그 날 잡힌
+ * 지시의 품목·수량을 그리드에 담아, "이 날 공장이 몇 시간 돌아야 하나" 를 바로 낸다.
+ * 불러온 줄은 <b>기존 줄을 덮지 않고</b> 뒤에 붙인다 — 손으로 적어 둔 것을 지우면 안 된다.
  */
 interface BorRow {
   productId: number
@@ -32,6 +40,15 @@ interface BorRow {
   workName: string
   hoursPerUnit: number
   active: boolean
+}
+
+/** 작업지시 한 줄 — [일자]로 불러올 때만 쓴다. */
+interface WoRow {
+  id: number
+  orderNo: string
+  orderDate: string
+  productId: number
+  plannedQty: number
 }
 
 /** 계산할 한 줄. 원본 그리드의 [생산품목 · 규격 · 추가수량 · 수량] 이다. */
@@ -55,6 +72,8 @@ let nextKey = 1
 export default function TimeCalcPage() {
   const [items, setItems] = useState<Item[]>([])
   const [bor, setBor] = useState<BorRow[]>([])
+  const [orders, setOrders] = useState<WoRow[]>([])
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [baseDate, setBaseDate] = useState(ymd(new Date()))
@@ -63,16 +82,40 @@ export default function TimeCalcPage() {
   const [calculated, setCalculated] = useState(false)
   const [openKey, setOpenKey] = useState<number | null>(null)
 
+  /**
+   * [일자]에 잡힌 작업지시를 그리드에 담는다. 원본 [주문] 불러오기 자리에 해당한다.
+   *
+   * <p>기존 줄을 <b>덮지 않고 뒤에 붙인다</b> — 손으로 적어 둔 것을 지우면 안 된다.
+   * 빈 줄(품목을 아직 안 고른 줄)만 걷어낸다.
+   */
+  function loadFromOrders() {
+    const todays = orders.filter((o) => o.orderDate === baseDate)
+    setNotice('')
+    if (todays.length === 0) {
+      setNotice(`${baseDate} 에 잡힌 작업지시가 없습니다.`)
+      return
+    }
+    const added = todays.map((o) => ({
+      key: nextKey++, itemId: String(o.productId), extraQty: '', qty: String(o.plannedQty),
+    }))
+    // 규칙은 utils/mergeLines 에 있다 — 덮어쓰기는 조용히 일어나서 뒤늦게 안다.
+    setLines((prev) => mergeLoadedLines(prev, added))
+    setCalculated(true)
+    setNotice(`${baseDate} 작업지시 ${todays.length}건을 담았습니다.`)
+  }
+
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const [i, b] = await Promise.all([
+      const [i, b, w] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<BorRow[]>('/bor'),
+        api.get<WoRow[]>('/work-orders'),
       ])
       setItems(i.data)
       setBor(b.data)
+      setOrders(w.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -125,6 +168,7 @@ export default function TimeCalcPage() {
       searchable={false}
       actions={[
         { label: '계산(F8)', primary: true, onClick: () => setCalculated(true) },
+        { label: '작업지시 불러오기', onClick: loadFromOrders },
         { label: '줄 추가', onClick: () => setLines((p) => [...p, { key: nextKey++, itemId: '', extraQty: '', qty: '' }]) },
         { label: '다시 작성', onClick: () => { setLines([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }]); setCalculated(false) } },
         { label: '새로고침', onClick: load },
@@ -136,8 +180,17 @@ export default function TimeCalcPage() {
         <EcCond label="일자">
           <input className="ec-input" type="date" value={baseDate}
                  onChange={(e) => setBaseDate(e.target.value)} style={{ width: 150 }} />
+          <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
+            [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
+          </span>
         </EcCond>
       </ul>
+
+      {notice && (
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid #cfe0f5', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          {notice}
+        </p>
+      )}
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">
