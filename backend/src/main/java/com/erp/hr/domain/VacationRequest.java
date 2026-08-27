@@ -29,6 +29,15 @@ public class VacationRequest extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+
+    /**
+     * 근태번호 (AT-yyyyMMdd-####). 원본 근태조회의 첫 열이 [근태번호] 다.
+     *
+     * <p>번호가 없으면 "그 근태 건" 을 지목할 방법이 없어 사원과 일자로 더듬어야 한다.
+     */
+    @Column(name = "doc_no", nullable = false, unique = true, length = 30)
+    private String docNo;
+
     /** 휴가 종류: 연차/반차/병가/경조 */
     @Column(nullable = false, length = 20)
     private String type;

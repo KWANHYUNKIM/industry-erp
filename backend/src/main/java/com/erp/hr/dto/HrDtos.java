@@ -124,6 +124,8 @@ public final class HrDtos {
 
     public record VacationRow(
             Long id,
+            /** 근태번호. 원본 근태조회의 첫 열이다. */
+            String docNo,
             String empName,
             String department,
             String type,
@@ -137,6 +139,7 @@ public final class HrDtos {
         public static VacationRow from(VacationRequest v) {
             return new VacationRow(
                     v.getId(),
+                    v.getDocNo(),
                     v.getUser().getName(),
                     v.getUser().getDepartment(),
                     v.getType(),

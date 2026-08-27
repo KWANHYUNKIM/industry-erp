@@ -3427,6 +3427,51 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 근태(휴가) 전표의 <b>근태번호</b>.
+ *
+ * <p>원본 근태조회의 첫 열이 [근태번호] 다. 우리 휴가에는 번호가 없어서 "그 근태 건" 을
+ * 지목할 방법이 없었다 — 사원과 일자로 더듬어야 한다. 판매·구매·수금·비용은 이미 다 번호가 있다.
+ *
+ * <p>채번은 DocumentNoGenerator 로만 한다. count()+1 로 매기면 중간을 지운 뒤 같은 번호가
+ * 두 번 나온다 — 비용 전표에서 이미 못 박은 것과 같은 함정이다.
+ */
+async function scenarioLeaveDocNo() {
+  section('■ 근태번호')
+
+  const users = await must('GET', '/users')
+  const me = users[0]
+  const day = '2097-04-09'
+  const mk = (n) => must('POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: day, endDate: day, days: 1, reason: `${P}근태번호${n}`,
+  })
+
+  const a = await mk(1)
+  const b = await mk(2)
+  const c = await mk(3)
+
+  eq('근태에 번호가 붙는다', /^AT-\d{8}-\d{4}$/.test(String(a.docNo)), true)
+  eq('같은 날은 번호가 이어진다',
+    [a.docNo, b.docNo, c.docNo].map((x) => x.slice(-4)).join(','), '0001,0002,0003')
+  eq('번호는 겹치지 않는다', new Set([a.docNo, b.docNo, c.docNo]).size, 3)
+
+  // 가운데를 지우고 새로 넣어도 겹치면 안 된다.
+  await must('DELETE', `/hr/vacations/${b.id}`)
+  const d = await mk(4)
+  eq('중간을 지운 뒤에도 번호가 안 겹친다', d.docNo === b.docNo, false)
+  eq('지운 다음 번호로 이어진다', d.docNo.slice(-4), '0004')
+
+  // 근태조회 화면이 기대는 칸들
+  eq('사원명이 실린다', typeof a.empName, 'string')
+  eq('근태코드(휴가종류)가 실린다', a.type, '연차')
+  eq('근태수가 실린다', Number(a.days), 1)
+  eq('진행상태가 실린다', a.status, 'PENDING')
+
+  for (const x of [a, c, d]) await must('DELETE', `/hr/vacations/${x.id}`)
+  eq('시험용 근태는 남기지 않는다',
+    (await must('GET', '/hr/vacations')).filter((x) => (x.reason ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 공정의 <b>순번</b>과 작업코드 마스터.
  *
  * <p>원본 공정등록의 열은 생산공정코드 · 생산공정명 · <b>순번</b> · <b>작업코드등록</b> 이다.
@@ -5152,6 +5197,7 @@ async function main() {
   await scenarioMaterialIssueMove(fixtures)
   await scenarioWorkResultResource()
   await scenarioProcessOrderAndOperations()
+  await scenarioLeaveDocNo()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

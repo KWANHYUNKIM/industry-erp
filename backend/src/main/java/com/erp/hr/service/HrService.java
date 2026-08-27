@@ -1,6 +1,7 @@
 package com.erp.hr.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.domain.Attendance;
 import com.erp.auth.domain.User;
 import com.erp.hr.domain.VacationRequest;
@@ -43,6 +44,7 @@ public class HrService {
     /** 기본 연차 부여 일수 */
 
     private final AttendanceRepository attendanceRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final VacationRepository vacationRepository;
     private final UserRepository userRepository;
 
@@ -141,6 +143,8 @@ public class HrService {
         }
         VacationRequest v = VacationRequest.builder()
                 .user(user)
+                // 채번은 DocumentNoGenerator 로만 한다(count()+1 은 삭제·동시성에서 겹친다).
+                .docNo(docNoGenerator.next("AT-", "vacation_requests", "doc_no", "start_date", req.startDate()))
                 .type(req.type())
                 .startDate(req.startDate())
                 .endDate(req.endDate())

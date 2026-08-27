@@ -159,6 +159,8 @@ const PaymentPage = lazy(() => import('./pages/trade/PaymentPage'))
 const PartnerLedgerPage = lazy(() => import('./pages/trade/PartnerLedgerPage'))
 const ArApStatusPage = lazy(() => import('./pages/trade/ArApStatusPage'))
 const AttendanceInputPage = lazy(() => import('./pages/hr/AttendanceInputPage'))
+const LeaveInputPage = lazy(() => import('./pages/hr/LeaveInputPage'))
+const LeaveListPage = lazy(() => import('./pages/hr/LeaveListPage'))
 const AttendanceListPage = lazy(() => import('./pages/hr/AttendanceListPage'))
 const AttendanceStatusPage = lazy(() => import('./pages/hr/AttendanceStatusPage'))
 const AttendanceKindStatusPage = lazy(() => import('./pages/hr/AttendanceKindStatusPage'))
@@ -456,6 +458,9 @@ export default function App() {
 
         {/* 관리(근태) */}
         <Route path="/hr" element={<Navigate to="/hr/attendance-input" replace />} />
+        {/* 원본에서 '근태'는 연차·반차 같은 근태 기록이고, 출퇴근 시각은 [출/퇴근기록부(ID)] 가 맡는다. */}
+        <Route path="/hr/leave-input" element={<LeaveInputPage />} />
+        <Route path="/hr/leave-list" element={<LeaveListPage />} />
         <Route path="/hr/attendance-input" element={<AttendanceInputPage />} />
         <Route path="/hr/attendance-list" element={<AttendanceListPage />} />
         <Route path="/hr/attendance-status" element={<AttendanceStatusPage />} />

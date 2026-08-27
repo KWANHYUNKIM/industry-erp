@@ -480,8 +480,8 @@ const MENU: TopMenu[] = [
           {
             label: '근태',
             children: [
-              { label: '근태입력', to: '/hr/attendance-input' },
-              { label: '근태조회', to: '/hr/attendance-list' },
+              { label: '근태입력', to: '/hr/leave-input' },
+              { label: '근태조회', to: '/hr/leave-list' },
               { label: '근태현황', to: '/hr/attendance-kind-status' },
               { label: '지각현황', to: '/hr/attendance-late' },
               { label: '일별근무시간', to: '/hr/daily-hours' },
@@ -602,6 +602,8 @@ const MENU: TopMenu[] = [
             label: '출/퇴근',
             children: [
               { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' },
+              { label: '출/퇴근입력', to: '/hr/attendance-input' },
+              { label: '출/퇴근조회', to: '/hr/attendance-list' },
               { label: '출/퇴근현황(ID)', to: '/hr/attendance-status' },
               { label: '지각현황(ID)', to: '/hr/attendance-late' },
               { label: '일별근무시간(ID)', to: '/hr/daily-hours' },
