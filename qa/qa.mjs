@@ -3444,6 +3444,68 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 생산불출의 <b>담당자</b>와 <b>생산품목</b>.
+ *
+ * <p>원본 생산불출입력·생산불출조회의 머리는 일자 · <b>담당자</b> · 보내는창고 ·
+ * 받는공장 · <b>생산품목</b> 이고, 생산불출현황 조건에도 [담당자] 가 있다 —
+ * 세 화면에서 나온 항목이다.
+ *
+ * <p>담당자가 없어 "누가 낸 불출인지" 를 적을 자리도, 그걸로 거를 자리도 없었다.
+ * 생산품목은 작업지시가 이미 알고 있는데 응답에 안 실어서 화면이 볼 수 없었다.
+ *
+ * <p>담당자는 <b>id 만</b> 싣는다 — production 이 hr 을 참조하면
+ * hr → accounting → production 과 맞물려 순환이 된다. 이름은 화면이 붙인다.
+ */
+async function scenarioIssueEmployee(f) {
+  section('■ 생산불출 담당자·생산품목')
+
+  const emps = await must('GET', '/employees')
+  const emp = emps[0]
+  const warehouses = await must('GET', '/warehouses')
+  const factory = warehouses.find((w) => w.id !== f.warehouse.id) ?? f.warehouse
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 2, orderDate: '2091-07-08',
+  })
+
+  // 불출할 자재를 먼저 넣어 둔다.
+  const boms = await must('GET', '/boms')
+  const line = boms.find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 5,
+  })
+
+  const mi = await must('POST', '/material-issues', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, toWarehouseId: factory.id,
+    workOrderId: wo.id, qty: 2, issueDate: '2091-07-08',
+    employeeId: emp.id, note: `${P}불출담당`,
+  })
+  eq('담당자 id 가 실린다', mi.employeeId, emp.id)
+  eq('담당자 이름은 서버가 안 붙인다', 'employeeName' in mi, false)
+  eq('생산품목 코드가 실린다', mi.productCode, f.product.code)
+  eq('생산품목명도 실린다', mi.productName, f.product.name)
+
+  const re = (await must('GET', '/material-issues')).find((x) => x.id === mi.id)
+  eq('다시 조회해도 담당자가 남는다', re.employeeId, emp.id)
+  eq('다시 조회해도 생산품목이 붙는다', re.productName, f.product.name)
+
+  // 작업지시 없이 낸 불출은 생산품목이 없다. 지어내면 남의 지시 자재가 된다.
+  const loose = await must('POST', '/material-issues', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, toWarehouseId: factory.id,
+    qty: 1, issueDate: '2091-07-08', note: `${P}지시없음`,
+  })
+  isNull('작업지시가 없으면 생산품목도 없다', loose.productCode)
+
+  for (const x of [mi, loose]) await must('DELETE', `/material-issues/${x.id}`)
+  await must('DELETE', `/work-orders/${wo.id}`)
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 5,
+  })
+  eq('시험용 불출은 남기지 않는다',
+    (await must('GET', '/material-issues')).filter((x) => x.issueDate === '2091-07-08').length, 0)
+}
+
+/**
  * 작업지시서의 <b>납품처 · 담당자 · 납기일자</b>.
  *
  * <p>원본 작업지시서입력 머리 실측(사본): 작업지시No. · 일자 · <b>납품처</b> ·
@@ -5935,6 +5997,7 @@ async function main() {
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
+  await scenarioIssueEmployee(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

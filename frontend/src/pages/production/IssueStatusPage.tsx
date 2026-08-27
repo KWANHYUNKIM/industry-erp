@@ -14,7 +14,12 @@ import type { Warehouse } from '../../api/types'
  * 언제·어느 작업지시로 나갔는지는 볼 수가 없었다.
  *
  * <p>우리 불출 자료는 한 건이 자재 한 줄이라 원본의 '내역'(전표 단위)에 대응하는 것이
- * <b>작업지시 단위</b>다. 그렇게 접는다. 프로젝트·담당자는 불출에 그 값이 없어 칸을 만들지 않는다.
+ * <b>작업지시 단위</b>다. 그렇게 접는다.
+ *
+ * <p>[담당자] 는 예전에 "불출에 그 값이 없어" 만들지 않았는데, 이제 불출이 담당자를 든다
+ * (원본 생산불출입력 머리의 항목이다). 프로젝트는 여전히 없어 만들지 않는다.
+ * 담당자 <b>이름</b>은 서버가 못 붙인다 — production 은 hr 을 참조할 수 없어
+ * (hr → accounting → production 순환) id 만 온다. 화면이 사원 목록에서 붙인다.
  */
 type Mode = '내역' | '집계' | '라인별'
 const MODES = ['내역', '집계', '라인별'] as const
@@ -29,6 +34,8 @@ interface MaterialIssue {
   warehouseName: string
   workOrderId: number
   workOrderNo: string
+  /** 담당자(사원) id. 이름은 화면이 붙인다. */
+  employeeId: number | null
   qty: number
   issueDate: string
   note: string | null
@@ -49,18 +56,23 @@ export default function IssueStatusPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [item, setItem] = useState('')
   const [note, setNote] = useState('')
+  const [emp, setEmp] = useState('')
+  /** 담당자 이름표. 서버가 못 붙여서 화면이 붙인다. */
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const [issues, wh] = await Promise.all([
+      const [issues, wh, emps] = await Promise.all([
         api.get<MaterialIssue[]>('/material-issues'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ id: number; name: string }[]>('/employees'),
       ])
       setRows([...issues.data].sort((a, b) =>
         (a.issueDate < b.issueDate ? 1 : a.issueDate > b.issueDate ? -1 : b.id - a.id)))
       setWarehouses(wh.data)
+      setEmployees(emps.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -72,16 +84,22 @@ export default function IssueStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setMode('내역'); setWarehouseId(''); setItem(''); setNote('')
+    setMode('내역'); setWarehouseId(''); setItem(''); setNote(''); setEmp('')
   }
+
+  /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다. */
+  const empName = (id: number | null) =>
+    id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
 
   const shown = useMemo(() => rows.filter((r) => {
     if (r.issueDate < from || r.issueDate > to) return false
     if (warehouseId && String(r.warehouseId) !== warehouseId) return false
     if (item && !`${r.itemCode} ${r.itemName}`.includes(item)) return false
     if (note && !(r.note ?? '').includes(note)) return false
+    if (emp && !empName(r.employeeId).includes(emp)) return false
     return true
-  }), [rows, from, to, warehouseId, item, note])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, from, to, warehouseId, item, note, emp, employees])
 
   /** 내역 — 작업지시 하나를 한 줄로 접는다. */
   const byOrder = useMemo(() => {
@@ -156,6 +174,10 @@ export default function IssueStatusPage() {
         <EcCond label="품목" pick>
           <input className="ec-input" placeholder="자재코드·자재명 일부" value={item}
                  onChange={(e) => setItem(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <input className="ec-input" placeholder="담당자명 일부" value={emp}
+                 onChange={(e) => setEmp(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={note}

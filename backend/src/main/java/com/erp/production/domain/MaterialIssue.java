@@ -57,6 +57,15 @@ public class MaterialIssue extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate issueDate;
 
+    /**
+     * 담당자(hr.Employee)의 id. <b>@ManyToOne 을 쓰지 않는다.</b>
+     *
+     * <p>production 이 hr 을 참조하면 hr → accounting → production 과 맞물려 순환이 된다
+     * (CLAUDE.md 4.1). 작업지시의 담당자와 같은 이유다 — 이름은 화면이 사원 목록에서 붙인다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
     @Column(length = 300)
     private String note;
 }

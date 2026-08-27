@@ -75,6 +75,7 @@ public class MaterialIssueService {
                 .workOrder(workOrder)
                 .qty(req.qty())
                 .issueDate(date)
+                .employeeId(req.employeeId())
                 .note(req.note())
                 .build();
         MaterialIssue saved = materialIssueRepository.save(mi);
