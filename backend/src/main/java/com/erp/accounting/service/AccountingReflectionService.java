@@ -4,6 +4,8 @@ import com.erp.common.ApiException;
 import com.erp.accounting.domain.JournalSourceType;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.Settlement;
+import com.erp.trade.repository.SettlementRepository;
 import com.erp.accounting.dto.AccountingReflectionDtos.ReflectRequest;
 import com.erp.accounting.dto.AccountingReflectionDtos.ReflectResult;
 import com.erp.accounting.dto.AccountingReflectionDtos.SlipKind;
@@ -24,6 +26,7 @@ public class AccountingReflectionService {
 
     private final SalesRepository salesRepository;
     private final PurchaseRepository purchaseRepository;
+    private final SettlementRepository settlementRepository;
     private final JournalService journalService;
 
     @Transactional(readOnly = true)
@@ -33,6 +36,8 @@ public class AccountingReflectionService {
                     .map(SlipResponse::fromSales).toList();
             case PURCHASE -> purchaseRepository.findAllWithRefsAndLines().stream()
                     .map(SlipResponse::fromPurchase).toList();
+            case SETTLEMENT -> settlementRepository.findAll().stream()
+                    .map(SlipResponse::fromSettlement).toList();
         };
         if (onlyUnreflected) {
             return slips.stream().filter(s -> !s.reflected()).toList();
@@ -46,7 +51,15 @@ public class AccountingReflectionService {
             throw ApiException.badRequest("반영할 전표를 선택하세요.");
         }
         int count = 0;
-        if (req.kind() == SlipKind.SALES) {
+        if (req.kind() == SlipKind.SETTLEMENT) {
+            for (Settlement st : settlementRepository.findAllById(req.ids())) {
+                if (!st.isAccountingReflected()) {
+                    journalService.createFromSettlement(st);
+                    st.setAccountingReflected(true);
+                    count++;
+                }
+            }
+        } else if (req.kind() == SlipKind.SALES) {
             List<Sales> targets = salesRepository.findAllById(req.ids());
             for (Sales s : targets) {
                 if (!s.isAccountingReflected()) {
@@ -75,7 +88,15 @@ public class AccountingReflectionService {
             throw ApiException.badRequest("반영취소할 전표를 선택하세요.");
         }
         int count = 0;
-        if (req.kind() == SlipKind.SALES) {
+        if (req.kind() == SlipKind.SETTLEMENT) {
+            for (Settlement st : settlementRepository.findAllById(req.ids())) {
+                if (st.isAccountingReflected()) {
+                    journalService.deleteBySource(JournalSourceType.SETTLEMENT, st.getId());
+                    st.setAccountingReflected(false);
+                    count++;
+                }
+            }
+        } else if (req.kind() == SlipKind.SALES) {
             for (Sales s : salesRepository.findAllById(req.ids())) {
                 if (s.isAccountingReflected()) {
                     journalService.deleteBySource(JournalSourceType.SALES, s.getId());

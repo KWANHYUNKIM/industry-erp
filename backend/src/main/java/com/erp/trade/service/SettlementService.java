@@ -68,6 +68,11 @@ public class SettlementService {
     public void delete(Long id) {
         Settlement s = settlementRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("정산 전표를 찾을 수 없습니다. id=" + id));
+        // 판매·구매와 같은 규칙이다. 지우면 분개만 남아 원장이 전표를 잃는다.
+        if (s.isAccountingReflected()) {
+            throw ApiException.badRequest(
+                    "회계반영된 결제전표는 삭제할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
         settlementRepository.delete(s);
     }
 

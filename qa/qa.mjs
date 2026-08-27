@@ -3601,6 +3601,81 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * <b>수금·지급(결제)의 회계반영.</b>
+ *
+ * <p>원본 결제내역조회에 [미반영 · 회계반영] 탭과 [회계전표] 열이 있다 — 결제 전표도
+ * 회계로 넘어간다는 뜻이다. 우리는 넘기지 않았다. JournalSourceType 에 결제가 아예
+ * 없었고 만드는 곳도 없었다.
+ *
+ * <p>그래서 <b>판매하면 외상매출금이 잡히는데 수금해도 안 줄었다.</b> 원장의
+ * 외상매출금이 한 방향으로만 쌓인다. 채권현황은 따로 세니까 맞고, 어긋난 것은
+ * 원장뿐이라 결산할 때까지 아무도 모른다.
+ */
+async function scenarioSettlementAccounting(f) {
+  section('■ 수금·지급 회계반영')
+
+  const D = '2092-06-10'
+  // 합계잔액시산표에서 그 계정만 본다. 기간을 넓게 잡아야 실제로 걸린다 —
+  // 좁게 잡아 아무 분개도 없는 구간을 재면 단언이 늘 통과하고 아무것도 못 잡는다.
+  const balOf = async (code) => {
+    const tb = await must('GET', '/journals/trial-balance?from=1900-01-01&to=2099-12-31')
+    const row = tb.rows.find((r) => r.accountCode === code)
+    return row ? Number(row.debit) - Number(row.credit) : 0
+  }
+  const ar = () => balOf('108')
+
+  for (const x of (await must('GET', '/settlements')).filter((x) => x.settleDate === D)) {
+    await call('DELETE', `/settlements/${x.id}`)
+  }
+
+  const before = await ar()
+  const st = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 70000,
+    method: '보통예금 이체', settleDate: D, note: `${P}수금반영`,
+  })
+  eq('만들면 미반영이다', st.accountingReflected, false)
+  eq('만들기만 해서는 원장이 안 움직인다', await ar(), before)
+
+  const done = await must('POST', '/accounting-reflection/reflect',
+    { kind: 'SETTLEMENT', ids: [st.id] })
+  eq('한 건 반영된다', done.reflectedCount, 1)
+
+  const after = (await must('GET', '/settlements')).find((x) => x.id === st.id)
+  eq('반영 표시가 켜진다', after.accountingReflected, true)
+  eq('수금하면 외상매출금이 줄어든다', await ar(), before - 70000)
+
+  eq('두 번 반영되지 않는다',
+    (await must('POST', '/accounting-reflection/reflect',
+      { kind: 'SETTLEMENT', ids: [st.id] })).reflectedCount, 0)
+
+  // 반영된 전표를 지우면 분개만 남아 원장이 전표를 잃는다.
+  const del = await call('DELETE', `/settlements/${st.id}`)
+  eq('반영된 결제는 못 지운다', del.status, 400)
+  eq('먼저 무엇을 하라고 말해 준다',
+    /회계반영을 먼저 취소/.test(String(del.data?.message ?? '')), true)
+
+  eq('반영취소도 된다',
+    (await must('POST', '/accounting-reflection/unreflect',
+      { kind: 'SETTLEMENT', ids: [st.id] })).reflectedCount, 1)
+  eq('되돌리면 원장도 제자리', await ar(), before)
+
+  // 지급은 반대다 — 차)외상매입금 / 대)현금.
+  const ap = async () => -(await balOf('251'))
+  const apBefore = await ap()
+  const pay = await must('POST', '/settlements', {
+    type: 'PAYMENT', partnerId: f.supplier.id, amount: 30000,
+    method: '현금', settleDate: D, note: `${P}지급반영`,
+  })
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [pay.id] })
+  eq('지급하면 외상매입금이 줄어든다', await ap(), apBefore - 30000)
+
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [pay.id] })
+  for (const x of [st, pay]) await must('DELETE', `/settlements/${x.id}`)
+  eq('시험용 결제는 남기지 않는다',
+    (await must('GET', '/settlements')).filter((x) => x.settleDate === D).length, 0)
+}
+
+/**
  * 표준원가생성의 <b>[계산기준]</b> — 최종매입가 vs 총평균법.
  *
  * <p>원본 원가생성/수정 조건 실측(사본): 기준년월 · 원가계산방법 ·
@@ -6506,6 +6581,7 @@ async function main() {
   await scenarioPlanToWorkOrder(fixtures)
   await scenarioCostBasis(fixtures)
   await scenarioInactiveItemGuards(fixtures)
+  await scenarioSettlementAccounting(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

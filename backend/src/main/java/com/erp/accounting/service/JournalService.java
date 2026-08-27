@@ -10,6 +10,8 @@ import com.erp.accounting.domain.JournalLine;
 import com.erp.accounting.domain.JournalSourceType;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.Settlement;
+import com.erp.trade.domain.SettlementType;
 import com.erp.accounting.dto.JournalDtos.CashTxnRequest;
 import com.erp.accounting.dto.JournalDtos.CreateJournalRequest;
 import com.erp.accounting.dto.JournalDtos.ManualLineInput;
@@ -163,6 +165,43 @@ public class JournalService {
         }
         addCredit(e, "251", p.getTotalAmount(), "외상매입금");
         return save(e);
+    }
+
+    /**
+     * 수금·지급(결제) → 분개.
+     *
+     * <p>수금  차)현금·예금 / 대)외상매출금 — 판매로 잡힌 채권을 받아서 지운다.
+     * <p>지급  차)외상매입금 / 대)현금·예금 — 구매로 잡힌 채무를 갚아서 지운다.
+     *
+     * <p>받는·주는 자리는 [결제방법]으로 가른다. '계좌'·'이체'·'예금'·'통장'이 들어 있으면
+     * 보통예금(103), 아니면 현금(101)이다. 카드·어음은 각자 자기 화면에서 이미 분개를
+     * 만들고 있어 여기로 오지 않는다 — 오면 두 번 잡힌다.
+     */
+    @Transactional
+    public JournalEntry createFromSettlement(Settlement st) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SETTLEMENT, st.getId())) {
+            throw ApiException.conflict("이미 회계반영된 결제전표입니다: " + st.getDocNo());
+        }
+        String cash = isBankMethod(st.getMethod()) ? "103" : "101";
+        String cashName = "103".equals(cash) ? "보통예금" : "현금";
+        JournalEntry e = newEntry(JournalSourceType.SETTLEMENT, st.getId(), st.getSettleDate(),
+                st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
+
+        if (st.getType() == SettlementType.RECEIPT) {
+            addDebit(e, cash, st.getAmount(), cashName);
+            addCredit(e, "108", st.getAmount(), "외상매출금");
+        } else {
+            addDebit(e, "251", st.getAmount(), "외상매입금");
+            addCredit(e, cash, st.getAmount(), cashName);
+        }
+        return save(e);
+    }
+
+    /** 통장으로 오간 것인가. 안 적었으면 현금으로 본다. */
+    private static boolean isBankMethod(String method) {
+        if (method == null) return false;
+        String m = method.replace(" ", "");
+        return m.contains("계좌") || m.contains("이체") || m.contains("예금") || m.contains("통장");
     }
 
     /** 지출 → 분개. 차)비용계정 / 대)현금 (paymentMethod 가 '외상/미지급'이면 미지급금) */

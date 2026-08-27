@@ -16,6 +16,8 @@ public enum JournalSourceType {
     PAYROLL("급여이체"),
     ACCOUNT_TRANSFER("계좌간이동"),
     CARD_PAYMENT("카드대금결제"),
+    /** 수금·지급(결제) 전표. 원본 결제내역조회의 [회계전표]. */
+    SETTLEMENT("수금·지급"),
     MANUAL("수동입력");
 
     private final String displayName;

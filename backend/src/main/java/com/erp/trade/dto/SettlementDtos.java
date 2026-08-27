@@ -32,7 +32,9 @@ public final class SettlementDtos {
             String method,
             /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
             Long projectId, String projectName,
-            String note, String createdBy
+            String note, String createdBy,
+            /** 회계반영 여부. 원본 결제내역조회의 [미반영 · 회계반영] 탭. */
+            boolean accountingReflected
     ) {
         public static SettlementResponse from(Settlement s) {
             return new SettlementResponse(
@@ -43,7 +45,7 @@ public final class SettlementDtos {
                     s.getMethod(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
-                    s.getNote(), s.getCreatedBy());
+                    s.getNote(), s.getCreatedBy(), s.isAccountingReflected());
         }
     }
 }

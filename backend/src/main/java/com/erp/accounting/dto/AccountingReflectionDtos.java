@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.Settlement;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
@@ -14,7 +15,11 @@ public final class AccountingReflectionDtos {
 
     private AccountingReflectionDtos() {}
 
-    public enum SlipKind { SALES, PURCHASE }
+    /**
+     * SETTLEMENT 는 결제내역조회(수금·지급)다. 회계미반영현황 화면은 원본과 같이
+     * 판매·구매만 고르게 두고, 결제는 자기 화면에서 이 경로로 반영한다.
+     */
+    public enum SlipKind { SALES, PURCHASE, SETTLEMENT }
 
     /**
      * 미반영 전표 한 줄.
@@ -89,6 +94,26 @@ public final class AccountingReflectionDtos {
                             l.getItem().getCode(), l.getItem().getName(),
                             l.getQuantity(), l.getUnitPrice(),
                             l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
+        }
+
+        /**
+         * 결제(수금·지급) 한 줄. 원본 결제내역조회의 격자다.
+         *
+         * <p>결제에는 품목이 없다 — 품목요약 자리에는 [결제방법]을 넣는다.
+         * 공급가액·부가세도 없어 결제금액을 합계에만 싣고 나머지는 0 이다.
+         * 지어낸 값을 넣는 것보다 0 이 낫다.
+         */
+        public static SlipResponse fromSettlement(Settlement st) {
+            return new SlipResponse(
+                    st.getId(), SlipKind.SETTLEMENT, st.getDocNo(), st.getSettleDate(),
+                    st.getPartner().getId(), st.getPartner().getName(),
+                    null, st.getProject() != null ? st.getProject().getName() : null,
+                    null,
+                    st.getMethod() != null ? st.getMethod() : "",
+                    java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, st.getAmount(),
+                    st.getType().getDisplayName(),
+                    st.isAccountingReflected(),
+                    List.of());
         }
 
         /** "첫 품목 외 N건". 라인이 없으면 빈 문자열. */
