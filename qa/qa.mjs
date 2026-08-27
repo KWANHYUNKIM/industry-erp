@@ -3444,6 +3444,43 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 판매 라인의 <b>부대비용</b>이 응답에 실리고 합계에는 안 들어가는가.
+ *
+ * <p>원본 이익현황의 열은 … 원가 · 이익 · 이익율 · <b>이익금액(부대비용포함)</b> ·
+ * <b>판매부대비용</b> 이다. 부대비용은 거래처에 청구한 돈이 아니라 우리가 쓴 돈이라
+ * <b>판매액(공급가액)에는 안 들어가고 이익에서는 빠져야</b> 한다.
+ *
+ * <p>둘 중 하나라도 어긋나면 조용히 틀린다. 합계에 들어가면 거래처에 더 청구한 것이 되고,
+ * 이익에서 안 빠지면 운반비를 쓸수록 이익이 좋아 보인다. 뒤엣것이 실제로 그랬다.
+ */
+async function scenarioSalesExtraCost(f) {
+  section('■ 판매 부대비용')
+
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2095-08-09',
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 10000, extraCost: 1500 }],
+  })
+  const line = sale.lines[0]
+  eq('부대비용이 실린다', Number(line.extraCost), 1500)
+  eq('공급가액에는 안 들어간다', Number(line.supplyAmount), 20000)
+  eq('전표 합계에도 안 들어간다', Number(sale.supplyAmount), 20000)
+
+  const re = (await must('GET', '/sales')).find((x) => x.id === sale.id)
+  eq('다시 조회해도 부대비용이 남는다', Number(re.lines[0].extraCost), 1500)
+
+  // 안 적으면 null 이거나 0 이다. 화면은 둘 다 0 으로 읽는다.
+  const plain = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2095-08-09',
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  eq('안 적으면 부대비용이 없다', Number(plain.lines[0].extraCost ?? 0), 0)
+
+  for (const x of [sale, plain]) await must('DELETE', `/sales/${x.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/sales')).filter((x) => x.saleDate === '2095-08-09').length, 0)
+}
+
+/**
  * 회계미반영현황이 <b>품목 줄</b>을 실어 오는가.
  *
  * <p>원본 회계미반영현황(판매)의 결과 열은 일자-No. · 거래처명 · <b>품목코드</b> ·
@@ -5474,6 +5511,7 @@ async function main() {
   await scenarioPartnerMovements(fixtures)
   await scenarioWorkPostEdit()
   await scenarioReflectionLines(fixtures)
+  await scenarioSalesExtraCost(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

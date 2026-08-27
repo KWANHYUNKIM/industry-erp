@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { costOf, sumProfit } from './costBasis.ts'
+import { costOf, profitWithExtra, sumExtraCost, sumProfit } from './costBasis.ts'
 
 test("'입고단가(품목)' 은 구매단가를 쓴다 — 판매단가가 아니다", () => {
   // 판매단가 145,000 짜리를 90,000 에 사 왔다면 원가는 90,000 이다.
@@ -50,4 +50,22 @@ test('전부 모르면 이익은 0 이고 그 사실이 드러난다', () => {
   assert.equal(t.knownRevenue, 0)
   assert.equal(t.profit, 0)
   assert.equal(t.unknown, 2)
+})
+
+test('부대비용은 이익에서 빠진다 — 안 빼면 운반비를 쓸수록 이익이 좋아 보인다', () => {
+  assert.equal(profitWithExtra(10000, 3000), 7000)
+})
+
+test('원가를 모르면 부대비용을 빼도 여전히 모른다', () => {
+  assert.equal(profitWithExtra(null, 3000), null)
+})
+
+test('부대비용 합계는 원가를 모르는 줄의 것도 센다 — 실제로 쓴 돈이다', () => {
+  const t = sumExtraCost([
+    { profit: 10000, extraCost: 1000 },
+    { profit: null, extraCost: 500 },   // 원가 미상
+    { profit: 4000, extraCost: 0 },
+  ])
+  assert.equal(t.extra, 1500)
+  assert.equal(t.profitWithExtra, 13000)  // (10000-1000) + (4000-0). null 줄은 이익에서 빠진다
 })

@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
-import { costOf, type CostBasis } from '../../utils/costBasis'
+import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -29,6 +29,12 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  *   거래구분 — 우리 판매전표에 반품 개념이 없다(수량이 항상 양수다)
  *   결재방표시·수량관리제외품목 — 대응 개념이 없다
  * 대신 원본에 없는 <b>일자별</b>을 구분에 넣었다 — 화면 이름이 '일별'이라 하루 단위 줄이 있어야 한다.
+ *
+ * <p><b>원본 결과 열 실측(사본)</b>: 품목코드 · 품목명[규격] · 판매(수량·단가·금액) ·
+ * 원가 · 이익 · 이익율 · <b>이익금액(부대비용포함)</b> · <b>판매부대비용</b>.
+ * 뒤 두 열이 우리에게 없었다. 부대비용은 전표 합계에 더하지 않는다 — 거래처에 청구한
+ * 돈이 아니라 우리가 쓴 돈이다. 그래서 판매액에는 안 들어가는데 <b>이익에서도 안 빠지고</b>
+ * 있었다. 운반비를 쓸수록 이익이 좋아 보인다는 뜻이다.
  */
 /**
  * [구분]. 원본 일별이익현황 사본 실측:
@@ -144,6 +150,8 @@ export default function DailyProfitPage() {
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           quantity: l.quantity, revenue, cost,
           profit: cost === null ? null : revenue - cost,
+          /** 판매부대비용. 원본 [판매부대비용] 열. 안 적었으면 0 이다. */
+          extraCost: Number(l.extraCost ?? 0),
         }
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,6 +163,7 @@ export default function DailyProfitPage() {
       return lines.map((l) => ({
         key: l.key, c1: l.date.replace(/-/g, '/'), c2: l.docNo, c3: l.partnerName, c4: l.itemName,
         qty: l.quantity, revenue: l.revenue, cost: l.cost, profit: l.profit, count: 1,
+        extra: l.extraCost,
       }))
     }
     const keyOf = (l: typeof lines[number]) =>
@@ -170,12 +179,14 @@ export default function DailyProfitPage() {
             : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName, '']
               : [l.itemCode, l.itemName, l.partnerName, '']
 
-    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number }>()
+    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
     lines.forEach((l) => {
       const k = keyOf(l)
-      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, count: 0 }
+      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, count: 0, extra: 0 }
       g.qty += l.quantity
       g.revenue += l.revenue
+      // 부대비용은 원가를 알든 모르든 다 더한다 — 실제로 쓴 돈이라 빼면 거짓이 된다.
+      g.extra += l.extraCost
       // 한 줄이라도 원가를 모르면 그 묶음의 원가·이익은 알 수 없다 — 아는 것만 더해 놓고 맞다고 하면 안 된다.
       if (l.cost === null || g.cost === null) { g.cost = null; g.profit = null }
       else { g.cost += l.cost; g.profit = (g.profit ?? 0) + (l.profit ?? 0) }
@@ -184,7 +195,7 @@ export default function DailyProfitPage() {
     })
     return [...m.values()]
       .sort((a, b) => (mode === '일자별' ? (a.key < b.key ? -1 : 1) : b.revenue - a.revenue))
-      .map((g) => ({ key: g.key, c1: g.label[0], c2: g.label[1], c3: g.label[2], c4: g.label[3], qty: g.qty, revenue: g.revenue, cost: g.cost, profit: g.profit, count: g.count }))
+      .map((g) => ({ key: g.key, c1: g.label[0], c2: g.label[1], c3: g.label[2], c4: g.label[3], qty: g.qty, revenue: g.revenue, cost: g.cost, profit: g.profit, count: g.count, extra: g.extra }))
   }, [lines, mode])
 
   /**
@@ -199,6 +210,9 @@ export default function DailyProfitPage() {
     cost: known.reduce((n, l) => n + (l.cost ?? 0), 0),
     profit: known.reduce((n, l) => n + (l.profit ?? 0), 0),
   }
+  /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
+  const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
+
   const unknownCost = lines.length - known.length
   const allUnknown = lines.length > 0 && known.length === 0
 
@@ -217,7 +231,7 @@ export default function DailyProfitPage() {
     거래처별품목별: ['거래처', '품목코드', '품목명'],
   }
   const heads = HEADS[mode]
-  const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + 4
+  const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + 6
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
@@ -324,6 +338,8 @@ export default function DailyProfitPage() {
               <th style={{ textAlign: 'right', width: 120 }}>판매액</th>
               <th style={{ textAlign: 'right', width: 120 }}>원가</th>
               <th style={{ textAlign: 'right', width: 130 }}>이익 (이익률)</th>
+              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
+              <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
             </tr>
           </thead>
           <tbody>
@@ -357,6 +373,12 @@ export default function DailyProfitPage() {
                       </>
                     )}
                   </td>
+                  <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                    {r.extra === 0 ? '—' : won(r.extra)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? '#c9ced6' : (r.profit - r.extra) < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                    {r.profit === null ? '—' : won(r.profit - r.extra)}
+                  </td>
                 </tr>
               )
             })}
@@ -364,7 +386,7 @@ export default function DailyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                <td colSpan={colCount - 6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
                   {num(rows.reduce((n, r) => n + r.qty, 0))}
                 </td>
@@ -379,6 +401,12 @@ export default function DailyProfitPage() {
                       <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>
                     </>
                   )}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: extraTotals.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                  {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : extraTotals.profitWithExtra < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                  {allUnknown ? '—' : won(extraTotals.profitWithExtra)}
                 </td>
               </tr>
             </tfoot>

@@ -54,3 +54,42 @@ export function sumProfit(
   }
   return { revenue, knownRevenue, cost, profit: knownRevenue - cost, unknown }
 }
+
+/**
+ * <b>판매부대비용</b>을 뺀 이익. 원본 이익현황의 [이익금액(부대비용포함)] 열.
+ *
+ * <p>부대비용은 전표 합계에 더하지 않는다 — 거래처에 청구한 돈이 아니라 우리가 쓴 돈이다.
+ * 그래서 판매액에는 안 들어가고, <b>이익에서는 빠져야</b> 한다. 안 빼면 운반비를 쓸수록
+ * 이익이 좋아 보인다.
+ *
+ * <p>원가를 모르는 줄은 이익을 낼 수 없어 null 이다. 그 줄의 부대비용은 그래도 <b>센다</b> —
+ * 실제로 쓴 돈이라 안 세면 부대비용 합계가 거짓이 된다.
+ */
+export function profitWithExtra(
+  profit: number | null,
+  extraCost: number,
+): number | null {
+  return profit === null ? null : profit - extraCost
+}
+
+export interface ExtraCostRow {
+  profit: number | null
+  extraCost: number
+}
+
+export interface ExtraCostTotals {
+  /** 부대비용 합계. 원가를 모르는 줄의 것도 포함한다 — 실제로 쓴 돈이다. */
+  extra: number
+  /** 부대비용을 뺀 이익 합계. 원가를 아는 줄만 더한다. */
+  profitWithExtra: number
+}
+
+export function sumExtraCost(rows: ExtraCostRow[]): ExtraCostTotals {
+  let extra = 0
+  let profitWithExtra = 0
+  for (const r of rows) {
+    extra += r.extraCost
+    if (r.profit !== null) profitWithExtra += r.profit - r.extraCost
+  }
+  return { extra, profitWithExtra }
+}
