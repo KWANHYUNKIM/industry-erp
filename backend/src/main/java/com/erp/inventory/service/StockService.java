@@ -141,6 +141,8 @@ public class StockService {
 
         BigDecimal delta = resolveDelta(req);
         LocalDate date = req.transactionDate() != null ? req.transactionDate() : LocalDate.now();
+        // 재고 이동 전표를 직접 만드는 자리다 — 수량관리제외 품목은 만들 전표가 없다.
+        requireStockTracked(item);
         StockTransaction tx = applyDelta(item, warehouse, delta, req.type(), req.unitPrice(), date, req.note(), username);
         return StockTransactionResponse.from(tx);
     }
@@ -148,11 +150,20 @@ public class StockService {
     /**
      * 잔량을 원자적으로 갱신하고 이력을 남긴다. 판매(출고)/구매(입고) 등 다른 서비스에서도 재사용.
      * delta 는 부호 있는 변동량(입고 +, 출고 -).
+     *
+     * <p><b>수량관리제외 품목이면 아무 일도 하지 않고 null 을 돌려준다.</b>
+     * 용역·운반비 같은 품목은 재고가 없다 — 잡으려 들면 팔 때마다 "재고가 부족합니다" 로
+     * 막힌다. 부르는 쪽이 25 군데라 여기 한 곳에서 막는다.
+     *
+     * <p>돌아온 전표가 필요한 쪽(재고조정)은 <b>미리</b> 걸러야 한다. 여기서 예외를 던지면
+     * 판매·생산이 그 품목 때문에 통째로 롤백된다.
      */
     @Transactional
     public StockTransaction applyDelta(Item item, Warehouse warehouse, BigDecimal delta,
                                        StockTransactionType type, BigDecimal unitPrice,
                                        LocalDate date, String note, String username) {
+        if (!item.isStockTracked()) return null;
+
         // 잔량 행을 잠그고 조회, 없으면 생성
         Stock stock = stockRepository.findForUpdate(item.getId(), warehouse.getId())
                 .orElseGet(() -> stockRepository.save(Stock.builder()
@@ -186,12 +197,27 @@ public class StockService {
     }
 
     /**
+     * 재고를 잡지 않는 품목이면 거절한다.
+     *
+     * <p>조용히 건너뛰지 않는 이유는, 이 자리들(재고조정·실사·재고이동·재고전표 직접입력)이
+     * <b>재고를 움직이는 것 자체가 목적</b>이기 때문이다. 아무 일도 안 하고 성공했다고
+     * 답하면 사람이 조정한 줄 알고 넘어간다.
+     */
+    void requireStockTracked(Item item) {
+        if (!item.isStockTracked()) {
+            throw ApiException.badRequest(
+                    "'" + item.getName() + "' 은(는) 수량관리제외 품목이라 재고를 움직일 수 없습니다.");
+        }
+    }
+
+    /**
      * 실사수량(targetQty)에 맞춰 잔량을 조정한다. 차이 계산과 반영을 같은 잠금 안에서 하므로
      * 조회 시점과 반영 시점 사이에 다른 전표가 끼어들어 조정량이 어긋나는 일이 없다.
      */
     @Transactional
     public StockTransaction adjustTo(Item item, Warehouse warehouse, BigDecimal targetQty,
                                      LocalDate date, String note, String username) {
+        requireStockTracked(item);
         BigDecimal current = stockRepository.findForUpdate(item.getId(), warehouse.getId())
                 .map(Stock::getQuantity)
                 .orElse(BigDecimal.ZERO);

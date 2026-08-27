@@ -18,6 +18,8 @@ const emptyForm = {
   purchasePrice: '0',
   safetyStock: '0',
   barcode: '',
+  /** 재고수량관리. 기본은 관리대상 — 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다. */
+  stockTracked: 'Y',
   udiDi: '',
   managementItemId: '',
   itemGroupId: '',
@@ -77,6 +79,7 @@ export default function ItemsPage() {
       purchasePrice: String(item.purchasePrice ?? 0),
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
+      stockTracked: item.stockTracked === false ? 'N' : 'Y',
       udiDi: item.udiDi ?? '',
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
       itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
@@ -96,6 +99,7 @@ export default function ItemsPage() {
       unitPrice: Number(form.unitPrice),
       purchasePrice: Number(form.purchasePrice),
       safetyStock: Number(form.safetyStock),
+      stockTracked: form.stockTracked === 'Y',
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
     }
@@ -211,6 +215,16 @@ export default function ItemsPage() {
               <input type="number" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">재고수량관리</label>
+              <select className={inputCls} value={form.stockTracked} onChange={(e) => set('stockTracked', e.target.value)}>
+                <option value="Y">수량관리대상</option>
+                <option value="N">수량관리제외</option>
+              </select>
+              <span style={{ fontSize: 11, color: '#8a929c' }}>
+                제외로 두면 이 품목은 재고를 잡지 않습니다(용역·운반비 등)
+              </span>
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">바코드</label>
               <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
             </div>
@@ -262,6 +276,7 @@ export default function ItemsPage() {
               <th style={{ textAlign: 'right' }}>판매단가</th>
               <th style={{ textAlign: 'right' }}>구매단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
+              <th style={{ width: 110 }}>재고수량관리</th>
               <th>관리항목</th>
               <th>품목그룹 ▼</th>
               <th>사용 ▼</th>
@@ -270,9 +285,9 @@ export default function ItemsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
@@ -290,6 +305,9 @@ export default function ItemsPage() {
                     {(it.purchasePrice ?? 0).toLocaleString('ko-KR')}
                   </td>
                   <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString('ko-KR')}</td>
+                  <td style={{ color: it.stockTracked === false ? '#c07a00' : undefined }}>
+                    {it.stockTracked === false ? '수량관리제외' : '수량관리대상'}
+                  </td>
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.itemGroupName ?? ''}</td>
                   <td>{it.active ? 'YES' : 'NO'}</td>

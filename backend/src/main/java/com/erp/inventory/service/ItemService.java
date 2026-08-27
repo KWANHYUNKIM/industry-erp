@@ -56,6 +56,8 @@ public class ItemService {
                 .itemGroup(groupOf(req.itemGroupId()))
                 .safetyStock(req.safetyStock())
                 .barcode(req.barcode())
+                // 안 주면 관리대상. 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다.
+                .stockTracked(req.stockTracked() == null || req.stockTracked())
                 .udiDi(req.udiDi())
                 .managementItem(req.managementItemId() == null ? null : managementItemService.get(req.managementItemId()))
                 .active(true)
@@ -75,6 +77,7 @@ public class ItemService {
         item.setItemGroup(groupOf(req.itemGroupId()));
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
+        if (req.stockTracked() != null) item.setStockTracked(req.stockTracked());
         item.setUdiDi(req.udiDi());
         item.setManagementItem(req.managementItemId() == null ? null : managementItemService.get(req.managementItemId()));
         if (req.active() != null) {

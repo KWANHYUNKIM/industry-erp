@@ -93,6 +93,19 @@ public class Item extends BaseTimeEntity {
     private String udiDi;
 
     /** 사용 여부 */
+    /**
+     * 재고수량관리 — 원본 품목등록 리스트의 열이다(값이 '수량관리대상' · '수량관리제외').
+     *
+     * <p>용역·운반비 같은 품목은 재고를 잡지 않는다. 우리는 모든 품목의 재고를 잡아서,
+     * 그런 품목을 판매전표에 넣으면 "재고가 부족합니다" 로 막히거나 재고가 음수 쪽으로 밀렸다.
+     *
+     * <p>기본은 <b>관리대상</b>이다. 대부분의 품목이 그렇고, 모르고 껐다가 재고가
+     * 조용히 안 움직이는 것보다는 켜 두고 필요할 때 끄는 쪽이 안전하다.
+     */
+    @Column(name = "stock_tracked", nullable = false)
+    @lombok.Builder.Default
+    private boolean stockTracked = true;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

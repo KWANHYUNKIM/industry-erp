@@ -3444,6 +3444,74 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 품목의 <b>재고수량관리</b>(수량관리대상 / 수량관리제외).
+ *
+ * <p>원본 품목등록 리스트의 열이고 줄 값이 '수량관리대상'·'수량관리제외' 다.
+ * 일별이익현황 조건에도 [수량관리제외품목포함] 이 있다.
+ *
+ * <p>우리는 <b>모든 품목의 재고를 잡았다</b>. 용역·운반비 같은 품목을 판매전표에 넣으면
+ * 재고가 없어 "재고가 부족합니다" 로 막힌다 — 팔 수가 없다.
+ *
+ * <p>막는 자리는 StockService.applyDelta 한 곳이다. 부르는 데가 25 군데라
+ * 각자 막게 두면 어느 한 곳이 빠진다. 다만 <b>재고를 움직이는 것 자체가 목적</b>인 자리
+ * (재고조정·실사·재고전표 직접입력)는 조용히 건너뛰지 않고 거절한다 — 아무 일도 안 하고
+ * 성공했다고 답하면 사람이 조정한 줄 알고 넘어간다.
+ */
+async function scenarioStockTracked(f) {
+  section('■ 재고수량관리(수량관리제외)')
+
+  const code = `${P}SVC`
+  for (const it of (await must('GET', '/items')).filter((x) => x.code === code)) {
+    await call('DELETE', `/items/${it.id}`)
+  }
+
+  const svc = await must('POST', '/items', {
+    code, name: `${P}운반비`, unit: 'EA', category: 'RAW_MATERIAL',
+    unitPrice: 5000, purchasePrice: 0, safetyStock: 0, stockTracked: false,
+  })
+  eq('수량관리제외로 만들 수 있다', svc.stockTracked, false)
+  eq('안 주면 관리대상이다',
+    (await must('POST', '/items', {
+      code: `${code}2`, name: `${P}보통품목`, unit: 'EA', category: 'RAW_MATERIAL',
+      unitPrice: 100, purchasePrice: 0, safetyStock: 0,
+    })).stockTracked, true)
+
+  const stockOf = async (itemId) => {
+    const rows = await must('GET', '/stock')
+    return rows.filter((x) => x.itemId === itemId).reduce((n, x) => n + Number(x.quantity), 0)
+  }
+
+  // 재고가 한 톨도 없는데 팔 수 있어야 한다 — 이게 이 설정의 값어치다.
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2098-06-07',
+    lines: [{ itemId: svc.id, quantity: 3, unitPrice: 5000 }],
+  })
+  eq('재고 없이도 팔린다', Number(sale.supplyAmount), 15000)
+  eq('그래도 재고는 안 움직인다', await stockOf(svc.id), 0)
+
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('지워도 재고는 그대로다', await stockOf(svc.id), 0)
+
+  // 재고를 움직이는 것이 목적인 자리는 거절한다.
+  const tx = await call('POST', '/stock/transactions', {
+    itemId: svc.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 5,
+  })
+  eq('재고전표 직접입력은 400', tx.status, 400)
+  eq('왜 안 되는지 말한다', /수량관리제외/.test(String(tx.data?.message ?? '')), true)
+
+  const adj = await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: svc.id, warehouseId: f.warehouse.id, actualQty: 7,
+  })
+  eq('재고실사도 400', adj.status, 400)
+
+  for (const it of (await must('GET', '/items')).filter((x) => (x.code ?? '').startsWith(code))) {
+    await must('DELETE', `/items/${it.id}`)
+  }
+  eq('시험용 품목은 남기지 않는다',
+    (await must('GET', '/items')).filter((x) => (x.code ?? '').startsWith(code)).length, 0)
+}
+
+/**
  * 계정 ↔ 사원 연결이 근태현황의 <b>직급·사원번호·부서명</b>을 채우는가.
  *
  * <p>원본 근태현황의 열은 전표일자 · 근태일자 · <b>부서명</b> · <b>직급</b> ·
@@ -5614,6 +5682,7 @@ async function main() {
   await scenarioSalesExtraCost(fixtures)
   await scenarioShipmentLineRemark(fixtures)
   await scenarioUserEmployeeLink()
+  await scenarioStockTracked(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
