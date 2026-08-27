@@ -16,7 +16,9 @@ import { api, extractErrorMessage } from '../../api/client'
  * 창고 칸을 들고 있었다 — 응답에 안 실어서 화면이 몰랐을 뿐이다. 지금은 실린다.
  * 다만 <b>예전에 만든 출하는 창고가 비어 있다</b>(출하지시서에서 고를 수 있게 되기 전 자료라
  * 그렇다). 그 줄들은 이 조건에 안 걸린다 — 지어내서 채우지 않는다.
- * 프로젝트·관리항목·시리얼/로트는 여전히 없어 칸을 만들지 않는다.
+ * <p>[프로젝트]도 이제 있다. 판매·구매·비용은 진작 프로젝트를 다는데 출하만 안 달아서,
+ * 프로젝트별로 얼마를 내보냈는지 셀 수가 없었다.
+ * 관리항목·시리얼/로트는 여전히 없어 칸을 만들지 않는다.
  * 상태 필터는 원본에 없지만 우리 출하는 지시/완료/취소를 한 화면에서 보므로 남겨 둔다.
  *
  * <p>내역 행의 칸 구성은 원본 출하조회 격자를 따른다: 일자-No. · 품목명(요약) · 수량합계 · 거래처명.
@@ -56,6 +58,8 @@ interface Shipment {
   salesOrderNo: string | null
   /** 창고명. 원본 출하현황의 [창고명] 열 — 어느 창고에서 나갔는지가 안 보였다. */
   warehouseName: string | null
+  /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
+  projectName: string | null
   remark: string | null
   createdBy: string | null
   lines: ShipLine[]
@@ -77,6 +81,7 @@ export default function ShipmentPage() {
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
+  const [project, setProject] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | ShipStatus>('ALL')
 
   async function load() {
@@ -91,7 +96,7 @@ export default function ShipmentPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to); setCompare('사용안함'); setMode('내역')
-    setShipNo(''); setPartner(''); setItem(''); setStatusFilter('ALL'); setWarehouse('')
+    setShipNo(''); setPartner(''); setItem(''); setStatusFilter('ALL'); setWarehouse(''); setProject('')
   }
 
   const inRange = (r: Shipment, a: string, b: string) => r.shipDate >= a && r.shipDate <= b
@@ -101,12 +106,13 @@ export default function ShipmentPage() {
     if (partner && !r.partnerName.includes(partner)) return false
     if (item && !r.lines.some((l) => `${l.itemCode} ${l.itemName}`.includes(item))) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (project && !(r.projectName ?? '').includes(project)) return false
     return true
   }
 
   const shown = useMemo(
     () => rows.filter((r) => inRange(r, from, to) && matches(r)),
-    [rows, from, to, statusFilter, shipNo, partner, item, warehouse],
+    [rows, from, to, statusFilter, shipNo, partner, item, warehouse, project],
   )
 
   /** 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 합계만 견준다. */
@@ -119,7 +125,7 @@ export default function ShipmentPage() {
       qty: prev.reduce((n, r) => n + r.totalQuantity, 0),
       amount: prev.reduce((n, r) => n + r.totalAmount, 0),
     }
-  }, [rows, prevRange, statusFilter, shipNo, partner, item, warehouse])
+  }, [rows, prevRange, statusFilter, shipNo, partner, item, warehouse, project])
 
   const totals = useMemo(
     () => shown.reduce((a, r) => ({ qty: a.qty + r.totalQuantity, amount: a.amount + r.totalAmount }),
@@ -169,6 +175,10 @@ export default function ShipmentPage() {
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}
                  onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
+                 onChange={(e) => setProject(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={partner}

@@ -36,6 +36,8 @@ public final class ShipmentDtos {
             String contact,
             String postalCode,
             String address,
+            /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. 안 정할 수 있다. */
+            Long projectId,
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines
     ) {}
@@ -73,6 +75,8 @@ public final class ShipmentDtos {
             String contact, String postalCode, String address,
             ShipmentStatus status, String statusName,
             BigDecimal totalQuantity, BigDecimal totalAmount,
+            /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
+            Long projectId, String projectName,
             String remark, String createdBy,
             List<ShipLineResponse> lines
     ) {
@@ -92,6 +96,8 @@ public final class ShipmentDtos {
                     s.getContact(), s.getPostalCode(), s.getAddress(),
                     s.getStatus(), s.getStatus().getDisplayName(),
                     s.getTotalQuantity(), s.getTotalAmount(),
+                    s.getProject() != null ? s.getProject().getId() : null,
+                    s.getProject() != null ? s.getProject().getName() : null,
                     s.getRemark(), s.getCreatedBy(),
                     s.getLines().stream().map(ShipLineResponse::from).toList());
         }

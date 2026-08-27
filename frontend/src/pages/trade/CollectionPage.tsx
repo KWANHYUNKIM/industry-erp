@@ -16,7 +16,9 @@ import { api, extractErrorMessage } from '../../api/client'
  *
  * 거래처관리담당자는 <b>거래처 마스터에 있다</b>. Settlement 에 없다고 조건을 빼 뒀었는데,
  * 원본도 정산이 아니라 거래처를 보고 거르는 것이라 거래처를 통해 이으면 된다.
- * 부서·프로젝트는 정산에도 거래처에도 없어 여전히 만들지 않는다.
+ * <p>[프로젝트]도 이제 있다. 판매·구매·비용은 진작 프로젝트를 다는데 정산만 안 달아서,
+ * 프로젝트별로 얼마를 받았는지 셀 수가 없었다.
+ * 부서는 정산에도 거래처에도 없어 여전히 만들지 않는다.
  */
 interface Settlement {
   id: number
@@ -29,6 +31,8 @@ interface Settlement {
   settleDate: string
   amount: number
   method: string | null
+  /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
+  projectName: string | null
   note: string | null
 }
 
@@ -44,7 +48,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [keyword, setKeyword] = useState('')
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
   const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', method: '', manager: '' })
+  const [cond, setCond] = useState({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -89,11 +93,12 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
     .filter((r) => !cond.manager
       || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
+    .filter((r) => !cond.project || (r.projectName ?? '').includes(cond.project))
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', method: '', manager: '' })
+    setCond({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
     setKeyword('')
   }
 
@@ -119,6 +124,10 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
                  onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={cond.project}
+                 onChange={(e) => setC({ project: e.target.value })} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <input className="ec-input" placeholder="담당자 일부" value={cond.manager}

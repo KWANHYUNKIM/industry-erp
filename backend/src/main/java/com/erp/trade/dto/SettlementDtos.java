@@ -18,6 +18,8 @@ public final class SettlementDtos {
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             String method,
             LocalDate settleDate,
+            /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. 안 정할 수 있다. */
+            Long projectId,
             String note
     ) {}
 
@@ -27,7 +29,10 @@ public final class SettlementDtos {
             Long partnerId, String partnerName,
             LocalDate settleDate,
             BigDecimal amount,
-            String method, String note, String createdBy
+            String method,
+            /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
+            Long projectId, String projectName,
+            String note, String createdBy
     ) {
         public static SettlementResponse from(Settlement s) {
             return new SettlementResponse(
@@ -35,7 +40,10 @@ public final class SettlementDtos {
                     s.getType(), s.getType().getDisplayName(),
                     s.getPartner().getId(), s.getPartner().getName(),
                     s.getSettleDate(), s.getAmount(),
-                    s.getMethod(), s.getNote(), s.getCreatedBy());
+                    s.getMethod(),
+                    s.getProject() != null ? s.getProject().getId() : null,
+                    s.getProject() != null ? s.getProject().getName() : null,
+                    s.getNote(), s.getCreatedBy());
         }
     }
 }

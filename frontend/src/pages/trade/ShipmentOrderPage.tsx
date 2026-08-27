@@ -59,6 +59,12 @@ export default function ShipmentOrderPage() {
   const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
   const [remark, setRemark] = useState('')
+  /**
+   * 귀속 프로젝트. 출하현황의 [프로젝트] 조건이 이 값을 본다 —
+   * 조건만 있고 정할 자리가 없으면 그 조건은 늘 빈칸만 거른다.
+   */
+  const [projectId, setProjectId] = useState('')
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
@@ -66,15 +72,16 @@ export default function ShipmentOrderPage() {
 
   async function load() {
     try {
-      const [s, p, i, w, e] = await Promise.all([
+      const [s, p, i, w, e, pj] = await Promise.all([
         api.get<Shipment[]>('/shipments'),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
         api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
       setShipments(s.data); setPartners(p.data); setItems(i.data)
-      setWarehouses(w.data); setEmployees(e.data)
+      setWarehouses(w.data); setEmployees(e.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { load() }, [])
@@ -111,11 +118,12 @@ export default function ShipmentOrderPage() {
         contact: contact || undefined,
         postalCode: postalCode || undefined,
         address: address || undefined,
+        projectId: projectId ? Number(projectId) : null,
         remark: remark || undefined,
         lines: validLines,
       })
       setOk(`${res.data.shipNo} 출하지시 등록 완료 (수량 ${won(res.data.totalQuantity)})`)
-      setLines([emptyLine()]); setRemark('')
+      setLines([emptyLine()]); setRemark(''); setProjectId('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -191,6 +199,16 @@ export default function ShipmentOrderPage() {
                 </td>
                 <th style={th}>연락처</th>
                 <td><input className={inputCls} value={contact} onChange={(e) => setContact(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>프로젝트</th>
+                <td>
+                  <select className={inputCls} value={projectId} onChange={(e) => setProjectId(e.target.value)}
+                          style={{ width: '100%' }}>
+                    <option value="">선택 안 함</option>
+                    {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+                  </select>
+                </td>
               </tr>
               <tr>
                 <th style={th}>우편번호</th>

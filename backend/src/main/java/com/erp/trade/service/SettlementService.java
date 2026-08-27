@@ -22,6 +22,7 @@ import com.erp.trade.dto.SettlementDtos;
 public class SettlementService {
 
     private final SettlementRepository settlementRepository;
+    private final com.erp.inventory.service.ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -46,6 +47,7 @@ public class SettlementService {
                 .settleDate(date)
                 .amount(req.amount())
                 .method(req.method())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .createdBy(username)
                 .build();

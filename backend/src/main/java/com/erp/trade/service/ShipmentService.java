@@ -49,6 +49,7 @@ public class ShipmentService {
     private final WarehouseService warehouseService;
     private final EmployeeService employeeService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.inventory.service.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<ShipmentResponse> findAll() {
@@ -91,6 +92,7 @@ public class ShipmentService {
                 .address(req.address() != null && !req.address().isBlank()
                         ? req.address() : partner.getAddress())
                 .status(ShipmentStatus.READY)
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
@@ -157,6 +159,8 @@ public class ShipmentService {
                 .salesOrder(order)
                 .shipDate(shipDate)
                 .status(ShipmentStatus.READY)
+                // 주문에서 만든 출하는 프로젝트가 비어 나간다 — 주문서에 프로젝트 칸이 없어
+                // 이어받을 것이 없다. 지어내지 않고 출하 화면에서 고르게 둔다.
                 .remark("주문 " + order.getOrderNo() + " 출하")
                 .createdBy(username)
                 .build();

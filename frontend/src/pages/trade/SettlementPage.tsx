@@ -38,6 +38,12 @@ export default function SettlementPage() {
   const [method, setMethod] = useState('현금')
   const [date, setDate] = useState(today())
   const [note, setNote] = useState('')
+  /**
+   * 귀속 프로젝트. 수금현황·지급현황의 [프로젝트] 조건이 이 값을 본다 —
+   * 조건만 있고 정할 자리가 없으면 그 조건은 늘 빈칸만 거른다.
+   */
+  const [projectId, setProjectId] = useState('')
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
 
   // 수금=매출처, 지급=매입처
   const usablePartners = useMemo(
@@ -47,7 +53,12 @@ export default function SettlementPage() {
 
   async function load() {
     try {
-      const [p, s] = await Promise.all([api.get<Partner[]>('/partners'), api.get<Settlement[]>('/settlements')])
+      const [p, s, pj] = await Promise.all([
+        api.get<Partner[]>('/partners'),
+        api.get<Settlement[]>('/settlements'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
+      ])
+      setProjects(pj.data)
       setPartners(p.data)
       setRows(s.data)
     } catch (err) {
@@ -65,10 +76,12 @@ export default function SettlementPage() {
     if (!(Number(amount) > 0)) return setError('금액을 입력하세요.')
     try {
       const res = await api.post<Settlement>('/settlements', {
-        type, partnerId: Number(partnerId), amount: Number(amount), method, settleDate: date, note: note || undefined,
+        type, partnerId: Number(partnerId), amount: Number(amount), method, settleDate: date,
+        projectId: projectId ? Number(projectId) : null,
+        note: note || undefined,
       })
       setOk(`${res.data.docNo} 저장 완료 · ${res.data.typeName} ${won(res.data.amount)}원`)
-      setAmount(''); setNote('')
+      setAmount(''); setNote(''); setProjectId('')
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -125,6 +138,14 @@ export default function SettlementPage() {
               <label className="mb-1 block text-xs text-slate-600">결제수단</label>
               <select className={inputCls} style={{ width: '100%' }} value={method} onChange={(e) => setMethod(e.target.value)}>
                 {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-600">프로젝트</label>
+              <select className={inputCls} style={{ width: '100%' }} value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">선택 안 함</option>
+                {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
               </select>
             </div>
             <div>

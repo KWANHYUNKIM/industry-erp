@@ -3444,6 +3444,63 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 출하·정산의 <b>프로젝트</b>.
+ *
+ * <p>원본 조건 판 실측(사본):
+ *   출하현황 — 출하No. · 창고 · <b>프로젝트</b> · 관리항목 · 거래처 · 품목 · 시리얼/로트No.
+ *   수금현황·지급현황 — 기준일자 · 거래처 · 부서 · <b>프로젝트</b> · 거래처관리담당자
+ *
+ * <p>판매·구매·비용은 진작 프로젝트를 단다 — Project 를 groupware 에서 inventory 로
+ * 옮긴 것도 전표가 프로젝트를 참조할 수 있게 하려던 것이다. 그런데 <b>출하와 정산만</b>
+ * 안 달았다. 프로젝트별 손익을 집계한다면서 돈이 들어오고 나가는 전표가 프로젝트를 모르면,
+ * 그 프로젝트로 얼마를 받았는지 셀 수가 없다.
+ */
+async function scenarioShipmentSettlementProject(f) {
+  section('■ 출하·정산 프로젝트')
+
+  // 개발 자료에 프로젝트가 한 건도 없어 직접 만들어 쓴다.
+  // 있는 것을 골라 쓰면 그 프로젝트가 지워졌을 때 이 시나리오가 조용히 안 재게 된다.
+  for (const x of (await must('GET', '/projects')).filter((x) => (x.name ?? '').startsWith(P))) {
+    await call('DELETE', `/projects/${x.id}`)
+  }
+  const pj = await must('POST', '/projects', { name: `${P}프로젝트`, manager: 'QA' })
+  eq('프로젝트를 만들 수 있다', pj.name, `${P}프로젝트`)
+
+  const ship = await must('POST', '/shipments', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, shipDate: '2090-03-04',
+    projectId: pj.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('출하에 프로젝트가 붙는다', ship.projectId, pj.id)
+  eq('프로젝트명도 실린다', ship.projectName, pj.name)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/shipments')).find((x) => x.id === ship.id).projectName, pj.name)
+
+  const st = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 1000,
+    method: '현금', settleDate: '2090-03-04', projectId: pj.id, note: `${P}프로젝트`,
+  })
+  eq('정산에 프로젝트가 붙는다', st.projectId, pj.id)
+  eq('정산도 프로젝트명이 실린다', st.projectName, pj.name)
+
+  // 안 정할 수 있어야 한다 — 프로젝트를 안 쓰는 회사도 있고,
+  // 프로젝트에 안 묶이는 거래도 있다. 지어내면 남의 프로젝트 손익이 된다.
+  const plain = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 500,
+    method: '현금', settleDate: '2090-03-04', note: `${P}프로젝트없음`,
+  })
+  isNull('안 정하면 null 이다', plain.projectId)
+
+  for (const x of [st, plain]) await must('DELETE', `/settlements/${x.id}`)
+  await must('DELETE', `/shipments/${ship.id}`)
+  await must('DELETE', `/projects/${pj.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/settlements')).filter((x) => x.settleDate === '2090-03-04').length, 0)
+  eq('시험용 프로젝트도 남기지 않는다',
+    (await must('GET', '/projects')).filter((x) => (x.name ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 생산불출의 <b>담당자</b>와 <b>생산품목</b>.
  *
  * <p>원본 생산불출입력·생산불출조회의 머리는 일자 · <b>담당자</b> · 보내는창고 ·
@@ -6009,6 +6066,7 @@ async function main() {
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
   await scenarioIssueEmployee(fixtures)
+  await scenarioShipmentSettlementProject(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
