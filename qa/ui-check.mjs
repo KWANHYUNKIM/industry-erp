@@ -1681,6 +1681,61 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-m) 원본 화면 탭 ↔ 우리 탭 ──────────────────────────────────────────
+console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
+
+/*
+ * <b>원본은 상태를 탭으로 가른다.</b> 사본에서 <code>tab-text</code> 를 뽑아
+ * <code>qa/fixtures/ecount-screen-tabs.json</code>(26화면)에 적었다.
+ *
+ * <p>탭이 없으면 그 상태만 보는 길이 없다. 출·퇴근기록부가 그랬다 — 원본은
+ * <b>[사용자]가 기본</b>이라 내 기록만 나오는데, 우리는 늘 전체를 뿌려서 사람이 많은
+ * 회사에서는 내 줄을 눈으로 찾아야 했다.
+ *
+ * <p>[기본]·[전체] 둘뿐인 것은 조건 판 자체의 탭이라(조건 묶음 저장) 안 본다.
+ */
+{
+  const TAB_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-screen-tabs.json'), 'utf8'))
+  /** 원본에 있지만 우리가 안 만든 탭 — 이유를 적는다. */
+  const NO_TAB = new Map([
+    ['거래처관리대장 II|전체', '조건 판 탭이다(기본/전체) — 거래처등록에는 그 개념이 없다'],
+    ['거래처관리대장 II|리스트', '거래처등록 화면 자체가 그 리스트다'],
+    ['결제내역조회|강제회계반영', '전표를 강제로 만든 것인지 구분해 두지 않는다 — 반영/미반영뿐이다'],
+    ['근태조회|UserPay', '이름만으로 뜻을 못 잡았다 — 사본 값이 비어 있어 무엇을 거르는지 모른다'],
+    ['생산불출조회|결재중', '생산 전표를 전자결재에 올리지 않는다'],
+    ['생산불출조회|미확인', '생산 전표에 확인 상태가 없다(판매·구매에만 있다)'],
+    ['생산불출조회|확인', '위와 같음'], ['생산불출조회|전체', '가를 것이 없어 탭을 두지 않는다'],
+    ['생산입고조회|결재중', '위와 같음'], ['생산입고조회|미확인', '위와 같음'],
+    ['생산입고조회|확인', '위와 같음'], ['생산입고조회|전체', '위와 같음'],
+    ['작업지시서조회|결재중', '위와 같음'], ['작업지시서조회|미확인', '위와 같음'],
+    ['작업지시서조회|확인', '위와 같음'],
+    ['생산입고II-소모품목 선택|생산', '원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다'],
+    ['생산입고II-소모품목 선택|소모', '위와 같음'],
+    ['생산입고 III-소모품목 선택|생산', '위와 같음'],
+    ['생산입고 III-소모품목 선택|소모', '위와 같음'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [screen, tabs] of Object.entries(cap)) {
+    if (tabs.length === 2 && tabs[0] === '기본' && tabs[1] === '전체') continue
+    const rel = TAB_MAP.get(screen)
+    if (!rel) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    for (const t of tabs) {
+      if (NO_TAB.has(`${screen}|${t}`)) continue
+      checked++
+      if (!src.includes(`'${t}'`) && !src.includes(`"${t}"`) && !src.includes(`>${t}<`)) {
+        bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 탭 [${t}] 가 없다`)
+      }
+    }
+  }
+  eq(`원본 탭 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_TAB.size}개는 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

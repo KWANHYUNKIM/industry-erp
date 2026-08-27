@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useAuth } from '../../auth/AuthContext'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -36,6 +37,12 @@ export default function WorkIntegratedPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
+  /**
+   * 원본 출·퇴근기록부(ID)의 탭 — <b>[사용자]가 기본</b>이다. 내 기록만 보는 자리인데
+   * 우리는 늘 전체를 뿌려서, 사람이 많은 회사에서는 내 줄을 눈으로 찾아야 했다.
+   */
+  const [tab, setTab] = useState<'사용자' | '전체'>('사용자')
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -79,14 +86,23 @@ export default function WorkIntegratedPage() {
     }
     return [...map.values()]
       .filter((r) => !keyword || r.name.includes(keyword) || (r.department ?? '').includes(keyword))
+      // 원본 탭 [사용자] — 내 기록만 본다. 사람이 많은 회사에서 남의 줄 사이를 훑을 일이 아니다.
+      .filter((r) => tab === '전체' || r.name === user?.name)
       .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'ko'))
-  }, [att, events, from, to, keyword])
+  }, [att, events, from, to, keyword, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
 
   return (
     <EcListShell title="출퇴근/근태/일정 통합현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
+      {/* 원본 출·퇴근기록부(ID)의 탭 — [사용자]는 내 기록만, [전체]는 모두. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {(['사용자', '전체'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+                  onClick={() => setTab(t)}>{t}</button>
+        ))}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
