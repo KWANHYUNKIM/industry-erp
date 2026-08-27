@@ -3,7 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
+import { stockCostMap, sumStockValue } from '../../utils/stockValue'
 
 /**
  * 생산관리 > 생산입고현황 — 생산입고 전표(/api/productions)를 기간·조건으로 본다.
@@ -14,8 +15,18 @@ import type { Warehouse } from '../../api/types'
  *
  * <p>원본 조건 판 실측:
  *   [구분] 내역 | 집계 | 라인별 · 일자(금월(~오늘)) · 창고 · 프로젝트 · 품목 · 담당자 · 적요
- * 우리는 조건 판이 아예 없었다(검색어 한 칸이 전부). 프로젝트·적요는 생산입고에 그 값이
+ * 우리는 조건 판이 아예 없었다(검색어 한 칸이 전부). 프로젝트는 생산입고에 그 값이
  * 없어 칸을 만들지 않는다 — 값이 없는 조건칸은 만들지 않는다.
+ *
+ * <p>원본 결과 열 실측(사본): 일자-No. · <b>출고창고명</b> · <b>입고창고명</b> ·
+ * 품목명[규격명] · 수량 · <b>생산금액</b> · <b>적요</b>.
+ * 우리는 창고가 한 칸이었고 금액과 적요가 없었다 — 몇 개 들어왔는지만 보이고
+ * 그게 얼마짜리인지는 이 화면에서 알 수 없었다.
+ *
+ * <p>생산금액은 생산수량 × 그 품목의 <b>평가단가</b>다. 단가는 재고평가와 같은 규칙을
+ * 쓴다(마지막 입고단가 → 품목 구매단가). 판매단가로 매기면 아직 팔지도 않은 이익이
+ * 생산금액에 얹힌다. 단가를 모르는 전표는 <b>합계에서 빼고 몇 건인지 밝힌다</b> —
+ * 0 으로 세면 그 전표가 공짜로 만들어진 것이 된다.
  */
 type Mode = '내역' | '집계' | '라인별'
 const MODES = ['내역', '집계', '라인별'] as const
@@ -38,9 +49,12 @@ interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
+  note: string | null
   materials: Material[]
 }
 
@@ -49,6 +63,8 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 export default function ReceiptStatusPage() {
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -64,10 +80,14 @@ export default function ReceiptStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const [prod, wh] = await Promise.all([
+      const [prod, wh, it, pu] = await Promise.all([
         api.get<Production[]>('/productions'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<Item[]>('/items'),
+        api.get<PurchaseDoc[]>('/purchases'),
       ])
+      setItems(it.data)
+      setPurchases(pu.data)
       setRows([...prod.data].sort((a, b) =>
         (a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : b.id - a.id)))
       setWarehouses(wh.data)
@@ -121,6 +141,17 @@ export default function ReceiptStatusPage() {
 
   const totalQty = shown.reduce((n, r) => n + r.producedQty, 0)
 
+  /** 품목별 평가단가. 재고평가와 같은 규칙을 쓴다 — 화면마다 따로 매기면 한쪽만 어긋난다. */
+  const cost = useMemo(() => stockCostMap(items, purchases.map((d) => ({
+    purchaseDate: d.purchaseDate,
+    lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
+  }))), [items, purchases])
+
+  /** 생산금액 합계. 단가를 모르는 전표는 빼고 몇 건인지 함께 돌려준다. */
+  const amount = useMemo(() => sumStockValue(
+    shown.map((r) => ({ quantity: r.producedQty, unitCost: cost.get(r.productId) ?? null })),
+  ), [shown, cost])
+
   return (
     <EcListShell
       title="생산입고현황"
@@ -159,6 +190,11 @@ export default function ReceiptStatusPage() {
         입고 전표 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{shown.length}</b>건
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         입고수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalQty)}</b>
+        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        생산금액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(Math.round(amount.value))}</b>
+        {amount.unknown > 0 && (
+          <span style={{ marginLeft: 6, color: '#c07a00' }}>※ 단가 미정 {amount.unknown}건 제외</span>
+        )}
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -241,37 +277,48 @@ export default function ReceiptStatusPage() {
               <th style={{ width: 34 }}></th>
               <th style={{ width: 180 }}>일자-No.</th>
               <th style={{ width: 150 }}>작업지시번호</th>
+              <th style={{ width: 120 }}>출고창고명</th>
+              <th style={{ width: 120 }}>입고창고명</th>
               <th>생산품목</th>
-              <th style={{ width: 110, textAlign: 'right' }}>입고수량</th>
+              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
               <th style={{ width: 90, textAlign: 'right' }}>소모자재</th>
-              <th style={{ width: 130 }}>창고명</th>
               <th style={{ width: 110 }}>담당자</th>
+              <th style={{ width: 150 }}>적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.productionDate} {r.prodNo}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
+                <td style={{ color: r.fromWarehouseName ? undefined : '#c9ced6' }}>
+                  {r.fromWarehouseName ?? r.warehouseName}
+                </td>
+                <td>{r.warehouseName}</td>
                 <td>[{r.productCode}] {r.productName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(r.producedQty)} {r.productUnit}
                 </td>
+                <td style={{ textAlign: 'right', color: cost.get(r.productId) == null ? '#c9ced6' : undefined }}>
+                  {cost.get(r.productId) == null ? '-' : num(Math.round(r.producedQty * cost.get(r.productId)!))}
+                </td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.materials.length}</td>
-                <td>{r.warehouseName}</td>
                 <td>{r.createdBy ?? ''}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(Math.round(amount.value))}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>

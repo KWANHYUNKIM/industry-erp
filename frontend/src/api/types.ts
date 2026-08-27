@@ -357,6 +357,8 @@ export interface Production {
    */
   fromWarehouseId: number | null
   fromWarehouseName: string | null
+  /** 적요. 원본 생산입고현황의 마지막 열. */
+  note: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null

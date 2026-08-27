@@ -18,6 +18,8 @@ export default function ProductionResultPage() {
   const [workOrderId, setWorkOrderId] = useState('')
   const [qty, setQty] = useState('')
   const [date, setDate] = useState(today())
+  /** 적요 — 원본 생산입고현황의 마지막 열. 전표에 왜 이 입고를 했는지 남긴다. */
+  const [note, setNote] = useState('')
   /**
    * 원본 생산입고 I 의 머리 항목 — [생산된공장] · [받는창고].
    *
@@ -68,7 +70,7 @@ export default function ProductionResultPage() {
 
   function reset() {
     setQty(''); setWorkOrderId(''); setPreview([]); setError(''); setOk('')
-    setFromWarehouseId(''); setToWarehouseId('')
+    setFromWarehouseId(''); setToWarehouseId(''); setNote('')
   }
 
   async function submit(e: FormEvent) {
@@ -84,12 +86,14 @@ export default function ProductionResultPage() {
         productionDate: date,
         fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
         warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
+        note: note || null,
       })
       setOk(`${res.data.prodNo} 생산 완료 · 완제품 ${won(res.data.producedQty)} 입고, 자재 ${res.data.materials.length}종 출고`)
       setQty('')
       setWorkOrderId('')
       setFromWarehouseId('')
       setToWarehouseId('')
+      setNote('')
       setPreview([])
       loadOrders()
       loadProductions()
@@ -170,6 +174,13 @@ export default function ProductionResultPage() {
                     ))}
                   </select>
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>적요</th>
+                <td>
+                  <input className="ec-input" value={note} onChange={(e) => setNote(e.target.value)}
+                         style={{ width: '100%' }} />
                 </td>
               </tr>
             </tbody>

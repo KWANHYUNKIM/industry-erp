@@ -64,6 +64,13 @@ public class Production extends BaseTimeEntity {
     @Column(length = 50)
     private String createdBy;
 
+    /**
+     * 적요 — 원본 생산입고현황의 마지막 열이고 생산입고 III 그리드의 마지막 열이다.
+     * 판매·구매·생산불출 전표는 이미 다 들고 있는데 생산입고에만 없었다.
+     */
+    @Column(length = 255)
+    private String note;
+
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

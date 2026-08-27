@@ -64,7 +64,10 @@ const today = () => ymd(new Date())
  * 자재는 생산된공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
  * 비워 두면 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있어 강제하지 않는다.
  */
-const emptyForm = { workOrderId: '', producedQty: '', productionDate: today(), fromWarehouseId: '', toWarehouseId: '' }
+const emptyForm = {
+  workOrderId: '', producedQty: '', productionDate: today(),
+  fromWarehouseId: '', toWarehouseId: '', note: '',
+}
 
 export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
   const title = withQualityRequest ? '생산입고 III - 소모품목 선택(품질검사요청)' : '생산입고 II - 소모품목 선택'
@@ -144,6 +147,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
         productionDate: form.productionDate || null,
         fromWarehouseId: form.fromWarehouseId ? Number(form.fromWarehouseId) : null,
         warehouseId: form.toWarehouseId ? Number(form.toWarehouseId) : null,
+        note: form.note || null,
         materials,
       })
       let msg = `생산입고 ${res.data.prodNo} 등록`
@@ -244,6 +248,11 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
               </select>
               <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
+            </div>
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <input className={inputCls} value={form.note} placeholder="원본 그리드의 마지막 열"
+                     onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </div>
           </div>
 

@@ -3486,8 +3486,14 @@ async function scenarioProductionWarehouses(f) {
   })
   const made = await must('POST', '/productions', {
     workOrderId: wo.id, producedQty: 2, productionDate: '2026-07-15',
-    fromWarehouseId: f.warehouse.id, warehouseId: store.id,
+    fromWarehouseId: f.warehouse.id, warehouseId: store.id, note: `${P}생산적요`,
   })
+
+  // 적요는 원본 생산입고현황의 마지막 열이고 생산입고 III 그리드의 마지막 열이다.
+  // 판매·구매·생산불출은 이미 다 들고 있는데 생산입고에만 없었다.
+  eq('적요가 실린다', made.note, `${P}생산적요`)
+  eq('다시 조회해도 적요가 유지된다',
+    (await must('GET', '/productions')).find((x) => x.id === made.id).note, `${P}생산적요`)
   eq('생산된공장이 실린다', made.fromWarehouseId, f.warehouse.id)
   eq('받는창고가 실린다', made.warehouseId, store.id)
   // 생산입고 I·II·III·조회 네 화면이 [생산된공장] 칸에 이 이름을 그대로 찍는다.

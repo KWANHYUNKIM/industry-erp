@@ -60,6 +60,8 @@ public final class ProductionDtos {
             Long fromWarehouseId,
             /** 받는창고 — 완제품이 들어갈 곳. 안 주면 작업지시의 창고. */
             Long warehouseId,
+            /** 적요. 원본 생산입고현황·생산입고 III 그리드의 마지막 열. */
+            String note,
             /** 선택: 수동 소모자재 목록. 있으면 이 목록대로 소모, 없으면 BOM 자동소모 */
             List<@Valid ManualConsumeLine> materials
     ) {}
@@ -88,6 +90,8 @@ public final class ProductionDtos {
             /** 생산된공장 — 자재를 소모한 곳. 원본 [생산된공장명]. 안 정했으면 null. */
             Long fromWarehouseId, String fromWarehouseName,
             BigDecimal producedQty, LocalDate productionDate, String createdBy,
+            /** 적요. 원본 생산입고현황의 마지막 열. */
+            String note,
             List<ProductionMaterialResponse> materials
     ) {
         public static ProductionResponse from(Production p) {
@@ -98,7 +102,7 @@ public final class ProductionDtos {
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,
-                    p.getProducedQty(), p.getProductionDate(), p.getCreatedBy(),
+                    p.getProducedQty(), p.getProductionDate(), p.getCreatedBy(), p.getNote(),
                     p.getMaterials().stream().map(ProductionMaterialResponse::from).toList());
         }
     }

@@ -98,6 +98,7 @@ public class ProductionService {
                 .product(wo.getProduct())
                 .warehouse(warehouse)
                 .fromWarehouse(req.fromWarehouseId() != null ? from : null)
+                .note(req.note())
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)
