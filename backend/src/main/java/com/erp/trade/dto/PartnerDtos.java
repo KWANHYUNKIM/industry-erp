@@ -42,6 +42,8 @@ public final class PartnerDtos {
              */
             String salesPriceGroup,
             String purchasePriceGroup,
+            /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            String searchKeyword,
             Long partnerGroupId
     ) {}
 
@@ -73,6 +75,8 @@ public final class PartnerDtos {
              */
             String salesPriceGroup,
             String purchasePriceGroup,
+            /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            String searchKeyword,
             Long partnerGroupId,
             Boolean active
     ) {}
@@ -105,6 +109,7 @@ public final class PartnerDtos {
             String address,
             String salesPriceGroup,
             String purchasePriceGroup,
+            String searchKeyword,
             Long partnerGroupId,
             String partnerGroupName,
             boolean active
@@ -116,7 +121,7 @@ public final class PartnerDtos {
                     p.getManager(), p.getPhone(),
                     p.getMobile(), p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
                     p.getPostalCode(), p.getAddress(),
-                    p.getSalesPriceGroup(), p.getPurchasePriceGroup(),
+                    p.getSalesPriceGroup(), p.getPurchasePriceGroup(), p.getSearchKeyword(),
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
                     p.isActive());

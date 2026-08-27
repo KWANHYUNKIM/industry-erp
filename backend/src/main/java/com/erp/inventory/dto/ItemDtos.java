@@ -23,6 +23,8 @@ public final class ItemDtos {
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
             @NotNull(message = "안전재고를 입력하세요.") @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
             String barcode,
+            /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            String searchKeyword,
             /**
              * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
              * 안 주면 <b>관리대상</b>이다. 모르고 껐다가 재고가 조용히 안 움직이는 것보다
@@ -53,6 +55,8 @@ public final class ItemDtos {
             @NotNull(message = "안전재고를 입력하세요.")
             @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
             String barcode,
+            /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            String searchKeyword,
             /**
              * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
              * 안 주면 <b>관리대상</b>이다. 모르고 껐다가 재고가 조용히 안 움직이는 것보다
@@ -80,6 +84,8 @@ public final class ItemDtos {
             String itemGroupName,
             BigDecimal safetyStock,
             String barcode,
+            /** 원본 품목등록 리스트의 [검색창내용]. */
+            String searchKeyword,
             /** 재고수량관리. false 면 재고를 잡지 않는다(용역·운반비 같은 품목). */
             boolean stockTracked,
             String udiDi,
@@ -102,6 +108,7 @@ public final class ItemDtos {
                     item.getItemGroup() != null ? item.getItemGroup().getName() : null,
                     item.getSafetyStock(),
                     item.getBarcode(),
+                    item.getSearchKeyword(),
                     item.isStockTracked(),
                     item.getUdiDi(),
                     item.getManagementItem() == null ? null : item.getManagementItem().getId(),

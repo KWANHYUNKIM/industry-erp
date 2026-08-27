@@ -128,7 +128,7 @@ export default function TradeHistoryPage() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
-                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
+                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>기간</span>

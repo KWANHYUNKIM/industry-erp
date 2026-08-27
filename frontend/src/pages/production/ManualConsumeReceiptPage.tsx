@@ -40,7 +40,8 @@ interface Production {
 }
 interface WorkOrder { id: number; orderNo: string; productName: string; remainingQty: number; warehouseName: string }
 interface Warehouse { id: number; name: string; kind: string; active: boolean }
-interface Item { id: number; code: string; name: string; unit: string }
+/** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
+interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
 interface MaterialLine { itemId: string; quantity: string }
 
 interface FlatRow {
@@ -308,7 +309,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                     <td>
                       <CodePickerField label="소모자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
                                        value={l.itemId} onChange={(v) => updateLine(idx, { itemId: v })}
-                                       items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.unit }))} />
+                                       items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
                     </td>
                     <td>
                       <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} />

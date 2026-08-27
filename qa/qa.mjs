@@ -2355,6 +2355,43 @@ async function scenarioWorkspace(f) {
   eq('품목코드로 품목을 찾는다',
     byCode.groups.find((g) => g.type === 'ITEM').hits.some((h) => h.title.includes(f.product.code)), true)
 
+  /*
+   * 원본 거래처검색·품목등록 리스트의 <b>[검색창내용]</b>.
+   *
+   * 공식 상호 말고 사람들이 실제로 부르는 이름(약칭·영문명·옛 상호)을 적어 두고 그걸로
+   * 찾는 칸이다. 우리 코드도움은 코드와 이름 둘로만 찾아서, '한국기계전기전자시험연구원' 을
+   * 'KTC' 로 기억하는 사람은 목록을 눈으로 훑는 수밖에 없었다. 거래처가 300곳이 넘으면
+   * 그게 코드도움을 쓰는 이유를 지운다.
+   */
+  const ALIAS = 'QAALIAS7'
+  const pBody = {
+    name: f.customer.name, type: f.customer.type, bizRegNo: f.customer.bizRegNo,
+    ceoName: f.customer.ceoName, manager: f.customer.manager, phone: f.customer.phone,
+    address: f.customer.address, partnerGroupId: f.customer.partnerGroupId,
+  }
+  const iBody = {
+    name: f.product.name, unit: f.product.unit, category: f.product.category,
+    unitPrice: f.product.unitPrice, purchasePrice: f.product.purchasePrice,
+    safetyStock: f.product.safetyStock, stockTracked: f.product.stockTracked,
+  }
+  const before = await must('GET', `/workspace/search?q=${ALIAS}`)
+  eq('별명을 넣기 전에는 아무것도 안 걸린다', before.total, 0)
+
+  const pKw = await must('PUT', `/partners/${f.customer.id}`, { ...pBody, searchKeyword: ALIAS })
+  eq('거래처에 검색창내용이 저장된다', pKw.searchKeyword, ALIAS)
+  const iKw = await must('PUT', `/items/${f.product.id}`, { ...iBody, searchKeyword: ALIAS })
+  eq('품목에도 저장된다', iKw.searchKeyword, ALIAS)
+
+  const byAlias = await must('GET', `/workspace/search?q=${ALIAS}`)
+  eq('부르는 이름으로 거래처가 걸린다',
+    byAlias.groups.find((g) => g.type === 'PARTNER')?.hits.length >= 1, true)
+  eq('부르는 이름으로 품목도 걸린다',
+    byAlias.groups.find((g) => g.type === 'ITEM')?.hits.length >= 1, true)
+
+  await must('PUT', `/partners/${f.customer.id}`, { ...pBody, searchKeyword: '' })
+  await must('PUT', `/items/${f.product.id}`, { ...iBody, searchKeyword: '' })
+  eq('지우면 다시 안 걸린다', (await must('GET', `/workspace/search?q=${ALIAS}`)).total, 0)
+
   const noHit = await must('GET', '/workspace/search?q=ZZZ_NO_SUCH_KEYWORD_ZZZ')
   eq('일치하는 게 없으면 0건', noHit.total, 0)
 

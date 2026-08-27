@@ -167,7 +167,7 @@ export default function BorPage() {
             <CodePickerField
               label="생산품목 *" placeholder="품목 선택"
               value={form.productId} onChange={(v) => set('productId', v)}
-              items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.categoryName }))}
+              items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.categoryName }))}
             />
             <CodePickerField
               label="생산공정 *" placeholder="공정 선택"

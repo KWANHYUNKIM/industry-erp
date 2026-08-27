@@ -214,7 +214,7 @@ function TransferForm({ items, warehouses, onError, onSaved }: {
         <Field label="품목 *">
           <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                            value={form.itemId} onChange={(v) => set('itemId', v)}
-                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </Field>
         <Field label="출고창고 *">
           <select className="ec-input" value={form.fromWarehouseId} onChange={(e) => set('fromWarehouseId', e.target.value)} style={{ width: 150 }}>
@@ -295,7 +295,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, onError, onSave
         <Field label="품목 *">
           <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                            value={form.itemId} onChange={(v) => set('itemId', v)}
-                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </Field>
         <Field label="창고 *">
           <select className="ec-input" value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 150 }}>

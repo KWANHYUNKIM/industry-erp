@@ -21,6 +21,11 @@ export interface CodeItem {
   name: string
   /** 우측에 흐리게 붙는 부가 정보(구분·그룹 등) */
   sub?: string | null
+  /**
+   * 원본 [검색창내용] — <b>찾는 데만</b> 쓰고 화면에는 안 보이는 이름.
+   * 공식 상호·품목명 말고 사람들이 실제로 부르는 이름(약칭·영문명·옛 상호)이다.
+   */
+  alias?: string | null
 }
 
 export default function CodePickerField({
@@ -67,7 +72,7 @@ export default function CodePickerField({
     const needle = q.trim().toLowerCase()
     if (!needle) return items
     return items.filter((i) =>
-      `${i.code ?? ''} ${i.name} ${i.sub ?? ''}`.toLowerCase().includes(needle))
+      `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''}`.toLowerCase().includes(needle))
   }, [items, q])
 
   /** 단일 선택 — 고르는 즉시 닫는다. */

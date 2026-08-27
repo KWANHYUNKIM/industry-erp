@@ -428,7 +428,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
-                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                   </td>
                   <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
                   <td>

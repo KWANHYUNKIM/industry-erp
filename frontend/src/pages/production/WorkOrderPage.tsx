@@ -133,7 +133,7 @@ export default function WorkOrderPage() {
               <label className="mb-1 block text-sm text-slate-600">제품 *</label>
               <CodePickerField label="제품" hideLabel fill placeholder="선택하세요" emptyLabel="선택 해제"
                                value={form.productId} onChange={(v) => set('productId', v)}
-                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고 *</label>

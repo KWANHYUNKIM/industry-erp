@@ -142,7 +142,7 @@ export default function MedicalDeviceReportPage() {
             <option value="DISPOSAL">폐기</option>
           </select></label>
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
-                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
+                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <label style={{ fontSize: 12.5 }}>{label('보고기준월')}

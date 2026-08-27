@@ -54,6 +54,7 @@ public class PartnerService {
                 .postalCode(req.postalCode())
                 .salesPriceGroup(emptyToNull(req.salesPriceGroup()))
                 .purchasePriceGroup(emptyToNull(req.purchasePriceGroup()))
+                .searchKeyword(emptyToNull(req.searchKeyword()))
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
                 .active(true)
@@ -79,6 +80,7 @@ public class PartnerService {
         p.setPostalCode(req.postalCode());
         p.setSalesPriceGroup(emptyToNull(req.salesPriceGroup()));
         p.setPurchasePriceGroup(emptyToNull(req.purchasePriceGroup()));
+        p.setSearchKeyword(emptyToNull(req.searchKeyword()));
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
         if (req.active() != null) {

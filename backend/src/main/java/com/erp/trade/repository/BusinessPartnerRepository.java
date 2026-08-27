@@ -16,10 +16,12 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
     java.util.Optional<BusinessPartner> findByName(String name);
 
     /** 통합검색: 코드·거래처명 부분일치 상위 N건 */
-    @Query("select p from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q order by p.code")
+    @Query("select p from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q " +
+           "or lower(p.searchKeyword) like :q order by p.code")
     List<BusinessPartner> searchTop(@Param("q") String q, Pageable pageable);
 
-    @Query("select count(p) from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q")
+    @Query("select count(p) from BusinessPartner p where lower(p.code) like :q or lower(p.name) like :q " +
+           "or lower(p.searchKeyword) like :q")
     long searchCount(@Param("q") String q);
 
     /** 거래처그룹까지 한 번에 (채권/채무현황처럼 그룹으로 묶는 목록의 N+1 방지) */

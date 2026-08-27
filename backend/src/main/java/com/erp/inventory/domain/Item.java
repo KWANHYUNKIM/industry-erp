@@ -86,6 +86,13 @@ public class Item extends BaseTimeEntity {
     private String barcode;
 
     /**
+     * 원본 품목등록 리스트의 <b>[검색창내용]</b>.
+     * 공식 품목명 말고 현장에서 부르는 이름(약칭·옛 코드·영문명)을 적어 두고 그걸로 찾는다.
+     */
+    @Column(name = "search_keyword", length = 200)
+    private String searchKeyword;
+
+    /**
      * 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고(E040231) 대상 품목으로 본다.
      * 별도 플래그를 두지 않는 이유: 보고에 필요한 것이 이 코드 자체라, 코드가 없으면 어차피 보고할 수 없다.
      */

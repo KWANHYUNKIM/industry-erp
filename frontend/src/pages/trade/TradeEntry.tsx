@@ -404,7 +404,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
-    () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec })),
+    () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec })),
     [items],
   )
 

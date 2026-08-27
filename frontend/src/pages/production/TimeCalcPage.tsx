@@ -167,7 +167,7 @@ export default function TimeCalcPage() {
                     <CodePickerField
                       label="생산품목" hideLabel width={210} placeholder="품목 선택"
                       value={r.line.itemId} onChange={(v) => { setLine(r.line.key, { itemId: v }); setCalculated(false) }}
-                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.categoryName }))}
+                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.categoryName }))}
                     />
                   </td>
                   <td style={{ fontFamily: 'monospace' }}>{r.item?.code ?? ''}</td>

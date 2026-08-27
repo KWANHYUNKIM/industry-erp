@@ -88,6 +88,8 @@ export interface Item {
   purchasePrice: number
   safetyStock: number
   barcode: string | null
+  /** 원본 품목등록 리스트의 [검색창내용]. */
+  searchKeyword: string | null
   /**
    * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
    * false 면 재고를 잡지 않는다(용역·운반비 같은 품목).
@@ -204,6 +206,8 @@ export interface Partner {
   address: string | null
   salesPriceGroup: string | null
   purchasePriceGroup: string | null
+  /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾는다. */
+  searchKeyword: string | null
   partnerGroupId: number | null
   partnerGroupName: string | null
   active: boolean

@@ -177,14 +177,14 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
               <CodePickerField
                 label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
                 value={partnerId} onChange={setPartnerId}
-                items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))}
+                items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))}
               />
             </EcCond>
             <EcCond label="품목" pick>
               <CodePickerField
                 label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
                 value={itemId} onChange={setItemId}
-                items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec ?? undefined }))}
+                items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec ?? undefined }))}
               />
             </EcCond>
             <EcCond label="창고" pick>

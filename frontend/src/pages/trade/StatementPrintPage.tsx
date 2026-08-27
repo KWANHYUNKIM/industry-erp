@@ -196,7 +196,7 @@ export default function StatementPrintPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel value={partnerId === '' ? '' : String(partnerId)} width={220}
                            onChange={(v) => setPartnerId(v ? Number(v) : '')}
-                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
+                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
         </EcCond>
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}

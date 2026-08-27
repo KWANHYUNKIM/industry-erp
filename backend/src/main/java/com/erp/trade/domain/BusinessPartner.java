@@ -101,6 +101,14 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(length = 50)
     private String purchasePriceGroup;
 
+    /**
+     * 원본 거래처검색·거래처리스트의 <b>[검색창내용]</b>.
+     * 공식 이름 말고 사람들이 실제로 부르는 이름(약칭·영문명·옛 상호)을 적어 두고 그걸로 찾는다.
+     */
+    @Column(name = "search_keyword", length = 200)
+    private String searchKeyword;
+
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

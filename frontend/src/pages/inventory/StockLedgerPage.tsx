@@ -148,7 +148,7 @@ export default function StockLedgerPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={220} value={filters.itemId}
                            onChange={(v) => setF({ itemId: v })}
-                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12 }}>

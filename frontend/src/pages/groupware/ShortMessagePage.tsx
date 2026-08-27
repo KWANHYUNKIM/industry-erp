@@ -168,7 +168,7 @@ export default function ShortMessagePage() {
         <CodePickerField label="받는사람" value={recipientId} onChange={setRecipientId} width={120}
                          items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={150}
-                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.typeName }))} />
+                         items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.typeName }))} />
         <label style={{ fontSize: 12.5 }}>{label('내용')}
           <input className={inputCls} value={keyword} onChange={(e) => setKeyword(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') load() }} style={{ width: 200 }} placeholder="본문 키워드" /></label>

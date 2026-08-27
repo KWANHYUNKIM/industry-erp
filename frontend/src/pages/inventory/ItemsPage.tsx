@@ -17,7 +17,7 @@ const emptyForm = {
   unitPrice: '0',
   purchasePrice: '0',
   safetyStock: '0',
-  barcode: '',
+  barcode: '', searchKeyword: '',
   /** 재고수량관리. 기본은 관리대상 — 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다. */
   stockTracked: 'Y',
   /**
@@ -85,6 +85,7 @@ export default function ItemsPage() {
       purchasePrice: String(item.purchasePrice ?? 0),
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
+      searchKeyword: item.searchKeyword ?? '',
       stockTracked: item.stockTracked === false ? 'N' : 'Y',
       active: item.active ? 'Y' : 'N',
       udiDi: item.udiDi ?? '',
@@ -255,6 +256,16 @@ export default function ItemsPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">바코드</label>
               <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
+            </div>
+            {/*
+              원본 품목등록 리스트의 [검색창내용]. 현장에서 부르는 이름(약칭·옛 코드)을
+              적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <input className={inputCls} value={form.searchKeyword}
+                     onChange={(e) => set('searchKeyword', e.target.value)}
+                     placeholder="약칭·옛 코드·영문명 등 (코드도움에서 이 값으로도 찾습니다)" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">UDI-DI (의료기기 표준코드)</label>

@@ -13,7 +13,7 @@ const empty = {
   bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
   bankName: '', accountNo: '', accountHolder: '',
   postalCode: '', address: '', partnerGroupId: '',
-  salesPriceGroup: '', purchasePriceGroup: '',
+  salesPriceGroup: '', purchasePriceGroup: '', searchKeyword: '',
   /**
    * 사용구분. 예전에는 저장할 때 늘 true 를 보냈다 —
    * <b>사용중단한 거래처를 고치기만 해도 조용히 되살아났다.</b>
@@ -112,6 +112,7 @@ export default function PartnersPage() {
       bankName: p.bankName ?? '', accountNo: p.accountNo ?? '', accountHolder: p.accountHolder ?? '',
       postalCode: p.postalCode ?? '', address: p.address ?? '',
       salesPriceGroup: p.salesPriceGroup ?? '', purchasePriceGroup: p.purchasePriceGroup ?? '',
+      searchKeyword: p.searchKeyword ?? '',
       active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
     })
@@ -297,6 +298,16 @@ export default function PartnersPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">구매단가그룹</label>
               <input className={inputCls} value={form.purchasePriceGroup} onChange={(e) => set('purchasePriceGroup', e.target.value)} />
+            </div>
+            {/*
+              원본 거래처검색 조건의 [검색창내용]. 공식 상호 말고 사람들이 실제로 부르는
+              이름을 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
+            */}
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <input className={inputCls} value={form.searchKeyword}
+                     onChange={(e) => set('searchKeyword', e.target.value)}
+                     placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
             </div>
             <div className="sm:col-span-3" style={{ fontSize: 11.5, color: '#8a929c' }}>
               ※ 여신한도는 원본 탭 안을 열어 보지 못해(탭을 누르기 전에는 화면에 없습니다) 만들지 않았습니다.

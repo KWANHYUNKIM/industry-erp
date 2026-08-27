@@ -367,7 +367,7 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
             <td>
               <CodePickerField label="품목" hideLabel width={240} placeholder="품목 선택" emptyLabel="선택 해제"
                                value={itemId} onChange={setItemId}
-                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
               {hint && <div style={{ marginTop: 4, fontSize: 11.5, color: '#2b5b91' }}>{hint}</div>}
             </td>
           </tr>

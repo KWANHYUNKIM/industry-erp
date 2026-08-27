@@ -132,7 +132,7 @@ export default function StockIoPage() {
                 <td>
                   <CodePickerField label="품목" hideLabel fill placeholder="품목을 선택하세요" emptyLabel="선택 해제"
                                    value={form.itemId} onChange={(v) => set('itemId', v)}
-                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec }))} />
+                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                 </td>
               </tr>
               <tr>

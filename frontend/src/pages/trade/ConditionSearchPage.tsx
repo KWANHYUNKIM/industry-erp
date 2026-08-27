@@ -141,12 +141,12 @@ export default function ConditionSearchPage() {
               {basis !== 'SELECTED' ? (
                 <CodePickerField label="거래처" hideLabel width={210} placeholder="선택하세요"
                                  value={partnerId} onChange={(v) => { setPartnerId(v); setRan(false) }}
-                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.partnerGroupName }))} />
+                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.partnerGroupName }))} />
               ) : (
                 <CodePickerField label="거래처(다중)" hideLabel multiple width={230} placeholder="거래처를 고르세요"
                                  values={selectedIds.map(String)}
                                  onChangeMulti={(vals) => { setSelectedIds(vals.map(Number)); setRan(false) }}
-                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.partnerGroupName }))} />
+                                 items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, alias: p.searchKeyword, sub: p.partnerGroupName }))} />
               )}
             </td>
             <th style={th}>프로젝트</th>

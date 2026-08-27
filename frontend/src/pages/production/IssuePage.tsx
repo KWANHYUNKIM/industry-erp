@@ -33,7 +33,8 @@ interface MaterialIssue {
   issueDate: string
   note: string | null
 }
-interface Item { id: number; code: string; name: string; unit: string }
+/** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
+interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
 /** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
 interface Warehouse { id: number; name: string; kind: string }
 interface WorkOrder { id: number; orderNo: string; productName: string }
@@ -154,7 +155,7 @@ export default function IssuePage() {
               <label className="mb-1 block text-sm text-slate-600">자재 *</label>
               <CodePickerField label="자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => setForm({ ...form, itemId: v })}
-                               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.unit }))} />
+                               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
             </div>
             {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
             <div>
