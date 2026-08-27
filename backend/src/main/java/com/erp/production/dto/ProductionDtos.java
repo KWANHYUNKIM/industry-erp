@@ -24,6 +24,10 @@ public final class ProductionDtos {
             @NotNull(message = "지시수량을 입력하세요.") @Positive(message = "지시수량은 0보다 커야 합니다.") BigDecimal plannedQty,
             LocalDate orderDate,
             LocalDate dueDate,
+            /** 납품처. 원본 작업지시서입력 머리의 [납품처]. */
+            Long partnerId,
+            /** 담당자(사원) id. 이름은 화면이 붙인다 — production 은 hr 을 참조할 수 없다. */
+            Long employeeId,
             String remark
     ) {}
 
@@ -31,6 +35,10 @@ public final class ProductionDtos {
             Long id, String orderNo,
             Long productId, String productCode, String productName, String productUnit,
             Long warehouseId, String warehouseName,
+            /** 납품처. 원본 작업지시서조회의 [거래처명] 열. */
+            Long partnerId, String partnerName,
+            /** 담당자(사원) id. 이름은 화면이 사원 목록에서 붙인다. */
+            Long employeeId,
             BigDecimal plannedQty, BigDecimal producedQty, BigDecimal remainingQty,
             WorkOrderStatus status, String statusName,
             LocalDate orderDate, LocalDate dueDate, String remark, String createdBy
@@ -41,6 +49,9 @@ public final class ProductionDtos {
                     w.getId(), w.getOrderNo(),
                     w.getProduct().getId(), w.getProduct().getCode(), w.getProduct().getName(), w.getProduct().getUnit(),
                     w.getWarehouse().getId(), w.getWarehouse().getName(),
+                    w.getPartner() != null ? w.getPartner().getId() : null,
+                    w.getPartner() != null ? w.getPartner().getName() : null,
+                    w.getEmployeeId(),
                     w.getPlannedQty(), w.getProducedQty(), remaining,
                     w.getStatus(), w.getStatus().getDisplayName(),
                     w.getOrderDate(), w.getDueDate(), w.getRemark(), w.getCreatedBy());

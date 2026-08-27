@@ -31,6 +31,11 @@ public class WorkOrderService {
     private final DocumentNoGenerator docNoGenerator;
     private final ProductionRepository productionRepository;
     private final ProductionPlanRepository planRepository;
+    /**
+     * 납품처를 붙이려면 거래처를 읽어야 한다. trade 의 공개 service 를 거친다 —
+     * 리포지토리를 직접 주입하면 그 모듈의 규칙을 우회하게 된다(CLAUDE.md 4.2).
+     */
+    private final com.erp.trade.service.PartnerService partnerService;
 
     @Transactional(readOnly = true)
     public List<WorkOrderResponse> findAll() {
@@ -87,6 +92,9 @@ public class WorkOrderService {
                 .plannedQty(req.plannedQty())
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
+                .partner(req.partnerId() != null ? partnerService.get(req.partnerId()) : null)
+                // 담당자는 id 만 든다 — production 은 hr 을 참조할 수 없다(순환).
+                .employeeId(req.employeeId())
                 .remark(req.remark())
                 .createdBy(username)
                 .build();

@@ -91,7 +91,7 @@ controller  →  service  →  repository  →  domain
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
 | `trade` | `inventory` |
-| `production` | `inventory` |
+| `production` | `inventory`, `trade` (작업지시서의 납품처가 `PartnerService` 를 참조) |
 | `quality` | `inventory`, `trade` |
 | `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
@@ -100,6 +100,10 @@ controller  →  service  →  repository  →  domain
 - `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
   (`trade` → `groupware`) `groupware → trade` 와 맞물려 순환이 되므로 기초 마스터(`inventory`)로 옮겼습니다.
   프로젝트별 손익은 이 연결을 집계합니다. 진척관리 화면은 그대로 그룹웨어에 있습니다.
+- **`production` 은 `hr` 을 참조할 수 없습니다.** `hr → accounting → production` 이 이미 있어서
+  맞물리면 순환이 됩니다. 작업지시서의 [담당자]가 그래서 `@ManyToOne` 이 아니라 평범한 `Long employeeId` 입니다.
+  `inventory.Warehouse` 의 공정·외주거래처, `auth.User` 의 사원도 같은 이유로 id 만 듭니다.
+  이름은 화면이 각자 목록에서 붙입니다.
 - `inventory`와 `auth`는 **아무 모듈에도 의존하지 않는 기반층입니다.**
   여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
 - `common`은 모두가 의존하고 아무것도 의존하지 않습니다.

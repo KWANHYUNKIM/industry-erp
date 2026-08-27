@@ -341,6 +341,15 @@ export interface WorkOrder {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  /** 납품처. 원본 작업지시서조회의 [거래처명] 열. */
+  partnerId: number | null
+  partnerName: string | null
+  /**
+   * 담당자(사원) id. <b>이름은 여기 없다</b> — production 은 hr 을 참조할 수 없어
+   * 서버가 붙이지 못한다(hr → accounting → production 이 이미 있어 순환).
+   * 화면이 사원 목록에서 붙인다.
+   */
+  employeeId: number | null
   plannedQty: number
   producedQty: number
   remainingQty: number

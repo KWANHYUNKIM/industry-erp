@@ -3444,6 +3444,54 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 작업지시서의 <b>납품처 · 담당자 · 납기일자</b>.
+ *
+ * <p>원본 작업지시서입력 머리 실측(사본): 작업지시No. · 일자 · <b>납품처</b> ·
+ * <b>담당자</b> · 납기일자. 작업지시서조회 열은 일자-No. · <b>거래처명</b> ·
+ * <b>담당자명</b> · <b>납기일자</b> · 작업지시No. · 품목명[규격] · 지시수량 ·
+ * 생산수량 · 진행상태 · (불출/생산/작업현황 바로가기).
+ *
+ * <p>우리 작업지시에는 납품처도 담당자도 없어 "이 지시가 어느 거래처 납품 건인지" 도
+ * "누가 맡았는지" 도 적을 자리가 없었다. 납기일자는 진작 있었는데 목록에 안 보여 줬다.
+ *
+ * <p>담당자는 <b>id 만</b> 싣는다 — production 이 hr 을 참조하면
+ * hr → accounting → production 과 맞물려 순환이 된다(CLAUDE.md 4.1).
+ * 이름은 화면이 사원 목록에서 붙인다. 그래서 <b>응답에 employeeName 이 없는 것이 정상</b>이다.
+ */
+async function scenarioWorkOrderPartner(f) {
+  section('■ 작업지시 납품처·담당자')
+
+  const emps = await must('GET', '/employees')
+  const emp = emps[0]
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 5,
+    orderDate: '2092-02-03', dueDate: '2092-02-20',
+    partnerId: f.customer.id, employeeId: emp.id,
+  })
+  eq('납품처가 실린다', wo.partnerId, f.customer.id)
+  eq('납품처 이름도 실린다', wo.partnerName, f.customer.name)
+  eq('담당자 id 가 실린다', wo.employeeId, emp.id)
+  eq('담당자 이름은 서버가 안 붙인다', 'employeeName' in wo, false)
+  eq('납기일자가 실린다', wo.dueDate, '2092-02-20')
+
+  const re = (await must('GET', '/work-orders')).find((x) => x.id === wo.id)
+  eq('다시 조회해도 납품처가 남는다', re.partnerName, f.customer.name)
+  eq('다시 조회해도 담당자가 남는다', re.employeeId, emp.id)
+
+  // 안 주면 빈칸이다. 지어내면 남의 거래처 납품 건이 된다.
+  const plain = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 1, orderDate: '2092-02-03',
+  })
+  isNull('안 주면 납품처는 null', plain.partnerId)
+  isNull('안 주면 담당자도 null', plain.employeeId)
+
+  for (const x of [wo, plain]) await must('DELETE', `/work-orders/${x.id}`)
+  eq('시험용 작업지시는 남기지 않는다',
+    (await must('GET', '/work-orders')).filter((x) => x.orderDate === '2092-02-03').length, 0)
+}
+
+/**
  * 판매조회의 <b>진행상태변경</b> — 여러 전표를 한 번에 확인·확인해제한다.
  *
  * <p>원본 판매조회·구매조회의 버튼이다(신규(F2) · <b>진행상태변경</b> · 보내기 ·
@@ -5886,6 +5934,7 @@ async function main() {
   await scenarioVacationYear(fixtures)
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
+  await scenarioWorkOrderPartner(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
