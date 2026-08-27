@@ -4,7 +4,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
- * 영업 > 오더관리유형리스트.
+ * 영업 > 오더관리유형등록.
  *
  * <p>원본 열 실측(사본 열 id TYPE_CD·TYPE_NM·STEPS·USE_YN·INP_USE_TF):
  *   유형코드 · 유형명 · <b>1단계 ~ 10단계</b> · 사용구분 · 입력메뉴에서 사용 · 담당자.
@@ -124,7 +124,7 @@ export default function OrderTypePage() {
 
   return (
     <EcListShell
-      title="오더관리유형리스트"
+      title="오더관리유형등록"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}

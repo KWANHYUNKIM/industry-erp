@@ -53,9 +53,9 @@ const MENU: TopMenu[] = [
           { label: '부서등록', to: '/groupware/org' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
           { label: '단가적용순서설정', to: '/inventory/price-order' },
-          { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
+          { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' },
           { label: '특별단가등록', to: '/sales/special-price' },
-          { label: '외화(통화·환율)', to: '/settings/currencies' },
+          { label: '외화등록', to: '/settings/currencies' },
         ],
       },
       {
@@ -163,12 +163,26 @@ const MENU: TopMenu[] = [
           { label: '작업내역입력', to: '/production/work-result' },
           { label: '작업내역조회', to: '/production/work-result-list' },
           { label: '작업내역현황', to: '/production/work-result-status' },
-          { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },
-          { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' },
-          { label: '생산입고 III(품질검사요청)', to: '/production/receipt-qr' },
+          { label: '생산입고 I', to: '/production/receipt-bom' },
+          { label: '생산입고 II', to: '/production/receipt-manual' },
+          { label: '생산입고 III', to: '/production/receipt-qr' },
           { label: '생산입고조회', to: '/production/receipt-inquiry' },
           { label: '생산입고현황', to: '/production/receipt-status' },
           { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+          /*
+           * 원본 생산/외주 탭 실측(사본 좌측 메뉴): … 생산입고/소모현황 I ·
+           * <b>지급현황 · 외주비할인현황 · 거래처별채무 · 외주비회계반영</b>.
+           *
+           * <p>외주는 남에게 맡겨 만드는 것이라 <b>사고 나서 돈을 주는</b> 흐름이 따라붙는다.
+           * 그 셋이 우리에겐 구매관리·출력물 탭에만 있어서, 외주를 보다가 "얼마 줬나" 를
+           * 보려면 탭을 옮겨야 했다. 원본처럼 여기에도 둔다.
+           *
+           * <p>[외주비회계반영]은 안 만든다 — 외주가공비를 전표로 받는 자리가 없어
+           * 반영할 것이 없다. 화면 사본도 없어 무엇을 그릴지 잴 수가 없다.
+           */
+          { label: '지급현황', to: '/sales/payment' },
+          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+          { label: '거래처별채무', to: '/sales/ledger-payable' },
         ],
       },
       { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }] },
@@ -289,7 +303,8 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '매출계획', to: '/sales/sales-plan' },
           { label: '생산계획(MPS)', to: '/production/planning' },
-          { label: '생산계획(MRP)리스트', to: '/production/mrp' },
+          /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
+          { label: '생산계획/MRP생성', to: '/production/mrp' },
         ],
       },
       {
@@ -322,7 +337,8 @@ const MENU: TopMenu[] = [
         label: '오더관리',
         nodes: [
           { label: '오더관리(수주)', to: '/sales/orders' },
-          { label: '오더관리유형리스트', to: '/sales/order-types' },
+          /* 원본 오더관리 탭의 표기는 [오더관리유형등록] 이다(사본 좌측 메뉴 실측). */
+          { label: '오더관리유형등록', to: '/sales/order-types' },
           { label: '오더관리진행단계', to: '/sales/order-stages' },
         ],
       },
@@ -341,7 +357,7 @@ const MENU: TopMenu[] = [
           { label: '계좌/카드', to: '/accounting/bank-cards' },
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
-          { label: '외화(통화·환율)', to: '/settings/currencies' },
+          { label: '외화등록', to: '/settings/currencies' },
         ],
       },
       {
@@ -470,7 +486,7 @@ const MENU: TopMenu[] = [
         label: '급여관리',
         nodes: [
           { label: '기본사항등록', children: [
-            { label: '사원등록', to: '/hr/employees' },
+            { label: '사원(담당)등록', to: '/hr/employees' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },

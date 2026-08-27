@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
- * 생산관리 > 생산계획(MRP)리스트 — 주차별 소요량 대비 계획수량 (/api/production-plans).
+ * 생산관리 > 생산계획/MRP생성 — 주차별 소요량 대비 계획수량 (/api/production-plans).
  *
  * <p>원본 조건·버튼 실측(사본): 생성일자 · <b>생산계획기간</b> · <b>기준품목</b> ·
  * [생산계획계산] · [MRP계산] · 생산계획/MRP현황 · 기타 · 적요 ·
@@ -142,7 +142,7 @@ export default function MrpPage() {
 
   return (
     <EcListShell
-      title="생산계획(MRP)리스트"
+      title="생산계획/MRP생성"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
