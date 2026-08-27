@@ -39,6 +39,8 @@ const emptyForm = { code: '', name: '', description: '', manager: '', useInInput
 
 export default function OrderTypePage() {
   const [rows, setRows] = useState<OrderType[]>([])
+  /** 원본 오더관리유형리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -120,6 +122,28 @@ export default function OrderTypePage() {
     }
   }
 
+  /**
+   * 원본 오더관리유형리스트의 [사용중단/재사용]. 고른 유형을 한 번에 세운다.
+   *
+   * <p>단계(stageIds)까지 함께 보낸다 — 수정은 <b>통째로 갈아 끼우므로</b> 빼고 보내면
+   * 그 유형의 [1단계]~[10단계]가 사용중단 한 번에 사라진다.
+   */
+  async function toggleActive() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 유형을 고르세요.'); return }
+    const reviving = targets.every((r) => !r.active)
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.put(`/order-types/${r.id}`, {
+      name: r.name, description: r.description,
+      stageIds: [...r.steps].sort((a, b) => a.seq - b.seq).map((st) => st.stageId),
+      useInInput: r.useInInput, manager: r.manager, active: reviving,
+    })))
+    const failed = results.filter((x) => x.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
   const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
 
   return (
@@ -129,7 +153,9 @@ export default function OrderTypePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={showForm ? () => setShowForm(false) : openCreate}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load },
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -205,7 +231,13 @@ export default function OrderTypePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
+                     )} />
+            </th>
             <th style={{ width: 90 }}>유형코드</th>
             <th style={{ width: 130 }}>유형명</th>
             {/*
@@ -228,9 +260,15 @@ export default function OrderTypePage() {
             <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               {STEP_COLS.map((n) => {

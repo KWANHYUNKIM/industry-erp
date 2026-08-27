@@ -7,6 +7,8 @@ import Modal from '../../components/Modal'
 /** 재고 기초등록 > 관리항목등록 — 실제 CRUD 연동 */
 export default function ManageItemsPage() {
   const [rows, setRows] = useState<ManagementItem[]>([])
+  /** 원본 관리항목리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,6 +55,23 @@ export default function ManageItemsPage() {
     }
   }
 
+  /**
+   * 원본 관리항목리스트의 [사용중단/재사용]. 고른 것을 한 번에 세운다.
+   * 모두 중단이면 되살리고, 하나라도 살아 있으면 중단한다(거래처·창고·품목과 같은 규칙).
+   */
+  async function toggleCheckedActive() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 관리항목을 고르세요.'); return }
+    const reviving = targets.every((r) => !r.active)
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.put(`/management-items/${r.id}`,
+      { name: r.name, description: r.description ?? undefined, active: reviving })))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
   const shown = rows.filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
 
   return (
@@ -62,7 +81,9 @@ export default function ManageItemsPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load },
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
@@ -90,7 +111,13 @@ export default function ManageItemsPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
+                     )} />
+            </th>
             <th>관리항목코드 ▼</th>
             <th>관리항목명 ▼</th>
             <th>설명</th>
@@ -102,9 +129,15 @@ export default function ManageItemsPage() {
             <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+          ) : shown.map((r) => (
+            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>

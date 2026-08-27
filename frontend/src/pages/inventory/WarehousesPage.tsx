@@ -24,6 +24,8 @@ export default function WarehousesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  /** 원본 창고등록리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [form, setForm] = useState({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
   const [processes, setProcesses] = useState<ProcessRow[]>([])
   const [partners, setPartners] = useState<PartnerRow[]>([])
@@ -78,6 +80,30 @@ export default function WarehousesPage() {
     }
   }
 
+  /**
+   * 원본 창고등록리스트의 [사용중단/재사용]. 고른 창고를 한 번에 세운다.
+   *
+   * <p>고른 것이 모두 사용중단이면 되살리고, 하나라도 살아 있으면 중단한다.
+   * 그 창고를 <b>통째로 다시 보낸다</b> — 수정은 통째로 덮으므로 몇 칸만 보내면
+   * 위치·생산공정·외주거래처가 조용히 지워진다. 값은 그대로 넘긴다(null 을 '' 로
+   * 바꾸면 '안 적었다' 와 '비워 두었다' 가 뒤섞인다).
+   */
+  async function toggleActive() {
+    const targets = warehouses.filter((w) => checked.has(w.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 창고를 고르세요.'); return }
+    const reviving = targets.every((w) => !w.active)
+    setError('')
+    const results = await Promise.allSettled(targets.map((w) => api.put(`/warehouses/${w.id}`, {
+      name: w.name, location: w.location, kind: w.kind,
+      processId: w.processId, outsourcingPartnerId: w.outsourcingPartnerId,
+      active: reviving,
+    })))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
   async function remove(w: Warehouse) {
     if (!confirm(`창고 '${w.name}'을(를) 삭제할까요?`)) return
     try {
@@ -92,7 +118,10 @@ export default function WarehousesPage() {
     <EcListShell
       title="창고등록 리스트"
       onNew={() => setShowForm(true)}
-      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
+      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+                { label: 'Excel' },
+                { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
@@ -152,7 +181,13 @@ export default function WarehousesPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th style={{ width: 34, textAlign: 'center' }}>
+                <input type="checkbox"
+                       checked={warehouses.length > 0 && warehouses.every((w) => checked.has(w.id))}
+                       onChange={() => setChecked(
+                         warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
+                       )} />
+              </th>
               <th>창고코드 ▼</th>
               <th>창고명 ▼</th>
               <th style={{ width: 70, textAlign: 'center' }}>구분</th>
@@ -176,9 +211,15 @@ export default function WarehousesPage() {
             ) : warehouses.length === 0 ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
             ) : (
-              warehouses.map((w, idx) => (
-                <tr key={w.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+              warehouses.map((w) => (
+                <tr key={w.id} style={{ color: w.active ? undefined : '#9aa1ab' }}>
+                  <td style={{ textAlign: 'center' }}>
+                    <input type="checkbox" checked={checked.has(w.id)} onChange={() => setChecked((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(w.id)) next.delete(w.id); else next.add(w.id)
+                      return next
+                    })} />
+                  </td>
                   <td style={{ fontFamily: 'monospace' }}>{w.code}</td>
                   <td>{w.name}</td>
                   <td style={{ textAlign: 'center', color: w.kind === '창고' ? '#5a626e' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>

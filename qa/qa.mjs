@@ -6474,6 +6474,36 @@ async function scenarioOrderStages(f) {
   const renamed = await must('PUT', `/order-types/${type.id}`, { name: `${P}시험유형2`, active: true })
   eq('이름만 고치면 단계는 그대로', renamed.steps.length, 3)
 
+  /*
+   * 단계가 <b>이미 있는</b> 유형을 다시 저장할 수 있나.
+   *
+   * <p>(order_type_id, seq) 에 유니크 인덱스가 있는데 단계를 갈아 끼울 때 delete 를
+   * 영속성 컨텍스트가 미뤄 두는 바람에, 같은 seq 의 insert 가 먼저 나가 409 로 막혔다.
+   * 화면에서 <b>단계를 한 번 정하고 나면 다시 못 고쳤다</b>. 사용중단/재사용도 단계를
+   * 함께 보내므로 같이 막혔다.
+   */
+  const resaved = await call('PUT', `/order-types/${type.id}`, {
+    name: `${P}시험유형2`, stageIds: [stages[0].id, stages[1].id, stages[2].id], active: true,
+  })
+  eq('단계가 있는 유형을 같은 단계로 다시 저장해도 된다', resaved.status, 200)
+  eq('다시 저장해도 단계가 그대로다', resaved.data?.steps?.length, 3)
+
+  const swapped = await must('PUT', `/order-types/${type.id}`, {
+    name: `${P}시험유형2`, stageIds: [stages[1].id, stages[0].id], active: true,
+  })
+  eq('단계를 바꿔 끼우면 순서도 바뀐다', swapped.steps.map((s) => s.stageName).join(','),
+    `${stages[1].name},${stages[0].name}`)
+
+  const off = await must('PUT', `/order-types/${type.id}`, {
+    name: `${P}시험유형2`, stageIds: swapped.steps.map((s) => s.stageId),
+    useInInput: swapped.useInInput, manager: swapped.manager, active: false,
+  })
+  eq('사용중단해도 단계가 남는다', off.steps.length, 2)
+  eq('사용중단이 실제로 걸린다', off.active, false)
+  await must('PUT', `/order-types/${type.id}`, {
+    name: `${P}시험유형2`, stageIds: [stages[0].id, stages[1].id, stages[2].id], active: true,
+  })
+
   // ── 오더(수주)의 진행
   const order = await must('POST', '/sales-orders', {
     partnerId: f.customer.id, orderDate: '2026-07-20',

@@ -92,6 +92,16 @@ public class OrderTypeService {
      */
     private List<OrderTypeStep> replaceSteps(OrderType type, List<Long> stageIds) {
         stepRepository.deleteByOrderType_Id(type.getId());
+        /*
+         * 지운 것을 <b>DB 까지 밀어 넣고</b> 새로 넣는다.
+         *
+         * <p>(order_type_id, seq) 에 유니크 인덱스가 있다(uq_order_type_steps_seq).
+         * 영속성 컨텍스트는 delete 를 미뤄 두었다가 flush 시점에 함께 보내는데,
+         * 그러면 같은 seq 의 insert 가 delete 보다 먼저 나가 제약에 걸린다.
+         * 그래서 <b>단계가 이미 있는 유형을 다시 저장하면 409 로 막혔다</b> —
+         * 화면에서 단계를 고칠 수가 없었다.
+         */
+        stepRepository.flush();
         if (stageIds == null || stageIds.isEmpty()) {
             return List.of();
         }
