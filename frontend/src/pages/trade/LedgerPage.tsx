@@ -7,7 +7,7 @@ import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -84,6 +84,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    * 들어온 경로가 기본값이 된다.
    */
   const [side, setSide] = useState<LedgerSide>(initialSide)
+  /** 원본 [전표입력] — 판매입력으로 넘긴다. */
+  const navigate = useNavigate()
   const showAr = side !== 'AP'
   const showAp = side !== 'AR'
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -187,6 +189,15 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       title={TITLE[side]}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        /*
+         * 원본 [전표입력] — 대장을 보다가 그 자리에서 전표를 만든다. 우리는 판매입력에서
+         * 만들므로 그 화면으로 넘긴다. 거래처를 골라 뒀으면 물고 간다.
+         */
+        { label: '전표입력', onClick: () => {
+          // 판매입력은 ?partnerId= 로 거래처를 문다. 조건은 이름이라 id 를 찾아 넘긴다.
+          const picked = rows.find((r) => r.name === partner)
+          navigate(picked ? `/sales/sell?partnerId=${picked.partnerId}` : '/sales/sell')
+        } },
         { label: '다시 작성', onClick: () => {
           setGroup('거래처별'); setPartner(''); setManager(''); setWithInactive(false); setOnlyOpen(false)
         } },

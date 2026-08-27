@@ -134,6 +134,8 @@ export default function PaymentHistoryPage() {
 
   return (
     <EcListShell title="결제내역조회" search={keyword} onSearchChange={setKeyword} onSearch={load}
+                 // 원본 [신규(F2)] — 결제는 수금/지급 입력에서 만든다. 그 화면을 연다.
+                 onNew={() => navigate('/sales/settlement')}
                  actions={[{ label: '새로고침', onClick: load },
                            // 원본 [입금보고서작성] — FastEntry 의 입금보고서로 넘긴다.
                            { label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },

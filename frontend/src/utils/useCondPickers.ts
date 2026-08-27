@@ -55,7 +55,18 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
 
     if (need.has('partners')) {
       jobs.push(api.get<PartnerLike[]>('/partners')
-        .then((r) => ({ partners: partnerCodeItems(r.data) }))
+        /*
+         * 값은 <b>거래처명</b>이다 — 창고·품목·프로젝트와 같다. 조회조건은 이름
+         * 부분일치로 거르기 때문이다.
+         *
+         * <p>예전에는 여기만 partnerCodeItems 를 그대로 써서 값이 <b>id</b> 였다.
+         * 그러면 거래처를 고르는 순간 partnerName.includes('12') 가 되어
+         * <b>목록이 통째로 비었다</b> — 고른 사람은 '그 거래처는 거래가 없구나' 로 읽는다.
+         * 대장·이익현황·회계반영·수금현황 등 일곱 화면이 그 상태였다.
+         */
+        .then((r) => ({
+          partners: partnerCodeItems(r.data).map((x) => ({ ...x, value: x.name })),
+        }))
         .catch(() => ({})))
     }
     if (need.has('warehouses')) {
