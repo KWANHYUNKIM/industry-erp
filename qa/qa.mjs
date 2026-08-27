@@ -3444,6 +3444,46 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 판매조회의 <b>진행상태변경</b> — 여러 전표를 한 번에 확인·확인해제한다.
+ *
+ * <p>원본 판매조회·구매조회의 버튼이다(신규(F2) · <b>진행상태변경</b> · 보내기 ·
+ * 바코드(품목) · 선택삭제 · 이력조회). 우리는 한 줄씩 [확인] 을 누르는 것밖에 없어서,
+ * 월말에 수십 장을 확인하려면 수십 번을 눌러야 했다.
+ *
+ * <p>확인한 전표는 <b>지울 수 없어야</b> 한다. 확인은 "이 거래는 끝났다" 는 표시라,
+ * 그 뒤에 지워지면 확인했다는 사실이 거짓이 된다. 해제하면 다시 지울 수 있다.
+ */
+async function scenarioSalesConfirmBulk(f) {
+  section('■ 판매 진행상태변경')
+
+  const mk = (n) => must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2093-12-0' + n,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  const a = await mk(1)
+  const b = await mk(2)
+
+  eq('처음엔 미확인이다', a.confirmStatus, 'UNCONFIRMED')
+
+  for (const x of [a, b]) await must('POST', `/sales/${x.id}/confirm`)
+  const after = await must('GET', '/sales')
+  eq('둘 다 확인된다',
+    after.filter((x) => [a.id, b.id].includes(x.id) && x.confirmStatus === 'CONFIRMED').length, 2)
+
+  // 확인한 전표는 못 지운다 — 확인이 "끝났다" 는 표시이기 때문이다.
+  const blocked = await call('DELETE', `/sales/${a.id}`)
+  eq('확인한 전표는 삭제가 막힌다', blocked.status >= 400, true)
+
+  for (const x of [a, b]) await must('POST', `/sales/${x.id}/unconfirm`)
+  eq('해제하면 미확인으로 돌아온다',
+    (await must('GET', '/sales')).find((x) => x.id === a.id).confirmStatus, 'UNCONFIRMED')
+
+  for (const x of [a, b]) await must('DELETE', `/sales/${x.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/sales')).filter((x) => String(x.saleDate).startsWith('2093-12')).length, 0)
+}
+
+/**
  * 기안서통합관리의 <b>작업자 · 작업일시</b>.
  *
  * <p>원본 열 실측(사본): 기안일자 · 제목 · 구분 · 기안자 · 결재자 ·
@@ -5845,6 +5885,7 @@ async function main() {
   await scenarioPartnerContactAndBank()
   await scenarioVacationYear(fixtures)
   await scenarioApprovalLastActor()
+  await scenarioSalesConfirmBulk(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

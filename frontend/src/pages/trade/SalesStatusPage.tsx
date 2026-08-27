@@ -177,6 +177,44 @@ export default function SalesStatusPage() {
   ), [shown])
 
   /**
+   * [라인별] 을 원본 모양으로 — 줄 사이에 <b>월별 소계</b>를 끼우고 끝에 총합계를 둔다.
+   *
+   * <p>원본 판매현황의 결과는 일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 부가세 ·
+   * <b>합계</b> · 거래처명 이고, 월이 바뀌는 자리마다 '2026/06 계' 가 들어간 뒤
+   * 맨 끝에 '총합계' 가 온다. 우리는 [합계] 열도 소계도 없어서 "이번 달 얼마 팔았나" 를
+   * 눈으로 세야 했다. 구매현황과 같은 모양이라 같은 방식으로 맞춘다.
+   *
+   * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다 —
+   * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
+   */
+  const lineRows = useMemo(() => {
+    type Row =
+      | { kind: 'line'; key: string; no: number; r: typeof shown[number] }
+      | { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
+    const sorted = [...shown].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    const out: Row[] = []
+    let month = ''
+    let no = 0
+    let qty = 0
+    let supply = 0
+    let vat = 0
+    const flush = () => {
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
+      qty = 0; supply = 0; vat = 0
+    }
+    for (const r of sorted) {
+      const m = r.date.slice(0, 7).replace('-', '/')
+      if (m !== month) { flush(); month = m }
+      out.push({ kind: 'line', key: r.key, no: ++no, r })
+      qty += r.qty
+      supply += r.supply
+      vat += r.vat
+    }
+    flush()
+    return out
+  }, [shown])
+
+  /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
    * 기간만 바꾸고 나머지 조건은 그대로여야 견주는 의미가 있다.
    */
@@ -427,27 +465,48 @@ export default function SalesStatusPage() {
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
             <th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ textAlign: 'right' }}>합계</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>판매 내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-              <td>{r.partner}</td>
-              <td>{r.itemName}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>판매 내역이 없습니다.</td></tr>
+          ) : lineRows.map((x) => x.kind === 'subtotal' ? (
+            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
+              <td colSpan={5} style={{ textAlign: 'right' }}>{x.month} 계</td>
+              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
+              <td></td>
+              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{(x.supply + x.vat).toLocaleString()}</td>
+            </tr>
+          ) : (
+            <tr key={x.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
+              <td style={{ fontFamily: 'monospace' }}>{x.r.date}</td>
+              <td style={{ fontFamily: 'monospace' }}>{x.r.docNo}</td>
+              <td>{x.r.partner}</td>
+              <td>{x.r.itemName}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{x.r.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{(x.r.supply + x.r.vat).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+            <td colSpan={5} style={{ textAlign: 'right' }}>총합계 ({shown.length}줄)</td>
+            <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.qty, 0).toLocaleString()}</td>
+            <td></td>
+            <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
+            <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+          </tr>
+        </tfoot>
       </table>
       )}
     </EcListShell>

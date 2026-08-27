@@ -106,6 +106,28 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     }
   }
 
+  /**
+   * 진행상태변경 — 원본 판매조회·구매조회 버튼이다. 고른 전표의 <b>확인상태</b>를 한 번에 바꾼다.
+   *
+   * <p>한 줄씩 [확인] 을 누르는 것밖에 없어서, 월말에 수십 장을 확인하려면 수십 번을 눌러야 했다.
+   *
+   * <p>고른 것이 섞여 있으면 <b>전부 확인</b>으로 맞춘다. 하나씩 뒤집으면 한 번 눌렀을 때
+   * 결과가 뭔지 알 수 없다. 확인은 판매전표에만 있다 — 구매에는 확인상태가 없다.
+   */
+  async function confirmSelected() {
+    const targets = shown.filter((d) => selected.has(d.id))
+    if (targets.length === 0) return alert('진행상태를 바꿀 전표를 고르세요.')
+    const kind = targets.every((d) => d.confirmStatus === 'CONFIRMED') ? 'unconfirm' : 'confirm'
+    if (!window.confirm(`${targets.length}건을 ${kind === 'confirm' ? '확인' : '확인해제'}할까요?`)) return
+    try {
+      for (const d of targets) await api.post(`/sales/${d.id}/${kind}`)
+      setSelected(new Set())
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   /** 전표 수정 — 입력 화면을 수정 모드로 연다. 원본도 조회에서 전표번호를 누르면 입력 팝업이 뜬다. */
   function editDoc(d: NormalDoc) {
     navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?edit=${d.id}`)
@@ -245,7 +267,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
       onNew={() => navigate(cfg.entryTo)}
-      actions={[{ label: '선택삭제', onClick: () => void deleteSelected() }, { label: 'Excel' }, { label: '인쇄' }]}
+      /*
+       * 원본 버튼 실측(사본 · 판매조회/구매조회):
+       *   신규(F2) · 진행상태변경 · 보내기 · 바코드(품목) · 선택삭제 · 이력조회
+       * 보내기·바코드·이력조회는 받쳐 줄 것이 없어 만들지 않는다 —
+       * 눌러도 아무 일 없는 버튼은 있는 것만 못하다. [신규(F2)] 는 위 onNew 가 이미 맡는다.
+       */
+      actions={[
+        ...(isSales ? [{ label: `진행상태변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => void confirmSelected() }] : []),
+        { label: '선택삭제', onClick: () => void deleteSelected() },
+        { label: 'Excel' },
+        { label: '인쇄' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
