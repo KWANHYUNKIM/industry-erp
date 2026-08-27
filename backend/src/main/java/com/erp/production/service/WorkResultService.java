@@ -28,6 +28,7 @@ public class WorkResultService {
     private final WorkOrderRepository workOrderRepository;
     private final ProcessRepository processRepository;
     private final ResourceRepository resourceRepository;
+    private final ResourceService resourceService;
     private final BorService borService;
     private final com.erp.inventory.service.WarehouseService warehouseService;
 
@@ -103,8 +104,8 @@ public class WorkResultService {
      */
     private ProductionResource resolveResource(Long resourceId, ProductionProcess processMaster) {
         if (resourceId == null) return null;
-        ProductionResource r = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> ApiException.badRequest("자원을 찾을 수 없습니다. id=" + resourceId));
+        // 사용중지한 설비로 새 작업을 올릴 수는 없다 — 원본은 코드도움에 띄우지도 않는다.
+        ProductionResource r = resourceService.getUsable(resourceId);
         if (r.getProcess() != null && processMaster != null
                 && !r.getProcess().getId().equals(processMaster.getId())) {
             throw ApiException.badRequest(String.format(

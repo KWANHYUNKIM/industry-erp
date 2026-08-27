@@ -28,6 +28,7 @@ public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final DocumentNoGenerator docNoGenerator;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final BusinessPartnerRepository partnerRepository;
 
     @Transactional(readOnly = true)
@@ -39,8 +40,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse create(CreateExpenseRequest req, String username) {
-        Account account = accountRepository.findById(req.accountId())
-                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + req.accountId()));
+        Account account = accountService.getUsable(req.accountId());
 
         LocalDate date = req.expenseDate() != null ? req.expenseDate() : LocalDate.now();
         Expense e = Expense.builder()

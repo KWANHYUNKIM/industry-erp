@@ -3602,6 +3602,79 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * <b>사용중지한 계정과목 · 자원 · 관리항목</b>으로 새로 고를 수 없다.
+ *
+ * <p>사용중단 부류가 네 번째다(품목·창고 → 거래처 → 공정 → 여기). 그래서 하나씩 찾지 않고
+ * <b>active 가 있는 마스터 37개를 세어</b> 토글이 되는 것부터 API 로 두드렸다.
+ * 계정과목 · 자원 · 관리항목 셋이 그대로 통과했다.
+ *
+ * <p>계정이 제일 크다. 폐지한 계정에 새 잔액이 쌓이면 재무제표에 없어야 할 줄이 남는다.
+ * <b>자동으로 만드는 분개는 막지 않는다</b> — 그쪽은 계정코드로 찾고, 거기까지 막으면
+ * 기준계정 하나를 잘못 내렸을 때 판매·구매 저장이 통째로 멈춘다.
+ */
+async function scenarioInactiveMasterGuards(f) {
+  section('■ 사용중지 마스터로 새로 만들 수 없다 (계정·자원·관리항목)')
+
+  // ── 계정과목
+  const cash = (await must('GET', '/accounts')).find((a) => a.code === '101')
+  eq('현금 계정이 있다', !!cash, true)
+  const accBody = { name: cash.name, division: cash.division, detailCategory: cash.detailCategory }
+  await must('PATCH', `/accounts/${cash.id}`, { ...accBody, active: false })
+
+  const je = await call('POST', '/journals', {
+    entryDate: '2095-02-02', description: `${P}분개`,
+    lines: [{ accountId: cash.id, debit: 1000 }, { accountId: cash.id, credit: 1000 }],
+  })
+  eq('사용중지 계정으로 분개할 수 없다', je.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중지된 계정과목/.test(String(je.data?.message ?? '')), true)
+
+  const ex = await call('POST', '/expenses', {
+    expenseDate: '2095-02-02', accountId: cash.id, amount: 1000, description: `${P}비용`,
+  })
+  eq('비용등록도 막힌다', ex.status, 400)
+
+  await must('PATCH', `/accounts/${cash.id}`, { ...accBody, active: true })
+  eq('되살리면 다시 쓸 수 있다',
+    (await must('GET', '/accounts')).find((a) => a.id === cash.id).active, true)
+
+  // ── 자원(설비)
+  const res = (await must('GET', '/resources'))[0]
+  if (res) {
+    const resBody = {
+      name: res.name, type: res.type, capacity: res.capacity, unit: res.unit,
+      costPerHr: res.costPerHr, warehouseId: res.warehouseId, processId: res.processId,
+    }
+    await must('PUT', `/resources/${res.id}`, { ...resBody, active: false })
+    const wr = await call('POST', '/work-results', {
+      workDate: '2095-02-02', process: res.processName ?? '절단', resourceId: res.id,
+      goodQty: 1, defectQty: 0, workTimeMin: 10,
+    })
+    eq('사용중지 설비로 작업내역을 올릴 수 없다', wr.status, 400)
+    eq('무엇이 막혔는지 말한다', /사용중지된 자원/.test(String(wr.data?.message ?? '')), true)
+    await must('PUT', `/resources/${res.id}`, { ...resBody, active: true })
+  }
+
+  // ── 관리항목
+  const mg = (await must('GET', '/management-items'))[0]
+  if (mg) {
+    const mgBody = { name: mg.name, description: mg.description }
+    await must('PUT', `/management-items/${mg.id}`, { ...mgBody, active: false })
+    const it = await call('POST', '/items', {
+      code: `${P}MGI`, name: `${P}관리항목시험`, unit: 'EA', category: f.product.category,
+      unitPrice: 0, purchasePrice: 0, safetyStock: 0, managementItemId: mg.id,
+    })
+    eq('사용중지 관리항목을 품목에 붙일 수 없다', it.status, 400)
+    eq('무엇이 막혔는지 말한다', /사용중지된 관리항목/.test(String(it.data?.message ?? '')), true)
+    await must('PUT', `/management-items/${mg.id}`, { ...mgBody, active: true })
+    eq('시험용 품목은 안 생겼다',
+      (await must('GET', '/items')).some((x) => x.code === `${P}MGI`), false)
+  }
+
+  eq('시험용 분개는 남기지 않는다',
+    (await must('GET', '/journals?from=2095-01-01&to=2095-12-31')).length, 0)
+}
+
+/**
  * <b>사용중지한 공정</b>으로 새로 고를 수 없다.
  *
  * <p>원본 공정등록에는 [사용중단/재사용]이 있고, 사용중단한 공정은 코드도움에 안 뜬다.
@@ -5074,7 +5147,9 @@ async function scenarioWorkResultResource() {
     process: cut.name, resourceId: 99999999, worker: 'QA',
     goodQty: 1, defectQty: 0, workTimeMin: 1, workDate: '2026-07-14',
   })
-  eq('없는 자원은 400', missing.status, 400)
+  // 없는 id 는 404 다. 이 자리만 badRequest 였고 품목·창고·공정은 notFound 였다 —
+  // 사용중지 검사를 붙이면서 같은 경로(ResourceService.getUsable)를 쓰게 돼 맞춰졌다.
+  eq('없는 자원은 404', missing.status, 404)
 
   for (const r of [okRow, anyProc]) await must('DELETE', `/work-results/${r.id}`)
   for (const r of [dedicated, generic]) await must('DELETE', `/resources/${r.id}`)
@@ -6832,6 +6907,7 @@ async function main() {
   await scenarioBookmarks()
   await scenarioPlanGenerate(fixtures)
   await scenarioInactiveProcessGuards()
+  await scenarioInactiveMasterGuards(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

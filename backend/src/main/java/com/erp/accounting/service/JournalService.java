@@ -56,6 +56,7 @@ public class JournalService {
     private final DocumentNoGenerator docNoGenerator;
     private final JournalEntryRepository entryRepository;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final BusinessPartnerRepository partnerRepository;
 
     /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
@@ -565,9 +566,12 @@ public class JournalService {
                 .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + code + " (계정과목등록 필요)"));
     }
 
+    /**
+     * <b>사람이 고른</b> 계정. 일반전표입력과 현금거래 간편입력이 쓴다.
+     * 위의 account(String code) 는 자동 분개가 쓰는 기준계정이라 검사하지 않는다.
+     */
     private Account account(Long id) {
-        return accountRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + id));
+        return accountService.getUsable(id);
     }
 
     private static boolean isPositive(BigDecimal v) {

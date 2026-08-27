@@ -21,6 +21,17 @@ public class ManagementItemService {
 
     private final ManagementItemRepository managementItemRepository;
 
+    /** 새로 고르는 자리에서 쓴다. 사용중지한 관리항목을 품목에 새로 붙일 수는 없다. */
+    @Transactional(readOnly = true)
+    public ManagementItem getUsable(Long id) {
+        ManagementItem m = get(id);
+        if (!m.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 관리항목입니다: " + m.getCode() + " " + m.getName());
+        }
+        return m;
+    }
+
     @Transactional(readOnly = true)
     public List<ManagementItemResponse> findAll() {
         return managementItemRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()

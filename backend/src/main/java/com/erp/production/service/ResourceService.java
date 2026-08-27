@@ -88,6 +88,17 @@ public class ResourceService {
         resourceRepository.delete(getResource(id));
     }
 
+    /** 새로 고르는 자리에서 쓴다. 사용중지한 설비로 새 작업을 올릴 수는 없다. */
+    @Transactional(readOnly = true)
+    public ProductionResource getUsable(Long id) {
+        ProductionResource r = getResource(id);
+        if (!r.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 자원입니다: " + r.getCode() + " " + r.getName());
+        }
+        return r;
+    }
+
     private ProductionResource getResource(Long id) {
         return resourceRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("자원을 찾을 수 없습니다. id=" + id));
