@@ -194,7 +194,9 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         </colgroup>
         <thead>
           <tr>
-            <th></th><th>일자 ▼</th><th>전표번호</th><th>거래처</th>
+            <th></th>
+            <th style={{ textAlign: 'center', width: 190 }}>일자-No. ▼</th>
+            <th>거래처</th>
             <th style={{ textAlign: 'right' }}>{moneyLabel}액</th>
             <th style={{ textAlign: 'center' }}>{moneyLabel}방법</th>
             <th>비고</th>
@@ -202,14 +204,15 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center' }}>{r.settleDate.replace(/-/g, '/')}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+                {r.settleDate.replace(/-/g, '/')} {r.docNo}
+              </td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.amount.toLocaleString()}</td>
               <td style={{ textAlign: 'center' }}>{r.method ?? ''}</td>
@@ -220,7 +223,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
+              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{total.toLocaleString()}</td>
               <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
             </tr>
@@ -242,7 +245,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
               <thead><tr>
                 <th>{subtotal}</th>
                 <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 160, textAlign: 'right' }}>수금액</th>
+                <th style={{ width: 160, textAlign: 'right' }}>{moneyLabel}액</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (

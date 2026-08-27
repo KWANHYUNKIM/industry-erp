@@ -58,11 +58,12 @@ const pageSource = (rel) => {
   const path = join('frontend', 'src', 'pages', ...rel.split('/'))
   if (!existsSync(path)) return null
   let src = readFileSync(path, 'utf8')
-  for (const m of src.matchAll(/^import\s+(\w+)\s+from\s+'(\.[^']+)'/gm)) {
+  /* 기본 import(감싸는 화면)와 이름 있는 import(공용 화면을 꺼내 쓰는 것) 둘 다 따라간다. */
+  for (const m of src.matchAll(/^import\s+(?:(\w+)|\{([^}]+)\})\s+from\s+'(\.[^']+)'/gm)) {
     const dir = rel.split('/').slice(0, -1)
-    const parts = m[2].replace(/^\.\//, '').split('/')
+    const parts = m[3].replace(/^\.\//, '').split('/')
     const abs = join('frontend', 'src', 'pages', ...dir, ...parts) + '.tsx'
-    if (/Page|Screen/.test(m[1]) && existsSync(abs)) src += readFileSync(abs, 'utf8')
+    if (/Page|Screen/.test(m[1] ?? m[2]) && existsSync(abs)) src += readFileSync(abs, 'utf8')
   }
   return src
 }
@@ -1109,6 +1110,20 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['작업내역입력|수량', '우리는 양품·불량을 나눠 센다'],
     ['작업내역입력|작업시간', '우리 열 이름은 [작업시간(분)]이다 — 단위가 다르다'],
     ['작업내역현황|일자-No.', '우리 작업내역에는 전표번호가 없다'],
+    /*
+     * 사본 '생산계획_MRP리스트' 는 표가 아니라 <b>[생산계획/MRP생성] 팝업의 폼</b>이다.
+     * 그 칸들이 격자 열처럼 잡혔다. 우리는 그 팝업을 만들지 않는다 — 매출계획·미구매·
+     * 미생산 소요량 전개(BOM 역산) 엔진이 있어야 하고, 없는 채로 버튼만 두면
+     * 눌러도 아무 일이 없다(MrpPage 주석에 적어 둔 이유와 같다).
+     */
+    ['생산계획_MRP리스트|생성일자', '표가 아니라 생성 팝업의 폼이다 — 그 팝업을 안 만든다'],
+    ['생산계획_MRP리스트|생산계획기간', '위와 같음'],
+    ['생산계획_MRP리스트|기준품목', '위와 같음'],
+    ['생산계획_MRP리스트|생산계획계산', '위와 같음'],
+    ['생산계획_MRP리스트|MRP계산', '위와 같음 — 소요량 전개 엔진이 없다'],
+    ['생산계획_MRP리스트|생산계획/MRP현황', '위와 같음'],
+    ['생산계획_MRP리스트|기타', '위와 같음'],
+    ['생산계획_MRP리스트|적요', '위와 같음'],
   ])
   for (let n = 1; n <= 10; n++) NO_COLUMN.set(`오더관리유형리스트|${n}단계`, 'STEP_COLS.map 으로 그려 이름이 코드에 안 보인다')
 
@@ -1191,6 +1206,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['출하지시서조회|진행상태변경', '출하지시서는 줄마다 상태를 고친다'],
     ['작업지시서효율현황|닫기', '화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다'],
     ['설문조사현황|전월+금월', '기간 빠른선택에 그 조합을 두지 않았다'],
+    ['생산계획_MRP리스트|H', '생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다'],
     ['품목등록 리스트|관계설정', '품목 사이 관계(대체품·세트) 개념이 없다'],
     ['품목등록 리스트|변경', '일괄변경 화면이 없다'],
     ['품목등록 리스트|재고조정', '재고조정은 재고관리 화면에서 한다'],

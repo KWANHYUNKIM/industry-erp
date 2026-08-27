@@ -50,6 +50,13 @@ export default function ApprovalListPage({
   const { user } = useAuth()
   const navigate = useNavigate()
   const [rows, setRows] = useState<ApprovalDoc[]>([])
+  /*
+   * 원본 기안서통합관리 조건의 <b>[출력양식]·[부서]</b>. 우리는 목록 글자를 훑는
+   * 검색상자 하나뿐이라, 기안서가 쌓이면 <b>양식이나 부서로 좁힐 방법이 없었다</b> —
+   * '지출결의서만' 이나 '생산부가 낸 것만' 을 보려면 눈으로 골라야 했다.
+   */
+  const [formType, setFormType] = useState('')
+  const [dept, setDept] = useState('')
   const [tab, setTab] = useState<Tab>('전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   /**
@@ -138,6 +145,12 @@ export default function ApprovalListPage({
   const inPeriod = (d: ApprovalDoc) =>
     (!from || (d.draftDate ?? '') >= from) && (!to || (d.draftDate ?? '') <= to)
   const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
+    .filter((r) => !formType || r.formTypeName === formType)
+    .filter((r) => !dept || (r.department ?? '') === dept)
+
+  /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
+  const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
+  const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort() as string[]
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -321,11 +334,21 @@ export default function ApprovalListPage({
         ))}
       </div>
 
-      {/* 원본은 알약 아래에 기안일자 기간을 적어 둔다 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+      {/* 원본은 알약 아래에 기안일자 기간 + [출력양식]·[부서] 조건을 적어 둔다 */}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>출력양식</label>
+        <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>부서</label>
+        <select className="ec-input" value={dept} onChange={(e) => setDept(e.target.value)} style={{ width: 130 }}>
+          <option value="">전체</option>
+          {depts.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
       </div>
 
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowX: 'auto' }}>
