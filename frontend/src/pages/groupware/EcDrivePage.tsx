@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { DriveDocument } from '../../api/types'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import { useShortcut } from '../../utils/useShortcut'
+import EcFileDrop from '../../components/EcFileDrop'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -165,6 +166,7 @@ export default function EcDrivePage() {
         <div style={{ flex: 1, minWidth: 0, border: '1px solid var(--ec-border)', background: '#fff', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ec-border)', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             {current.icon} {current.label}
+            {/* 숨은 input 은 그대로 둔다 — 위쪽 버튼이 이걸 누른다. 드롭 자리는 목록 위에 따로 있다. */}
             <input
               ref={fileInput}
               type="file"
@@ -176,6 +178,19 @@ export default function EcDrivePage() {
               }}
             />
           </div>
+          {/*
+            원본 드라이브는 파일을 끌어다 놓아 올린다. 우리는 버튼 하나뿐이라
+            탐색기·메일에서 끌어 온 파일이 갈 곳이 없었다.
+            여러 개를 놓으면 하나씩 다 올린다 — 이 자리는 그게 자연스럽다.
+          */}
+          <div style={{ marginBottom: 8 }}>
+            <EcFileDrop
+              multiple busy={uploading} disabled={uploading}
+              hint={`여기에 파일 놓기 (${sel === 'shared' ? '공유드라이브' : '내드라이브'})`}
+              onFiles={(fs) => { for (const f of fs) void uploadFile(f) }}
+            />
+          </div>
+
           {/* 원본 실측 폭(67-984-447-224-89-134)을 비율로 옮겼다 */}
           <table className="w-full text-left">
             <colgroup>

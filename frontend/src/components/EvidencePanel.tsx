@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../api/types'
 import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
+import EcFileDrop from './EcFileDrop'
 import { ymd } from './EcPeriodPicks'
 
 /**
@@ -30,7 +31,11 @@ export default function EvidencePanel({
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const fileInput = useRef<HTMLInputElement>(null)
+  /*
+   * 원본은 첨부 자리에 파일을 끌어다 놓을 수 있다. 예전에는 ref 로 input 을 직접 읽었는데,
+   * 끌어다 놓은 파일은 input 에 들어가지 않아 그 방식으로는 잡을 수가 없다. 상태로 든다.
+   */
+  const [file, setFile] = useState<File | null>(null)
 
   async function load() {
     setError('')
@@ -45,8 +50,7 @@ export default function EvidencePanel({
     setError(''); setBusy(true)
     try {
       const fd = new FormData()
-      const f = fileInput.current?.files?.[0]
-      if (f) fd.append('file', f)
+      if (file) fd.append('file', file)
       await api.post('/evidence-attachments', fd, {
         params: {
           entityType, entityId,
@@ -57,7 +61,7 @@ export default function EvidencePanel({
           note: note.trim() || undefined,
         },
       })
-      if (fileInput.current) fileInput.current.value = ''
+      setFile(null)
       setNote('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) } finally { setBusy(false) }
@@ -116,7 +120,17 @@ export default function EvidencePanel({
           {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
         <input type="date" className="ec-input" value={evidenceDate} onChange={(ev) => setEvidenceDate(ev.target.value)} style={{ width: 140 }} />
-        <input type="file" ref={fileInput} className="ec-input" style={{ width: 220 }} />
+        <EcFileDrop
+          hint="여기에 파일 놓기" disabled={busy}
+          onFiles={(fs) => setFile(fs[0] ?? null)}
+        >
+          {file && (
+            <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+              {file.name}
+              <span onClick={() => setFile(null)} style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+            </span>
+          )}
+        </EcFileDrop>
         <input className="ec-input" value={note} onChange={(ev) => setNote(ev.target.value)} placeholder="적요(선택)" style={{ width: 180 }} />
         <button className="ec-btn ec-btn-primary" onClick={add} disabled={busy}>{busy ? '등록 중…' : '증빙 등록'}</button>
         <span style={{ fontSize: 11.5, color: '#8a929c' }}>※ 파일 없이 증빙방법만 기록할 수도 있습니다(최대 10MB).</span>

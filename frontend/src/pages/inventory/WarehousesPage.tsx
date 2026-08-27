@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcFileDrop from '../../components/EcFileDrop'
 
 const inputCls = 'ec-input w-full'
 
@@ -234,7 +235,11 @@ export default function WarehousesPage() {
             </div>
             <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
               <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 창고를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
-              <input type="file" accept=".csv,.txt,.xlsx,.xls" onChange={onPickFile} className="ec-input" style={{ padding: 4 }} />
+              {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
+              <EcFileDrop
+                hint="여기에 파일 놓기 (엑셀·CSV)"
+                onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
+              />
               {webFile && (
                 <div style={{ marginTop: 10, border: '1px solid #e6eaef', borderRadius: 3, padding: 10, background: '#f9fbfd' }}>
                   <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>

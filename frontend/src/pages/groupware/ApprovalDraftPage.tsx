@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import ApprovalFormFields from '../../components/approval/ApprovalFormFields'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
+import EcFileDrop from '../../components/EcFileDrop'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -438,19 +439,18 @@ export default function ApprovalDraftPage() {
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>첨부</th>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type="file" style={{ fontSize: 12 }} disabled={uploading}
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAttachment(f) }}
-                        />
-                        {uploading && <span style={{ fontSize: 11.5, color: '#8a929c' }}>올리는 중…</span>}
+                      {/* 원본 기안서작성의 [여기에 파일 놓기]. 한 건만 붙는 자리다. */}
+                      <EcFileDrop
+                        disabled={uploading} busy={uploading}
+                        onFiles={(fs) => { if (fs[0]) void uploadAttachment(fs[0]) }}
+                      >
                         {attachment && (
                           <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
                             {attachment.name}
                             <span onClick={() => setAttachment(null)} style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
                           </span>
                         )}
-                      </div>
+                      </EcFileDrop>
                     </td>
                   </tr>
                   <tr>
