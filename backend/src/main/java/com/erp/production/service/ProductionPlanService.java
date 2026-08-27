@@ -10,7 +10,7 @@ import com.erp.production.dto.ProductionDtos.CreateWorkOrderRequest;
 import com.erp.production.dto.ProductionDtos.WorkOrderResponse;
 import com.erp.production.dto.ProductionPlanDtos.CreatePlanRequest;
 import com.erp.production.dto.ProductionPlanDtos.PlanResponse;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.service.ItemService;
 import com.erp.production.repository.ProductionPlanRepository;
 import com.erp.inventory.repository.StockRepository;
 import com.erp.inventory.repository.WarehouseRepository;
@@ -32,7 +32,8 @@ import com.erp.production.dto.ProductionPlanDtos;
 public class ProductionPlanService {
 
     private final ProductionPlanRepository planRepository;
-    private final ItemRepository itemRepository;
+    // inventory 의 공개 service 를 거친다(CLAUDE.md 4.2).
+    private final ItemService itemService;
     private final StockRepository stockRepository;
     private final WarehouseRepository warehouseRepository;
     private final WorkOrderService workOrderService;
@@ -48,8 +49,8 @@ public class ProductionPlanService {
 
     @Transactional
     public PlanResponse create(CreatePlanRequest req, String username) {
-        Item product = itemRepository.findById(req.productId())
-                .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다. id=" + req.productId()));
+        // 사용중지한 제품으로 앞으로의 계획을 세울 수는 없다 — 원본은 코드도움에 띄우지도 않는다.
+        Item product = itemService.getUsable(req.productId());
         ProductionPlan plan = ProductionPlan.builder()
                 .product(product)
                 .planWeek(req.planWeek())

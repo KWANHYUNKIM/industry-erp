@@ -7,8 +7,8 @@ import com.erp.inventory.domain.Warehouse;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.dto.ProductionDtos.CreateWorkOrderRequest;
 import com.erp.production.dto.ProductionDtos.WorkOrderResponse;
-import com.erp.inventory.repository.ItemRepository;
-import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.production.domain.ProductionPlanStatus;
 import com.erp.production.repository.ProductionPlanRepository;
 import com.erp.production.repository.ProductionRepository;
@@ -26,8 +26,10 @@ import com.erp.production.dto.ProductionDtos;
 public class WorkOrderService {
 
     private final WorkOrderRepository workOrderRepository;
-    private final ItemRepository itemRepository;
-    private final WarehouseRepository warehouseRepository;
+    // inventory 의 공개 service 를 거친다(CLAUDE.md 4.2). 리포지토리를 직접 잡으면
+    // 사용중지 검사를 통째로 건너뛴다 — 실제로 건너뛰고 있었다.
+    private final ItemService itemService;
+    private final WarehouseService warehouseService;
     private final DocumentNoGenerator docNoGenerator;
     private final ProductionRepository productionRepository;
     private final ProductionPlanRepository planRepository;
@@ -78,10 +80,8 @@ public class WorkOrderService {
 
     @Transactional
     public WorkOrderResponse create(CreateWorkOrderRequest req, String username) {
-        Item product = itemRepository.findById(req.productId())
-                .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다. id=" + req.productId()));
-        Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
-                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        Item product = itemService.getUsable(req.productId());
+        Warehouse warehouse = warehouseService.getUsable(req.warehouseId());
 
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : LocalDate.now();
 

@@ -143,6 +143,18 @@ public class StockService {
         LocalDate date = req.transactionDate() != null ? req.transactionDate() : LocalDate.now();
         // 재고 이동 전표를 직접 만드는 자리다 — 수량관리제외 품목은 만들 전표가 없다.
         requireStockTracked(item);
+        /*
+         * 사용중지한 품목은 <b>늘리는 것만</b> 막는다.
+         *
+         * 안 쓰기로 한 품목을 새로 들여올 이유는 없다. 하지만 줄이는 것까지 막으면
+         * 이미 창고에 남아 있는 재고를 털어낼 길이 없어져 영영 장부에 붙어 있게 된다 —
+         * 사용중지 처리의 뒤처리가 바로 그 출고다.
+         */
+        if (delta.signum() > 0 && !item.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 품목은 재고를 늘릴 수 없습니다: " + item.getCode() + " " + item.getName()
+                            + " (남은 재고를 줄이는 것은 됩니다)");
+        }
         StockTransaction tx = applyDelta(item, warehouse, delta, req.type(), req.unitPrice(), date, req.note(), username);
         return StockTransactionResponse.from(tx);
     }

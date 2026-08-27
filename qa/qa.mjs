@@ -3449,6 +3449,86 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * <b>사용중지한 품목</b>으로 새 전표·계획·구성을 만들 수 없다.
+ *
+ * <p>원본은 사용중지한 품목을 <b>코드도움에 아예 띄우지 않는다.</b> 어느 화면에서도 새로
+ * 고를 수 없다는 뜻이다. 이미 들어가 있던 것은 그대로 남는다.
+ *
+ * <p>우리는 판매·구매·견적·주문·발주만 막고 있었다. 나머지는 리포지토리를 직접 잡고 있어
+ * (CLAUDE.md 4.2 위반) 검사를 통째로 건너뛰었다 — 실제로 재 보니 작업지시서 · 생산계획 ·
+ * BOM · 재고입고가 전부 통과했다. 화면 목록에는 안 뜨는데 id 만 알면 되는 상태였다.
+ *
+ * <p>재고는 <b>늘리는 것만</b> 막는다. 줄이는 것까지 막으면 이미 창고에 남은 재고를
+ * 털어낼 길이 없어져 영영 장부에 붙어 있게 된다.
+ */
+async function scenarioInactiveItemGuards(f) {
+  section('■ 사용중지 품목으로 새로 만들 수 없다')
+
+  const body = {
+    name: f.material.name, unit: f.material.unit, category: f.material.category,
+    unitPrice: f.material.unitPrice, purchasePrice: f.material.purchasePrice,
+    safetyStock: f.material.safetyStock,
+  }
+  const stopped = await must('PUT', `/items/${f.material.id}`, { ...body, active: false })
+  eq('자재를 사용중지로 내린다', stopped.active, false)
+
+  const D = '2093-03-03'
+  const blocked = [
+    ['작업지시서', '/work-orders',
+      { productId: f.material.id, warehouseId: f.warehouse.id, plannedQty: 1, orderDate: D }],
+    ['생산계획', '/production-plans',
+      { productId: f.material.id, planWeek: '2093-W10', demandQty: 1, planQty: 1 }],
+    ['BOM 의 제품', '/boms',
+      { productId: f.material.id, lines: [{ componentId: f.product.id, quantity: 1 }] }],
+    ['BOM 의 자재', '/boms',
+      { productId: f.product.id, lines: [{ componentId: f.material.id, quantity: 1 }] }],
+    ['재고입고', '/stock/transactions',
+      { itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 1 }],
+  ]
+  for (const [label, path, payload] of blocked) {
+    const r = await call('POST', path, payload)
+    eq(`${label}: 사용중지 품목은 거부`, r.status, 400)
+    eq(`${label}: 무엇이 막혔는지 말한다`,
+      /사용중지된 품목/.test(String(r.data?.message ?? '')), true)
+  }
+
+  // 창고 쪽도 같다 — 작업지시서의 창고.
+  const whs = await must('GET', '/warehouses')
+  const other = whs.find((w) => w.id !== f.warehouse.id)
+  // 창고 수정은 안 보낸 칸을 지운다 — 되돌릴 때 잃지 않도록 통째로 싣는다.
+  const whBody = {
+    name: other.name, location: other.location, kind: other.kind,
+    processId: other.processId, outsourcingPartnerId: other.outsourcingPartnerId,
+  }
+  const deadWh = await must('PUT', `/warehouses/${other.id}`, { ...whBody, active: false })
+  eq('창고를 사용중지로 내린다', deadWh.active, false)
+  await must('PUT', `/items/${f.material.id}`, { ...body, active: true })
+  const woWh = await call('POST', '/work-orders',
+    { productId: f.material.id, warehouseId: other.id, plannedQty: 1, orderDate: D })
+  eq('작업지시서: 사용중지 창고도 거부', woWh.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중지된 창고/.test(String(woWh.data?.message ?? '')), true)
+  const back = await must('PUT', `/warehouses/${other.id}`, { ...whBody, active: true })
+  eq('되돌린 창고가 원래대로다', `${back.name}|${back.location}|${back.kind}`,
+    `${other.name}|${other.location}|${other.kind}`)
+
+  // 줄이는 것은 열어 둔다 — 사용중지의 뒤처리가 바로 그 출고다.
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 5,
+  })
+  await must('PUT', `/items/${f.material.id}`, { ...body, active: false })
+  const out = await call('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 5,
+  })
+  eq('사용중지해도 남은 재고는 뺄 수 있다', out.status, 200)
+  await must('PUT', `/items/${f.material.id}`, { ...body, active: true })
+
+  const listed = (await must('GET', '/items')).find((x) => x.id === f.material.id)
+  eq('시험이 끝나면 자재는 다시 사용중이다', listed.active, true)
+  eq('BOM 은 늘어나지 않았다',
+    (await must('GET', '/boms')).filter((b) => b.productId === f.material.id).length, 0)
+}
+
+/**
  * 표준원가생성의 <b>[계산기준]</b> — 최종매입가 vs 총평균법.
  *
  * <p>원본 원가생성/수정 조건 실측(사본): 기준년월 · 원가계산방법 ·
@@ -6236,6 +6316,7 @@ async function main() {
   await scenarioShipmentSettlementProject(fixtures)
   await scenarioPlanToWorkOrder(fixtures)
   await scenarioCostBasis(fixtures)
+  await scenarioInactiveItemGuards(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

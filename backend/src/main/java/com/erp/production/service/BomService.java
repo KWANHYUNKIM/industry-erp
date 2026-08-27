@@ -7,7 +7,7 @@ import com.erp.inventory.domain.Item;
 import com.erp.production.dto.BomDtos.BomResponse;
 import com.erp.production.dto.BomDtos.SaveBomRequest;
 import com.erp.production.repository.BomRepository;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.service.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,12 @@ import com.erp.production.dto.BomDtos;
 public class BomService {
 
     private final BomRepository bomRepository;
-    private final ItemRepository itemRepository;
+    /*
+     * 사용중지한 품목은 BOM 에 새로 들어갈 수 없다. 들어가면 그 자재를 앞으로 계속
+     * 소모하겠다는 뜻이 되고, 소요량전개·MRP 가 그걸 사라고 한다.
+     * 이미 들어가 있던 줄도 다시 저장할 때 걸린다 — 그 자리에서 자재를 바꾸라는 뜻이다.
+     */
+    private final ItemService itemService;
 
     @Transactional(readOnly = true)
     public List<BomResponse> findAll() {
@@ -33,8 +38,7 @@ public class BomService {
     /** 제품 기준 BOM 저장(있으면 자재라인 교체, 없으면 생성) */
     @Transactional
     public BomResponse save(SaveBomRequest req) {
-        Item product = itemRepository.findById(req.productId())
-                .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다. id=" + req.productId()));
+        Item product = itemService.getUsable(req.productId());
 
         Bom bom = bomRepository.findByProductIdWithProduct(product.getId())
                 .orElseGet(() -> Bom.builder().product(product).build());
@@ -46,8 +50,7 @@ public class BomService {
             if (lr.componentId().equals(product.getId())) {
                 throw ApiException.badRequest("제품 자신을 자재로 넣을 수 없습니다.");
             }
-            Item component = itemRepository.findById(lr.componentId())
-                    .orElseThrow(() -> ApiException.notFound("자재를 찾을 수 없습니다. id=" + lr.componentId()));
+            Item component = itemService.getUsable(lr.componentId());
             bom.addLine(BomLine.builder().component(component).quantity(lr.quantity()).build());
         });
 
