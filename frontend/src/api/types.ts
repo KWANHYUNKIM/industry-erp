@@ -1246,6 +1246,12 @@ export interface WorkPost {
   /** 작성자 표시 이름. 화면은 이걸 쓴다 — writer 는 아이디라 사람이 읽기 나쁘다. */
   writerName: string
   forwardTo: string | null
+  /** 원본 격자의 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
+  attachmentId: number | null
+  attachmentName: string | null
+  attachmentSize: number | null
+  /** 원본 격자의 [조회] 열 — 글을 편 횟수. */
+  viewCount: number
   status: WorkPostStatus
   statusName: string
 }

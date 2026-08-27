@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import com.erp.common.BaseTimeEntity;
+import com.erp.common.StoredFile;
 
 /**
  * 게시글. 게시판({@link PostBoard})마다 목록이 갈리지만 테이블과 게시글번호는 하나로 이어진다.
@@ -59,4 +60,20 @@ public class WorkPost extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private WorkPostStatus status = WorkPostStatus.IN_PROGRESS;
+
+    /**
+     * 첨부 한 건. 원본 WORK 격자의 <b>[첨부]</b> 열이고, 상세를 펼치면 이름·크기가 붙는다.
+     * 우리 화면에는 열만 있고 늘 비어 있었다 — 붙일 자리가 없었기 때문이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private StoredFile attachment;
+
+    /**
+     * 원본 격자의 <b>[조회]</b> 열. 우리는 그 자리에 완료/재개 버튼을 넣어 두어
+     * 열 이름과 내용이 어긋나 있었다.
+     */
+    @Column(name = "view_count", nullable = false)
+    @Builder.Default
+    private int viewCount = 0;
 }

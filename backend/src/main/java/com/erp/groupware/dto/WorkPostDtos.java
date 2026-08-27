@@ -17,7 +17,9 @@ public final class WorkPostDtos {
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
             String forwardTo,
-            LocalDate postDate
+            LocalDate postDate,
+            /** 첨부 파일 id. 원본 격자의 [첨부] 열. 안 붙일 수 있다. */
+            Long attachmentId
     ) {}
 
     /**
@@ -29,7 +31,9 @@ public final class WorkPostDtos {
     public record UpdateWorkPostRequest(
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
-            String forwardTo
+            String forwardTo,
+            /** null 이면 첨부를 뗀다. 안 보내는 것과 구분하지 않는다 — 수정은 통째로 덮는다. */
+            Long attachmentId
     ) {}
 
     public record UpdateWorkPostStatusRequest(
@@ -45,14 +49,23 @@ public final class WorkPostDtos {
             /** 작성자 표시 이름. 화면은 이걸 보여 준다 — writer 는 아이디라 사람이 읽기 나쁘다. */
             String writerName,
             String forwardTo,
-            WorkPostStatus status, String statusName
+            WorkPostStatus status, String statusName,
+            /** 원본 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
+            Long attachmentId, String attachmentName, Long attachmentSize,
+            /** 원본 [조회] 열. */
+            int viewCount
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
+            var f = p.getAttachment();
             return new WorkPostResponse(
                     p.getId(), p.getBoard(), p.getBoard().getDisplayName(),
                     p.getPostNo(), p.getPostDate(),
                     p.getTitle(), p.getContent(), p.getWriter(), writerName, p.getForwardTo(),
-                    p.getStatus(), p.getStatus().getDisplayName());
+                    p.getStatus(), p.getStatus().getDisplayName(),
+                    f != null ? f.getId() : null,
+                    f != null ? f.getName() : null,
+                    f != null ? f.getSizeBytes() : null,
+                    p.getViewCount());
         }
     }
 }

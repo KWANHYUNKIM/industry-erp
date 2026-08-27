@@ -3,6 +3,8 @@ package com.erp.groupware.service;
 import com.erp.auth.domain.User;
 import com.erp.auth.repository.UserRepository;
 import com.erp.common.ApiException;
+import com.erp.common.StoredFile;
+import com.erp.common.StoredFileRepository;
 import com.erp.groupware.domain.WorkPost;
 import com.erp.groupware.domain.WorkPostStatus;
 import com.erp.groupware.domain.enums.PostBoard;
@@ -27,6 +29,14 @@ public class WorkPostService {
     // writer 는 로그인 아이디다(FK). 화면에는 사람 이름을 보여야 하므로 여기서 옮긴다.
     private final UserRepository userRepository;
     private final DocumentNoGenerator docNo;
+    private final StoredFileRepository storedFileRepository;
+
+    /** 첨부 파일. null 이면 안 붙인 것이다 — 없는 id 를 주면 그건 오류다. */
+    private StoredFile attachmentOf(Long id) {
+        if (id == null) return null;
+        return storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+    }
 
     /** 로그인 아이디 → 표시 이름. 계정이 지워졌으면 아이디를 그대로 보여 준다. */
     private String displayName(String username) {
@@ -54,6 +64,7 @@ public class WorkPostService {
                 .content(req.content())
                 .writer(writer)
                 .forwardTo(req.forwardTo())
+                .attachment(attachmentOf(req.attachmentId()))
                 .status(WorkPostStatus.IN_PROGRESS)
                 .build();
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
@@ -66,6 +77,7 @@ public class WorkPostService {
         post.setTitle(req.title());
         post.setContent(req.content());
         post.setForwardTo(req.forwardTo());
+        post.setAttachment(attachmentOf(req.attachmentId()));
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
 
@@ -75,6 +87,19 @@ public class WorkPostService {
         WorkPostStatus target = req.status() != null ? req.status()
                 : (post.getStatus() == WorkPostStatus.DONE ? WorkPostStatus.IN_PROGRESS : WorkPostStatus.DONE);
         post.setStatus(target);
+        return WorkPostResponse.from(post, displayName(post.getWriter()));
+    }
+
+    /**
+     * 원본 격자의 <b>[조회]</b> 열. 글을 펼칠 때 하나 올린다.
+     *
+     * <p>목록을 부르는 것만으로는 안 올린다 — 그러면 화면을 열 때마다 모든 글의 조회수가
+     * 같이 올라가서, 그 숫자가 '몇 명이 봤나' 를 뜻하지 않게 된다.
+     */
+    @Transactional
+    public WorkPostResponse read(Long id) {
+        WorkPost post = getPost(id);
+        post.setViewCount(post.getViewCount() + 1);
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
 

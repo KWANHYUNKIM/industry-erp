@@ -50,6 +50,12 @@ public class WorkPostController {
         return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null));
     }
 
+    /** 원본 [조회] 열. 글을 펼칠 때 부른다. */
+    @PostMapping("/{id}/read")
+    public WorkPostDtos.WorkPostResponse read(@PathVariable Long id) {
+        return workPostService.read(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         workPostService.delete(id);

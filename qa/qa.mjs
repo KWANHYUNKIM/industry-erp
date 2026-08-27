@@ -3602,6 +3602,56 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * 업무관리게시판의 <b>[첨부]</b>와 <b>[조회]</b>.
+ *
+ * <p>원본 WORK 격자의 열은 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 ·
+ * <b>첨부 · 조회</b> 다. 우리는 두 열을 만들어 두고 채우지 못했다 — 첨부 칸은 늘 비었고
+ * (붙일 자리가 없었다), 조회 칸에는 완료/재개 버튼이 들어가 열 이름과 내용이 어긋났다.
+ *
+ * <p>조회수는 <b>글을 펼 때만</b> 오른다. 목록을 부르는 것만으로 올리면 화면을 열 때마다
+ * 모든 글이 같이 올라가서 그 숫자가 '몇 명이 봤나' 를 뜻하지 않게 된다. QA 가 그걸 잰다.
+ */
+async function scenarioWorkPostAttachment() {
+  section('■ 업무게시판 첨부·조회수')
+
+  const post = await must('POST', '/work-posts', {
+    board: 'WORK', title: `${P}첨부시험`, content: '내용', postDate: '2087-04-01',
+  })
+  isNull('첨부를 안 주면 비어 있다', post.attachmentId)
+  eq('조회수는 0에서 시작한다', post.viewCount, 0)
+
+  // 목록만 불러서는 조회수가 오르지 않아야 한다.
+  await must('GET', '/work-posts?board=WORK')
+  await must('GET', '/work-posts?board=WORK')
+  eq('목록을 불러도 조회수는 그대로',
+    (await must('GET', '/work-posts?board=WORK')).find((x) => x.id === post.id).viewCount, 0)
+
+  const read1 = await must('POST', `/work-posts/${post.id}/read`)
+  eq('펴면 하나 오른다', read1.viewCount, 1)
+  const read2 = await must('POST', `/work-posts/${post.id}/read`)
+  eq('또 펴면 또 오른다', read2.viewCount, 2)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/work-posts?board=WORK')).find((x) => x.id === post.id).viewCount, 2)
+
+  // 없는 파일을 붙이려 하면 막힌다 — 조용히 null 로 저장하면 붙인 줄 안다.
+  const ghost = await call('PUT', `/work-posts/${post.id}`, {
+    title: `${P}첨부시험`, content: '내용', attachmentId: 99999999,
+  })
+  eq('없는 첨부는 거부', ghost.status, 404)
+
+  // 첨부를 뗄 수 있다(수정은 통째로 덮는다).
+  const cleared = await must('PUT', `/work-posts/${post.id}`, {
+    title: `${P}첨부시험`, content: '내용', attachmentId: null,
+  })
+  isNull('첨부를 뗄 수 있다', cleared.attachmentId)
+  eq('고쳐도 조회수는 그대로', cleared.viewCount, 2)
+
+  await must('DELETE', `/work-posts/${post.id}`)
+  eq('시험용 글은 남기지 않는다',
+    (await must('GET', '/work-posts?board=WORK')).some((x) => x.id === post.id), false)
+}
+
+/**
  * <b>사원등록</b> — 등록 · 수정 · 사용중단.
  *
  * <p>이 화면은 제목이 '사원등록' 인데 <b>등록을 할 수가 없었다.</b> 목록과 기본급 수정만
@@ -7008,6 +7058,7 @@ async function main() {
   await scenarioInactiveProcessGuards()
   await scenarioInactiveMasterGuards(fixtures)
   await scenarioEmployeeMaster(fixtures)
+  await scenarioWorkPostAttachment()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

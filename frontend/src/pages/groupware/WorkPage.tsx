@@ -5,6 +5,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
+import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
+import EcFileDrop from '../../components/EcFileDrop'
 
 const today = () => ymd(new Date())
 
@@ -21,7 +23,12 @@ const today = () => ymd(new Date())
  * 펼친 글 아래에는 답글(F8)·복사·<b>수정</b>·<b>삭제</b>·닫기가 붙는다.
  *
  * <p>답글·복사·인쇄는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도 아무 일 없는 버튼은
- * 있는 것만 못하다. 첨부(웹자료올리기)도 아직 업무글에 파일을 붙일 수 없다.
+ * 있는 것만 못하다.
+ *
+ * <p>격자의 <b>[첨부]·[조회]</b> 두 열은 만들어 두고 채우지 못하고 있었다. 첨부 칸은 늘
+ * 비어 있었고(붙일 자리가 없었다), 조회 칸에는 완료/재개 버튼이 들어가 있어 <b>열 이름과
+ * 내용이 어긋나</b> 있었다. 이제 첨부는 실제 파일이고, 조회는 글을 편 횟수다.
+ * 완료/재개는 원본대로 하단 [진행상태변경]으로 옮겼다.
  */
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
   const [rows, setRows] = useState<WorkPost[]>([])
@@ -31,6 +38,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', content: '', forwardTo: '', postDate: today() })
+  /** 새 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -56,11 +66,23 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
 
   useEffect(() => { load() }, [board])
 
-  const toggleOpen = (id: number) => setOpened((prev) => {
-    const next = new Set(prev)
-    if (next.has(id)) next.delete(id); else next.add(id)
-    return next
-  })
+  /**
+   * 글을 편다. <b>펼 때만</b> 조회수를 올린다 — 목록을 부르는 것만으로 올리면
+   * 화면을 열 때마다 모든 글이 같이 올라가서 그 숫자가 '몇 명이 봤나' 를 뜻하지 않게 된다.
+   * 접을 때는 올리지 않는다.
+   */
+  const toggleOpen = (id: number) => {
+    const willOpen = !opened.has(id)
+    setOpened((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+    if (!willOpen) return
+    api.post<WorkPost>(`/work-posts/${id}/read`)
+      .then((r) => setRows((prev) => prev.map((x) => (x.id === id ? r.data : x))))
+      .catch(() => { /* 조회수는 곁다리다 — 실패해도 글은 펴진다. */ })
+  }
 
   async function saveEdit() {
     if (!editing) return
@@ -92,6 +114,22 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
+  /** 파일을 먼저 올려 id 를 받고, 글을 저장할 때 그 id 를 붙인다(기안서와 같은 방식). */
+  async function upload(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setAttachment({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function submit() {
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
@@ -100,8 +138,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       await api.post('/work-posts', {
         board, title: form.title, content: form.content,
         forwardTo: form.forwardTo || undefined, postDate: form.postDate,
+        attachmentId: attachment ? attachment.id : null,
       })
       setForm({ title: '', content: '', forwardTo: '', postDate: today() })
+      setAttachment(null)
       setShowForm(false)
       load()
     } catch (err) {
@@ -154,15 +194,6 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     if (!(await exportTableToXlsx(table, 'WORK'))) setError('내보낼 자료가 없습니다.')
   }
 
-  async function toggleStatus(p: WorkPost) {
-    try {
-      await api.patch(`/work-posts/${p.id}/status`, {})
-      load()
-    } catch (err) {
-      alert(extractErrorMessage(err))
-    }
-  }
-
   const shown = rows
     .filter((r) => tab === '전체' || r.statusName === tab)
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
@@ -199,6 +230,20 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
               </tr>
             </tbody>
           </table>
+          {/* 원본 [웹자료올리기]·[여기에 파일 놓기]. 한 건만 붙는 자리다. */}
+          <div style={{ marginBottom: 10 }}>
+            <EcFileDrop busy={uploading} disabled={uploading}
+                        onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+              {attachment && (
+                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                  {attachment.name}
+                  <span onClick={() => setAttachment(null)}
+                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                </span>
+              )}
+            </EcFileDrop>
+          </div>
+
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
             <button className="ec-btn" onClick={() => setShowForm(false)}>취소</button>
@@ -281,14 +326,16 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: r.status === 'DONE' ? '#1c7c3c' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
                 </td>
-                {/* 첨부는 아직 업무글에 붙일 수 없다 — 값이 없으면 원본도 빈 칸이다 */}
-                <td style={{ textAlign: 'center', color: '#c8ced6' }} />
+                {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
                 <td style={{ textAlign: 'center' }}>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => toggleStatus(r)}
-                          title={r.status === 'DONE' ? '진행중으로 되돌립니다' : '완료로 바꿉니다'}>
-                    {r.status === 'DONE' ? '재개' : '완료'}
-                  </button>
+                  {r.attachmentId ? (
+                    <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
+                          onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
+                          style={{ cursor: 'pointer', color: 'var(--ec-blue)' }}>📎</span>
+                  ) : <span style={{ color: '#c8ced6' }}>—</span>}
                 </td>
+                {/* 원본 [조회] — 글을 편 횟수다. 완료/재개는 하단 [진행상태변경]으로 옮겼다. */}
+                <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.viewCount ?? 0}</td>
               </tr>
               {opened.has(r.id) && (
                 <tr>
