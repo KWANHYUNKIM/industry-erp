@@ -141,7 +141,7 @@ export default function WorkOrderPage() {
 
   return (
     <EcListShell
-      title="작업지시 리스트"
+      title="작업지시서조회"
       onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >

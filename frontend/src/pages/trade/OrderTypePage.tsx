@@ -148,7 +148,7 @@ export default function OrderTypePage() {
 
   return (
     <EcListShell
-      title="오더관리유형등록"
+      title="오더관리유형리스트"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}

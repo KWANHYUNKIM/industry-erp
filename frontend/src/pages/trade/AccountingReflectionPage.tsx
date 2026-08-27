@@ -288,7 +288,9 @@ export default function AccountingReflectionPage() {
 
   return (
     <EcListShell
-      title="회계반영 / 미반영현황"
+      title={kind === 'sales'
+        ? '판매일괄회계반영 / 회계미반영현황(판매)'
+        : '구매일괄회계반영 / 회계미반영현황 (구매)'}
       onNew={reflectSelected}
       newLabel={`선택 일괄반영(${checked.size})`}
       searchable={false}

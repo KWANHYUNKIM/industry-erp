@@ -1267,6 +1267,64 @@ console.log('\n■ 근태·휴가 일수를 화면마다 같은 모양으로 찍
   eq(`일수를 쓰는 화면 ${checked}개가 같은 서식을 쓴다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-k) 원본 화면 이름 ↔ 우리 화면 제목 ─────────────────────────────────
+console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
+
+/*
+ * <b>화면 제목이 원본과 같나.</b>
+ *
+ * <p>메뉴 이름은 이미 견주고 있었는데(2-e) <b>화면을 열었을 때 위에 뜨는 이름</b>은
+ * 안 보고 있었다. 둘은 원본에서도 다르다 — 메뉴는 [거래처등록]인데 화면 제목은
+ * [거래처리스트]다(품목등록 → '품목등록 리스트' 와 같은 관계).
+ *
+ * <p>여기서 걸린 것: 거래처리스트(우리 '거래처등록 리스트'), 오더관리유형리스트
+ * (우리 '오더관리유형등록'), 작업지시서조회(우리 '작업지시 리스트'),
+ * 생산불출조회(우리 '생산불출'), 거래처별채권·채무(우리 '채권현황').
+ * 원본을 쓰던 사람이 <b>같은 화면을 다른 이름으로 만나면</b> 그게 그건지 알 수 없다.
+ *
+ * <p>한 화면이 원본 화면 둘을 겸하면(판매·구매, 채권·채무) 제목도 고른 구분을 따라
+ * 바뀌어야 한다. 그래서 제목이 정해진 문자열이 아니라 식이면 <b>그 식 안에</b>
+ * 원본 이름이 있는지 본다.
+ */
+{
+  const TITLE_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  /** 우리 화면이 원본 화면 여럿을 겸하거나, 제목을 EcListShell 로 안 다는 곳. */
+  const TITLE_SKIP = new Map([
+    ['단가적용순서설정', 'EcListShell 을 안 쓰고 제목을 직접 그린다'],
+  ])
+  const norm = (s) => s.replace(/[\s_]/g, '').replace(/\//g, '')
+
+  const bad = []
+  let checked = 0
+  for (const [screen, rel] of TITLE_MAP) {
+    if (TITLE_SKIP.has(screen)) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const src = readFileSync(path, 'utf8')
+    /*
+     * 제목은 세 모양이다: 정해진 글자 · 식(구분에 따라 바뀜) · 변수.
+     * 변수면 그 변수를 정하는 줄까지 같이 본다 — 안 그러면 이름이 'title' 로만 보인다.
+     */
+    // 제목이 여러 줄에 걸치기도 한다(구분에 따라 갈리는 식). 뒤 200자까지 본다.
+    const line = src.match(/title=[\s\S]{0,200}/)
+    if (!line) { bad.push(`${rel.split('/').pop()} — 제목을 못 찾았다`); continue }
+    checked++
+    let text = line[0]
+    const ident = text.match(/title=\{(\w+)\}/)
+    if (ident) {
+      for (const d of src.matchAll(new RegExp('(?:const|let)\\s+' + ident[1] + '\\s*=[^\\n]{0,160}', 'g'))) {
+        text += ' ' + d[0]
+      }
+    }
+    if (!norm(text).includes(norm(screen))) {
+      bad.push(`${rel.split('/').pop()}  원본 [${screen}] · 우리 [${text.slice(0, 60)}]`)
+    }
+  }
+  eq(`원본 화면 이름 ${checked}개가 우리 제목에도 있다`
+    + ` (겸하는 ${TITLE_SKIP.size}개는 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

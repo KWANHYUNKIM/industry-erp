@@ -214,7 +214,7 @@ export default function PartnersPage() {
 
   return (
     <EcListShell
-      title="거래처등록 리스트"
+      title="거래처리스트"
       onNew={openCreate}
       actions={[
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },

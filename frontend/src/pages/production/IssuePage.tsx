@@ -175,7 +175,7 @@ export default function IssuePage() {
 
   return (
     <EcListShell
-      title="생산불출"
+      title="생산불출조회"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}

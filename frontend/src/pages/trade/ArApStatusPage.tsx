@@ -111,7 +111,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   return (
     <EcListShell
-      title={mode === 'RECEIVABLE' ? '채권현황' : '채권/채무현황'}
+      title={mode === 'RECEIVABLE' ? '거래처별채권' : mode === 'PAYABLE' ? '거래처별채무' : '채권/채무현황'}
       actions={[{ label: '검색(F8)', onClick: load, primary: true }, { label: 'Excel' }, { label: '인쇄' }]}
       help={
         <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>

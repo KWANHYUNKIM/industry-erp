@@ -323,7 +323,7 @@ export default function ProductionIssueStatusPage() {
 
   return (
     <EcListShell
-      title="생산입고/소모현황"
+      title="생산입고/소모현황 I"
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
