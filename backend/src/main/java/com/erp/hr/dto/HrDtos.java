@@ -195,6 +195,17 @@ public final class HrDtos {
 
     /** 사원별 휴가 잔여 (휴가잔여일수현황) */
     public record VacationSummaryRow(
+            /**
+             * 휴가명 — 원본 휴가잔여일수현황의 <b>첫 열</b>이다. 값이 '연차(2026년)' 이다.
+             *
+             * <p>이 화면은 원래부터 <b>연도별</b>로 센다(그 해에 시작한 휴가만 사용일수에 넣는다).
+             * 그런데 그 연도가 응답에도 화면에도 없어서, 지금 보는 숫자가 몇 년치인지
+             * 알 방법이 없었다. 원본의 이 열이 바로 그 값이다.
+             *
+             * <p>휴가 항목 마스터를 만든 것이 아니다 — 우리에겐 연차 하나뿐이라
+             * 계산에 쓴 연도를 그대로 적는다. 종류가 늘면 그때 마스터를 둔다.
+             */
+            String leaveName,
             String empName,
             String department,
             /** 재직 여부. 원본의 [재직구분] 조건이 이 값을 본다. */
@@ -209,11 +220,24 @@ public final class HrDtos {
          * 원본도 15.000 · 9.375 처럼 3자리로 보여 준다. 표시 자릿수는 화면의 [소수점]이 정한다.
          */
         public static VacationSummaryRow of(User u, BigDecimal usedDays) {
+            return of(u, usedDays, java.time.Year.now().getValue(), null);
+        }
+
+        /**
+         * {@code emp} 는 계정에 이어진 사원. 이어져 있으면 <b>부서 마스터</b>의 이름을 쓴다 —
+         * 계정의 자유입력 부서는 부서 마스터와 맞는다는 보장이 없어 같은 부서가
+         * 두 이름으로 갈릴 수 있다. 근태현황이 이미 같은 방식이다.
+         */
+        public static VacationSummaryRow of(User u, BigDecimal usedDays, int year,
+                                            com.erp.hr.domain.Employee emp) {
             BigDecimal used = usedDays == null ? BigDecimal.ZERO : usedDays;
             BigDecimal total = u.getAnnualLeaveDays() == null ? BigDecimal.ZERO : u.getAnnualLeaveDays();
             return new VacationSummaryRow(
+                    "연차(" + year + "년)",
                     u.getName(),
-                    u.getDepartment(),
+                    emp != null && emp.getDepartment() != null
+                            ? emp.getDepartment().getName()
+                            : u.getDepartment(),
                     u.isEnabled(),
                     total.setScale(3, RoundingMode.HALF_UP),
                     used.setScale(3, RoundingMode.HALF_UP),

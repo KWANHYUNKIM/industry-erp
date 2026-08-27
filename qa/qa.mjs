@@ -3444,6 +3444,49 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 휴가잔여일수현황이 <b>몇 년치인지</b> 말하는가.
+ *
+ * <p>원본 열 실측(사본): <b>휴가명</b> · 부서명 · 성명 · 휴가일수 · 휴가사용일수 ·
+ * 휴가잔여일수. 첫 열 값이 '연차(2026년)' 이다.
+ *
+ * <p>이 화면은 원래부터 연도별로 센다 — 서버가 그 해에 시작한 휴가만 사용일수에 넣는다.
+ * 그런데 화면이 연도를 <b>보내지도 보여 주지도</b> 않아서, 지금 보는 숫자가 몇 년치인지
+ * 알 방법이 없었다. 다른 해 휴가가 섞여 보이는지도 확인할 수 없었다.
+ */
+async function scenarioVacationYear(f) {
+  section('■ 휴가잔여일수현황 기준연도')
+
+  const users = await must('GET', '/users')
+  const me = users[0]
+  const mk = (day) => must('POST', '/hr/vacations', {
+    userId: me.id, type: '연차', startDate: day, endDate: day, days: 1, reason: `${P}연도`,
+  })
+
+  const usedIn = async (year) => {
+    const rows = await must('GET', `/hr/vacations/summary?year=${year}&employment=ALL`)
+    const r = rows.find((x) => x.empName === me.name)
+    return { used: Number(r.usedDays), leaveName: r.leaveName }
+  }
+
+  const before2088 = await usedIn(2088)
+  const before2089 = await usedIn(2089)
+  eq('휴가명이 그 해를 말한다', before2088.leaveName, '연차(2088년)')
+  eq('연도가 다르면 휴가명도 다르다', before2089.leaveName, '연차(2089년)')
+
+  const a = await mk('2088-04-05')
+  await must('PUT', `/hr/vacations/${a.id}/status`, { status: 'APPROVED' })
+
+  eq('그 해 휴가는 그 해 사용일수에 들어간다',
+    (await usedIn(2088)).used, before2088.used + 1)
+  eq('다른 해에는 안 섞인다', (await usedIn(2089)).used, before2089.used)
+
+  await must('DELETE', `/hr/vacations/${a.id}`)
+  eq('시험용 휴가는 남기지 않는다',
+    (await must('GET', '/hr/vacations')).filter((x) => (x.reason ?? '').startsWith(P)).length, 0)
+  eq('지우면 사용일수가 되돌아온다', (await usedIn(2088)).used, before2088.used)
+}
+
+/**
  * 거래처의 <b>모바일</b>·<b>이체정보</b>와 사용구분.
  *
  * <p>원본 거래처리스트의 열은 거래처코드 · 거래처명 · 대표자명 · 전화 · <b>모바일</b> ·
@@ -5755,6 +5798,7 @@ async function main() {
   await scenarioUserEmployeeLink()
   await scenarioStockTracked(fixtures)
   await scenarioPartnerContactAndBank()
+  await scenarioVacationYear(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

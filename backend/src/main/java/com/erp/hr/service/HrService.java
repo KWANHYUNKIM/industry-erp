@@ -194,6 +194,7 @@ public class HrService {
     @Transactional(readOnly = true)
     public List<VacationSummaryRow> vacationSummary(Integer year, String employment) {
         LocalDate[] range = yearRange(year);
+        int shownYear = range[0].getYear();
         List<VacationRequest> list = vacationRepository.findByStartDateBetweenWithUser(range[0], range[1]);
 
         Map<Long, BigDecimal> usedByUser = new LinkedHashMap<>();
@@ -212,7 +213,8 @@ public class HrService {
         // 예전에는 재직자만 무조건 걸러서 퇴사자의 미사용 연차(정산 대상)를 볼 방법이 없었다.
         return userRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
                 .filter(u -> employmentMatches(employment, u))
-                .map(u -> VacationSummaryRow.of(u, usedByUser.getOrDefault(u.getId(), BigDecimal.ZERO)))
+                .map(u -> VacationSummaryRow.of(
+                        u, usedByUser.getOrDefault(u.getId(), BigDecimal.ZERO), shownYear, employeeOf(u)))
                 .toList();
     }
 

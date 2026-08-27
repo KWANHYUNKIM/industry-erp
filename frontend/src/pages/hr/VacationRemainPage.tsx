@@ -3,8 +3,19 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 
-/** 관리 > 휴가잔여일수현황 — 사원별 부여·사용 일수 및 잔여 연차 현황 (백엔드 /api/hr/vacations/summary 연동) */
+/**
+ * 관리 > 휴가잔여일수현황 — 사원별 부여·사용 일수 및 잔여 연차 (/api/hr/vacations/summary).
+ *
+ * <p>원본 열 실측(사본): <b>휴가명</b> · 부서명 · 성명 · 휴가일수 · 휴가사용일수 · 휴가잔여일수.
+ * 줄 값이 '연차(2026년)' 이다.
+ *
+ * <p>이 화면은 원래부터 <b>연도별</b>로 센다 — 서버가 그 해에 시작한 휴가만 사용일수에 넣는다.
+ * 그런데 화면이 연도를 보내지도 보여 주지도 않아서, <b>지금 보는 숫자가 몇 년치인지
+ * 알 방법이 없었다.</b> 원본의 [휴가명] 열이 바로 그 값이라 함께 붙인다.
+ */
 interface Row {
+  /** 휴가명 — '연차(2026년)'. 계산에 쓴 연도를 서버가 적어 보낸다. */
+  leaveName: string
   empName: string
   department: string | null
   /** 재직 여부. 원본의 [재직구분] 조건이 이 값을 본다. */
@@ -30,11 +41,13 @@ export default function VacationRemainPage() {
    */
   const [decimals, setDecimals] = useState(3)
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
+  /** 기준연도. 서버는 진작 받고 있었는데 화면이 안 보내서 늘 올해로만 보였다. */
+  const [year, setYear] = useState(new Date().getFullYear())
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Row[]>('/hr/vacations/summary', { params: { employment } })
+      const res = await api.get<Row[]>('/hr/vacations/summary', { params: { employment, year } })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -43,7 +56,7 @@ export default function VacationRemainPage() {
     }
   }
 
-  useEffect(() => { load() }, [employment])
+  useEffect(() => { load() }, [employment, year])
 
   /*
    * 원본 조건 판 실측(사본): 휴가코드 · 사원 · 부서 · 프로젝트 · 적요 · 상태 · 재직구분 ·
@@ -71,12 +84,23 @@ export default function VacationRemainPage() {
       onNew={undefined}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setDecimals(3); setEmployment('ACTIVE') } },
+        { label: '다시 작성', onClick: () => {
+          setEmp(''); setDept(''); setDecimals(3); setEmployment('ACTIVE')
+          setYear(new Date().getFullYear())
+        } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준연도">
+          <select className="ec-input" style={{ width: 110 }} value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}>
+            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}년</option>
+            ))}
+          </select>
+        </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
@@ -115,6 +139,7 @@ export default function VacationRemainPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            <th style={{ width: 140 }}>휴가명</th>
             <th>부서명</th>
             <th>성명</th>
             <th style={{ textAlign: 'right' }}>휴가일수</th>
@@ -124,12 +149,13 @@ export default function VacationRemainPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.empName + i}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td>{r.leaveName}</td>
               <td>{r.department ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
               <td style={{ textAlign: 'right' }}>{days(r.totalDays)}</td>
@@ -140,7 +166,7 @@ export default function VacationRemainPage() {
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({shown.length}명)</td>
+            <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}명)</td>
             <td style={{ textAlign: 'right' }}>{days(totals.total)}</td>
             <td style={{ textAlign: 'right' }}>{days(totals.used)}</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{days(totals.remain)}</td>
