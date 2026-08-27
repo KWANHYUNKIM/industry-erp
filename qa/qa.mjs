@@ -3427,6 +3427,51 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 출하지시서의 <b>배송지</b>와 출하예정일.
+ *
+ * <p>원본 출하지시서입력의 머리는 일자-No. · 거래처 · 담당자 · 출하창고 · 연락처 ·
+ * 출하예정일 · 우편번호 · 주소다. 우리 출하에는 거래처·일자·적요밖에 없어서
+ * <b>어디로 보낼지 적을 자리가 없었다</b> — 적요에 손으로 적으면 아무 화면도 그걸
+ * 배송지로 알아보지 못한다.
+ *
+ * <p>출하예정일은 미출하현황의 조건이기도 한데 값이 없어 그 조건으로는 아무것도 못 걸렀다.
+ * 그래서 안 주면 <b>출하일자로 채운다</b> — 비워 두면 그 화면에서 통째로 빠진다.
+ */
+async function scenarioShipmentDelivery(f) {
+  section('■ 출하지시서 배송지')
+
+  const line = [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }]
+
+  const bare = await must('POST', '/shipments', {
+    partnerId: f.customer.id, shipDate: '2026-07-12', lines: line,
+  })
+  eq('출하예정일을 안 주면 출하일자로 채운다', bare.dueDate, '2026-07-12')
+  eq('배송지 칸이 응답에 있다', 'address' in bare && 'contact' in bare && 'postalCode' in bare, true)
+
+  const full = await must('POST', '/shipments', {
+    partnerId: f.customer.id, shipDate: '2026-07-12', dueDate: '2026-07-20',
+    warehouseId: f.warehouse.id,
+    contact: '010-0000-0000', postalCode: '06236', address: `${P}서울시 강남구`,
+    lines: line,
+  })
+  eq('출하예정일이 따로 잡힌다', full.dueDate, '2026-07-20')
+  eq('출하창고가 붙는다', full.warehouseId, f.warehouse.id)
+  eq('연락처가 남는다', full.contact, '010-0000-0000')
+  eq('우편번호가 남는다', full.postalCode, '06236')
+  eq('배송지 주소가 남는다', full.address, `${P}서울시 강남구`)
+
+  // 다시 읽어도 남아 있어야 한다 — 저장은 됐는데 목록이 안 실어 주면 화면에서 사라진다.
+  const reread = (await must('GET', '/shipments')).find((x) => x.id === full.id)
+  eq('목록에도 배송지가 실린다', reread.address, `${P}서울시 강남구`)
+  eq('목록에도 출하예정일이 실린다', reread.dueDate, '2026-07-20')
+
+  await must('DELETE', `/shipments/${full.id}`)
+  await must('DELETE', `/shipments/${bare.id}`)
+  eq('시험용 출하는 남기지 않는다',
+    (await must('GET', '/shipments')).filter((x) => (x.address ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 작업지시서작업처리가 기대는 것 — <b>공정별 진행</b>과 직전작업 잔량.
  *
  * <p>원본 조건에 [잔량기준] 직전작업이 있다. <b>앞 공정이 끝낸 만큼만</b> 다음 공정을 할 수
@@ -4864,6 +4909,7 @@ async function main() {
   await scenarioAccountingReflectionByPartner(fixtures)
   await scenarioResourceLocation()
   await scenarioWorkProcess(fixtures)
+  await scenarioShipmentDelivery(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

@@ -20,6 +20,8 @@ import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.trade.repository.ShipmentLineRepository;
 import com.erp.trade.repository.ShipmentRepository;
 import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.WarehouseService;
+import com.erp.hr.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,8 @@ public class ShipmentService {
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
+    private final WarehouseService warehouseService;
+    private final EmployeeService employeeService;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -75,6 +79,17 @@ public class ShipmentService {
                 .shipNo(generateShipNo(shipDate))
                 .partner(partner)
                 .shipDate(shipDate)
+                // 출하예정일을 안 주면 출하일자로 본다 — 미출하현황이 그 값으로 거르므로
+                // 비워 두면 그 화면에서 통째로 빠진다.
+                .dueDate(req.dueDate() != null ? req.dueDate() : shipDate)
+                .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
+                .employee(req.employeeId() != null ? employeeService.get(req.employeeId()) : null)
+                .contact(req.contact())
+                .postalCode(req.postalCode())
+                // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,
+                // 다른 곳이면 사람이 고친다.
+                .address(req.address() != null && !req.address().isBlank()
+                        ? req.address() : partner.getAddress())
                 .status(ShipmentStatus.READY)
                 .remark(req.remark())
                 .createdBy(username)

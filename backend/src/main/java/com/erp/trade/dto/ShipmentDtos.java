@@ -26,6 +26,14 @@ public final class ShipmentDtos {
     public record CreateShipmentRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             LocalDate shipDate,
+            /** 출하예정일. 미출하현황이 이 값으로 거른다. */
+            LocalDate dueDate,
+            Long warehouseId,
+            Long employeeId,
+            /** 배송지 — 거래처 주소와 다른 곳으로 보낼 수 있다. */
+            String contact,
+            String postalCode,
+            String address,
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines
     ) {}
@@ -54,6 +62,11 @@ public final class ShipmentDtos {
             /** 근거 주문. 직접 등록한 출하면 null. */
             Long salesOrderId, String salesOrderNo,
             LocalDate shipDate,
+            /** 출하예정일 · 출하창고 · 담당자 · 배송지. 원본 출하지시서입력의 머리 항목들이다. */
+            LocalDate dueDate,
+            Long warehouseId, String warehouseName,
+            Long employeeId, String employeeName,
+            String contact, String postalCode, String address,
             ShipmentStatus status, String statusName,
             BigDecimal totalQuantity, BigDecimal totalAmount,
             String remark, String createdBy,
@@ -67,6 +80,12 @@ public final class ShipmentDtos {
                     order != null ? order.getId() : null,
                     order != null ? order.getOrderNo() : null,
                     s.getShipDate(),
+                    s.getDueDate(),
+                    s.getWarehouse() != null ? s.getWarehouse().getId() : null,
+                    s.getWarehouse() != null ? s.getWarehouse().getName() : null,
+                    s.getEmployee() != null ? s.getEmployee().getId() : null,
+                    s.getEmployee() != null ? s.getEmployee().getName() : null,
+                    s.getContact(), s.getPostalCode(), s.getAddress(),
                     s.getStatus(), s.getStatus().getDisplayName(),
                     s.getTotalQuantity(), s.getTotalAmount(),
                     s.getRemark(), s.getCreatedBy(),

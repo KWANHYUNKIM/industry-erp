@@ -14,6 +14,11 @@ interface Shipment {
   id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
   /** 미출하현황에서 생성한 출하면 근거 주문이 실려온다. 직접 등록한 출하는 null. */
   salesOrderId: number | null; salesOrderNo: string | null
+  /** 원본 출하지시서입력의 머리 항목들 — 출하예정일 · 출하창고 · 담당자 · 배송지. */
+  dueDate: string | null
+  warehouseId: number | null; warehouseName: string | null
+  employeeId: number | null; employeeName: string | null
+  contact: string | null; postalCode: string | null; address: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
   remark: string | null; createdBy: string | null; lines: ShipLine[]
 }
@@ -34,6 +39,21 @@ export default function ShipmentOrderPage() {
 
   const [partnerId, setPartnerId] = useState('')
   const [shipDate, setShipDate] = useState(today())
+  /**
+   * 원본 출하지시서입력의 머리 항목들 — 출하예정일 · 출하창고 · 담당자 · 연락처 · 우편번호 · 주소.
+   *
+   * <p>배송지가 없으면 어디로 보낼지 적을 자리가 없어 적요에 손으로 적게 되고,
+   * 그러면 아무 화면도 그걸 배송지로 알아보지 못한다. 출하예정일은 미출하현황의 조건이기도
+   * 한데, 값이 없어서 그 조건으로는 아무것도 못 걸렀다.
+   */
+  const [dueDate, setDueDate] = useState('')
+  const [warehouseId, setWarehouseId] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [contact, setContact] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [address, setAddress] = useState('')
+  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
   const [remark, setRemark] = useState('')
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
@@ -42,12 +62,15 @@ export default function ShipmentOrderPage() {
 
   async function load() {
     try {
-      const [s, p, i] = await Promise.all([
+      const [s, p, i, w, e] = await Promise.all([
         api.get<Shipment[]>('/shipments'),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
+        api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
+        api.get<{ id: number; name: string }[]>('/employees'),
       ])
       setShipments(s.data); setPartners(p.data); setItems(i.data)
+      setWarehouses(w.data); setEmployees(e.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { load() }, [])
@@ -76,7 +99,17 @@ export default function ShipmentOrderPage() {
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량을 1줄 이상 입력하세요.')
     try {
-      const res = await api.post<Shipment>('/shipments', { partnerId: Number(partnerId), shipDate, remark: remark || undefined, lines: validLines })
+      const res = await api.post<Shipment>('/shipments', {
+        partnerId: Number(partnerId), shipDate,
+        dueDate: dueDate || undefined,
+        warehouseId: warehouseId ? Number(warehouseId) : undefined,
+        employeeId: employeeId ? Number(employeeId) : undefined,
+        contact: contact || undefined,
+        postalCode: postalCode || undefined,
+        address: address || undefined,
+        remark: remark || undefined,
+        lines: validLines,
+      })
       setOk(`${res.data.shipNo} 출하지시 등록 완료 (수량 ${won(res.data.totalQuantity)})`)
       setLines([emptyLine()]); setRemark('')
       load()
@@ -128,6 +161,40 @@ export default function ShipmentOrderPage() {
                 </td>
                 <th style={th}>출하일자</th>
                 <td><input type="date" className={inputCls} value={shipDate} onChange={(e) => setShipDate(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>출하창고</th>
+                <td>
+                  <select className={inputCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ minWidth: 220 }}>
+                    <option value="">선택 안 함</option>
+                    {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
+                  </select>
+                </td>
+                <th style={th}>출하예정일</th>
+                <td>
+                  <input type="date" className={inputCls} value={dueDate}
+                         onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
+                  <span style={{ fontSize: 11, color: '#8a929c', marginLeft: 6 }}>비우면 출하일자</span>
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>담당자</th>
+                <td>
+                  <select className={inputCls} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ minWidth: 220 }}>
+                    <option value="">선택 안 함</option>
+                    {employees.map((e2) => <option key={e2.id} value={e2.id}>{e2.name}</option>)}
+                  </select>
+                </td>
+                <th style={th}>연락처</th>
+                <td><input className={inputCls} value={contact} onChange={(e) => setContact(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>우편번호</th>
+                <td><input className={inputCls} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} style={{ width: 110 }} /></td>
+                {/* 비우면 서버가 거래처 주소를 채운다. 대개 그리로 보내고, 다른 곳이면 여기 적는다. */}
+                <th style={th}>주소</th>
+                <td><input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)}
+                           placeholder="비우면 거래처 주소" /></td>
               </tr>
             </tbody>
           </table>
@@ -182,14 +249,15 @@ export default function ShipmentOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>출하번호 ▼</th><th style={{ width: 130 }}>근거주문</th><th>출하일 ▼</th><th>거래처 ▼</th><th>품목</th>
+            <th>출하번호 ▼</th><th style={{ width: 130 }}>근거주문</th><th>출하일 ▼</th>
+            <th style={{ width: 100 }}>출하예정일</th><th>거래처 ▼</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출하지시 내역이 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -198,7 +266,9 @@ export default function ShipmentOrderPage() {
                 {s.salesOrderNo ?? '직접등록'}
               </td>
               <td>{s.shipDate}</td>
+              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{s.dueDate ?? '-'}</td>
               <td>{s.partnerName}</td>
+              <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? '-'}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(s.totalQuantity)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
