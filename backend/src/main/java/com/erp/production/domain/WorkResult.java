@@ -47,6 +47,17 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "resource_id")
     private ProductionResource resource;
 
+    /**
+     * 생산공장 — 이 작업이 이뤄진 곳. 원본 작업내역입력의 머리 항목이고
+     * 작업내역조회·작업내역현황 두 화면의 열이기도 하다.
+     *
+     * <p>창고 마스터의 [구분]이 공장인 행을 가리킨다. 안 정하면 null 이다 —
+     * 예전에 적어 둔 작업내역은 어느 공장인지 알 길이 없고, 공장을 안 쓰는 회사도 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private com.erp.inventory.domain.Warehouse warehouse;
+
     /** 작업자 */
     @Column(length = 50)
     private String worker;

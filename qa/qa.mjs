@@ -645,14 +645,26 @@ async function scenarioRelations(f) {
 
   const wrLinked = await must('POST', '/work-results', {
     process: f.process.name, worker: 'QA', goodQty: 10, defectQty: 0, workTimeMin: 30,
+    warehouseId: f.warehouse.id, note: `${P}적요`,
   })
   eq('마스터에 있는 공정명 → processId 연결', wrLinked.processId, f.process.id)
+
+  // 생산공장·적요는 원본 작업내역입력 머리와 그리드 마지막 열이다.
+  // 입력·조회·현황 셋 다 이 이름으로 [생산공장명] 칸을 찍는다 — id 만 오면
+  // 화면이 창고 목록을 따로 뒤져야 하고, 지운 창고면 빈칸이 된다.
+  eq('생산공장이 실린다', wrLinked.warehouseId, f.warehouse.id)
+  eq('생산공장 이름이 실린다', wrLinked.warehouseName, f.warehouse.name)
+  eq('적요가 실린다', wrLinked.note, `${P}적요`)
+  const reWr = (await must('GET', '/work-results')).find((r) => r.id === wrLinked.id)
+  eq('다시 조회해도 생산공장이 유지된다', reWr.warehouseName, f.warehouse.name)
 
   const wrFree = await must('POST', '/work-results', {
     process: `${P}임시수작업`, worker: 'QA', goodQty: 3, defectQty: 0, workTimeMin: 5,
   })
   isNull('마스터에 없는 자유입력 공정 → processId 는 null', wrFree.processId)
   eq('자유입력 공정명은 보존', wrFree.process, `${P}임시수작업`)
+  // 안 고르면 null 이다. 아무 창고로 채우면 하지 않은 작업을 그 공장이 한 것이 된다.
+  isNull('생산공장을 안 고르면 null', wrFree.warehouseId)
 
   // 이 두 줄이 매 실행마다 남아 있었다 — 작업내역이 실행할 때마다 두 건씩 불어났다.
   for (const r of [wrLinked, wrFree]) await must('DELETE', `/work-results/${r.id}`)

@@ -29,6 +29,7 @@ public class WorkResultService {
     private final ProcessRepository processRepository;
     private final ResourceRepository resourceRepository;
     private final BorService borService;
+    private final com.erp.inventory.service.WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -50,11 +51,17 @@ public class WorkResultService {
 
         ProductionResource resource = resolveResource(req.resourceId(), processMaster);
 
+        // 생산공장. inventory 의 공개 service 를 거친다 — 리포지토리를 직접 주입하면
+        // 그 모듈의 규칙을 우회하게 된다(CLAUDE.md 4.2).
+        com.erp.inventory.domain.Warehouse warehouse =
+                req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null;
+
         WorkResult wr = WorkResult.builder()
                 .workOrder(workOrder)
                 .process(req.process())
                 .processMaster(processMaster)
                 .resource(resource)
+                .warehouse(warehouse)
                 .worker(req.worker())
                 .goodQty(req.goodQty() != null ? req.goodQty() : BigDecimal.ZERO)
                 .defectQty(req.defectQty() != null ? req.defectQty() : BigDecimal.ZERO)

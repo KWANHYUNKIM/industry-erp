@@ -4,12 +4,23 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
-/** 생산관리 > 작업내역입력 — 공정별 작업 실적 등록/삭제 (백엔드 /api/work-results 연동) */
+/**
+ * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
+ *
+ * <p>원본 머리 실측(사본): 일자 · <b>생산공장</b> · 담당자 · 생산품목.
+ * 그리드는 생산품목코드/명 · 작업품목코드/명 · 수량 · 투입자원 · 작업시간 · <b>적요</b>.
+ *
+ * <p>생산품목은 우리 쪽이 작업지시에 묶여 있어 지시를 고르면 따라온다.
+ * 생산공장과 적요가 빠져 있었다 — 적요는 서버가 이미 받고 있었는데 폼에 칸이 없어
+ * 늘 비어 나갔다.
+ */
 interface WorkResult {
   id: number
   workOrderId: number | null
   workOrderNo: string | null
   process: string
+  warehouseId: number | null
+  warehouseName: string | null
   productCode: string | null
   productName: string | null
   resourceId: number | null
@@ -23,15 +34,20 @@ interface WorkResult {
 }
 interface WorkOrder { id: number; orderNo: string; productName: string }
 interface Process { id: number; name: string }
+interface Warehouse { id: number; name: string; kind: string; active: boolean }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
-const emptyForm = { workOrderId: '', process: '', resourceId: '', worker: '', goodQty: '', defectQty: '', workTimeMin: '', workDate: today() }
+const emptyForm = {
+  workOrderId: '', process: '', warehouseId: '', resourceId: '', worker: '',
+  goodQty: '', defectQty: '', workTimeMin: '', workDate: today(), note: '',
+}
 
 export default function WorkResultPage() {
   const [rows, setRows] = useState<WorkResult[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   /** 원본 그리드의 [투입자원]. 자원등록의 [대상작업]과 짝이다. */
   const [resources, setResources] = useState<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,14 +70,16 @@ export default function WorkResultPage() {
 
   async function loadRefs() {
     try {
-      const [wo, pr, rs] = await Promise.all([
+      const [wo, pr, rs, wh] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Process[]>('/processes'),
         api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
+        api.get<Warehouse[]>('/warehouses'),
       ])
       setWorkOrders(wo.data)
       setProcesses(pr.data)
       setResources(rs.data)
+      setWarehouses(wh.data.filter((w) => w.active))
     } catch {
       /* 참조 로딩 실패는 폼 사용에만 영향 */
     }
@@ -76,12 +94,14 @@ export default function WorkResultPage() {
       await api.post('/work-results', {
         workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
         process: form.process,
+        warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         resourceId: form.resourceId === '' ? null : Number(form.resourceId),
         worker: form.worker,
         goodQty: form.goodQty === '' ? 0 : Number(form.goodQty),
         defectQty: form.defectQty === '' ? 0 : Number(form.defectQty),
         workTimeMin: form.workTimeMin === '' ? 0 : Number(form.workTimeMin),
         workDate: form.workDate || null,
+        note: form.note || null,
       })
       setForm(emptyForm)
       setShowForm(false)
@@ -133,6 +153,14 @@ export default function WorkResultPage() {
               </datalist>
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">생산공장</label>
+              <select className={inputCls} value={form.warehouseId}
+                      onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">투입자원</label>
               {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 지금 고른 공정에 맞는 것만 낸다. */}
               <select className={inputCls} value={form.resourceId}
@@ -167,6 +195,11 @@ export default function WorkResultPage() {
               <label className="mb-1 block text-sm text-slate-600">작업시간(분)</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.workTimeMin} onChange={(e) => setForm({ ...form, workTimeMin: e.target.value })} />
             </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <input className={inputCls} value={form.note} placeholder="원본 그리드의 마지막 열"
+                     onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </div>
           </div>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
@@ -181,32 +214,36 @@ export default function WorkResultPage() {
             <th>일자</th>
             <th>작업지시번호</th>
             <th>공정</th>
+            <th>생산공장</th>
             <th>생산품목명</th>
             <th>투입자원</th>
             <th>작업자</th>
             <th style={{ textAlign: 'right' }}>양품</th>
             <th style={{ textAlign: 'right' }}>불량</th>
             <th style={{ textAlign: 'right' }}>작업시간(분)</th>
+            <th>적요</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
               <td>{r.process}</td>
+              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
               <td>{r.productName ?? ''}</td>
               <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
               <td>{r.worker ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.workTimeMin.toLocaleString()}</td>
+              <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>

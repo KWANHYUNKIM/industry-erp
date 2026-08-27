@@ -13,6 +13,7 @@ public interface WorkResultRepository extends JpaRepository<WorkResult, Long> {
             "left join fetch wo.product " +
             "left join fetch wr.processMaster " +
             "left join fetch wr.resource " +
+            "left join fetch wr.warehouse " +
             "order by wr.workDate desc, wr.id desc")
     List<WorkResult> findAllWithRefs();
 }

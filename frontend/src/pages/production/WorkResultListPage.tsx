@@ -20,8 +20,7 @@ import { stdVsActual } from '../../utils/woEfficiency'
  * "오래 걸렸다" 를 말할 기준이 없다. BOR(작업소요시간)이 그 기준이라 서버가 그 품목·공정의
  * 표준시간을 계산해 실어 준다.
  *
- * <p>생산공장은 작업내역에 그 값이 없어 칸을 만들지 않는다.
- * 원본의 '작업'은 우리 자료의 공정에 해당한다.
+ * <p>원본의 '작업'은 우리 자료의 공정에 해당한다.
  */
 type Mode = '내역' | '집계' | '라인별'
 const MODES = ['내역', '집계', '라인별'] as const
@@ -32,6 +31,7 @@ interface WorkResult {
   workOrderNo: string | null
   processId: number | null
   process: string
+  warehouseName: string | null
   productCode: string | null
   productName: string | null
   resourceId: number | null
@@ -253,6 +253,7 @@ export default function WorkResultListPage() {
               <th style={{ width: 34 }}></th>
               <th style={{ width: 110 }}>일자</th>
               <th style={{ width: 170 }}>작업지시번호</th>
+              <th style={{ width: 130 }}>생산공장명</th>
               <th>작업(공정)</th>
               <th style={{ width: 160 }}>생산품목명</th>
               <th style={{ width: 110 }}>담당자</th>
@@ -267,9 +268,9 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업내역이 없습니다.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업내역이 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -277,6 +278,7 @@ export default function WorkResultListPage() {
                 <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>
                   {r.workOrderNo ?? '-'}
                 </td>
+                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
                 <td>{r.process}</td>
                 <td>{r.productName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
@@ -298,7 +300,7 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
               <td style={{ textAlign: 'right' }}>{num(time.standard)}</td>

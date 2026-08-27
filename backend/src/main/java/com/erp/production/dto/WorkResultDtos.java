@@ -15,6 +15,8 @@ public final class WorkResultDtos {
             @NotBlank(message = "공정을 입력하세요.") String process,
             /** 투입자원(설비) id. 원본 그리드의 [투입자원] 열. */
             Long resourceId,
+            /** 생산공장 id. 원본 작업내역입력 머리의 [생산공장]. */
+            Long warehouseId,
             String worker,
             BigDecimal goodQty,
             BigDecimal defectQty,
@@ -33,6 +35,8 @@ public final class WorkResultDtos {
             Long processId,
             /** 투입자원(설비). 안 정했으면 null. */
             Long resourceId, String resourceName,
+            /** 생산공장. 안 정했으면 null. */
+            Long warehouseId, String warehouseName,
             String worker,
             BigDecimal goodQty, BigDecimal defectQty, Integer workTimeMin,
             /**
@@ -59,6 +63,8 @@ public final class WorkResultDtos {
                     wr.getProcessMaster() != null ? wr.getProcessMaster().getId() : null,
                     wr.getResource() != null ? wr.getResource().getId() : null,
                     wr.getResource() != null ? wr.getResource().getName() : null,
+                    wr.getWarehouse() != null ? wr.getWarehouse().getId() : null,
+                    wr.getWarehouse() != null ? wr.getWarehouse().getName() : null,
                     wr.getWorker(),
                     wr.getGoodQty(), wr.getDefectQty(), wr.getWorkTimeMin(),
                     standardTimeMin,
