@@ -6,6 +6,7 @@ import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 영업관리 > 수금현황 (이카운트 E040217)
@@ -98,6 +99,12 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     [partners],
   )
 
+  /*
+   * 원본 [정렬/소계기준]. 수금은 한 거래처에서 여러 번 들어오고 방법도 섞인다 —
+   * 어느 거래처에서 얼마가 들어왔는지, 어느 방법으로 들어왔는지를 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['거래처', '수금방법', '거래처관리담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
   const shown = rows
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
@@ -145,6 +152,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         picks={SETTLE_PICKS}
         fiscalStart={fiscalStart}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -219,6 +228,37 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         )}
       </table>
       )}
+
+      {view === '표' && shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === '수금방법' ? r.method
+            : subtotal === '거래처관리담당자' ? (managerOf.get(r.partnerId) || null)
+              : r.partnerName),
+          { amount: (r) => r.amount })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 160, textAlign: 'right' }}>수금액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
+                      {g.sums.amount.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

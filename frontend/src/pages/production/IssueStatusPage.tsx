@@ -7,6 +7,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { Warehouse } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -99,6 +100,12 @@ export default function IssueStatusPage() {
   const empName = (id: number | null) =>
     id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
 
+  /*
+   * 원본 [정렬/소계기준]. 불출은 자재마다·창고마다 여러 줄로 흩어져,
+   * 어느 자재가 얼마나 나갔는지를 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['자재', '보내는창고', '받는공장', '담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('자재')
   const shown = useMemo(() => rows.filter((r) => {
     if (r.issueDate < from || r.issueDate > to) return false
     if (warehouseId && String(r.warehouseId) !== warehouseId) return false
@@ -184,6 +191,8 @@ export default function IssueStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -336,6 +345,38 @@ export default function IssueStatusPage() {
           </tfoot>
         </table>
       )}
+
+      {shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === '보내는창고' ? r.warehouseName
+            : subtotal === '받는공장' ? r.toWarehouseName
+              : subtotal === '담당자' ? (empName(r.employeeId) || null)
+                : r.itemName),
+          { qty: (r) => r.qty })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 140, textAlign: 'right' }}>수량</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#a5561b' }}>
+                      {num(g.sums.qty)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

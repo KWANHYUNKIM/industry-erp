@@ -6,6 +6,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 영업 > 판매할인현황 — 품목 기준단가 대비 실거래가 할인 내역 (GET /sales/discounts)
@@ -75,6 +76,12 @@ export default function SalesDiscountPage() {
 
   useEffect(() => { load() }, [])
 
+  /*
+   * 원본 [정렬/소계기준]. 줄이 전표 라인마다 하나씩이라, 한 달 치를 펼치면
+   * 같은 거래처가 여러 줄로 흩어진다 — 어디서 할인이 큰지 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['거래처', '품목'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
   const shown = rows.filter((r) => {
     if (keyword && !(r.partnerName.includes(keyword) || r.itemName.includes(keyword)
       || r.itemCode.includes(keyword))) return false
@@ -132,6 +139,8 @@ export default function SalesDiscountPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -229,6 +238,40 @@ export default function SalesDiscountPage() {
         </tbody>
       </table>
       )}
+
+      {view === '표' && shown.length > 0 && (() => {
+        const groups = subtotalBy(shown, (r) => (subtotal === '품목' ? r.itemName : r.partnerName), {
+          qty: (r) => r.qty, buy: (r) => r.salePrice, disc: (r) => r.discountAmount,
+        })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+                <th style={{ width: 140, textAlign: 'right' }}>판매가</th>
+                <th style={{ width: 140, textAlign: 'right' }}>할인액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.qty.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.buy.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
+                                 color: g.sums.disc > 0 ? '#c60a2e' : g.sums.disc < 0 ? 'var(--ec-blue)' : '#9aa1ab' }}>
+                      {g.sums.disc.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

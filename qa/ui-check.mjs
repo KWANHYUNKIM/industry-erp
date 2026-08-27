@@ -1404,6 +1404,8 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
       for (const d of src.matchAll(/title:\s*'([^']{2,40})'/g)) text += ' ' + d[1]
     }
     const ident = text.match(/title=\{(\w+)\}/)
+    // 같은 파일 안의 공용 화면에 이름을 넘기는 모양(title={title} … <X title="수금현황" />)
+    if (ident) for (const d of src.matchAll(/title="([^"]{2,40})"/g)) text += ' ' + d[1]
     if (ident) {
       for (const d of src.matchAll(new RegExp('(?:const|let)\\s+' + ident[1] + '\\s*=[^\\n]{0,160}', 'g'))) {
         text += ' ' + d[0]
