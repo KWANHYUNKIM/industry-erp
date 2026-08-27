@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
@@ -95,6 +96,16 @@ export default function OutsourcingDiscountPage() {
     return true
   })
 
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  /*
+   * 원본 [그래프로 보기]. 외주비는 <b>어느 외주처에 얼마가 아직 회계로 안 넘어갔나</b> 를
+   * 보는 화면이다. 그래서 공급가액이 아니라 <b>미반영 금액</b>을 그린다 —
+   * 총액을 그리면 이미 처리한 것과 남은 것이 섞여 이 화면을 여는 이유가 사라진다.
+   */
+  const chartRows = useMemo(
+    () => shown.map((r) => ({ label: r.partner, value: r.orgAmount - r.reflectedAmount })),
+    [shown])
+
   const totals = shown.reduce(
     (a, r) => ({ org: a.org + r.orgAmount, ref: a.ref + r.reflectedAmount }),
     { org: 0, ref: 0 },
@@ -123,6 +134,7 @@ export default function OutsourcingDiscountPage() {
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
+        view={view} onViewChange={setView}
       >
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="전체" value={warehouse}
@@ -151,6 +163,9 @@ export default function OutsourcingDiscountPage() {
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 외주비가 없습니다." />
+      ) : (
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
@@ -199,6 +214,7 @@ export default function OutsourcingDiscountPage() {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }

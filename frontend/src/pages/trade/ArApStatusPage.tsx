@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import EcBarChart from '../../components/EcBarChart'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -85,6 +86,21 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [shown])
 
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  /*
+   * 원본 거래처별채권·채무의 [그래프로 보기].
+   *
+   * <p>보고 있는 [구분]이 재는 값을 그린다. 채권/채무를 함께 보는 중이면
+   * <b>순채권(채권−채무)</b>을 그린다 — 그래야 줄 것이 더 많은 거래처가 음수 막대로
+   * 반대편에 나온다. 그게 이 화면에서 눈으로 찾고 싶은 것이다.
+   */
+  const chartRows = useMemo(() => shown.map((r) => ({
+    label: r.name,
+    value: mode === 'RECEIVABLE' ? r.receivable
+      : mode === 'PAYABLE' ? r.payable
+        : r.receivable - r.payable,
+  })), [shown, mode])
+
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
   const cols = 4 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
@@ -132,6 +148,16 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
           잔액 0 숨김
         </label>
+        {/* 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 쓰지 않아 여기에 둔다. */}
+        <div style={{ fontSize: 12.5 }}>
+          <div style={{ color: '#5a626e', marginBottom: 3 }}>데이터 보기형식</div>
+          <div className="ec-pills">
+            {(['표', '그래프'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                      onClick={() => setView(v)}>{v === '그래프' ? '그래프로 보기' : '표'}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
@@ -159,6 +185,9 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         </div>
       </div>
 
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
+      ) : (
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
@@ -194,6 +223,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           ))}
         </tbody>
       </table>
+      )}
 
       {shown.length > 0 && (
         <>

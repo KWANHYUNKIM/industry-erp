@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
@@ -83,6 +84,7 @@ export default function WoProgressPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('생산진행현황')
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const [orderNo, setOrderNo] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
@@ -231,6 +233,23 @@ export default function WoProgressPage() {
     defect: shown.reduce((n, o) => n + (resultBy.get(o.id)?.defect ?? 0), 0),
   }), [shown, issueBy, resultBy])
 
+  /* 지금 보고 있는 [구분]이 재는 값을 그린다. */
+  const chartRows = useMemo(() => {
+    if (mode === '원재료투입비교표') {
+      return compareLines.map((l) => ({
+        label: `${l.orderNo} / ${l.material}`, value: l.used - l.required,
+      }))
+    }
+    if (mode === '불출진행현황') {
+      return shown.map((o) => ({
+        label: `${o.orderNo} ${o.productName}`, value: issueBy.get(o.id)?.qty ?? 0,
+      }))
+    }
+    return shown.map((o) => ({
+      label: `${o.orderNo} ${o.productName}`, value: o.plannedQty - o.producedQty,
+    }))
+  }, [mode, shown, compareLines, issueBy])
+
   const bar = (rate: number) => (
     <div style={{ background: '#eef1f5', height: 12, borderRadius: 2, overflow: 'hidden' }}>
       <div style={{
@@ -257,6 +276,7 @@ export default function WoProgressPage() {
         picks={STATUS_PICKS}
         dateLabel="기준일(영업주기)"
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
       >
         <EcCond label="작업지시No." pick>
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
@@ -290,7 +310,15 @@ export default function WoProgressPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '불출진행현황' ? (
+      {/*
+        원본 [그래프로 보기]. 이 화면이 재는 것은 <b>얼마나 남았나</b> 다 —
+        지시수량이 아니라 <b>미생산 잔량(지시−생산)</b>을 그린다. 지시수량을 그리면
+        이미 다 만든 지시가 제일 큰 막대로 남아 눈길을 끈다.
+        원재료투입비교표는 자재별 <b>초과투입</b>(투입−소요)을 그린다.
+      */}
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업지시가 없습니다." />
+      ) : mode === '불출진행현황' ? (
         <table className="w-full text-left">
           <thead>
             <tr>

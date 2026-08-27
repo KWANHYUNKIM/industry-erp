@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
@@ -143,6 +144,13 @@ export default function ShipmentPage() {
     }
     return [...m.values()].sort((a, b) => b.amount - a.amount)
   }, [shown])
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  /* 원본 [그래프로 보기]. 출하는 <b>어느 거래처로 얼마가 나갔나</b> 를 보는 화면이다. */
+  const chartRows = useMemo(() =>
+    mode === '집계'
+      ? byPartner.map((r) => ({ label: r.name, value: r.amount }))
+      : shown.map((r) => ({ label: `${r.partnerName}`, value: r.totalAmount })),
+    [mode, byPartner, shown])
 
   /** 라인별 — 품목 라인마다 한 줄. */
   const lines = useMemo(
@@ -166,6 +174,7 @@ export default function ShipmentPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={INQUIRY_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
       >
         <EcCond label="출하No." pick>
@@ -216,7 +225,9 @@ export default function ShipmentPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 출하가 없습니다." />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>

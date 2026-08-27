@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
@@ -90,6 +91,14 @@ export default function SalesDiscountPage() {
     () => shown.reduce((s, r) => s + r.discountAmount, 0),
     [shown],
   )
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  /* 원본 [그래프로 보기]. 할인은 <b>어느 거래처에 얼마나 깎아 줬나</b> 를 보는 화면이라
+     거래처로 묶는다 — 줄마다 그리면 같은 거래처가 흩어져 크기를 못 잰다. */
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) m.set(r.partnerName, (m.get(r.partnerName) ?? 0) + r.discountAmount)
+    return [...m].map(([label, value]) => ({ label, value }))
+  }, [shown])
 
   return (
     <EcListShell
@@ -110,6 +119,7 @@ export default function SalesDiscountPage() {
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
+        view={view} onViewChange={setView}
       >
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처·품목 일부" value={keyword}
@@ -149,6 +159,9 @@ export default function SalesDiscountPage() {
           {totalDiscount.toLocaleString('ko-KR')}
         </b>
       </div>
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 판매할인이 없습니다." />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -186,6 +199,7 @@ export default function SalesDiscountPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }

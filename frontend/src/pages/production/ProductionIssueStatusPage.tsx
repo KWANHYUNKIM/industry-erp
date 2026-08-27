@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { stockCostMap } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
@@ -96,6 +97,7 @@ export default function ProductionIssueStatusPage() {
   const [error, setError] = useState('')
 
   const [mode, setMode] = useState<Mode>('거래별')
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '' })
   const [priceBasis, setPriceBasis] = useState<PriceBasis>('소모품목단가')
@@ -271,6 +273,17 @@ export default function ProductionIssueStatusPage() {
     return [...m.values()].sort((a, b) => b.usedQty - a.usedQty)
   }, [shown])
 
+  /* 지금 보고 있는 [구분]이 재는 값을 그린다. */
+  const chartRows = useMemo(() => {
+    if (mode === '소모품목별집계' || mode === '품목별집계') {
+      return byMaterial.map((r) => ({ label: r.name, value: r.qty }))
+    }
+    if (mode === '생산품목라인별집계') {
+      return byProductLine.map((r) => ({ label: `${r.product} / ${r.material}`, value: r.usedQty }))
+    }
+    return byProduct.map((r) => ({ label: r.name, value: r.qty }))
+  }, [mode, byProduct, byMaterial, byProductLine])
+
   const totals = shown.reduce(
     (a, p) => ({
       inQty: a.inQty + p.producedQty,
@@ -300,6 +313,7 @@ export default function ProductionIssueStatusPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
+        view={view} onViewChange={setView}
         dateLabel="생산일자"
       >
         <EcCond label="구분">
@@ -356,6 +370,14 @@ export default function ProductionIssueStatusPage() {
         소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
+      {/*
+        원본 [그래프로 보기]. 이 화면은 [구분]이 다섯 가지라 그릴 값도 갈린다 —
+        생산품목별은 입고수량, 소모품목별은 소모수량이다. 한 가지로 고정하면
+        어떤 구분에서는 늘 0인 막대가 나온다.
+      */}
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 생산입고가 없습니다." />
+      ) : (
       <div className="overflow-x-auto">
         {mode === '거래별' ? (
           <table className="ec-grid w-full text-left">
@@ -580,6 +602,7 @@ export default function ProductionIssueStatusPage() {
           </table>
         )}
       </div>
+      )}
     </EcListShell>
   )
 }

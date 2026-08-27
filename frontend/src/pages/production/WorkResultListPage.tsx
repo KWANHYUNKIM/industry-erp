@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 
@@ -148,6 +149,13 @@ export default function WorkResultListPage() {
     }
     return [...m.values()].sort((a, b) => b.good - a.good)
   }, [shown])
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
+  const chartRows = useMemo(() =>
+    mode === '집계'
+      ? byProcess.map((r) => ({ label: r.process, value: r.good }))
+      : shown.map((r) => ({ label: `${r.workDate} ${r.process}`, value: r.goodQty })),
+    [mode, byProcess, shown])
 
   return (
     <EcListShell
@@ -165,6 +173,7 @@ export default function WorkResultListPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
       >
         <EcCond label="작업(공정)" pick>
           <input className="ec-input" placeholder="공정명 일부" value={process}
@@ -205,7 +214,9 @@ export default function WorkResultListPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업내역이 없습니다." />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
