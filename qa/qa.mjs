@@ -4043,6 +4043,15 @@ async function scenarioResourceLocation() {
   eq('없는 공정은 400', bad.status, 400)
   eq('무엇이 없는지 말한다', /공정/.test(String(bad.data?.message ?? '')), true)
 
+  // 원본 자원등록의 버튼은 [삭제]가 아니라 <b>사용중단/재사용</b>이다.
+  // 설비를 지우면 그 설비로 적어 둔 작업내역이 어느 설비였는지 잃는다.
+  const stopped = await must('PUT', `/resources/${made.id}`, { ...body, active: false })
+  eq('사용중단할 수 있다', stopped.active, false)
+  eq('사용중단해도 목록에는 남는다',
+    (await must('GET', '/resources')).some((x) => x.id === made.id), true)
+  const revived = await must('PUT', `/resources/${made.id}`, { ...body, active: true })
+  eq('되살릴 수 있다', revived.active, true)
+
   await must('DELETE', `/resources/${made.id}`)
   eq('시험용 자원은 남기지 않는다',
     (await must('GET', '/resources')).filter((x) => x.code === `${P}RES`).length, 0)

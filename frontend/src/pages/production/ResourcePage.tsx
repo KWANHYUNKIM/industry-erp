@@ -14,6 +14,11 @@ import Modal from '../../components/Modal'
  * "이 작업은 어느 설비로 하나" 가 답이 된다.
  *
  * <p>가용능력·단위·시간당비용은 원본에 없지만 지우지 않았다 — 우리 쪽에서 이미 쓰는 값이다.
+ *
+ * <p>원본 버튼 실측: 신규(F2) · <b>사용중단/재사용</b> · 웹자료올리기.
+ * 우리에겐 [삭제]밖에 없었다. 설비는 <b>지우면 안 된다</b> — 이미 그 설비로 적어 둔
+ * 작업내역이 있는데 지우면 그 기록이 어느 설비였는지 잃는다. 원본이 지우기가 아니라
+ * 사용중단인 이유가 그것이다. 삭제는 잘못 만든 줄을 지울 때만 쓰도록 남겨 둔다.
  */
 interface ProductionResource {
   id: number
@@ -46,6 +51,9 @@ export default function ResourcePage() {
   const [form, setForm] = useState(emptyForm)
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([])
   const [processes, setProcesses] = useState<ProcessRow[]>([])
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 원본에는 사용중단된 자원을 볼지 고르는 자리가 없다. 기본은 쓰는 것만 보여 준다. */
+  const [withStopped, setWithStopped] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -99,7 +107,42 @@ export default function ResourcePage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+  const shown = rows.filter((r) => (withStopped || r.active)
+    && (!keyword || r.name.includes(keyword) || r.code.includes(keyword)))
+
+  const toggle = (id: number) => setChecked((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+  const allOn = shown.length > 0 && shown.every((r) => checked.has(r.id))
+
+  /**
+   * 사용중단/재사용 — 고른 자원의 사용구분을 뒤집는다.
+   *
+   * <p>고른 것들이 섞여 있으면 <b>전부 사용중단</b>으로 맞춘다. 하나씩 뒤집으면
+   * 한 번 눌렀을 때 결과가 뭔지 알 수 없다.
+   */
+  async function toggleActive() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) return setError('사용중단하거나 되살릴 자원을 고르세요.')
+    // 고른 것이 전부 사용중단이면 되살리고, 하나라도 쓰고 있으면 전부 사용중단으로 맞춘다.
+    const reviving = targets.every((r) => !r.active)
+    setError('')
+    try {
+      for (const r of targets) {
+        await api.put(`/resources/${r.id}`, {
+          name: r.name, type: r.type, capacity: r.capacity, unit: r.unit,
+          costPerHr: r.costPerHr, warehouseId: r.warehouseId, processId: r.processId,
+          active: reviving,
+        })
+      }
+      setChecked(new Set())
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
 
   return (
     <EcListShell
@@ -108,9 +151,18 @@ export default function ResourcePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+        { label: '새로고침', onClick: load },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+
+      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
+        사용중단 자원 포함
+      </label>
 
       <Modal open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -168,7 +220,10 @@ export default function ResourcePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox" checked={allOn}
+                     onChange={() => setChecked(allOn ? new Set() : new Set(shown.map((r) => r.id)))} />
+            </th>
             <th>자원코드</th>
             <th>자원명</th>
             <th>위치</th>
@@ -177,17 +232,20 @@ export default function ResourcePage() {
             <th style={{ textAlign: 'right' }}>가용능력</th>
             <th>단위</th>
             <th style={{ textAlign: 'right' }}>시간당비용</th>
+            <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 자원이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 자원이 없습니다.</td></tr>
+          ) : shown.map((r) => (
+            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '안 정함'}</td>
@@ -196,6 +254,9 @@ export default function ResourcePage() {
               <td style={{ textAlign: 'right' }}>{r.capacity.toLocaleString()}</td>
               <td>{r.unit ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
+              <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#c60a2e' }}>
+                {r.active ? '사용' : '사용중단'}
+              </td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
