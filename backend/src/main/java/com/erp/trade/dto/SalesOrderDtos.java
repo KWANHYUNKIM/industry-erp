@@ -53,7 +53,15 @@ public final class SalesOrderDtos {
             LocalDate orderDate, LocalDate dueDate,
             SalesOrderStatus status, String statusName,
             Long itemId, String itemCode, String itemName, String unit,
-            BigDecimal orderQty, BigDecimal shippedQty, BigDecimal unshippedQty
+            BigDecimal orderQty, BigDecimal shippedQty, BigDecimal unshippedQty,
+            /**
+             * 적요 — 원본 미출하현황의 열이다(일자-No. · 품목명(규격) · 수량 · 미출하수량 ·
+             * 창고명 · 거래처명 · <b>적요</b> · 출하예정일).
+             *
+             * <p>주문서에 적어 둔 말이 미출하현황에서 사라지면, 왜 아직 안 나갔는지
+             * 적어 둬도 그 화면에서는 볼 수가 없다.
+             */
+            String remark
     ) {
         /**
          * @param committed 이 라인에 <b>이미 잡힌</b> 출하수량 — 출하지시(READY)와 출하완료(SHIPPED)를 더한 값.
@@ -72,7 +80,7 @@ public final class SalesOrderDtos {
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    orderQty, shipped, orderQty.subtract(shipped));
+                    orderQty, shipped, orderQty.subtract(shipped), o.getRemark());
         }
     }
 

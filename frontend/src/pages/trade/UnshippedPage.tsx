@@ -16,6 +16,13 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
  * 창고·프로젝트·관리항목·담당자·거래처관리담당자·출하지시No. 는 UnshippedLine 에 없어
  * **의도적 제외**(값 없는 컨트롤을 흉내내지 않는다). 대신 우리 데이터로 실제 거를 수 있는
  * 납기일 구간·거래처·품목·주문번호·미출하수량 범위를 둔다.
+ *
+ * <p>원본 결과 열 실측(사본): 일자-No. · 품목명(규격) · 수량 · 미출하수량 · <b>창고명</b> ·
+ * 거래처명 · <b>적요</b> · 출하예정일. 적요는 이제 싣는다 — 주문서에 적어 둔 말이
+ * 미출하현황에서 사라지면, 왜 아직 안 나갔는지 적어 둬도 그 화면에서는 볼 수가 없다.
+ *
+ * <p>[창고명]은 아직 없다. 주문서에 창고 칸이 없어서인데, <b>원본 주문서 화면 사본이 없어</b>
+ * 그 칸이 주문의 것인지 품목 기본창고인지 확인하지 못했다. 짐작으로 만들지 않는다.
  */
 /**
  * 원본 미출하현황의 [구분] 은 <b>품목별 · 라인별</b> 둘이다(원본 사본 실측).
@@ -42,6 +49,8 @@ interface UnshippedLine {
   orderQty: number
   shippedQty: number
   unshippedQty: number
+  /** 적요. 원본 미출하현황의 열 — 주문서에 적어 둔 말이 여기서 사라지면 안 된다. */
+  remark: string | null
 }
 
 const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b6791b' : '#1c6fb5')
@@ -259,6 +268,7 @@ export default function UnshippedPage() {
             <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             <th style={{ width: 90, textAlign: 'right' }}>미출하수량</th>
             <th>거래처명 ▼</th>
+            <th style={{ width: 150 }}>적요</th>
             <th style={{ width: 100 }}>출하예정일 ▼</th>
             <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
             <th style={{ width: 150, textAlign: 'center' }}>출하지시</th>
@@ -266,9 +276,9 @@ export default function UnshippedPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>미출하 주문이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>미출하 주문이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -277,6 +287,7 @@ export default function UnshippedPage() {
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.partnerName}</td>
+              <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{r.dueDate ?? '-'}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>

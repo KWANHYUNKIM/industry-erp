@@ -29,7 +29,18 @@ public final class ProductionDtos {
             /** 담당자(사원) id. 이름은 화면이 붙인다 — production 은 hr 을 참조할 수 없다. */
             Long employeeId,
             String remark
-    ) {}
+    ) {
+        /**
+         * 품목·창고·수량·일자만 아는 자리에서 쓴다(생산계획에서 작업지시를 자동 생성할 때).
+         * 위치 인자로 부르면 필드가 늘 때마다 깨진다 — 여기로 모아 둔다.
+         */
+        public static CreateWorkOrderRequest of(Long productId, Long warehouseId,
+                                                BigDecimal plannedQty, LocalDate orderDate,
+                                                String remark) {
+            return new CreateWorkOrderRequest(
+                    productId, warehouseId, plannedQty, orderDate, null, null, null, remark);
+        }
+    }
 
     public record WorkOrderResponse(
             Long id, String orderNo,
@@ -77,7 +88,20 @@ public final class ProductionDtos {
             String note,
             /** 선택: 수동 소모자재 목록. 있으면 이 목록대로 소모, 없으면 BOM 자동소모 */
             List<@Valid ManualConsumeLine> materials
-    ) {}
+    ) {
+        /**
+         * 작업지시·수량·일자만 아는 자리에서 쓴다(시드 초기화 같은 곳).
+         *
+         * <p>record 를 위치 인자로 부르면 필드가 하나 늘 때마다 그 자리가 깨진다 —
+         * 이 record 에서만 두 번 깨졌다(받는창고 때, 프로젝트 때). 여기로 모아 두면
+         * 필드가 늘어도 <b>이 한 줄만</b> 고치면 된다.
+         */
+        public static CreateProductionRequest of(Long workOrderId, BigDecimal producedQty,
+                                                 LocalDate productionDate) {
+            return new CreateProductionRequest(
+                    workOrderId, producedQty, productionDate, null, null, null, null, null);
+        }
+    }
 
     public record ManualConsumeLine(
             @NotNull(message = "소모자재를 선택하세요.") Long componentId,

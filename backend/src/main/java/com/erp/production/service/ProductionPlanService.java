@@ -102,12 +102,10 @@ public class ProductionPlanService {
         Warehouse warehouse = warehouseRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> ApiException.badRequest("등록된 창고가 없습니다."));
 
-        WorkOrderResponse wo = workOrderService.create(new CreateWorkOrderRequest(
-                plan.getProduct().getId(), warehouse.getId(), plan.getPlanQty(),
-                LocalDate.now(), null,
-                // 생산계획에서 자동으로 만드는 지시라 납품처·담당자는 정할 수 없다.
-                // 지어내지 않고 비워 둔다 — 사람이 작업지시서에서 채운다.
-                null, null,
+        // 생산계획에서 자동으로 만드는 지시라 납품처·담당자·납기는 정할 수 없다.
+        // 지어내지 않고 비워 둔다 — 사람이 작업지시서에서 채운다.
+        WorkOrderResponse wo = workOrderService.create(CreateWorkOrderRequest.of(
+                plan.getProduct().getId(), warehouse.getId(), plan.getPlanQty(), LocalDate.now(),
                 "생산계획 " + plan.getPlanWeek() + " 자동생성"), username);
 
         plan.setWorkOrder(workOrderRepository.findById(wo.id())
