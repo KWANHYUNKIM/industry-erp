@@ -3427,6 +3427,81 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * BOR(작업소요시간) — 품목별 작업 라우팅.
+ *
+ * <p>BOM 이 "무엇으로 만드는가" 라면 BOR 은 "어떻게 만드는가" 다. 이 표가 없어서
+ * 작업지시서효율현황의 '시간 표준' 은 <b>실제로 작업한 공정</b>만 되짚어 셀 수밖에 없었다 —
+ * 공정을 하나 건너뛰면 표준에서도 빠지니 오히려 시간을 아낀 것처럼 보인다.
+ *
+ * <p>작업시간은 '생산수량 기준' 으로 적는다(100개 로트에 3시간처럼). 그래서 1개당으로
+ * 환산해서 쓴다. 이 환산을 빠뜨리면 표준시간이 로트 배수만큼 부풀거나 줄어든다.
+ */
+async function scenarioBor(f) {
+  section('■ BOR(작업소요시간)')
+
+  const processes = await must('GET', '/processes')
+  eq('공정 마스터가 있다', processes.length >= 2, true)
+
+  // 이전 실행이 남긴 것이 있으면 치운다.
+  for (const o of (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)) {
+    await call('DELETE', `/bor/${o.id}`)
+  }
+
+  const first = await must('POST', '/bor', {
+    productId: f.product.id, processId: processes[0].id, seq: 1,
+    workName: `${P}절단`, baseQty: 10, workHours: 0.5,
+  })
+  eq('작업시간이 그대로 저장된다', Number(first.workHours), 0.5)
+  eq('1개당 시간 = 작업시간 ÷ 생산수량', Number(first.hoursPerUnit), 0.05)
+
+  const second = await must('POST', '/bor', {
+    productId: f.product.id, processId: processes[1].id, seq: 2,
+    workName: `${P}조립`, baseQty: 10, workHours: 1.25,
+  })
+  eq('둘째 작업도 들어간다', Number(second.hoursPerUnit), 0.125)
+
+  const dup = await call('POST', '/bor', {
+    productId: f.product.id, processId: processes[0].id, seq: 1,
+    workName: `${P}중복`, baseQty: 1, workHours: 1,
+  })
+  eq('같은 품목에 작업순서가 겹치면 거부', dup.status, 400)
+  eq('무엇이 겹치는지 말한다', /작업순서/.test(String(dup.data?.message ?? '')), true)
+
+  // 생산수량을 안 주면 1개 기준이다.
+  const noBase = await must('POST', '/bor', {
+    productId: f.product.id, processId: processes[0].id, seq: 3,
+    workName: `${P}검사`, workHours: 0.2,
+  })
+  eq('생산수량을 안 주면 1개 기준', Number(noBase.baseQty), 1)
+  eq('그때는 1개당 시간이 작업시간과 같다', Number(noBase.hoursPerUnit), 0.2)
+
+  const mine = (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)
+  eq('품목 라우팅이 3줄', mine.length, 3)
+  eq('작업순서대로 나온다', mine.map((x) => x.seq).join(','), '1,2,3')
+  eq('1개당 표준시간 합', Math.round(mine.reduce((n, x) => n + Number(x.hoursPerUnit), 0) * 1000) / 1000, 0.375)
+
+  await rejects('음수 작업시간은 거부', 'POST', '/bor', {
+    productId: f.product.id, processId: processes[0].id, seq: 9,
+    workName: `${P}음수`, workHours: -1,
+  }, '0 이상')
+  await rejects('생산수량 0 은 거부', 'POST', '/bor', {
+    productId: f.product.id, processId: processes[0].id, seq: 9,
+    workName: `${P}영`, baseQty: 0, workHours: 1,
+  }, '0보다')
+
+  // 수정: 작업순서를 그대로 둔 수정은 "겹친다" 로 거부되면 안 된다(자기 자신 제외).
+  const edited = await must('PUT', `/bor/${first.id}`, {
+    productId: f.product.id, processId: processes[0].id, seq: 1,
+    workName: `${P}절단(수정)`, baseQty: 10, workHours: 0.75,
+  })
+  eq('자기 자신은 겹침으로 보지 않는다', Number(edited.workHours), 0.75)
+
+  for (const o of mine) eq(`작업을 지울 수 있다(${o.seq})`, (await call('DELETE', `/bor/${o.id}`)).status, 204)
+  eq('시험용 라우팅은 남기지 않는다',
+    (await must('GET', '/bor')).filter((x) => x.productId === f.product.id).length, 0)
+}
+
+/**
  * 표준원가 자동생성이 <b>판매단가에서 역산되지 않는가.</b>
  *
  * <p>예전에는 표준원가를 판매단가 × 고정비율(재료 60% · 노무 25% · 경비 15%)로 지어냈다.
@@ -4146,6 +4221,7 @@ async function main() {
   await scenarioCostRollForward()
   await scenarioVarianceInputs(fixtures)
   await scenarioStandardCostBuild(fixtures)
+  await scenarioBor(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

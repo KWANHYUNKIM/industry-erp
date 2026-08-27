@@ -70,6 +70,14 @@ interface ProcessRow {
   stdTimeMin: number | null
 }
 
+/** BOR(작업소요시간) 한 줄. 품목이 거치는 작업과 1개당 시간(H). */
+interface BorRow {
+  productId: number
+  processId: number
+  hoursPerUnit: number
+  active: boolean
+}
+
 interface WorkResultRow {
   workOrderId: number | null
   processId: number | null
@@ -86,6 +94,7 @@ export default function WoEfficiencyPage() {
   const [processes, setProcesses] = useState<ProcessRow[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [results, setResults] = useState<WorkResultRow[]>([])
+  const [bor, setBor] = useState<BorRow[]>([])
   /** 하위공정(자재)을 펼친 작업지시 id */
   const [open, setOpen] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -105,7 +114,7 @@ export default function WoEfficiencyPage() {
     setLoading(true)
     setError('')
     try {
-      const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes] = await Promise.all([
+      const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes, borRes] = await Promise.all([
         api.get<WorkOrderRow[]>('/work-orders'),
         api.get<ProductionRow[]>('/productions'),
         api.get<BomRow[]>('/boms'),
@@ -113,6 +122,7 @@ export default function WoEfficiencyPage() {
         api.get<ProcessRow[]>('/processes'),
         api.get<WorkResultRow[]>('/work-results'),
         api.get<PurchaseDoc[]>('/purchases'),
+        api.get<BorRow[]>('/bor'),
       ])
       setOrders([...woRes.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)))
       setProductions(prodRes.data)
@@ -121,6 +131,7 @@ export default function WoEfficiencyPage() {
       setProcesses(procRes.data)
       setResults(resultRes.data)
       setPurchases(purchaseRes.data)
+      setBor(borRes.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -151,6 +162,22 @@ export default function WoEfficiencyPage() {
   const stdMinByProcess = useMemo(
     () => new Map(processes.map((p) => [p.id, p.stdTimeMin])), [processes])
 
+  /**
+   * 품목의 <b>표준 작업시간</b>(분/개). BOR 라우팅의 1개당 시간 합이다.
+   *
+   * <p>예전에는 표준시간을 <b>실제로 작업한 공정</b>의 표준시간으로만 셌다. 그러면
+   * 빼먹은 공정은 표준에도 안 잡혀서 "공정을 하나 건너뛰었다" 를 영영 못 본다 —
+   * 오히려 시간을 아낀 것처럼 보인다. BOR 이 생겼으니 품목 기준으로 센다.
+   */
+  const borMinPerUnit = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const b of bor) {
+      if (!b.active) continue
+      m.set(b.productId, (m.get(b.productId) ?? 0) + b.hoursPerUnit * 60)
+    }
+    return m
+  }, [bor])
+
   /** 작업지시별 소모(표준·실제)와 시간(표준·실제). 원본의 [소모]·[시간] 묶음이다. */
   const efficiency = useMemo(() => {
     const usedByWo = new Map<number, { componentId: number; componentName: string; quantity: number }[]>()
@@ -168,6 +195,7 @@ export default function WoEfficiencyPage() {
       cur.push({
         qty: r.goodQty + r.defectQty,
         minutes: r.workTimeMin,
+        // BOR 이 없는 품목만 공정 표준시간으로 갈음한다(아래에서 품목 기준으로 덮어쓴다).
         stdMinPerUnit: r.processId != null ? (stdMinByProcess.get(r.processId) ?? null) : null,
       })
       timeByWo.set(r.workOrderId, cur)
@@ -182,15 +210,29 @@ export default function WoEfficiencyPage() {
       const bom = bomByProduct.get(wo.productId) ?? []
       const used = usedByWo.get(wo.id) ?? []
       const produced = producedByWo.get(wo.id) ?? 0
+      /*
+       * 표준시간은 <b>품목의 BOR × 생산수량</b>이 원칙이다. 실제 작업한 공정만 세면
+       * 빼먹은 공정이 안 보인다. BOR 이 없는 품목만 예전처럼 공정 표준시간으로 갈음한다.
+       */
+      const perUnit = borMinPerUnit.get(wo.productId)
+      const rows = timeByWo.get(wo.id) ?? []
+      const time = perUnit != null
+        ? {
+          standard: Math.round(perUnit * produced * 100) / 100,
+          actual: rows.reduce((n, r) => n + r.minutes, 0),
+          unknown: 0,
+        }
+        : workTime(rows)
+
       m.set(wo.id, {
         std: standardConsume(bom, produced, priceOf),
         act: actualConsume(used, priceOf),
-        time: workTime(timeByWo.get(wo.id) ?? []),
+        time,
         rows: materialDiff(bom, used, produced, priceOf),
       })
     }
     return m
-  }, [orders, productions, results, bomByProduct, stdMinByProcess, priceOf])
+  }, [orders, productions, results, bomByProduct, stdMinByProcess, borMinPerUnit, priceOf])
 
   const shown = orders.filter((r) => {
     if (r.orderDate < from || r.orderDate > to) return false
