@@ -3654,10 +3654,29 @@ async function scenarioSettlementAccounting(f) {
   eq('먼저 무엇을 하라고 말해 준다',
     /회계반영을 먼저 취소/.test(String(del.data?.message ?? '')), true)
 
+  /*
+   * 원본 판매·구매일괄회계반영의 <b>[회계전표No.]</b> 열.
+   *
+   * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 그 전표를 찾아갈 길이 없다.
+   * 금액이 이상할 때 사람이 회계전표를 뒤져 짝을 맞춰야 했다.
+   */
+  const listed = (await must('GET', '/accounting-reflection?kind=SETTLEMENT'))
+    .find((x) => x.id === st.id)
+  eq('반영하면 회계전표번호가 실린다', typeof listed.journalDocNo, 'string')
+  eq('전표 id 도 같이 온다', listed.journalEntryId > 0, true)
+  const entry = await must('GET', `/journals/${listed.journalEntryId}`)
+  eq('그 번호가 실제 분개다', entry.docNo, listed.journalDocNo)
+  eq('분개가 대차평형이다', entry.totalDebit, entry.totalCredit)
+  eq('결제금액 그대로 잡힌다', entry.totalDebit, 70000)
+  eq('결제요청자도 실린다', typeof listed.createdBy, 'string')
+
   eq('반영취소도 된다',
     (await must('POST', '/accounting-reflection/unreflect',
       { kind: 'SETTLEMENT', ids: [st.id] })).reflectedCount, 1)
   eq('되돌리면 원장도 제자리', await ar(), before)
+  eq('되돌리면 전표번호도 사라진다',
+    (await must('GET', '/accounting-reflection?kind=SETTLEMENT'))
+      .find((x) => x.id === st.id).journalDocNo, null)
 
   // 지급은 반대다 — 차)외상매입금 / 대)현금.
   const ap = async () => -(await balOf('251'))

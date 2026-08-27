@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
@@ -17,17 +18,27 @@ import { api, extractErrorMessage } from '../../api/client'
  * <p>승인번호·재고전표·상태별처리기능은 만들지 않았다. 원본의 결제내역은 PG(카드결제)
  * 연동에서 들어오는 자료인데 우리에겐 그 연동이 없다 — 칸만 만들면 늘 비어 있다.
  */
+/*
+ * 목록은 /accounting-reflection?kind=SETTLEMENT 에서 받는다. /settlements 가 아니다.
+ * 원본 [회계전표No.] 를 실으려면 분개를 알아야 하는데, trade 는 accounting 을 참조할 수
+ * 없다(CLAUDE.md 4.1 — accounting → trade 가 이미 있어 맞물리면 순환이다).
+ * 반대쪽인 accounting 이 결제를 읽어 회계전표번호까지 붙여 내려 준다.
+ */
 interface SettlementRow {
   id: number
   docNo: string
-  typeName: string // 수금 | 지급
+  slipDate: string
   partnerName: string
-  settleDate: string
-  amount: number
-  method: string | null
-  note: string | null
+  /** 수금 · 지급. 결제에는 부가세유형이 없어 이 자리에 구분이 온다. */
+  vatType: string
+  /** 결제방법. 결제에는 품목이 없어 이 자리에 온다. */
+  itemSummary: string
+  totalAmount: number
   createdBy: string | null
-  accountingReflected: boolean
+  note: string | null
+  reflected: boolean
+  journalEntryId: number | null
+  journalDocNo: string | null
 }
 
 const TABS = ['전체', '미반영', '회계반영'] as const
@@ -45,9 +56,9 @@ export default function PaymentHistoryPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<SettlementRow[]>('/settlements')
+      const res = await api.get<SettlementRow[]>('/accounting-reflection?kind=SETTLEMENT')
       const list = [...res.data].sort((a, b) =>
-        (a.settleDate < b.settleDate ? 1 : a.settleDate > b.settleDate ? -1 : b.id - a.id))
+        (a.slipDate < b.slipDate ? 1 : a.slipDate > b.slipDate ? -1 : b.id - a.id))
       setRows(list)
       setPicked([])
     } catch (err) {
@@ -60,10 +71,10 @@ export default function PaymentHistoryPage() {
   useEffect(() => { load() }, [])
 
   const shown = rows
-    .filter((r) => tab === '전체' || (tab === '미반영' ? !r.accountingReflected : r.accountingReflected))
+    .filter((r) => tab === '전체' || (tab === '미반영' ? !r.reflected : r.reflected))
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
-  const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
-  const unreflected = rows.filter((r) => !r.accountingReflected).length
+  const total = useMemo(() => shown.reduce((s, r) => s + r.totalAmount, 0), [shown])
+  const unreflected = rows.filter((r) => !r.reflected).length
 
   /** 고른 전표를 회계로 넘긴다. 수금은 차)현금 / 대)외상매출금. */
   async function reflect(reverse: boolean) {
@@ -124,31 +135,39 @@ export default function PaymentHistoryPage() {
             <th style={{ width: 110 }}>결제방법</th>
             <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
             <th style={{ width: 110 }}>결제요청자</th>
-            <th style={{ width: 90, textAlign: 'center' }}>회계전표</th>
+            <th style={{ width: 90, textAlign: 'center' }}>회계반영</th>
+            <th style={{ width: 150 }}>회계전표No.</th>
             <th>내역</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.settleDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.slipDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.typeName === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.typeName}</td>
-              <td>{r.method ?? '-'}</td>
-              <td style={{ textAlign: 'right' }}>{r.amount.toLocaleString()}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.vatType}</td>
+              <td>{r.itemSummary || '-'}</td>
+              <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
               <td style={{ color: '#5a626e', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
-                           color: r.accountingReflected ? '#1c7c3c' : '#c07a00' }}>
-                {r.accountingReflected ? '반영' : '미반영'}
+                           color: r.reflected ? '#1c7c3c' : '#c07a00' }}>
+                {r.reflected ? '반영' : '미반영'}
+              </td>
+              {/* 원본 [회계전표No.]. 반영했다는 표시만 있고 어느 분개인지 없으면 찾아갈 길이 없다. */}
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+                {r.journalDocNo ? (
+                  <Link to={`/accounting/journals?entryId=${r.journalEntryId}`}
+                        style={{ color: 'var(--ec-blue)' }}>{r.journalDocNo}</Link>
+                ) : <span style={{ color: '#c9ced6' }}>—</span>}
               </td>
               <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
             </tr>
@@ -159,7 +178,7 @@ export default function PaymentHistoryPage() {
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString()}</td>
-              <td colSpan={3}></td>
+              <td colSpan={4}></td>
             </tr>
           </tfoot>
         )}

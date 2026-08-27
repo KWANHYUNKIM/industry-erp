@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -66,6 +66,12 @@ interface Slip {
   /** 원본 판매·구매일괄회계반영의 [부가세유형] — 과세 · 면세. */
   vatType: string
   reflected: boolean
+  /**
+   * 원본 판매·구매일괄회계반영의 [회계전표No.]. 반영 전에는 null 이다.
+   * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 그 전표를 찾아갈 길이 없다.
+   */
+  journalEntryId: number | null
+  journalDocNo: string | null
 }
 
 export default function AccountingReflectionPage() {
@@ -475,13 +481,14 @@ export default function AccountingReflectionPage() {
             <th style={{ width: 120, textAlign: 'right' }}>공급가액</th>
             <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
             <th style={{ width: 90, textAlign: 'center' }}>회계반영 ▼</th>
+            <th style={{ width: 150 }}>회계전표No.</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
@@ -495,6 +502,12 @@ export default function AccountingReflectionPage() {
               <td style={{ textAlign: 'right' }}>{s.supplyAmount.toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{s.vatAmount.toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'center', color: s.reflected ? '#1c7c3c' : '#c60a2e', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+                {s.journalDocNo ? (
+                  <Link to={`/accounting/journals?entryId=${s.journalEntryId}`}
+                        style={{ color: 'var(--ec-blue)' }}>{s.journalDocNo}</Link>
+                ) : <span style={{ color: '#c9ced6' }}>—</span>}
+              </td>
             </tr>
           ))}
         </tbody>

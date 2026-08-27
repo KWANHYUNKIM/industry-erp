@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../api/types'
@@ -15,21 +16,35 @@ const SRC_COLOR: Record<string, string> = {
 
 /** 회계전표 조회 — 판매/구매 회계반영으로 생성된 분개(차변/대변)를 전표 단위로 조회. */
 export default function JournalListPage() {
+  /*
+   * ?entryId= 로 특정 전표를 지목해서 들어온다 — 일괄회계반영·결제내역조회의
+   * [회계전표No.] 가 여기로 보낸다. 목록만 열어 주면 사람이 다시 찾아야 하고,
+   * 그러면 그 열을 만든 이유가 없어진다.
+   */
+  const [params] = useSearchParams()
+  const wanted = Number(params.get('entryId')) || null
+
   const [rows, setRows] = useState<JournalEntry[]>([])
   const [from, setFrom] = useState(firstOfYear())
   const [to, setTo] = useState(today())
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [openId, setOpenId] = useState<number | null>(wanted)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
 
-  function load() {
+  function load(range?: { from: string; to: string }) {
     setError('')
-    api.get<JournalEntry[]>('/journals', { params: { from, to } })
+    api.get<JournalEntry[]>('/journals', { params: range ?? { from, to } })
       .then((r) => setRows(r.data))
       .catch((err) => setError(extractErrorMessage(err)))
   }
 
   useEffect(() => {
+    // 지목받은 전표는 올해 밖일 수 있다. 기본 기간으로 열면 "없는 전표" 처럼 보인다.
+    if (wanted) {
+      const wide = { from: '1900-01-01', to: '2099-12-31' }
+      setFrom(wide.from); setTo(wide.to); load(wide)
+      return
+    }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

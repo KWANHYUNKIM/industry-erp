@@ -16,6 +16,9 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
 
     Optional<JournalEntry> findBySourceTypeAndSourceId(JournalSourceType sourceType, Long sourceId);
 
+    /** 여러 전표의 분개를 한 번에. 줄마다 찾으면 N+1 이다. */
+    List<JournalEntry> findBySourceTypeAndSourceIdIn(JournalSourceType sourceType, List<Long> sourceIds);
+
     /**
      * 전표조회: 라인과 계정까지 한 번에 가져온다.
      * 라인을 fetch join 하지 않으면 응답을 만들면서 전표마다 라인을, 라인마다 계정을 다시 조회한다(N+1).

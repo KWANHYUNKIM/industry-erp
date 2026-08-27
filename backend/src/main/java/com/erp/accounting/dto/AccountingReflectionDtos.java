@@ -59,9 +59,26 @@ public final class AccountingReflectionDtos {
             /** 원본 판매·구매일괄회계반영의 [부가세유형] — 과세 · 면세. */
             String vatType,
             boolean reflected,
+            /**
+             * 원본 판매·구매일괄회계반영의 [회계전표No.]. 반영 전에는 null 이다.
+             * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 찾아갈 길이 없다.
+             */
+            Long journalEntryId,
+            String journalDocNo,
+            /** 전표를 만든 사람. 원본 결제내역조회의 [결제요청자ID]. */
+            String createdBy,
+            /** 전표 적요. 원본 격자의 [내역]·[적요]. */
+            String note,
             /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
             List<SlipLine> lines
     ) {
+        /** 반영된 줄에 분개를 붙인다. 목록을 만든 뒤 한 번에 채운다(N+1 방지). */
+        public SlipResponse withJournal(Long entryId, String docNo) {
+            return new SlipResponse(id, kind, this.docNo, slipDate, partnerId, partnerName,
+                    warehouseName, projectName, employeeName, itemSummary,
+                    supplyAmount, vatAmount, totalAmount, vatType, reflected,
+                    entryId, docNo, createdBy, note, lines);
+        }
         public static SlipResponse fromSales(Sales s) {
             return new SlipResponse(
                     s.getId(), SlipKind.SALES, s.getDocNo(), s.getSaleDate(),
@@ -73,6 +90,7 @@ public final class AccountingReflectionDtos {
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
                     s.isTaxable() ? "과세" : "면세",
                     s.isAccountingReflected(),
+                    null, null, s.getCreatedBy(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
                             l.getQuantity(), l.getUnitPrice(),
@@ -90,6 +108,7 @@ public final class AccountingReflectionDtos {
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
                     p.isTaxable() ? "과세" : "면세",
                     p.isAccountingReflected(),
+                    null, null, p.getCreatedBy(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
                             l.getQuantity(), l.getUnitPrice(),
@@ -113,6 +132,7 @@ public final class AccountingReflectionDtos {
                     java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, st.getAmount(),
                     st.getType().getDisplayName(),
                     st.isAccountingReflected(),
+                    null, null, st.getCreatedBy(), st.getNote(),
                     List.of());
         }
 
