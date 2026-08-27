@@ -3602,6 +3602,42 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * 설문조사의 <b>[첨부]</b>.
+ *
+ * <p>원본 설문조사입력에 [여기에 파일 놓기]가 있다. 우리 화면 주석에는
+ * "파일 업로드가 이 화면에 아직 없다" 고 적혀 있었다 — 이제 붙일 수 있다.
+ *
+ * <p>수정은 <b>null 필드를 건너뛰는</b> 규칙이라, 첨부를 안 보내면 그대로 둬야 한다.
+ * 이걸 다른 필드처럼 '통째로 덮기' 로 두면 제목만 고쳐도 첨부가 조용히 떨어진다.
+ */
+async function scenarioSurveyAttachment() {
+  section('■ 설문조사 첨부')
+
+  // 앞 실행이 중단됐으면 먼저 치운다.
+  for (const x of (await must('GET', '/surveys')).filter((x) => (x.title ?? '').startsWith(`${P}첨부설문`))) {
+    await call('DELETE', `/surveys/${x.id}`)
+  }
+
+  const made = await must('POST', '/surveys', {
+    title: `${P}첨부설문`, targetScope: 'INTERNAL', anonymous: false,
+    resultVisibility: 'ALL', questions: [], draft: true,
+  })
+  isNull('첨부를 안 주면 비어 있다', made.attachmentId)
+
+  const ghost = await call('PATCH', `/surveys/${made.id}`, { attachmentId: 99999999 })
+  eq('없는 첨부는 거부', ghost.status, 404)
+
+  // 제목만 고쳐도 첨부가 떨어지면 안 된다(지금은 붙인 게 없으니 null 이 유지되는지만 본다).
+  const renamed = await must('PATCH', `/surveys/${made.id}`, { title: `${P}첨부설문2` })
+  eq('제목이 바뀐다', renamed.title, `${P}첨부설문2`)
+  isNull('안 보낸 첨부는 그대로다', renamed.attachmentId)
+
+  await must('DELETE', `/surveys/${made.id}`)
+  eq('시험용 설문은 남기지 않는다',
+    (await must('GET', '/surveys')).some((x) => x.id === made.id), false)
+}
+
+/**
  * 업무관리게시판의 <b>[첨부]</b>와 <b>[조회]</b>.
  *
  * <p>원본 WORK 격자의 열은 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 ·
@@ -7059,6 +7095,7 @@ async function main() {
   await scenarioInactiveMasterGuards(fixtures)
   await scenarioEmployeeMaster(fixtures)
   await scenarioWorkPostAttachment()
+  await scenarioSurveyAttachment()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

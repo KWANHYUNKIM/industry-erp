@@ -379,8 +379,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
-          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회·웹자료올리기는 아직 없다.
+          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다.
           [모두펼쳐보기]는 이제 있다 — 내용을 읽을 자리가 그것뿐이었다.
+          [웹자료올리기]도 이제 있다 — 등록 폼의 첨부 자리가 그것이다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
         <button className="ec-btn" onClick={() => void changeStatusSelected()}>진행상태변경</button>

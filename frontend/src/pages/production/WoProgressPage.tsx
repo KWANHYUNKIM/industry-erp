@@ -26,8 +26,12 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
  * (원본 작업지시서입력 머리의 [납품처]·[담당자]). 담당자 <b>이름</b>은 서버가 못 붙인다 —
  * production 은 hr 을 참조할 수 없어(hr → accounting → production 순환) id 만 온다.
  *
- * <p>[거래처관리담당자]는 아직 없다. 거래처 마스터의 담당자를 보는 조건이라
- * 작업지시에서 거래처를 타고 그 값을 다시 받아 와야 한다.
+ * <p>[거래처관리담당자]는 거래처 마스터의 담당자를 보는 조건이다. 작업지시에서 거래처를
+ * 타고 그 값을 받아 와야 해서 미뤄 뒀는데, 거래처 목록을 한 번 더 받아 <b>거래처명 →
+ * 담당자</b> 로 이으면 된다. 작업지시에 담당자 id 를 새로 달 필요는 없다.
+ *
+ * <p>작업지시의 [담당자](사원)와 <b>다른 값</b>이다 — 이쪽은 그 거래처를 맡은 영업담당자다.
+ * 둘을 한 조건으로 합치면 "누구 것을 보는가" 가 뒤섞인다.
  */
 type Mode = '생산진행현황' | '불출진행현황' | '원재료투입비교표' | '작업진행현황'
 const MODES = ['생산진행현황', '불출진행현황', '원재료투입비교표', '작업진행현황'] as const
@@ -89,6 +93,9 @@ export default function WoProgressPage() {
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
+  /** 원본 [거래처관리담당자]. 거래처 마스터의 담당자다 — 작업지시의 담당자(사원)와 다르다. */
+  const [partnerManager, setPartnerManager] = useState('')
+  const [managerOf, setManagerOf] = useState<Map<string, string>>(new Map())
   const [emp, setEmp] = useState('')
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
 
@@ -96,16 +103,19 @@ export default function WoProgressPage() {
     setLoading(true)
     setError('')
     try {
-      const [wo, mi, pr, wr, bm, emps] = await Promise.all([
+      const [wo, mi, pr, wr, bm, emps, parts] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Issue[]>('/material-issues'),
         api.get<Production[]>('/productions'),
         api.get<WorkResult[]>('/work-results'),
         api.get<Bom[]>('/boms'),
         api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ name: string; manager: string | null }[]>('/partners'),
       ])
       setOrders(wo.data); setIssues(mi.data); setProductions(pr.data)
       setResults(wr.data); setBoms(bm.data); setEmployees(emps.data)
+      // 거래처명 → 관리담당자. 작업지시에는 거래처명만 오므로 이름으로 잇는다.
+      setManagerOf(new Map(parts.data.map((p) => [p.name, p.manager ?? ''])))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -118,7 +128,7 @@ export default function WoProgressPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to)
     setMode('생산진행현황'); setOrderNo(''); setItem(''); setWarehouse('')
-    setPartner(''); setEmp('')
+    setPartner(''); setPartnerManager(''); setEmp('')
   }
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다. */
@@ -131,6 +141,8 @@ export default function WoProgressPage() {
     if (item && !`${o.productCode} ${o.productName}`.includes(item)) return false
     if (warehouse && !(o.warehouseName ?? '').includes(warehouse)) return false
     if (partner && !(o.partnerName ?? '').includes(partner)) return false
+    if (partnerManager
+      && !(managerOf.get(o.partnerName ?? '') ?? '').includes(partnerManager)) return false
     if (emp && !empName(o.employeeId).includes(emp)) return false
     return true
   }).sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)),
@@ -289,6 +301,11 @@ export default function WoProgressPage() {
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={partner}
                  onChange={(e) => setPartner(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/* 원본 [거래처관리담당자]. 그 거래처를 맡은 영업담당자다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <input className="ec-input" placeholder="관리담당자명 일부" value={partnerManager}
+                 onChange={(e) => setPartnerManager(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="담당자" pick>
           <input className="ec-input" placeholder="담당자명 일부" value={emp}

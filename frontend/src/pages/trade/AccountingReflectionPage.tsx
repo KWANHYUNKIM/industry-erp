@@ -85,11 +85,13 @@ export default function AccountingReflectionPage() {
    *   거래처관리담당자 · 금액
    * 우리는 거래처·전표번호·금액뿐이었다. 창고·프로젝트·품목·담당자는 전표에 있는데
    * 응답에 안 실려 거를 수가 없었다 — 백엔드에서 같이 보내도록 고치고 조건으로 붙였다.
-   * 거래유형(과세/면세)은 이 목록이 전표 단위라 아직 없다.
+   * <p>[거래유형](과세/면세)은 예전에 "이 목록이 전표 단위라 아직 없다" 고 적어 뒀는데,
+   * 그 뒤 전표가 과세 여부를 실제로 들고 있게 되면서(vatType) 걸 수 있게 됐다.
+   * 조건을 안 만들면 열은 보이는데 그걸로 걸러낼 수가 없다.
    */
   const [cond, setCond] = useState({
     from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
-    warehouse: '', project: '', item: '', employee: '',
+    warehouse: '', project: '', item: '', employee: '', vatType: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [onlyUnreflected, setOnlyUnreflected] = useState(true)
@@ -126,6 +128,7 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.docNo || s.docNo.includes(cond.docNo))
     .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
     .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
+    .filter((s) => !cond.vatType || s.vatType === cond.vatType)
     .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
     .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
@@ -150,7 +153,7 @@ export default function AccountingReflectionPage() {
   const reset = () => {
     setCond({
       from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
-      warehouse: '', project: '', item: '', employee: '',
+      warehouse: '', project: '', item: '', employee: '', vatType: '',
     })
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
@@ -310,6 +313,16 @@ export default function AccountingReflectionPage() {
         <EcCond label="품목" pick>
           <input className="ec-input" placeholder="품목명 일부" value={cond.item}
                  onChange={(e) => setC({ item: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
+        {/* 원본 조건의 [거래유형]. 전표의 과세 여부를 그대로 본다. */}
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${cond.vatType === v ? ' active' : ''}`}
+                      onClick={() => setC({ vatType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <input className="ec-input" placeholder="담당자 일부" value={cond.employee}

@@ -38,6 +38,8 @@ public final class SurveyDtos {
             List<Long> targetUserIds,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
             List<@jakarta.validation.Valid QuestionRequest> questions,
+            /** 첨부 파일 id. 원본 [여기에 파일 놓기]. 안 붙일 수 있다. */
+            Long attachmentId,
             /** true 면 초안으로 저장. false 면 바로 진행중(발송). */
             boolean draft
     ) {}
@@ -53,6 +55,8 @@ public final class SurveyDtos {
             List<Long> targetUserIds,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
             List<@jakarta.validation.Valid QuestionRequest> questions,
+            /** null 이면 첨부를 <b>안 바꾼다</b> — 이 요청은 null 필드를 건너뛰는 규칙이다. */
+            Long attachmentId,
             SurveyStatus status
     ) {}
 
@@ -100,6 +104,8 @@ public final class SurveyDtos {
             boolean answeredByMe,
             /** 설문종료일이 지났는가. 상태가 '진행중'이어도 시간으로 닫힌다. */
             boolean expired,
+            /** 원본 [첨부]. 파일이 없으면 셋 다 null 이다. */
+            Long attachmentId, String attachmentName, Long attachmentSize,
             List<QuestionResponse> questions,
             List<TargetResponse> targets
     ) {
@@ -119,6 +125,9 @@ public final class SurveyDtos {
                     s.getCreatedAt(),
                     s.getQuestions().size(), targets, responses, rate,
                     answeredByMe, s.isExpired(),
+                    s.getAttachment() != null ? s.getAttachment().getId() : null,
+                    s.getAttachment() != null ? s.getAttachment().getName() : null,
+                    s.getAttachment() != null ? s.getAttachment().getSizeBytes() : null,
                     s.getQuestions().stream().map(QuestionResponse::from).toList(),
                     s.getTargets().stream()
                             .map(t -> new TargetResponse(t.getUser().getId(), t.getUser().getName()))

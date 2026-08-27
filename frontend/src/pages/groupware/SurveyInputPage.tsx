@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
+import EcFileDrop from '../../components/EcFileDrop'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { QuestionType, SurveyDoc } from '../../api/types'
 
@@ -17,7 +18,11 @@ import type { QuestionType, SurveyDoc } from '../../api/types'
  * 결과공개범위 · 머리말 + 질문 그리드(질문유형 · 질문내용 · 보기항목1~5 · 필수항목).
  * 하단은 [저장] [미리보기] [리스트].
  *
- * 원본에 있으나 넣지 않은 것: [첨부](파일 업로드가 이 화면에 아직 없다), [반복설정].
+ * 원본에 있으나 넣지 않은 것: [반복설정].
+ *
+ * <p>[첨부]는 이제 있다 — 예전에는 "파일 업로드가 이 화면에 아직 없다" 고 적어 뒀는데,
+ * 공용 EcFileDrop 과 /files 가 생기면서 붙일 수 있게 됐다. 설문 안내문에 딸린 양식·사진을
+ * 같이 보내는 자리다.
  */
 
 const TYPES: { value: QuestionType; label: string; options: boolean }[] = [
@@ -58,6 +63,9 @@ export default function SurveyInputPage() {
   const [visibility, setVisibility] = useState<'ALL' | 'PARTIAL' | 'NONE'>('ALL')
   const [useHeader, setUseHeader] = useState(false)
   const [headerText, setHeaderText] = useState('')
+  /** 원본 [여기에 파일 놓기]. 한 건만 붙는 자리다. */
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
   // 원본은 빈 줄 3개로 시작한다.
   const [rows, setRows] = useState<QuestionRow[]>([emptyRow(), emptyRow(), emptyRow()])
 
@@ -74,6 +82,22 @@ export default function SurveyInputPage() {
   /** 저장 대상 문항 — 유형과 내용이 모두 있는 줄만. 원본도 빈 줄은 무시한다. */
   const filled = rows.filter((r) => r.type && r.content.trim())
 
+  /** 파일을 먼저 올려 id 를 받고, 설문을 저장할 때 그 id 를 붙인다(기안서·업무글과 같다). */
+  async function upload(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setAttachment({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const payload = (draft: boolean) => ({
     title,
     endAt: `${endDate}T${endTime}:00`,
@@ -81,6 +105,7 @@ export default function SurveyInputPage() {
     anonymous,
     resultVisibility: visibility,
     headerText: useHeader ? headerText : null,
+    attachmentId: attachment ? attachment.id : null,
     targetUserIds: targets.map(Number),
     questions: filled.map((r, i) => ({
       seq: i + 1,
@@ -165,6 +190,22 @@ export default function SurveyInputPage() {
               {radio('vis', visibility === 'ALL', () => setVisibility('ALL'), '전체공개')}
               {radio('vis', visibility === 'PARTIAL', () => setVisibility('PARTIAL'), '일부공개')}
               {radio('vis', visibility === 'NONE', () => setVisibility('NONE'), '비공개')}
+            </td>
+          </tr>
+          <tr>
+            {/* 원본 [첨부] — 머리말 다음 줄이다. */}
+            <th style={th}>첨부</th>
+            <td colSpan={3}>
+              <EcFileDrop busy={uploading} disabled={uploading}
+                          onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+                {attachment && (
+                  <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                    {attachment.name}
+                    <span onClick={() => setAttachment(null)}
+                          style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                  </span>
+                )}
+              </EcFileDrop>
             </td>
           </tr>
           <tr>

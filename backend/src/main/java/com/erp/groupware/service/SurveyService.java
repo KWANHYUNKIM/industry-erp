@@ -31,6 +31,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SurveyService {
 
+    private final com.erp.common.StoredFileRepository storedFileRepository;
     private final SurveyRepository surveyRepository;
     private final UserRepository userRepository;
     private final DocumentNoGenerator docNo;
@@ -52,6 +53,13 @@ public class SurveyService {
 
     // ── 등록·수정 ────────────────────────────────────────────────────────────
 
+    /** 첨부 파일. null 이면 안 붙인 것 — 없는 id 를 주면 그건 오류다. */
+    private com.erp.common.StoredFile attachmentOf(Long id) {
+        if (id == null) return null;
+        return storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+    }
+
     @Transactional
     public SurveyResponseDto create(CreateSurveyRequest req, String username) {
         User writer = userRepository.findByUsername(username).orElse(null);
@@ -67,6 +75,7 @@ public class SurveyService {
                 .anonymous(req.anonymous())
                 .resultVisibility(req.resultVisibility() != null ? req.resultVisibility() : SurveyResultVisibility.ALL)
                 .headerText(StringUtils.hasText(req.headerText()) ? req.headerText() : null)
+                .attachment(attachmentOf(req.attachmentId()))
                 .status(req.draft() ? SurveyStatus.DRAFT : SurveyStatus.OPEN)
                 .writer(writer)
                 .createdBy(username)
@@ -91,6 +100,8 @@ public class SurveyService {
         if (req.anonymous() != null) s.setAnonymous(req.anonymous());
         if (req.resultVisibility() != null) s.setResultVisibility(req.resultVisibility());
         if (req.headerText() != null) s.setHeaderText(StringUtils.hasText(req.headerText()) ? req.headerText() : null);
+        // null 이면 안 바꾼다 — 이 요청은 null 필드를 건너뛰는 규칙이다(위 필드들과 같다).
+        if (req.attachmentId() != null) s.setAttachment(attachmentOf(req.attachmentId()));
         if (req.questions() != null) replaceQuestions(s, req.questions());
         if (req.targetUserIds() != null) replaceTargets(s, req.targetUserIds());
         if (req.status() != null) {

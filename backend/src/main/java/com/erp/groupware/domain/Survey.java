@@ -75,6 +75,14 @@ public class Survey extends BaseTimeEntity {
     private User writer;
 
     /** 작성자 로그인ID. writer 가 지워져도 누가 썼는지는 남는다. */
+    /**
+     * 첨부 한 건. 원본 설문조사입력의 <b>[여기에 파일 놓기]</b>.
+     * 설문 안내문에 붙일 자료(양식·사진)를 같이 보내는 자리다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private com.erp.common.StoredFile attachment;
+
     @Column(name = "created_by", length = 50)
     private String createdBy;
 
