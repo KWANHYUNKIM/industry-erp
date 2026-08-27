@@ -20,6 +20,12 @@ const emptyForm = {
   barcode: '',
   /** 재고수량관리. 기본은 관리대상 — 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다. */
   stockTracked: 'Y',
+  /**
+   * 사용구분. 예전에는 저장할 때 늘 active:true 를 보냈다 —
+   * <b>사용중단한 품목을 고치기만 해도 조용히 되살아났다.</b>
+   * 거래처에서 똑같은 버그를 고쳤는데 품목에도 같은 것이 남아 있었다.
+   */
+  active: 'Y',
   udiDi: '',
   managementItemId: '',
   itemGroupId: '',
@@ -80,6 +86,7 @@ export default function ItemsPage() {
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
       stockTracked: item.stockTracked === false ? 'N' : 'Y',
+      active: item.active ? 'Y' : 'N',
       udiDi: item.udiDi ?? '',
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
       itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
@@ -100,12 +107,13 @@ export default function ItemsPage() {
       purchasePrice: Number(form.purchasePrice),
       safetyStock: Number(form.safetyStock),
       stockTracked: form.stockTracked === 'Y',
+      active: form.active === 'Y',
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
     }
     try {
       if (editId) {
-        await api.put(`/items/${editId}`, { ...payload, active: true })
+        await api.put(`/items/${editId}`, payload)
       } else {
         await api.post('/items', payload)
       }
@@ -156,8 +164,16 @@ export default function ItemsPage() {
     setWebFile({ name: f.name, total: Math.max(0, lines.length - 1), head: (lines[0] ?? '').split(/[,\t]/).slice(0, 8) })
   }
   const [keyword, setKeyword] = useState('')
-  const shown = items.filter((it) =>
-    !keyword || it.code.toLowerCase().includes(keyword.toLowerCase()) || it.name.toLowerCase().includes(keyword.toLowerCase()))
+  /**
+   * 원본 품목등록 리스트의 [사용중단포함] 체크. <b>기본은 꺼져 있다</b> —
+   * 즉 기본 화면에는 사용중단 품목이 안 나온다. 우리는 늘 다 보여 줘서,
+   * 이미 안 쓰는 품목이 코드도움·목록에 계속 섞여 나왔다.
+   */
+  const [withStopped, setWithStopped] = useState(false)
+  const shown = items
+    .filter((it) => withStopped || it.active)
+    .filter((it) =>
+      !keyword || it.code.toLowerCase().includes(keyword.toLowerCase()) || it.name.toLowerCase().includes(keyword.toLowerCase()))
 
   return (
     <EcListShell
@@ -168,6 +184,11 @@ export default function ItemsPage() {
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
+        사용중단포함
+      </label>
 
       <Modal open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -223,6 +244,13 @@ export default function ItemsPage() {
               <span style={{ fontSize: 11, color: '#8a929c' }}>
                 제외로 두면 이 품목은 재고를 잡지 않습니다(용역·운반비 등)
               </span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+              <select className={inputCls} value={form.active} onChange={(e) => set('active', e.target.value)}>
+                <option value="Y">사용</option>
+                <option value="N">사용중단</option>
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">바코드</label>
@@ -310,7 +338,7 @@ export default function ItemsPage() {
                   </td>
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.itemGroupName ?? ''}</td>
-                  <td>{it.active ? 'YES' : 'NO'}</td>
+                  <td style={{ color: it.active ? '#1c7c3c' : '#c60a2e' }}>{it.active ? '사용' : '사용중단'}</td>
                   <td>
                     <button onClick={() => openEdit(it)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                     <button onClick={() => remove(it)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

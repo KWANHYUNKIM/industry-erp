@@ -39,6 +39,13 @@ export default function PartnersPage() {
   const [partnerGroups, setPartnerGroups] = useState<GroupMaster[]>([])
   const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  /**
+   * 원본 거래처리스트의 [사용중단포함] 체크. <b>기본은 꺼져 있다</b> —
+   * 즉 기본 화면에는 사용중단 거래처가 안 나온다. 우리는 늘 다 보여 줬다.
+   */
+  const [withStopped, setWithStopped] = useState(false)
+  /** 화면에 보이는 거래처. 사용중단은 체크를 켜야 나온다 — 원본도 그렇다. */
+  const shown = partners.filter((p) => withStopped || p.active)
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -136,7 +143,7 @@ export default function PartnersPage() {
    * 결과가 뭔지 알 수 없다.
    */
   async function toggleActive() {
-    const targets = partners.filter((x) => checked.has(x.id))
+    const targets = shown.filter((x) => checked.has(x.id))
     if (targets.length === 0) return setError('사용중단하거나 되살릴 거래처를 고르세요.')
     const reviving = targets.every((x) => !x.active)
     setError('')
@@ -184,6 +191,11 @@ export default function PartnersPage() {
       ]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
+        사용중단포함
+      </label>
 
       <Modal open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -335,9 +347,9 @@ export default function PartnersPage() {
             <tr>
               <th style={{ width: 34, textAlign: 'center' }}>
                 <input type="checkbox"
-                       checked={partners.length > 0 && partners.every((x) => checked.has(x.id))}
+                       checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
                        onChange={() => setChecked(
-                         partners.every((x) => checked.has(x.id)) ? new Set() : new Set(partners.map((x) => x.id)),
+                         shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                        )} />
               </th>
               <th>거래처코드 ▼</th>
@@ -357,10 +369,10 @@ export default function PartnersPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : partners.length === 0 ? (
+            ) : shown.length === 0 ? (
               <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 거래처가 없습니다.</td></tr>
             ) : (
-              partners.map((p) => (
+              shown.map((p) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : '#9aa1ab' }}>
                   <td style={{ textAlign: 'center' }}>
                     <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((prev) => {

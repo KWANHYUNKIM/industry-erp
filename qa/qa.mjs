@@ -3880,6 +3880,21 @@ async function scenarioStockTracked(f) {
   eq('보통 품목은 관리대상으로 실린다',
     (await must('GET', '/items')).find((x) => x.code === `${code}2`).stockTracked, true)
 
+  // 사용중단한 품목을 <b>고치기만 해도</b> 되살아나면 안 된다.
+  // 거래처에서 똑같은 버그를 고쳤는데 품목 화면에도 같은 것이 남아 있었다 —
+  // 수정 저장이 늘 active:true 를 실어 보내고 있었다.
+  const body = {
+    name: svc.name, unit: svc.unit, category: svc.category,
+    unitPrice: svc.unitPrice, purchasePrice: svc.purchasePrice, safetyStock: svc.safetyStock,
+    stockTracked: svc.stockTracked,
+  }
+  const stopped = await must('PUT', `/items/${svc.id}`, { ...body, active: false })
+  eq('품목을 사용중단할 수 있다', stopped.active, false)
+  const edited = await must('PUT', `/items/${svc.id}`, { ...body, active: false, safetyStock: 3 })
+  eq('고쳐도 사용중단이 유지된다', edited.active, false)
+  eq('고친 값은 반영된다', Number(edited.safetyStock), 3)
+  await must('PUT', `/items/${svc.id}`, { ...body, active: true })
+
   // 재고를 움직이는 것이 목적인 자리는 거절한다.
   const tx = await call('POST', '/stock/transactions', {
     itemId: svc.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 5,
