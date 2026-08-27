@@ -65,6 +65,9 @@ public class PartnerService {
                 .manager(req.manager())
                 .phone(req.phone())
                 .mobile(req.mobile())
+                .email(emptyToNull(req.email()))
+                .fax(emptyToNull(req.fax()))
+                .creditLimit(req.creditLimit() != null ? req.creditLimit() : java.math.BigDecimal.ZERO)
                 .bankName(req.bankName())
                 .accountNo(req.accountNo())
                 .accountHolder(req.accountHolder())
@@ -102,6 +105,9 @@ public class PartnerService {
         p.setManager(req.manager());
         p.setPhone(req.phone());
         p.setMobile(req.mobile());
+        p.setEmail(emptyToNull(req.email()));
+        p.setFax(emptyToNull(req.fax()));
+        p.setCreditLimit(req.creditLimit() != null ? req.creditLimit() : java.math.BigDecimal.ZERO);
         p.setBankName(req.bankName());
         p.setAccountNo(req.accountNo());
         p.setAccountHolder(req.accountHolder());

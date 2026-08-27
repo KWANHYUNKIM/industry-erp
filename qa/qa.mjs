@@ -4883,6 +4883,7 @@ async function scenarioPartnerContactAndBank() {
   const made = await must('POST', '/partners', {
     code, name: `${P}거래처`, type: 'CUSTOMER',
     phone: '02-000-0000', mobile: '010-1234-5678',
+    email: 'qa@example.test', fax: '02-000-0001', creditLimit: 5000000,
     bankName: '국민', accountNo: '123-45-678910', accountHolder: '홍길동',
     postalCode: '13529', address: '경기 성남시 분당구',
     salesPriceGroup: 'A', purchasePriceGroup: 'B',
@@ -4898,10 +4899,30 @@ async function scenarioPartnerContactAndBank() {
   eq('판매단가그룹을 등록에서 정할 수 있다', made.salesPriceGroup, 'A')
   eq('구매단가그룹도 마찬가지다', made.purchasePriceGroup, 'B')
   eq('모바일이 실린다', made.mobile, '010-1234-5678')
+
+  /*
+   * 원본 거래처관리대장 I 머리말 실측(사본): 사업자등록번호 · 대표자 · <b>여신한도</b> ·
+   * 전화 · <b>Email</b> · <b>Fax</b> · 주 소 · 기타사항. 실제 값까지 찍혀 있다.
+   * 우리 거래처에는 셋 다 적을 자리가 없어서 대장을 인쇄해도 머리말이 비어 있었다.
+   */
+  eq('Email 이 실린다', made.email, 'qa@example.test')
+  eq('Fax 가 실린다', made.fax, '02-000-0001')
+  eq('여신한도가 실린다', Number(made.creditLimit), 5000000)
   eq('은행이 실린다', made.bankName, '국민')
   eq('계좌번호가 실린다', made.accountNo, '123-45-678910')
   eq('예금주가 실린다', made.accountHolder, '홍길동')
   eq('전화와 모바일은 따로다', made.phone, '02-000-0000')
+
+  /*
+   * 안 주면 0 — 원본도 0 을 찍는다('한도 없음' 이 아니라 값이 0 인 것이다).
+   * <b>따로 만든 거래처로 잰다.</b> 위 거래처에 대고 PUT 하면 수정은 통째로 덮으므로
+   * 이체정보·우편번호가 다 날아가고, 바로 뒤 단언이 그것을 잡는다.
+   */
+  const bare = await must('POST', '/partners',
+    { code: `${code}0`, name: `${P}여신없음`, type: 'CUSTOMER' })
+  eq('여신한도를 안 주면 0', Number(bare.creditLimit), 0)
+  isNull('Email 도 안 주면 비어 있다', bare.email)
+  await must('DELETE', `/partners/${bare.id}`)
 
   const re = (await must('GET', '/partners')).find((x) => x.id === made.id)
   eq('다시 조회해도 이체정보가 남는다', re.accountNo, '123-45-678910')

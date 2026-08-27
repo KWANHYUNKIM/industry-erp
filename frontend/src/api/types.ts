@@ -202,6 +202,12 @@ export interface Partner {
   phone: string | null
   /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
   mobile: string | null
+  /** 원본 거래처관리대장 I 머리말의 Email. */
+  email: string | null
+  /** 원본 거래처관리대장 I 머리말의 Fax. */
+  fax: string | null
+  /** 원본 거래처관리대장 I 머리말의 여신한도. 0 은 '한도 없음' 이 아니라 원본이 찍는 값이다. */
+  creditLimit: number
   /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열이 이게 있는지를 보여 준다. */
   bankName: string | null
   accountNo: string | null

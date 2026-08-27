@@ -21,6 +21,12 @@ public final class PartnerDtos {
             String phone,
             /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
             String mobile,
+            /** 원본 거래처관리대장 I 머리말의 Email. */
+            String email,
+            /** 원본 거래처관리대장 I 머리말의 Fax. */
+            String fax,
+            /** 원본 거래처관리대장 I 머리말의 여신한도. 안 주면 0. */
+            java.math.BigDecimal creditLimit,
             /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
             String bankName,
             String accountNo,
@@ -77,6 +83,12 @@ public final class PartnerDtos {
             String phone,
             /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
             String mobile,
+            /** 원본 거래처관리대장 I 머리말의 Email. */
+            String email,
+            /** 원본 거래처관리대장 I 머리말의 Fax. */
+            String fax,
+            /** 원본 거래처관리대장 I 머리말의 여신한도. 안 주면 0. */
+            java.math.BigDecimal creditLimit,
             /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
             String bankName,
             String accountNo,
@@ -138,6 +150,12 @@ public final class PartnerDtos {
             String phone,
             /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
             String mobile,
+            /** 원본 거래처관리대장 I 머리말의 Email. */
+            String email,
+            /** 원본 거래처관리대장 I 머리말의 Fax. */
+            String fax,
+            /** 원본 거래처관리대장 I 머리말의 여신한도. 안 주면 0. */
+            java.math.BigDecimal creditLimit,
             /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
             String bankName,
             String accountNo,
@@ -169,7 +187,8 @@ public final class PartnerDtos {
                     p.getId(), p.getCode(), p.getName(), p.getType(), p.getType().getDisplayName(),
                     p.getBizRegNo(), p.getCeoName(), p.getBizType(), p.getBizItem(),
                     p.getManager(), p.getPhone(),
-                    p.getMobile(), p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
+                    p.getMobile(), p.getEmail(), p.getFax(), p.getCreditLimit(),
+                    p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
                     p.getPostalCode(), p.getAddress(),
                     p.getSalesPriceGroup(), p.getPurchasePriceGroup(), p.getSearchKeyword(),
                     p.getRegNoKind(), p.getIndustryKind(), p.getSubBizNo(),

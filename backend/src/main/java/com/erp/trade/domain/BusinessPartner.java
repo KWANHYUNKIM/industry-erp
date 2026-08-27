@@ -84,6 +84,25 @@ public class BusinessPartner extends BaseTimeEntity {
     private String mobile;
 
     /**
+     * 원본 거래처관리대장 I 머리말의 <b>Email</b>. 실제 값이 찍혀 있다.
+     * 전자세금계산서·거래명세서를 보낼 곳이라 전화와 따로 든다.
+     */
+    @Column(length = 150)
+    private String email;
+
+    /** 원본 거래처관리대장 I 머리말의 <b>Fax</b>. */
+    @Column(length = 50)
+    private String fax;
+
+    /**
+     * 원본 거래처관리대장 I 머리말의 <b>여신한도</b> (거래처등록 [여신/단가] 탭).
+     * 0 은 '한도 없음' 이 아니라 원본이 실제로 0 을 찍고 있는 값이다.
+     */
+    @Column(name = "credit_limit", nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal creditLimit = java.math.BigDecimal.ZERO;
+
+    /**
      * 이체정보 — 원본 거래처리스트의 [이체정보] 열(값이 '등록'/빈칸).
      * 지급할 때 쓸 계좌다. 없으면 지급할 때마다 딴 데서 찾아야 한다.
      */

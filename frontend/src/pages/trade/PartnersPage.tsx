@@ -12,6 +12,8 @@ const inputCls = 'ec-input w-full'
 const empty = {
   code: '', name: '', type: 'CUSTOMER', bizRegNo: '', ceoName: '',
   bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
+  /** 원본 거래처관리대장 I 머리말이 찍는 값들. */
+  email: '', fax: '', creditLimit: '0',
   bankName: '', accountNo: '', accountHolder: '',
   postalCode: '', address: '', partnerGroupId: '',
   /** 원본 [관계설정]의 대표거래처. 비우면 자기가 곧 대표다. */
@@ -117,6 +119,7 @@ export default function PartnersPage() {
       manager: p.manager ?? '', phone: p.phone ?? '', mobile: p.mobile ?? '',
       bankName: p.bankName ?? '', accountNo: p.accountNo ?? '', accountHolder: p.accountHolder ?? '',
       postalCode: p.postalCode ?? '', address: p.address ?? '',
+      email: p.email ?? '', fax: p.fax ?? '', creditLimit: String(p.creditLimit ?? 0),
       salesPriceGroup: p.salesPriceGroup ?? '', purchasePriceGroup: p.purchasePriceGroup ?? '',
       searchKeyword: p.searchKeyword ?? '',
       regNoKind: p.regNoKind ?? '사업자등록번호', industryKind: p.industryKind ?? '일반',
@@ -137,6 +140,7 @@ export default function PartnersPage() {
       ...form,
       partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null,
       parentId: form.parentId ? Number(form.parentId) : null,
+      creditLimit: Number(form.creditLimit) || 0,
     }
     try {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
@@ -175,6 +179,7 @@ export default function PartnersPage() {
           name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
           bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
           phone: x.phone, mobile: x.mobile,
+          email: x.email, fax: x.fax, creditLimit: x.creditLimit,
           bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
           postalCode: x.postalCode, address: x.address,
           salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
@@ -329,6 +334,21 @@ export default function PartnersPage() {
                 items={partners.filter((x) => x.id !== editId && x.parentId == null)
                   .map((x) => ({ value: String(x.id), code: x.code, name: x.name }))}
               />
+            </div>
+            {/* 원본 거래처관리대장 I 머리말이 찍는 값들 — 우리에겐 적을 자리가 없었다. */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">Email</label>
+              <input className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)}
+                     placeholder="세금계산서·거래명세서를 보낼 곳" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">Fax</label>
+              <input className={inputCls} value={form.fax} onChange={(e) => set('fax', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">여신한도</label>
+              <input className={inputCls} type="number" value={form.creditLimit}
+                     onChange={(e) => set('creditLimit', e.target.value)} style={{ textAlign: 'right' }} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">업종별구분</label>

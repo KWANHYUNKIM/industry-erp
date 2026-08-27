@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import type { Partner } from '../../api/types'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -74,6 +75,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [postedSettles, setPostedSettles] = useState<Map<number, string>>(new Map())
   /** 원본 [대표거래처로 합산]에 쓰는 거래처 관계. id → 대표거래처. */
   const [rollup, setRollup] = useState<Map<number, RollupPartner>>(new Map())
+  /** 원본 대장 I 머리말이 찍는 거래처 등록 정보. */
+  const [partnerInfo, setPartnerInfo] = useState<Map<number, Partner>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -109,13 +112,14 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         api.get<Posted[]>('/accounting-reflection?kind=SALES').catch(() => ({ data: [] as Posted[] })),
         api.get<Posted[]>('/accounting-reflection?kind=PURCHASE').catch(() => ({ data: [] as Posted[] })),
         api.get<Posted[]>('/accounting-reflection?kind=SETTLEMENT').catch(() => ({ data: [] as Posted[] })),
-        api.get<RollupPartner[]>('/partners'),
+        api.get<Partner[]>('/partners'),
       ])
       setSales(s.data); setPurchases(p.data); setSettlements(t.data)
       const toMap = (rows: Posted[]) =>
         new Map(rows.filter((r) => r.journalDocNo).map((r) => [r.id, r.journalDocNo as string]))
       setPostedSales(toMap(js.data)); setPostedPurchases(toMap(jp.data)); setPostedSettles(toMap(jt.data))
       setRollup(toRollupMap(pt.data))
+      setPartnerInfo(new Map(pt.data.map((x) => [x.id, x])))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -233,6 +237,24 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const showDetail = group === '전표별+내역'
   const COLS = 8
 
+  /** 그 거래처의 등록 정보. 목록에 없으면 undefined — 머리말을 아예 안 그린다. */
+  const info = (id: number) => partnerInfo.get(id)
+
+  /**
+   * 원본 대장 I 머리말 한 줄. 빈 값은 이름째 뺀다 —
+   * 'Fax :' 만 덩그러니 있으면 팩스가 없는 것인지 안 적은 것인지 구분이 안 된다.
+   */
+  const headline = (x: Partner) => [
+    x.bizRegNo && `사업자등록번호 ${x.bizRegNo}`,
+    x.ceoName && `대표자 ${x.ceoName}`,
+    `여신한도 ${won(x.creditLimit ?? 0)}`,
+    x.phone && `전화 ${x.phone}`,
+    x.email && `Email ${x.email}`,
+    x.fax && `Fax ${x.fax}`,
+    x.address && `주소 ${x.address}`,
+    x.remark && `기타사항 ${x.remark}`,
+  ].filter(Boolean).join('   |   ')
+
   return (
     <EcListShell
       title={title}
@@ -326,6 +348,21 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 <td colSpan={2}></td>
                 <td style={{ textAlign: 'right' }}>{won(p.opening)}</td>
               </tr>
+              {/*
+                원본 거래처관리대장 I 의 머리말 실측(사본): 사업자등록번호 · 대표자 ·
+                여신한도 · 전화 · Email · Fax · 주 소 · 기타사항.
+                우리 대장은 거래처 이름 한 줄뿐이라, 인쇄해서 들고 가면 어디로 전화할지
+                누구를 찾을지가 안 적혀 있었다.
+                거래처를 못 찾으면(지워졌거나 목록이 아직 안 옴) 이 줄을 아예 안 그린다 —
+                빈 칸만 늘어놓으면 자료가 없는 것인지 거래처가 없는 것인지 알 수 없다.
+              */}
+              {info(p.partnerId) && (
+                <tr style={{ background: '#f8fafd', fontSize: 11.5, color: '#5a626e' }}>
+                  <td colSpan={COLS} style={{ padding: '4px 8px' }}>
+                    {headline(info(p.partnerId)!)}
+                  </td>
+                </tr>
+              )}
               {p.rows.map((r, i) => (
                 <Fragment key={r.entry.key}>
                   <tr>
