@@ -217,9 +217,9 @@ export default function OrderTypePage() {
             {STEP_COLS.map((n) => (
               <th key={n} style={{ width: 96 }}>{n}단계</th>
             ))}
-            <th style={{ width: 90 }}>담당자</th>
-            <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
             <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
+            <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            <th style={{ width: 90 }}>담당자</th>
             <th style={{ width: 90 }}>관리</th>
           </tr>
         </thead>
@@ -241,11 +241,11 @@ export default function OrderTypePage() {
                   </td>
                 )
               })}
-              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? '-'}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
               <td style={{ textAlign: 'center', color: r.useInInput ? '#1c7c3c' : '#9aa1ab' }}>
                 {r.useInInput ? 'YES' : 'NO'}
               </td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
+              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? '-'}</td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

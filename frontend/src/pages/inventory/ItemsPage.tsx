@@ -373,9 +373,9 @@ export default function ItemsPage() {
               {/* 원본 열 순서: 품목코드 · 품목명 · [이미지] · 구매처명 · … */}
               <th style={{ width: 56 }}>이미지</th>
               <th style={{ width: 130 }}>구매처명</th>
+              <th>품목구분 ▼</th>
               <th>규격정보</th>
               <th>단위</th>
-              <th>품목구분 ▼</th>
               <th style={{ textAlign: 'right' }}>판매단가</th>
               <th style={{ textAlign: 'right' }}>구매단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
@@ -411,9 +411,9 @@ export default function ItemsPage() {
                     ) : <span style={{ color: '#c9ced6' }}>-</span>}
                   </td>
                   <td>{partners.find((p) => p.id === it.supplierId)?.name ?? ''}</td>
+                  <td>[{it.categoryName}]</td>
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
-                  <td>[{it.categoryName}]</td>
                   <td style={{ textAlign: 'right' }}>{it.unitPrice.toLocaleString('ko-KR')}</td>
                   <td style={{ textAlign: 'right', color: (it.purchasePrice ?? 0) > 0 ? undefined : '#c9ced6' }}>
                     {(it.purchasePrice ?? 0).toLocaleString('ko-KR')}

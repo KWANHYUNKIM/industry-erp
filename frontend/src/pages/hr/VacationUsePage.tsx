@@ -197,10 +197,10 @@ export default function VacationUsePage() {
             <th>휴가종류</th>
             <th>시작일</th>
             <th>종료일</th>
+            <th>적요</th>
             <th style={{ textAlign: 'right' }}>휴가일수</th>
             <th style={{ textAlign: 'right' }}>휴가사용일수</th>
             <th style={{ textAlign: 'right' }}>휴가잔여일수</th>
-            <th>적요</th>
             <th style={{ textAlign: 'center' }}>상태</th>
             <th style={{ width: 90, textAlign: 'center' }}>결재</th>
           </tr>
@@ -219,12 +219,12 @@ export default function VacationUsePage() {
               <td style={{ textAlign: 'center' }}>{r.type}</td>
               <td style={mono}>{r.startDate}</td>
               <td style={mono}>{r.endDate}</td>
+              <td>{r.reason ?? ''}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{grant != null ? days(grant) : ''}</td>
               <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: remain != null && remain < 0 ? '#c60a2e' : undefined }}>
                 {remain != null ? days(remain) : ''}
               </td>
-              <td>{r.reason ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
                 {r.status === 'PENDING' ? (

@@ -982,6 +982,52 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
   eq(`원본과 견준 조건 ${checked}개의 기본 켜짐이 같다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-i) 원본 열 순서 ↔ 우리 열 순서 ──────────────────────────────────────
+console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
+
+/*
+ * <b>같은 열들이 원본과 다른 차례로 서 있지 않나.</b>
+ *
+ * <p>열이 다 있어도 차례가 다르면 <b>눈이 가는 자리가 달라진다.</b> 오더관리유형리스트가
+ * 그랬다 — 원본은 [사용구분·입력메뉴에서 사용·담당자]인데 우리는 정확히 거꾸로였다.
+ * 품목등록은 [품목구분]과 [규격정보]가 뒤바뀌어 있었고, 공정등록은 [순번]이 코드·이름
+ * 앞으로 나와 있었다.
+ *
+ * <p>정렬 fixture(<code>ecount-column-align.json</code>)는 원본 열 차례를 그대로 담고 있다.
+ * 양쪽에 다 있는 열만 골라 <b>상대 차례</b>를 견준다 — 우리에만 있는 열(단위·상태·관리)은
+ * 자리를 따지지 않는다.
+ */
+{
+  const ORDER_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+
+  const bad = []
+  let checked = 0
+  for (const [screen, cols] of Object.entries(cap)) {
+    const rel = ORDER_MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const src = readFileSync(path, 'utf8')
+    const names = Object.keys(cols)
+    const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
+      head: h[0],
+      hit: names.filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*(?:\u25bc)?\\s*</th>').test(h[0])).length,
+    })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
+    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
+    const ours = [...scored[0].head.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1]))
+    const want = names.map(flat).filter((n) => ours.includes(n))
+    const got = ours.filter((n) => want.includes(n))
+    checked += want.length
+    if (want.join(' ') !== got.join(' ')) {
+      bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
+    }
+  }
+  eq(`원본과 견준 열 ${checked}개가 같은 차례로 서 있다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
