@@ -12,7 +12,8 @@ const empty = {
   code: '', name: '', type: 'CUSTOMER', bizRegNo: '', ceoName: '',
   bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
   bankName: '', accountNo: '', accountHolder: '',
-  address: '', partnerGroupId: '',
+  postalCode: '', address: '', partnerGroupId: '',
+  salesPriceGroup: '', purchasePriceGroup: '',
   /**
    * 사용구분. 예전에는 저장할 때 늘 true 를 보냈다 —
    * <b>사용중단한 거래처를 고치기만 해도 조용히 되살아났다.</b>
@@ -20,12 +21,25 @@ const empty = {
   active: true,
 }
 
+/**
+ * 원본 거래처등록 창의 탭 실측(사본): <b>기본 · 거래처정보 · 여신/단가 · 부가정보</b>.
+ * [기본] 탭 항목은 거래처코드 · 상호(이름) · 대표자명 · 업태 · 종목 · 전화 ·
+ * 주소1 우편번호 · [주소검색] · 주소1 이다.
+ *
+ * <p>우리는 한 판에 열여섯 칸을 늘어놓고 있었다. 항목이 늘 때마다 더 길어지기만 해서
+ * 자주 쓰는 [기본]까지 스크롤해야 했다. 나머지 탭 항목은 원본을 열어 보지 못해
+ * (탭을 누르기 전에는 DOM 에 없다) 우리 값을 뜻에 맞게 나눠 담았다.
+ */
+const FORM_TABS = ['기본', '거래처정보', '여신/단가', '부가정보'] as const
+type FormTab = typeof FORM_TABS[number]
+
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [types, setTypes] = useState<CodeOption[]>([])
   const [partnerGroups, setPartnerGroups] = useState<GroupMaster[]>([])
   const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   /**
@@ -77,6 +91,7 @@ export default function PartnersPage() {
   function openCreate() {
     setEditId(null)
     setForm({ ...empty })
+    setFormTab('기본')
     setShowForm(true)
   }
 
@@ -88,7 +103,8 @@ export default function PartnersPage() {
       bizType: p.bizType ?? '', bizItem: p.bizItem ?? '',
       manager: p.manager ?? '', phone: p.phone ?? '', mobile: p.mobile ?? '',
       bankName: p.bankName ?? '', accountNo: p.accountNo ?? '', accountHolder: p.accountHolder ?? '',
-      address: p.address ?? '',
+      postalCode: p.postalCode ?? '', address: p.address ?? '',
+      salesPriceGroup: p.salesPriceGroup ?? '', purchasePriceGroup: p.purchasePriceGroup ?? '',
       active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
     })
@@ -172,33 +188,27 @@ export default function PartnersPage() {
       <Modal open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '거래처 수정' : '새 거래처 등록'}</div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <ul className="ec-tabs" style={{ marginBottom: 10 }}>
+            {FORM_TABS.map((t) => (
+              <li key={t} className={`ec-tab${formTab === t ? ' active' : ''}`}
+                  onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}</li>
+            ))}
+          </ul>
+
+          {formTab === '기본' && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-slate-600">거래처코드 *</label>
               <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)}
                      disabled={editId != null} title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">상호 *</label>
+              <label className="mb-1 block text-sm text-slate-600">상호(이름) *</label>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">구분 *</label>
-              <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)}>
-                {types.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">사업자번호</label>
-              <input className={inputCls} value={form.bizRegNo} onChange={(e) => set('bizRegNo', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">대표자</label>
+              <label className="mb-1 block text-sm text-slate-600">대표자명</label>
               <input className={inputCls} value={form.ceoName} onChange={(e) => set('ceoName', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              <input className={inputCls} value={form.manager} onChange={(e) => set('manager', e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">업태</label>
@@ -213,10 +223,78 @@ export default function PartnersPage() {
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">주소1 우편번호</label>
+              <input className={inputCls} value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm text-slate-600">주소1</label>
+              <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
+            </div>
+          </div>
+          )}
+
+          {formTab === '거래처정보' && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">구분 *</label>
+              <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)}>
+                {types.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">사업자번호</label>
+              <input className={inputCls} value={form.bizRegNo} onChange={(e) => set('bizRegNo', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <input className={inputCls} value={form.manager} onChange={(e) => set('manager', e.target.value)} />
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">모바일</label>
               <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
             </div>
-            {/* 원본 [이체정보] — 지급할 때 쓸 계좌. 없으면 지급할 때마다 딴 데서 찾아야 한다. */}
+            {/* 거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다. */}
+            <div>
+              <CodePickerField
+                label="거래처그룹" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
+                value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
+                items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+              <select className={inputCls} value={form.active ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === 'Y' }))}>
+                <option value="Y">사용</option>
+                <option value="N">사용중단</option>
+              </select>
+            </div>
+          </div>
+          )}
+
+          {formTab === '여신/단가' && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/*
+              단가그룹은 특별단가등록의 '그룹별' 이 보는 값이다. 엔티티와 API 에는 진작 있었는데
+              폼에 칸이 없어 <b>PATCH /partners/{id}/price-group 을 직접 부르지 않으면 정할 수가 없었다.</b>
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">판매단가그룹</label>
+              <input className={inputCls} value={form.salesPriceGroup} onChange={(e) => set('salesPriceGroup', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">구매단가그룹</label>
+              <input className={inputCls} value={form.purchasePriceGroup} onChange={(e) => set('purchasePriceGroup', e.target.value)} />
+            </div>
+            <div className="sm:col-span-3" style={{ fontSize: 11.5, color: '#8a929c' }}>
+              ※ 여신한도는 원본 탭 안을 열어 보지 못해(탭을 누르기 전에는 화면에 없습니다) 만들지 않았습니다.
+            </div>
+          </div>
+          )}
+
+          {formTab === '부가정보' && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* 원본 리스트의 [이체정보] — 지급할 때 쓸 계좌. */}
             <div>
               <label className="mb-1 block text-sm text-slate-600">은행</label>
               <input className={inputCls} value={form.bankName} onChange={(e) => set('bankName', e.target.value)} />
@@ -229,29 +307,24 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-slate-600">예금주</label>
               <input className={inputCls} value={form.accountHolder} onChange={(e) => set('accountHolder', e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
-              <select className={inputCls} value={form.active ? 'Y' : 'N'}
-                      onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === 'Y' }))}>
-                <option value="Y">사용</option>
-                <option value="N">사용중단</option>
-              </select>
-            </div>
-            {/* 거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다. */}
-            <div>
-              <CodePickerField
-                label="거래처그룹" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
-                value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
-                items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="mb-1 block text-sm text-slate-600">주소</label>
-              <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
-            </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="ec-btn ec-btn-primary">{editId ? '저장' : '등록'}</button>
+          )}
+
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {/*
+              복사 — 원본 폼의 버튼이다. 값은 그대로 두고 코드만 비워 '새 거래처' 로 돌린다.
+              거래처는 업태·종목·주소가 비슷한 것을 여럿 만드는 일이 잦다.
+            */}
+            {editId != null && (
+              <button type="button" className="ec-btn" onClick={() => {
+                setEditId(null)
+                setForm((f) => ({ ...f, code: '', active: true }))
+                setFormTab('기본')
+              }}>복사</button>
+            )}
+            <button type="button" className="ec-btn" onClick={() => { setForm(empty); setFormTab('기본') }}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </form>
       )}</Modal>

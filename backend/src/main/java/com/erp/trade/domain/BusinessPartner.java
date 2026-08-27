@@ -83,6 +83,13 @@ public class BusinessPartner extends BaseTimeEntity {
     private String accountHolder;
 
     /** 주소 */
+    /**
+     * 우편번호 — 원본 거래처등록 [기본] 탭의 [주소1 우편번호].
+     * 주소 안에 섞어 적으면 거래명세서·출하지시서에 따로 뽑을 수가 없다.
+     */
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
     @Column(length = 300)
     private String address;
 

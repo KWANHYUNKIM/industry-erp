@@ -199,6 +199,8 @@ export interface Partner {
   bankName: string | null
   accountNo: string | null
   accountHolder: string | null
+  /** 우편번호. 원본 거래처등록 [기본] 탭의 [주소1 우편번호]. */
+  postalCode: string | null
   address: string | null
   salesPriceGroup: string | null
   purchasePriceGroup: string | null

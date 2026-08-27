@@ -3468,7 +3468,19 @@ async function scenarioPartnerContactAndBank() {
     code, name: `${P}거래처`, type: 'CUSTOMER',
     phone: '02-000-0000', mobile: '010-1234-5678',
     bankName: '국민', accountNo: '123-45-678910', accountHolder: '홍길동',
+    postalCode: '13529', address: '경기 성남시 분당구',
+    salesPriceGroup: 'A', purchasePriceGroup: 'B',
   })
+
+  // 원본 거래처등록 [기본] 탭의 [주소1 우편번호]. 주소 안에 섞어 적으면
+  // 거래명세서·출하지시서에 우편번호만 따로 뽑을 수가 없다.
+  eq('우편번호가 실린다', made.postalCode, '13529')
+  eq('주소와 따로다', made.address, '경기 성남시 분당구')
+
+  // 단가그룹은 특별단가등록의 '그룹별' 이 보는 값인데, 폼에 칸이 없어
+  // PATCH /partners/{id}/price-group 을 직접 부르지 않으면 정할 수가 없었다.
+  eq('판매단가그룹을 등록에서 정할 수 있다', made.salesPriceGroup, 'A')
+  eq('구매단가그룹도 마찬가지다', made.purchasePriceGroup, 'B')
   eq('모바일이 실린다', made.mobile, '010-1234-5678')
   eq('은행이 실린다', made.bankName, '국민')
   eq('계좌번호가 실린다', made.accountNo, '123-45-678910')
@@ -3482,6 +3494,8 @@ async function scenarioPartnerContactAndBank() {
   const body = {
     name: made.name, type: made.type, phone: made.phone, mobile: made.mobile,
     bankName: made.bankName, accountNo: made.accountNo, accountHolder: made.accountHolder,
+    postalCode: made.postalCode, address: made.address,
+    salesPriceGroup: made.salesPriceGroup, purchasePriceGroup: made.purchasePriceGroup,
   }
   const stopped = await must('PUT', `/partners/${made.id}`, { ...body, active: false })
   eq('사용중단할 수 있다', stopped.active, false)
@@ -3489,6 +3503,8 @@ async function scenarioPartnerContactAndBank() {
   const edited = await must('PUT', `/partners/${made.id}`, { ...body, active: false, mobile: '010-9999-9999' })
   eq('고쳐도 사용중단이 유지된다', edited.active, false)
   eq('고친 값은 반영된다', edited.mobile, '010-9999-9999')
+  eq('고쳐도 우편번호가 안 날아간다', edited.postalCode, '13529')
+  eq('고쳐도 단가그룹이 안 날아간다', edited.salesPriceGroup, 'A')
 
   const revived = await must('PUT', `/partners/${made.id}`, { ...body, active: true })
   eq('되살릴 수 있다', revived.active, true)

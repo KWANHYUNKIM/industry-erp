@@ -51,6 +51,9 @@ public class PartnerService {
                 .bankName(req.bankName())
                 .accountNo(req.accountNo())
                 .accountHolder(req.accountHolder())
+                .postalCode(req.postalCode())
+                .salesPriceGroup(emptyToNull(req.salesPriceGroup()))
+                .purchasePriceGroup(emptyToNull(req.purchasePriceGroup()))
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
                 .active(true)
@@ -73,6 +76,9 @@ public class PartnerService {
         p.setBankName(req.bankName());
         p.setAccountNo(req.accountNo());
         p.setAccountHolder(req.accountHolder());
+        p.setPostalCode(req.postalCode());
+        p.setSalesPriceGroup(emptyToNull(req.salesPriceGroup()));
+        p.setPurchasePriceGroup(emptyToNull(req.purchasePriceGroup()));
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
         if (req.active() != null) {

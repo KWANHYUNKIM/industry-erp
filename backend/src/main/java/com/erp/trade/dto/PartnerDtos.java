@@ -25,12 +25,23 @@ public final class PartnerDtos {
             String bankName,
             String accountNo,
             String accountHolder,
+            /** 우편번호. 원본 [기본] 탭의 [주소1 우편번호]. */
+            String postalCode,
             String address,
             /**
              * 그룹 (선택). 엔티티에는 관계가 있는데 <b>요청에만 빠져 있어</b> 아무도 그룹을
              * 지정할 수 없었다 — 그래서 채권/채무현황의 거래처그룹 소계가 늘 '(미지정)' 하나였고,
              * 특별단가의 '그룹별' 도 걸릴 일이 없었다.
              */
+            /**
+             * 단가그룹 — 원본 거래처등록 [여신/단가] 탭. 특별단가등록의 '그룹별' 이 이 값을 본다.
+             *
+             * <p>엔티티와 응답에는 진작 있었는데 <b>등록·수정 요청에만 빠져 있어</b>
+             * 화면에서는 정할 수가 없었다. 따로 있는 PATCH /partners/{id}/price-group 을
+             * 직접 부르지 않으면 늘 비어 있었고, 그래서 그룹별 특별단가가 걸릴 일이 없었다.
+             */
+            String salesPriceGroup,
+            String purchasePriceGroup,
             Long partnerGroupId
     ) {}
 
@@ -49,8 +60,19 @@ public final class PartnerDtos {
             String bankName,
             String accountNo,
             String accountHolder,
+            /** 우편번호. 원본 [기본] 탭의 [주소1 우편번호]. */
+            String postalCode,
             String address,
             /** 그룹 (선택). 자세한 설명은 CreatePartnerRequest 쪽에 있다. */
+            /**
+             * 단가그룹 — 원본 거래처등록 [여신/단가] 탭. 특별단가등록의 '그룹별' 이 이 값을 본다.
+             *
+             * <p>엔티티와 응답에는 진작 있었는데 <b>등록·수정 요청에만 빠져 있어</b>
+             * 화면에서는 정할 수가 없었다. 따로 있는 PATCH /partners/{id}/price-group 을
+             * 직접 부르지 않으면 늘 비어 있었고, 그래서 그룹별 특별단가가 걸릴 일이 없었다.
+             */
+            String salesPriceGroup,
+            String purchasePriceGroup,
             Long partnerGroupId,
             Boolean active
     ) {}
@@ -78,6 +100,8 @@ public final class PartnerDtos {
             String bankName,
             String accountNo,
             String accountHolder,
+            /** 우편번호. 원본 [기본] 탭의 [주소1 우편번호]. */
+            String postalCode,
             String address,
             String salesPriceGroup,
             String purchasePriceGroup,
@@ -91,7 +115,7 @@ public final class PartnerDtos {
                     p.getBizRegNo(), p.getCeoName(), p.getBizType(), p.getBizItem(),
                     p.getManager(), p.getPhone(),
                     p.getMobile(), p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
-                    p.getAddress(),
+                    p.getPostalCode(), p.getAddress(),
                     p.getSalesPriceGroup(), p.getPurchasePriceGroup(),
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
