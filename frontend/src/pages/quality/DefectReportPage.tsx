@@ -4,6 +4,8 @@ import type { QualityInspection, StockAdjustment } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 II > 품질관리 — 불량률파악보고서 (이카운트 E040512)
@@ -22,6 +24,8 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 5 ? '#c60a2e' : r >= 1 ? '#c07a00' : '#1c7c3c')
 
 export default function DefectReportPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [inspections, setInspections] = useState<QualityInspection[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,8 +102,9 @@ export default function DefectReportPage() {
         dateLabel="기간"
       >
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명·코드 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
         </EcCond>
       </EcStatusPanel>
 

@@ -5,6 +5,8 @@ import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -75,6 +77,8 @@ async function printOne(r: Row) {
 
 export default function WorkResultInquiryPage() {
   const navigate = useNavigate()
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -171,8 +175,9 @@ export default function WorkResultInquiryPage() {
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={product}
-                 onChange={(e) => setProduct(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={product} onChange={(v) => setProduct(v)}
+                           items={pickers.items} />
         </EcCond>
       </ul>
 

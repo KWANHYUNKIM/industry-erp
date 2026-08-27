@@ -5,6 +5,8 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -77,6 +79,8 @@ interface Movement {
 export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
   const showAr = side !== 'AP'
   const showAp = side !== 'AR'
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'employees'])
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -195,12 +199,14 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
           </EcCond>
         )}
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명·코드 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="담당자 일부" value={manager}
-                 onChange={(e) => setManager(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={manager} onChange={(v) => setManager(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

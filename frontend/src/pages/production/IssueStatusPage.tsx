@@ -5,6 +5,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { Warehouse } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -47,6 +49,8 @@ interface MaterialIssue {
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function IssueStatusPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items', 'employees'])
   const [rows, setRows] = useState<MaterialIssue[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -189,12 +193,14 @@ export default function IssueStatusPage() {
           </select>
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="자재코드·자재명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="담당자" pick>
-          <input className="ec-input" placeholder="담당자명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={emp} onChange={(v) => setEmp(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={note}

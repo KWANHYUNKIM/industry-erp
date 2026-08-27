@@ -5,6 +5,8 @@ import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산/외주 > 외주비할인현황.
@@ -41,6 +43,8 @@ interface Row {
 }
 
 export default function OutsourcingDiscountPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['warehouses', 'partners', 'employees'])
   const [docs, setDocs] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -137,16 +141,19 @@ export default function OutsourcingDiscountPage() {
         view={view} onViewChange={setView}
       >
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="전체" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="전체" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="전체" value={employee}
-                 onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={employee} onChange={(v) => setEmployee(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="할인금액">
           <input className="ec-input" type="number" placeholder="차액 이상" value={minDiff}

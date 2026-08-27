@@ -9,6 +9,8 @@ import {
 } from '../../utils/woEfficiency'
 import { stockCostMap } from '../../utils/stockValue'
 import type { Item, PurchaseDoc } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업지시서효율현황 — 계획(지시수량) 대비 실적 효율
@@ -87,6 +89,8 @@ interface WorkResultRow {
 }
 
 export default function WoEfficiencyPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items', 'warehouses'])
   const [orders, setOrders] = useState<WorkOrderRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
@@ -296,12 +300,14 @@ export default function WoEfficiencyPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">

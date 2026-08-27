@@ -4,6 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -84,6 +86,8 @@ interface Slip {
 
 export default function AccountingReflectionPage() {
   const [params] = useSearchParams()
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'warehouses', 'projects', 'items', 'employees'])
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
   /*
@@ -310,24 +314,28 @@ export default function AccountingReflectionPage() {
           </div>
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
-                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="전표번호" pick>
           <input className="ec-input" placeholder="전표번호 일부" value={cond.docNo}
                  onChange={(e) => setC({ docNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={cond.warehouse}
-                 onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 180 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={cond.project}
-                 onChange={(e) => setC({ project: e.target.value })} style={{ width: 180 }} />
+          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 180 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 조건의 [거래유형]. 전표의 과세 여부를 그대로 본다. */}
         <EcCond label="거래유형">
@@ -350,8 +358,9 @@ export default function AccountingReflectionPage() {
           </div>
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="담당자 일부" value={cond.employee}
-                 onChange={(e) => setC({ employee: e.target.value })} style={{ width: 160 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="금액">
           <input className="ec-input" type="number" value={cond.amtFrom}

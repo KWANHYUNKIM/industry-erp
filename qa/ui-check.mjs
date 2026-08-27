@@ -622,6 +622,38 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
   eq('[구분] 기본값을 잰 화면 ' + checked + '개가 원본과 같다', bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-e) 코드도움 후보를 안 받고 쓰지 않나 ────────────────────────────────
+console.log('\n■ 코드도움 후보를 받아 놓고 쓰나')
+
+/*
+ * <b>useCondPickers 가 안 받는 목록을 화면이 쓰고 있지 않나.</b>
+ *
+ * <p>이 훅은 받을 것을 인자로 고른다(품목이 수천 건인 회사에서 모든 화면이 품목을 받으면
+ * 조건을 안 쓰는 화면까지 느려진다). 그래서 <b>인자에 없는 것을 쓰면 빈 배열</b>이 온다 —
+ * 코드도움 팝업이 <b>아무것도 없는 채로</b> 뜨고, 화면은 멀쩡해 보인다.
+ * 조건에 걸 후보가 없으니 "그런 거래처가 없다" 처럼 읽힌다.
+ *
+ * <p>실제로 담당자 조건을 코드도움으로 바꾸면서 10개 화면이 그 상태가 됐다.
+ * 타입은 통과한다 — pickers.employees 는 늘 있는 필드이고 값이 빈 배열일 뿐이다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    const call = src.match(/useCondPickers\(\[([^\]]*)\]\)/)
+    if (!call) continue
+    checked++
+    const want = new Set([...call[1].matchAll(/'(\w+)'/g)].map((m) => m[1]))
+    const used = new Set([...src.matchAll(/pickers\.(\w+)/g)].map((m) => m[1]))
+    const miss = [...used].filter((u) => !want.has(u))
+    if (miss.length) {
+      bad.push(f.split(sep).pop() + '  안 받고 쓰는 것: ' + miss.join(', '))
+    }
+  }
+  eq('코드도움을 쓰는 화면 ' + checked + '개가 쓰는 것을 다 받는다', bad.join('\n') || '없음', '없음')
+}
+
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 

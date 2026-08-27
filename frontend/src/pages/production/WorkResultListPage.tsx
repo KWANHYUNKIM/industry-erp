@@ -5,6 +5,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -59,6 +61,8 @@ const pct = (defect: number, good: number) => {
 }
 
 export default function WorkResultListPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['employees', 'items'])
   const [rows, setRows] = useState<WorkResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -193,16 +197,18 @@ export default function WorkResultListPage() {
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="담당자" pick>
-          <input className="ec-input" placeholder="작업자 일부" value={worker}
-                 onChange={(e) => setWorker(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={worker} onChange={(v) => setWorker(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="작업지시No." pick>
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={product}
-                 onChange={(e) => setProduct(e.target.value)} style={{ width: 200 }} />
+          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={product} onChange={(v) => setProduct(v)}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 조건의 [작업품목]. 그 작업이 실제로 다루는 품목 — 생산품목과 다르다. */}
         <EcCond label="작업품목" pick>

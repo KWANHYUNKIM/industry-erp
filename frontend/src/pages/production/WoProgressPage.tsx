@@ -4,6 +4,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업지시서별진행현황 — 작업지시 하나가 어디까지 갔는지 네 갈래로 본다.
@@ -76,6 +78,8 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 const pct = (done: number, planned: number) => (planned > 0 ? Math.min(999, (done / planned) * 100) : 0)
 
 export default function WoProgressPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items', 'partners', 'warehouses', 'employees'])
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [issues, setIssues] = useState<Issue[]>([])
   const [productions, setProductions] = useState<Production[]>([])
@@ -295,25 +299,30 @@ export default function WoProgressPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
         {/* 원본 [거래처관리담당자]. 그 거래처를 맡은 영업담당자다. */}
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="관리담당자명 일부" value={partnerManager}
-                 onChange={(e) => setPartnerManager(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partnerManager} onChange={(v) => setPartnerManager(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="담당자" pick>
-          <input className="ec-input" placeholder="담당자명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={emp} onChange={(v) => setEmp(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
       </EcStatusPanel>
 

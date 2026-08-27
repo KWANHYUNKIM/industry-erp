@@ -7,6 +7,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -65,6 +67,10 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?: 'AR' | 'AP' | 'BOTH' }) {
   const title = fixedSide === 'AR' ? '거래처관리대장1(채권)'
     : fixedSide === 'AP' ? '거래처관리대장1(채무)' : '거래처관리대장'
+
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+
+  const pickers = useCondPickers(['partners'])
 
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
@@ -303,8 +309,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
           </div>
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
       </EcStatusPanel>
 

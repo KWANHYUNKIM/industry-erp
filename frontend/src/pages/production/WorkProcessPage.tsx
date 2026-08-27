@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { WORK_PROCESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -74,6 +76,8 @@ interface Row {
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function WorkProcessPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [bor, setBor] = useState<BorRow[]>([])
   const [results, setResults] = useState<WorkResult[]>([])
@@ -234,8 +238,9 @@ export default function WorkProcessPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 조건의 [납기일자]·[생산공장]·[작업]. 처리할 줄이 많으면 이것 없이는 눈으로 훑게 된다. */}
         <EcCond label="납기일자" pick>

@@ -8,6 +8,8 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { stockCostMap } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import type { Item, PurchaseDoc } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산 > 생산입고/소모현황 I (이카운트 E040415)
@@ -91,6 +93,8 @@ interface BomRow { productId: number; lines: { componentId: number; componentNam
 interface CostRow { itemId: number; period: string; standardTotal: number }
 
 export default function ProductionIssueStatusPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -363,17 +367,20 @@ export default function ProductionIssueStatusPage() {
           </select>
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="생산품·소모자재 어느 쪽이든" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 조건은 [생산품목]과 [소모품목]이 따로다. 위 [품목]은 어느 쪽이든 거는 우리 것이다. */}
         <EcCond label="생산품목" pick>
-          <input className="ec-input" placeholder="생산품목코드·품목명 일부" value={cond.product}
-                 onChange={(e) => setC({ product: e.target.value })} style={{ width: 200 }} />
+          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.product} onChange={(v) => setC({ product: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="소모품목" pick>
-          <input className="ec-input" placeholder="소모품목코드·품목명 일부" value={cond.material}
-                 onChange={(e) => setC({ material: e.target.value })} style={{ width: 200 }} />
+          <CodePickerField label="소모품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.material} onChange={(v) => setC({ material: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="작업지시번호">
           <input className="ec-input" placeholder="WO-…" value={cond.orderNo}

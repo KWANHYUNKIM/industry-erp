@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업 > 결제내역자료비교.
@@ -65,6 +67,8 @@ interface CompareRow {
 type Basis = '전체' | '일치' | '불일치'
 
 export default function PaymentComparePage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners'])
   const [rows, setRows] = useState<SettlementRow[]>([])
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [loading, setLoading] = useState(true)
@@ -180,8 +184,9 @@ export default function PaymentComparePage() {
         fiscalStart={fiscalStart}
       >
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명·전표번호 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="자료기준">
           <div className="ec-pills">

@@ -4,6 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 구매관리 > 발주 파이프라인 현황 — 한 컴포넌트를 진입 상태만 바꿔 재사용한다.
@@ -64,6 +66,8 @@ export default function PurchaseRequestStatusPage({
   defaultStatus?: PurchaseOrderStatus
   title?: string
 }) {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'warehouses', 'items'])
   const [summary, setSummary] = useState<SummaryRow[]>([])
   const [status, setStatus] = useState<PurchaseOrderStatus>(defaultStatus)
   const [rows, setRows] = useState<Row[]>([])
@@ -241,16 +245,19 @@ export default function PurchaseRequestStatusPage({
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="매입처명 일부" value={cond.partner}
-                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={cond.warehouse}
-                 onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
       </EcStatusPanel>
 

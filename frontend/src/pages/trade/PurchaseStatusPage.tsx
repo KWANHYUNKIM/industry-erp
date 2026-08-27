@@ -7,6 +7,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 type Mode = '내역' | '집계' | '라인별'
@@ -76,6 +78,13 @@ export default function PurchaseStatusPage() {
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   // 조건은 고치는 즉시 반영한다 — 원본 조건 판도 접히지 않고 그 자리에서 걸린다.
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  /*
+   * 원본은 조건 판의 창고·거래처·품목·프로젝트를 <b>모두 코드도움</b>으로 둔다.
+   * 우리는 "매입처명 일부" 를 손으로 치는 칸이었다 — 거래처가 300곳이 넘으면
+   * 이름을 외우고 있는 사람만 쓸 수 있고, 한 글자 틀리면 아무것도 안 나오는데
+   * 화면은 "그런 자료가 없다" 처럼 보인다.
+   */
+  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'projects'])
   const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
 
   async function load() {
@@ -296,21 +305,25 @@ export default function PurchaseStatusPage() {
           </EcCond>
         )}
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="매입처명 일부" value={filters.partner}
-                 onChange={(e) => setF({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                           value={filters.partner} onChange={(v) => setF({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={filters.warehouse}
-                 onChange={(e) => setF({ warehouse: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="창고" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                           value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={filters.item}
-                 onChange={(e) => setF({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                           value={filters.item} onChange={(v) => setF({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 구매현황 조건 실측(사본): 구분·기준일자·거래유형·내.외자구분·창고·프로젝트·거래처·품목. */}
         <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={filters.project}
-                 onChange={(e) => setF({ project: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="프로젝트" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                           value={filters.project} onChange={(v) => setF({ project: v })}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="거래유형">
           <div className="ec-pills">

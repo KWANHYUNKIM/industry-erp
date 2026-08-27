@@ -5,6 +5,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 창고별재고현황 (이카운트 E040711)
@@ -26,6 +28,8 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 export default function WarehouseStockPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [stock, setStock] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -146,8 +150,9 @@ export default function WarehouseStockPage() {
           </select>
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명·코드 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
           {([

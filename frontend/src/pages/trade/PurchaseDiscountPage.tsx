@@ -4,6 +4,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /** 구매 > 구매할인현황 — 품목 기준단가 대비 실매입가 할인 내역 (GET /api/purchases/discounts 연동) */
 interface DiscountRow {
@@ -26,6 +28,8 @@ interface DiscountRow {
 }
 
 export default function PurchaseDiscountPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
   const [rows, setRows] = useState<DiscountRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -132,16 +136,19 @@ export default function PurchaseDiscountPage() {
           </div>
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
-                 onChange={(e) => setProject(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="담당자 일부" value={employee}
-                 onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={employee} onChange={(v) => setEmployee(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="할인금액">
           <input className="ec-input" type="number" placeholder="이 금액 이상(할증은 음수)" value={minDiscount}

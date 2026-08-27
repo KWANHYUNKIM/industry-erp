@@ -4,6 +4,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 출하현황 — 출하 전표를 기간·조건으로 본다 (/api/shipments).
@@ -69,6 +71,8 @@ interface Shipment {
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function ShipmentPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['warehouses', 'projects', 'partners', 'items'])
   const [rows, setRows] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -182,20 +186,24 @@ export default function ShipmentPage() {
                  onChange={(e) => setShipNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="창고" pick>
-          <input className="ec-input" placeholder="창고명 일부" value={warehouse}
-                 onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
-                 onChange={(e) => setProject(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">

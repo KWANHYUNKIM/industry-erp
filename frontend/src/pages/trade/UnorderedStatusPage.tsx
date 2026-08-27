@@ -4,6 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Quotation, QuotationStatus } from '../../api/types'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -61,6 +63,8 @@ const EMPTY_FILTERS: Filters = {
 const todayStr = () => ymd(new Date())
 
 export default function UnorderedStatusPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'items'])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -151,16 +155,18 @@ export default function UnorderedStatusPage() {
         picks={INQUIRY_FULL_PICKS}
       >
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="매출처명 일부" value={filters.partner}
-                 onChange={(e) => setF({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={filters.partner} onChange={(v) => setF({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="견적No." pick>
           <input className="ec-input" placeholder="견적번호 일부" value={filters.quoteNo}
                  onChange={(e) => setF({ quoteNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={filters.item}
-                 onChange={(e) => setF({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={filters.item} onChange={(v) => setF({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12, marginRight: 12 }}>

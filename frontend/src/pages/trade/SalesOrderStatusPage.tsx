@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 주문서현황 (이카운트 E040209)
@@ -88,6 +90,8 @@ const EMPTY_FILTERS: Filters = {
 }
 
 export default function SalesOrderStatusPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'items'])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -229,12 +233,14 @@ export default function SalesOrderStatusPage() {
           </label>
         </EcCond>
         <EcCond label="거래처" pick>
-          <input className="ec-input" value={filters.partner} style={{ width: 200 }}
-                 onChange={(e) => setF({ partner: e.target.value })} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={filters.partner} onChange={(v) => setF({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" value={filters.item} style={{ width: 200 }}
-                 onChange={(e) => setF({ item: e.target.value })} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={filters.item} onChange={(v) => setF({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="정렬기준">
           <label style={{ fontSize: 12 }}>

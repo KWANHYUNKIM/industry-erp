@@ -5,6 +5,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 미출하현황 (이카운트 E040228)
@@ -58,6 +60,8 @@ const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b67
 
 export default function UnshippedPage() {
   const navigate = useNavigate()
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'items'])
   const [rows, setRows] = useState<UnshippedLine[]>([])
   const [keyword, setKeyword] = useState('')
   /** 원본 조건 판에 해당하는 값들. 고치면 바로 반영된다(원본도 그렇다). */
@@ -191,12 +195,14 @@ export default function UnshippedPage() {
         view={view} onViewChange={setView}
       >
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
-                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="주문번호" pick>
           <input className="ec-input" placeholder="주문번호 일부" value={cond.orderNo}

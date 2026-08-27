@@ -4,6 +4,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 수금현황 (이카운트 E040217)
@@ -43,6 +45,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   title: string
   moneyLabel: string
 }) {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'projects', 'employees'])
   const [rows, setRows] = useState<Settlement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -143,16 +147,19 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         view={view} onViewChange={setView}
       >
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
-                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <input className="ec-input" placeholder="프로젝트명 일부" value={cond.project}
-                 onChange={(e) => setC({ project: e.target.value })} style={{ width: 160 }} />
+          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <input className="ec-input" placeholder="담당자 일부" value={cond.manager}
-                 onChange={(e) => setC({ manager: e.target.value })} style={{ width: 180 }} />
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.manager} onChange={(v) => setC({ manager: v })}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label={moneyLabel === '수금' ? '수금방법' : '지급방법'}>
           <select className="ec-input" value={cond.method} onChange={(e) => setC({ method: e.target.value })} style={{ width: 220 }}>
