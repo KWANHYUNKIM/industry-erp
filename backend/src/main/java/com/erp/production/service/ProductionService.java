@@ -41,6 +41,8 @@ public class ProductionService {
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    /** 프로젝트는 inventory 의 공개 service 를 거친다(리포지토리 직접 주입 금지, 4.2). */
+    private final com.erp.inventory.service.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<ProductionResponse> findAll() {
@@ -98,6 +100,7 @@ public class ProductionService {
                 .product(wo.getProduct())
                 .warehouse(warehouse)
                 .fromWarehouse(req.fromWarehouseId() != null ? from : null)
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .producedQty(qty)
                 .productionDate(date)

@@ -15,8 +15,11 @@ import { stockCostMap, sumStockValue } from '../../utils/stockValue'
  *
  * <p>원본 조건 판 실측:
  *   [구분] 내역 | 집계 | 라인별 · 일자(금월(~오늘)) · 창고 · 프로젝트 · 품목 · 담당자 · 적요
- * 우리는 조건 판이 아예 없었다(검색어 한 칸이 전부). 프로젝트는 생산입고에 그 값이
- * 없어 칸을 만들지 않는다 — 값이 없는 조건칸은 만들지 않는다.
+ * 우리는 조건 판이 아예 없었다(검색어 한 칸이 전부).
+ *
+ * <p>[프로젝트]는 예전에 "생산입고에 그 값이 없어" 만들지 않았는데, 이제 있다.
+ * 판매·구매·비용·출하·정산이 모두 프로젝트를 다는데 생산입고만 남아 있었다 —
+ * 프로젝트별 손익을 보려면 <b>그 프로젝트로 무엇을 만들었나</b>도 알아야 한다.
  *
  * <p>원본 결과 열 실측(사본): 일자-No. · <b>출고창고명</b> · <b>입고창고명</b> ·
  * 품목명[규격명] · 수량 · <b>생산금액</b> · <b>적요</b>.
@@ -51,6 +54,7 @@ interface Production {
   warehouseName: string
   fromWarehouseId: number | null
   fromWarehouseName: string | null
+  projectName: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
@@ -74,6 +78,7 @@ export default function ReceiptStatusPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [item, setItem] = useState('')
   const [worker, setWorker] = useState('')
+  const [project, setProject] = useState('')
   const [mode, setMode] = useState<Mode>('내역')
 
   async function load() {
@@ -102,7 +107,7 @@ export default function ReceiptStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setWarehouseId(''); setItem(''); setWorker(''); setMode('내역')
+    setWarehouseId(''); setItem(''); setWorker(''); setMode('내역'); setProject('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
@@ -110,8 +115,9 @@ export default function ReceiptStatusPage() {
     if (warehouseId && String(r.warehouseId) !== warehouseId) return false
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
     if (worker && !(r.createdBy ?? '').includes(worker)) return false
+    if (project && !(r.projectName ?? '').includes(project)) return false
     return true
-  }), [rows, from, to, warehouseId, item, worker])
+  }), [rows, from, to, warehouseId, item, worker, project])
 
   /** 집계 — 품목 단위로 입고수량을 모은다. */
   const byItem = useMemo(() => {
@@ -179,6 +185,10 @@ export default function ReceiptStatusPage() {
         <EcCond label="품목" pick>
           <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
                  onChange={(e) => setItem(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
+                 onChange={(e) => setProject(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="담당자" pick>
           <input className="ec-input" placeholder="작성자 일부" value={worker}

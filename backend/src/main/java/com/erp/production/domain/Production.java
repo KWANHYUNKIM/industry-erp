@@ -61,6 +61,17 @@ public class Production extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate productionDate;
 
+    /**
+     * 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트].
+     *
+     * <p>판매·구매·비용·출하·정산이 모두 프로젝트를 다는데 생산입고만 없었다.
+     * 프로젝트별 손익을 보려면 <b>그 프로젝트로 무엇을 만들었나</b>도 알아야 한다 —
+     * 팔린 것만 세면 아직 재고로 남은 생산분이 어느 프로젝트 것인지 잃는다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
+
     @Column(length = 50)
     private String createdBy;
 

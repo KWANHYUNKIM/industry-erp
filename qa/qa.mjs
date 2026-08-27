@@ -3491,6 +3491,21 @@ async function scenarioShipmentSettlementProject(f) {
   })
   isNull('안 정하면 null 이다', plain.projectId)
 
+  // 생산입고도 같은 프로젝트를 단다. 팔린 것만 세면 <b>아직 재고로 남은 생산분</b>이
+  // 어느 프로젝트 것인지 잃는다 — 프로젝트별 손익이 그만큼 비어 보인다.
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 1, orderDate: '2090-03-04',
+  })
+  const made = await must('POST', '/productions', {
+    workOrderId: wo.id, producedQty: 1, productionDate: '2090-03-04', projectId: pj.id,
+  })
+  eq('생산입고에 프로젝트가 붙는다', made.projectId, pj.id)
+  eq('생산입고도 프로젝트명이 실린다', made.projectName, pj.name)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/productions')).find((x) => x.id === made.id).projectName, pj.name)
+
+  await must('DELETE', `/productions/${made.id}`)
+  await must('DELETE', `/work-orders/${wo.id}`)
   for (const x of [st, plain]) await must('DELETE', `/settlements/${x.id}`)
   await must('DELETE', `/shipments/${ship.id}`)
   await must('DELETE', `/projects/${pj.id}`)

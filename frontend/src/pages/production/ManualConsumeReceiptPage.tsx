@@ -66,7 +66,7 @@ const today = () => ymd(new Date())
  */
 const emptyForm = {
   workOrderId: '', producedQty: '', productionDate: today(),
-  fromWarehouseId: '', toWarehouseId: '', note: '',
+  fromWarehouseId: '', toWarehouseId: '', note: '', projectId: '',
 }
 
 export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
@@ -78,6 +78,8 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -99,14 +101,16 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
 
   async function loadRefs() {
     try {
-      const [wo, it, wh] = await Promise.all([
+      const [wo, it, wh, pj] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
       setWorkOrders(wo.data)
       setItems(it.data)
       setWarehouses(wh.data.filter((w) => w.active))
+      setProjects(pj.data)
     } catch {
       /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
     }
@@ -148,6 +152,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
         fromWarehouseId: form.fromWarehouseId ? Number(form.fromWarehouseId) : null,
         warehouseId: form.toWarehouseId ? Number(form.toWarehouseId) : null,
         note: form.note || null,
+        projectId: form.projectId ? Number(form.projectId) : null,
         materials,
       })
       let msg = `생산입고 ${res.data.prodNo} 등록`
@@ -249,7 +254,15 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               </select>
               <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
             </div>
-            <div className="sm:col-span-3">
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              <select className={inputCls} value={form.projectId}
+                      onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <label className="mb-1 block text-sm text-slate-600">적요</label>
               <input className={inputCls} value={form.note} placeholder="원본 그리드의 마지막 열"
                      onChange={(e) => setForm({ ...form, note: e.target.value })} />

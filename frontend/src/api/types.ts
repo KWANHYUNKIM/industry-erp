@@ -386,6 +386,9 @@ export interface Production {
    */
   fromWarehouseId: number | null
   fromWarehouseName: string | null
+  /** 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트]. */
+  projectId: number | null
+  projectName: string | null
   /** 적요. 원본 생산입고현황의 마지막 열. */
   note: string | null
   producedQty: number

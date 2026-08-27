@@ -20,6 +20,9 @@ export default function ProductionResultPage() {
   const [date, setDate] = useState(today())
   /** 적요 — 원본 생산입고현황의 마지막 열. 전표에 왜 이 입고를 했는지 남긴다. */
   const [note, setNote] = useState('')
+  /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
+  const [projectId, setProjectId] = useState('')
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   /**
    * 원본 생산입고 I 의 머리 항목 — [생산된공장] · [받는창고].
    *
@@ -38,6 +41,10 @@ export default function ProductionResultPage() {
     const res = await api.get<Warehouse[]>('/warehouses')
     setWarehouses(res.data.filter((w) => w.active))
   }
+  async function loadProjects() {
+    const res = await api.get<{ id: number; code: string; name: string }[]>('/projects')
+    setProjects(res.data)
+  }
   async function loadProductions() {
     const res = await api.get<Production[]>('/productions')
     setProductions(res.data)
@@ -46,6 +53,7 @@ export default function ProductionResultPage() {
   useEffect(() => {
     loadOrders()
     loadWarehouses()
+    loadProjects()
     loadProductions()
   }, [])
 
@@ -70,7 +78,7 @@ export default function ProductionResultPage() {
 
   function reset() {
     setQty(''); setWorkOrderId(''); setPreview([]); setError(''); setOk('')
-    setFromWarehouseId(''); setToWarehouseId(''); setNote('')
+    setFromWarehouseId(''); setToWarehouseId(''); setNote(''); setProjectId('')
   }
 
   async function submit(e: FormEvent) {
@@ -87,6 +95,7 @@ export default function ProductionResultPage() {
         fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
         warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
         note: note || null,
+        projectId: projectId ? Number(projectId) : null,
       })
       setOk(`${res.data.prodNo} 생산 완료 · 완제품 ${won(res.data.producedQty)} 입고, 자재 ${res.data.materials.length}종 출고`)
       setQty('')
@@ -94,6 +103,7 @@ export default function ProductionResultPage() {
       setFromWarehouseId('')
       setToWarehouseId('')
       setNote('')
+      setProjectId('')
       setPreview([])
       loadOrders()
       loadProductions()
@@ -174,6 +184,16 @@ export default function ProductionResultPage() {
                     ))}
                   </select>
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>프로젝트</th>
+                <td>
+                  <select className="ec-input" value={projectId}
+                          onChange={(e) => setProjectId(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">선택 안 함</option>
+                    {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+                  </select>
                 </td>
               </tr>
               <tr>
