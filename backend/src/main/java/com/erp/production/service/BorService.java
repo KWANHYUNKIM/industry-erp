@@ -98,6 +98,29 @@ public class BorService {
         return sum.setScale(3, java.math.RoundingMode.HALF_UP);
     }
 
+    /**
+     * 그 품목 <b>1개당 표준노무비</b>. 작업마다 (1개당 시간 × 그 공정의 시간당 비용)을 더한다.
+     *
+     * <p>공정 마스터가 이미 시간당 비용(costPerHr)을 들고 있어서, 원본처럼 월별 노무비
+     * 총액을 넣고 배부하지 않아도 단위 노무비가 나온다. 라우팅이 없으면 null —
+     * 0 을 돌려주면 "노무비가 안 드는 품목" 과 "라우팅을 아직 안 세운 품목" 이 같아진다.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal standardLaborCost(Long productId) {
+        List<BorOperation> ops = borRepository.findActiveByProduct(productId);
+        if (ops.isEmpty()) return null;
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BorOperation o : ops) {
+            BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
+                    ? BigDecimal.ONE : o.getBaseQty();
+            BigDecimal hoursPerUnit = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            BigDecimal rate = o.getProcess().getCostPerHr() != null
+                    ? o.getProcess().getCostPerHr() : BigDecimal.ZERO;
+            sum = sum.add(hoursPerUnit.multiply(rate));
+        }
+        return sum.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
     private void requireFreeSeq(Long productId, Integer seq, Long excludeId) {
         borRepository.findByProduct_IdAndSeq(productId, seq).ifPresent(found -> {
             if (!found.getId().equals(excludeId)) {

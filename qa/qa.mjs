@@ -3561,17 +3561,50 @@ async function scenarioStandardCostBuild(f) {
   eq('판매단가 × 60% 가 아니다(예전 방식)',
     Number(product.materialCost) === Math.round(Number(item.unitPrice) * 0.6 * 100) / 100, false)
 
-  eq('노무비는 지어내지 않는다', Number(product.laborCost), 0)
-  eq('경비도 지어내지 않는다', Number(product.overheadCost), 0)
-  eq('표준원가 = 재료비 + 노무비 + 경비', Number(product.standardTotal), Number(product.materialCost))
-
+  /*
+   * 표준노무비 = BOR(작업 라우팅) 1개당 시간 × 그 공정의 시간당 비용.
+   * 라우팅이 없으면 0 이다 — 사 오는 품목에는 노무비가 없고, 라우팅을 세우면 그때 잡힌다.
+   * 경비는 여전히 0 이다. 원본은 [노무비/경비등록] 에서 월별 총액을 넣고 배부하는데
+   * 우리에겐 그 총액을 넣을 자리가 없다. 노무비와 달리 요율이 없어 지어낼 근거가 없다.
+   */
   // 자재처럼 BOM 이 없는 품목은 자기 매입단가가 재료비다.
   const material = made.find((c) => c.itemId === f.material.id)
-  if (material) {
-    eq('BOM 이 없는 품목은 자기 매입단가가 재료비', Number(material.materialCost), unitCost(f.material.id))
-  }
+  eq('BOM 이 없는 품목도 원가가 잡힌다', !!material, true)
+  eq('BOM 이 없는 품목은 자기 매입단가가 재료비', Number(material.materialCost), unitCost(f.material.id))
 
-  // 시험용으로 만든 기간은 지운다.
+  eq('라우팅이 없으면 노무비 0', Number(product.laborCost), 0)
+  eq('경비는 지어내지 않는다', Number(product.overheadCost), 0)
+  eq('표준원가 = 재료비 + 노무비 + 경비', Number(product.standardTotal), Number(product.materialCost))
+
+  // 라우팅을 세우면 노무비가 잡힌다.
+  const procs = await must('GET', '/processes')
+  const ops = []
+  for (const [i, spec] of [[procs[0], 10, 0.5], [procs[1], 10, 1.25]].entries()) {
+    const [pc, base, hours] = spec
+    ops.push(await must('POST', '/bor', {
+      productId: f.product.id, processId: pc.id, seq: 90 + i,
+      workName: `${P}노무비시험${i}`, baseQty: base, workHours: hours,
+    }))
+  }
+  const expectedLabor = ops.reduce((n, o) => {
+    const pc = procs.find((x) => x.id === o.processId)
+    return n + Number(o.hoursPerUnit) * Number(pc.costPerHr)
+  }, 0)
+
+  for (const c of made) await must('DELETE', `/costs/${c.id}`)
+  const remade = await must('POST', `/costs/build?period=${period}`)
+  const withLabor = remade.find((c) => c.itemId === f.product.id)
+  eq('표준노무비 = Σ(1개당 시간 × 공정 시간당비용)',
+    Math.round(Number(withLabor.laborCost) * 100) / 100, Math.round(expectedLabor * 100) / 100)
+  eq('표준원가에 노무비가 더해진다',
+    Number(withLabor.standardTotal), Number(withLabor.materialCost) + Number(withLabor.laborCost))
+
+  for (const c of remade) await must('DELETE', `/costs/${c.id}`)
+  for (const o of ops) await must('DELETE', `/bor/${o.id}`)
+  // made 는 위에서 이미 지웠다 — 아래 정리 루프가 두 번 지우지 않게 비운다.
+  made.length = 0
+
+  // 시험용으로 만든 기간은 지운다(위에서 이미 지웠으면 made 는 비어 있다).
   for (const c of made) await must('DELETE', `/costs/${c.id}`)
   eq('시험용 원가는 남기지 않는다',
     (await must('GET', '/costs')).filter((c) => c.period === period).length, 0)

@@ -11,6 +11,7 @@ import com.erp.inventory.repository.ItemRepository;
 import com.erp.production.dto.BomDtos.BomLineResponse;
 import com.erp.production.dto.BomDtos.BomResponse;
 import com.erp.production.service.BomService;
+import com.erp.production.service.BorService;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.PurchaseLine;
 import com.erp.trade.repository.PurchaseRepository;
@@ -43,6 +44,7 @@ public class CostService {
     private final ItemCostRepository itemCostRepository;
     private final ItemRepository itemRepository;
     private final BomService bomService;
+    private final BorService borService;
     private final PurchaseRepository purchaseRepository;
 
     @Transactional(readOnly = true)
@@ -117,6 +119,14 @@ public class CostService {
             BigDecimal mat = standardMaterialCost(item, bomOf.get(item.getId()), unitCost);
             if (mat == null) continue;   // 자재 단가를 하나도 모르면 지어내지 않는다
 
+            /*
+             * 표준노무비 = BOR(작업 라우팅)의 1개당 시간 × 그 공정의 시간당 비용.
+             * 라우팅이 없는 품목은 0 이다 — 사 오는 품목에는 노무비가 없고,
+             * 라우팅을 아직 안 세운 제조품이라면 세우는 순간 잡힌다.
+             */
+            BigDecimal lab = borService.standardLaborCost(item.getId());
+            if (lab == null) lab = BigDecimal.ZERO;
+
             ItemCost c = ItemCost.builder()
                     .item(item)
                     .period(p)
@@ -127,11 +137,17 @@ public class CostService {
                      * 공정·창고별로 직접 넣게 돼 있다(사본의 열: 공정명·창고코드·창고명·노무비·경비).
                      * 우리에겐 품목→공정 라우팅이 없어 배부할 근거가 없다. 지어낸 숫자보다 0 이 낫다.
                      */
-                    .laborCost(BigDecimal.ZERO)
+                    .laborCost(lab)
+                    /*
+                     * 경비는 아직 0 이다. 원본은 [노무비/경비등록] 에서 <b>월별 총액</b>을 넣고
+                     * 배부하는데(사본 열: 공정명·창고코드·창고명·노무비·경비), 우리에겐 그 총액을
+                     * 넣을 자리가 없다. 시간당 비용이 있는 노무비와 달리 경비는 요율이 없어
+                     * 지어낼 근거가 전혀 없다.
+                     */
                     .overheadCost(BigDecimal.ZERO)
                     // 실제원가 초기값은 표준과 같게 둔다(실적이 들어오면 사람이 고친다). 그때 차이는 0.
                     .actualMaterial(mat)
-                    .actualLabor(BigDecimal.ZERO)
+                    .actualLabor(lab)
                     .actualOverhead(BigDecimal.ZERO)
                     .build();
             created.add(CostResponse.from(itemCostRepository.save(c)));
