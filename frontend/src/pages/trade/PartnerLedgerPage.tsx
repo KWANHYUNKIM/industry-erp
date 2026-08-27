@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { groupKeyOf, UNPOSTED } from '../../utils/ledgerGroup'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -17,21 +18,29 @@ import { api, extractErrorMessage } from '../../api/client'
  *   기준일자(기본 <b>전월+금월</b>) · 거래처 · 대표거래처로 합산 · 거래처관계기준/개별거래처기준
  *   기타(거래처코드없는자료인쇄) · 양식 · 정렬/소계기준
  *
- * <p>'회계전표별'은 넣지 않았다. 우리 회계반영은 선택이라 그 축으로 묶으면 <b>아직 반영하지 않은
- * 전표가 대장에서 사라진다</b> — 대장에서 그건 있어선 안 되는 일이다.
- * 대표거래처 합산·거래처관계기준은 거래처 관계 마스터가 있어야 해서 아직 못 한다.
+ * <p>[회계전표별]은 오래 안 만들었다 — 우리 회계반영은 선택이라 그 축으로 묶으면
+ * <b>아직 반영하지 않은 전표가 대장에서 사라진다</b>고 적어 뒀다. 사라지게 두지 않으면
+ * 될 일이었다. 반영 안 된 줄은 <b>'미반영' 한 묶음</b>으로 모은다 — 사라지기는커녕
+ * 어느 전표가 아직 회계로 안 갔는지 대장에서 바로 보인다.
+ *
+ * <p>수금·지급도 회계로 넘어가므로(그전에는 안 넘어갔다) 이 축이 이제야 온전해졌다.
+ *
+ * <p>대표거래처 합산·거래처관계기준은 거래처 관계 마스터가 있어야 해서 아직 못 한다.
  *
  * <p>잔액은 거래처마다 <b>이월잔액에서 시작해 한 줄씩 누적</b>한다. 채권은 판매로 늘고 수금으로
  * 줄며, 채무는 구매로 늘고 지급으로 준다.
  */
 type Side = '전체' | '채권' | '채무'
-type Group = '전표별' | '전표별+내역' | '일별' | '월별'
-const GROUPS = ['전표별', '전표별+내역', '일별', '월별'] as const
+type Group = '전표별' | '전표별+내역' | '일별' | '월별' | '회계전표별'
+const GROUPS = ['전표별', '전표별+내역', '일별', '월별', '회계전표별'] as const
+
 
 interface Line { itemCode: string; itemName: string; quantity: number; unitPrice: number; supplyAmount: number }
 interface SalesDoc { id: number; docNo: string; saleDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
 interface PurchaseDoc { id: number; docNo: string; purchaseDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
 interface Settlement { id: number; docNo: string; settleDate: string; partnerId: number; partnerName: string; type: 'RECEIPT' | 'PAYMENT'; amount: number }
+/** 회계반영 목록의 한 줄 — 전표 id 와 그 전표가 만든 회계전표번호. */
+interface Posted { id: number; journalDocNo: string | null }
 
 /** 대장 한 줄. 증가/감소는 채권·채무 어느 쪽 대장이냐에 따라 뜻이 갈린다. */
 interface Entry {
@@ -45,6 +54,8 @@ interface Entry {
   increase: number
   decrease: number
   lines: Line[]
+  /** 이 전표가 만든 회계전표 번호. 아직 반영 안 했으면 null. */
+  journalDocNo: string | null
 }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -56,6 +67,10 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  /** 전표 id → 그 전표가 만든 회계전표번호. 반영 안 한 전표는 아예 없다. */
+  const [postedSales, setPostedSales] = useState<Map<number, string>>(new Map())
+  const [postedPurchases, setPostedPurchases] = useState<Map<number, string>>(new Map())
+  const [postedSettles, setPostedSettles] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -77,12 +92,20 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     setLoading(true)
     setError('')
     try {
-      const [s, p, t] = await Promise.all([
+      const [s, p, t, js, jp, jt] = await Promise.all([
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<Settlement[]>('/settlements').catch(() => ({ data: [] as Settlement[] })),
+        // 회계전표번호를 붙이려면 반영 목록이 필요하다. trade 는 accounting 을 참조할 수
+        // 없어(순환) 전표 응답에 번호가 없다 — 화면이 두 쪽을 이어 붙인다.
+        api.get<Posted[]>('/accounting-reflection?kind=SALES').catch(() => ({ data: [] as Posted[] })),
+        api.get<Posted[]>('/accounting-reflection?kind=PURCHASE').catch(() => ({ data: [] as Posted[] })),
+        api.get<Posted[]>('/accounting-reflection?kind=SETTLEMENT').catch(() => ({ data: [] as Posted[] })),
       ])
       setSales(s.data); setPurchases(p.data); setSettlements(t.data)
+      const toMap = (rows: Posted[]) =>
+        new Map(rows.filter((r) => r.journalDocNo).map((r) => [r.id, r.journalDocNo as string]))
+      setPostedSales(toMap(js.data)); setPostedPurchases(toMap(jp.data)); setPostedSettles(toMap(jt.data))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -104,12 +127,14 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       out.push({
         key: `S${d.id}`, partnerId: d.partnerId, partnerName: d.partnerName, date: d.saleDate,
         docNo: d.docNo, kind: '판매', side: '채권', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
+        journalDocNo: postedSales.get(d.id) ?? null,
       })
     }
     for (const d of purchases) {
       out.push({
         key: `P${d.id}`, partnerId: d.partnerId, partnerName: d.partnerName, date: d.purchaseDate,
         docNo: d.docNo, kind: '구매', side: '채무', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
+        journalDocNo: postedPurchases.get(d.id) ?? null,
       })
     }
     for (const t of settlements) {
@@ -118,10 +143,11 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         docNo: t.docNo, kind: t.type === 'RECEIPT' ? '수금' : '지급',
         side: t.type === 'RECEIPT' ? '채권' : '채무',
         increase: 0, decrease: t.amount, lines: [],
+        journalDocNo: postedSettles.get(t.id) ?? null,
       })
     }
     return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.key < b.key ? -1 : 1))
-  }, [sales, purchases, settlements])
+  }, [sales, purchases, settlements, postedSales, postedPurchases, postedSettles])
 
   const bySide = useMemo(
     () => all.filter((e) => (side === '전체' || e.side === side)
@@ -142,13 +168,18 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
 
     const fold = (entries: Entry[]): Entry[] => {
       if (group === '전표별' || group === '전표별+내역') return entries
-      const keyOf = (e: Entry) => (group === '일별' ? e.date : e.date.slice(0, 7))
+      // 규칙은 utils/ledgerGroup 에 있다 — 키를 잘못 잡으면 줄이 조용히 사라진다.
+      const keyOf = (e: Entry) => groupKeyOf(e, group) as string
       const m = new Map<string, Entry>()
       for (const e of entries) {
         const k = keyOf(e)
         const cur = m.get(k)
         if (!cur) {
-          m.set(k, { ...e, key: `${e.partnerId}-${k}`, docNo: '', lines: [], date: k })
+          // 회계전표별은 <b>날짜가 아니라 전표번호</b>로 묶는다. 날짜 자리에 번호를 넣으면
+          // 정렬이 엉키므로, 날짜는 그 묶음의 첫 줄 날짜를 그대로 둔다.
+          m.set(k, group === '회계전표별'
+            ? { ...e, key: `${e.partnerId}-${k}`, docNo: k, lines: [] }
+            : { ...e, key: `${e.partnerId}-${k}`, docNo: '', lines: [], date: k })
         } else {
           cur.increase += e.increase
           cur.decrease += e.decrease
@@ -275,7 +306,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   <tr>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'monospace' }}>{r.entry.date}</td>
-                    <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.entry.docNo}</td>
+                    {/* 회계전표별로 묶으면 이 칸에 회계전표번호가 온다. 미반영 묶음은 눈에 띄게. */}
+                    <td style={{
+                      fontFamily: 'monospace',
+                      color: r.entry.docNo === UNPOSTED ? '#c07a00' : '#5a626e',
+                      fontWeight: r.entry.docNo === UNPOSTED ? 700 : undefined,
+                    }}>{r.entry.docNo}</td>
                     <td style={{ textAlign: 'center', color: r.entry.increase > 0 ? 'var(--ec-blue)' : '#1c7c3c' }}>
                       {r.entry.kind}
                     </td>
