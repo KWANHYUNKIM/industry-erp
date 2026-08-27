@@ -3327,6 +3327,47 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 작업지시서효율현황이 기대는 <b>응답 필드</b>.
+ *
+ * <p>이 화면은 원본처럼 소모 표준(BOM 대로) 대 실제(정말 쓴 것)를 금액으로 견준다.
+ * 계산은 프론트에서 하므로 하네스가 숫자를 볼 수는 없지만, <b>기대는 필드가 사라지면</b>
+ * 화면이 조용히 0원으로 나온다 — 그건 "차이가 없다"와 구별되지 않는다.
+ *
+ * <p>실제로 이 자료를 처음 다룰 때 자재 키를 itemId 로 짐작했다가 원재료 투입이 늘 0으로
+ * 나온 적이 있다(진짜 이름은 componentId). 그래서 이름까지 못 박는다.
+ */
+async function scenarioWoEfficiencyFields() {
+  section('■ 작업지시서효율현황이 기대는 필드')
+
+  const wos = await must('GET', '/work-orders')
+  eq('작업지시에 productId 가 있다(BOM 을 찾는 열쇠)', typeof wos[0]?.productId, 'number')
+  eq('작업지시에 dueDate 칸이 있다', 'dueDate' in (wos[0] ?? {}), true)
+
+  const prods = await must('GET', '/productions')
+  const withMat = prods.find((x) => (x.materials ?? []).length > 0)
+  eq('생산실적에 투입자재가 실린다', !!withMat, true)
+  eq('자재 키는 componentId 다(itemId 가 아니다)', typeof withMat.materials[0].componentId, 'number')
+  eq('자재 수량이 숫자다', typeof withMat.materials[0].quantity, 'number')
+
+  const boms = await must('GET', '/boms')
+  eq('BOM 라인도 componentId 를 쓴다', typeof boms[0]?.lines?.[0]?.componentId, 'number')
+
+  const procs = await must('GET', '/processes')
+  eq('공정에 표준시간이 있다', typeof procs[0]?.stdTimeMin, 'number')
+
+  const results = await must('GET', '/work-results')
+  eq('작업내역에 실제 작업시간이 있다', typeof results[0]?.workTimeMin, 'number')
+  eq('작업내역이 작업지시를 가리킬 수 있다', 'workOrderId' in (results[0] ?? {}), true)
+
+  // 자재 단가는 재고자산평가와 같은 규칙(마지막 입고단가 → 품목 구매단가)을 쓴다.
+  const items = await must('GET', '/items')
+  eq('품목에 구매단가가 있다', typeof items[0]?.purchasePrice, 'number')
+  const purchases = await must('GET', '/purchases')
+  eq('구매 라인에 itemId·단가가 있다',
+    typeof purchases[0]?.lines?.[0]?.itemId === 'number' && typeof purchases[0]?.lines?.[0]?.unitPrice === 'number', true)
+}
+
+/**
  * <b>리스트 안쪽 제약이 실제로 걸리는가.</b>
  *
  * <p>{@code List<LineInput>} 에 원소마다 {@code @Valid} 를 안 붙이면 그 안의
@@ -3825,6 +3866,7 @@ async function main() {
   await scenarioGroups(fixtures)
   await scenarioSlipPriceBulk(fixtures)
   await scenarioNestedValidation(fixtures)
+  await scenarioWoEfficiencyFields()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
