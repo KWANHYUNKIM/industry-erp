@@ -3427,6 +3427,53 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 거래명세서의 <b>미수금집계</b>가 기준일 시점을 보는가.
+ *
+ * <p>원본 거래명세서인쇄의 [기타] 조건에 미수금집계가 있다. 거래명세서는 대개
+ * "지난 미수 + 이번 거래" 를 함께 찍어 보내는 문서라 이 값이 핵심이다.
+ *
+ * <p>미수금은 반드시 <b>기준일자 끝</b> 시점이어야 한다. 지금 시점으로 잡으면 지난달
+ * 명세서를 다시 뽑을 때 그 뒤에 들어온 수금까지 빠져 숫자가 달라진다 — 같은 명세서를
+ * 두 번 뽑았는데 미수금이 다르면 받는 쪽이 믿지 않는다.
+ */
+async function scenarioStatementReceivable(f) {
+  section('■ 거래명세서 미수금집계')
+
+  const day = '2026-06-12'
+  const later = '2026-06-20'
+
+  const sale = await must('POST', '/sales', {
+    saleDate: day, partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 10000 }],
+  })
+
+  const at = async (asOf) => {
+    const rows = await must('GET', `/ledger/partner-balances?asOf=${asOf}`)
+    const mine = rows.find((r) => r.partnerId === f.customer.id)
+    return Number(mine?.receivable ?? 0)
+  }
+
+  const afterSale = await at(day)
+  eq('판매하면 그날 채권이 는다', afterSale >= Number(sale.totalAmount), true)
+
+  // 판매 전날에는 이 판매가 잡히면 안 된다.
+  const before = await at('2026-06-11')
+  eq('기준일 이전에는 이 판매가 안 잡힌다', afterSale - before, Number(sale.totalAmount))
+
+  // 나중에 수금하면 '그날' 잔액은 그대로여야 한다 — 여기가 틀리면 지난 명세서가 바뀐다.
+  const receipt = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: Number(sale.totalAmount),
+    method: '현금', settleDate: later, note: `${P} 나중수금`,
+  })
+  eq('나중 수금은 그날 잔액을 바꾸지 않는다', await at(day), afterSale)
+  eq('수금일 이후에는 잔액이 준다', await at(later), afterSale - Number(sale.totalAmount))
+
+  await must('DELETE', `/settlements/${receipt.id}`)
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험용 전표는 남기지 않는다', await at(later), before)
+}
+
+/**
  * 결제내역자료비교가 기대는 자료.
  *
  * <p>원본은 <b>[결제내역] 과 [판매전표II]</b> 를 좌우로 놓고 차이를 본다.
@@ -4486,6 +4533,7 @@ async function main() {
   await scenarioActualCost(fixtures)
   await scenarioOrderStages(fixtures)
   await scenarioPaymentCompare(fixtures)
+  await scenarioStatementReceivable(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

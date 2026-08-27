@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -13,6 +13,13 @@ import { loadSupplierParty, printDocuments, type DocParty, type PrintDocumentOpt
  * 판매 전표를 명세서 단위로 조회하고, **실제 거래명세서 서식**으로 인쇄한다
  * (공급자/공급받는자 + 품목 명세 + 합계 + 한글금액 + 결재란). 여러 건을 고르면 전표마다 페이지가 나뉜다.
  * 서식은 `utils/printDocument.ts` 템플릿을 공유한다 — 견적서·발주서도 같은 템플릿을 쓴다.
+ *
+ * <p>원본 결과 열 실측(사본): 거래처명 · <b>품목명[규격명]</b> · 수량 · 금액 · 부가세 ·
+ * 합계 · 상세. 우리는 품목 자리에 <b>'품목수'</b> 숫자만 있었다 — 명세서를 고르는 화면에서
+ * "무엇을 판 명세서인지" 를 못 보고 건수만 보는 셈이었다.
+ *
+ * <p>원본 [기타] 조건에 <b>미수금집계</b>가 있다. 거래명세서는 대개 "지난 미수 + 이번 거래" 를
+ * 함께 찍어 보내는 문서라 이 옵션이 핵심이다. 우리에겐 아예 없었다.
  */
 export default function StatementPrintPage() {
   const [docs, setDocs] = useState<SalesDoc[]>([])
@@ -38,6 +45,11 @@ export default function StatementPrintPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /** 원본 [기타] 미수금집계. 켜면 목록과 인쇄물에 그 거래처의 미수금을 함께 싣는다. */
+  const [withReceivable, setWithReceivable] = useState(false)
+  const [balances, setBalances] = useState<Map<number, number>>(new Map())
+  /** 품목을 펼쳐 본 명세서 */
+  const [openId, setOpenId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -63,6 +75,17 @@ export default function StatementPrintPage() {
     load()
     loadSupplierParty().then(setSupplier)
   }, [])
+
+  /**
+   * 미수금은 <b>기준일자 끝</b> 시점의 채권 잔액이다. 지금 시점으로 잡으면
+   * 지난달 명세서를 다시 뽑을 때 그 뒤에 들어온 수금까지 빠져 숫자가 달라진다.
+   */
+  useEffect(() => {
+    if (!withReceivable) return
+    api.get<{ partnerId: number; receivable: number }[]>('/ledger/partner-balances', { params: { asOf: toDate } })
+      .then((r) => setBalances(new Map(r.data.map((b) => [b.partnerId, b.receivable]))))
+      .catch(() => setBalances(new Map()))
+  }, [withReceivable, toDate])
 
   const selectedPartner = partners.find((p) => p.id === partnerId)
   const shown = docs.filter((d) => {
@@ -111,7 +134,15 @@ export default function StatementPrintPage() {
         supplyAmount: l.supplyAmount,
         vatAmount: l.vatAmount,
       })),
-      footNote: '위와 같이 거래하였음을 확인합니다.',
+      /*
+       * 미수금집계를 켜면 명세서 아래에 지난 미수와 이번 거래를 합쳐 찍는다.
+       * 받는 쪽이 "그래서 얼마를 보내면 되나" 를 이 한 줄에서 안다.
+       */
+      footNote: withReceivable && balances.has(d.partnerId)
+        ? `미수금 ${Math.round(balances.get(d.partnerId) ?? 0).toLocaleString('ko-KR')}원 (기준일 ${toDate}) · `
+          + `이번 거래 ${Math.round(d.supplyAmount + d.vatAmount).toLocaleString('ko-KR')}원. `
+          + '위와 같이 거래하였음을 확인합니다.'
+        : '위와 같이 거래하였음을 확인합니다.',
     }
   }
 
@@ -183,6 +214,12 @@ export default function StatementPrintPage() {
           <input className="ec-input" placeholder="담당자 일부" value={employee}
                  onChange={(e) => setEmployee(e.target.value)} style={{ width: 160 }} />
         </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withReceivable} onChange={(e) => setWithReceivable(e.target.checked)} />
+            미수금집계
+          </label>
+        </EcCond>
       </EcStatusPanel>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
@@ -199,38 +236,77 @@ export default function StatementPrintPage() {
               <input type="checkbox" checked={shown.length > 0 && checked.length === shown.length}
                      onChange={(e) => setChecked(e.target.checked ? shown.map((d) => d.id) : [])} />
             </th>
-            <th style={{ width: 110 }}>일자</th>
-            <th style={{ width: 170 }}>명세서번호</th>
-            <th>거래처</th>
-            <th style={{ width: 80, textAlign: 'right' }}>품목수</th>
-            <th style={{ width: 120, textAlign: 'right' }}>공급가액</th>
-            <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
+            <th style={{ width: 100 }}>일자</th>
+            <th style={{ width: 160 }}>명세서번호</th>
+            <th style={{ width: 150 }}>거래처명</th>
+            <th>품목명[규격명]</th>
+            <th style={{ width: 80, textAlign: 'right' }}>수량</th>
+            <th style={{ width: 120, textAlign: 'right' }}>금액</th>
+            <th style={{ width: 100, textAlign: 'right' }}>부가세</th>
             <th style={{ width: 120, textAlign: 'right' }}>합계</th>
-            <th style={{ width: 70, textAlign: 'center' }}>인쇄</th>
+            {withReceivable && <th style={{ width: 120, textAlign: 'right' }}>미수금</th>}
+            <th style={{ width: 100, textAlign: 'center' }}>상세</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>발행할 명세서가 없습니다.</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>발행할 명세서가 없습니다.</td></tr>
           ) : shown.map((d) => (
-            <tr key={d.id}>
+            <Fragment key={d.id}>
+            <tr>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={checked.includes(d.id)} onChange={() => toggle(d.id)} />
               </td>
               <td style={{ fontFamily: 'monospace' }}>{d.saleDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
               <td>{d.partnerName}</td>
-              <td style={{ textAlign: 'right' }}>{d.lines.length.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{d.supplyAmount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.vatAmount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{d.totalAmount.toLocaleString()}</td>
-              <td style={{ textAlign: 'center' }}>
+              {/* 원본은 품목명[규격명] 을 이 자리에 적는다. 여러 줄이면 첫 품목 외 n. */}
+              <td>
+                {d.lines.length === 0 ? <span style={{ color: '#c9ced6' }}>-</span> : (
+                  <>
+                    {d.lines[0].itemName}
+                    {d.lines[0].spec && <span style={{ color: '#8a929c' }}>[{d.lines[0].spec}]</span>}
+                    {d.lines.length > 1 && <span style={{ color: '#8a929c' }}> 외 {d.lines.length - 1}</span>}
+                  </>
+                )}
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                {d.lines.reduce((n, l) => n + l.quantity, 0).toLocaleString('ko-KR')}
+              </td>
+              <td style={{ textAlign: 'right' }}>{d.supplyAmount.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.vatAmount.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{d.totalAmount.toLocaleString('ko-KR')}</td>
+              {withReceivable && (
+                <td style={{ textAlign: 'right', color: (balances.get(d.partnerId) ?? 0) > 0 ? '#c60a2e' : '#8a929c' }}>
+                  {balances.has(d.partnerId)
+                    ? Math.round(balances.get(d.partnerId) ?? 0).toLocaleString('ko-KR')
+                    : '-'}
+                </td>
+              )}
+              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <button onClick={() => setOpenId(openId === d.id ? null : d.id)}
+                        style={{ color: 'var(--ec-blue)', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                  {openId === d.id ? '접기' : '상세'}
+                </button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }}
                         onClick={() => printDocuments([toDocument(d)])}>인쇄</button>
               </td>
             </tr>
+            {openId === d.id && d.lines.map((l, k) => (
+              <tr key={`${d.id}-${k}`} style={{ background: '#fafbfc' }}>
+                <td colSpan={4}></td>
+                <td style={{ paddingLeft: 18, color: '#5a626e' }}>
+                  └ {l.itemName}{l.spec ? `[${l.spec}]` : ''}
+                </td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{l.quantity.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{l.supplyAmount.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{(l.vatAmount ?? 0).toLocaleString('ko-KR')}</td>
+                <td colSpan={withReceivable ? 3 : 2}></td>
+              </tr>
+            ))}
+          </Fragment>
           ))}
         </tbody>
       </table>
