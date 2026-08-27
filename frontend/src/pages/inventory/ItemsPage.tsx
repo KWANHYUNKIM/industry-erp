@@ -7,6 +7,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import GroupMasterModal from '../../components/GroupMasterModal'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { useNavigate } from 'react-router-dom'
 
 const inputCls = 'ec-input w-full'
 
@@ -36,6 +37,8 @@ const emptyForm = {
 }
 
 export default function ItemsPage() {
+  /** 원본 [재고조정] — 고른 품목으로 조정 화면을 연다. */
+  const navigate = useNavigate()
   const [items, setItems] = useState<Item[]>([])
   const [categories, setCategories] = useState<CodeOption[]>([])
   const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
@@ -281,6 +284,12 @@ export default function ItemsPage() {
       onSearchChange={setKeyword}
       onNew={showForm ? () => setShowForm(false) : openCreate}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
+                // 원본 [재고조정] — 고른 품목을 물고 재고조정 화면을 연다
+                { label: '재고조정', onClick: () => {
+                  const [first] = [...selected]
+                  if (first == null) { alert('재고를 조정할 품목을 먼저 선택하세요.'); return }
+                  navigate(`/inventory/staged-adjustment?item=${first}`)
+                } },
                 { label: `변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => {
                   if (selected.size === 0) { alert('바꿀 품목을 먼저 선택하세요.'); return }
                   setBulkValue(''); setBulkOpen(true)

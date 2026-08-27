@@ -5,6 +5,7 @@ import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useSearchParams } from 'react-router-dom'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -31,8 +32,17 @@ export default function StagedAdjustmentPage() {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ itemId: '', warehouseId: '', actualQty: '', requestDate: today(), reason: '' })
+  /*
+   * 품목등록에서 <b>고른 품목을 물고</b> 넘어온다(?item=id). 원본 품목등록의 [재고조정]이
+   * 그 자리에서 조정 화면을 여는데, 우리는 메뉴로 옮겨 가 품목을 다시 찾아야 했다.
+   */
+  const [searchParams] = useSearchParams()
+  const [form, setForm] = useState({
+    itemId: searchParams.get('item') ?? '', warehouseId: '', actualQty: '',
+    requestDate: today(), reason: '',
+  })
+  /** 품목을 물고 왔으면 조정 폼을 바로 연다 — 한 번 더 누르게 하지 않는다. */
+  const [showForm, setShowForm] = useState(Boolean(searchParams.get('item')))
 
   async function load() {
     setLoading(true)
