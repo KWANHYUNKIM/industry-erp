@@ -9,6 +9,10 @@ import com.erp.inventory.domain.Warehouse;
 import com.erp.production.dto.ProductionDtos.CreateWorkOrderRequest;
 import com.erp.production.dto.ProductionDtos.WorkOrderResponse;
 import com.erp.production.dto.ProductionPlanDtos.CreatePlanRequest;
+import com.erp.production.dto.ProductionPlanDtos.GeneratePlanRequest;
+import com.erp.production.dto.ProductionPlanDtos.GenerateResult;
+import com.erp.trade.dto.SalesOrderDtos.UnsoldLineResponse;
+import com.erp.trade.service.SalesOrderService;
 import com.erp.production.dto.ProductionPlanDtos.PlanResponse;
 import com.erp.inventory.service.ItemService;
 import com.erp.production.repository.ProductionPlanRepository;
@@ -23,7 +27,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import com.erp.production.dto.ProductionDtos;
 import com.erp.production.dto.ProductionPlanDtos;
 
@@ -38,6 +46,11 @@ public class ProductionPlanService {
     private final WarehouseRepository warehouseRepository;
     private final WorkOrderService workOrderService;
     private final WorkOrderRepository workOrderRepository;
+    /*
+     * trade 의 공개 service 를 거친다(CLAUDE.md 4.2). production → trade 는 이미 있는
+     * 방향이라 순환이 아니다 — 작업지시서의 납품처가 PartnerService 를 쓰고 있다.
+     */
+    private final SalesOrderService salesOrderService;
 
     @Transactional(readOnly = true)
     public List<PlanResponse> findAll() {
@@ -62,6 +75,66 @@ public class ProductionPlanService {
                 .build();
         planRepository.save(plan);
         return PlanResponse.from(plan, currentStockByItem().getOrDefault(product.getId(), BigDecimal.ZERO));
+    }
+
+    /**
+     * 원본 <b>생산계획/MRP생성</b> — [생산계획대상-전표] <b>미판매</b> 기준.
+     *
+     * <p>주문은 받았는데 아직 매출로 못 끊은 잔량을 품목별로 모아, <b>현재고를 뺀 부족분</b>
+     * 만큼 계획을 만든다. 창고에 있는 것을 또 만들 이유가 없다.
+     *
+     * <p>이미 그 주차에 그 품목의 계획이 있으면 <b>건너뛴다.</b> 덮어쓰면 사람이 손으로
+     * 고쳐 둔 수량이 사라지고, 하나 더 만들면 같은 주차에 두 계획이 생겨 둘 다 지시로 넘어간다.
+     *
+     * <p>몇 건을 왜 만들었는지 같이 돌려준다 — 0건일 때 이유를 모르면 고장으로 읽힌다.
+     */
+    @Transactional
+    public GenerateResult generateFromUnsold(GeneratePlanRequest req, String username) {
+        String week = req.planWeek().trim();
+        boolean deduct = req.deductStock() == null || req.deductStock();
+
+        Map<Long, BigDecimal> demand = new LinkedHashMap<>();
+        for (UnsoldLineResponse r : salesOrderService.findUnsold()) {
+            demand.merge(r.itemId(), r.unsoldQty(), BigDecimal::add);
+        }
+
+        Map<Long, BigDecimal> stock = currentStockByItem();
+        Set<Long> already = planRepository.findAllWithProduct().stream()
+                .filter(p -> week.equals(p.getPlanWeek()))
+                .map(p -> p.getProduct().getId())
+                .collect(Collectors.toSet());
+
+        int skippedExisting = 0;
+        int skippedCovered = 0;
+        List<PlanResponse> made = new ArrayList<>();
+        for (Map.Entry<Long, BigDecimal> e : demand.entrySet()) {
+            if (already.contains(e.getKey())) { skippedExisting++; continue; }
+            BigDecimal need = deduct
+                    ? e.getValue().subtract(stock.getOrDefault(e.getKey(), BigDecimal.ZERO))
+                    : e.getValue();
+            if (need.signum() <= 0) { skippedCovered++; continue; }
+
+            // 사용중지한 품목은 앞으로의 계획을 세울 수 없다. 주문에 남아 있어도 건너뛴다.
+            Item product;
+            try {
+                product = itemService.getUsable(e.getKey());
+            } catch (ApiException ignored) {
+                skippedCovered++;
+                continue;
+            }
+            ProductionPlan plan = ProductionPlan.builder()
+                    .product(product)
+                    .planWeek(week)
+                    .demandQty(e.getValue())
+                    .planQty(need)
+                    .status(ProductionPlanStatus.REVIEW)
+                    .remark("미판매 기준 자동생성")
+                    .createdBy(username)
+                    .build();
+            planRepository.save(plan);
+            made.add(PlanResponse.from(plan, stock.getOrDefault(e.getKey(), BigDecimal.ZERO)));
+        }
+        return new GenerateResult(made.size(), skippedExisting, skippedCovered, made);
     }
 
     /**

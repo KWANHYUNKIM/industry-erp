@@ -15,8 +15,13 @@ import { api, extractErrorMessage } from '../../api/client'
  * 못 걸렀고, <b>확정한 계획을 작업지시로 넘길 자리도 없었다</b> — 생산계획(MPS) 화면에는
  * 그 버튼이 있는데 여기만 없어서, 같은 자료를 보면서 한쪽에서만 일을 할 수 있었다.
  *
- * <p>[MRP계산]·[생산계획계산]·[발주계획/발주서생성]은 만들지 않았다.
- * 우리 계획은 사람이 넣는 것이고 소요량을 되짚어 계산하는 엔진이 없다 —
+ * <p>원본 [생산계획/MRP생성] 팝업의 <b>[생산계획대상-전표]</b>는 미판매 · 매출계획 ·
+ * 미구매 · 미생산/미소모다(사본 실측). 그중 <b>미판매</b>는 우리도 이미 세고 있다 —
+ * 주문은 받았는데 아직 매출로 못 끊은 잔량이다. 그걸 근거로 계획을 만든다.
+ *
+ * <p>나머지 셋은 여전히 안 만든다. 매출계획은 품목이 아니라 거래처·금액 단위라 몇 개를
+ * 만들지 나오지 않고, 미구매·미생산/미소모는 소요량 전개(BOM 역산) 엔진이 있어야 한다.
+ * [MRP계산]·[발주계획/발주서생성]도 같은 이유로 없다 —
  * 눌러도 아무 일 없는 버튼은 있는 것만 못하다.
  */
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
@@ -64,6 +69,34 @@ export default function MrpPage() {
   /** 원본 [기준품목]. */
   const [item, setItem] = useState('')
   const [ok, setOk] = useState('')
+  const [genWeek, setGenWeek] = useState('')
+  const [deductStock, setDeductStock] = useState(true)
+  const [generating, setGenerating] = useState(false)
+
+  /**
+   * 원본 [생산계획/MRP생성]. 미판매 잔량에서 재고를 뺀 부족분만큼 계획을 만든다.
+   *
+   * <p>몇 건을 왜 만들었는지 그대로 보여 준다 — 0건일 때 이유를 모르면 고장으로 읽힌다.
+   */
+  async function generate() {
+    const week = genWeek.trim()
+    if (!week) { setError('생성할 계획주차를 입력하세요 (예: 2026-W31)'); return }
+    setGenerating(true); setError(''); setOk('')
+    try {
+      const res = await api.post<{
+        created: number; skippedExisting: number; skippedCovered: number
+      }>('/production-plans/generate', { planWeek: week, deductStock })
+      const d = res.data
+      setOk(`${week}: ${d.created}건 생성`
+        + (d.skippedExisting ? ` · 이미 있어 건너뜀 ${d.skippedExisting}` : '')
+        + (d.skippedCovered ? ` · 재고로 충당돼 건너뜀 ${d.skippedCovered}` : ''))
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   /**
    * 작업지시서생성 — 원본 버튼이다. 생산계획(MPS) 화면에는 있는데 여기만 없어서,
@@ -130,6 +163,34 @@ export default function MrpPage() {
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
                   onClick={() => setTab(t)}>{t}</button>
         ))}
+      </div>
+
+      {/*
+        원본 [생산계획/MRP생성]. 원본은 팝업이지만 조건이 셋뿐이라 조건 판 위에 한 줄로 둔다 —
+        팝업을 만들면 누를 때마다 창이 뜨고 닫히는 것 말고 나아지는 것이 없다.
+      */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 10px',
+        border: '1px solid var(--ec-border)', background: '#f7f9fb', flexWrap: 'wrap',
+      }}>
+        <b style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>생산계획/MRP생성</b>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>대상-전표</span>
+        <span className="ec-pill active" style={{ cursor: 'default' }}>미판매</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>계획주차</span>
+        <input className="ec-input" placeholder="2026-W31" value={genWeek}
+               onChange={(e) => setGenWeek(e.target.value)} style={{ width: 120 }} />
+        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input type="checkbox" checked={deductStock}
+                 onChange={(e) => setDeductStock(e.target.checked)} />
+          현재고 차감
+        </label>
+        <button className="ec-btn ec-btn-primary" onClick={generate} disabled={generating}>
+          {generating ? '생성 중…' : '생성'}
+        </button>
+        <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+          주문은 받았는데 아직 매출로 못 끊은 잔량에서 재고를 뺀 만큼 만듭니다.
+          같은 주차에 이미 있는 품목은 건드리지 않습니다.
+        </span>
       </div>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>

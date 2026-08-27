@@ -3602,6 +3602,113 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * 원본 <b>생산계획/MRP생성</b> — [생산계획대상-전표] <b>미판매</b> 기준.
+ *
+ * <p>주문은 받았는데 아직 매출로 못 끊은 잔량에서 <b>현재고를 뺀 부족분</b>만큼
+ * 계획을 만든다. 창고에 있는 것을 또 만들 이유가 없다.
+ *
+ * <p>조용히 틀리기 쉬운 자리가 둘이다.
+ * <b>이미 있는 계획을 덮어쓰면</b> 사람이 손으로 고쳐 둔 수량이 사라지고,
+ * <b>하나 더 만들면</b> 같은 주차에 두 계획이 생겨 둘 다 작업지시로 넘어간다.
+ * 둘 다 화면에는 "생성 완료" 로 보인다.
+ */
+async function scenarioPlanGenerate(f) {
+  section('■ 생산계획/MRP생성 (미판매 기준)')
+
+  const WEEK = '2089-W33'
+  const clear = async () => {
+    for (const p of (await must('GET', '/production-plans')).filter((x) => x.planWeek === WEEK)) {
+      await call('DELETE', `/production-plans/${p.id}`)
+    }
+  }
+  await clear()
+
+  // 앞 실행이 중간에 멈췄으면 주문이 남는다. 남아 있으면 미판매 잔량이 그만큼 부풀어
+  // 다음 실행의 단언이 엉뚱한 값을 재게 된다.
+  for (const o of (await must('GET', '/sales-orders')).filter((x) => x.orderDate === '2089-08-01')) {
+    await call('DELETE', `/sales-orders/${o.id}`)
+  }
+
+  // 재고가 있으면 부족분이 안 생겨 아무것도 안 만들어진다. 있는 만큼 빼 두고 시작한다.
+  const stockOf = async (itemId) => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const before = await stockOf(f.product.id)
+  if (before > 0) {
+    await must('POST', '/stock/transactions', {
+      itemId: f.product.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: before,
+    })
+  }
+
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, orderDate: '2089-08-01',
+    lines: [{ itemId: f.product.id, quantity: 40, unitPrice: 1000 }],
+  })
+
+  /*
+   * 이 품목의 미판매 잔량은 <b>내 주문만이 아니다</b> — 개발 자료에 이미 쌓여 있다.
+   * 실측해서 그 값과 견준다. '40' 을 박아 두면 자료가 바뀔 때마다 QA 가 깨지고,
+   * 정작 계산이 틀려도 알아채지 못한다.
+   */
+  const unsoldOf = async () => (await must('GET', '/sales-orders/unsold'))
+    .filter((r) => r.itemId === f.product.id)
+    .reduce((n, r) => n + Number(r.unsoldQty), 0)
+  const demand = await unsoldOf()
+  eq('내 주문이 미판매에 더해졌다', demand >= 40, true)
+
+  const made = await must('POST', '/production-plans/generate', { planWeek: WEEK })
+  eq('미판매 잔량으로 계획이 만들어진다', made.created >= 1, true)
+  const mine = made.plans.find((x) => x.productId === f.product.id)
+  eq('그 품목의 계획이 있다', !!mine, true)
+  eq('수요량은 미판매 잔량이다', Number(mine.demandQty), demand)
+  eq('재고가 0이면 계획수량 = 수요량', Number(mine.planQty), demand)
+  eq('처음엔 검토 상태다', mine.status, 'REVIEW')
+  eq('자동생성이라고 적어 둔다', mine.remark, '미판매 기준 자동생성')
+
+  // 두 번째로 돌려도 같은 주차·같은 품목이면 건드리지 않는다.
+  const again = await must('POST', '/production-plans/generate', { planWeek: WEEK })
+  eq('이미 있으면 다시 안 만든다',
+    again.plans.some((x) => x.productId === f.product.id), false)
+  eq('건너뛴 이유를 센다', again.skippedExisting >= 1, true)
+  eq('계획이 늘지 않았다',
+    (await must('GET', '/production-plans'))
+      .filter((x) => x.planWeek === WEEK && x.productId === f.product.id).length, 1)
+
+  // 재고가 잔량을 덮으면 만들 것이 없다.
+  await clear()
+  const cover = demand + 10
+  await must('POST', '/stock/transactions', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: cover,
+  })
+  const covered = await must('POST', '/production-plans/generate', { planWeek: WEEK })
+  eq('재고로 충당되면 안 만든다',
+    covered.plans.some((x) => x.productId === f.product.id), false)
+  eq('충당돼 건너뛴 것을 센다', covered.skippedCovered >= 1, true)
+
+  // [현재고 차감]을 끄면 재고와 무관하게 잔량 그대로 만든다.
+  const raw = await must('POST', '/production-plans/generate', { planWeek: WEEK, deductStock: false })
+  const rawMine = raw.plans.find((x) => x.productId === f.product.id)
+  eq('차감을 끄면 잔량 그대로', Number(rawMine.planQty), demand)
+
+  await must('POST', '/stock/transactions', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: cover,
+  })
+  if (before > 0) {
+    await must('POST', '/stock/transactions', {
+      itemId: f.product.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: before,
+    })
+  }
+  await clear()
+  await must('DELETE', `/sales-orders/${order.id}`)
+  eq('시험용 주문도 남기지 않는다',
+    (await must('GET', '/sales-orders')).filter((x) => x.orderDate === '2089-08-01').length, 0)
+  eq('시험용 계획은 남기지 않는다',
+    (await must('GET', '/production-plans')).filter((x) => x.planWeek === WEEK).length, 0)
+  eq('재고도 제자리', await stockOf(f.product.id), before)
+}
+
+/**
  * 상단 <b>북마크바</b>(즐겨찾기).
  *
  * <p>원본은 [즐겨찾기]로 지금 화면을 담거나 뺀다. 사람마다 매일 여는 화면이 다르다.
@@ -6666,6 +6773,7 @@ async function main() {
   await scenarioInactiveItemGuards(fixtures)
   await scenarioSettlementAccounting(fixtures)
   await scenarioBookmarks()
+  await scenarioPlanGenerate(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

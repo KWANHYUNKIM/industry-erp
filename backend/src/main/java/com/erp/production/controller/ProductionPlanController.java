@@ -45,6 +45,14 @@ public class ProductionPlanController {
         return planService.updateStatus(id, req.status());
     }
 
+    /** 원본 [생산계획/MRP생성] — 미판매 잔량에서 재고를 뺀 부족분만큼 계획을 만든다. */
+    @PostMapping("/generate")
+    public ProductionPlanDtos.GenerateResult generate(
+            @Valid @RequestBody ProductionPlanDtos.GeneratePlanRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return planService.generateFromUnsold(req, principal.getUsername());
+    }
+
     @PostMapping("/{id}/work-order")
     public PlanResponse generateWorkOrder(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return planService.generateWorkOrder(id, principal.getUsername());
