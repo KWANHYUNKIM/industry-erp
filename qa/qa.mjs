@@ -7642,6 +7642,39 @@ async function scenarioSettlement(f) {
 
 // ── main ────────────────────────────────────────────────────────────────────
 
+/**
+ * <b>마스터를 같은 값으로 다시 저장할 수 있나.</b>
+ *
+ * <p>화면에서 [수정]을 열었다가 아무것도 안 고치고 [저장]을 누르는 것과 같은 일이다.
+ * 당연히 되어야 하는데 <b>오더관리유형이 이걸 못 했다</b> — order_type_steps 의
+ * (order_type_id, seq) 유니크 인덱스에 걸려 409 로 막혔고, 단계를 한 번 정하고 나면
+ * 다시는 고칠 수 없었다. 새로 만드는 것만 재던 단언들은 그걸 못 봤다.
+ *
+ * <p>그래서 <b>모든 마스터</b>를 같은 방식으로 재 둔다: 읽은 응답을 그대로 PUT 하고,
+ * 200 인지와 <b>값이 그대로인지</b>를 본다. 값이 달라지면 어느 칸이 사라졌는지 적는다
+ * (요청 DTO 에 없는 칸은 조용히 버려지므로 이 방식이 그것도 같이 잡는다).
+ */
+async function scenarioMasterResave() {
+  section('■ 마스터를 같은 값으로 다시 저장')
+
+  const PATHS = ['/collect-sources', '/currencies', '/departments', '/employees', '/items',
+    '/management-items', '/order-stages', '/order-types', '/partners', '/processes',
+    '/resources', '/supplies', '/warehouses']
+
+  for (const p of PATHS) {
+    const list = await call('GET', p)
+    if (!list.ok || !Array.isArray(list.data) || list.data.length === 0) continue
+    const row = list.data[0]
+    const before = JSON.stringify(row)
+    const again = await call('PUT', `${p}/${row.id}`, row)
+    eq(`${p} 를 같은 값으로 다시 저장해도 된다`, again.status, 200)
+    if (!again.ok) continue
+    const after = (await must('GET', p)).find((x) => x.id === row.id)
+    const lost = Object.keys(row).filter((k) => JSON.stringify(row[k]) !== JSON.stringify(after?.[k]))
+    eq(`${p} 를 다시 저장해도 값이 그대로다`, lost.join(',') || '없음', '없음')
+  }
+}
+
 async function main() {
   const cmd = process.argv[2] ?? 'all'
 
@@ -7767,6 +7800,7 @@ async function main() {
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioReturnSlip(fixtures)
+  await scenarioMasterResave()
 
   checkDeadAssertions()
 
