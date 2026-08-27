@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcCond } from '../../components/EcStatusPanel'
 
 /**
  * 이익관리 > 월별이익현황
@@ -57,6 +58,18 @@ export default function MonthlyProfitPage() {
   const [mode, setMode] = useState<Mode>('품목별')
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [withVat, setWithVat] = useState(false)
+  /**
+   * 원본 월별이익현황 조건 실측(사본): 구분 · 기준월 · <b>창고 · 프로젝트 · 관리항목 ·
+   * 거래처 · 품목</b> · 판매액 · 기타.
+   *
+   * <p>우리에겐 연도·구분·판매액·원가뿐이라 <b>거를 수가 없었다</b> — 한 해치 판매가
+   * 통째로 나오고, "이 거래처만" "이 창고만" 을 보려면 화면을 눈으로 훑는 수밖에 없었다.
+   * 일별이익현황에는 이미 있는 조건들이라 같은 이름·같은 자리로 둔다.
+   *
+   * <p>[관리항목]은 안 만든다 — 판매 라인이 관리항목을 안 들어서 거를 수가 없다.
+   */
+  const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '' })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
     setLoading(true)
@@ -99,7 +112,12 @@ export default function MonthlyProfitPage() {
 
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
-    .flatMap((d) => d.lines.map((l) => {
+    .filter((d) => !cond.warehouse || (d.warehouseName ?? '').includes(cond.warehouse))
+    .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
+    .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
+    .flatMap((d) => d.lines
+      .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
+      .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
       const price = costPrice(l.itemId, d.saleDate)
       const cost = price === null ? null : price * l.quantity
@@ -119,7 +137,7 @@ export default function MonthlyProfitPage() {
       }
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, year, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+    [sales, year, cond, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
 
   const rows = useMemo(() => {
     const keyOf = (l: typeof lines[number]) =>
@@ -189,6 +207,7 @@ export default function MonthlyProfitPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '' }) },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -222,6 +241,29 @@ export default function MonthlyProfitPage() {
           ))}
         </div>
       </div>
+
+      {/*
+        원본 월별이익현황 조건의 창고·프로젝트·거래처·품목. 일별이익현황과 같은 이름·같은 자리다.
+        [관리항목]은 판매 라인이 관리항목을 안 들어 거를 수가 없어 만들지 않는다.
+      */}
+      <ul className="ec-cond" style={{ marginBottom: 10 }}>
+        <EcCond label="창고" pick>
+          <input className="ec-input" placeholder="창고명 일부" value={cond.warehouse}
+                 onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={cond.project}
+                 onChange={(e) => setC({ project: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
+                 onChange={(e) => setC({ partner: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <input className="ec-input" placeholder="품목명·코드 일부" value={cond.item}
+                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+      </ul>
 
       {unknownCost > 0 && (
         <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>

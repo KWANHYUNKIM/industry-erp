@@ -71,6 +71,13 @@ export default function WorkResultListPage() {
   const [worker, setWorker] = useState('')
   const [orderNo, setOrderNo] = useState('')
   const [product, setProduct] = useState('')
+  /**
+   * 원본 작업내역현황 조건 실측(사본): 구분 · 기준일자 · <b>생산공장</b> · 작업 · 담당자 ·
+   * <b>작업품목</b> · 생산품목. 둘이 빠져 있었다 — 작업품목은 이번에 자리가 생겨서,
+   * 생산공장은 응답에 있는데 조건이 없어서 못 걸렀다.
+   */
+  const [workItem, setWorkItem] = useState('')
+  const [plant, setPlant] = useState('')
 
   async function load() {
     setLoading(true)
@@ -91,6 +98,7 @@ export default function WorkResultListPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to)
     setMode('내역'); setProcess(''); setWorker(''); setOrderNo(''); setProduct('')
+    setWorkItem(''); setPlant('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
@@ -99,8 +107,10 @@ export default function WorkResultListPage() {
     if (worker && !(r.worker ?? '').includes(worker)) return false
     if (orderNo && !(r.workOrderNo ?? '').includes(orderNo)) return false
     if (product && !(r.productName ?? '').includes(product)) return false
+    if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
+    if (plant && !(r.warehouseName ?? '').includes(plant)) return false
     return true
-  }), [rows, from, to, process, worker, orderNo, product])
+  }), [rows, from, to, process, worker, orderNo, product, workItem, plant])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workTimeMin }),
@@ -193,6 +203,15 @@ export default function WorkResultListPage() {
         <EcCond label="생산품목" pick>
           <input className="ec-input" placeholder="품목명 일부" value={product}
                  onChange={(e) => setProduct(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        {/* 원본 조건의 [작업품목]. 그 작업이 실제로 다루는 품목 — 생산품목과 다르다. */}
+        <EcCond label="작업품목" pick>
+          <input className="ec-input" placeholder="작업품목명 일부" value={workItem}
+                 onChange={(e) => setWorkItem(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="생산공장" pick>
+          <input className="ec-input" placeholder="공장명 일부" value={plant}
+                 onChange={(e) => setPlant(e.target.value)} style={{ width: 160 }} />
         </EcCond>
       </EcStatusPanel>
 

@@ -80,6 +80,12 @@ export default function ReceiptStatusPage() {
   const [item, setItem] = useState('')
   const [worker, setWorker] = useState('')
   const [project, setProject] = useState('')
+  /**
+   * 원본 생산입고현황 조건 실측(사본): 구분 · 일자 · 프로젝트 · 품목 · 담당자 · <b>적요</b> ·
+   * 채무번호. 적요가 빠져 있었다 — 왜 그렇게 입고했는지 적어 두고도 그 말로는 못 찾았다.
+   * (채무번호는 외주 매입과 잇는 값이라 우리에게 없다.)
+   */
+  const [note, setNote] = useState('')
   const [mode, setMode] = useState<Mode>('내역')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
@@ -109,7 +115,7 @@ export default function ReceiptStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setWarehouseId(''); setItem(''); setWorker(''); setMode('내역'); setProject('')
+    setWarehouseId(''); setItem(''); setWorker(''); setMode('내역'); setProject(''); setNote('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
@@ -118,8 +124,9 @@ export default function ReceiptStatusPage() {
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
     if (worker && !(r.createdBy ?? '').includes(worker)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
+    if (note && !(r.note ?? '').includes(note)) return false
     return true
-  }), [rows, from, to, warehouseId, item, worker, project])
+  }), [rows, from, to, warehouseId, item, worker, project, note])
 
   /** 집계 — 품목 단위로 입고수량을 모은다. */
   const byItem = useMemo(() => {
@@ -203,6 +210,11 @@ export default function ReceiptStatusPage() {
         <EcCond label="담당자" pick>
           <input className="ec-input" placeholder="작성자 일부" value={worker}
                  onChange={(e) => setWorker(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        {/* 원본 조건의 [적요]. 왜 그렇게 입고했는지 적어 두고도 그 말로는 못 찾았다. */}
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={note}
+                 onChange={(e) => setNote(e.target.value)} style={{ width: 200 }} />
         </EcCond>
       </EcStatusPanel>
 

@@ -90,6 +90,19 @@ export default function WorkProcessPage() {
   const [prevBased, setPrevBased] = useState(true)
   /** 원본 [미작업량] — 이만큼 이상 남은 것만 본다. */
   const [minRemain, setMinRemain] = useState('')
+  /**
+   * 원본 작업지시서작업처리 조건 실측(사본): 기준일자 · <b>납기일자</b> · 잔량기준 ·
+   * <b>생산공장</b> · <b>작업</b> · 작업품목 · 생산품목 · 담당자 · 미작업량.
+   *
+   * <p>납기일자·생산공장·작업이 빠져 있었다. 처리할 줄이 수십 개면 "오늘 납기인 것부터",
+   * "이 공장 것만" 을 못 골라 눈으로 훑게 된다.
+   *
+   * <p>[작업품목]은 BOR 의 작업기준품목이라 아직 없다(사본에 값이 비어 있어 의미를 못 쟀다).
+   * [담당자]는 이 화면이 작업지시의 담당자를 안 받는다.
+   */
+  const [dueDate, setDueDate] = useState('')
+  const [plant, setPlant] = useState('')
+  const [work, setWork] = useState('')
   /** 줄마다 입력한 처리 수량·시간 */
   const [input, setInput] = useState<Record<string, { qty: string; minutes: string }>>({})
 
@@ -144,6 +157,8 @@ export default function WorkProcessPage() {
       if (wo.orderDate < from || wo.orderDate > to) continue
       if (orderNo && !wo.orderNo.includes(orderNo)) continue
       if (item && !`${wo.productCode} ${wo.productName}`.includes(item)) continue
+      if (dueDate && (wo.dueDate ?? '') !== dueDate) continue
+      if (plant && !(wo.warehouseName ?? '').includes(plant)) continue
       const ops = opsOf.get(wo.productId) ?? []
       let prevDone = wo.plannedQty   // 첫 공정의 상한은 지시수량이다
       for (const o of ops) {
@@ -161,10 +176,11 @@ export default function WorkProcessPage() {
     }
     const min = Number(minRemain)
     return out
+      .filter((r) => !work || `${r.processName} ${r.workName}`.includes(work))
       .filter((r) => (minRemain && !Number.isNaN(min) ? r.remainQty >= min : r.remainQty > 0))
       .sort((a, b) => (a.wo.orderDate < b.wo.orderDate ? 1 : a.wo.orderDate > b.wo.orderDate ? -1
         : a.wo.orderNo.localeCompare(b.wo.orderNo) || a.seq - b.seq))
-  }, [orders, opsOf, doneOf, from, to, item, orderNo, prevBased, minRemain])
+  }, [orders, opsOf, doneOf, from, to, item, orderNo, prevBased, minRemain, dueDate, plant, work])
 
   async function process(r: Row) {
     const v = input[r.key]
@@ -200,6 +216,7 @@ export default function WorkProcessPage() {
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to); setItem(''); setOrderNo('')
           setPrevBased(true); setMinRemain('')
+          setDueDate(''); setPlant(''); setWork('')
         } },
         { label: 'Excel' },
       ]}
@@ -219,6 +236,19 @@ export default function WorkProcessPage() {
         <EcCond label="생산품목" pick>
           <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
                  onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        {/* 원본 조건의 [납기일자]·[생산공장]·[작업]. 처리할 줄이 많으면 이것 없이는 눈으로 훑게 된다. */}
+        <EcCond label="납기일자" pick>
+          <input type="date" className="ec-input" value={dueDate}
+                 onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
+        </EcCond>
+        <EcCond label="생산공장" pick>
+          <input className="ec-input" placeholder="공장명 일부" value={plant}
+                 onChange={(e) => setPlant(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="작업" pick>
+          <input className="ec-input" placeholder="공정명·작업명 일부" value={work}
+                 onChange={(e) => setWork(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="잔량기준">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
