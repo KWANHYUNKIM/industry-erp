@@ -31,12 +31,15 @@ interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
   createdBy: string
   materials: ProductionMaterial[]
 }
-interface WorkOrder { id: number; orderNo: string; productName: string; remainingQty: number }
+interface WorkOrder { id: number; orderNo: string; productName: string; remainingQty: number; warehouseName: string }
+interface Warehouse { id: number; name: string; kind: string; active: boolean }
 interface Item { id: number; code: string; name: string; unit: string }
 interface MaterialLine { itemId: string; quantity: string }
 
@@ -49,12 +52,19 @@ interface FlatRow {
   productionDate: string
   materialName: string
   consumeQty: number | null
+  fromWarehouseName: string
   warehouseName: string
 }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
-const emptyForm = { workOrderId: '', producedQty: '', productionDate: today() }
+/**
+ * 원본 생산입고 II·III 의 머리 항목에 [생산된공장] · [받는창고] 가 있다.
+ *
+ * 자재는 생산된공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
+ * 비워 두면 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있어 강제하지 않는다.
+ */
+const emptyForm = { workOrderId: '', producedQty: '', productionDate: today(), fromWarehouseId: '', toWarehouseId: '' }
 
 export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
   const title = withQualityRequest ? '생산입고 III - 소모품목 선택(품질검사요청)' : '생산입고 II - 소모품목 선택'
@@ -64,6 +74,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
   const [rows, setRows] = useState<Production[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -85,12 +96,14 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
 
   async function loadRefs() {
     try {
-      const [wo, it] = await Promise.all([
+      const [wo, it, wh] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Item[]>('/items'),
+        api.get<Warehouse[]>('/warehouses'),
       ])
       setWorkOrders(wo.data)
       setItems(it.data)
+      setWarehouses(wh.data.filter((w) => w.active))
     } catch {
       /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
     }
@@ -129,6 +142,8 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
         workOrderId: Number(form.workOrderId),
         producedQty: form.producedQty === '' ? 0 : Number(form.producedQty),
         productionDate: form.productionDate || null,
+        fromWarehouseId: form.fromWarehouseId ? Number(form.fromWarehouseId) : null,
+        warehouseId: form.toWarehouseId ? Number(form.toWarehouseId) : null,
         materials,
       })
       let msg = `생산입고 ${res.data.prodNo} 등록`
@@ -160,17 +175,22 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
     }
   }
 
+  // 비워 두면 작업지시의 창고를 쓴다 — 어디로 가는지 빈칸에 미리 적어 준다.
+  const formWarehouse = workOrders.find((w) => String(w.id) === form.workOrderId)?.warehouseName ?? ''
+
   const flat: FlatRow[] = rows.flatMap((p): FlatRow[] =>
     p.materials.length === 0
       ? [{
           key: `${p.id}`, prodNo: p.prodNo, workOrderNo: p.workOrderNo, productName: p.productName,
           receiptQty: p.producedQty, productionDate: p.productionDate,
-          materialName: '-', consumeQty: null, warehouseName: p.warehouseName,
+          materialName: '-', consumeQty: null,
+          fromWarehouseName: p.fromWarehouseName ?? p.warehouseName, warehouseName: p.warehouseName,
         }]
       : p.materials.map((m, i) => ({
           key: `${p.id}-${m.componentId}-${i}`, prodNo: p.prodNo, workOrderNo: p.workOrderNo, productName: p.productName,
           receiptQty: p.producedQty, productionDate: p.productionDate,
-          materialName: `[${m.componentCode}] ${m.componentName}`, consumeQty: m.quantity, warehouseName: p.warehouseName,
+          materialName: `[${m.componentCode}] ${m.componentName}`, consumeQty: m.quantity,
+          fromWarehouseName: p.fromWarehouseName ?? p.warehouseName, warehouseName: p.warehouseName,
         })),
   )
 
@@ -206,6 +226,24 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산일자</label>
               <input type="date" className={inputCls} value={form.productionDate} onChange={(e) => setForm({ ...form, productionDate: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">생산된공장</label>
+              <select className={inputCls} value={form.fromWarehouseId}
+                      onChange={(e) => setForm({ ...form, fromWarehouseId: e.target.value })}>
+                <option value="">{formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: '#8a929c' }}>자재가 빠지는 곳</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">받는창고</label>
+              <select className={inputCls} value={form.toWarehouseId}
+                      onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}>
+                <option value="">{formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
             </div>
           </div>
 
@@ -277,15 +315,16 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th>소모자재</th>
             <th style={{ textAlign: 'right' }}>소모수량</th>
-            <th>창고</th>
+            <th>생산된공장</th>
+            <th>받는창고</th>
             <th>생산일자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>생산입고 내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>생산입고 내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -295,6 +334,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.receiptQty.toLocaleString()}</td>
               <td>{r.materialName}</td>
               <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : '-'}</td>
+              <td>{r.fromWarehouseName}</td>
               <td>{r.warehouseName}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.productionDate}</td>
             </tr>

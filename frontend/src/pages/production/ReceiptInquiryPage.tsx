@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 
-/** 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동) */
+/**
+ * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
+ *
+ * 원본 열 실측(사본): 일자-No. · <b>생산된공장명</b> · <b>받는창고명</b> · 품목명[규격] ·
+ * 수량 · 담당자명. 우리는 [생산된공장]과 [담당자]가 빠져 있어 붙인다 — 자재가 어느 공장에서
+ * 빠졌는지 여기서 못 보면 공장별 재고가 왜 줄었는지 되짚을 자리가 없다.
+ */
 interface Row {
   id: number
   prodNo: string
@@ -11,8 +17,10 @@ interface Row {
   productName: string
   productUnit: string
   warehouseName: string
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
+  createdBy: string | null
 }
 
 export default function ReceiptInquiryPage() {
@@ -57,14 +65,16 @@ export default function ReceiptInquiryPage() {
             <th>완제품명</th>
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th>단위</th>
-            <th>입고창고</th>
+            <th>생산된공장</th>
+            <th>받는창고</th>
+            <th>담당자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -74,7 +84,9 @@ export default function ReceiptInquiryPage() {
               <td>[{r.productCode}] {r.productName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
               <td>{r.productUnit}</td>
+              <td>{r.fromWarehouseName ?? r.warehouseName}</td>
               <td>{r.warehouseName}</td>
+              <td>{r.createdBy ?? ''}</td>
             </tr>
           ))}
         </tbody>

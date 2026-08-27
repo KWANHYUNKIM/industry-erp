@@ -18,6 +18,7 @@ interface Production {
   productCode: string
   productName: string
   warehouseName: string
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
   materials: ProductionMaterial[]
@@ -32,6 +33,8 @@ interface Row {
   bomQtyPer: number | null
   totalConsume: number
   unit: string
+  /** 자재가 빠진 곳. 안 고르고 입고했으면 받는창고와 같다. */
+  fromWarehouse: string
   warehouse: string
 }
 
@@ -59,6 +62,7 @@ export default function BomConsumeReceiptPage() {
             bomQtyPer: p.producedQty ? m.quantity / p.producedQty : null,
             totalConsume: m.quantity,
             unit: m.unit,
+            fromWarehouse: p.fromWarehouseName ?? p.warehouseName,
             warehouse: p.warehouseName,
           })
         }
@@ -95,14 +99,15 @@ export default function BomConsumeReceiptPage() {
             <th style={{ textAlign: 'right' }}>BOM소요량/개</th>
             <th style={{ textAlign: 'right' }}>총소모량</th>
             <th>단위</th>
-            <th>입고창고</th>
+            <th>생산된공장</th>
+            <th>받는창고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -113,6 +118,7 @@ export default function BomConsumeReceiptPage() {
               <td style={{ textAlign: 'right' }}>{r.bomQtyPer !== null ? r.bomQtyPer.toLocaleString() : '-'}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.totalConsume.toLocaleString()}</td>
               <td>{r.unit}</td>
+              <td>{r.fromWarehouse}</td>
               <td>{r.warehouse}</td>
             </tr>
           ))}

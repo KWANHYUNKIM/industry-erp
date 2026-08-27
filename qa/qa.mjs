@@ -3473,6 +3473,10 @@ async function scenarioProductionWarehouses(f) {
   })
   eq('생산된공장이 실린다', made.fromWarehouseId, f.warehouse.id)
   eq('받는창고가 실린다', made.warehouseId, store.id)
+  // 생산입고 I·II·III·조회 네 화면이 [생산된공장] 칸에 이 이름을 그대로 찍는다.
+  // id 만 오면 화면이 창고 목록을 따로 뒤져야 하고, 지운 창고면 빈칸이 된다.
+  eq('생산된공장 이름이 실린다', made.fromWarehouseName, f.warehouse.name)
+  eq('받는창고 이름이 실린다', made.warehouseName, store.name)
   eq('자재는 공장에서 빠진다', await stockOf(line.componentId, f.warehouse.id), matBefore - per * 2)
   eq('완제품은 받는창고로 들어간다', await stockOf(f.product.id, store.id), prodBefore + 2)
 

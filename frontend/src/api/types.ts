@@ -351,6 +351,12 @@ export interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  /**
+   * 생산된공장 — 자재가 빠진 곳. 원본 생산입고조회의 [생산된공장명] 열.
+   * 안 고르면 null 이고 받는창고 하나에서 오간 것이다.
+   */
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null

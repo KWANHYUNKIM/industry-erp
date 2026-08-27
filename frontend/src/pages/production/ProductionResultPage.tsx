@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Production, ProductionMaterial, WorkOrder } from '../../api/types'
+import type { Production, ProductionMaterial, Warehouse, WorkOrder } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 
@@ -18,10 +18,23 @@ export default function ProductionResultPage() {
   const [workOrderId, setWorkOrderId] = useState('')
   const [qty, setQty] = useState('')
   const [date, setDate] = useState(today())
+  /**
+   * 원본 생산입고 I 의 머리 항목 — [생산된공장] · [받는창고].
+   *
+   * 자재는 생산된공장에서 빠지고 완제품은 받는창고로 들어간다. 생산불출(창고 → 공장)의
+   * 반대 방향이다. 비워 두면 작업지시의 창고 하나에서 오간다 — 공장을 안 쓰는 회사도 있다.
+   */
+  const [fromWarehouseId, setFromWarehouseId] = useState('')
+  const [toWarehouseId, setToWarehouseId] = useState('')
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
   async function loadOrders() {
     const res = await api.get<WorkOrder[]>('/work-orders')
     setOrders(res.data)
+  }
+  async function loadWarehouses() {
+    const res = await api.get<Warehouse[]>('/warehouses')
+    setWarehouses(res.data.filter((w) => w.active))
   }
   async function loadProductions() {
     const res = await api.get<Production[]>('/productions')
@@ -30,6 +43,7 @@ export default function ProductionResultPage() {
 
   useEffect(() => {
     loadOrders()
+    loadWarehouses()
     loadProductions()
   }, [])
 
@@ -49,9 +63,12 @@ export default function ProductionResultPage() {
 
   const selectable = orders.filter((o) => o.status !== 'COMPLETED' && o.remainingQty > 0)
   const selectedOrder = orders.find((o) => String(o.id) === workOrderId)
+  // 비워 두면 작업지시의 창고를 쓴다 — 어디로 가는지 빈칸에 미리 적어 준다.
+  const orderWarehouse = selectedOrder?.warehouseName ?? ''
 
   function reset() {
     setQty(''); setWorkOrderId(''); setPreview([]); setError(''); setOk('')
+    setFromWarehouseId(''); setToWarehouseId('')
   }
 
   async function submit(e: FormEvent) {
@@ -65,10 +82,14 @@ export default function ProductionResultPage() {
         workOrderId: Number(workOrderId),
         producedQty: Number(qty),
         productionDate: date,
+        fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
+        warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
       })
       setOk(`${res.data.prodNo} 생산 완료 · 완제품 ${won(res.data.producedQty)} 입고, 자재 ${res.data.materials.length}종 출고`)
       setQty('')
       setWorkOrderId('')
+      setFromWarehouseId('')
+      setToWarehouseId('')
       setPreview([])
       loadOrders()
       loadProductions()
@@ -124,6 +145,32 @@ export default function ProductionResultPage() {
               <tr>
                 <th style={th}>생산일자</th>
                 <td><input type="date" className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>생산된공장</th>
+                <td>
+                  <select className="ec-input" value={fromWarehouseId}
+                          onChange={(e) => setFromWarehouseId(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">{orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>자재가 빠지는 곳</div>
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>받는창고</th>
+                <td>
+                  <select className="ec-input" value={toWarehouseId}
+                          onChange={(e) => setToWarehouseId(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">{orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
+                </td>
               </tr>
             </tbody>
           </table>
