@@ -54,7 +54,14 @@ async function must(method, path, body) {
 
 // ── 단언 ────────────────────────────────────────────────────────────────────
 
+/**
+ * 이번 실행에서 <b>실제로 재 본</b> 단언 이름. 아래 checkDeadAssertions 가 소스와 견준다.
+ * 이름이 겹치는 단언은 한 번만 담기지만, 여기서 보려는 것은 '한 번도 안 잰 것' 이라 괜찮다.
+ */
+const ranLabels = new Set()
+
 const eq = (label, actual, expected) => {
+  ranLabels.add(label)
   const okay = String(actual) === String(expected)
   console.log(`  ${okay ? '✅' : '❌'} ${label}${okay ? '' : `  (기대 ${expected}, 실제 ${actual})`}`)
   okay ? pass++ : fail++
@@ -63,6 +70,7 @@ const eq = (label, actual, expected) => {
 const isNull = (label, actual) => eq(label, actual === null || actual === undefined ? 'null' : actual, 'null')
 
 const rejects = async (label, method, path, body, expectSubstring) => {
+  ranLabels.add(label)
   const r = await call(method, path, body)
   const okay = !r.ok && (!expectSubstring || String(r.data?.message ?? '').includes(expectSubstring))
   console.log(`  ${okay ? '✅' : '❌'} ${label}${okay ? `  ("${r.data?.message ?? ''}")` : `  (HTTP ${r.status}: ${JSON.stringify(r.data)})`}`)
@@ -961,11 +969,29 @@ async function scenarioWithholding() {
   eq('실지급액 = 지급총액 − 공제합계',
     Number(slip.netPay), Number(slip.grossPay) - Number(slip.deductionTotal))
 
-  // 확정 전에는 신고 대상이 아니다
+  /*
+   * <b>확정 전에는 신고 대상이 아니다.</b>
+   *
+   * 예전에는 이 단언들을 if (!existing) 안에 뒀는데, 첫 실행에서 명세를 확정해 버리므로
+   * <b>두 번째 실행부터는 통째로 건너뛰었다</b> — 화면에 ✅ 조차 안 떠서 없어진 줄도 몰랐다.
+   * 확정된 명세는 지울 수 없으니 <b>늘 초안인 다른 달</b>을 하나 만들어 그것으로 잰다.
+   */
+  const DRAFT_MONTH = '2026-12'
+  for (const old of (await must('GET', `/payslips?month=${DRAFT_MONTH}`))
+    .filter((x) => x.employeeId === emp.id && x.status === 'DRAFT')) {
+    await call('DELETE', `/payslips/${old.id}`)
+  }
+  const draft = await must('POST', '/payslips', {
+    employeeId: emp.id, payMonth: DRAFT_MONTH, baseSalary: 3000000,
+    lines: [{ kind: 'ALLOWANCE', name: '식대', amount: 200000 }],
+  })
+  const beforeStmt = await must('GET', `/withholding/statement?month=${DRAFT_MONTH}`)
+  eq('미확정 명세는 신고 인원에서 제외',
+    beforeStmt.rows.some((r) => r.employeeId === emp.id), false)
+  eq('미확정 건수로만 잡힘', beforeStmt.draftCount > 0, true)
+  await must('DELETE', `/payslips/${draft.id}`)
+
   if (!existing) {
-    const before = await must('GET', `/withholding/statement?month=${MONTH}`)
-    eq('미확정 명세는 신고 인원에서 제외', before.rows.some((r) => r.employeeId === emp.id), false)
-    eq('미확정 건수로만 잡힘', before.draftCount > 0, true)
     await must('POST', `/payslips/${slip.id}/confirm`)
   }
 
@@ -3866,11 +3892,20 @@ async function scenarioEmployeeMaster(f) {
     hireDate: '2088-03-02', baseSalary: 2500000,
   })
   eq('사원을 새로 등록할 수 있다', made.code, CODE)
-  if (!exists) {
-    eq('처음엔 사용중이다', made.active, true)
-    isNull('퇴사일은 비어 있다', made.resignDate)
-    eq('목록이 하나 늘었다', (await must('GET', '/employees/all')).length, before + 1)
-  }
+  eq('만든 직후 목록에 있다',
+    (await must('GET', '/employees/all')).length, exists ? before : before + 1)
+
+  /*
+   * <b>처음 상태</b>를 늘 잰다. 예전에는 if (!exists) 안에 넣어 뒀는데, 사원은 지우지
+   * 않으므로 두 번째 실행부터 통째로 건너뛰었다 — 한 번 재고 다시는 안 재는 단언이었다.
+   * 있으면 처음 상태로 되돌려 놓고 잰다.
+   */
+  const reset = await must('PUT', `/employees/${made.id}`, {
+    name: `${P}신입`, jobTitle: '사원', departmentId: dept ? dept.id : null,
+    hireDate: '2088-03-02', baseSalary: 2500000, active: true,
+  })
+  eq('처음엔 사용중이다', reset.active, true)
+  isNull('퇴사일은 비어 있다', reset.resignDate)
 
   const dup = await call('POST', '/employees', { code: CODE, name: '중복', baseSalary: 0 })
   eq('같은 사번은 거부', dup.status, 409)
@@ -6950,8 +6985,11 @@ async function scenarioSlipPriceBulk(f) {
   eq('전표 합계 = 공급가액 + 부가세', slip.totalAmount, slip.supplyAmount + slip.vatAmount)
   eq('금액이 실제로 늘었다', slip.supplyAmount > before.supplyAmount, true)
 
-  // 면세 전표였다면 단가를 고쳐도 부가세가 생기면 안 된다.
-  if (mine.taxTypeName === '면세') eq('면세는 면세로 남는다', slip.vatAmount, 0)
+  /*
+    * 예전에는 여기서 "고른 줄이 면세면 면세로 남는지" 를 조건부로 봤다. 개발 자료에서
+    * 그 줄이 면세인 적이 없어 <b>한 번도 실행되지 않았다.</b> 아래에서 면세 전표를
+    * 직접 만들어 재고 있으므로(면세는 단가를 올려도 부가세가 안 생긴다) 이 줄은 지웠다.
+    */
 
   /*
    * <b>반올림으로 부가세가 0 이 된 과세 전표.</b>
@@ -7246,6 +7284,8 @@ async function main() {
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
 
+  checkDeadAssertions()
+
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
   if (fail > 0) {
@@ -7253,6 +7293,35 @@ async function main() {
     process.exit(1)
   }
   console.log('전부 통과했습니다.')
+}
+
+/**
+ * <b>한 번도 재 보지 않은 단언</b>을 찾는다.
+ *
+ * <p>조건문 안에 든 단언은 그 조건이 거짓이면 그냥 사라진다 — 화면에 ✅ 조차 안 뜨므로
+ * <b>없어진 줄도 모른다.</b> 통과 수만 보고 있으면 영영 눈치채지 못한다.
+ *
+ * <p>실제로 네 번 겪었다. 급여의 '확정 전' 단언은 첫 실행이 명세를 확정해 버려서
+ * 두 번째 실행부터 죽었고, 사원등록의 '처음 상태' 셋은 사원을 지우지 않게 바꾸면서 죽었고,
+ * 단가일괄변경의 면세 단언은 개발 자료에 면세 줄이 없어 <b>한 번도</b> 안 돌았고,
+ * 생산입고 노무시간은 조건문 안에서 통과만 하고 있었다.
+ *
+ * <p>이름이 템플릿(\`${...}\`)인 단언은 뺀다 — 실행할 때 값이 박혀 이름이 달라진다.
+ * '건너뜀' 이라고 이름에 적어 둔 것도 뺀다 — 그건 안 도는 것이 정상인 안내다.
+ */
+function checkDeadAssertions() {
+  const src = readFileSync(new URL('./qa.mjs', import.meta.url), 'utf8')
+  const declared = new Set()
+  for (const m of src.matchAll(/\b(?:eq|isNull|rejects)\('([^']+)'/g)) {
+    if (!m[1].includes('${') && !m[1].includes('건너뜀')) declared.add(m[1])
+  }
+  // 자기 자신은 뺀다 — 이 단언은 검사가 끝난 <b>뒤에</b> 담기므로 늘 안 돈 것으로 보인다.
+  const SELF = '모든 단언이 이번 실행에서 실제로 돌았다'
+  const dead = [...declared].filter((d) => d !== SELF && !ranLabels.has(d)).sort()
+
+  section('■ 한 번도 재 보지 않은 단언')
+  eq('모든 단언이 이번 실행에서 실제로 돌았다',
+    dead.length ? dead.join(' / ') : '없음', '없음')
 }
 
 main().catch((e) => {
