@@ -68,6 +68,18 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
     // 원본 그대로의 이름. 오늘 기준 사흘 전부터 이레 뒤까지 — 지난 일과 다가올 일을 함께 본다.
     case '최근3일+7일':
       return { from: ymd(addDays(t, -3)), to: ymd(addDays(t, 7)) }
+    /*
+     * 원본 작업지시서작업처리의 기본 기간. 지난 30일부터 <b>앞으로 한 달</b>까지다.
+     *
+     * <p>앞으로 할 일을 고르는 화면이라 <b>미래가 들어간다</b> — 오늘까지만 보면
+     * 아직 안 온 납기의 작업지시가 목록에서 빠져 "할 일이 없다" 로 보인다.
+     * 한 달 뒤는 <b>같은 날</b>이다(월말 보정 없이 setMonth +1) — 3/31 의 한 달 뒤는 4/30 이 아니라
+     * 5/1 이 되지만, 원본도 그 자리를 '(+1개월)' 이라고만 부르고 하루 이틀 차이를 따지지 않는다.
+     */
+    case '최근30일(+1개월)': {
+      const end = new Date(t.getFullYear(), t.getMonth() + 1, t.getDate())
+      return { from: ymd(addDays(t, -30)), to: ymd(end) }
+    }
     // 현황 화면에서 쓰는 것들. '금월' 과 달리 월말이 아니라 **오늘**까지다.
     case '금월(~오늘)':
       return { from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) }
@@ -179,6 +191,12 @@ export const SETTLE_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종
 export const COMPARE_PICKS = [
   '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '종료일', '이번기수(~전월)',
 ] as const
+
+/**
+ * 작업지시서작업처리(ESJ048M) — 앞으로 할 일을 고르는 화면이라 <b>미래가 들어간다</b>.
+ * 원본 기본값이 '최근30일(+1개월)' 이고, 그 버튼도 그 자리에 있다.
+ */
+export const WORK_PROCESS_PICKS = [...BASE_PICKS, '최근30일(+1개월)', '종료일'] as const
 
 /** 미주문현황(E040211) — 둘 다 붙는다 */
 export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const

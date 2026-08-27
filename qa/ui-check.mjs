@@ -514,6 +514,67 @@ console.log('\n■ 원본 메뉴 이름을 우리도 쓰고 있나')
     missing.join('\n') || '없음', '없음')
 }
 
+// ── 2-f) 원본 기본 조회기간 ↔ 우리 기본값 ────────────────────────────────
+console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나')
+
+/*
+ * <b>화면마다 처음 보이는 기간이 원본과 같은가.</b>
+ *
+ * <p>qa/fixtures/ecount-period-default.json 은 사본 조건 판에 <b>눌려 있던</b> 기간
+ * 빠른선택이다. 늘 있는 것(금일·전일·금주…)은 빼고 그 화면만의 것만 남겼다.
+ *
+ * <p>이게 다르면 같은 화면인데 <b>처음 보이는 숫자가 다르다.</b> 판매현황은 원본이
+ * [전월+금월]인데 우리는 금월(~오늘)이라 지난달에 판 것이 안 보였고, 구매현황은
+ * 아예 비워 두어 몇 해치가 한 번에 쏟아졌다. 작업지시서작업처리는 원본이
+ * [최근30일(+1개월)]로 <b>미래까지</b> 보는데 우리는 오늘까지만 봐서, 아직 안 온 납기의
+ * 작업지시가 목록에서 빠져 '할 일이 없다' 로 보였다.
+ *
+ * <p>화면 파일에서 periodOf('…') 로 잡는다. 기간을 그 함수로 안 정하는 화면은
+ * 정적으로 알 수 없어 건너뛴다.
+ */
+{
+  const capPeriod = JSON.parse(readFileSync('qa/fixtures/ecount-period-default.json', 'utf8'))
+
+  /** 사본 화면 이름 → 우리 화면 파일 */
+  const FILE_OF = new Map([
+    ['판매현황', 'trade/SalesStatusPage.tsx'],
+    ['구매현황', 'trade/PurchaseStatusPage.tsx'],
+    ['거래처관리대장 I', 'trade/PartnerLedgerPage.tsx'],
+    ['결제내역자료비교', 'trade/PaymentComparePage.tsx'],
+    ['구매할인현황', 'trade/PurchaseDiscountPage.tsx'],
+    ['수금현황', 'trade/CollectionPage.tsx'],
+    ['지급현황', 'trade/CollectionPage.tsx'],
+    ['업무일지', 'groupware/WorkLogPage.tsx'],
+    ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
+  ])
+
+  /** 아직 못 맞춘 것. 왜 못 맞추는지를 적는다. */
+  const NOT_YET = new Map([
+    ['거래처별채권', '기간이 아니라 기준일자 한 점으로 보는 화면이라 그 버튼을 걸 자리가 없다'],
+    ['거래처별채무', '위와 같다'],
+    ['설문조사현황', '기간을 periodOf 로 정하지 않는다 — 설문 목록을 통째로 받아 거른다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [fam, labels] of Object.entries(capPeriod)) {
+    if (NOT_YET.has(fam)) continue
+    const rel = FILE_OF.get(fam)
+    if (!rel) { bad.push(fam + '  (어느 화면인지 안 이어 놓았다)'); continue }
+    const file = 'frontend/src/pages/' + rel
+    if (!existsSync(file)) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
+    const src = readFileSync(file, 'utf8')
+    checked++
+    // 그 화면이 쓰는 periodOf 라벨 가운데 원본 기본값이 하나라도 있으면 통과.
+    const used = [...src.matchAll(/periodOf\('([^']+)'\)/g)].map((m) => m[1])
+    if (!labels.some((l) => used.includes(l))) {
+      bad.push(fam + '  원본 [' + labels.join(' | ') + '] · 우리 [' + [...new Set(used)].join(' | ') + ']')
+    }
+  }
+  eq('기간 기본값을 잰 화면 ' + checked + '개가 원본과 같다 (못 맞춘 ' + NOT_YET.size + '개는 이유가 적혀 있다)',
+    bad.join('\n') || '없음', '없음')
+}
+
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 

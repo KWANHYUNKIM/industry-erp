@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
-import { SETTLE_PICKS } from '../../components/EcPeriodPicks'
+import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
@@ -49,7 +49,15 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [keyword, setKeyword] = useState('')
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
   const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
+  /*
+   * 원본 수금현황의 기본 기간은 <b>[이번기수]</b> 다(사본 조건 판의 버튼).
+   * 우리는 비워 두어 수금 전체가 나왔다 — 이번 기수에 얼마 받았는지를 보는 화면인데
+   * 지난 기수 것까지 섞여 합계가 그 뜻이 아니게 된다.
+   */
+  const initPeriod = periodOf('이번기수')!
+  const [cond, setCond] = useState({
+    from: initPeriod.from, to: initPeriod.to, partner: '', method: '', manager: '', project: '',
+  })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {

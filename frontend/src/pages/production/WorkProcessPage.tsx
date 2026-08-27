@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { WORK_PROCESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
@@ -81,7 +81,7 @@ export default function WorkProcessPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
 
-  const init = periodOf('금월(~오늘)')!
+  const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [item, setItem] = useState('')
@@ -227,7 +227,7 @@ export default function WorkProcessPage() {
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={INQUIRY_PICKS}
+        picks={WORK_PROCESS_PICKS}
       >
         <EcCond label="작업지시No." pick>
           <input className="ec-input" placeholder="전체" value={orderNo}

@@ -45,8 +45,14 @@ export default function SalesStatusPage() {
    * 기준일자. 원본 판매현황의 **핵심 조건**인데 우리는 아예 없어서 전 기간을 통째로 뿌리고 있었다.
    * 전표가 쌓이면 못 쓴다. 기본은 원본과 같이 '금월(~오늘)'.
    */
-  const [from, setFrom] = useState(() => periodOf('금월(~오늘)')!.from)
-  const [to, setTo] = useState(() => periodOf('금월(~오늘)')!.to)
+  /*
+   * 원본 판매현황의 기본 기간은 <b>[전월+금월]</b> 이다(사본 조건 판에 그 버튼이 눌려 있다).
+   * 우리는 금월(~오늘) 로 열어서, 같은 화면인데 <b>처음 보이는 숫자가 달랐다</b> —
+   * 지난달에 판 것이 안 보이니 "왜 이것밖에 안 되지" 가 되고, 원본과 대조할 때마다
+   * 기간부터 맞춰야 했다.
+   */
+  const [from, setFrom] = useState(() => periodOf('전월+금월')!.from)
+  const [to, setTo] = useState(() => periodOf('전월+금월')!.to)
   /*
    * 원본 판매현황의 나머지 조건. 우리 데이터로 실제 거를 수 있는 것만 둔다 —
    * 값이 없는 조건칸을 만드는 건 5장 레시피가 금지한다.
@@ -244,7 +250,8 @@ export default function SalesStatusPage() {
    * 기간만 바꾸고 나머지 조건은 그대로여야 견주는 의미가 있다.
    */
   const reset = () => {
-    const m = periodOf('금월')!
+    // [다시 작성]은 화면을 열었을 때로 되돌린다 — 다른 기간으로 되돌리면 그건 초기화가 아니다.
+    const m = periodOf('전월+금월')!
     setFrom(m.from); setTo(m.to)
     setMode('내역'); setCompare('사용안함')
     setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')

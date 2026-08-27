@@ -69,7 +69,7 @@ export default function PaymentComparePage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const init = periodOf('금월(~오늘)')!
+  const init = periodOf('이번기수(~전월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [partner, setPartner] = useState('')

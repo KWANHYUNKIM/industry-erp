@@ -30,7 +30,7 @@ export default function PurchaseDiscountPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const init = periodOf('금월(~오늘)')!
+  const init = periodOf('직전기수')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')

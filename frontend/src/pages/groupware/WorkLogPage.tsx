@@ -38,7 +38,7 @@ export default function WorkLogPage() {
    * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
    */
   const [cond, setCond] = useState(() => {
-    const m = periodOf('금월')!
+    const m = periodOf('최근3일+7일')!
     return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
   })
   const setC = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
@@ -315,7 +315,7 @@ export default function WorkLogPage() {
         <button
           className="ec-btn"
           onClick={() => {
-            setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })
+            setCond({ from: periodOf('최근3일+7일')!.from, to: periodOf('최근3일+7일')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })
             setWithInactiveDept(false)
           }}
         >

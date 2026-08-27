@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
-import { STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
@@ -47,8 +47,14 @@ interface Filters {
   sortByModified: boolean
 }
 
+/*
+ * 원본 구매현황의 기본 기간은 <b>[전월+금월]</b> 이다(사본 조건 판에 그 버튼이 눌려 있다).
+ * 우리는 <b>비워 두어 전표 전체</b>가 나왔다 — 몇 해치가 한 번에 쏟아지고, 판매현황과
+ * 나란히 놓으면 두 화면이 다른 기간을 보여 준다.
+ */
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', warehouse: '', item: '',
+  dateFrom: periodOf('전월+금월')!.from, dateTo: periodOf('전월+금월')!.to,
+  partner: '', warehouse: '', item: '',
   project: '', taxType: '', tradeKind: '', sortByModified: false,
 }
 
