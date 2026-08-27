@@ -318,7 +318,8 @@ export default function AccountingReflectionPage() {
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
-        <EcCond label="전표번호" pick>
+        {/* 원본은 [판매No.]·[구매No.] 라고 부른다(사본 실측) — 어느 전표인지가 이름에 있다. */}
+        <EcCond label={kind === 'sales' ? '판매No.' : '구매No.'} pick>
           <input className="ec-input" placeholder="전표번호 일부" value={cond.docNo}
                  onChange={(e) => setC({ docNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>

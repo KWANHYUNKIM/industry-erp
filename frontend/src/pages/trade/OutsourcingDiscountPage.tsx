@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { subtotalBy } from '../../utils/subtotalBy'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -110,6 +111,17 @@ export default function OutsourcingDiscountPage() {
     () => shown.map((r) => ({ label: r.partner, value: r.orgAmount - r.reflectedAmount })),
     [shown])
 
+  /*
+   * 원본 [정렬/소계기준]. 줄은 (일자 × 거래처) 하나씩이라, 한 달 치를 펼치면
+   * <b>같은 거래처가 여러 줄로 흩어진다</b> — 어느 외주처에서 차액이 큰지는
+   * 눈으로 더해야 알 수 있었다.
+   */
+  const SUBTOTALS = ['거래처', '창고', '담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+  const groups = useMemo(() => subtotalBy(shown,
+    (r) => (subtotal === '창고' ? r.warehouse : subtotal === '담당자' ? r.employee : r.partner),
+    { org: (r) => r.orgAmount, ref: (r) => r.reflectedAmount }), [shown, subtotal])
+
   const totals = shown.reduce(
     (a, r) => ({ org: a.org + r.orgAmount, ref: a.ref + r.reflectedAmount }),
     { org: 0, ref: 0 },
@@ -139,6 +151,8 @@ export default function OutsourcingDiscountPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
@@ -221,6 +235,34 @@ export default function OutsourcingDiscountPage() {
           </tfoot>
         )}
       </table>
+      )}
+
+      {view === '표' && shown.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>{subtotal}</th>
+              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 140, textAlign: 'right' }}>생산금액</th>
+              <th style={{ width: 140, textAlign: 'right' }}>회계반영금액</th>
+              <th style={{ width: 140, textAlign: 'right' }}>차액</th>
+            </tr></thead>
+            <tbody>
+              {groups.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.org)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.ref)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? '#c60a2e' : '#8a929c' }}>
+                    {won(g.sums.org - g.sums.ref)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </EcListShell>
   )

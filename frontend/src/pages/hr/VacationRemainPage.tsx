@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -64,6 +65,14 @@ export default function VacationRemainPage() {
    * 잔여일수 응답은 사원·부서·일수만 주므로 거를 수 있는 것이 사원·부서뿐이다.
    * '소수점'은 반차 때문에 .5 가 나오는 자리라 원본에도 따로 있다 — 끄면 반올림해 보여 준다.
    */
+  /*
+   * 원본 [정렬/소계기준]. 줄은 사원마다 하나라, 사람이 많은 회사에서는
+   * <b>부서별로 얼마가 남았는지</b>를 눈으로 더해야 했다. 연차 소진 독려는
+   * 대개 부서 단위로 한다.
+   */
+  const SUBTOTALS = ['부서', '휴가명'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('부서')
+
   const shown = rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
@@ -72,6 +81,11 @@ export default function VacationRemainPage() {
   const days = (n: number) => n.toLocaleString('ko-KR', {
     minimumFractionDigits: decimals, maximumFractionDigits: decimals,
   })
+  const groups = useMemo(() => subtotalBy(shown,
+    (r) => (subtotal === '휴가명' ? r.leaveName : r.department),
+    { total: (r) => r.totalDays, used: (r) => r.usedDays, remain: (r) => r.remainingDays }),
+  [shown, subtotal])
+
   const totals = shown.reduce(
     (a, r) => ({ total: a.total + r.totalDays, used: a.used + r.usedDays, remain: a.remain + r.remainingDays }),
     { total: 0, used: 0, remain: 0 },
@@ -126,6 +140,15 @@ export default function VacationRemainPage() {
             <option value={3}>3자리</option>
           </select>
         </EcCond>
+        {/* 원본 [정렬/소계기준]. 조건 판의 아래쪽 줄이다(사본 실측). */}
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
+        </EcCond>
       </ul>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
@@ -173,6 +196,34 @@ export default function VacationRemainPage() {
           </tr>
         </tfoot>
       </table>
+
+      {shown.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>{subtotal}</th>
+              <th style={{ width: 90, textAlign: 'right' }}>사원수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>휴가일수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>휴가사용일수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>휴가잔여일수</th>
+            </tr></thead>
+            <tbody>
+              {groups.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{days(g.sums.total)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{days(g.sums.used)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                    {days(g.sums.remain)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </EcListShell>
   )
 }

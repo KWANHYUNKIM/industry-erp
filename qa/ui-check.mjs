@@ -1172,6 +1172,69 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-j) 원본 조건·머리 항목 ↔ 우리 항목 ─────────────────────────────────
+console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나')
+
+/*
+ * <b>원본 조건 판·입력 머리의 항목이 우리에게도 있나.</b>
+ *
+ * <p>사본에서 <code>&lt;li data-listid&gt;</code> 의 이름을 뽑아
+ * <code>qa/fixtures/ecount-form-fields.json</code>(47화면)에 적었다.
+ *
+ * <p>여기서 걸린 것: 생산불출입력·작업내역입력의 <b>[프로젝트]</b>(없어서 그 자재와
+ * 품이 프로젝트별 집계에서 빠졌다), 현황 여섯의 <b>[정렬/소계기준]</b>(소계 축이 하나로
+ * 박혀 있었다), 일괄회계반영의 <b>[구매No.]</b>(우리는 [전표번호]라 불렀다).
+ *
+ * <p>패널이 그릴 수 있다는 것과 <b>그 화면이 실제로 넘긴다</b>는 것은 다르다.
+ * 처음 대조할 때 EcStatusPanel 안의 글자까지 세는 바람에 [데이터 보기형식]·
+ * [정렬/소계기준]이 있는 것처럼 보였다. 그래서 이 둘은 화면 파일이 값을 넘기는지로 본다.
+ */
+{
+  const FORM_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
+  const SHARED = ['EcStatusPanel', 'EcListShell', 'EcPeriodPicks', 'CodePickerField']
+    .map((c) => join('frontend', 'src', 'components', `${c}.tsx`))
+    .filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('')
+
+  /** 원본에 있지만 우리에게 없는 조건 — 왜 없는지 적는다. */
+  const NO_FIELD = new Map([
+    ['적용양식', '인쇄 양식을 고르게 하지 않는다 — 화면마다 양식이 하나다'],
+    ['양식구분', '위와 같음'],
+    ['기타', '원본은 자잘한 체크박스를 이 이름으로 묶는다. 우리는 조건 판에 그대로 편다'],
+    ['내.외자구분', '국내/수입 구분을 전표에 두지 않는다'],
+    ['관리항목', '구매 전표에 관리항목을 붙이지 않는다'],
+  ])
+  /** 화면별로 안 만든 것 — 화면 사정이 있는 것만 여기에. */
+  const NO_FIELD_ON = new Map([
+    ['생산입고_소모현황 I|정렬/소계기준', '[구분]이 이미 그 축을 고른다(생산품목별·소모품목별·라인별)'],
+    ['일별이익현황|정렬/소계기준', '위와 같음(라인별·품목별·거래처별…)'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [screen, fields] of Object.entries(cap)) {
+    const rel = FORM_MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const own = readFileSync(path, 'utf8')
+    for (const f of fields) {
+      if (NO_FIELD.has(f) || NO_FIELD_ON.has(`${screen}|${f}`)) continue
+      checked++
+      // 패널이 그려 주는 두 줄은 화면이 값을 넘기는지로 본다
+      // 상태 이름만 보면 안 된다 — 만들어 놓고 안 그리는 화면을 못 잡는다.
+      // 상태 이름만 보면, 만들어 놓고 화면에 안 그리는 것을 못 잡는다.
+      const has = f === '정렬/소계기준' ? /subtotal=\{|label="정렬\/소계기준"|>정렬\/소계기준</.test(own)
+        : f === '데이터 보기형식' ? /view=\{|데이터 보기형식/.test(own)
+          : (own + SHARED).includes(f)
+      if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${f}] 조건이 없다`)
+    }
+  }
+  eq(`원본 조건 ${checked}개가 우리 화면에도 있다`
+    + ` (안 만든 ${NO_FIELD.size + NO_FIELD_ON.size}종은 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
