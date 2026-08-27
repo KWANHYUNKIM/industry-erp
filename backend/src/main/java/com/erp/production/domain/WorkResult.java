@@ -37,6 +37,16 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "process_id")
     private ProductionProcess processMaster;
 
+    /**
+     * 투입자원 — 이 작업에 쓴 설비. 원본 작업내역입력 그리드의 [투입자원] 열.
+     *
+     * <p>자원등록의 [대상작업](공정)과 짝이다. 설비를 적어 두면 "이 공정을 어느 설비로
+     * 얼마나 돌렸나" 를 되짚을 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resource_id")
+    private ProductionResource resource;
+
     /** 작업자 */
     @Column(length = 50)
     private String worker;

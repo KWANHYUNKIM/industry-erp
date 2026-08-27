@@ -10,6 +10,8 @@ interface WorkResult {
   workOrderId: number | null
   workOrderNo: string | null
   process: string
+  resourceId: number | null
+  resourceName: string | null
   worker: string | null
   goodQty: number
   defectQty: number
@@ -22,12 +24,14 @@ interface Process { id: number; name: string }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
-const emptyForm = { workOrderId: '', process: '', worker: '', goodQty: '', defectQty: '', workTimeMin: '', workDate: today() }
+const emptyForm = { workOrderId: '', process: '', resourceId: '', worker: '', goodQty: '', defectQty: '', workTimeMin: '', workDate: today() }
 
 export default function WorkResultPage() {
   const [rows, setRows] = useState<WorkResult[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
+  /** 원본 그리드의 [투입자원]. 자원등록의 [대상작업]과 짝이다. */
+  const [resources, setResources] = useState<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -48,12 +52,14 @@ export default function WorkResultPage() {
 
   async function loadRefs() {
     try {
-      const [wo, pr] = await Promise.all([
+      const [wo, pr, rs] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Process[]>('/processes'),
+        api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
       ])
       setWorkOrders(wo.data)
       setProcesses(pr.data)
+      setResources(rs.data)
     } catch {
       /* 참조 로딩 실패는 폼 사용에만 영향 */
     }
@@ -68,6 +74,7 @@ export default function WorkResultPage() {
       await api.post('/work-results', {
         workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
         process: form.process,
+        resourceId: form.resourceId === '' ? null : Number(form.resourceId),
         worker: form.worker,
         goodQty: form.goodQty === '' ? 0 : Number(form.goodQty),
         defectQty: form.defectQty === '' ? 0 : Number(form.defectQty),
@@ -124,6 +131,21 @@ export default function WorkResultPage() {
               </datalist>
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">투입자원</label>
+              {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 지금 고른 공정에 맞는 것만 낸다. */}
+              <select className={inputCls} value={form.resourceId}
+                      onChange={(e) => setForm({ ...form, resourceId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {resources
+                  .filter((r) => !r.processName || !form.process || r.processName === form.process)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}{r.processName ? ` (${r.processName})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">작업자</label>
               <input className={inputCls} value={form.worker} onChange={(e) => setForm({ ...form, worker: e.target.value })} />
             </div>
@@ -157,6 +179,7 @@ export default function WorkResultPage() {
             <th>일자</th>
             <th>작업지시번호</th>
             <th>공정</th>
+            <th>투입자원</th>
             <th>작업자</th>
             <th style={{ textAlign: 'right' }}>양품</th>
             <th style={{ textAlign: 'right' }}>불량</th>
@@ -166,15 +189,16 @@ export default function WorkResultPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
               <td>{r.process}</td>
+              <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
               <td>{r.worker ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>

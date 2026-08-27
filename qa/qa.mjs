@@ -3427,6 +3427,67 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 작업내역의 <b>투입자원</b>과 전용 설비 규칙.
+ *
+ * <p>원본 작업내역입력 그리드 열은 생산품목코드 · 생산품목명 · 작업품목코드 · 작업품목명 ·
+ * 수량 · <b>투입자원</b> · 작업시간 · 적요다. 우리 작업내역에는 공정·작업자·수량·시간만 있어
+ * <b>어느 설비로 했는지</b>가 없었다.
+ *
+ * <p>자원등록에 [대상작업](공정)을 붙여 뒀으니 짝이 맞아야 한다 — 절단기로 검사를 했다고
+ * 적히면 "이 공정을 어느 설비로 돌렸나" 가 뜻을 잃는다. 대상작업을 안 정한 범용 설비는
+ * 아무 공정에나 쓸 수 있다.
+ */
+async function scenarioWorkResultResource() {
+  section('■ 작업내역 투입자원')
+
+  const procs = await must('GET', '/processes')
+  const [cut, , weld] = procs
+
+  for (const r of (await must('GET', '/resources')).filter((x) => x.code.startsWith(`${P}RSC`))) {
+    await call('DELETE', `/resources/${r.id}`)
+  }
+
+  const dedicated = await must('POST', '/resources', {
+    code: `${P}RSC1`, name: `${P}절단기`, type: '설비', processId: cut.id,
+  })
+  const generic = await must('POST', '/resources', {
+    code: `${P}RSC2`, name: `${P}범용설비`, type: '설비',
+  })
+
+  const okRow = await must('POST', '/work-results', {
+    process: cut.name, resourceId: dedicated.id, worker: 'QA',
+    goodQty: 5, defectQty: 0, workTimeMin: 30, workDate: '2026-07-14',
+  })
+  eq('투입자원이 작업내역에 붙는다', okRow.resourceId, dedicated.id)
+  eq('자원 이름도 실려 나온다', okRow.resourceName, `${P}절단기`)
+
+  const wrong = await call('POST', '/work-results', {
+    process: weld.name, resourceId: dedicated.id, worker: 'QA',
+    goodQty: 5, defectQty: 0, workTimeMin: 30, workDate: '2026-07-14',
+  })
+  eq('전용 설비를 다른 공정에 쓰면 거부', wrong.status, 400)
+  eq('어느 공정 전용인지 말한다',
+    /전용/.test(String(wrong.data?.message ?? '')) && String(wrong.data?.message ?? '').includes(cut.name), true)
+
+  const anyProc = await must('POST', '/work-results', {
+    process: weld.name, resourceId: generic.id, worker: 'QA',
+    goodQty: 1, defectQty: 0, workTimeMin: 5, workDate: '2026-07-14',
+  })
+  eq('대상작업을 안 정한 자원은 아무 공정에나 쓴다', anyProc.resourceId, generic.id)
+
+  const missing = await call('POST', '/work-results', {
+    process: cut.name, resourceId: 99999999, worker: 'QA',
+    goodQty: 1, defectQty: 0, workTimeMin: 1, workDate: '2026-07-14',
+  })
+  eq('없는 자원은 400', missing.status, 400)
+
+  for (const r of [okRow, anyProc]) await must('DELETE', `/work-results/${r.id}`)
+  for (const r of [dedicated, generic]) await must('DELETE', `/resources/${r.id}`)
+  eq('시험용 자원은 남기지 않는다',
+    (await must('GET', '/resources')).filter((x) => x.code.startsWith(`${P}RSC`)).length, 0)
+}
+
+/**
  * 생산불출이 <b>재고를 실제로 옮기는가.</b>
  *
  * <p>원본 생산불출입력의 머리는 일자 · 담당자 · <b>보내는창고</b> · <b>받는공장</b> · 생산품목이다.
@@ -5032,6 +5093,7 @@ async function main() {
   await scenarioShipmentDelivery(fixtures)
   await scenarioWarehouseKind()
   await scenarioMaterialIssueMove(fixtures)
+  await scenarioWorkResultResource()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
