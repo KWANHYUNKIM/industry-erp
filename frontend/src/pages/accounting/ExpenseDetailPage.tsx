@@ -57,7 +57,7 @@ export default function ExpenseDetailPage() {
 
   return (
     <EcListShell title="비용내역현황" search={keyword} onSearchChange={setKeyword}
-      newLabel="새로고침" onNew={load} actions={[{ label: 'Excel' }]}>
+      newLabel="새로고침" onNew={load} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>계정</span>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
@@ -45,6 +46,8 @@ type Tab = typeof TABS[number]
 const days = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })
 
 export default function LeaveListPage() {
+  /** 원본 근태조회의 [신규(F2)] — 근태입력 화면을 연다. */
+  const navigate = useNavigate()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -136,6 +139,7 @@ export default function LeaveListPage() {
     <EcListShell
       title="근태조회"
       searchable={false}
+      onNew={() => navigate('/hr/leave-input')}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },

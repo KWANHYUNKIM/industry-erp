@@ -175,6 +175,39 @@ export default function ItemsPage() {
   }
 
   // 하단 '삭제': 선택된 행들을 기존 DELETE /items/{id} 로 일괄 삭제
+  /**
+   * 원본 품목등록 리스트의 [사용중단/재사용]. 고른 품목을 한 번에 세운다.
+   *
+   * <p>고른 것이 <b>모두 사용중단이면 되살리고</b>, 하나라도 살아 있으면 중단한다 —
+   * 거래처·창고와 같은 규칙이다.
+   *
+   * <p>그 품목을 <b>통째로 다시 보낸다.</b> 수정 요청은 통째로 덮으므로 몇 칸만
+   * 골라 보내면 안 보낸 칸(검색창내용·바코드·관리항목·품목그룹·이미지 …)이
+   * 사용중단 한 번에 조용히 지워진다. 거래처에서 겪은 것과 같은 함정이다.
+   */
+  async function toggleActive() {
+    const targets = shown.filter((it) => selected.has(it.id))
+    if (targets.length === 0) { alert('사용중단하거나 되살릴 품목을 먼저 선택하세요.'); return }
+    const reviving = targets.every((it) => !it.active)
+    const results = await Promise.allSettled(targets.map((it) => api.put(`/items/${it.id}`, {
+      /* 값은 그대로 넘긴다. 빈 문자열로 바꾸면 '안 적었다(null)' 와 '비워 두었다('')' 가
+         뒤섞인다 — 실제로 검색창내용이 null 이던 품목이 '' 로 바뀌었다. */
+      code: it.code, name: it.name, spec: it.spec, unit: it.unit, category: it.category,
+      unitPrice: it.unitPrice, purchasePrice: it.purchasePrice ?? 0, safetyStock: it.safetyStock,
+      barcode: it.barcode, searchKeyword: it.searchKeyword, udiDi: it.udiDi,
+      stockTracked: it.stockTracked !== false,
+      active: reviving,
+      managementItemId: it.managementItemId ?? null,
+      itemGroupId: it.itemGroupId ?? null,
+      supplierId: it.supplierId ?? null,
+      imageFileId: it.imageFileId ?? null,
+    })))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setSelected(new Set())
+    await load()
+    if (failed > 0) alert(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
   async function removeSelected() {
     if (selected.size === 0) { alert('삭제할 품목을 먼저 선택하세요.'); return }
     if (!confirm(`선택한 ${selected.size}개 품목을 삭제할까요?`)) return
@@ -214,7 +247,11 @@ export default function ItemsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onNew={showForm ? () => setShowForm(false) : openCreate}
-      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
+      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
+                { label: `사용중단/재사용${selected.size ? ` (${selected.size})` : ''}`, onClick: toggleActive },
+                { label: 'Excel' },
+                { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected },
+                { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 

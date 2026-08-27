@@ -1101,6 +1101,77 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-i) 원본 화면의 버튼 ↔ 우리 버튼 ─────────────────────────────────────
+console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나')
+
+/*
+ * <b>원본 화면 위에 달린 버튼이 우리에게도 있나.</b>
+ *
+ * <p>사본에서 <code>&lt;button&gt;</code> 글자를 화면별로 뽑아
+ * <code>qa/fixtures/ecount-buttons.json</code>(92화면)에 적었다. 화면마다 똑같이 붙는
+ * 껍데기(사이트맵·Option·도움말·Search(F3))와 기간 고르기 버튼은 뺀다.
+ *
+ * <p>여기서 걸린 것: 거래처특별단가그룹에 [Excel]이, 비용내역현황·작업지시서현황에
+ * [인쇄]가, 근태조회에 [신규(F2)]가, 품목등록에 [사용중단/재사용]이 없었다.
+ * 목록을 뽑아 놓고 <b>내보낼 자리가 없으면</b> 사람은 화면을 긁어 옮긴다.
+ *
+ * <p>[신규(F2)]는 EcListShell 이 <code>onNew</code>/<code>renderForm</code> 으로 달아 준다.
+ */
+{
+  const BTN_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-buttons.json'), 'utf8'))
+  /** 화면마다 똑같이 붙는 껍데기·기간 버튼 */
+  const SHELL = new Set(['사이트맵', 'Option', '도움말', 'Search(F3)', '찾기(F3)', '다시 작성',
+    '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근30일(+1개월)',
+    '이번기수', '직전기수', '설정', '웹자료올리기', '자동알림', '이력조회'])
+  /** 원본에 있지만 우리에게 없는 버튼 — 왜 없는지 적는다. */
+  const NO_BUTTON = new Map([
+    ['거래처리스트|변경', '여러 거래처의 한 칸을 한 번에 바꾸는 일괄변경 화면이 없다'],
+    ['거래처리스트|SMS', '문자 발송을 붙이지 않았다'],
+    ['근태조회|메신저', '사내 메신저가 없다'],
+    ['결제내역조회|입금보고서작성', '입금보고서 양식이 없다'],
+    ['결제내역조회|신규(F2)', '결제는 수금·지급 입력에서 만든다'],
+    ['관리항목리스트|사용중단/재사용', '줄 고르기가 없다 — 다음에 붙인다'],
+    ['창고등록리스트|사용중단/재사용', '위와 같음'],
+    ['오더관리유형리스트|사용중단/재사용', '위와 같음'],
+    ['구매일괄회계반영|매입전표 I', '회계전표 입력 화면으로 넘기지 않는다'],
+    ['근태입력|저장/전표(F7)', '근태를 회계전표로 넘기지 않는다'],
+    ['근태입력|리스트', '저장 후 조회 화면으로 자동으로 넘어간다'],
+    ['설문조사조회|미리보기', '설문 미리보기 화면이 없다'],
+    ['소요시간계산|작업지시서', '계산 결과에서 작업지시서를 만들지 않는다'],
+    ['생산입고조회|생산입고I', '입력 화면을 [신규(F2)]로 연다'],
+    ['생산입고조회|Email', '전표를 메일로 보내지 않는다'],
+    ['품목등록 리스트|관계설정', '품목 사이 관계(대체품·세트) 개념이 없다'],
+    ['품목등록 리스트|변경', '일괄변경 화면이 없다'],
+    ['품목등록 리스트|재고조정', '재고조정은 재고관리 화면에서 한다'],
+  ])
+  for (const [screen, btns] of [['생산불출조회', ['Email', '진행상태변경', '보내기', '바코드(품목)', '전자결재', '선택삭제',
+    '정렬', 'My품목', '작업지시서', '전표불러오기', '재고불러오기', '바코드', '검증', '저장(F8)', '저장/전표(F7)', '닫기']],
+  ['작업지시서조회', ['Email', '진행상태변경', '보내기', '바코드(품목)', '전자결재', '선택삭제']],
+  ['작업내역입력', ['정렬', 'My품목', '연결전표', '바코드', '검증', '작업지시서', '저장(F8)', '저장/전표(F7)', '리스트']],
+  ['작업내역조회', ['Email']]]) {
+    for (const b of btns) NO_BUTTON.set(screen + '|' + b, '전표 입력 격자·전자결재·바코드를 이 화면에 붙이지 않았다')
+  }
+
+  const bad = []
+  let checked = 0
+  for (const [screen, btns] of Object.entries(cap)) {
+    const rel = BTN_MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const src = readFileSync(path, 'utf8')
+    for (const b of btns) {
+      if (SHELL.has(b) || NO_BUTTON.has(screen + '|' + b)) continue
+      checked++
+      const has = b === '신규(F2)' ? (/onNew=|renderForm=/.test(src) || src.includes(b)) : src.includes(b)
+      if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${b}] 버튼이 없다`)
+    }
+  }
+  eq(`원본 버튼 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_BUTTON.size}개는 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

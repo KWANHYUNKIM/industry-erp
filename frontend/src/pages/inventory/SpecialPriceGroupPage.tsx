@@ -69,6 +69,7 @@ export default function SpecialPriceGroupPage() {
       actions={[
         { label: saving ? '저장 중…' : '저장(F8)', primary: true, onClick: save },
         { label: '새로고침', onClick: load },
+        { label: 'Excel' },
       ]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
