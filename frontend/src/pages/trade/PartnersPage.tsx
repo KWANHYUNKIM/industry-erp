@@ -173,6 +173,52 @@ export default function PartnersPage() {
    * 고른 것이 섞여 있으면 전부 사용중단으로 맞춘다 — 하나씩 뒤집으면 한 번 눌렀을 때
    * 결과가 뭔지 알 수 없다.
    */
+  /**
+   * 그 거래처를 <b>통째로</b> 만든다. 수정 요청은 통째로 덮으므로, 바꿀 칸만 얹고
+   * 나머지는 있는 값 그대로 보내야 한다 — 몇 칸만 보내면 검색창내용·홈페이지·적요·
+   * 주소2·단가그룹이 조용히 지워진다(사용중단에서 실제로 겪었다).
+   */
+  const wholePartner = (x: Partner, patch: Record<string, unknown> = {}) => ({
+    name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
+    bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
+    phone: x.phone, mobile: x.mobile,
+    email: x.email, fax: x.fax, creditLimit: x.creditLimit,
+    bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
+    postalCode: x.postalCode, address: x.address,
+    salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
+    searchKeyword: x.searchKeyword, regNoKind: x.regNoKind, industryKind: x.industryKind,
+    subBizNo: x.subBizNo, postalCode2: x.postalCode2, address2: x.address2,
+    homepage: x.homepage, remark: x.remark,
+    taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
+    parentId: x.parentId, partnerGroupId: x.partnerGroupId, active: x.active,
+    ...patch,
+  })
+
+  /*
+   * 원본 거래처리스트의 <b>[변경]</b> — 고른 거래처의 한 칸을 한 번에 바꾼다.
+   * 담당자가 바뀌거나 거래처그룹을 다시 나눌 때, 우리는 거래처를 하나씩 열어
+   * 고쳐야 했다. 300곳이면 300번이다.
+   */
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkField, setBulkField] = useState<'manager' | 'partnerGroupId'>('manager')
+  const [bulkValue, setBulkValue] = useState('')
+
+  async function bulkChange() {
+    const targets = shown.filter((x) => checked.has(x.id))
+    if (targets.length === 0) return setError('바꿀 거래처를 고르세요.')
+    setError('')
+    const patch = bulkField === 'manager'
+      ? { manager: bulkValue || null }
+      : { partnerGroupId: bulkValue ? Number(bulkValue) : null }
+    const results = await Promise.allSettled(
+      targets.map((x) => api.put(`/partners/${x.id}`, wholePartner(x, patch))))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setChecked(new Set())
+    setBulkOpen(false)
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 변경, ${failed}건 실패.`)
+  }
+
   async function toggleActive() {
     const targets = shown.filter((x) => checked.has(x.id))
     if (targets.length === 0) return setError('사용중단하거나 되살릴 거래처를 고르세요.')
@@ -186,20 +232,7 @@ export default function PartnersPage() {
          * 우편번호·단가그룹·세무신고거래처 …)이 <b>사용중단 한 번에 조용히 지워졌다.</b>
          * 창고에서 똑같은 것을 고쳤는데 거래처에도 남아 있었다.
          */
-        await api.put(`/partners/${x.id}`, {
-          name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
-          bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
-          phone: x.phone, mobile: x.mobile,
-          email: x.email, fax: x.fax, creditLimit: x.creditLimit,
-          bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
-          postalCode: x.postalCode, address: x.address,
-          salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
-          searchKeyword: x.searchKeyword, regNoKind: x.regNoKind, industryKind: x.industryKind,
-          subBizNo: x.subBizNo, postalCode2: x.postalCode2, address2: x.address2,
-          homepage: x.homepage, remark: x.remark,
-          taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
-          parentId: x.parentId, partnerGroupId: x.partnerGroupId, active: reviving,
-        })
+        await api.put(`/partners/${x.id}`, wholePartner(x, { active: reviving }))
       }
       setChecked(new Set())
       load()
@@ -230,6 +263,10 @@ export default function PartnersPage() {
       onSearchChange={setKeyword}
       onNew={openCreate}
       actions={[
+        { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
+          if (checked.size === 0) { setError('바꿀 거래처를 고르세요.'); return }
+          setError(''); setBulkValue(''); setBulkOpen(true)
+        } },
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
         { label: '계층그룹', onClick: () => setGroupOpen(true) },
         { label: 'Excel' },
@@ -567,6 +604,46 @@ export default function PartnersPage() {
           </tbody>
         </table>
       </div>
+
+      {/*
+        원본 [변경] — 고른 거래처의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고
+        새 값을 정한다. 비우면 그 칸을 비운다(담당자 없음 · 그룹 미지정).
+      */}
+      <Modal open={bulkOpen} title={`거래처 일괄변경 (${checked.size}건)`} onClose={() => setBulkOpen(false)}>{(
+        <div style={{ padding: 4 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">바꿀 항목</label>
+              <select className={inputCls} value={bulkField} style={{ width: 180 }}
+                      onChange={(e) => { setBulkField(e.target.value as 'manager' | 'partnerGroupId'); setBulkValue('') }}>
+                <option value="manager">거래처관리담당자</option>
+                <option value="partnerGroupId">거래처그룹1</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">새 값</label>
+              {bulkField === 'manager' ? (
+                <input className={inputCls} value={bulkValue} style={{ width: 220 }}
+                       placeholder="거래처관리담당자"
+                       onChange={(e) => setBulkValue(e.target.value)} />
+              ) : (
+                <select className={inputCls} value={bulkValue} style={{ width: 220 }}
+                        onChange={(e) => setBulkValue(e.target.value)}>
+                  <option value="">(미지정)</option>
+                  {partnerGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+          <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            고른 거래처의 그 칸만 바꿉니다. 나머지 값은 그대로 둡니다.
+          </p>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+            <button type="button" className="ec-btn" onClick={() => setBulkOpen(false)}>닫기</button>
+            <button type="button" className="ec-btn ec-btn-primary" onClick={bulkChange}>변경</button>
+          </div>
+        </div>
+      )}</Modal>
 
       {groupOpen && (
         <GroupMasterModal

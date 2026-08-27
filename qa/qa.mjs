@@ -7741,6 +7741,45 @@ async function scenarioSettlement(f) {
 async function scenarioMasterEditFromScreen() {
   section('■ 화면이 보내는 모양으로 마스터 수정')
 
+  /*
+   * 원본 거래처리스트의 <b>[변경]</b> — 고른 거래처의 한 칸을 한 번에 바꾼다.
+   * 담당자가 바뀌거나 그룹을 다시 나눌 때 거래처를 하나씩 열어 고칠 일이 아니다.
+   *
+   * <p>화면은 바꿀 칸만 얹고 <b>나머지는 있는 값 그대로</b> 보낸다. 수정은 통째로
+   * 덮으므로 몇 칸만 보내면 검색창내용·주소2·단가그룹이 조용히 지워진다.
+   */
+  const bulkTarget = await must('POST', '/partners', {
+    code: `${P}BULK`, name: `${P}일괄대상`, type: 'CUSTOMER',
+    manager: '이전담당', searchKeyword: `${P}별칭`, address: '서울시 어딘가',
+    salesPriceGroup: '단가A', remark: `${P}적요`,
+  })
+  const whole = (x, patch) => ({
+    name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
+    bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
+    phone: x.phone, mobile: x.mobile, email: x.email, fax: x.fax, creditLimit: x.creditLimit,
+    bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
+    postalCode: x.postalCode, address: x.address,
+    salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
+    searchKeyword: x.searchKeyword, regNoKind: x.regNoKind, industryKind: x.industryKind,
+    subBizNo: x.subBizNo, postalCode2: x.postalCode2, address2: x.address2,
+    homepage: x.homepage, remark: x.remark, taxReport: x.taxReport,
+    shipmentTarget: x.shipmentTarget, parentId: x.parentId, partnerGroupId: x.partnerGroupId,
+    active: x.active, ...patch,
+  })
+  const bulkChanged = await must('PUT', `/partners/${bulkTarget.id}`,
+    whole(bulkTarget, { manager: '새담당' }))
+  eq('일괄변경이 그 칸을 바꾼다', bulkChanged.manager, '새담당')
+  eq('검색창내용은 그대로', bulkChanged.searchKeyword, `${P}별칭`)
+  eq('주소는 그대로', bulkChanged.address, '서울시 어딘가')
+  eq('판매단가그룹은 그대로', bulkChanged.salesPriceGroup, '단가A')
+  eq('적요는 그대로', bulkChanged.remark, `${P}적요`)
+
+  // 비우는 것도 되어야 한다 — 원본도 빈 값을 허용한다(담당자 없음).
+  const cleared = await must('PUT', `/partners/${bulkTarget.id}`, whole(bulkTarget, { manager: null }))
+  isNull('담당자를 비울 수 있다', cleared.manager)
+  await must('DELETE', `/partners/${bulkTarget.id}`)
+
+
   const wh = (await must('GET', '/warehouses'))[0]
   const whBody = {
     name: wh.name, location: wh.location, kind: wh.kind,
