@@ -59,6 +59,13 @@ export default function MonthlyProfitPage() {
   const [error, setError] = useState('')
 
   const [year, setYear] = useState(nowYear())
+  /*
+   * 원본 월별이익현황 조건의 <b>[기준월]</b>. 우리는 연도만 골랐고, 예외에는
+   * '월을 열로 편다' 고 적어 두었는데 그건 [구분]이 '월별' 일 때만 맞다.
+   * 품목별·거래처별로 보면 월이 어디에도 안 남아, <b>상반기만</b> 같은 것을 못 봤다.
+   */
+  const [fromMonth, setFromMonth] = useState('1')
+  const [toMonth, setToMonth] = useState('12')
   const [mode, setMode] = useState<Mode>('품목별')
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [withVat, setWithVat] = useState(false)
@@ -116,6 +123,11 @@ export default function MonthlyProfitPage() {
 
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
+    // 원본 조건 [기준월] — 연도 안에서 볼 달을 좁힌다.
+    .filter((d) => {
+      const m = Number(d.saleDate.slice(5, 7))
+      return m >= Number(fromMonth) && m <= Number(toMonth)
+    })
     .filter((d) => !cond.warehouse || (d.warehouseName ?? '').includes(cond.warehouse))
     .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
@@ -141,7 +153,7 @@ export default function MonthlyProfitPage() {
       }
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, year, cond, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+    [sales, year, fromMonth, toMonth, cond, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
 
   const rows = useMemo(() => {
     const keyOf = (l: typeof lines[number]) =>
@@ -222,6 +234,14 @@ export default function MonthlyProfitPage() {
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기준월</span>
+        <select className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 80 }}>
+          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
+        </select>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>~</span>
+        <select className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 80 }}>
+          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
         </select>
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</span>
         <div className="ec-pills">

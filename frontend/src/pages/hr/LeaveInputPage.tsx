@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -38,6 +39,8 @@ const emptyLine = (date: string): LineInput => ({
 })
 
 export default function LeaveInputPage() {
+  /** 원본 [리스트] — 넣은 근태를 보러 근태조회로 간다. */
+  const navigate = useNavigate()
   const [users, setUsers] = useState<UserRow[]>([])
   const [baseDate, setBaseDate] = useState(ymd(new Date()))
   const [lines, setLines] = useState<LineInput[]>([])
@@ -93,6 +96,11 @@ export default function LeaveInputPage() {
       searchable={false}
       actions={[
         { label: saving ? '저장 중…' : '저장(F8)', primary: true, onClick: save },
+        /*
+         * 원본 [리스트] — 넣은 것을 보러 근태조회로 간다. 저장해도 이 화면에
+         * 그대로 남아(줄만 비워진다) 방금 넣은 것을 확인할 길이 없었다.
+         */
+        { label: '리스트', onClick: () => navigate('/hr/leave-list') },
         { label: '줄 추가', onClick: () => setLines((p) => [...p, emptyLine(baseDate)]) },
         { label: '다시 작성', onClick: () => setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)]) },
       ]}
