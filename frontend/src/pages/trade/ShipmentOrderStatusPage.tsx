@@ -41,6 +41,8 @@ interface Shipment {
   statusName: string
   totalQuantity: number
   warehouseName: string | null
+  /** 귀속 프로젝트. 서버가 이미 주고 있는데 이 화면이 안 받고 있었다. */
+  projectName: string | null
   contact: string | null
   remark: string | null
   lines: ShipLine[]
@@ -66,6 +68,8 @@ export default function ShipmentOrderStatusPage() {
   const [dueDate, setDueDate] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
+  /** 원본 출하지시서현황 조건의 [프로젝트]. */
+  const [project, setProject] = useState('')
   const [item, setItem] = useState('')
 
   async function load() {
@@ -85,7 +89,7 @@ export default function ShipmentOrderStatusPage() {
   function reset() {
     const p = periodOf('금월(~오늘)')!
     setFrom(p.from); setTo(p.to); setCompare('사용안함'); setMode('내역'); setView('표')
-    setShipNo(''); setDueDate(''); setWarehouse(''); setPartner(''); setItem('')
+    setShipNo(''); setDueDate(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
@@ -96,9 +100,10 @@ export default function ShipmentOrderStatusPage() {
     if (dueDate && (r.dueDate ?? '') !== dueDate) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (partner && !r.partnerName.includes(partner)) return false
+    if (project && !(r.projectName ?? '').includes(project)) return false
     if (item && !r.lines.some((l) => (l.itemCode + ' ' + l.itemName).includes(item))) return false
     return true
-  }), [rows, from, to, shipNo, dueDate, warehouse, partner, item])
+  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item])
 
   /** 라인별 — 원본 결과 격자의 단위다. */
   const lines = useMemo(
@@ -173,6 +178,11 @@ export default function ShipmentOrderStatusPage() {
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}
                  onChange={(e) => setWarehouse(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/* 원본 출하지시서현황 조건 실측(사본): 구분·일자·출하지시No.·출하예정일·창고·프로젝트·관리항목·거래처·품목. */}
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={project}
+                 onChange={(e) => setProject(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={partner}

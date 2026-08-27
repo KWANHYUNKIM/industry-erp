@@ -31,6 +31,8 @@ interface Row {
   projectName: string | null
   lotNo: string | null
   taxable: boolean
+  /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
+  returnSlip: boolean
   employeeName: string | null
 }
 
@@ -59,6 +61,8 @@ export default function SalesStatusPage() {
   const [lotNo, setLotNo] = useState('')
   const [mgmtItem, setMgmtItem] = useState('')
   const [taxType, setTaxType] = useState<'전체' | '과세' | '면세'>('전체')
+  /** 원본 판매현황 조건의 [거래구분] — 전체 · 일반 · 반품. */
+  const [tradeKind, setTradeKind] = useState<'전체' | '일반' | '반품'>('전체')
   /*
    * 원본은 상단 [현황|집계] 로 모드를 가르고, 집계 모드에서는 `집계조건1/2` 로 **두 단계 그룹화**를 한다.
    * 우리는 현황(라인 목록)만 있었다.
@@ -100,7 +104,10 @@ export default function SalesStatusPage() {
           warehouseName: d.warehouseName,
           projectName: d.projectName,
           lotNo: l.lotNo,
-          taxable: d.vatAmount > 0,
+          // 전표가 과세 여부를 들고 있다. 부가세 > 0 으로 되짚으면 반올림으로 0 이 된
+          // 과세 전표가 면세로 섞인다.
+          taxable: d.taxable,
+          returnSlip: d.returnSlip,
           employeeName: d.employeeName,
         }))
       }
@@ -136,6 +143,7 @@ export default function SalesStatusPage() {
     .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
     .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
     .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
+    .filter((r) => tradeKind === '전체' || (tradeKind === '반품' ? r.returnSlip : !r.returnSlip))
     .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
   /** 집계는 판매·구매가 같은 규칙을 쓰므로 `utils/statusAggregate` 에 모아 두고 여기서 부른다. */
   const grouped = useMemo(
@@ -240,7 +248,7 @@ export default function SalesStatusPage() {
     setFrom(m.from); setTo(m.to)
     setMode('내역'); setCompare('사용안함')
     setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')
-    setMgmtItem(''); setLotNo(''); setTaxType('전체'); setKeyword('')
+    setMgmtItem(''); setLotNo(''); setTaxType('전체'); setTradeKind('전체'); setKeyword('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -257,10 +265,11 @@ export default function SalesStatusPage() {
       .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
       .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
       .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
+      .filter((r) => tradeKind === '전체' || (tradeKind === '반품' ? r.returnSlip : !r.returnSlip))
       .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, mgmtItem, taxType, keyword, items])
+  }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, mgmtItem, taxType, tradeKind, keyword, items])
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
@@ -350,6 +359,18 @@ export default function SalesStatusPage() {
               key={t} type="button"
               className={`ec-btn ec-btn-sm${taxType === t ? ' ec-btn-primary' : ''}`}
               onClick={() => setTaxType(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </EcCond>
+        {/* 원본 판매현황 조건 실측(사본)에 [거래구분] 이 있다 — 반품만/반품제외로 갈라 본다. */}
+        <EcCond label="거래구분">
+          {(['전체', '일반', '반품'] as const).map((t) => (
+            <button
+              key={t} type="button"
+              className={`ec-btn ec-btn-sm${tradeKind === t ? ' ec-btn-primary' : ''}`}
+              onClick={() => setTradeKind(t)}
             >
               {t}
             </button>

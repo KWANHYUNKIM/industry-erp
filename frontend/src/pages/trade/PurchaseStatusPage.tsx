@@ -26,6 +26,8 @@ interface Row {
   // 집계(utils/statusAggregate)가 읽는 값들. 화면이 이미 받아 온 전표에서 뽑는다.
   projectName: string | null
   taxable: boolean
+  /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
+  returnSlip: boolean
   employeeName: string | null
 }
 
@@ -36,11 +38,18 @@ interface Filters {
   partner: string
   warehouse: string
   item: string
+  /** 원본 [프로젝트]. 응답에 있는데 조건이 없어 거를 수가 없었다. */
+  project: string
+  /** 원본 [거래유형] — 과세 · 면세. */
+  taxType: string
+  /** 원본 [거래구분] — 일반 · 반품. */
+  tradeKind: string
   sortByModified: boolean
 }
 
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', warehouse: '', item: '', sortByModified: false,
+  dateFrom: '', dateTo: '', partner: '', warehouse: '', item: '',
+  project: '', taxType: '', tradeKind: '', sortByModified: false,
 }
 
 export default function PurchaseStatusPage() {
@@ -81,7 +90,10 @@ export default function PurchaseStatusPage() {
           supply: l.supplyAmount,
           vat: l.vatAmount,
           projectName: d.projectName,
-          taxable: d.vatAmount > 0,
+          // 전표가 과세 여부를 들고 있다. 예전에는 부가세 > 0 인지로 되짚어서,
+          // 반올림으로 부가세가 0 이 된 과세 전표가 면세로 섞였다.
+          taxable: d.taxable,
+          returnSlip: d.returnSlip,
           employeeName: d.employeeName,
         }))
       }
@@ -106,6 +118,9 @@ export default function PurchaseStatusPage() {
       if (f.partner && !r.partner.includes(f.partner)) return false
       if (f.warehouse && !r.warehouse.includes(f.warehouse)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.project && !(r.projectName ?? '').includes(f.project)) return false
+      if (f.taxType && (f.taxType === '면세' ? r.taxable : !r.taxable)) return false
+      if (f.tradeKind && (f.tradeKind === '반품' ? !r.returnSlip : r.returnSlip)) return false
       return true
     })
     // 기타: 수정일자순(정렬) 체크 시 전표번호 역순, 기본은 일자 내림차순
@@ -285,6 +300,29 @@ export default function PurchaseStatusPage() {
         <EcCond label="품목" pick>
           <input className="ec-input" placeholder="품목명 일부" value={filters.item}
                  onChange={(e) => setF({ item: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        {/* 원본 구매현황 조건 실측(사본): 구분·기준일자·거래유형·내.외자구분·창고·프로젝트·거래처·품목. */}
+        <EcCond label="프로젝트" pick>
+          <input className="ec-input" placeholder="프로젝트명 일부" value={filters.project}
+                 onChange={(e) => setF({ project: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${filters.taxType === v ? ' active' : ''}`}
+                      onClick={() => setF({ taxType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="구매구분">
+          <div className="ec-pills">
+            {['', '일반', '반품'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${filters.tradeKind === v ? ' active' : ''}`}
+                      onClick={() => setF({ tradeKind: v })}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="정렬기준">
           <label style={{ fontSize: 12 }}>
