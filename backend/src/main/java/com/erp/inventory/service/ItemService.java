@@ -1,6 +1,8 @@
 package com.erp.inventory.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.StoredFile;
+import com.erp.common.StoredFileRepository;
 import com.erp.inventory.domain.Item;
 import com.erp.inventory.domain.ItemGroup;
 import com.erp.inventory.dto.ItemDtos.CreateItemRequest;
@@ -24,12 +26,13 @@ public class ItemService {
 
     private final ItemRepository itemRepository;
     private final ItemGroupRepository itemGroupRepository;
+    private final StoredFileRepository storedFileRepository;
     // 같은 inventory 모듈이지만 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
     private final ManagementItemService managementItemService;
 
     @Transactional(readOnly = true)
     public List<ItemResponse> findAll() {
-        return itemRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()
+        return itemRepository.findAllForList().stream()
                 .map(ItemResponse::from)
                 .toList();
     }
@@ -60,6 +63,7 @@ public class ItemService {
                 // 안 주면 관리대상. 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다.
                 .stockTracked(req.stockTracked() == null || req.stockTracked())
                 .supplierId(req.supplierId())
+                .imageFile(imageOf(req.imageFileId()))
                 .udiDi(req.udiDi())
                 .managementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()))
                 .active(true)
@@ -82,6 +86,7 @@ public class ItemService {
         item.setSearchKeyword(req.searchKeyword());
         if (req.stockTracked() != null) item.setStockTracked(req.stockTracked());
         item.setSupplierId(req.supplierId());
+        item.setImageFile(imageOf(req.imageFileId()));
         item.setUdiDi(req.udiDi());
         item.setManagementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()));
         if (req.active() != null) {
@@ -117,6 +122,16 @@ public class ItemService {
                     "사용중지된 품목입니다: " + item.getCode() + " " + item.getName());
         }
         return item;
+    }
+
+    /**
+     * 원본 [이미지]. null 이면 사진을 안 붙인 것이다 — 없는 id 를 주면 그건 오류다.
+     * 조용히 null 로 저장하면 사람은 붙인 줄 알고 넘어간다.
+     */
+    private StoredFile imageOf(Long id) {
+        if (id == null) return null;
+        return storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("이미지 파일을 찾을 수 없습니다. id=" + id));
     }
 
     /** 품목그룹. null 이면 그룹 없음 — 없는 id 를 주면 조용히 무시하지 않고 알린다. */

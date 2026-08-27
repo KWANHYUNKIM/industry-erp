@@ -88,6 +88,9 @@ export interface Item {
   purchasePrice: number
   safetyStock: number
   barcode: string | null
+  /** 원본 품목등록 리스트의 [이미지]. 파일이 없으면 둘 다 null. */
+  imageFileId: number | null
+  imageFileName: string | null
   /**
    * 원본 품목등록 리스트의 [구매처명] — 이 품목을 늘 사 오는 곳.
    * 서버는 id 만 준다(inventory 가 trade 를 참조할 수 없어서). 이름은 화면이 거래처 목록에서 붙인다.

@@ -2504,6 +2504,18 @@ async function scenarioWorkspace(f) {
   const cleared = await must('PUT', `/items/${f.product.id}`, { ...iBody, supplierId: null })
   eq('비우면 비워진다', cleared.supplierId, null)
 
+  /*
+   * 원본 품목등록 리스트의 <b>[이미지]</b> 열. 비슷하게 생긴 부품이 수십 개인데
+   * 코드와 이름만으로 고르게 하고 있었다. 파일은 stored_files 가 든다 —
+   * 기안서 첨부·ECDrive 와 같은 저장소다.
+   *
+   * <b>없는 파일 id 는 거절한다.</b> 조용히 null 로 저장하면 사람은 붙인 줄 알고 넘어간다.
+   */
+  const ghostImg = await call('PUT', `/items/${f.product.id}`, { ...iBody, imageFileId: 99999999 })
+  eq('없는 이미지 파일은 거부', ghostImg.status, 404)
+  isNull('거부됐으니 붙지 않았다',
+    (await must('GET', '/items')).find((i) => i.id === f.product.id).imageFileId)
+
   const noHit = await must('GET', '/workspace/search?q=ZZZ_NO_SUCH_KEYWORD_ZZZ')
   eq('일치하는 게 없으면 0건', noHit.total, 0)
 

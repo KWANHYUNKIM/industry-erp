@@ -47,6 +47,9 @@ export default function ItemsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
+  /** 원본 [이미지]. 파일을 먼저 올리고(POST /api/files) 그 id 를 품목에 붙인다. */
+  const [image, setImage] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -77,7 +80,24 @@ export default function ItemsPage() {
   function openCreate() {
     setEditId(null)
     setForm({ ...emptyForm })
+    setImage(null)
     setShowForm(true)
+  }
+
+  /** 원본 [이미지] — 기안서 첨부·ECDrive 와 같은 흐름(먼저 올리고 id 를 붙인다). */
+  async function uploadImage(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setImage({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
   }
 
   function openEdit(item: Item) {
@@ -100,6 +120,7 @@ export default function ItemsPage() {
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
       itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
     })
+    setImage(item.imageFileId != null ? { id: item.imageFileId, name: item.imageFileName ?? '' } : null)
     setShowForm(true)
   }
 
@@ -120,6 +141,7 @@ export default function ItemsPage() {
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
       supplierId: form.supplierId ? Number(form.supplierId) : null,
+      imageFileId: image ? image.id : null,
     }
     try {
       if (editId) {
@@ -278,6 +300,24 @@ export default function ItemsPage() {
               />
             </div>
             {/*
+              원본 품목등록 리스트의 [이미지] 열. 비슷하게 생긴 부품이 수십 개인데
+              코드와 이름만으로 고르게 하고 있었다. 한 장만 붙는다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">이미지</label>
+              {image ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--ec-border)', padding: 6, background: '#f9fbfd' }}>
+                  <img src={`/api/files/${image.id}`} alt={image.name}
+                       style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid #e6eaef', background: '#fff' }} />
+                  <span style={{ fontSize: 12.5, color: '#5a626e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{image.name}</span>
+                  <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
+                </div>
+              ) : (
+                <EcFileDrop hint="여기에 이미지 놓기" busy={uploading} disabled={uploading}
+                            onFiles={(fs) => { if (fs[0]) void uploadImage(fs[0]) }} />
+              )}
+            </div>
+            {/*
               원본 품목등록 리스트의 [검색창내용]. 현장에서 부르는 이름(약칭·옛 코드)을
               적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
             */}
@@ -329,6 +369,8 @@ export default function ItemsPage() {
               <th style={{ width: 34 }}></th>
               <th>품목코드 ▼</th>
               <th>품목명 ▼</th>
+              {/* 원본 열 순서: 품목코드 · 품목명 · [이미지] · 구매처명 · … */}
+              <th style={{ width: 56, textAlign: 'center' }}>이미지</th>
               <th style={{ width: 130 }}>구매처명</th>
               <th>규격정보</th>
               <th>단위</th>
@@ -341,14 +383,16 @@ export default function ItemsPage() {
               <th>품목그룹 ▼</th>
               <th style={{ width: 140 }}>검색창내용</th>
               <th>사용 ▼</th>
+              {/* 원본 마지막 열 [파일관리] — 그 품목의 이미지를 붙이거나 떼는 자리. */}
+              <th style={{ width: 80, textAlign: 'center' }}>파일관리</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
@@ -358,6 +402,13 @@ export default function ItemsPage() {
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
                   <td>{it.name}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {it.imageFileId ? (
+                      <img src={`/api/files/${it.imageFileId}`} alt={it.imageFileName ?? it.name}
+                           title={it.imageFileName ?? ''}
+                           style={{ width: 32, height: 32, objectFit: 'cover', border: '1px solid #e6eaef', verticalAlign: 'middle' }} />
+                    ) : <span style={{ color: '#c9ced6' }}>-</span>}
+                  </td>
                   <td>{partners.find((p) => p.id === it.supplierId)?.name ?? ''}</td>
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
@@ -374,6 +425,12 @@ export default function ItemsPage() {
                   <td>{it.itemGroupName ?? ''}</td>
                   <td style={{ color: '#6b7280' }}>{it.searchKeyword ?? ''}</td>
                   <td style={{ color: it.active ? '#1c7c3c' : '#c60a2e' }}>{it.active ? '사용' : '사용중단'}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button onClick={() => openEdit(it)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                      파일관리
+                    </button>
+                  </td>
                   <td>
                     <button onClick={() => openEdit(it)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                     <button onClick={() => remove(it)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

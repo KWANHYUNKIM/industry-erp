@@ -86,6 +86,17 @@ public class Item extends BaseTimeEntity {
     private String barcode;
 
     /**
+     * 원본 품목등록 리스트의 <b>[이미지]</b> 열. 품목 사진 한 장.
+     *
+     * <p>비슷하게 생긴 부품이 수십 개인데 코드와 이름만으로 고르게 하고 있었다.
+     * 파일 자체는 stored_files 가 들고 있다(기안서 첨부·ECDrive 와 같은 저장소) —
+     * 여기서는 그중 한 건을 가리킨다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_file_id")
+    private com.erp.common.StoredFile imageFile;
+
+    /**
      * 원본 품목등록 리스트의 <b>[구매처명]</b> — 이 품목을 늘 사 오는 곳.
      *
      * <p><b>@ManyToOne 이 아닌 이유:</b> inventory 는 trade 를 참조할 수 없다(CLAUDE.md §4.1 —

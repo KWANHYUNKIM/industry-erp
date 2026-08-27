@@ -27,6 +27,11 @@ public final class ItemDtos {
              * inventory 가 trade 를 참조할 수 없어 id 만 든다. 이름은 화면이 붙인다.
              */
             Long supplierId,
+            /**
+             * 원본 품목등록 리스트의 [이미지] — 품목 사진 파일 id (선택).
+             * 파일은 POST /api/files 로 먼저 올린다(기안서 첨부와 같은 흐름).
+             */
+            Long imageFileId,
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
@@ -64,6 +69,11 @@ public final class ItemDtos {
              * inventory 가 trade 를 참조할 수 없어 id 만 든다. 이름은 화면이 붙인다.
              */
             Long supplierId,
+            /**
+             * 원본 품목등록 리스트의 [이미지] — 품목 사진 파일 id (선택).
+             * 파일은 POST /api/files 로 먼저 올린다(기안서 첨부와 같은 흐름).
+             */
+            Long imageFileId,
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
@@ -93,6 +103,8 @@ public final class ItemDtos {
             Long itemGroupId,
             String itemGroupName,
             BigDecimal safetyStock,
+            /** 원본 품목등록 리스트의 [이미지]. 파일이 없으면 둘 다 null. */
+            Long imageFileId, String imageFileName,
             /** 원본 품목등록 리스트의 [구매처명]. 이름은 화면이 거래처 목록에서 붙인다. */
             Long supplierId,
             String barcode,
@@ -119,6 +131,8 @@ public final class ItemDtos {
                     item.getItemGroup() != null ? item.getItemGroup().getId() : null,
                     item.getItemGroup() != null ? item.getItemGroup().getName() : null,
                     item.getSafetyStock(),
+                    item.getImageFile() != null ? item.getImageFile().getId() : null,
+                    item.getImageFile() != null ? item.getImageFile().getName() : null,
                     item.getSupplierId(),
                     item.getBarcode(),
                     item.getSearchKeyword(),
