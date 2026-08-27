@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import { useInactiveItems } from '../../utils/useInactiveItems'
+import { useItemFlags } from '../../utils/useInactiveItems'
 import { stockCostMap } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import { amountVariance, priceVariance, qtyVariance, weightedAvgPrice } from '../../utils/costVariance'
@@ -14,6 +14,9 @@ import type { Item, PurchaseDoc } from '../../api/types'
  * <p>원본 조건 판 실측(사본):
  *   [구분] 원가비교집계표 | 재료비단가차이 | 소모수량차이 | 노무비/경비/외주비차이
  *   기준월 · 품목 · 생산공정 · [기타] 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 ·
+ *
+ * <p>[수량관리제외품목포함]은 품목이 재고수량관리를 들게 되면서 만들 수 있게 됐다.
+ * 재고를 잡지 않는 품목에 원가차이를 따지는 것은 뜻이 없어 기본으로 뺀다.
  *   정렬/소계기준 · 합계표시
  *
  * <p>우리 화면은 표준·실제 <b>총액</b> 비교 한 갈래뿐이었다(그리고 제목도 원본에 없는
@@ -74,7 +77,13 @@ export default function VariancePage() {
   const [withInactive, setWithInactive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const inactive = useInactiveItems()
+  const { inactive, untracked } = useItemFlags()
+  /**
+   * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
+   * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
+   * 원본도 체크를 켜야 보여 준다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -106,6 +115,7 @@ export default function VariancePage() {
   const inPeriod = (yyyymm: string) => period === '전체' || yyyymm === period
   const hit = (itemId: number, code: string, name: string) => {
     if (!withInactive && inactive.has(itemId)) return false
+    if (!withUntracked && untracked.has(itemId)) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -155,7 +165,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0))
-  }, [purchases, period, keyword, withInactive, inactive, nameOf, stdPriceOf])
+  }, [purchases, period, keyword, withInactive, inactive, withUntracked, untracked, nameOf, stdPriceOf])
 
   // ── 소모수량차이: BOM 표준소모 vs 실제 투입 (자재별 집계)
   const qtyRows = useMemo(() => {
@@ -181,7 +191,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0) || Math.abs(b.diffQty) - Math.abs(a.diffQty))
-  }, [productions, boms, period, keyword, withInactive, inactive, nameOf, stdPriceOf, evalPriceOf])
+  }, [productions, boms, period, keyword, withInactive, inactive, withUntracked, untracked, nameOf, stdPriceOf, evalPriceOf])
 
   // ── 노무비·경비차이
   const laborRows = compareRows.map((r) => ({
@@ -229,6 +239,10 @@ export default function VariancePage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
+          </label>
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            수량관리제외품목포함
           </label>
         </EcCond>
       </ul>

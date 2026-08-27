@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import { useInactiveItems } from '../../utils/useInactiveItems'
+import { useItemFlags } from '../../utils/useInactiveItems'
 import { stockCostMap } from '../../utils/stockValue'
 import type { Item, PurchaseDoc } from '../../api/types'
 
@@ -12,6 +12,9 @@ import type { Item, PurchaseDoc } from '../../api/types'
  * <p>원본 조건 판 실측(사본):
  *   [구분] 원가집계표 | 증가내역 | 감소내역 | 수율차이 | 노무비배부액 | 경비배부액
  *   기준월 · 품목 · 생산공정 · [기타] 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함
+ *
+ * <p>[수량관리제외품목포함]은 품목이 재고수량관리를 들게 되면서 만들 수 있게 됐다.
+ * 재고를 잡지 않는 품목(용역·운반비)에 원가를 매기는 것은 뜻이 없어 기본으로 뺀다.
  *
  * <p>원본 <b>원가집계표</b>의 열은 원가생성/수정 사본의 열 id 가 알려 준다 —
  * 품목코드 · 품목명[규격] · 품목구분 · 생산공정명 ·
@@ -85,7 +88,13 @@ export default function ActualCostPage() {
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const inactive = useInactiveItems()
+  const { inactive, untracked } = useItemFlags()
+  /**
+   * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
+   * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
+   * 원본도 체크를 켜야 보여 준다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -126,6 +135,7 @@ export default function ActualCostPage() {
 
   const hit = (code: string, name: string, itemId: number) => {
     if (!withInactive && inactive.has(itemId)) return false
+    if (!withUntracked && untracked.has(itemId)) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -138,13 +148,13 @@ export default function ActualCostPage() {
       return { ...r, price, openAmt: amt(r.opening), inAmt: amt(r.inQty), outAmt: amt(r.outQty), closeAmt: amt(r.closing) }
     })
     .sort((a, b) => a.itemCode.localeCompare(b.itemCode)),
-  [movement, priceOf, keyword, withInactive, inactive])
+  [movement, priceOf, keyword, withInactive, inactive, withUntracked, untracked])
 
   const detail = useMemo(() => ledger
     .filter((r) => (mode === '증가내역' ? r.quantityChange > 0 : r.quantityChange < 0))
     .filter((r) => hit(r.itemCode, r.itemName, r.itemId))
     .sort((a, b) => (a.transactionDate < b.transactionDate ? 1 : a.transactionDate > b.transactionDate ? -1 : b.id - a.id)),
-  [ledger, mode, keyword, withInactive, inactive])
+  [ledger, mode, keyword, withInactive, inactive, withUntracked, untracked])
 
   const totals = summary.reduce((a, r) => ({
     open: a.open + (r.openAmt ?? 0), in: a.in + (r.inAmt ?? 0),
@@ -186,6 +196,10 @@ export default function ActualCostPage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
+          </label>
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            수량관리제외품목포함
           </label>
         </EcCond>
       </ul>

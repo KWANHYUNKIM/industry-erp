@@ -3801,6 +3801,13 @@ async function scenarioStockTracked(f) {
   await must('DELETE', `/sales/${sale.id}`)
   eq('지워도 재고는 그대로다', await stockOf(svc.id), 0)
 
+  // 원가 화면들(표준원가현황·실제원가현황·차이분석)의 [수량관리제외품목포함] 조건이
+  // 품목 응답의 이 값을 본다. id 만 오고 stockTracked 가 빠지면 화면이 걸러낼 수가 없다.
+  const listed = (await must('GET', '/items')).find((x) => x.id === svc.id)
+  eq('품목 목록에도 수량관리 구분이 실린다', listed.stockTracked, false)
+  eq('보통 품목은 관리대상으로 실린다',
+    (await must('GET', '/items')).find((x) => x.code === `${code}2`).stockTracked, true)
+
   // 재고를 움직이는 것이 목적인 자리는 거절한다.
   const tx = await call('POST', '/stock/transactions', {
     itemId: svc.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 5,

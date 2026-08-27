@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import { useInactiveItems } from '../../utils/useInactiveItems'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 회계 > 표준원가현황 (/api/costs)
@@ -13,7 +13,11 @@ import { useInactiveItems } from '../../utils/useInactiveItems'
  * 우리는 기간 드롭다운 하나가 전부였고, 사용중단 품목과 원가 0 인 품목이 늘 섞여 나왔다.
  * 원본은 그 둘을 <b>기본으로 빼고</b> 보여 준다 — 체크를 켜야 나온다.
  *
- * <p>생산공정·결재방표시·수량관리제외품목은 우리 원가에 그 값이 없어 칸을 만들지 않는다.
+ * <p>[수량관리제외품목포함]은 예전에 "우리 원가에 그 값이 없어" 만들지 않았는데,
+ * 품목이 이제 재고수량관리를 든다. 재고를 잡지 않는 품목(용역·운반비)에 표준원가를
+ * 매기는 것은 뜻이 없어 기본으로 뺀다 — 원본도 그렇다.
+ *
+ * <p>생산공정·결재방표시는 여전히 우리 원가에 그 값이 없어 칸을 만들지 않는다.
  */
 interface Cost {
   id: number
@@ -36,7 +40,13 @@ export default function StandardCostPage() {
   const [showTotal, setShowTotal] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const inactive = useInactiveItems()
+  const { inactive, untracked } = useItemFlags()
+  /**
+   * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
+   * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
+   * 원본도 체크를 켜야 보여 준다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -56,6 +66,7 @@ export default function StandardCostPage() {
     .filter((r) => period === '전체' || r.period === period)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
     .filter((r) => withInactive || !inactive.has(r.itemId))
+    .filter((r) => withUntracked || !untracked.has(r.itemId))
     .filter((r) => withZero || r.standardTotal !== 0)
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
 
@@ -74,6 +85,10 @@ export default function StandardCostPage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
+          </label>
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            수량관리제외품목포함
           </label>
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withZero} onChange={(e) => setWithZero(e.target.checked)} />
