@@ -12,6 +12,7 @@ import com.erp.production.repository.MaterialIssueRepository;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.service.StockService;
+import com.erp.inventory.service.ProjectService;
 import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class MaterialIssueService {
     private final WarehouseService warehouseService;
     private final WorkOrderRepository workOrderRepository;
     private final StockService stockService;
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to) {
@@ -74,6 +76,8 @@ public class MaterialIssueService {
                 .qty(req.qty())
                 .issueDate(date)
                 .employeeId(req.employeeId())
+                /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .build();
         MaterialIssue saved = materialIssueRepository.save(mi);

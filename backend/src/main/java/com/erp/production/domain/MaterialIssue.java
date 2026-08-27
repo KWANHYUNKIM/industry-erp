@@ -68,4 +68,14 @@ public class MaterialIssue extends BaseTimeEntity {
 
     @Column(length = 300)
     private String note;
+
+    /**
+     * 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트].
+     *
+     * <p>생산입고(Production)에는 이미 있었는데 여기만 없어서, 같은 작업에서 나온
+     * 불출이 <b>프로젝트별 집계에 안 잡혔다.</b> 안 정할 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
 }

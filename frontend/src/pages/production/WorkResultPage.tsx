@@ -42,18 +42,22 @@ interface WorkResult {
 interface WorkOrder { id: number; orderNo: string; productName: string }
 interface Process { id: number; name: string }
 interface Warehouse { id: number; name: string; kind: string; active: boolean }
+interface Project { id: number; code: string; name: string }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
 const emptyForm = {
   workOrderId: '', process: '', workItemId: '', warehouseId: '', resourceId: '', worker: '',
   goodQty: '', defectQty: '', workTimeMin: '', workDate: today(), note: '',
+  /** 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */
+  projectId: '',
 }
 
 export default function WorkResultPage() {
   const [rows, setRows] = useState<WorkResult[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   /** 원본 그리드의 [작업품목] 후보. */
   const [items, setItems] = useState<Item[]>([])
@@ -79,12 +83,13 @@ export default function WorkResultPage() {
 
   async function loadRefs() {
     try {
-      const [wo, pr, rs, wh, it] = await Promise.all([
+      const [wo, pr, rs, wh, it, pj] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Process[]>('/processes'),
         api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
+        api.get<Project[]>('/projects'),
       ])
       setWorkOrders(wo.data)
       setProcesses(pr.data)
@@ -92,6 +97,7 @@ export default function WorkResultPage() {
       setWarehouses(wh.data.filter((w) => w.active))
       // 사용중지된 품목은 새로 고를 수 없다 — 서버도 거절한다.
       setItems(it.data.filter((x) => x.active))
+      setProjects(pj.data)
     } catch {
       /* 참조 로딩 실패는 폼 사용에만 영향 */
     }
@@ -114,6 +120,7 @@ export default function WorkResultPage() {
         defectQty: form.defectQty === '' ? 0 : Number(form.defectQty),
         workTimeMin: form.workTimeMin === '' ? 0 : Number(form.workTimeMin),
         workDate: form.workDate || null,
+        projectId: form.projectId === '' ? null : Number(form.projectId),
         note: form.note || null,
       })
       setForm(emptyForm)
@@ -220,6 +227,13 @@ export default function WorkResultPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업시간(분)</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.workTimeMin} onChange={(e) => setForm({ ...form, workTimeMin: e.target.value })} />
+            </div>
+            <div>
+              {/* 원본 작업내역입력 머리의 [프로젝트]. 프로젝트별 집계에 이 작업이 잡힌다. */}
+              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              <CodePickerField label="프로젝트" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                               value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
+                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm text-slate-600">적요</label>

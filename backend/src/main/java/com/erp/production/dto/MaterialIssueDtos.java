@@ -22,6 +22,8 @@ public final class MaterialIssueDtos {
             LocalDate issueDate,
             /** 담당자(사원) id. 원본 생산불출입력 머리의 [담당자]. */
             Long employeeId,
+            /** 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
+            Long projectId,
             String note
     ) {}
 
@@ -39,6 +41,8 @@ public final class MaterialIssueDtos {
             String productCode, String productName,
             /** 담당자(사원) id. 이름은 화면이 붙인다 — production 은 hr 을 참조할 수 없다. */
             Long employeeId,
+            /** 귀속 프로젝트. 원본 머리의 [프로젝트]. */
+            Long projectId, String projectName,
             BigDecimal qty, LocalDate issueDate, String note
     ) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
@@ -54,6 +58,8 @@ public final class MaterialIssueDtos {
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getProduct().getCode() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getProduct().getName() : null,
                     mi.getEmployeeId(),
+                    mi.getProject() != null ? mi.getProject().getId() : null,
+                    mi.getProject() != null ? mi.getProject().getName() : null,
                     mi.getQty(), mi.getIssueDate(), mi.getNote());
         }
     }

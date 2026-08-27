@@ -32,6 +32,7 @@ public class WorkResultService {
     private final BorService borService;
     private final com.erp.inventory.service.WarehouseService warehouseService;
     private final com.erp.inventory.service.ItemService itemService;
+    private final com.erp.inventory.service.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -77,6 +78,8 @@ public class WorkResultService {
                 .defectQty(req.defectQty() != null ? req.defectQty() : BigDecimal.ZERO)
                 .workTimeMin(req.workTimeMin() != null ? req.workTimeMin() : 0)
                 .workDate(req.workDate() != null ? req.workDate() : LocalDate.now())
+                /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .build();
 

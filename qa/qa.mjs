@@ -4709,6 +4709,38 @@ async function scenarioIssueEmployee(f) {
   eq('다시 조회해도 담당자가 남는다', re.employeeId, emp.id)
   eq('다시 조회해도 생산품목이 붙는다', re.productName, f.product.name)
 
+  /*
+   * 원본 생산불출입력·작업내역입력 머리의 <b>[프로젝트]</b>.
+   *
+   * <p>생산입고(Production)에는 있었는데 이 둘만 없었다. 같은 작업에서 나온 불출과
+   * 작업내역이 <b>프로젝트별 집계에 안 잡혔다</b> — 프로젝트 원가를 보면 완제품 입고만
+   * 걸리고 거기 들어간 자재와 품이 빠졌다.
+   */
+  const proj = await must('POST', '/projects', { name: `${P}불출프로젝트`, manager: 'QA' })
+  const withProj = await must('POST', '/material-issues', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, qty: 1, issueDate: '2091-07-08',
+    projectId: proj.id, note: `${P}프로젝트불출`,
+  })
+  eq('불출에 프로젝트가 실린다', withProj.projectId, proj.id)
+  eq('프로젝트 이름도 붙는다', withProj.projectName, `${P}불출프로젝트`)
+  eq('다시 조회해도 프로젝트가 남는다',
+    (await must('GET', '/material-issues')).find((x) => x.id === withProj.id).projectId, proj.id)
+
+  const wrProj = await must('POST', '/work-results', {
+    process: `${P}공정`, goodQty: 1, workDate: '2091-07-08', projectId: proj.id,
+  })
+  eq('작업내역에도 프로젝트가 실린다', wrProj.projectId, proj.id)
+  eq('작업내역 프로젝트 이름도 붙는다', wrProj.projectName, `${P}불출프로젝트`)
+
+  // 안 정할 수도 있어야 한다 — 원본도 빈칸을 허용한다.
+  const noProj = await must('POST', '/work-results', { process: `${P}공정2`, goodQty: 1, workDate: '2091-07-08' })
+  isNull('프로젝트를 안 정해도 된다', noProj.projectId)
+
+  await must('DELETE', `/work-results/${wrProj.id}`)
+  await must('DELETE', `/work-results/${noProj.id}`)
+  await must('DELETE', `/material-issues/${withProj.id}`)
+  await must('DELETE', `/projects/${proj.id}`)
+
   // 작업지시 없이 낸 불출은 생산품목이 없다. 지어내면 남의 지시 자재가 된다.
   const loose = await must('POST', '/material-issues', {
     itemId: line.componentId, warehouseId: f.warehouse.id, toWarehouseId: factory.id,

@@ -27,6 +27,8 @@ public final class WorkResultDtos {
             BigDecimal defectQty,
             Integer workTimeMin,
             LocalDate workDate,
+            /** 귀속 프로젝트. 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */
+            Long projectId,
             String note
     ) {}
 
@@ -54,6 +56,8 @@ public final class WorkResultDtos {
              * 그 품목·공정의 라우팅이 없으면 null — 0 과 구분해야 한다.
              */
             Integer standardTimeMin,
+            /** 귀속 프로젝트. 원본 머리의 [프로젝트]. */
+            Long projectId, String projectName,
             LocalDate workDate, String note
     ) {
         public static WorkResultResponse from(WorkResult wr) {
@@ -82,6 +86,8 @@ public final class WorkResultDtos {
                     wr.getWorker(),
                     wr.getGoodQty(), wr.getDefectQty(), wr.getWorkTimeMin(),
                     standardTimeMin,
+                    wr.getProject() != null ? wr.getProject().getId() : null,
+                    wr.getProject() != null ? wr.getProject().getName() : null,
                     wr.getWorkDate(), wr.getNote());
         }
     }

@@ -95,4 +95,11 @@ public class WorkResult extends BaseTimeEntity {
 
     @Column(length = 300)
     private String note;
+
+    /**
+     * 귀속 프로젝트. 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
 }

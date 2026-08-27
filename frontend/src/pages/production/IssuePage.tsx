@@ -38,6 +38,7 @@ interface MaterialIssue {
 interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
 /** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
 interface Warehouse { id: number; name: string; kind: string }
+interface Project { id: number; code: string; name: string }
 interface WorkOrder { id: number; orderNo: string; productName: string }
 interface EmployeeLite { id: number; code: string; name: string }
 
@@ -53,6 +54,8 @@ const today = () => ymd(new Date())
 const emptyForm = {
   itemId: '', warehouseId: '', toWarehouseId: '', workOrderId: '',
   employeeId: '', qty: '', issueDate: today(), note: '',
+  /** 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
+  projectId: '',
 }
 
 export default function IssuePage() {
@@ -62,6 +65,7 @@ export default function IssuePage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   /** 담당자 이름은 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -82,16 +86,18 @@ export default function IssuePage() {
 
   async function loadRefs() {
     try {
-      const [it, wh, wo, emp] = await Promise.all([
+      const [it, wh, wo, emp, pj] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<WorkOrder[]>('/work-orders'),
         api.get<EmployeeLite[]>('/employees'),
+        api.get<Project[]>('/projects'),
       ])
       setItems(it.data)
       setWarehouses(wh.data)
       setWorkOrders(wo.data)
       setEmployees(emp.data)
+      setProjects(pj.data)
     } catch {
       /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
     }
@@ -115,6 +121,7 @@ export default function IssuePage() {
         qty: form.qty === '' ? 0 : Number(form.qty),
         issueDate: form.issueDate || null,
         employeeId: form.employeeId === '' ? null : Number(form.employeeId),
+        projectId: form.projectId === '' ? null : Number(form.projectId),
         note: form.note,
       })
       setForm(emptyForm)
@@ -219,6 +226,13 @@ export default function IssuePage() {
                 <option value="">선택</option>
                 {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
               </select>
+            </div>
+            <div>
+              {/* 원본 생산불출입력 머리의 [프로젝트]. 프로젝트별 원가에 이 불출이 잡힌다. */}
+              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              <CodePickerField label="프로젝트" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                               value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
+                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">불출수량 *</label>
