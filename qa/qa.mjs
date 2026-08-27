@@ -7458,6 +7458,13 @@ async function scenarioReturnSlip(f) {
 
   const refl = (await must('GET', '/accounting-reflection?kind=PURCHASE'))
     .filter((r) => r.docNo === buy.docNo || r.docNo === pRet.docNo)
+  /*
+   * 원본 결제내역조회의 첫 열이 <b>[결제요청일시]</b> 다. 날짜만으로는 그 이름을 지킬 수 없고,
+   * 같은 날 여러 건이면 순서도 안 보인다 — 응답이 전표를 만든 시각을 같이 준다.
+   */
+  eq('일괄회계반영 줄이 만든 시각을 싣는다',
+    typeof refl[0].createdAt === 'string' && refl[0].createdAt.length >= 16, true)
+
   eq('일괄회계반영도 거래구분을 싣는다',
     refl.map((r) => `${r.docNo}=${r.tradeKind}`).sort().join(' '),
     [`${buy.docNo}=일반`, `${pRet.docNo}=반품`].sort().join(' '))

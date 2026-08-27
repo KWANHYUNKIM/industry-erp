@@ -72,6 +72,11 @@ public final class AccountingReflectionDtos {
             String journalDocNo,
             /** 전표를 만든 사람. 원본 결제내역조회의 [결제요청자ID]. */
             String createdBy,
+            /**
+             * 전표를 만든 <b>시각</b>. 원본 결제내역조회의 첫 열이 [결제요청일시] 라
+             * 날짜만으로는 그 이름을 지킬 수 없다 — 같은 날 여러 건이면 순서도 안 보인다.
+             */
+            java.time.LocalDateTime createdAt,
             /** 전표 적요. 원본 격자의 [내역]·[적요]. */
             String note,
             /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
@@ -82,7 +87,7 @@ public final class AccountingReflectionDtos {
             return new SlipResponse(id, kind, this.docNo, slipDate, partnerId, partnerName,
                     warehouseName, projectName, employeeName, itemSummary,
                     supplyAmount, vatAmount, totalAmount, vatType, tradeKind, reflected,
-                    entryId, docNo, createdBy, note, lines);
+                    entryId, docNo, createdBy, createdAt, note, lines);
         }
         public static SlipResponse fromSales(Sales s) {
             return new SlipResponse(
@@ -96,7 +101,7 @@ public final class AccountingReflectionDtos {
                     s.isTaxable() ? "과세" : "면세",
                     s.isReturnSlip() ? "반품" : "일반",
                     s.isAccountingReflected(),
-                    null, null, s.getCreatedBy(), s.getRemark(),
+                    null, null, s.getCreatedBy(), s.getCreatedAt(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
                             l.getQuantity(), l.getUnitPrice(),
@@ -115,7 +120,7 @@ public final class AccountingReflectionDtos {
                     p.isTaxable() ? "과세" : "면세",
                     p.isReturnSlip() ? "반품" : "일반",
                     p.isAccountingReflected(),
-                    null, null, p.getCreatedBy(), p.getRemark(),
+                    null, null, p.getCreatedBy(), p.getCreatedAt(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
                             l.getQuantity(), l.getUnitPrice(),
@@ -140,7 +145,7 @@ public final class AccountingReflectionDtos {
                     st.getType().getDisplayName(),
                     "일반",   // 결제에는 반품이 없다
                     st.isAccountingReflected(),
-                    null, null, st.getCreatedBy(), st.getNote(),
+                    null, null, st.getCreatedBy(), st.getCreatedAt(), st.getNote(),
                     List.of());
         }
 
