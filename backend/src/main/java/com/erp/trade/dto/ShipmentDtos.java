@@ -48,6 +48,8 @@ public final class ShipmentDtos {
 
     public record ShipLineResponse(
             Long itemId, String itemCode, String itemName, String unit,
+            /** 규격. 원본 출하지시서현황·출하현황의 결과 열이 [품목명(규격)] 이다. */
+            String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
             /** 줄 적요. 원본 출하현황·출하지시서현황의 결과 열. */
             String remark,
@@ -56,7 +58,8 @@ public final class ShipmentDtos {
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+                    l.getItem().getUnit(), l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
                     l.getOrderLine() != null ? l.getOrderLine().getId() : null);
         }

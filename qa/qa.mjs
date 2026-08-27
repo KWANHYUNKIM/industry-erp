@@ -4472,6 +4472,20 @@ async function scenarioShipmentLineRemark(f) {
   // 예전에는 응답에 안 실어서 "출하 전표에 창고가 없다" 고 여기고 조건을 안 만들었다.
   eq('창고명이 실린다', re.warehouseName, f.warehouse.name)
 
+  /*
+   * 원본 출하지시서현황·출하현황의 결과 열은 <b>품목명(규격)</b> 이다.
+   * 규격이 응답에 없으면 화면이 품목명만 찍고, 같은 이름에 규격만 다른 품목이
+   * 한 줄로 보인다 — 그걸 보고 다른 물건을 실어 보낸다.
+   */
+  eq('줄에 규격이 실린다', 'spec' in re.lines[0], true)
+
+  // 출하지시서현황이 보는 것은 <b>아직 안 나간 것</b>이다.
+  eq('만든 직후는 출하지시 상태다', re.status, 'READY')
+  eq('상태 이름도 실린다', re.statusName, '출하지시')
+
+  // 연락처는 원본 출하지시서현황에만 있는 열이다 — 보낼 곳에 연락하려고 보는 화면이다.
+  eq('연락처 칸이 응답에 있다', 'contact' in re, true)
+
   await must('DELETE', `/shipments/${ship.id}`)
   eq('시험용 출하는 남기지 않는다',
     (await must('GET', '/shipments')).filter((x) => x.shipDate === '2096-11-12').length, 0)

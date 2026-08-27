@@ -183,7 +183,7 @@ const MENU: TopMenu[] = [
               { label: '판매현황', to: '/sales/sales-status' },
               { label: '견적서현황', to: '/sales/quotations' },
               { label: '주문서현황', to: '/sales/order-status' },
-              { label: '출하지시서현황', to: '/sales/shipment-order' },
+              { label: '출하지시서현황', to: '/sales/shipment-order-status' },
               { label: '출하현황', to: '/sales/shipment' },
               { label: '거래명세서인쇄', to: '/sales/statement' },
               { label: '미주문현황', to: '/sales/unordered' },

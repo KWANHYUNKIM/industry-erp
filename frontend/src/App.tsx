@@ -149,6 +149,7 @@ const SalesDiscountPage = lazy(() => import('./pages/trade/SalesDiscountPage'))
 const PurchaseStatusPage = lazy(() => import('./pages/trade/PurchaseStatusPage'))
 const PurchaseDiscountPage = lazy(() => import('./pages/trade/PurchaseDiscountPage'))
 const ShipmentOrderPage = lazy(() => import('./pages/trade/ShipmentOrderPage'))
+const ShipmentOrderStatusPage = lazy(() => import('./pages/trade/ShipmentOrderStatusPage'))
 const ShipmentPage = lazy(() => import('./pages/trade/ShipmentPage'))
 const ShipmentInquiryPage = lazy(() => import('./pages/trade/ShipmentInquiryPage'))
 const PriceRequestProgressPage = lazy(() => import('./pages/trade/PriceRequestProgressPage'))
@@ -330,6 +331,7 @@ export default function App() {
         <Route path="/sales/price-request-progress" element={<PriceRequestProgressPage />} />
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />
+        <Route path="/sales/shipment-order-status" element={<ShipmentOrderStatusPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
         <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
         <Route path="/sales/unshipped" element={<UnshippedPage />} />
