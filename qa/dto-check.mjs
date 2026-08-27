@@ -48,6 +48,7 @@ const SERVER_OWNED = new Map([
   ['postNo', '게시글번호는 max+1 로 매긴다'],
   ['viewCount', '글을 펼 때 서버가 하나씩 올린다(POST …/read) — 사람이 정하면 그 숫자가 조회수가 아니게 된다'],
   ['status', '전용 엔드포인트(PATCH …/status)로 바꾼다'],
+  ['completedAt', '진행상태를 완료로 바꿀 때 서버가 찍는다(PATCH …/status) — 되돌리면 지운다. 등록·수정에서 정하면 진행중인데 완료일시가 있는 줄이 생긴다'],
   ['confirmStatus', '전용 엔드포인트로 바꾼다'],
   ['confirmedAt', '확정할 때 서버가 찍는다'],
   ['accountingReflected', '회계반영에서 바꾼다'],

@@ -37,7 +37,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', content: '', forwardTo: '', postDate: today() })
+  const [form, setForm] = useState({ title: '', content: '', forwardTo: '', ccTo: '', postDate: today() })
+  /** 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */
+  const [notice, setNotice] = useState(false)
   /** 새 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -47,7 +49,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   /** 펼쳐 놓은 글. 원본 [모두펼쳐보기]는 이걸 전부 채운다. */
   const [opened, setOpened] = useState<Set<number>>(new Set())
   /** 고치는 중인 글. 원본 펼친 글의 [수정]. */
-  const [editing, setEditing] = useState<{ id: number; title: string; content: string; forwardTo: string } | null>(null)
+  const [editing, setEditing] = useState<{ id: number; title: string; content: string; forwardTo: string; ccTo: string; notice: boolean } | null>(null)
 
   // Search(F3) — 버튼 라벨이 약속한 단축키
   useShortcut('F3', load)
@@ -93,6 +95,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       await api.put(`/work-posts/${editing.id}`, {
         title: editing.title, content: editing.content,
         forwardTo: editing.forwardTo || null,
+        ccTo: editing.ccTo || null,
+        notice: editing.notice,
       })
       setEditing(null)
       load()
@@ -137,10 +141,12 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     try {
       await api.post('/work-posts', {
         board, title: form.title, content: form.content,
-        forwardTo: form.forwardTo || undefined, postDate: form.postDate,
+        forwardTo: form.forwardTo || undefined, ccTo: form.ccTo || undefined,
+        notice, postDate: form.postDate,
         attachmentId: attachment ? attachment.id : null,
       })
-      setForm({ title: '', content: '', forwardTo: '', postDate: today() })
+      setForm({ title: '', content: '', forwardTo: '', ccTo: '', postDate: today() })
+      setNotice(false)
       setAttachment(null)
       setShowForm(false)
       load()
@@ -223,6 +229,18 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 <td><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>전달자</th>
                 <td><input className="ec-input" value={form.forwardTo} onChange={(e) => set('forwardTo', e.target.value)} placeholder="공유대상" style={{ width: 160 }} /></td>
+              </tr>
+              <tr>
+                <th style={{ width: 80, background: '#f5f7fa' }}>참조자</th>
+                <td><input className="ec-input" value={form.ccTo} onChange={(e) => set('ccTo', e.target.value)} placeholder="참조대상" style={{ width: '100%' }} /></td>
+                {/* 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */}
+                <th style={{ width: 80, background: '#f5f7fa' }}>공지사항여부</th>
+                <td>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={notice} onChange={(e) => setNotice(e.target.checked)} />
+                    맨 위에 고정
+                  </label>
+                </td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa', verticalAlign: 'top' }}>내용 *</th>
@@ -318,6 +336,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                                    font: 'inherit', color: 'var(--ec-blue-dark)', textAlign: 'left' }}>
                     <span style={{ color: '#9aa1ab', marginRight: 4 }}>{opened.has(r.id) ? '▾' : '▸'}</span>
+                    {r.notice && (
+                      <span style={{ color: '#c60a2e', fontWeight: 800, marginRight: 4 }}>[공지]</span>
+                    )}
                     {r.title}
                   </button>
                 </td>
@@ -325,6 +346,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 <td>{r.forwardTo ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: r.status === 'DONE' ? '#1c7c3c' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
+                  {/* 원본 WORK입력 폼의 [완료일시]. 언제 끝난 일인지가 아무 데도 안 남아 있었다. */}
+                  {r.completedAt && (
+                    <div style={{ color: '#9aa1ab', fontSize: 11 }}>{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
+                  )}
                 </td>
                 {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
                 <td style={{ textAlign: 'center' }}>
@@ -346,6 +371,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                                onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
                         <input className="ec-input" value={editing.forwardTo} placeholder="전달자"
                                onChange={(e) => setEditing({ ...editing, forwardTo: e.target.value })} />
+                        <input className="ec-input" value={editing.ccTo} placeholder="참조자"
+                               onChange={(e) => setEditing({ ...editing, ccTo: e.target.value })} />
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={editing.notice}
+                                 onChange={(e) => setEditing({ ...editing, notice: e.target.checked })} />
+                          공지사항여부
+                        </label>
                         <textarea className="ec-input" rows={5} value={editing.content}
                                   onChange={(e) => setEditing({ ...editing, content: e.target.value })} />
                         <div style={{ display: 'flex', gap: 4 }}>
@@ -361,6 +393,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                         <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 6, borderTop: '1px solid #eef1f5' }}>
                           <button className="ec-btn" onClick={() => setEditing({
                             id: r.id, title: r.title, content: r.content, forwardTo: r.forwardTo ?? '',
+                            ccTo: r.ccTo ?? '', notice: r.notice,
                           })}>수정</button>
                           <button className="ec-btn" onClick={() => void removeOne(r.id)}>삭제</button>
                           <button className="ec-btn" onClick={() => toggleOpen(r.id)}>닫기</button>

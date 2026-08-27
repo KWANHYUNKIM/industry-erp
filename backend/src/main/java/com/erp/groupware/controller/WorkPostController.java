@@ -47,7 +47,7 @@ public class WorkPostController {
 
     @PatchMapping("/{id}/status")
     public WorkPostResponse updateStatus(@PathVariable Long id, @RequestBody(required = false) UpdateWorkPostStatusRequest req) {
-        return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null));
+        return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null, null));
     }
 
     /** 원본 [조회] 열. 글을 펼칠 때 부른다. */

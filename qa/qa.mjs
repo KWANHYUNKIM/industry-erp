@@ -3911,9 +3911,59 @@ async function scenarioWorkPostAttachment() {
   isNull('첨부를 뗄 수 있다', cleared.attachmentId)
   eq('고쳐도 조회수는 그대로', cleared.viewCount, 2)
 
-  await must('DELETE', `/work-posts/${post.id}`)
-  eq('시험용 글은 남기지 않는다',
-    (await must('GET', '/work-posts?board=WORK')).some((x) => x.id === post.id), false)
+  /*
+   * 원본 WORK입력 폼 실측(사본 'WORK'): 완료일시 · 전달자 · <b>참조자</b> · 권한 · 비밀번호 ·
+   * 게시글비밀번호 · 제목 · <b>공지사항여부</b> · 첨부.
+   * 우리 폼에는 제목·내용·전달자·첨부밖에 없었다.
+   *
+   * (게시글비밀번호는 안 만든다 — 글 비밀번호를 평문으로 들고 있게 되는 자리라,
+   *  원본을 그대로 옮기는 것이 이 저장소에서 옳은 선택인지 따로 정해야 한다.)
+   */
+  const older = await must('POST', '/work-posts', {
+    board: 'WORK', title: `${P}공지시험-오래된`, content: '내용', postDate: '2087-03-01',
+    ccTo: '참조자시험', notice: true,
+  })
+  const newer = await must('POST', '/work-posts', {
+    board: 'WORK', title: `${P}공지시험-최신`, content: '내용', postDate: '2087-04-02',
+  })
+  eq('참조자가 저장된다', older.ccTo, '참조자시험')
+  eq('공지사항여부가 저장된다', older.notice, true)
+  eq('안 주면 공지가 아니다', newer.notice, false)
+
+  // 공지는 날짜가 더 오래됐어도 맨 위다 — 켜 놓고 날짜순으로 밀리면 공지가 아니다.
+  const listed = await must('GET', '/work-posts?board=WORK')
+  const iOld = listed.findIndex((x) => x.id === older.id)
+  const iNew = listed.findIndex((x) => x.id === newer.id)
+  eq('공지가 더 최신 글보다 위에 온다', iOld < iNew, true)
+  eq('그런데 날짜는 공지 쪽이 더 오래됐다', older.postDate < newer.postDate, true)
+
+  // 공지를 내리면 다시 날짜순으로 내려간다
+  await must('PUT', `/work-posts/${older.id}`, {
+    title: `${P}공지시험-오래된`, content: '내용', notice: false,
+  })
+  const after = await must('GET', '/work-posts?board=WORK')
+  eq('공지를 내리면 날짜순으로 돌아간다',
+    after.findIndex((x) => x.id === older.id) > after.findIndex((x) => x.id === newer.id), true)
+
+  /*
+   * 원본 [완료일시]. 진행상태는 '완료' 라고만 말하고 <b>언제 끝났는지는 아무 데도 안 남았다.</b>
+   * 되돌릴 때 지우는 것까지 잰다 — 안 지우면 '진행중인데 완료일시가 있는' 줄이 남아,
+   * 그 열을 근거로 무엇을 세는 순간 조용히 틀린다.
+   */
+  isNull('새 글은 완료일시가 없다', newer.completedAt)
+  const done = await must('PATCH', `/work-posts/${newer.id}/status`, { status: 'DONE' })
+  eq('완료로 바꾸면 완료일시가 찍힌다', typeof done.completedAt === 'string' && done.completedAt.length >= 16, true)
+  const reopened = await must('PATCH', `/work-posts/${newer.id}/status`, { status: 'IN_PROGRESS' })
+  isNull('되돌리면 완료일시를 지운다', reopened.completedAt)
+  const backfilled = await must('PATCH', `/work-posts/${newer.id}/status`,
+    { status: 'DONE', completedAt: '2087-04-03T09:30:00' })
+  eq('뒤늦게 정리하려고 직접 적을 수도 있다', backfilled.completedAt.slice(0, 16), '2087-04-03T09:30')
+
+  await must('DELETE', `/work-posts/${older.id}`)
+  await must('DELETE', `/work-posts/${newer.id}`)
+  eq('시험용 공지도 남기지 않는다',
+    (await must('GET', '/work-posts?board=WORK'))
+      .some((x) => x.id === older.id || x.id === newer.id), false)
 }
 
 /**

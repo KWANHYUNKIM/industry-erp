@@ -56,6 +56,32 @@ public class WorkPost extends BaseTimeEntity {
     @Column(length = 200)
     private String forwardTo;
 
+    /**
+     * 원본 WORK입력 폼의 <b>[참조자]</b>. 전달자와 나란히 있는 칸이다.
+     * 원본은 사원 코드도움이지만 우리 전달자와 같은 자유입력으로 둔다 — 한쪽만 코드로 바꾸면
+     * 같은 줄에 성격이 다른 두 칸이 생긴다.
+     */
+    @Column(name = "cc_to", length = 200)
+    private String ccTo;
+
+    /**
+     * 원본 WORK입력 폼의 <b>[공지사항여부]</b> 체크박스.
+     * 켜면 목록 맨 위에 붙는다 — 그게 이 칸이 있는 이유다. 켜 놓고 날짜순으로 밀리면
+     * 공지가 아니다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean notice = false;
+
+    /**
+     * 원본 WORK입력 폼의 <b>[완료일시]</b>. 피커가 년/월/일 + 시:분이라 날짜가 아니라 일시다.
+     *
+     * <p>진행상태를 완료로 바꿀 때 자동으로 찍고, 진행중으로 되돌리면 지운다 —
+     * '진행중인데 완료일시가 남아 있는' 줄을 만들지 않기 위해서다.
+     */
+    @Column(name = "completed_at")
+    private java.time.LocalDateTime completedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

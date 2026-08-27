@@ -14,6 +14,11 @@ public interface WorkPostRepository extends JpaRepository<WorkPost, Long> {
     @Query("select coalesce(max(p.postNo), 0) from WorkPost p")
     int maxPostNo();
 
-    @Query("select p from WorkPost p where p.board = :board order by p.postDate desc, p.id desc")
+    /**
+     * 원본 [공지사항여부] 가 켜진 글은 <b>맨 위에 붙는다.</b> 켜 놓고 날짜순으로 밀리면
+     * 공지가 아니다. 공지끼리는 다시 최신순이다.
+     */
+    @Query("select p from WorkPost p where p.board = :board "
+            + "order by p.notice desc, p.postDate desc, p.id desc")
     List<WorkPost> findByBoardOrdered(@Param("board") PostBoard board);
 }

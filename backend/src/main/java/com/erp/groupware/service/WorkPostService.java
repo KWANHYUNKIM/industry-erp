@@ -64,6 +64,8 @@ public class WorkPostService {
                 .content(req.content())
                 .writer(writer)
                 .forwardTo(req.forwardTo())
+                .ccTo(req.ccTo())
+                .notice(Boolean.TRUE.equals(req.notice()))
                 .attachment(attachmentOf(req.attachmentId()))
                 .status(WorkPostStatus.IN_PROGRESS)
                 .build();
@@ -77,6 +79,8 @@ public class WorkPostService {
         post.setTitle(req.title());
         post.setContent(req.content());
         post.setForwardTo(req.forwardTo());
+        post.setCcTo(req.ccTo());
+        post.setNotice(Boolean.TRUE.equals(req.notice()));
         post.setAttachment(attachmentOf(req.attachmentId()));
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
@@ -87,6 +91,16 @@ public class WorkPostService {
         WorkPostStatus target = req.status() != null ? req.status()
                 : (post.getStatus() == WorkPostStatus.DONE ? WorkPostStatus.IN_PROGRESS : WorkPostStatus.DONE);
         post.setStatus(target);
+        /*
+         * 원본 WORK입력 폼의 [완료일시]. 완료로 바꿀 때 찍고, 되돌리면 지운다.
+         * 되돌릴 때 지우지 않으면 '진행중인데 완료일시가 있는' 줄이 남아, 그 열을 근거로
+         * 무엇을 세는 순간 조용히 틀린다.
+         */
+        if (target == WorkPostStatus.DONE) {
+            post.setCompletedAt(req.completedAt() != null ? req.completedAt() : java.time.LocalDateTime.now());
+        } else {
+            post.setCompletedAt(null);
+        }
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
 

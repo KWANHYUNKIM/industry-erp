@@ -1253,6 +1253,12 @@ export interface WorkPost {
   /** 작성자 표시 이름. 화면은 이걸 쓴다 — writer 는 아이디라 사람이 읽기 나쁘다. */
   writerName: string
   forwardTo: string | null
+  /** 원본 WORK입력 폼의 [참조자]. */
+  ccTo: string | null
+  /** 원본 WORK입력 폼의 [공지사항여부]. true 면 목록 맨 위에 붙는다. */
+  notice: boolean
+  /** 원본 WORK입력 폼의 [완료일시]. 진행중이면 null. */
+  completedAt: string | null
   /** 원본 격자의 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
   attachmentId: number | null
   attachmentName: string | null

@@ -6,6 +6,7 @@ import com.erp.groupware.domain.enums.PostBoard;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public final class WorkPostDtos {
 
@@ -17,6 +18,10 @@ public final class WorkPostDtos {
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
             String forwardTo,
+            /** 원본 WORK입력 폼의 [참조자]. 전달자와 같은 자유입력. */
+            String ccTo,
+            /** 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. 안 주면 꺼짐. */
+            Boolean notice,
             LocalDate postDate,
             /** 첨부 파일 id. 원본 격자의 [첨부] 열. 안 붙일 수 있다. */
             Long attachmentId
@@ -32,12 +37,20 @@ public final class WorkPostDtos {
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
             String forwardTo,
+            String ccTo,
+            /** 원본 [공지사항여부]. 안 주면 끈다 — 수정은 통째로 덮는다. */
+            Boolean notice,
             /** null 이면 첨부를 뗀다. 안 보내는 것과 구분하지 않는다 — 수정은 통째로 덮는다. */
             Long attachmentId
     ) {}
 
     public record UpdateWorkPostStatusRequest(
-            WorkPostStatus status
+            WorkPostStatus status,
+            /**
+             * 원본 [완료일시]. 안 주고 완료로 바꾸면 <b>지금</b>으로 찍는다.
+             * 뒤늦게 정리하는 경우가 있어 직접 적을 수도 있게 둔다.
+             */
+            LocalDateTime completedAt
     ) {}
 
     public record WorkPostResponse(
@@ -49,7 +62,13 @@ public final class WorkPostDtos {
             /** 작성자 표시 이름. 화면은 이걸 보여 준다 — writer 는 아이디라 사람이 읽기 나쁘다. */
             String writerName,
             String forwardTo,
+            /** 원본 WORK입력 폼의 [참조자]. */
+            String ccTo,
+            /** 원본 [공지사항여부]. true 면 목록 맨 위에 붙는다. */
+            boolean notice,
             WorkPostStatus status, String statusName,
+            /** 원본 [완료일시]. 진행중이면 null 이다. */
+            LocalDateTime completedAt,
             /** 원본 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
             Long attachmentId, String attachmentName, Long attachmentSize,
             /** 원본 [조회] 열. */
@@ -61,7 +80,8 @@ public final class WorkPostDtos {
                     p.getId(), p.getBoard(), p.getBoard().getDisplayName(),
                     p.getPostNo(), p.getPostDate(),
                     p.getTitle(), p.getContent(), p.getWriter(), writerName, p.getForwardTo(),
-                    p.getStatus(), p.getStatus().getDisplayName(),
+                    p.getCcTo(), p.isNotice(),
+                    p.getStatus(), p.getStatus().getDisplayName(), p.getCompletedAt(),
                     f != null ? f.getId() : null,
                     f != null ? f.getName() : null,
                     f != null ? f.getSizeBytes() : null,
