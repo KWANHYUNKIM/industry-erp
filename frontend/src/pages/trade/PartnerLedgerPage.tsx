@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { groupKeyOf, UNPOSTED } from '../../utils/ledgerGroup'
+import { rollupOf, toRollupMap, type LedgerBasis, type RollupPartner } from '../../utils/partnerRollup'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -71,6 +72,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [postedSales, setPostedSales] = useState<Map<number, string>>(new Map())
   const [postedPurchases, setPostedPurchases] = useState<Map<number, string>>(new Map())
   const [postedSettles, setPostedSettles] = useState<Map<number, string>>(new Map())
+  /** 원본 [대표거래처로 합산]에 쓰는 거래처 관계. id → 대표거래처. */
+  const [rollup, setRollup] = useState<Map<number, RollupPartner>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -80,6 +83,11 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [to, setTo] = useState(init.to)
   const [side, setSide] = useState<Side>(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
   const [group, setGroup] = useState<Group>('전표별')
+  /**
+   * 원본 [대표거래처로 합산] — '거래처관계기준' 이면 지점·사업장 채권채무를 대표 밑으로 모은다.
+   * 기본은 원본과 같이 개별거래처기준이다.
+   */
+  const [basis, setBasis] = useState<LedgerBasis>('개별거래처기준')
   /**
  * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
  * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,
@@ -92,7 +100,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     setLoading(true)
     setError('')
     try {
-      const [s, p, t, js, jp, jt] = await Promise.all([
+      const [s, p, t, js, jp, jt, pt] = await Promise.all([
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<Settlement[]>('/settlements').catch(() => ({ data: [] as Settlement[] })),
@@ -101,11 +109,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         api.get<Posted[]>('/accounting-reflection?kind=SALES').catch(() => ({ data: [] as Posted[] })),
         api.get<Posted[]>('/accounting-reflection?kind=PURCHASE').catch(() => ({ data: [] as Posted[] })),
         api.get<Posted[]>('/accounting-reflection?kind=SETTLEMENT').catch(() => ({ data: [] as Posted[] })),
+        api.get<RollupPartner[]>('/partners'),
       ])
       setSales(s.data); setPurchases(p.data); setSettlements(t.data)
       const toMap = (rows: Posted[]) =>
         new Map(rows.filter((r) => r.journalDocNo).map((r) => [r.id, r.journalDocNo as string]))
       setPostedSales(toMap(js.data)); setPostedPurchases(toMap(jp.data)); setPostedSettles(toMap(jt.data))
+      setRollup(toRollupMap(pt.data))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -116,7 +126,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   useEffect(() => { load() }, [])
 
   const reset = () => {
-    setFrom(init.from); setTo(init.to); setGroup('전표별'); setPartner('')
+    setFrom(init.from); setTo(init.to); setGroup('전표별'); setPartner(''); setBasis('개별거래처기준')
     setSide(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
   }
 
@@ -159,11 +169,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const ledger = useMemo(() => {
     const partners = new Map<number, { partnerId: number; name: string; opening: number; entries: Entry[] }>()
     for (const e of bySide) {
-      const cur = partners.get(e.partnerId)
-        ?? { partnerId: e.partnerId, name: e.partnerName, opening: 0, entries: [] }
+      // 규칙은 utils/partnerRollup 에 있다 — 키를 잘못 잡으면 줄이 남의 거래처에 얹힌다.
+      const t = rollupOf(e, basis, rollup)
+      const cur = partners.get(t.id)
+        ?? { partnerId: t.id, name: t.name, opening: 0, entries: [] }
       if (e.date < from) cur.opening += e.increase - e.decrease
       else if (e.date <= to) cur.entries.push(e)
-      partners.set(e.partnerId, cur)
+      partners.set(t.id, cur)
     }
 
     const fold = (entries: Entry[]): Entry[] => {
@@ -206,7 +218,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       })
       .filter((p) => p.rows.length > 0 || p.opening !== 0)
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [bySide, from, to, group])
+  }, [bySide, from, to, group, basis, rollup])
 
   const totals = useMemo(() => ledger.reduce(
     (s, p) => ({
@@ -252,6 +264,19 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
             {GROUPS.map((g) => (
               <button key={g} type="button" className={`ec-pill no-ec${group === g ? ' active' : ''}`}
                       onClick={() => setGroup(g)}>{g}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/*
+          원본 조건의 [대표거래처로 합산]. 값이 '거래처관계기준' 과 '개별거래처기준' 둘이다.
+          한 회사가 지점별로 거래처코드를 따로 쓰면 채권채무를 회사 단위로 봐야 하는데
+          우리는 코드 단위로밖에 볼 수 없었다.
+        */}
+        <EcCond label="대표거래처로 합산">
+          <div className="ec-pills">
+            {(['개별거래처기준', '거래처관계기준'] as const).map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                      onClick={() => setBasis(b)}>{b}</button>
             ))}
           </div>
         </EcCond>

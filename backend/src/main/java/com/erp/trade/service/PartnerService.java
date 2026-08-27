@@ -74,6 +74,7 @@ public class PartnerService {
                 .searchKeyword(emptyToNull(req.searchKeyword()))
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
+                .parent(parentOf(req.parentId(), null))
                 .active(true)
                 .build();
         return PartnerResponse.from(partnerRepository.save(p));
@@ -110,6 +111,7 @@ public class PartnerService {
         p.setSearchKeyword(emptyToNull(req.searchKeyword()));
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
+        p.setParent(parentOf(req.parentId(), p));
         if (req.active() != null) {
             p.setActive(req.active());
         }
@@ -167,6 +169,43 @@ public class PartnerService {
     @Transactional(readOnly = true)
     public BusinessPartner get(Long id) {
         return getPartner(id);
+    }
+
+    /**
+     * 원본 [관계설정]의 <b>대표거래처</b>. null 이면 자기가 곧 대표다.
+     *
+     * <p>세 가지를 거절한다. 조용히 무시하면 거래처관리대장의 [대표거래처로 합산]이
+     * <b>어떤 줄을 어디로 모을지 아무도 말할 수 없는 상태</b>가 된다.
+     * <ul>
+     *   <li>없는 거래처</li>
+     *   <li>자기 자신 — 자기 밑으로 합산한다는 말이 성립하지 않는다</li>
+     *   <li>이미 남의 종속인 거래처를 대표로 삼는 것 — 두 단계까지만 둔다.
+     *       사슬을 허용하면 어디서 멈추는지가 읽는 사람마다 달라지고, 되돌아오면 무한루프다.</li>
+     * </ul>
+     *
+     * @param self 수정 중인 거래처(등록이면 null). 자기 자신 검사에 쓴다.
+     */
+    private BusinessPartner parentOf(Long parentId, BusinessPartner self) {
+        if (parentId == null) return null;
+        if (self != null && parentId.equals(self.getId())) {
+            throw ApiException.badRequest("자기 자신을 대표거래처로 둘 수 없습니다.");
+        }
+        BusinessPartner parent = partnerRepository.findById(parentId)
+                .orElseThrow(() -> ApiException.badRequest("대표거래처를 찾을 수 없습니다. id=" + parentId));
+        if (parent.getParent() != null) {
+            throw ApiException.badRequest(
+                    "대표거래처는 다시 다른 거래처에 딸릴 수 없습니다: "
+                            + parent.getName() + " → " + parent.getParent().getName());
+        }
+        /*
+         * 이 거래처를 대표로 삼고 있는 거래처가 있으면, 이 거래처는 남의 밑으로 갈 수 없다.
+         * (대표 → 종속 → 종속 이 되어 위와 같은 사슬이 생긴다.)
+         */
+        if (self != null && partnerRepository.existsByParentId(self.getId())) {
+            throw ApiException.badRequest(
+                    "이 거래처를 대표로 삼는 거래처가 있어 다른 거래처에 딸릴 수 없습니다.");
+        }
+        return parent;
     }
 
     /** 거래처그룹. null 이면 그룹 없음 — 없는 id 를 주면 조용히 무시하지 않고 알린다. */

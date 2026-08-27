@@ -226,6 +226,12 @@ export interface Partner {
   taxReport: boolean
   /** 원본 [출하대상거래처]. */
   shipmentTarget: boolean
+  /**
+   * 원본 [관계설정]의 대표거래처. 이 거래처가 어느 회사의 지점·사업장이면 그 회사다.
+   * 미지정이면 자기가 곧 대표다 — 거래처관리대장의 [대표거래처로 합산]이 이걸 쓴다.
+   */
+  parentId: number | null
+  parentName: string | null
   partnerGroupId: number | null
   partnerGroupName: string | null
   active: boolean

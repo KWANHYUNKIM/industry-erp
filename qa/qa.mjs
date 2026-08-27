@@ -3964,6 +3964,10 @@ async function scenarioWorkPostAttachment() {
   eq('시험용 공지도 남기지 않는다',
     (await must('GET', '/work-posts?board=WORK'))
       .some((x) => x.id === older.id || x.id === newer.id), false)
+
+  await must('DELETE', `/work-posts/${post.id}`)
+  eq('시험용 글은 남기지 않는다',
+    (await must('GET', '/work-posts?board=WORK')).some((x) => x.id === post.id), false)
 }
 
 /**
@@ -4984,6 +4988,64 @@ async function scenarioPartnerContactAndBank() {
 
   const revived = await must('PUT', `/partners/${made.id}`, { ...body, active: true })
   eq('되살릴 수 있다', revived.active, true)
+
+  /*
+   * <b>거래처 관계설정 — 대표거래처.</b>
+   *
+   * 원본 근거(사본): 거래처리스트 하단 버튼에 [관계설정] 이 있고, 거래처관리대장 II 조건에
+   * [대표거래처로 합산] 이 있으며 그 값이 '거래처관계기준' 과 '개별거래처기준' 둘이다.
+   * 한 회사가 지점·사업장별로 거래처코드를 따로 쓰면 채권채무를 회사 단위로 봐야 하는데
+   * 우리는 코드 단위로밖에 볼 수 없었다.
+   *
+   * <b>두 단계까지만</b> 둔다. 사슬을 허용하면 합산이 어디서 멈추는지가 읽는 사람마다
+   * 달라지고, 되돌아오면 무한루프다. 그래서 거절을 세 가지 다 잰다.
+   */
+  const parentCode = `${P}PTHEAD`
+  for (const x of (await must('GET', '/partners')).filter((y) => y.code === parentCode)) {
+    await call('DELETE', `/partners/${x.id}`)
+  }
+  const head = await must('POST', '/partners',
+    { code: parentCode, name: `${P}본사`, type: 'CUSTOMER' })
+  const branchCode = `${P}PTBR`
+  for (const x of (await must('GET', '/partners')).filter((y) => y.code === branchCode)) {
+    await call('DELETE', `/partners/${x.id}`)
+  }
+  const branch = await must('POST', '/partners',
+    { code: branchCode, name: `${P}지점`, type: 'CUSTOMER', parentId: head.id })
+  eq('대표거래처가 저장된다', branch.parentId, head.id)
+  eq('대표거래처명도 같이 온다', branch.parentName, `${P}본사`)
+  isNull('대표를 안 주면 자기가 곧 대표다', head.parentId)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/partners')).find((x) => x.id === branch.id).parentId, head.id)
+
+  const selfBody = { name: `${P}지점`, type: 'CUSTOMER' }
+  await rejects('자기 자신은 대표가 될 수 없다', 'PUT', `/partners/${branch.id}`,
+    { ...selfBody, parentId: branch.id }, '자기 자신')
+  await rejects('없는 거래처는 대표가 될 수 없다', 'PUT', `/partners/${branch.id}`,
+    { ...selfBody, parentId: 99999999 }, '대표거래처를 찾을 수 없습니다')
+
+  // 종속거래처를 다시 남의 대표로 삼을 수 없다 (대표 → 종속 → 종속 사슬 금지)
+  const thirdCode = `${P}PT3`
+  for (const x of (await must('GET', '/partners')).filter((y) => y.code === thirdCode)) {
+    await call('DELETE', `/partners/${x.id}`)
+  }
+  const third = await must('POST', '/partners',
+    { code: thirdCode, name: `${P}셋째`, type: 'CUSTOMER' })
+  await rejects('종속거래처를 대표로 삼을 수 없다', 'PUT', `/partners/${third.id}`,
+    { name: `${P}셋째`, type: 'CUSTOMER', parentId: branch.id }, '다시 다른 거래처에 딸릴 수 없습니다')
+
+  // 반대 방향도 막는다: 이미 종속을 거느린 거래처는 남의 밑으로 갈 수 없다
+  await rejects('대표거래처는 남의 밑으로 갈 수 없다', 'PUT', `/partners/${head.id}`,
+    { name: `${P}본사`, type: 'CUSTOMER', parentId: third.id }, '대표로 삼는 거래처가 있어')
+
+  // 관계를 풀 수 있다
+  const freed = await must('PUT', `/partners/${branch.id}`, { ...selfBody, parentId: null })
+  isNull('관계를 풀 수 있다', freed.parentId)
+
+  for (const id of [branch.id, head.id, third.id]) await must('DELETE', `/partners/${id}`)
+  eq('시험용 관계 거래처도 남기지 않는다',
+    (await must('GET', '/partners'))
+      .filter((x) => [parentCode, branchCode, thirdCode].includes(x.code)).length, 0)
 
   await must('DELETE', `/partners/${made.id}`)
   eq('시험용 거래처는 남기지 않는다',

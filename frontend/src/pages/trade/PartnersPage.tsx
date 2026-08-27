@@ -14,6 +14,8 @@ const empty = {
   bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
   bankName: '', accountNo: '', accountHolder: '',
   postalCode: '', address: '', partnerGroupId: '',
+  /** 원본 [관계설정]의 대표거래처. 비우면 자기가 곧 대표다. */
+  parentId: '',
   salesPriceGroup: '', purchasePriceGroup: '', searchKeyword: '',
   regNoKind: '사업자등록번호', industryKind: '일반', subBizNo: '',
   postalCode2: '', address2: '', homepage: '', remark: '',
@@ -123,6 +125,7 @@ export default function PartnersPage() {
       taxReport: p.taxReport, shipmentTarget: p.shipmentTarget,
       active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
+      parentId: p.parentId != null ? String(p.parentId) : '',
     })
     setShowForm(true)
   }
@@ -130,7 +133,11 @@ export default function PartnersPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    const body = { ...form, partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null }
+    const body = {
+      ...form,
+      partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null,
+      parentId: form.parentId ? Number(form.parentId) : null,
+    }
     try {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
       if (editId != null) await api.put(`/partners/${editId}`, body)
@@ -158,12 +165,24 @@ export default function PartnersPage() {
     setError('')
     try {
       for (const x of targets) {
+        /*
+         * <b>그 거래처를 통째로 다시 보낸다.</b> 예전에는 몇 칸만 골라 보냈는데,
+         * 수정 요청은 통째로 덮으므로 안 보낸 칸(검색창내용·홈페이지·적요·주소2·
+         * 우편번호·단가그룹·세무신고거래처 …)이 <b>사용중단 한 번에 조용히 지워졌다.</b>
+         * 창고에서 똑같은 것을 고쳤는데 거래처에도 남아 있었다.
+         */
         await api.put(`/partners/${x.id}`, {
           name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
           bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
           phone: x.phone, mobile: x.mobile,
           bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
-          address: x.address, partnerGroupId: x.partnerGroupId, active: reviving,
+          postalCode: x.postalCode, address: x.address,
+          salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
+          searchKeyword: x.searchKeyword, regNoKind: x.regNoKind, industryKind: x.industryKind,
+          subBizNo: x.subBizNo, postalCode2: x.postalCode2, address2: x.address2,
+          homepage: x.homepage, remark: x.remark,
+          taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
+          parentId: x.parentId, partnerGroupId: x.partnerGroupId, active: reviving,
         })
       }
       setChecked(new Set())
@@ -296,6 +315,19 @@ export default function PartnersPage() {
                 label="거래처그룹" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
                 value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
                 items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+              />
+            </div>
+            {/*
+              원본 거래처리스트 하단의 [관계설정]. 지점·사업장별로 거래처코드를 따로 쓰는 회사를
+              하나로 묶는다 — 거래처관리대장의 [대표거래처로 합산]이 이 값을 본다.
+              자기 자신과 이미 남의 종속인 거래처는 서버가 거절한다(두 단계까지).
+            */}
+            <div>
+              <CodePickerField
+                label="대표거래처 (관계설정)" placeholder="대표거래처 선택" emptyLabel="선택 해제"
+                value={form.parentId} onChange={(v) => set('parentId', v)}
+                items={partners.filter((x) => x.id !== editId && x.parentId == null)
+                  .map((x) => ({ value: String(x.id), code: x.code, name: x.name }))}
               />
             </div>
             <div>

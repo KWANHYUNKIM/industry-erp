@@ -38,6 +38,20 @@ public class BusinessPartner extends BaseTimeEntity {
     @JoinColumn(name = "partner_group_id")
     private PartnerGroup partnerGroup;
 
+    /**
+     * 원본 [관계설정]의 <b>대표거래처</b>. 이 거래처가 어느 회사에 딸린 지점·사업장이면
+     * 그 회사를 가리킨다. 미지정이면 자기가 곧 대표다.
+     *
+     * <p>거래처관리대장 II 의 [대표거래처로 합산]이 이것을 쓴다 — 켜면 종속 거래처의
+     * 채권채무가 대표 밑으로 모인다('거래처관계기준'), 끄면 코드 단위다('개별거래처기준').
+     *
+     * <p><b>두 단계까지만</b> 둔다. 대표거래처가 다시 남의 종속이 되면 합산이 어디서
+     * 멈추는지가 사람마다 다르게 읽힌다 — 서비스가 그것을 거절한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private BusinessPartner parent;
+
     /** 사업자등록번호 */
     @Column(length = 20)
     private String bizRegNo;

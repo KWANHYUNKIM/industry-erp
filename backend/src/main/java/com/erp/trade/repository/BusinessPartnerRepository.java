@@ -12,6 +12,9 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
 
     boolean existsByCode(String code);
 
+    /** 이 거래처를 대표로 삼는 종속거래처가 있는가. 관계를 두 단계로 묶어 두는 데 쓴다. */
+    boolean existsByParentId(Long parentId);
+
     /** 자유입력된 거래처명이 마스터와 정확히 일치할 때만 연결한다(부분일치로 엮으면 엉뚱한 거래처가 붙는다). */
     java.util.Optional<BusinessPartner> findByName(String name);
 

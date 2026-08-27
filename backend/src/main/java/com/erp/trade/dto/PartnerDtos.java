@@ -58,6 +58,11 @@ public final class PartnerDtos {
             Boolean taxReport,
             /** 원본 [출하대상거래처]. 안 주면 대상. */
             Boolean shipmentTarget,
+            /**
+             * 원본 [관계설정]의 대표거래처 (선택). 이 거래처가 어느 회사의 지점·사업장이면
+             * 그 회사를 가리킨다. 거래처관리대장의 [대표거래처로 합산]이 이걸 쓴다.
+             */
+            Long parentId,
             Long partnerGroupId
     ) {}
 
@@ -105,6 +110,11 @@ public final class PartnerDtos {
             Boolean taxReport,
             /** 원본 [출하대상거래처]. 안 주면 대상. */
             Boolean shipmentTarget,
+            /**
+             * 원본 [관계설정]의 대표거래처 (선택). 이 거래처가 어느 회사의 지점·사업장이면
+             * 그 회사를 가리킨다. 거래처관리대장의 [대표거래처로 합산]이 이걸 쓴다.
+             */
+            Long parentId,
             Long partnerGroupId,
             Boolean active
     ) {}
@@ -147,6 +157,9 @@ public final class PartnerDtos {
             String remark,
             boolean taxReport,
             boolean shipmentTarget,
+            /** 원본 [관계설정]의 대표거래처. 미지정이면 자기가 곧 대표다. */
+            Long parentId,
+            String parentName,
             Long partnerGroupId,
             String partnerGroupName,
             boolean active
@@ -162,6 +175,8 @@ public final class PartnerDtos {
                     p.getRegNoKind(), p.getIndustryKind(), p.getSubBizNo(),
                     p.getPostalCode2(), p.getAddress2(), p.getHomepage(), p.getRemark(),
                     p.isTaxReport(), p.isShipmentTarget(),
+                    p.getParent() != null ? p.getParent().getId() : null,
+                    p.getParent() != null ? p.getParent().getName() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
                     p.isActive());
