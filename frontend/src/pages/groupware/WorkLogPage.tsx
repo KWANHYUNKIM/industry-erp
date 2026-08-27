@@ -8,6 +8,7 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { Project, WorkJournal } from '../../api/types'
 import { useShortcut } from '../../utils/useShortcut'
+import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
 
 const TITLE = '업무일지'
 
@@ -41,6 +42,14 @@ export default function WorkLogPage() {
     return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
   })
   const setC = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
+  /**
+   * 원본 조건 [기타]의 <b>[사용중단부서포함]</b>. 원본과 같이 기본은 꺼져 있다 —
+   * 없어진 부서의 일지가 기본 화면에 계속 섞여 나오고 있었다.
+   */
+  const [withInactiveDept, setWithInactiveDept] = useState(false)
+  const [inactiveDepts, setInactiveDepts] = useState<Set<string>>(new Set())
+  /** 부서 코드도움 후보. 원본 조건의 [부서]도 자유입력이 아니라 [선택]이다. */
+  const [depts, setDepts] = useState<DeptRow[]>([])
 
   /** 조건에 맞는 일지만. 문자열 조건은 부분일치 — 원본도 코드도움에서 고르되 부분일치로 찾는다. */
   const has = (v: string | null | undefined, q: string) => !q || (v ?? '').includes(q)
@@ -53,7 +62,10 @@ export default function WorkLogPage() {
     && has(r.partnerName, cond.partnerName)
     && has(r.title, cond.title)
     && has(r.content, cond.content)
-    && has(r.authorName, cond.author))
+    && has(r.authorName, cond.author)
+    // 원본 조건 [기타]의 [사용중단부서포함]. 규칙은 utils/inactiveDept 에 있다 —
+    // '마스터에 없으면 뺀다' 로 만들면 옛 부서명으로 적힌 일지가 통째로 사라진다.
+    && showsJournal(r.department, inactiveDepts, withInactiveDept))
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -107,6 +119,14 @@ export default function WorkLogPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    let alive = true
+    api.get<DeptRow[]>('/departments')
+      .then((r) => { if (alive) { setDepts(r.data); setInactiveDepts(inactiveDeptNames(r.data)) } })
+      .catch(() => { /* 못 받으면 아무것도 숨기지 않는다 */ })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
@@ -234,9 +254,22 @@ export default function WorkLogPage() {
             </select>
           </div>
         </li>
+        {/*
+          원본 조건의 [부서]는 자유입력이 아니라 [선택](코드도움)이다.
+          [사용중단부서포함]을 끄면 후보에서도 빠진다 — 목록에서 고를 수 있는데
+          고르면 아무것도 안 나오는 부서를 남겨 두면 사람이 화면을 의심한다.
+          값은 id 가 아니라 <b>부서명</b>이다. 업무일지가 부서를 이름으로 들고 있어서다.
+        */}
         <li>
           <div className="title">부서</div>
-          <div className="form"><input className="ec-input" value={cond.department} onChange={(e) => setC('department', e.target.value)} style={{ width: '100%' }} /></div>
+          <div className="form">
+            <CodePickerField
+              label="부서" hideLabel fill value={cond.department}
+              onChange={(v) => setC('department', v)}
+              items={depts.filter((d) => withInactiveDept || d.active)
+                .map((d) => ({ value: d.name, code: d.code ?? '', name: d.name }))}
+            />
+          </div>
         </li>
         <li>
           <div className="title">프로젝트</div>
@@ -262,6 +295,17 @@ export default function WorkLogPage() {
           <div className="title">내용</div>
           <div className="form"><input className="ec-input" value={cond.content} onChange={(e) => setC('content', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
+        {/* 원본 조건 판의 [기타] 칸. 원본도 기본은 꺼져 있다. */}
+        <li>
+          <div className="title">기타</div>
+          <div className="form">
+            <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <input type="checkbox" checked={withInactiveDept}
+                     onChange={(e) => setWithInactiveDept(e.target.checked)} />
+              사용중단부서포함
+            </label>
+          </div>
+        </li>
       </ul>
 
       {/* 원본 하단: 검색(F8) + 기간 빠른선택 + 다시 작성 */}
@@ -270,7 +314,10 @@ export default function WorkLogPage() {
         <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
         <button
           className="ec-btn"
-          onClick={() => setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })}
+          onClick={() => {
+            setCond({ from: periodOf('금월')!.from, to: periodOf('금월')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })
+            setWithInactiveDept(false)
+          }}
         >
           다시 작성
         </button>
