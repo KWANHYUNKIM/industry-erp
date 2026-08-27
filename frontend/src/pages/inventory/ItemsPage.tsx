@@ -185,23 +185,56 @@ export default function ItemsPage() {
    * 골라 보내면 안 보낸 칸(검색창내용·바코드·관리항목·품목그룹·이미지 …)이
    * 사용중단 한 번에 조용히 지워진다. 거래처에서 겪은 것과 같은 함정이다.
    */
+  /**
+   * 그 품목을 <b>통째로</b> 만든다. 바꿀 칸만 얹고 나머지는 있는 값 그대로 보낸다 —
+   * 수정은 통째로 덮으므로 몇 칸만 보내면 검색창내용·바코드·관리항목·품목그룹·이미지가
+   * 조용히 지워진다.
+   *
+   * <p>값은 그대로 넘긴다. 빈 문자열로 바꾸면 '안 적었다(null)' 와 '비워 두었다('')' 가
+   * 뒤섞인다 — 실제로 검색창내용이 null 이던 품목이 '' 로 바뀌었다.
+   */
+  const wholeItem = (it: Item, patch: Record<string, unknown> = {}) => ({
+    code: it.code, name: it.name, spec: it.spec, unit: it.unit, category: it.category,
+    unitPrice: it.unitPrice, purchasePrice: it.purchasePrice ?? 0, safetyStock: it.safetyStock,
+    barcode: it.barcode, searchKeyword: it.searchKeyword, udiDi: it.udiDi,
+    stockTracked: it.stockTracked !== false,
+    active: it.active,
+    managementItemId: it.managementItemId ?? null,
+    itemGroupId: it.itemGroupId ?? null,
+    supplierId: it.supplierId ?? null,
+    imageFileId: it.imageFileId ?? null,
+    ...patch,
+  })
+
+  /*
+   * 원본 품목등록 리스트의 <b>[변경]</b> — 고른 품목의 한 칸을 한 번에 바꾼다.
+   * 구매처가 바뀌거나 품목그룹을 다시 나눌 때 품목을 하나씩 열어 고칠 일이 아니다.
+   */
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkField, setBulkField] = useState<'itemGroupId' | 'managementItemId' | 'supplierId' | 'stockTracked'>('itemGroupId')
+  const [bulkValue, setBulkValue] = useState('')
+
+  async function bulkChange() {
+    const targets = shown.filter((it) => selected.has(it.id))
+    if (targets.length === 0) { alert('바꿀 품목을 먼저 선택하세요.'); return }
+    const patch = bulkField === 'stockTracked'
+      ? { stockTracked: bulkValue === 'Y' }
+      : { [bulkField]: bulkValue ? Number(bulkValue) : null }
+    const results = await Promise.allSettled(
+      targets.map((it) => api.put(`/items/${it.id}`, wholeItem(it, patch))))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setSelected(new Set())
+    setBulkOpen(false)
+    await load()
+    if (failed > 0) alert(`${targets.length - failed}건 변경, ${failed}건 실패.`)
+  }
+
   async function toggleActive() {
     const targets = shown.filter((it) => selected.has(it.id))
     if (targets.length === 0) { alert('사용중단하거나 되살릴 품목을 먼저 선택하세요.'); return }
     const reviving = targets.every((it) => !it.active)
-    const results = await Promise.allSettled(targets.map((it) => api.put(`/items/${it.id}`, {
-      /* 값은 그대로 넘긴다. 빈 문자열로 바꾸면 '안 적었다(null)' 와 '비워 두었다('')' 가
-         뒤섞인다 — 실제로 검색창내용이 null 이던 품목이 '' 로 바뀌었다. */
-      code: it.code, name: it.name, spec: it.spec, unit: it.unit, category: it.category,
-      unitPrice: it.unitPrice, purchasePrice: it.purchasePrice ?? 0, safetyStock: it.safetyStock,
-      barcode: it.barcode, searchKeyword: it.searchKeyword, udiDi: it.udiDi,
-      stockTracked: it.stockTracked !== false,
-      active: reviving,
-      managementItemId: it.managementItemId ?? null,
-      itemGroupId: it.itemGroupId ?? null,
-      supplierId: it.supplierId ?? null,
-      imageFileId: it.imageFileId ?? null,
-    })))
+    const results = await Promise.allSettled(
+      targets.map((it) => api.put(`/items/${it.id}`, wholeItem(it, { active: reviving }))))
     const failed = results.filter((r) => r.status === 'rejected').length
     setSelected(new Set())
     await load()
@@ -248,6 +281,10 @@ export default function ItemsPage() {
       onSearchChange={setKeyword}
       onNew={showForm ? () => setShowForm(false) : openCreate}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
+                { label: `변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => {
+                  if (selected.size === 0) { alert('바꿀 품목을 먼저 선택하세요.'); return }
+                  setBulkValue(''); setBulkOpen(true)
+                } },
                 { label: `사용중단/재사용${selected.size ? ` (${selected.size})` : ''}`, onClick: toggleActive },
                 { label: 'Excel' },
                 { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected },
@@ -491,6 +528,53 @@ export default function ItemsPage() {
           </tbody>
         </table>
       </div>
+
+      {/*
+        원본 [변경] — 고른 품목의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고
+        새 값을 정한다. 비우면 그 칸을 비운다(그룹 미지정 · 구매처 없음).
+      */}
+      <Modal open={bulkOpen} title={`품목 일괄변경 (${selected.size}건)`} onClose={() => setBulkOpen(false)}>{(
+        <div style={{ padding: 4 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">바꿀 항목</label>
+              <select className={inputCls} value={bulkField} style={{ width: 180 }}
+                      onChange={(e) => { setBulkField(e.target.value as typeof bulkField); setBulkValue('') }}>
+                <option value="itemGroupId">품목그룹1</option>
+                <option value="managementItemId">관리항목</option>
+                <option value="supplierId">구매처</option>
+                <option value="stockTracked">재고수량관리</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">새 값</label>
+              <select className={inputCls} value={bulkValue} style={{ width: 240 }}
+                      onChange={(e) => setBulkValue(e.target.value)}>
+                {bulkField === 'stockTracked' ? (
+                  <>
+                    <option value="Y">수량관리대상</option>
+                    <option value="N">수량관리제외</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">{bulkField === 'supplierId' ? '(없음)' : '(미지정)'}</option>
+                    {bulkField === 'itemGroupId' && itemGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    {bulkField === 'managementItemId' && mgmtItems.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    {bulkField === 'supplierId' && partners.map((pt) => <option key={pt.id} value={pt.id}>[{pt.code}] {pt.name}</option>)}
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+          <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            고른 품목의 그 칸만 바꿉니다. 나머지 값은 그대로 둡니다.
+          </p>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+            <button type="button" className="ec-btn" onClick={() => setBulkOpen(false)}>닫기</button>
+            <button type="button" className="ec-btn ec-btn-primary" onClick={bulkChange}>변경</button>
+          </div>
+        </div>
+      )}</Modal>
 
       {groupOpen && (
         <GroupMasterModal

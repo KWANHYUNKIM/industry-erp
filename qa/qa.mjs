@@ -7780,6 +7780,39 @@ async function scenarioMasterEditFromScreen() {
   await must('DELETE', `/partners/${bulkTarget.id}`)
 
 
+  /*
+   * 원본 품목등록 리스트의 <b>[변경]</b> — 고른 품목의 한 칸을 한 번에 바꾼다.
+   * 거래처와 같은 규칙이다: 바꿀 칸만 얹고 나머지는 있는 값 그대로 보낸다.
+   */
+  const bulkGroup = await must('POST', '/item-groups', { code: `${P}G`, name: `${P}품목그룹` })
+  const bulkItem = await must('POST', '/items', {
+    code: `${P}BULKI`, name: `${P}일괄품목`, unit: 'EA', category: 'FINISHED',
+    unitPrice: 1000, purchasePrice: 500, safetyStock: 1,
+    spec: `${P}규격`, barcode: `${P}바코드`, searchKeyword: `${P}별칭`,
+  })
+  const wholeItem = (it, patch) => ({
+    code: it.code, name: it.name, spec: it.spec, unit: it.unit, category: it.category,
+    unitPrice: it.unitPrice, purchasePrice: it.purchasePrice ?? 0, safetyStock: it.safetyStock,
+    barcode: it.barcode, searchKeyword: it.searchKeyword, udiDi: it.udiDi,
+    stockTracked: it.stockTracked !== false, active: it.active,
+    managementItemId: it.managementItemId ?? null, itemGroupId: it.itemGroupId ?? null,
+    supplierId: it.supplierId ?? null, imageFileId: it.imageFileId ?? null, ...patch,
+  })
+  const grouped = await must('PUT', `/items/${bulkItem.id}`,
+    wholeItem(bulkItem, { itemGroupId: bulkGroup.id }))
+  eq('품목 일괄변경이 그룹을 붙인다', grouped.itemGroupId, bulkGroup.id)
+  eq('규격은 그대로', grouped.spec, `${P}규격`)
+  eq('바코드는 그대로', grouped.barcode, `${P}바코드`)
+  eq('검색창내용은 그대로', grouped.searchKeyword, `${P}별칭`)
+  eq('판매단가는 그대로', Number(grouped.unitPrice), 1000)
+
+  const untracked = await must('PUT', `/items/${bulkItem.id}`,
+    wholeItem(grouped, { stockTracked: false }))
+  eq('수량관리제외로 한 번에 바꾼다', untracked.stockTracked, false)
+  eq('그때도 그룹은 그대로', untracked.itemGroupId, bulkGroup.id)
+
+  await must('DELETE', `/items/${bulkItem.id}`)
+  await must('DELETE', `/item-groups/${bulkGroup.id}`)
   const wh = (await must('GET', '/warehouses'))[0]
   const whBody = {
     name: wh.name, location: wh.location, kind: wh.kind,
