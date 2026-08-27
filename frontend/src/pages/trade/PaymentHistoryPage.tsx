@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 영업 > <b>결제내역조회</b> — 거래처별 수금/지급 결제 이력.
@@ -80,6 +81,8 @@ const TABS = ['전체', '미반영', '회계반영'] as const
 type Tab = typeof TABS[number]
 
 export default function PaymentHistoryPage() {
+  /** 원본 [입금보고서작성] — FastEntry 의 입금보고서 화면을 연다. */
+  const navigate = useNavigate()
   const [rows, setRows] = useState<SettlementRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -131,7 +134,10 @@ export default function PaymentHistoryPage() {
 
   return (
     <EcListShell title="결제내역조회" search={keyword} onSearchChange={setKeyword} onSearch={load}
-                 actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}>
+                 actions={[{ label: '새로고침', onClick: load },
+                           // 원본 [입금보고서작성] — FastEntry 의 입금보고서로 넘긴다.
+                           { label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
+                           { label: 'Excel' }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf5ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 

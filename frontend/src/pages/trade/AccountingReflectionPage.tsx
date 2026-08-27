@@ -6,6 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -85,6 +86,8 @@ interface Slip {
 }
 
 export default function AccountingReflectionPage() {
+  /** 원본 [매입전표 I]·[매출전표 I] — 일반전표입력으로 넘긴다. */
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['partners', 'warehouses', 'projects', 'items', 'employees'])
@@ -309,6 +312,12 @@ export default function AccountingReflectionPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: () => load(kind) },
+        /*
+         * 원본 [매입전표 I] — 회계전표를 직접 만드는 자리로 넘긴다. 반영이 안 되는
+         * 전표(계정을 손으로 잡아야 하는 것)는 결국 여기서 끊는다.
+         */
+        { label: kind === 'sales' ? '매출전표 I' : '매입전표 I',
+          onClick: () => navigate('/accounting/journal-entry') },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
