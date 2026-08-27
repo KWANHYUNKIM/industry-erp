@@ -4,6 +4,7 @@ import type { Bom, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 재고 > BOM환산재고현황 (이카운트 E040726)
@@ -101,11 +102,9 @@ export default function BomStockPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="창고" pick>
-          <select className="ec-input" value={cond.warehouseId}
-                  onChange={(e) => setC({ warehouseId: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목코드" pick>
           <input className="ec-input" placeholder="모품목명·코드 일부" value={cond.product}

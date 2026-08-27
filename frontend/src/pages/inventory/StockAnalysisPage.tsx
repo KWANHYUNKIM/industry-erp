@@ -6,6 +6,7 @@ import { stockCostMap } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
@@ -36,6 +37,8 @@ interface AnalysisRow {
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function StockAnalysisPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -126,8 +129,9 @@ export default function StockAnalysisPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명·코드 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}

@@ -6,6 +6,8 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { stockCostMap } from '../../utils/stockValue'
 import { groupByCategory } from '../../utils/costGroup'
 import type { Item, PurchaseDoc } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 회계 > 실제원가현황.
@@ -79,6 +81,8 @@ function monthRange(period: string): { from: string; to: string } {
 }
 
 export default function ActualCostPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [mode, setMode] = useState<Mode>('원가집계표')
   const [period, setPeriod] = useState(thisMonth())
   const [keyword, setKeyword] = useState('')
@@ -208,8 +212,9 @@ export default function ActualCostPage() {
                  onChange={(e) => setPeriod(e.target.value)} style={{ width: 150 }} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목코드·품명 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 200 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

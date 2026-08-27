@@ -197,11 +197,9 @@ export default function ReceiptStatusPage() {
         view={view} onViewChange={setView}
       >
         <EcCond label="창고" pick>
-          <select className="ec-input" value={warehouseId}
-                  onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 200 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={warehouseId} onChange={(v) => setWarehouseId(v)}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"

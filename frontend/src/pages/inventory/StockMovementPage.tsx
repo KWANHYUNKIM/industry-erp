@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -42,6 +43,8 @@ const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${
 const today = () => ymd(new Date())
 
 export default function StockMovementPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<MovementRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -164,9 +167,10 @@ export default function StockMovementPage() {
         </EcCond>
         {mode === '집계' && (
           <EcCond label="품목" pick>
-            <input className="ec-input" placeholder="품목명·코드 일부" value={keyword}
-                   onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
-          </EcCond>
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
+        </EcCond>
         )}
         <EcCond label="기타">
           <label style={{ fontSize: 12 }}>

@@ -4,6 +4,8 @@ import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 재고실사현황 (이카운트 E040615)
@@ -48,6 +50,8 @@ const signed = (n: number) => (n > 0 ? `+${num(n)}` : num(n))
 const diffColor = (n: number) => (n < 0 ? '#c60a2e' : n > 0 ? 'var(--ec-blue)' : '#9aa1ab')
 
 export default function StocktakeStatusPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [rows, setRows] = useState<Staged[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,15 +140,14 @@ export default function StocktakeStatusPage() {
           </div>
         </EcCond>
         <EcCond label="창고" pick>
-          <select className="ec-input" value={cond.warehouseId}
-                  onChange={(e) => setC({ warehouseId: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명·코드 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="상태">
           <select className="ec-input" value={cond.status}

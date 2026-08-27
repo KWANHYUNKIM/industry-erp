@@ -360,11 +360,9 @@ export default function ProductionIssueStatusPage() {
           </EcCond>
         )}
         <EcCond label="창고" pick>
-          <select className="ec-input" value={cond.warehouseId}
-                  onChange={(e) => setC({ warehouseId: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"

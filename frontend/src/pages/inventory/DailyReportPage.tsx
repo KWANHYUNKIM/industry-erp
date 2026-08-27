@@ -4,6 +4,8 @@ import type { SalesDoc, PurchaseDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 일보 (이카운트 E040708)
@@ -23,6 +25,8 @@ const today = () => ymd(new Date())
 
 export default function DailyReportPage() {
   /** 펼쳐 볼 하루. 빈 값이면 아무 줄도 안 펼친 상태. */
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'items'])
   const [date, setDate] = useState(today())
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
@@ -127,12 +131,14 @@ export default function DailyReportPage() {
         picks={INQUIRY_PICKS}
       >
         <EcCond label="거래처" pick>
-          <input className="ec-input" placeholder="거래처명 일부" value={partner}
-                 onChange={(e) => setPartner(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명 일부" value={item}
-                 onChange={(e) => setItem(e.target.value)} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
       </EcStatusPanel>
 

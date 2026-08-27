@@ -345,16 +345,14 @@ export default function SalesStatusPage() {
           />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {projectOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={projectOptions.map((p) => ({ value: p, name: p }))} />
         </EcCond>
         <EcCond label="관리항목">
-          <select className="ec-input" value={mgmtItem} onChange={(e) => setMgmtItem(e.target.value)} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {mgmtOptions.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <CodePickerField label="관리항목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={mgmtItem} onChange={(v) => setMgmtItem(v)}
+                           items={mgmtOptions.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="시리얼/로트No.">
           <input className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)}

@@ -654,6 +654,42 @@ console.log('\n■ 코드도움 후보를 받아 놓고 쓰나')
   eq('코드도움을 쓰는 화면 ' + checked + '개가 쓰는 것을 다 받는다', bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-f) 마스터 조건은 코드도움인가 ───────────────────────────────────────
+console.log('\n■ 마스터를 고르는 조건이 코드도움인가')
+
+/*
+ * <b>창고·거래처·품목·프로젝트·담당자·관리항목 조건이 코드도움인가.</b>
+ *
+ * <p>원본은 이 조건들을 모두 코드도움으로 둔다(사본 조건 판에 [선택] 버튼이 붙어 있다).
+ * 우리는 41개 화면 101개 조건이 "거래처명 일부" 를 손으로 치는 칸이었다 —
+ * 거래처가 300곳이 넘으면 <b>이름을 외우고 있는 사람만</b> 쓸 수 있고, 한 글자 틀리면
+ * 아무것도 안 나오는데 화면은 "그런 자료가 없다" 처럼 보인다.
+ *
+ * <p>더 나빴던 것은 <b>화면마다 달랐다</b>는 점이다. 같은 [거래처] 조건이 어떤 화면에서는
+ * 골라지고 어떤 화면에서는 안 골라지면, 사람은 그것을 버그로 안 읽고 자기 탓으로 읽는다.
+ *
+ * <p>날짜·번호·금액 칸은 마스터가 아니라 그대로 친다 — 여기서 안 본다.
+ */
+{
+  const MASTER = new Set(['창고', '거래처', '품목', '프로젝트', '담당자',
+    '거래처관리담당자', '관리항목', '생산품목', '소모품목'])
+  const bad = []
+  let checked = 0
+  for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/<EcCond label="([^"]+)"[^>]*>([\s\S]{0,460}?)<\/EcCond>/g)) {
+      const label = m[1].replace(/\s/g, '')
+      if (!MASTER.has(label)) continue
+      checked++
+      const body = m[2]
+      if (/CodePickerField/.test(body)) continue
+      const kind = /<select/.test(body) ? 'select' : /<input/.test(body) ? '직접입력' : '알 수 없음'
+      bad.push(f.split(sep).pop() + '  [' + label + '] ' + kind)
+    }
+  }
+  eq('마스터 조건 ' + checked + '개가 코드도움이다', bad.join('\n') || '없음', '없음')
+}
+
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 

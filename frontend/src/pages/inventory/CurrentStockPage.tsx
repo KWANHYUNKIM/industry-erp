@@ -4,6 +4,8 @@ import type { StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 > 재고현황 (이카운트 E040701)
@@ -22,6 +24,8 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * (GET /stock?asOf=). 안전재고 미달 표시도 <b>그 시점 수량으로</b> 다시 잰다.
  */
 export default function CurrentStockPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [rows, setRows] = useState<StockRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -80,14 +84,14 @@ export default function CurrentStockPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="창고" pick>
-          <select className="ec-input" value={cond.warehouse} onChange={(e) => setC({ warehouse: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
+          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={warehouses.map((w) => ({ value: w, name: w }))} />
         </EcCond>
         <EcCond label="품목" pick>
-          <input className="ec-input" placeholder="품목명·코드 일부" value={cond.item}
-                 onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
+          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12 }}>
