@@ -20,6 +20,18 @@ public final class WorkPostDtos {
             LocalDate postDate
     ) {}
 
+    /**
+     * 게시글 고치기. 원본 게시판의 펼친 글 아래에 [답글(F8)·복사·<b>수정</b>·삭제·닫기]가 있다.
+     *
+     * <p>작성자·게시글번호·일자는 바꾸지 않는다 — 그건 그 글이 언제 누구 것으로 올라갔는지라
+     * 나중에 고칠 수 있으면 기록이 아니게 된다.
+     */
+    public record UpdateWorkPostRequest(
+            @NotBlank(message = "제목을 입력하세요.") String title,
+            @NotBlank(message = "내용을 입력하세요.") String content,
+            String forwardTo
+    ) {}
+
     public record UpdateWorkPostStatusRequest(
             WorkPostStatus status
     ) {}

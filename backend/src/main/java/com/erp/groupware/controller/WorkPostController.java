@@ -37,6 +37,14 @@ public class WorkPostController {
         return ResponseEntity.ok(workPostService.create(req, principal.getUsername()));
     }
 
+    /** 게시글 고치기 — 원본 펼친 글의 [수정]. */
+    @PutMapping("/{id}")
+    public WorkPostDtos.WorkPostResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody WorkPostDtos.UpdateWorkPostRequest req) {
+        return workPostService.update(id, req);
+    }
+
     @PatchMapping("/{id}/status")
     public WorkPostResponse updateStatus(@PathVariable Long id, @RequestBody(required = false) UpdateWorkPostStatusRequest req) {
         return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null));

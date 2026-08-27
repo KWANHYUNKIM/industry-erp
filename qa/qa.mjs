@@ -3444,6 +3444,53 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 게시판 글을 <b>읽고 고칠 수 있는가</b>.
+ *
+ * <p>원본 게시판(WORK·건설예정공정표 …)은 제목을 누르면 그 자리에서 펼쳐지고,
+ * 펼친 글 아래에 답글(F8) · 복사 · <b>수정</b> · <b>삭제</b> · 닫기가 붙는다.
+ * 우리 화면은 제목만 있고 펼치거나 여는 자리가 없어 <b>올린 내용을 볼 방법이 아예 없었다</b> —
+ * 게시판인데 읽기가 안 되는 셈이었다.
+ *
+ * <p>화면이 목록만으로 내용을 펼치려면 목록 응답이 content 를 실어 와야 한다.
+ * 그리고 고치려면 PUT 이 있어야 한다 — 상태만 바꾸는 PATCH 뿐이었다.
+ *
+ * <p>작성자·게시글번호·일자는 고치지 못하게 둔다. 그 글이 언제 누구 것으로 올라갔는지라,
+ * 나중에 고칠 수 있으면 기록이 아니게 된다.
+ */
+async function scenarioWorkPostEdit() {
+  section('■ 게시판 읽기·수정')
+
+  const made = await must('POST', '/work-posts', {
+    board: 'WORK', title: `${P}업무글`, content: '처음 내용', forwardTo: '홍길동',
+    postDate: '2093-05-06',
+  })
+  eq('내용이 실린다', made.content, '처음 내용')
+
+  // 목록에서 바로 펼쳐야 하므로 목록 응답에도 내용이 있어야 한다.
+  const listed = (await must('GET', '/work-posts?board=WORK')).find((x) => x.id === made.id)
+  eq('목록에도 내용이 실린다', listed.content, '처음 내용')
+
+  const edited = await must('PUT', `/work-posts/${made.id}`, {
+    title: `${P}고친제목`, content: '고친 내용', forwardTo: '김철수',
+  })
+  eq('제목을 고칠 수 있다', edited.title, `${P}고친제목`)
+  eq('내용을 고칠 수 있다', edited.content, '고친 내용')
+  eq('전달자도 고칠 수 있다', edited.forwardTo, '김철수')
+  eq('게시글번호는 그대로다', edited.postNo, made.postNo)
+  eq('일자는 그대로다', edited.postDate, made.postDate)
+  eq('작성자도 그대로다', edited.writer, made.writer)
+
+  const blank = await call('PUT', `/work-posts/${made.id}`, { title: '', content: '내용' })
+  eq('제목을 비우면 400', blank.status, 400)
+  eq('고친 내용은 다시 조회해도 남는다',
+    (await must('GET', '/work-posts?board=WORK')).find((x) => x.id === made.id).content, '고친 내용')
+
+  await must('DELETE', `/work-posts/${made.id}`)
+  eq('시험용 게시글은 남기지 않는다',
+    (await must('GET', '/work-posts?board=WORK')).filter((x) => (x.title ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 거래처별채권·거래처별채무의 <b>잔액 분해</b>.
  *
  * <p>원본 열 실측(사본): 거래처명 · 기초채권 · 재고매출 · 회계매출 · 수금합계 ·
@@ -5382,6 +5429,7 @@ async function main() {
   await scenarioLeaveDocNo()
   await scenarioProductionWarehouses(fixtures)
   await scenarioPartnerMovements(fixtures)
+  await scenarioWorkPostEdit()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

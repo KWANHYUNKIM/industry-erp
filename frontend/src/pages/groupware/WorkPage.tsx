@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { exportTableToXlsx } from '../../utils/excel'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
@@ -14,6 +14,14 @@ const today = () => ymd(new Date())
  * 게시글번호도 게시판을 가로질러 한 줄기여서 목록 번호에 구멍이 보인다.
  *
  * 그래서 한 컴포넌트가 board 만 바꿔 두 화면을 낸다(내결재관리·기안서통합관리와 같은 방식).
+ *
+ * <p><b>글을 읽을 수가 없었다.</b> 목록에 제목만 있고 펼치거나 여는 자리가 없어,
+ * 올린 내용을 이 화면에서 볼 방법이 아예 없었다. 게시판인데 읽기가 안 되는 셈이다.
+ * 원본은 제목을 누르면 그 자리에서 펼쳐지고, 하단 [모두펼쳐보기]로 전부 편다.
+ * 펼친 글 아래에는 답글(F8)·복사·<b>수정</b>·<b>삭제</b>·닫기가 붙는다.
+ *
+ * <p>답글·복사·인쇄는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도 아무 일 없는 버튼은
+ * 있는 것만 못하다. 첨부(웹자료올리기)도 아직 업무글에 파일을 붙일 수 없다.
  */
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
   const [rows, setRows] = useState<WorkPost[]>([])
@@ -26,6 +34,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  /** 펼쳐 놓은 글. 원본 [모두펼쳐보기]는 이걸 전부 채운다. */
+  const [opened, setOpened] = useState<Set<number>>(new Set())
+  /** 고치는 중인 글. 원본 펼친 글의 [수정]. */
+  const [editing, setEditing] = useState<{ id: number; title: string; content: string; forwardTo: string } | null>(null)
 
   // Search(F3) — 버튼 라벨이 약속한 단축키
   useShortcut('F3', load)
@@ -43,6 +55,40 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   }
 
   useEffect(() => { load() }, [board])
+
+  const toggleOpen = (id: number) => setOpened((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  async function saveEdit() {
+    if (!editing) return
+    if (!editing.title.trim()) return setError('제목을 입력하세요.')
+    if (!editing.content.trim()) return setError('내용을 입력하세요.')
+    setError('')
+    try {
+      await api.put(`/work-posts/${editing.id}`, {
+        title: editing.title, content: editing.content,
+        forwardTo: editing.forwardTo || null,
+      })
+      setEditing(null)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  async function removeOne(id: number) {
+    if (!confirm('이 글을 삭제할까요?')) return
+    try {
+      await api.delete(`/work-posts/${id}`)
+      setOpened((prev) => { const n = new Set(prev); n.delete(id); return n })
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -203,7 +249,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
             ) : shown.length === 0 ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 업무가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
-              <tr key={r.id}>
+              <Fragment key={r.id}>
+              <tr>
                 <td
                   style={{
                     textAlign: 'center',
@@ -220,7 +267,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 {/* 원본은 '일자-No.' 한 칸에 「2026/07/06 -1」처럼 일자와 순번을 함께 쓴다 */}
                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{r.postDate} -1</td>
                 <td style={{ textAlign: 'center' }}>{r.postNo}</td>
-                <td>{r.title}</td>
+                <td>
+                  <button type="button" className="no-ec" onClick={() => toggleOpen(r.id)}
+                          title="눌러서 내용을 폅니다"
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                   font: 'inherit', color: 'var(--ec-blue-dark)', textAlign: 'left' }}>
+                    <span style={{ color: '#9aa1ab', marginRight: 4 }}>{opened.has(r.id) ? '▾' : '▸'}</span>
+                    {r.title}
+                  </button>
+                </td>
                 <td>{r.writerName ?? r.writer}</td>
                 <td>{r.forwardTo ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
@@ -235,6 +290,40 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                   </button>
                 </td>
               </tr>
+              {opened.has(r.id) && (
+                <tr>
+                  <td colSpan={9} style={{ background: '#fafbfd', padding: '10px 14px' }}>
+                    {editing?.id === r.id ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <input className="ec-input" value={editing.title}
+                               onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+                        <input className="ec-input" value={editing.forwardTo} placeholder="전달자"
+                               onChange={(e) => setEditing({ ...editing, forwardTo: e.target.value })} />
+                        <textarea className="ec-input" rows={5} value={editing.content}
+                                  onChange={(e) => setEditing({ ...editing, content: e.target.value })} />
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장</button>
+                          <button className="ec-btn" onClick={() => setEditing(null)}>취소</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: '#3c4553', minHeight: 20 }}>
+                          {r.content}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 6, borderTop: '1px solid #eef1f5' }}>
+                          <button className="ec-btn" onClick={() => setEditing({
+                            id: r.id, title: r.title, content: r.content, forwardTo: r.forwardTo ?? '',
+                          })}>수정</button>
+                          <button className="ec-btn" onClick={() => void removeOne(r.id)}>삭제</button>
+                          <button className="ec-btn" onClick={() => toggleOpen(r.id)}>닫기</button>
+                        </div>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -244,9 +333,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
           받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회·웹자료올리기는 아직 없다.
+          [모두펼쳐보기]는 이제 있다 — 내용을 읽을 자리가 그것뿐이었다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
         <button className="ec-btn" onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        <button className="ec-btn" onClick={() => setOpened(
+          opened.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
+        )}>
+          {opened.size === shown.length && shown.length > 0 ? '모두접기' : '모두펼쳐보기'}
+        </button>
         <button className="ec-btn" onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
       </div>

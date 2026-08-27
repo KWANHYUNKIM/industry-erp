@@ -59,6 +59,16 @@ public class WorkPostService {
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
 
+    /** 제목·내용·전달자만 고친다. 작성자·게시글번호·일자는 그 글의 기록이라 두 번 쓰지 않는다. */
+    @Transactional
+    public WorkPostResponse update(Long id, WorkPostDtos.UpdateWorkPostRequest req) {
+        WorkPost post = getPost(id);
+        post.setTitle(req.title());
+        post.setContent(req.content());
+        post.setForwardTo(req.forwardTo());
+        return WorkPostResponse.from(post, displayName(post.getWriter()));
+    }
+
     @Transactional
     public WorkPostResponse updateStatus(Long id, UpdateWorkPostStatusRequest req) {
         WorkPost post = getPost(id);
