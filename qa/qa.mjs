@@ -3427,6 +3427,63 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 공정의 <b>순번</b>과 작업코드 마스터.
+ *
+ * <p>원본 공정등록의 열은 생산공정코드 · 생산공정명 · <b>순번</b> · <b>작업코드등록</b> 이다.
+ *
+ * <p>순번이 없으면 공정을 고르는 자리(BOR·작업내역·자원등록)마다 코드순으로만 나온다.
+ * 공정은 흐름이라 순서대로 보여야 고르기 쉽다.
+ *
+ * <p>작업코드는 그 공정 안에서 하는 작업들이다. BOR 의 작업명을 자유입력으로만 두면
+ * 같은 작업이 '절단'·'절단작업'·'컷팅' 으로 갈라져 공정별 집계가 어긋난다.
+ */
+async function scenarioProcessOrderAndOperations() {
+  section('■ 공정 순번·작업코드')
+
+  const before = await must('GET', '/processes')
+  eq('공정에 순번이 실린다', typeof before[0].sortOrder, 'number')
+
+  const target = before[before.length - 1]
+  const body = {
+    name: target.name, workcenter: target.workcenter,
+    stdTimeMin: target.stdTimeMin, costPerHr: target.costPerHr, active: true,
+  }
+  await must('PUT', `/processes/${target.id}`, { ...body, sortOrder: -5 })
+  const sorted = await must('GET', '/processes')
+  eq('순번이 앞서면 목록에서도 앞에 온다', sorted[0].id, target.id)
+  await must('PUT', `/processes/${target.id}`, { ...body, sortOrder: target.sortOrder })
+
+  // 작업코드
+  for (const o of (await must('GET', '/process-operations')).filter((x) => x.code.startsWith(`${P}OP`))) {
+    await call('DELETE', `/process-operations/${o.id}`)
+  }
+  const op = await must('POST', '/process-operations', {
+    processId: before[0].id, code: `${P}OP1`, name: `${P}절단작업`, seq: 1,
+  })
+  eq('작업코드가 공정에 붙는다', op.processId, before[0].id)
+  eq('공정 이름도 실려 나온다', op.processName, before[0].name)
+
+  /*
+   * 작업코드는 회사 안에서 유일하다. 같은 코드가 두 공정에 있으면 BOR 에서 코드를 보고도
+   * 어느 공정 것인지 알 수 없다.
+   */
+  const dup = await call('POST', '/process-operations', {
+    processId: before[1].id, code: `${P}OP1`, name: `${P}딴작업`, seq: 1,
+  })
+  eq('같은 작업코드는 다른 공정에도 못 만든다', dup.status, 409)
+
+  // 이름만 고치는 수정은 자기 코드를 중복으로 보지 않는다.
+  const renamed = await must('PUT', `/process-operations/${op.id}`, {
+    processId: before[0].id, code: `${P}OP1`, name: `${P}절단작업2`, seq: 2,
+  })
+  eq('자기 코드는 중복이 아니다', renamed.name, `${P}절단작업2`)
+
+  await must('DELETE', `/process-operations/${op.id}`)
+  eq('시험용 작업코드는 남기지 않는다',
+    (await must('GET', '/process-operations')).filter((x) => x.code.startsWith(`${P}OP`)).length, 0)
+}
+
+/**
  * 작업내역의 <b>투입자원</b>과 전용 설비 규칙.
  *
  * <p>원본 작업내역입력 그리드 열은 생산품목코드 · 생산품목명 · 작업품목코드 · 작업품목명 ·
@@ -5094,6 +5151,7 @@ async function main() {
   await scenarioWarehouseKind()
   await scenarioMaterialIssueMove(fixtures)
   await scenarioWorkResultResource()
+  await scenarioProcessOrderAndOperations()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

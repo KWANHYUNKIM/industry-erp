@@ -54,6 +54,12 @@ export default function BorPage() {
   const [rows, setRows] = useState<BorRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [processes, setProcesses] = useState<ProcessRow[]>([])
+  /**
+   * 작업코드 마스터(공정등록 &gt; 작업코드등록). 있으면 작업명을 골라 쓴다 —
+   * 자유입력만 두면 같은 작업이 '절단'·'절단작업'·'컷팅' 으로 갈라진다.
+   * 마스터가 비어 있어도 자유입력은 그대로 되므로 막지 않는다.
+   */
+  const [operations, setOperations] = useState<{ id: number; processId: number; code: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -67,12 +73,13 @@ export default function BorPage() {
     setLoading(true)
     setError('')
     try {
-      const [b, i, p] = await Promise.all([
+      const [b, i, p, o] = await Promise.all([
         api.get<BorRow[]>('/bor'),
         api.get<Item[]>('/items'),
         api.get<ProcessRow[]>('/processes'),
+        api.get<{ id: number; processId: number; code: string; name: string }[]>('/process-operations'),
       ])
-      setRows(b.data); setItems(i.data); setProcesses(p.data)
+      setRows(b.data); setItems(i.data); setProcesses(p.data); setOperations(o.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -173,8 +180,14 @@ export default function BorPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업명 *</label>
-              <input className="ec-input w-full" value={form.workName} onChange={(e) => set('workName', e.target.value)}
-                     placeholder="예: 절단, 조립, 검사" />
+              <input className="ec-input w-full" list="bor-op-list" value={form.workName}
+                     onChange={(e) => set('workName', e.target.value)} placeholder="예: 절단, 조립, 검사" />
+              {/* 고른 공정의 작업코드를 먼저 보여 준다. 마스터가 비어 있으면 그냥 자유입력이다. */}
+              <datalist id="bor-op-list">
+                {operations
+                  .filter((o) => !form.processId || String(o.processId) === form.processId)
+                  .map((o) => <option key={o.id} value={o.name}>{o.code}</option>)}
+              </datalist>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산수량</label>

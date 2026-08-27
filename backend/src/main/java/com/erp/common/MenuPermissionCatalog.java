@@ -80,7 +80,7 @@ public final class MenuPermissionCatalog {
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
                 "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
-                "/api/bor",
+                "/api/bor", "/api/process-operations",
                 "/api/material-issues",
                 // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면
                 // 짝이 갈라지므로 둘을 붙여 둔다 — 옮길 거면 같이 옮긴다.

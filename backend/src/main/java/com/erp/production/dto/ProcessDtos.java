@@ -14,7 +14,9 @@ public final class ProcessDtos {
             @NotBlank(message = "공정명을 입력하세요.") String name,
             String workcenter,
             Integer stdTimeMin,
-            BigDecimal costPerHr
+            BigDecimal costPerHr,
+            /** 순번. 원본 공정등록의 [순번] 열. 안 주면 0. */
+            Integer sortOrder
     ) {}
 
     public record UpdateProcessRequest(
@@ -22,6 +24,7 @@ public final class ProcessDtos {
             String workcenter,
             Integer stdTimeMin,
             BigDecimal costPerHr,
+            Integer sortOrder,
             Boolean active
     ) {}
 
@@ -32,11 +35,12 @@ public final class ProcessDtos {
             String workcenter,
             Integer stdTimeMin,
             BigDecimal costPerHr,
+            Integer sortOrder,
             boolean active
     ) {
         public static ProcessResponse from(ProductionProcess p) {
             return new ProcessResponse(p.getId(), p.getCode(), p.getName(), p.getWorkcenter(),
-                    p.getStdTimeMin(), p.getCostPerHr(), p.isActive());
+                    p.getStdTimeMin(), p.getCostPerHr(), p.getSortOrder(), p.isActive());
         }
     }
 }

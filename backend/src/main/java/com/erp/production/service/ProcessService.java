@@ -23,7 +23,8 @@ public class ProcessService {
 
     @Transactional(readOnly = true)
     public List<ProcessResponse> findAll() {
-        return processRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()
+        return // 공정은 흐름이라 순번 → 코드 순으로 낸다. 고르는 자리마다 같은 순서로 보여야 한다.
+                processRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder").and(Sort.by(Sort.Direction.ASC, "code"))).stream()
                 .map(ProcessResponse::from)
                 .toList();
     }
@@ -39,6 +40,7 @@ public class ProcessService {
                 .workcenter(req.workcenter())
                 .stdTimeMin(req.stdTimeMin() != null ? req.stdTimeMin() : 0)
                 .costPerHr(req.costPerHr() != null ? req.costPerHr() : BigDecimal.ZERO)
+                .sortOrder(req.sortOrder() != null ? req.sortOrder() : 0)
                 .active(true)
                 .build();
         return ProcessResponse.from(processRepository.save(p));
@@ -54,6 +56,9 @@ public class ProcessService {
         }
         if (req.costPerHr() != null) {
             p.setCostPerHr(req.costPerHr());
+        }
+        if (req.sortOrder() != null) {
+            p.setSortOrder(req.sortOrder());
         }
         if (req.active() != null) {
             p.setActive(req.active());

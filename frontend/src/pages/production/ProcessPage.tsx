@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import ProcessOperationModal from './ProcessOperationModal'
 
 /** 생산관리 > 공정등록 — 생산 공정 마스터 (백엔드 /api/processes 연동) */
 interface ProductionProcess {
@@ -11,11 +12,13 @@ interface ProductionProcess {
   workcenter: string | null
   stdTimeMin: number
   costPerHr: number
+  /** 순번. 원본 공정등록의 [순번] 열 — 공정을 고르는 자리마다 이 순서로 나온다. */
+  sortOrder: number
   active: boolean
 }
 
 const inputCls = 'ec-input w-full'
-const emptyForm = { code: '', name: '', workcenter: '', stdTimeMin: '', costPerHr: '' }
+const emptyForm = { code: '', name: '', workcenter: '', stdTimeMin: '', costPerHr: '', sortOrder: '0' }
 
 export default function ProcessPage() {
   const [rows, setRows] = useState<ProductionProcess[]>([])
@@ -24,6 +27,8 @@ export default function ProcessPage() {
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  /** 원본 공정등록의 [작업코드등록] — 별도 메뉴가 아니라 이 화면에서 연다. */
+  const [opOpen, setOpOpen] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -44,6 +49,7 @@ export default function ProcessPage() {
     setError('')
     try {
       await api.post('/processes', {
+        sortOrder: form.sortOrder === '' ? 0 : Number(form.sortOrder),
         code: form.code,
         name: form.name,
         workcenter: form.workcenter,
@@ -78,7 +84,7 @@ export default function ProcessPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '작업코드등록', onClick: () => setOpOpen(true) }, { label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -103,6 +109,14 @@ export default function ProcessPage() {
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.stdTimeMin} onChange={(e) => setForm({ ...form, stdTimeMin: e.target.value })} />
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">순번</label>
+              <input type="number" className={inputCls} style={{ textAlign: 'right' }} value={form.sortOrder}
+                     onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} />
+              <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 3 }}>
+                공정을 고르는 자리마다 이 순서로 나옵니다.
+              </p>
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">시간당비용</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.costPerHr} onChange={(e) => setForm({ ...form, costPerHr: e.target.value })} />
             </div>
@@ -113,10 +127,18 @@ export default function ProcessPage() {
         </form>
       )}</Modal>
 
+      {opOpen && (
+        <ProcessOperationModal
+          processes={rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sortOrder: r.sortOrder }))}
+          onClose={() => setOpOpen(false)}
+        />
+      )}
+
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            <th style={{ width: 60, textAlign: 'right' }}>순번</th>
             <th>공정코드</th>
             <th>공정명</th>
             <th>작업장</th>
@@ -127,12 +149,13 @@ export default function ProcessPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 공정이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 공정이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.sortOrder}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td>{r.workcenter ?? ''}</td>
