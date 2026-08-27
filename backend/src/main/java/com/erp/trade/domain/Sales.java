@@ -94,6 +94,19 @@ public class Sales extends BaseTimeEntity {
     @Builder.Default
     private boolean vatBySlip = false;
 
+    /**
+     * 과세 전표인가. 원본 판매·구매일괄회계반영의 <b>[부가세유형]</b> (과세 · 면세).
+     *
+     * <p><b>전표에 저장한다.</b> 예전에는 입력할 때 계산에만 쓰고 버려서, 필요할 때마다
+     * '부가세가 0이면 면세' 로 되짚었다. 부가세는 반올림하므로 <b>과세인데 부가세가 0 인
+     * 전표</b>가 나온다(공급가액 4원 → 부가세 0.4원 → 0원). 그 전표의 단가를 올리면
+     * 면세로 오인해 부가세가 0 으로 남았다 — 실측했다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean taxable = true;
+
+
     /** 확인상태. 전자결재 상신/완료/반려에 따라 움직인다. */
     @Enumerated(EnumType.STRING)
     @Column(name = "confirm_status", nullable = false, length = 20)

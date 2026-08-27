@@ -6221,8 +6221,61 @@ async function scenarioSlipPriceBulk(f) {
   eq('전표 합계 = 공급가액 + 부가세', slip.totalAmount, slip.supplyAmount + slip.vatAmount)
   eq('금액이 실제로 늘었다', slip.supplyAmount > before.supplyAmount, true)
 
-  // 면세 전표였다면 단가를 고쳐도 부가세가 생기면 안 된다(과세 여부는 전표에 없다).
+  // 면세 전표였다면 단가를 고쳐도 부가세가 생기면 안 된다.
   if (mine.taxTypeName === '면세') eq('면세는 면세로 남는다', slip.vatAmount, 0)
+
+  /*
+   * <b>반올림으로 부가세가 0 이 된 과세 전표.</b>
+   *
+   * 예전에는 과세 여부를 전표에 저장하지 않고 '부가세가 0이면 면세' 로 되짚었다.
+   * 부가세는 반올림하므로 공급가액 4원이면 부가세 0.4원 → 0원이다. 이 전표의 단가를
+   * 단가일괄변경으로 올리면 면세로 오인해 <b>부가세가 계속 0 으로 남았다</b> —
+   * 실측했다(공급가액 100,000 · 부가세 0). 그 금액으로 세금계산서를 끊으면 부가세를 못 받는다.
+   */
+  // 앞 실행이 중단됐으면 먼저 치운다 — 안 그러면 다음 실행이 남은 것을 보고 실패한다.
+  for (const x of (await must('GET', '/sales')).filter((x) => String(x.saleDate).startsWith('2094'))) {
+    await call('DELETE', `/sales/${x.id}`)
+  }
+
+  const tiny = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2094-01-05',
+    taxable: true, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 4 }],
+  })
+  eq('과세 전표로 저장된다', tiny.taxable, true)
+  eq('반올림해서 부가세가 0 이 된다', tiny.vatAmount, 0)
+
+  await must('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: tiny.lines[0].lineId, unitPrice: 100000 }],
+  })
+  const grown = (await must('GET', '/sales')).find((x) => x.id === tiny.id)
+  eq('단가를 올리면 공급가액이 따라온다', grown.supplyAmount, 100000)
+  eq('과세 전표이므로 부가세가 붙는다', grown.vatAmount, 10000)
+  eq('합계도 맞는다', grown.totalAmount, 110000)
+  eq('과세 표시가 유지된다', grown.taxable, true)
+
+  // 면세 전표는 반대로, 단가를 올려도 부가세가 생기면 안 된다.
+  const free = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2094-01-06',
+    taxable: false, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 50000 }],
+  })
+  eq('면세 전표로 저장된다', free.taxable, false)
+  eq('면세는 부가세가 없다', free.vatAmount, 0)
+  await must('PUT', '/price-bulk/lines', {
+    tradeType: 'SALES', changes: [{ lineId: free.lines[0].lineId, unitPrice: 200000 }],
+  })
+  const freeAfter = (await must('GET', '/sales')).find((x) => x.id === free.id)
+  eq('면세는 단가를 올려도 부가세가 안 생긴다', freeAfter.vatAmount, 0)
+
+  // 원본 일괄회계반영의 [부가세유형] 열이 이 값을 본다.
+  const reflect = await must('GET', '/accounting-reflection?kind=SALES')
+  eq('회계반영 목록에 부가세유형이 실린다',
+    reflect.find((x) => x.id === tiny.id)?.vatType, '과세')
+  eq('면세 전표는 면세로 실린다',
+    reflect.find((x) => x.id === free.id)?.vatType, '면세')
+
+  for (const x of [tiny, free]) await must('DELETE', `/sales/${x.id}`)
+  eq('시험 전표는 남기지 않는다',
+    (await must('GET', '/sales')).filter((x) => String(x.saleDate).startsWith('2094')).length, 0)
 
   await must('PUT', '/price-bulk/lines', {
     tradeType: 'SALES', changes: [{ lineId: mine.lineId, unitPrice: mine.unitPrice }],

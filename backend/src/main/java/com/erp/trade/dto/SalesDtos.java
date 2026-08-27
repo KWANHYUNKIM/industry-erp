@@ -99,6 +99,8 @@ public final class SalesDtos {
             boolean accountingReflected,
             /** 부가세를 전표 단위로 계산한 전표인가 (거래별부가세계산) */
             boolean vatBySlip,
+            /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
+            boolean taxable,
             Long projectId, String projectName,
             Long employeeId, String employeeName,
             List<SalesLineResponse> lines
@@ -114,6 +116,7 @@ public final class SalesDtos {
                     s.getConfirmStatus(), s.getConfirmStatus().getDisplayName(), s.getConfirmedAt(),
                     s.isAccountingReflected(),
                     s.isVatBySlip(),
+                    s.isTaxable(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getId() : null,

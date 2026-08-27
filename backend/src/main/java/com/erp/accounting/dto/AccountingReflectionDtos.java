@@ -51,6 +51,8 @@ public final class AccountingReflectionDtos {
             BigDecimal supplyAmount,
             BigDecimal vatAmount,
             BigDecimal totalAmount,
+            /** 원본 판매·구매일괄회계반영의 [부가세유형] — 과세 · 면세. */
+            String vatType,
             boolean reflected,
             /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
             List<SlipLine> lines
@@ -64,6 +66,7 @@ public final class AccountingReflectionDtos {
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     summarize(s.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
+                    s.isTaxable() ? "과세" : "면세",
                     s.isAccountingReflected(),
                     s.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
@@ -80,6 +83,7 @@ public final class AccountingReflectionDtos {
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     summarize(p.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
+                    p.isTaxable() ? "과세" : "면세",
                     p.isAccountingReflected(),
                     p.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),

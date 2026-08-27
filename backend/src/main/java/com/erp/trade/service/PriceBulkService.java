@@ -85,7 +85,7 @@ public class PriceBulkService {
                             s.getPartner().getName(),
                             s.getEmployee() != null ? s.getEmployee().getName() : null,
                             s.getWarehouse().getName(),
-                            s.getVatAmount().signum() != 0 ? "과세" : "면세",
+                            s.isTaxable() ? "과세" : "면세",
                             l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
                             l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                             lock == null, lock));
@@ -104,7 +104,7 @@ public class PriceBulkService {
                             p.getPartner().getName(),
                             p.getEmployee() != null ? p.getEmployee().getName() : null,
                             p.getWarehouse().getName(),
-                            p.getVatAmount().signum() != 0 ? "과세" : "면세",
+                            p.isTaxable() ? "과세" : "면세",
                             l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
                             l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                             lock == null, lock));

@@ -63,6 +63,8 @@ interface Slip {
   supplyAmount: number
   vatAmount: number
   totalAmount: number
+  /** 원본 판매·구매일괄회계반영의 [부가세유형] — 과세 · 면세. */
+  vatType: string
   reflected: boolean
 }
 
@@ -202,7 +204,8 @@ export default function AccountingReflectionPage() {
       const cur = m.get(s.partnerId) ?? {
         partnerId: s.partnerId, partnerName: s.partnerName,
         ids: [], firstDate: s.slipDate, lastDate: s.slipDate,
-        supply: 0, vat: 0, items: new Set(), reflected: 0, unreflected: 0,
+        supply: 0, vat: 0, items: new Set(), vatTypes: new Set<string>(),
+        reflected: 0, unreflected: 0,
       }
       if (!s.reflected) cur.ids.push(s.id)
       cur.firstDate = s.slipDate < cur.firstDate ? s.slipDate : cur.firstDate
@@ -210,6 +213,7 @@ export default function AccountingReflectionPage() {
       cur.supply += s.supplyAmount
       cur.vat += s.vatAmount
       if (s.itemSummary) cur.items.add(s.itemSummary)
+      cur.vatTypes.add(s.vatType)
       if (s.reflected) cur.reflected += 1
       else cur.unreflected += 1
       m.set(s.partnerId, cur)
@@ -395,15 +399,16 @@ export default function AccountingReflectionPage() {
               <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
               <th style={{ width: 130, textAlign: 'right' }}>합계</th>
               <th>품목요약</th>
+              <th style={{ width: 90, textAlign: 'center' }}>부가세유형</th>
               <th style={{ width: 90, textAlign: 'center' }}>일부반영</th>
               <th style={{ width: 110, textAlign: 'center' }}>반영</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => {
               const partial = g.reflected > 0 && g.unreflected > 0
               return (
@@ -422,6 +427,10 @@ export default function AccountingReflectionPage() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{(g.supply + g.vat).toLocaleString('ko-KR')}</td>
                   <td style={{ color: '#5a626e', fontSize: 11.5 }}>
                     {[...g.items].slice(0, 2).join(', ')}{g.items.size > 2 ? ` 외 ${g.items.size - 2}` : ''}
+                  </td>
+                  {/* 과세·면세가 섞인 거래처는 둘 다 적는다 — 하나로 적으면 거짓말이 된다. */}
+                  <td style={{ textAlign: 'center', fontSize: 11.5, color: '#5a626e' }}>
+                    {[...g.vatTypes].join('·')}
                   </td>
                   {/* 일부만 반영된 거래처를 표시하지 않으면 "이 거래처는 끝냈다" 고 착각한다. */}
                   <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? '#c07a00' : '#c9ced6' }}>
@@ -448,7 +457,7 @@ export default function AccountingReflectionPage() {
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
                   {byPartner.reduce((n, g) => n + g.supply + g.vat, 0).toLocaleString('ko-KR')}
                 </td>
-                <td colSpan={3}></td>
+                <td colSpan={4}></td>
               </tr>
             </tfoot>
           )}
