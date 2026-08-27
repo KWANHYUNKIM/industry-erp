@@ -77,6 +77,8 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
   const [rows, setRows] = useState<SlipLineRow[]>([])
+  /** 원본 [거래유형] — 과세 · 면세. 전표에 저장된 과세 여부를 본다. */
+  const [taxType, setTaxType] = useState('')
   /** 라인 id → 사용자가 고쳐 넣은 단가(문자열). 저장 전까지 여기에만 있다. */
   const [edits, setEdits] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(false)
@@ -102,6 +104,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
           ...(partnerId ? { partnerId } : {}),
           ...(itemId ? { itemId } : {}),
           ...(warehouseId ? { warehouseId } : {}),
+          ...(taxType ? { taxType } : {}),
         },
       })
       setRows(res.data)
@@ -193,6 +196,20 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
                 value={warehouseId} onChange={setWarehouseId}
                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
               />
+            </EcCond>
+            {/*
+              원본 조건의 [거래유형]. 예전에는 만들지 않았다 — 전표가 과세 여부를 안 들고
+              있어서 부가세가 0 인지로 되짚어야 했고, 반올림으로 0 이 된 과세 전표가 면세로
+              섞였기 때문이다. 이제 전표가 그 값을 저장하므로 걸 수 있다.
+            */}
+            <EcCond label="거래유형">
+              <div className="ec-pills">
+                {['', '과세', '면세'].map((v) => (
+                  <button key={v || 'all'} type="button"
+                          className={`ec-pill no-ec${taxType === v ? ' active' : ''}`}
+                          onClick={() => setTaxType(v)}>{v || '전체'}</button>
+                ))}
+              </div>
             </EcCond>
             {/* 구매전표에는 확인(진행상태) 개념이 없다 — 그래서 판매에서만 그린다. */}
             {sale && (

@@ -7030,6 +7030,32 @@ async function scenarioSlipPriceBulk(f) {
   await must('PUT', '/price-bulk/lines', {
     tradeType: 'SALES', changes: [{ lineId: free.lines[0].lineId, unitPrice: 200000 }],
   })
+
+  /*
+   * 원본 단가일괄변경 조건의 <b>[거래유형]</b>(과세·면세).
+   *
+   * <p>예전에는 만들지 않았다 — 전표가 과세 여부를 안 들고 있어서 부가세가 0 인지로
+   * 되짚어야 했고, <b>반올림으로 0 이 된 과세 전표가 면세로 섞였다.</b>
+   * 이제 전표가 그 값을 저장하므로 조건으로 걸 수 있다.
+   */
+  const q94 = 'from=2094-01-01&to=2094-12-31'
+  const onlyTaxed = await must('GET', `/price-bulk/lines?tradeType=SALES&${q94}&taxType=과세`)
+  const onlyFree = await must('GET', `/price-bulk/lines?tradeType=SALES&${q94}&taxType=면세`)
+  const both = await must('GET', `/price-bulk/lines?tradeType=SALES&${q94}`)
+
+  eq('과세만 고르면 과세 전표가 걸린다',
+    onlyTaxed.some((r) => r.slipId === tiny.id), true)
+  eq('과세만 고르면 면세 전표는 빠진다',
+    onlyTaxed.some((r) => r.slipId === free.id), false)
+  eq('면세만 고르면 면세 전표가 걸린다',
+    onlyFree.some((r) => r.slipId === free.id), true)
+  eq('면세만 고르면 과세 전표는 빠진다',
+    onlyFree.some((r) => r.slipId === tiny.id), false)
+  eq('안 고르면 둘 다 걸린다',
+    both.some((r) => r.slipId === tiny.id) && both.some((r) => r.slipId === free.id), true)
+  // 반올림으로 부가세가 0 인 과세 전표가 면세로 새지 않는지 — 이 조건을 만든 이유다.
+  eq('부가세가 0 이어도 과세는 과세다',
+    onlyTaxed.find((r) => r.slipId === tiny.id)?.taxTypeName, '과세')
   const freeAfter = (await must('GET', '/sales')).find((x) => x.id === free.id)
   eq('면세는 단가를 올려도 부가세가 안 생긴다', freeAfter.vatAmount, 0)
 

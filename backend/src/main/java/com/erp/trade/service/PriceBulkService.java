@@ -63,11 +63,15 @@ public class PriceBulkService {
      * 그 자리에서 단가를 고친다. 우리 화면은 오랫동안 품목 표준단가만 바꿔서,
      * 지난 전표의 단가를 고치는 일은 전표를 하나씩 열어 수정하는 수밖에 없었다.
      *
-     * @param status "ALL" | "UNCONFIRMED"(미확인) | "CONFIRMED"(확인)
+     * @param status  "ALL" | "UNCONFIRMED"(미확인) | "CONFIRMED"(확인)
+     * @param taxType 원본 [거래유형] — '과세' · '면세'. 안 주면 전부.
+     *                <b>전표에 저장된 과세 여부</b>를 본다. 예전에는 부가세가 0 인지로
+     *                되짚었는데, 반올림으로 0 이 된 과세 전표가 면세로 섞였다.
      */
     @Transactional(readOnly = true)
     public List<SlipLineRow> findSlipLines(String tradeType, LocalDate from, LocalDate to,
-                                           Long partnerId, Long itemId, Long warehouseId, String status) {
+                                           Long partnerId, Long itemId, Long warehouseId,
+                                           String status, String taxType) {
         boolean sale = !"PURCHASE".equalsIgnoreCase(tradeType);
         List<SlipLineRow> rows = new ArrayList<>();
 
@@ -77,6 +81,7 @@ public class PriceBulkService {
                 if (warehouseId != null && !warehouseId.equals(s.getWarehouse().getId())) continue;
                 boolean confirmed = s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED;
                 if (!statusMatches(status, confirmed)) continue;
+                if (!taxTypeMatches(taxType, s.isTaxable())) continue;
                 String lock = salesService.editLockReason(s);
                 for (SalesLine l : s.getLines()) {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
@@ -95,6 +100,7 @@ public class PriceBulkService {
             for (Purchase p : purchaseRepository.findWithLinesByPurchaseDateBetween(from, to)) {
                 if (partnerId != null && !partnerId.equals(p.getPartner().getId())) continue;
                 if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
+                if (!taxTypeMatches(taxType, p.isTaxable())) continue;
                 // 구매전표에는 확인(진행상태) 개념이 없다 — 그래서 화면 조건에도 두지 않는다.
                 String lock = purchaseService.editLockReason(p);
                 for (PurchaseLine l : p.getLines()) {
@@ -115,6 +121,12 @@ public class PriceBulkService {
                 .thenComparing(SlipLineRow::docNo, Comparator.reverseOrder())
                 .thenComparing(SlipLineRow::lineId));
         return rows;
+    }
+
+    /** 원본 [거래유형]. 안 주면(빈 값) 전부 통과. */
+    private boolean taxTypeMatches(String taxType, boolean taxable) {
+        if (taxType == null || taxType.isBlank()) return true;
+        return "면세".equals(taxType) ? !taxable : taxable;
     }
 
     private boolean statusMatches(String status, boolean confirmed) {
