@@ -40,6 +40,13 @@ interface WorkOrder {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  /**
+   * 납품처·담당자. 원본 조건 판의 [거래처]·[담당자]가 이 값을 본다.
+   * 예전에는 작업지시에 그 값이 없어 두 조건을 만들 수 없었다.
+   * 담당자 <b>이름</b>은 서버가 못 붙인다 — production 은 hr 을 참조할 수 없다.
+   */
+  partnerName: string | null
+  employeeId: number | null
   plannedQty: number
   producedQty: number
   remainingQty: number
@@ -73,20 +80,24 @@ export default function WoProgressPage() {
   const [orderNo, setOrderNo] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
+  const [partner, setPartner] = useState('')
+  const [emp, setEmp] = useState('')
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const [wo, mi, pr, wr, bm] = await Promise.all([
+      const [wo, mi, pr, wr, bm, emps] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Issue[]>('/material-issues'),
         api.get<Production[]>('/productions'),
         api.get<WorkResult[]>('/work-results'),
         api.get<Bom[]>('/boms'),
+        api.get<{ id: number; name: string }[]>('/employees'),
       ])
       setOrders(wo.data); setIssues(mi.data); setProductions(pr.data)
-      setResults(wr.data); setBoms(bm.data)
+      setResults(wr.data); setBoms(bm.data); setEmployees(emps.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -99,16 +110,24 @@ export default function WoProgressPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to)
     setMode('생산진행현황'); setOrderNo(''); setItem(''); setWarehouse('')
+    setPartner(''); setEmp('')
   }
+
+  /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다. */
+  const empName = (id: number | null) =>
+    id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
 
   const shown = useMemo(() => orders.filter((o) => {
     if (o.orderDate < from || o.orderDate > to) return false
     if (orderNo && !o.orderNo.includes(orderNo)) return false
     if (item && !`${o.productCode} ${o.productName}`.includes(item)) return false
     if (warehouse && !(o.warehouseName ?? '').includes(warehouse)) return false
+    if (partner && !(o.partnerName ?? '').includes(partner)) return false
+    if (emp && !empName(o.employeeId).includes(emp)) return false
     return true
   }).sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)),
-  [orders, from, to, orderNo, item, warehouse])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [orders, from, to, orderNo, item, warehouse, partner, emp, employees])
 
   /** 작업지시별 불출 집계. */
   const issueBy = useMemo(() => {
@@ -240,6 +259,14 @@ export default function WoProgressPage() {
         <EcCond label="품목" pick>
           <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
                  onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <input className="ec-input" placeholder="거래처명 일부" value={partner}
+                 onChange={(e) => setPartner(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <input className="ec-input" placeholder="담당자명 일부" value={emp}
+                 onChange={(e) => setEmp(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}

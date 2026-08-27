@@ -2,7 +2,18 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 
-/** 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders 연동) */
+/**
+ * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
+ *
+ * <p>원본 열 실측(사본): 일자-No. · 품목명[규격명] · 수량 · <b>거래처명</b> ·
+ * <b>담당자명</b> · 납기일자.
+ *
+ * <p>거래처명·담당자명이 없었다. 작업지시에 그 값이 아예 없었기 때문인데, 이제 있다
+ * (원본 작업지시서입력 머리의 [납품처]·[담당자]).
+ *
+ * <p>담당자 <b>이름</b>은 서버가 못 붙인다 — production 은 hr 을 참조할 수 없어
+ * (hr → accounting → production 순환) id 만 온다. 화면이 사원 목록에서 붙인다.
+ */
 type WoStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
 
 const STATUS_COLOR: Record<WoStatus, string> = {
@@ -18,6 +29,10 @@ interface Row {
   productName: string
   productUnit: string
   warehouseName: string
+  /** 납품처. 원본 [거래처명] 열. */
+  partnerName: string | null
+  /** 담당자(사원) id. 이름은 화면이 붙인다. */
+  employeeId: number | null
   plannedQty: number
   producedQty: number
   remainingQty: number
@@ -32,14 +47,19 @@ export default function WoStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Row[]>('/work-orders')
+      const [res, emps] = await Promise.all([
+        api.get<Row[]>('/work-orders'),
+        api.get<{ id: number; name: string }[]>('/employees'),
+      ])
       const sorted = [...res.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id))
       setRows(sorted)
+      setEmployees(emps.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -48,6 +68,10 @@ export default function WoStatusPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다 — 지워진 사원이면 '-'. */
+  const empName = (id: number | null) =>
+    id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
   const shown = rows.filter((r) => !keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
 
@@ -67,6 +91,8 @@ export default function WoStatusPage() {
             <th>지시일자</th>
             <th>작업지시번호</th>
             <th>품목명</th>
+            <th style={{ width: 140 }}>거래처명</th>
+            <th style={{ width: 90 }}>담당자명</th>
             <th>입고창고</th>
             <th style={{ textAlign: 'right' }}>지시수량</th>
             <th style={{ textAlign: 'right' }}>생산수량</th>
@@ -78,15 +104,17 @@ export default function WoStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>[{r.productCode}] {r.productName}</td>
+              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
+              <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
