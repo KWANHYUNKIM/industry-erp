@@ -5079,6 +5079,19 @@ async function scenarioStockTracked(f) {
     unitPrice: 5000, purchasePrice: 0, safetyStock: 0, stockTracked: false,
   })
   eq('수량관리제외로 만들 수 있다', svc.stockTracked, false)
+
+  /*
+   * 품목구분 <b>표시 이름은 원본(이카운트) 표기를 따른다.</b>
+   * 사본의 품목등록 리스트에 '[원재료]' '[부재료]' '[반제품]' '[제품]' '[상품]' 으로 찍혀 있다.
+   * 우리는 '원자재·부자재' 로 부르고 있어서, 실제원가현황의 소계 이름('원재료 계')과
+   * 품목등록의 구분 이름이 서로 다른 말이 됐다.
+   * enum 상수(RAW_MATERIAL)는 그대로다 — DB 값이고 CHECK 제약이 그것을 본다.
+   */
+  eq('품목구분 표시 이름이 원본과 같다', svc.categoryName, '원재료')
+  eq('그래도 저장되는 값은 그대로', svc.category, 'RAW_MATERIAL')
+  eq('메타 목록도 같은 말을 쓴다',
+    (await must('GET', '/meta/item-categories')).map((c) => c.name).join('·'),
+    '원재료·부재료·반제품·제품·상품')
   eq('안 주면 관리대상이다',
     (await must('POST', '/items', {
       code: `${code}2`, name: `${P}보통품목`, unit: 'EA', category: 'RAW_MATERIAL',

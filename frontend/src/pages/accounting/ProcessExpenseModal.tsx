@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { groupPreservingOrder } from '../../utils/costGroup'
 import CodePickerField from '../../components/CodePickerField'
 import type { Warehouse } from '../../api/types'
 
@@ -176,7 +177,14 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
                 <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : rows.map((r, i) => (
+              ) : groupPreservingOrder(rows, (r) => r.processName).map((g) => {
+                // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 합계와 어긋난다.
+                const sub = g.rows.reduce(
+                  (a, r) => ({ lab: a.lab + (r.laborCost ?? 0), oh: a.oh + (r.overheadCost ?? 0) }),
+                  { lab: 0, oh: 0 })
+                return (
+                  <Fragment key={g.name}>
+                    {g.rows.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td>{r.processName}</td>
@@ -190,7 +198,19 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
                     <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
-              ))}
+                    ))}
+                    {/* 원본 소계 줄: '반제품공정 계' · '완제품공정 계' */}
+                    <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
+                      <td colSpan={4} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                        {g.name} 계
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.lab)}</td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.oh)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </Fragment>
+                )
+              })}
             </tbody>
             {rows.length > 0 && (
               <tfoot>

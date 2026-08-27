@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { stockCostMap } from '../../utils/stockValue'
+import { groupByCategory } from '../../utils/costGroup'
 import type { Item, PurchaseDoc } from '../../api/types'
 
 /**
@@ -133,6 +134,15 @@ export default function ActualCostPage() {
     [items, purchases],
   )
 
+  /**
+   * 품목 id → 품목구분 이름. 원본 원가집계표에 [품목구분] 열이 있고, 그 값으로 소계를 낸다.
+   * 목록이 아직 안 왔으면 빈 문자열 — costGroup 이 '(미지정)' 으로 모은다(줄을 버리지 않는다).
+   */
+  const categoryOf = useMemo(
+    () => new Map(items.map((i) => [i.id, i.categoryName ?? ''])),
+    [items],
+  )
+
   const hit = (code: string, name: string, itemId: number) => {
     if (!withInactive && inactive.has(itemId)) return false
     if (!withUntracked && untracked.has(itemId)) return false
@@ -145,10 +155,19 @@ export default function ActualCostPage() {
     .map((r) => {
       const price = priceOf.get(r.itemId) ?? null
       const amt = (q: number) => (price == null ? null : q * price)
-      return { ...r, price, openAmt: amt(r.opening), inAmt: amt(r.inQty), outAmt: amt(r.outQty), closeAmt: amt(r.closing) }
+      return {
+        ...r, price, categoryName: categoryOf.get(r.itemId) ?? '',
+        openAmt: amt(r.opening), inAmt: amt(r.inQty), outAmt: amt(r.outQty), closeAmt: amt(r.closing),
+      }
     })
     .sort((a, b) => a.itemCode.localeCompare(b.itemCode)),
-  [movement, priceOf, keyword, withInactive, inactive, withUntracked, untracked])
+  [movement, priceOf, categoryOf, keyword, withInactive, inactive, withUntracked, untracked])
+
+  /**
+   * 원본 원가집계표의 <b>품목구분별 소계</b>(원재료 계 · 부재료 계 · … · 누계).
+   * 순서와 '모르는 구분을 버리지 않는' 규칙은 utils/costGroup 에 있다.
+   */
+  const groups = useMemo(() => groupByCategory(summary, (r) => r.categoryName), [summary])
 
   const detail = useMemo(() => ledger
     .filter((r) => (mode === '증가내역' ? r.quantityChange > 0 : r.quantityChange < 0))
@@ -214,6 +233,8 @@ export default function ActualCostPage() {
                 <th style={{ width: 34 }}></th>
                 <th>품목코드</th>
                 <th>품목명</th>
+                {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
+                <th style={{ width: 80 }}>품목구분</th>
                 <th style={{ textAlign: 'right' }}>기초수량</th>
                 <th style={{ textAlign: 'right' }}>기초금액</th>
                 <th style={{ textAlign: 'right' }}>증가수량</th>
@@ -227,14 +248,23 @@ export default function ActualCostPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : summary.map((r, i) => (
+                <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : groups.map((g) => {
+                // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 누계와 어긋난다.
+                const sub = g.rows.reduce((a, r) => ({
+                  open: a.open + (r.openAmt ?? 0), in: a.in + (r.inAmt ?? 0),
+                  out: a.out + (r.outAmt ?? 0), close: a.close + (r.closeAmt ?? 0),
+                }), { open: 0, in: 0, out: 0, close: 0 })
+                return (
+                  <Fragment key={g.name}>
+                    {g.rows.map((r, i) => (
                 <tr key={r.itemId}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                   <td>{r.itemName}</td>
+                  <td style={{ color: '#5a626e' }}>{r.categoryName}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.openAmt)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(r.inQty)}</td>
@@ -248,12 +278,30 @@ export default function ActualCostPage() {
                   <td style={{ textAlign: 'right', color: r.price == null ? '#c9ced6' : '#5a626e' }}>{won(r.price)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closeAmt)}</td>
                 </tr>
-              ))}
+                    ))}
+                    {/* 원본 소계 줄: '원재료 계' · '부재료 계' · … */}
+                    <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
+                      <td colSpan={4} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                        {g.name} 계 ({g.rows.length}품목)
+                      </td>
+                      <td></td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.open)}</td>
+                      <td></td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.in)}</td>
+                      <td></td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.out)}</td>
+                      <td colSpan={2}></td>
+                      <td style={{ textAlign: 'right' }}>{won(sub.close)}</td>
+                    </tr>
+                  </Fragment>
+                )
+              })}
             </tbody>
             {summary.length > 0 && (
               <tfoot>
                 <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                  <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({summary.length}품목)</td>
+                  {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다. */}
+                  <td colSpan={5} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
                   <td style={{ textAlign: 'right' }}>{won(totals.open)}</td>
                   <td></td>
                   <td style={{ textAlign: 'right' }}>{won(totals.in)}</td>
