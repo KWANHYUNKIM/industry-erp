@@ -35,6 +35,9 @@ interface WorkResult {
   warehouseName: string | null
   productCode: string | null
   productName: string | null
+  /** 원본 라인 열의 [품목명[규격]] — 작업품목. 생산품목명과 다른 열이다. */
+  workItemName: string | null
+  workItemSpec: string | null
   resourceId: number | null
   resourceName: string | null
   /** BOR 표준작업시간(분). 그 품목·공정의 라우팅이 없으면 null — 0 과 다르다. */
@@ -267,6 +270,8 @@ export default function WorkResultListPage() {
               <th style={{ width: 130 }}>생산공장명</th>
               <th>작업(공정)</th>
               <th style={{ width: 160 }}>생산품목명</th>
+              {/* 원본 라인 열: … 작업명 · 생산품목명 · [품목명[규격]] · 수량 · 자원명 · … */}
+              <th style={{ width: 160 }}>품목명[규격]</th>
               <th style={{ width: 110 }}>담당자</th>
               <th style={{ width: 120 }}>자원명</th>
               <th style={{ width: 100, textAlign: 'right' }}>양품</th>
@@ -279,9 +284,9 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업내역이 없습니다.</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작업내역이 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -292,6 +297,10 @@ export default function WorkResultListPage() {
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
                 <td>{r.process}</td>
                 <td>{r.productName ?? ''}</td>
+                {/* 작업품목. 안 적힌 옛 자료는 비워 둔다 — 생산품목으로 채우면 두 열이 늘 같아진다. */}
+                <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
+                  {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
+                </td>
                 <td>{r.worker ?? ''}</td>
                 <td>{r.resourceName ?? ''}</td>
                 <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(r.goodQty)}</td>
@@ -311,7 +320,7 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
               <td style={{ textAlign: 'right' }}>{num(time.standard)}</td>

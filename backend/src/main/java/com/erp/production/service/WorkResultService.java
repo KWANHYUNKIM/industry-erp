@@ -31,6 +31,7 @@ public class WorkResultService {
     private final ResourceService resourceService;
     private final BorService borService;
     private final com.erp.inventory.service.WarehouseService warehouseService;
+    private final com.erp.inventory.service.ItemService itemService;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -57,8 +58,16 @@ public class WorkResultService {
         com.erp.inventory.domain.Warehouse warehouse =
                 req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null;
 
+        /*
+         * 원본 그리드의 [작업품목]. 새로 고르는 자리이므로 사용중지된 품목은 거절한다
+         * (getUsable). 이미 저장된 작업내역을 읽을 때는 막지 않는다.
+         */
+        com.erp.inventory.domain.Item workItem =
+                req.workItemId() != null ? itemService.getUsable(req.workItemId()) : null;
+
         WorkResult wr = WorkResult.builder()
                 .workOrder(workOrder)
+                .workItem(workItem)
                 .process(req.process())
                 .processMaster(processMaster)
                 .resource(resource)

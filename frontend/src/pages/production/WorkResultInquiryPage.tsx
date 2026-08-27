@@ -17,12 +17,18 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
  * "지난달에 잘못 올린 작업내역을 골라 지운다" 를 할 자리가 없었다. 현황은 집계를 보는
  * 자리라 전표를 지우지 않는다 — 그래서 조회를 따로 둔다.
  *
- * <p>원본의 '작업품목' 은 우리 자료의 공정에 해당한다.
+ * <p><b>작업품목</b>은 작업내역이 실제로 든다(work_results.work_item_id). 예전에는 그 자리에
+ * 공정명을 대신 넣어 '작업품목(공정)' 이라고 적어 두었는데, 원본의 작업품목은 품목이지
+ * 공정이 아니다 — 품목별로 작업량을 셀 수가 없었다. 아직 안 적힌 옛 자료는 빈 칸이다.
  */
 interface Row {
   id: number
   workOrderNo: string | null
   process: string
+  /** 원본 [작업품목명[규격명]]. 옛 자료에는 없다. */
+  workItemCode: string | null
+  workItemName: string | null
+  workItemSpec: string | null
   warehouseName: string | null
   productCode: string | null
   productName: string | null
@@ -130,7 +136,7 @@ export default function WorkResultInquiryPage() {
             ))}
           </span>
         </EcCond>
-        <EcCond label="작업품목" pick>
+        <EcCond label="작업(공정)" pick>
           <input className="ec-input" placeholder="공정명 일부" value={process}
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 180 }} />
         </EcCond>
@@ -158,7 +164,8 @@ export default function WorkResultInquiryPage() {
               <th style={{ width: 110 }}>일자</th>
               <th style={{ width: 170 }}>작업지시No.</th>
               <th style={{ width: 130 }}>생산공장명</th>
-              <th style={{ width: 150 }}>작업품목(공정)</th>
+              <th style={{ width: 170 }}>작업품목명[규격명]</th>
+              <th style={{ width: 120 }}>작업(공정)</th>
               <th>생산품목명</th>
               <th style={{ width: 120 }}>자원명</th>
               <th style={{ width: 100 }}>담당자</th>
@@ -169,9 +176,9 @@ export default function WorkResultInquiryPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -180,6 +187,10 @@ export default function WorkResultInquiryPage() {
                 <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
                 <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? '-'}</td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
+                {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
+                <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
+                  {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
+                </td>
                 <td>{r.process}</td>
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
                 <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
@@ -192,7 +203,7 @@ export default function WorkResultInquiryPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right' }}>{num(totals.qty)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
               <td></td>

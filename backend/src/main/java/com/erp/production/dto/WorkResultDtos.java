@@ -13,6 +13,11 @@ public final class WorkResultDtos {
     public record CreateWorkResultRequest(
             Long workOrderId,
             @NotBlank(message = "공정을 입력하세요.") String process,
+            /**
+             * 원본 그리드의 [작업품목] id — 이 작업이 다루는 품목. 생산품목과 다르다.
+             * 안 정할 수 있다.
+             */
+            Long workItemId,
             /** 투입자원(설비) id. 원본 그리드의 [투입자원] 열. */
             Long resourceId,
             /** 생산공장 id. 원본 작업내역입력 머리의 [생산공장]. */
@@ -33,6 +38,11 @@ public final class WorkResultDtos {
             String process,
             /** 공정 마스터와 연결된 경우의 공정 id. 자유입력이면 null. */
             Long processId,
+            /**
+             * 원본 [작업품목] — 이 작업이 다루는 품목. 생산품목과 다르다.
+             * 조회 화면은 '작업품목명[규격명]' 으로 적는다.
+             */
+            Long workItemId, String workItemCode, String workItemName, String workItemSpec,
             /** 투입자원(설비). 안 정했으면 null. */
             Long resourceId, String resourceName,
             /** 생산공장. 안 정했으면 null. */
@@ -61,6 +71,10 @@ public final class WorkResultDtos {
                     product != null ? product.getName() : null,
                     wr.getProcess(),
                     wr.getProcessMaster() != null ? wr.getProcessMaster().getId() : null,
+                    wr.getWorkItem() != null ? wr.getWorkItem().getId() : null,
+                    wr.getWorkItem() != null ? wr.getWorkItem().getCode() : null,
+                    wr.getWorkItem() != null ? wr.getWorkItem().getName() : null,
+                    wr.getWorkItem() != null ? wr.getWorkItem().getSpec() : null,
                     wr.getResource() != null ? wr.getResource().getId() : null,
                     wr.getResource() != null ? wr.getResource().getName() : null,
                     wr.getWarehouse() != null ? wr.getWarehouse().getId() : null,

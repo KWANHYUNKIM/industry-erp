@@ -698,7 +698,7 @@ async function scenarioRelations(f) {
 
   const wrLinked = await must('POST', '/work-results', {
     process: f.process.name, worker: 'QA', goodQty: 10, defectQty: 0, workTimeMin: 30,
-    warehouseId: f.warehouse.id, note: `${P}적요`,
+    warehouseId: f.warehouse.id, note: `${P}적요`, workItemId: f.material.id,
   })
   eq('마스터에 있는 공정명 → processId 연결', wrLinked.processId, f.process.id)
 
@@ -708,6 +708,17 @@ async function scenarioRelations(f) {
   eq('생산공장이 실린다', wrLinked.warehouseId, f.warehouse.id)
   eq('생산공장 이름이 실린다', wrLinked.warehouseName, f.warehouse.name)
   eq('적요가 실린다', wrLinked.note, `${P}적요`)
+
+  /*
+   * 원본 작업내역입력 그리드의 <b>[작업품목]</b>. 세 화면(입력·조회·현황)이 같은 열을 든다.
+   *
+   * <b>생산품목과 다른 것</b>이다 — 작업지시의 생산품목이 AQD 여도 그 안의 한 작업은
+   * 'AQD 몸체' 를 다룬다. 우리는 그 자리에 <b>공정명</b>을 대신 넣어 화면에
+   * '작업품목(공정)' 이라고 적어 두고 있었다. 품목별로 작업량을 셀 수가 없었다.
+   */
+  eq('작업품목이 실린다', wrLinked.workItemId, f.material.id)
+  eq('작업품목명도 같이 온다', wrLinked.workItemName, f.material.name)
+  eq('작업품목은 공정이 아니다', wrLinked.workItemName === wrLinked.process, false)
   const reWr = (await must('GET', '/work-results')).find((r) => r.id === wrLinked.id)
   eq('다시 조회해도 생산공장이 유지된다', reWr.warehouseName, f.warehouse.name)
 
@@ -718,6 +729,25 @@ async function scenarioRelations(f) {
   eq('자유입력 공정명은 보존', wrFree.process, `${P}임시수작업`)
   // 안 고르면 null 이다. 아무 창고로 채우면 하지 않은 작업을 그 공장이 한 것이 된다.
   isNull('생산공장을 안 고르면 null', wrFree.warehouseId)
+  // 안 적을 수 있다. 옛 작업내역에는 이 값이 없다 — 공정명으로 채우면 또 거짓말이 된다.
+  isNull('작업품목을 안 고르면 null', wrFree.workItemId)
+
+  // 사용중지된 품목은 새로 고를 수 없다 (getUsable)
+  const stoppedItem = await must('PUT', `/items/${f.material.id}`, {
+    name: f.material.name, unit: f.material.unit, category: f.material.category,
+    unitPrice: f.material.unitPrice, purchasePrice: f.material.purchasePrice,
+    safetyStock: f.material.safetyStock, active: false,
+  })
+  eq('시험용으로 잠깐 사용중지', stoppedItem.active, false)
+  await rejects('사용중지된 품목은 작업품목이 될 수 없다', 'POST', '/work-results',
+    { process: `${P}임시수작업`, worker: 'QA', goodQty: 1, workItemId: f.material.id },
+    '사용중지된 품목')
+  await must('PUT', `/items/${f.material.id}`, {
+    name: f.material.name, unit: f.material.unit, category: f.material.category,
+    unitPrice: f.material.unitPrice, purchasePrice: f.material.purchasePrice,
+    safetyStock: f.material.safetyStock, active: true,
+  })
+  eq('되돌려 놓는다', (await must('GET', '/items')).find((x) => x.id === f.material.id).active, true)
 
   // 이 두 줄이 매 실행마다 남아 있었다 — 작업내역이 실행할 때마다 두 건씩 불어났다.
   for (const r of [wrLinked, wrFree]) await must('DELETE', `/work-results/${r.id}`)

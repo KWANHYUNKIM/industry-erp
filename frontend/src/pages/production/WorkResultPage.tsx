@@ -3,6 +3,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
+import type { Item } from '../../api/types'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -23,6 +25,11 @@ interface WorkResult {
   warehouseName: string | null
   productCode: string | null
   productName: string | null
+  /** 원본 그리드의 [작업품목] — 이 작업이 다루는 품목. 생산품목과 다르다. */
+  workItemId: number | null
+  workItemCode: string | null
+  workItemName: string | null
+  workItemSpec: string | null
   resourceId: number | null
   resourceName: string | null
   worker: string | null
@@ -39,7 +46,7 @@ interface Warehouse { id: number; name: string; kind: string; active: boolean }
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
 const emptyForm = {
-  workOrderId: '', process: '', warehouseId: '', resourceId: '', worker: '',
+  workOrderId: '', process: '', workItemId: '', warehouseId: '', resourceId: '', worker: '',
   goodQty: '', defectQty: '', workTimeMin: '', workDate: today(), note: '',
 }
 
@@ -48,6 +55,8 @@ export default function WorkResultPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /** 원본 그리드의 [작업품목] 후보. */
+  const [items, setItems] = useState<Item[]>([])
   /** 원본 그리드의 [투입자원]. 자원등록의 [대상작업]과 짝이다. */
   const [resources, setResources] = useState<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,16 +79,19 @@ export default function WorkResultPage() {
 
   async function loadRefs() {
     try {
-      const [wo, pr, rs, wh] = await Promise.all([
+      const [wo, pr, rs, wh, it] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Process[]>('/processes'),
         api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<Item[]>('/items'),
       ])
       setWorkOrders(wo.data)
       setProcesses(pr.data)
       setResources(rs.data)
       setWarehouses(wh.data.filter((w) => w.active))
+      // 사용중지된 품목은 새로 고를 수 없다 — 서버도 거절한다.
+      setItems(it.data.filter((x) => x.active))
     } catch {
       /* 참조 로딩 실패는 폼 사용에만 영향 */
     }
@@ -94,6 +106,7 @@ export default function WorkResultPage() {
       await api.post('/work-results', {
         workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
         process: form.process,
+        workItemId: form.workItemId === '' ? null : Number(form.workItemId),
         warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         resourceId: form.resourceId === '' ? null : Number(form.resourceId),
         worker: form.worker,
@@ -151,6 +164,19 @@ export default function WorkResultPage() {
               <datalist id="wr-process-list">
                 {processes.map((p) => <option key={p.id} value={p.name} />)}
               </datalist>
+            </div>
+            {/*
+              원본 그리드의 [작업품목]. 생산품목(작업지시가 가리키는 최종 품목)과 다르다 —
+              AQD 를 만드는 지시 안에서 이 작업은 'AQD 몸체' 를 다니는 식이다.
+              예전에는 이 자리에 공정명을 대신 넣어 조회 화면에 '작업품목(공정)' 이라고
+              적어 두고 있었다. 품목별로 작업량을 셀 수가 없었다.
+            */}
+            <div>
+              <CodePickerField
+                label="작업품목" placeholder="작업품목 선택" emptyLabel="선택 해제"
+                value={form.workItemId} onChange={(v) => setForm({ ...form, workItemId: v })}
+                items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))}
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산공장</label>

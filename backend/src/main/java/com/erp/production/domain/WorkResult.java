@@ -58,6 +58,19 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "warehouse_id")
     private com.erp.inventory.domain.Warehouse warehouse;
 
+    /**
+     * 원본 작업내역입력 그리드의 <b>[작업품목]</b> — 이 작업이 실제로 다루는 품목.
+     *
+     * <p><b>생산품목과 다르다.</b> 작업지시서의 생산품목이 AQD 여도 그 안의 한 작업은
+     * 'AQD 몸체' 를 다룬다. 우리는 그 자리에 공정명을 대신 넣어 화면에 '작업품목(공정)' 이라고
+     * 적어 두고 있었다 — 품목별로 작업량을 셀 수가 없었다.
+     *
+     * <p>안 정할 수 있다. 예전에 적은 작업내역에는 이 값이 없다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_item_id")
+    private com.erp.inventory.domain.Item workItem;
+
     /** 작업자 */
     @Column(length = 50)
     private String worker;
