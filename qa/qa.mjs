@@ -3427,6 +3427,61 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 일괄회계반영의 <b>거래처별</b> 묶음과 '일부반영'.
+ *
+ * <p>원본 판매일괄회계반영의 [구분] 은 거래처별 · 전표별 둘이고, 결과에 <b>일부반영</b>
+ * 열이 있다. 우리는 전표별 하나뿐이라 월말에 거래처별로 묶어 반영하는 흐름이 없었다 —
+ * 전표가 수십 장이면 체크를 수십 번 해야 한다.
+ *
+ * <p>화면은 목록을 거래처로 묶어 세지만, 그 셈이 맞으려면 응답이 거래처와 반영여부를
+ * 줄마다 정확히 실어야 한다. 특히 <b>일부만 반영된 거래처</b>가 구분되지 않으면
+ * "이 거래처는 끝냈다" 고 착각한다.
+ */
+async function scenarioAccountingReflectionByPartner(f) {
+  section('■ 일괄회계반영 거래처별')
+
+  const made = []
+  for (let i = 0; i < 3; i++) {
+    made.push(await must('POST', '/sales', {
+      saleDate: `2026-06-1${4 + i}`, partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+      lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 * (i + 1) }],
+    }))
+  }
+  const ids = made.map((d) => d.id)
+  const mineOf = async () => (await must('GET', '/accounting-reflection?kind=SALES'))
+    .filter((s) => ids.includes(s.id))
+
+  const before = await mineOf()
+  eq('세 장이 다 미반영으로 잡힌다', before.filter((s) => !s.reflected).length, 3)
+  eq('거래처가 줄마다 실린다', new Set(before.map((s) => s.partnerId)).size, 1)
+  eq('거래처별 공급가액 합', before.reduce((n, s) => n + Number(s.supplyAmount), 0), 60000)
+
+  // 한 장만 반영 → 그 거래처는 '일부반영' 이다.
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [ids[0]] })
+  const mid = await mineOf()
+  const reflected = mid.filter((s) => s.reflected).length
+  const unreflected = mid.length - reflected
+  eq('한 장만 반영된다', reflected, 1)
+  eq('나머지는 미반영으로 남는다', unreflected, 2)
+  eq('일부반영으로 갈린다', reflected > 0 && unreflected > 0, true)
+
+  // 남은 것을 한 번에 반영하면 그 거래처는 끝난다.
+  await must('POST', '/accounting-reflection/reflect', {
+    kind: 'SALES', ids: mid.filter((s) => !s.reflected).map((s) => s.id),
+  })
+  const done = await mineOf()
+  eq('묶어서 반영하면 남는 것이 없다', done.filter((s) => !s.reflected).length, 0)
+
+  // 회계반영된 전표는 지울 수 없다 — 반영을 먼저 되돌린다.
+  const blocked = await call('DELETE', `/sales/${ids[0]}`)
+  eq('반영된 전표는 삭제가 막힌다', blocked.status, 400)
+
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids })
+  for (const id of ids) await must('DELETE', `/sales/${id}`)
+  eq('시험용 전표는 남기지 않는다', (await mineOf()).length, 0)
+}
+
+/**
  * 전표 <b>라인</b>에 추가항목을 붙일 수 있는가.
  *
  * <p>원본 판매입력II 그리드에는 ADD_TXT_01~06 · ADD_NUM_01~05 · ADD_LTXT_01 ·
@@ -4685,6 +4740,7 @@ async function main() {
   await scenarioExpenseDocNo()
   await scenarioTimeCalc(fixtures)
   await scenarioLineCustomFields(fixtures)
+  await scenarioAccountingReflectionByPartner(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

@@ -15,8 +15,20 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
  * 원본 조건: 기준일(영업주기) · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 ·
  * 거래처관리담당자 · 금액(범위). 우리 Slip 에는 창고·프로젝트·품목·거래유형이 없어
  * **의도적 제외**(값 없는 컨트롤을 만들지 않는다). 전표일 구간·거래처·전표번호·금액 범위를 둔다.
+ *
+ * <p>원본 판매일괄회계반영의 [구분] 은 <b>거래처별 · 전표별</b> 둘이다(결과 열:
+ * 기준일자 · 거래일자 · 거래처명 · 거래가액 · 조정 · 공급가액 · 부가세 · 합계 · 품목요약 ·
+ * 부가세유형 · <b>일부반영</b>). 우리는 전표별 하나뿐이라, 월말에 거래처별로 묶어
+ * 한 번에 반영하는 흐름이 없었다 — 전표가 수십 장이면 체크를 수십 번 해야 한다.
+ *
+ * <p>'조정'과 '부가세유형' 은 만들지 않았다. 우리 전표에 조정 금액 칸이 없고 부가세유형
+ * 마스터도 없다 — 늘 비는 열을 두면 화면이 거짓말을 한다.
  */
 type Kind = 'sales' | 'purchase'
+
+/** 원본 [구분]. 순서도 원본을 따른다. */
+const MODES = ['거래처별', '전표별'] as const
+type Mode = typeof MODES[number]
 
 interface Slip {
   id: number
@@ -39,6 +51,7 @@ export default function AccountingReflectionPage() {
   const [params] = useSearchParams()
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+  const [mode, setMode] = useState<Mode>('전표별')
   /*
    * 원본 조건 판 실측(사본 · 회계미반영현황(판매)/(구매)):
    *   기준일(영업주기) · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 ·
@@ -118,6 +131,47 @@ export default function AccountingReflectionPage() {
     setChecked(new Set())
   }
 
+  /**
+   * 거래처별로 묶은 줄. 한 거래처의 미반영 전표를 한 번에 반영하려고 만든다.
+   *
+   * <p>'일부반영' 은 그 거래처의 전표 중 <b>일부만</b> 반영된 상태다. 이게 보이지 않으면
+   * "이 거래처는 끝냈다" 고 착각하기 쉽다 — 원본에도 그 열이 있다.
+   */
+  const byPartner = useMemo(() => {
+    const m = new Map()
+    for (const s of shown) {
+      const cur = m.get(s.partnerId) ?? {
+        partnerId: s.partnerId, partnerName: s.partnerName,
+        ids: [], firstDate: s.slipDate, lastDate: s.slipDate,
+        supply: 0, vat: 0, items: new Set(), reflected: 0, unreflected: 0,
+      }
+      if (!s.reflected) cur.ids.push(s.id)
+      cur.firstDate = s.slipDate < cur.firstDate ? s.slipDate : cur.firstDate
+      cur.lastDate = s.slipDate > cur.lastDate ? s.slipDate : cur.lastDate
+      cur.supply += s.supplyAmount
+      cur.vat += s.vatAmount
+      if (s.itemSummary) cur.items.add(s.itemSummary)
+      if (s.reflected) cur.reflected += 1
+      else cur.unreflected += 1
+      m.set(s.partnerId, cur)
+    }
+    return [...m.values()].sort((a, b) => a.partnerName.localeCompare(b.partnerName))
+  }, [shown])
+
+  /** 거래처 한 줄을 통째로 반영한다. 미반영 전표가 없으면 부를 일이 없다. */
+  async function reflectPartner(ids: number[]) {
+    if (ids.length === 0) return
+    setError(''); setOk('')
+    try {
+      const res = await api.post<{ reflectedCount: number }>(
+        '/accounting-reflection/reflect', { kind: kind.toUpperCase(), ids })
+      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
+      load(kind)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   async function reflectSelected() {
     if (checked.size === 0) return setError('반영할 전표를 선택하세요.')
     setError('')
@@ -160,6 +214,14 @@ export default function AccountingReflectionPage() {
         picks={INQUIRY_PICKS}
         dateLabel="기준일(영업주기)"
       >
+        <EcCond label="구분">
+          <div className="ec-pills">
+            {MODES.map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                      onClick={() => setMode(m)}>{m}</button>
+            ))}
+          </div>
+        </EcCond>
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
                  onChange={(e) => setC({ partner: e.target.value })} style={{ width: 220 }} />
@@ -210,6 +272,77 @@ export default function AccountingReflectionPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
+      {mode === '거래처별' ? (
+        <table className="ec-grid w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>거래처명</th>
+              <th style={{ width: 170 }}>거래일자</th>
+              <th style={{ width: 80, textAlign: 'right' }}>전표수</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
+              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th>품목요약</th>
+              <th style={{ width: 90, textAlign: 'center' }}>일부반영</th>
+              <th style={{ width: 110, textAlign: 'center' }}>반영</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : byPartner.length === 0 ? (
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+            ) : byPartner.map((g, i) => {
+              const partial = g.reflected > 0 && g.unreflected > 0
+              return (
+                <tr key={g.partnerId}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>{g.partnerName}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+                    {g.firstDate === g.lastDate ? g.firstDate : `${g.firstDate} ~ ${g.lastDate}`}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    {g.reflected + g.unreflected}
+                    {g.unreflected > 0 && <span style={{ color: '#c60a2e' }}> (미 {g.unreflected})</span>}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{(g.supply + g.vat).toLocaleString('ko-KR')}</td>
+                  <td style={{ color: '#5a626e', fontSize: 11.5 }}>
+                    {[...g.items].slice(0, 2).join(', ')}{g.items.size > 2 ? ` 외 ${g.items.size - 2}` : ''}
+                  </td>
+                  {/* 일부만 반영된 거래처를 표시하지 않으면 "이 거래처는 끝냈다" 고 착각한다. */}
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? '#c07a00' : '#c9ced6' }}>
+                    {partial ? 'YES' : ''}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {g.ids.length > 0 ? (
+                      <button className="ec-btn" style={{ height: 20, padding: '0 6px' }}
+                              onClick={() => reflectPartner(g.ids)}>
+                        {g.ids.length}건 반영
+                      </button>
+                    ) : <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>완료</span>}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          {byPartner.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byPartner.length}거래처)</td>
+                <td style={{ textAlign: 'right' }}>{byPartner.reduce((n, g) => n + g.supply, 0).toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right' }}>{byPartner.reduce((n, g) => n + g.vat, 0).toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  {byPartner.reduce((n, g) => n + g.supply + g.vat, 0).toLocaleString('ko-KR')}
+                </td>
+                <td colSpan={3}></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -246,6 +379,7 @@ export default function AccountingReflectionPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
