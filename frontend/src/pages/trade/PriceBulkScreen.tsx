@@ -79,6 +79,8 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   const [rows, setRows] = useState<SlipLineRow[]>([])
   /** 원본 [거래유형] — 과세 · 면세. 전표에 저장된 과세 여부를 본다. */
   const [taxType, setTaxType] = useState('')
+  /** 원본 [구매구분]·[거래구분] — 전체 · 일반 · 반품. */
+  const [tradeKind, setTradeKind] = useState('')
   /** 라인 id → 사용자가 고쳐 넣은 단가(문자열). 저장 전까지 여기에만 있다. */
   const [edits, setEdits] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(false)
@@ -105,6 +107,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
           ...(itemId ? { itemId } : {}),
           ...(warehouseId ? { warehouseId } : {}),
           ...(taxType ? { taxType } : {}),
+          ...(tradeKind ? { tradeKind } : {}),
         },
       })
       setRows(res.data)
@@ -208,6 +211,19 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
                   <button key={v || 'all'} type="button"
                           className={`ec-pill no-ec${taxType === v ? ' active' : ''}`}
                           onClick={() => setTaxType(v)}>{v || '전체'}</button>
+                ))}
+              </div>
+            </EcCond>
+            {/*
+              원본 [구매구분](구매) · [거래구분](판매) — 전체 · 일반 · 반품.
+              반품 전표는 수량·금액이 음수라, 단가를 고칠 대상에서 갈라 볼 수 있어야 한다.
+            */}
+            <EcCond label={sale ? '거래구분' : '구매구분'}>
+              <div className="ec-pills">
+                {['', '일반', '반품'].map((v) => (
+                  <button key={v || 'all'} type="button"
+                          className={`ec-pill no-ec${tradeKind === v ? ' active' : ''}`}
+                          onClick={() => setTradeKind(v)}>{v || '전체'}</button>
                 ))}
               </div>
             </EcCond>

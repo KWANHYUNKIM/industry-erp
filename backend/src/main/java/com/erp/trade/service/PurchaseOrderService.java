@@ -218,6 +218,7 @@ public class PurchaseOrderService {
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
                 po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
+                Boolean.FALSE,  // 발주서 입고전환은 늘 일반 구매다
                 "발주 " + po.getOrderNo() + " 입고", null, null,
                 null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
                 lines);

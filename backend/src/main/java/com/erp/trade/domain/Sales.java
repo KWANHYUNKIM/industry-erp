@@ -106,6 +106,18 @@ public class Sales extends BaseTimeEntity {
     @Builder.Default
     private boolean taxable = true;
 
+    /**
+     * 원본 [거래구분] — <b>일반 · 반품</b>. 네 화면이 이 구분을 조건으로 든다
+     * (판매·구매일괄회계반영, 구매단가일괄변경, 일별이익현황의 [반품만]·[반품제외]).
+     *
+     * <p>반품은 그 거래의 <b>반대</b>다. 그래서 저장할 때 라인 수량과 전표 금액을
+     * <b>음수로 뒤집어</b> 둔다 — 재고·채권·이익을 읽는 쪽이 아무것도 안 바꿔도 맞는다.
+     * 화면에서는 되돌려받는 수량을 양수로 적는다(원본도 그렇다).
+     */
+    @Column(name = "return_slip", nullable = false)
+    @Builder.Default
+    private boolean returnSlip = false;
+
 
     /** 확인상태. 전자결재 상신/완료/반려에 따라 움직인다. */
     @Enumerated(EnumType.STRING)

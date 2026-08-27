@@ -67,11 +67,12 @@ public class PriceBulkService {
      * @param taxType 원본 [거래유형] — '과세' · '면세'. 안 주면 전부.
      *                <b>전표에 저장된 과세 여부</b>를 본다. 예전에는 부가세가 0 인지로
      *                되짚었는데, 반올림으로 0 이 된 과세 전표가 면세로 섞였다.
+     * @param tradeKind 원본 [구매구분]·[거래구분] — '일반' · '반품'. 안 주면 전부.
      */
     @Transactional(readOnly = true)
     public List<SlipLineRow> findSlipLines(String tradeType, LocalDate from, LocalDate to,
                                            Long partnerId, Long itemId, Long warehouseId,
-                                           String status, String taxType) {
+                                           String status, String taxType, String tradeKind) {
         boolean sale = !"PURCHASE".equalsIgnoreCase(tradeType);
         List<SlipLineRow> rows = new ArrayList<>();
 
@@ -82,6 +83,7 @@ public class PriceBulkService {
                 boolean confirmed = s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED;
                 if (!statusMatches(status, confirmed)) continue;
                 if (!taxTypeMatches(taxType, s.isTaxable())) continue;
+                if (!tradeKindMatches(tradeKind, s.isReturnSlip())) continue;
                 String lock = salesService.editLockReason(s);
                 for (SalesLine l : s.getLines()) {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
@@ -101,6 +103,7 @@ public class PriceBulkService {
                 if (partnerId != null && !partnerId.equals(p.getPartner().getId())) continue;
                 if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
                 if (!taxTypeMatches(taxType, p.isTaxable())) continue;
+                if (!tradeKindMatches(tradeKind, p.isReturnSlip())) continue;
                 // 구매전표에는 확인(진행상태) 개념이 없다 — 그래서 화면 조건에도 두지 않는다.
                 String lock = purchaseService.editLockReason(p);
                 for (PurchaseLine l : p.getLines()) {
@@ -121,6 +124,15 @@ public class PriceBulkService {
                 .thenComparing(SlipLineRow::docNo, Comparator.reverseOrder())
                 .thenComparing(SlipLineRow::lineId));
         return rows;
+    }
+
+    /**
+     * 원본 [구매구분]·[거래구분]. 안 주면(빈 값) 전부 통과.
+     * 반품 전표는 수량·금액이 음수라, 여기서 걸러 내면 단가를 고칠 대상에서 빠진다.
+     */
+    private boolean tradeKindMatches(String tradeKind, boolean returnSlip) {
+        if (tradeKind == null || tradeKind.isBlank()) return true;
+        return "반품".equals(tradeKind) ? returnSlip : !returnSlip;
     }
 
     /** 원본 [거래유형]. 안 주면(빈 값) 전부 통과. */

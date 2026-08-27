@@ -295,6 +295,12 @@ export interface SalesDoc {
   accountingReflected: boolean
   /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
   vatBySlip: boolean
+  /** 과세 전표인가. 예전에는 부가세 > 0 인지로 되짚었는데 반올림으로 0 이 된 과세 전표가 면세로 섞였다. */
+  taxable: boolean
+  /** 원본 [거래구분]이 반품인가. 반품이면 수량·금액이 음수로 저장돼 있다. */
+  returnSlip: boolean
+  /** 원본 [거래구분] 표시값 — 일반 · 반품. */
+  tradeKindName: string
   /** 귀속 프로젝트 (백엔드 SalesResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
   projectId: number | null
   projectName: string | null
@@ -318,6 +324,12 @@ export interface PurchaseDoc {
   createdBy: string | null
   /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
   vatBySlip: boolean
+  /** 과세 전표인가. 예전에는 부가세 > 0 인지로 되짚었는데 반올림으로 0 이 된 과세 전표가 면세로 섞였다. */
+  taxable: boolean
+  /** 원본 [거래구분]이 반품인가. 반품이면 수량·금액이 음수로 저장돼 있다. */
+  returnSlip: boolean
+  /** 원본 [거래구분] 표시값 — 일반 · 반품. */
+  tradeKindName: string
   /** 회계반영 여부 (판매와 맞추려고 응답에 추가했다) */
   accountingReflected: boolean
   /** 귀속 프로젝트 (백엔드 PurchaseResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */

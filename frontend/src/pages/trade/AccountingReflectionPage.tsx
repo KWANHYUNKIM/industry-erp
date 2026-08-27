@@ -65,6 +65,8 @@ interface Slip {
   totalAmount: number
   /** 원본 판매·구매일괄회계반영의 [부가세유형] — 과세 · 면세. */
   vatType: string
+  /** 원본 판매일괄회계반영의 [거래구분] · 구매일괄회계반영의 [구매구분] — 일반 · 반품. */
+  tradeKind: string
   reflected: boolean
   /**
    * 원본 판매·구매일괄회계반영의 [회계전표No.]. 반영 전에는 null 이다.
@@ -91,7 +93,7 @@ export default function AccountingReflectionPage() {
    */
   const [cond, setCond] = useState({
     from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
-    warehouse: '', project: '', item: '', employee: '', vatType: '',
+    warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [onlyUnreflected, setOnlyUnreflected] = useState(true)
@@ -129,6 +131,8 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
     .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
     .filter((s) => !cond.vatType || s.vatType === cond.vatType)
+    // 원본 [거래구분]·[구매구분]. 반품 전표는 금액이 음수라 반영 금액도 반대로 간다.
+    .filter((s) => !cond.tradeKind || s.tradeKind === cond.tradeKind)
     .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
     .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
@@ -153,7 +157,7 @@ export default function AccountingReflectionPage() {
   const reset = () => {
     setCond({
       from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
-      warehouse: '', project: '', item: '', employee: '', vatType: '',
+      warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     })
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
@@ -321,6 +325,16 @@ export default function AccountingReflectionPage() {
               <button key={v || 'all'} type="button"
                       className={`ec-pill no-ec${cond.vatType === v ? ' active' : ''}`}
                       onClick={() => setC({ vatType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/* 원본 판매일괄회계반영의 [거래구분] · 구매일괄회계반영의 [구매구분]. */}
+        <EcCond label={kind === 'sales' ? '거래구분' : '구매구분'}>
+          <div className="ec-pills">
+            {['', '일반', '반품'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${cond.tradeKind === v ? ' active' : ''}`}
+                      onClick={() => setC({ tradeKind: v })}>{v || '전체'}</button>
             ))}
           </div>
         </EcCond>

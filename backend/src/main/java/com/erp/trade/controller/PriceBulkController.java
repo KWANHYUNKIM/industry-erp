@@ -40,9 +40,11 @@ public class PriceBulkController {
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(defaultValue = "ALL") String status,
             /** 원본 [거래유형] — 과세 · 면세. 안 주면 전부. */
-            @RequestParam(required = false) String taxType) {
+            @RequestParam(required = false) String taxType,
+            /** 원본 [구매구분]·[거래구분] — 일반 · 반품. 안 주면 전부. */
+            @RequestParam(required = false) String tradeKind) {
         return priceBulkService.findSlipLines(
-                tradeType, from, to, partnerId, itemId, warehouseId, status, taxType);
+                tradeType, from, to, partnerId, itemId, warehouseId, status, taxType, tradeKind);
     }
 
     /** 전표 라인 단가 저장(F8). 금액이 그 자리에서 다시 계산된다. */

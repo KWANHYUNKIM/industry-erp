@@ -217,6 +217,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
+  /**
+   * 원본 [거래구분] — 일반 · 반품. 되돌려받는(되돌려주는) 수량은 <b>양수로</b> 적는다.
+   * 부호를 뒤집는 것은 서버가 저장할 때 한 번만 한다.
+   */
+  const [returnSlip, setReturnSlip] = useState(false)
   const [foreign, setForeign] = useState(false)          // 통화: 내자/외자
   const [exchangeRate, setExchangeRate] = useState('0')
   const [projectId, setProjectId] = useState('')
@@ -338,7 +343,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * `?edit=` 로 들어오면 그 전표를 화면에 펼친다. 목록(`loadDocs`)이 도착한 뒤에 한 번만 채운다 —
    * 전표 단건 조회 엔드포인트가 없어 목록에서 찾는다.
    *
-   * `taxable` 은 응답에 없다(엔티티가 들고 있지 않고 부가세로만 남는다) → 부가세 > 0 이면 과세로 본다.
+   * <b>`taxable` 은 이제 응답에 있다.</b> 예전에는 부가세 &gt; 0 인지로 되짚었는데,
+   * 반올림으로 부가세가 0 이 된 과세 전표를 면세로 바꿔 놓고 저장하는 일이 생겼다.
    */
   useEffect(() => {
     if (!editId || editing || docs.length === 0) return
@@ -350,14 +356,16 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     setWarehouseId(String(d.warehouseId))
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setProjectId((d as SalesDoc).projectId != null ? String((d as SalesDoc).projectId) : '')
-    setTaxable(d.vatAmount > 0)
+    setTaxable(d.taxable)
+    // 반품 전표는 수량이 음수로 저장돼 있다. 화면에는 원본처럼 양수로 되돌려 보여 준다.
+    setReturnSlip(d.returnSlip)
     setVatBySlip(d.vatBySlip)
     setRemark(d.remark ?? '')
     setLines([
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
-        quantity: String(l.quantity),
+        quantity: String(Math.abs(l.quantity)),
         unitPrice: String(l.unitPrice),
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
@@ -844,7 +852,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
   // ── 임시저장 (원본은 주기적으로 자동 저장하고 푸터에 시각을 찍는다) ──
   const snapshot = () => JSON.stringify({
-    date, partnerId, employeeId, warehouseId, taxable, foreign, exchangeRate, projectId, remark, customValues, lines,
+    date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, projectId, remark, customValues, lines,
   })
   function saveTemp(auto = false) {
     if (lineCount === 0 && !partnerId) return
@@ -860,6 +868,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       const s = JSON.parse(raw)
       setDate(s.date ?? today()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
       setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false)
+      setReturnSlip(s.returnSlip ?? false)
       setExchangeRate(s.exchangeRate ?? '0'); setProjectId(s.projectId ?? ''); setRemark(s.remark ?? '')
       setCustomValues(s.customValues ?? {}); setLines(Array.isArray(s.lines) && s.lines.length ? s.lines : emptyLines())
       setHasTemp(false)
@@ -919,6 +928,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       vatBySlip,
       [dateKey]: date,
       taxable,
+      returnSlip,
       remark: remark || undefined,
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
@@ -1106,6 +1116,27 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <option value="11">부가세율 적용</option>
                 <option value="12">부가세율 미적용</option>
               </select>
+            </div>
+          </li>
+          {/*
+            원본 [거래구분] — 일반 · 반품. 네 화면(판매·구매일괄회계반영, 구매단가일괄변경,
+            일별이익현황)이 이 구분을 조건으로 든다.
+            반품은 그 거래의 반대다 — 판매반품은 물건이 창고로 돌아오고 채권이 준다.
+            여기서는 되돌려받는 수량을 <b>양수로</b> 적는다. 부호는 서버가 뒤집는다.
+          */}
+          <li>
+            <div className="title">거래구분</div>
+            <div className="form">
+              <select className="ec-input" value={returnSlip ? 'R' : 'N'}
+                      onChange={(e) => setReturnSlip(e.target.value === 'R')} style={{ width: 100 }}>
+                <option value="N">일반</option>
+                <option value="R">반품</option>
+              </select>
+              {returnSlip && (
+                <span style={{ marginLeft: 8, fontSize: 11.5, color: '#c60a2e' }}>
+                  되돌려받는 수량을 양수로 적으세요. 재고와 {mode === 'sales' ? '채권' : '채무'}이 반대로 움직입니다.
+                </span>
+              )}
             </div>
           </li>
           <li>

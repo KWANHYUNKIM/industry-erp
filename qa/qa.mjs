@@ -7330,6 +7330,138 @@ async function scenarioSlipPriceBulk(f) {
     Array.isArray(await must('GET', `/price-bulk/lines?tradeType=PURCHASE&${q}`)), true)
 }
 
+/**
+ * <b>거래구분 — 일반 · 반품.</b>
+ *
+ * <p>원본 근거(사본): 판매일괄회계반영 [거래구분] 일반·반품, 구매일괄회계반영 [구매구분],
+ * 구매단가일괄변경 [구매구분] 전체·일반·반품, 일별이익현황 [반품만]·[반품제외].
+ * <b>네 화면</b>이 이 구분을 조건으로 든다.
+ *
+ * <p>우리에겐 반품 개념이 아예 없어서, 되돌려받은 물건을 다시 '판매' 로 적거나 아무 데도
+ * 안 적었다. 어느 쪽이든 재고와 채권이 실제와 어긋난다.
+ *
+ * <p>반품은 그 거래의 <b>반대</b>다. 저장할 때 수량·금액을 음수로 뒤집으므로,
+ * 읽는 쪽(재고·채권·현황)은 아무것도 안 바꿔도 맞는다 — 그것을 여기서 잰다.
+ */
+async function scenarioReturnSlip(f) {
+  section('■ 거래구분 — 일반 · 반품')
+
+  const stockOf = async (itemId) => {
+    const rows = await must('GET', '/stock')
+    const r = rows.find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const arOf = async () => {
+    const rows = await must('GET', '/ledger/partner-balances')
+    const r = rows.find((x) => x.partnerId === f.customer.id)
+    return r ? Number(r.receivable ?? 0) : 0
+  }
+
+  // 팔 물건을 넣어 둔다 (반품을 재려면 먼저 정상 판매가 있어야 한다)
+  await must('POST', '/stock/transactions', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 20,
+  })
+
+  const stock0 = await stockOf(f.product.id)
+  const ar0 = await arOf()
+
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-20',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
+  })
+  eq('안 주면 일반 거래다', sale.returnSlip, false)
+  eq('거래구분 표시값도 일반', sale.tradeKindName, '일반')
+  eq('판매하면 재고가 준다', await stockOf(f.product.id), stock0 - 10)
+  eq('판매 금액은 양수', Number(sale.totalAmount), 11000)
+  eq('채권이 는다', await arOf(), ar0 + 11000)
+
+  /*
+   * 반품. 화면은 <b>되돌려받는 수량을 양수로</b> 적는다(원본도 그렇다) —
+   * 부호를 뒤집는 것은 서버가 한 번만 한다.
+   */
+  const ret = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-21',
+    returnSlip: true,
+    lines: [{ itemId: f.product.id, quantity: 4, unitPrice: 1000 }],
+  })
+  eq('반품으로 저장된다', ret.returnSlip, true)
+  eq('거래구분 표시값은 반품', ret.tradeKindName, '반품')
+  // 저장은 음수다 — 읽는 쪽이 아무것도 안 바꿔도 맞게 하려고 여기서 한 번 뒤집는다
+  eq('반품 전표의 금액은 음수', Number(ret.totalAmount), -4400)
+  eq('반품 라인 수량도 음수', Number(ret.lines[0].quantity), -4)
+  eq('되돌려받은 물건이 창고로 들어온다', await stockOf(f.product.id), stock0 - 10 + 4)
+  eq('채권이 그만큼 준다', await arOf(), ar0 + 11000 - 4400)
+
+  // 반품을 지우면 원상복구된다 — 되돌려받아 들여놨던 물건이 다시 나간다
+  await must('DELETE', `/sales/${ret.id}`)
+  eq('반품을 지우면 재고가 되돌아간다', await stockOf(f.product.id), stock0 - 10)
+  eq('채권도 되돌아간다', await arOf(), ar0 + 11000)
+
+  // ── 구매반품: 구매의 반대 — 물건이 나가고 채무가 준다
+  const apOf = async () => {
+    const rows = await must('GET', '/ledger/partner-balances')
+    const r = rows.find((x) => x.partnerId === f.supplier.id)
+    return r ? Number(r.payable ?? 0) : 0
+  }
+  const pStock0 = await stockOf(f.material.id)
+  const ap0 = await apOf()
+  const buy = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-20',
+    lines: [{ itemId: f.material.id, quantity: 10, unitPrice: 500 }],
+  })
+  eq('구매하면 재고가 는다', await stockOf(f.material.id), pStock0 + 10)
+  eq('채무가 는다', await apOf(), ap0 + 5500)
+
+  const pRet = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-21',
+    returnSlip: true,
+    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 500 }],
+  })
+  eq('구매반품도 음수로 저장된다', Number(pRet.totalAmount), -1650)
+  eq('되돌려주는 물건이 창고에서 나간다', await stockOf(f.material.id), pStock0 + 10 - 3)
+  eq('채무가 그만큼 준다', await apOf(), ap0 + 5500 - 1650)
+
+  /*
+   * 재고보다 많이 되돌려줄 수는 없다. 반품도 <b>같은 재고 규칙</b>을 지난다 —
+   * 부호만 뒤집었지 따로 난 길이 아니다.
+   */
+  await rejects('재고보다 많이 되돌려줄 수 없다', 'POST', '/purchases',
+    {
+      partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-21',
+      returnSlip: true,
+      lines: [{ itemId: f.material.id, quantity: 999999, unitPrice: 500 }],
+    }, '재고가 부족합니다')
+
+  /*
+   * 네 화면이 이 구분을 <b>조건으로</b> 든다. 저장만 되고 걸리지 않으면
+   * 화면에 이름만 있는 것과 같다 — 실제로 갈라지는지 잰다.
+   */
+  const bulk = async (kind) => (await must('GET',
+    `/price-bulk/lines?tradeType=PURCHASE&from=2026-07-20&to=2026-07-21`
+    + (kind ? `&tradeKind=${encodeURIComponent(kind)}` : '')))
+    .filter((r) => r.docNo === buy.docNo || r.docNo === pRet.docNo)
+  eq('단가일괄변경 [구매구분] 전체는 둘 다', (await bulk('')).length, 2)
+  eq('일반만 고르면 일반 전표만', (await bulk('일반')).map((r) => r.docNo).join(), buy.docNo)
+  eq('반품만 고르면 반품 전표만', (await bulk('반품')).map((r) => r.docNo).join(), pRet.docNo)
+
+  const refl = (await must('GET', '/accounting-reflection?kind=PURCHASE'))
+    .filter((r) => r.docNo === buy.docNo || r.docNo === pRet.docNo)
+  eq('일괄회계반영도 거래구분을 싣는다',
+    refl.map((r) => `${r.docNo}=${r.tradeKind}`).sort().join(' '),
+    [`${buy.docNo}=일반`, `${pRet.docNo}=반품`].sort().join(' '))
+
+  // 뒷정리 — 시험용 전표와 재고를 되돌린다
+  await must('DELETE', `/purchases/${pRet.id}`)
+  await must('DELETE', `/purchases/${buy.id}`)
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험용 전표는 남기지 않는다', await stockOf(f.product.id), stock0)
+  eq('구매 쪽 재고도 제자리', await stockOf(f.material.id), pStock0)
+  await must('POST', '/stock/transactions', {
+    itemId: f.product.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 20,
+  })
+  eq('넣어 둔 시험 재고도 뺀다', await stockOf(f.product.id), stock0 - 20)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -7541,6 +7673,7 @@ async function main() {
   await scenarioSurveyAttachment()
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
+  await scenarioReturnSlip(fixtures)
 
   checkDeadAssertions()
 

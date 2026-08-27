@@ -34,6 +34,11 @@ public final class PurchaseDtos {
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate purchaseDate,
             Boolean taxable,
+            /**
+             * 원본 [구매구분] — 일반(false) · 반품(true). 안 주면 일반.
+             * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
+             */
+            Boolean returnSlip,
             String remark,
             /** 귀속 프로젝트 (선택) */
             Long projectId,
@@ -102,6 +107,10 @@ public final class PurchaseDtos {
             boolean vatBySlip,
             /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
             boolean taxable,
+            /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
+            boolean returnSlip,
+            /** 원본 [거래구분] 표시값 — 일반 · 반품. */
+            String tradeKindName,
             /**
              * 회계반영 여부. 엔티티에는 있었는데 응답에 빠져 있어서 구매조회가 이 열을 못 그렸다
              * (판매는 SalesResponse 가 이미 주고 있다 — 두 쪽이 어긋나 있었다).
@@ -121,6 +130,7 @@ public final class PurchaseDtos {
                     p.getRemark(), p.getCreatedBy(),
                     p.isVatBySlip(),
                     p.isTaxable(),
+                    p.isReturnSlip(), p.isReturnSlip() ? "반품" : "일반",
                     p.isAccountingReflected(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,

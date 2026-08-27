@@ -26,7 +26,6 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * 우리에게 없는 것과 이유:
  *   선입선출 — 입고 레이어를 남기지 않아 계산할 수 없다(일별재고현황과 같다)
  *   사용자지정집계 — 집계축을 사용자가 정의하는 기능이 없다
- *   거래구분 — 우리 판매전표에 반품 개념이 없다(수량이 항상 양수다)
  *   결재방표시·수량관리제외품목 — 대응 개념이 없다
  * 대신 원본에 없는 <b>일자별</b>을 구분에 넣었다 — 화면 이름이 '일별'이라 하루 단위 줄이 있어야 한다.
  *
@@ -84,6 +83,12 @@ export default function DailyProfitPage() {
   const [mode, setMode] = useState<Mode>('라인별')
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [withVat, setWithVat] = useState(false)
+  /**
+   * 원본 [거래구분] — 전체 · 반품만 · 반품제외.
+   * 반품 전표는 수량·금액이 음수라 그대로 두면 이익에서 <b>빠진다</b>(그게 맞다).
+   * 반품만 보면 되돌아온 것이 얼마인지, 반품제외로 보면 순수 판매만 얼마인지 갈라진다.
+   */
+  const [tradeKind, setTradeKind] = useState<'전체' | '반품만' | '반품제외'>('전체')
   // 원본 기본값이 금월(~오늘)이다.
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '' })
@@ -137,6 +142,8 @@ export default function DailyProfitPage() {
     .filter((d) => !cond.warehouseId || String(d.warehouseId) === cond.warehouseId)
     .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
+    .filter((d) => tradeKind === '전체'
+      || (tradeKind === '반품만' ? d.returnSlip : !d.returnSlip))
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
       .map((l) => {
@@ -155,7 +162,7 @@ export default function DailyProfitPage() {
         }
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, cond, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+    [sales, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
 
   /** 구분에 따라 묶는다. 라인별은 안 묶고, 나머지는 키를 만들어 합친다. */
   const rows = useMemo(() => {
@@ -219,6 +226,7 @@ export default function DailyProfitPage() {
   const reset = () => {
     setMode('라인별'); setBasis('입고단가(품목)'); setWithVat(false)
     setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '' })
+    setTradeKind('전체')
   }
 
   /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
@@ -290,6 +298,15 @@ export default function DailyProfitPage() {
                       onClick={() => setWithVat(v)}>
                 {label}
               </button>
+            ))}
+          </div>
+        </EcCond>
+        {/* 원본 조건의 [거래구분]. 반품 전표는 수량·금액이 음수라 이익에서 저절로 빠진다. */}
+        <EcCond label="거래구분">
+          <div className="ec-pills">
+            {(['전체', '반품만', '반품제외'] as const).map((k) => (
+              <button key={k} type="button" className={`ec-pill no-ec${tradeKind === k ? ' active' : ''}`}
+                      onClick={() => setTradeKind(k)}>{k}</button>
             ))}
           </div>
         </EcCond>

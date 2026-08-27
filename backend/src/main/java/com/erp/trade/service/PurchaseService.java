@@ -257,11 +257,18 @@ public class PurchaseService {
         }
     }
 
-    /** 입고했던 수량을 창고에서 다시 뺀다. 이력을 지우지 않고 반대 거래를 남긴다. */
+    /**
+     * 입고했던 수량을 창고에서 다시 뺀다. 이력을 지우지 않고 반대 거래를 남긴다.
+     *
+     * <p>반품 전표는 수량이 음수로 저장돼 있어 <b>같은 식이 그대로 반대로</b> 돈다 —
+     * 되돌려주느라 내보냈던 물건이 다시 들어온다. 이름표만 부호를 따라간다.
+     */
     private void revertStock(Purchase p, String note, String username) {
         for (PurchaseLine l : p.getLines()) {
+            boolean out = l.getQuantity().signum() >= 0;
             stockService.applyDelta(l.getItem(), p.getWarehouse(), l.getQuantity().negate(),
-                    StockTransactionType.OUTBOUND, l.getUnitPrice(), p.getPurchaseDate(),
+                    out ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
+                    l.getUnitPrice(), p.getPurchaseDate(),
                     note + " " + p.getDocNo(), username);
         }
     }
@@ -343,6 +350,13 @@ public class PurchaseService {
         // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         purchase.setTaxable(taxable);
+        /*
+         * 원본 [구매구분] — 일반 · 반품. 반품은 구매의 <b>반대</b>다: 물건이 창고에서 나가고
+         * 채무가 준다. <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
+         * 읽는 쪽은 아무것도 안 바꿔도 맞는다. 화면은 되돌려주는 수량을 양수로 적는다.
+         */
+        boolean isReturn = Boolean.TRUE.equals(req.returnSlip());
+        purchase.setReturnSlip(isReturn);
         purchase.setRemark(req.remark());
         purchase.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         purchase.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
@@ -351,8 +365,9 @@ public class PurchaseService {
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         purchase.setVatBySlip(vatBySlip);
+        BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         List<BigDecimal> supplies = req.lines().stream()
-                .map(lr -> lr.quantity().multiply(lr.unitPrice()))
+                .map(lr -> lr.quantity().multiply(lr.unitPrice()).multiply(sign))
                 .toList();
         List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip);
 
@@ -367,7 +382,7 @@ public class PurchaseService {
 
             PurchaseLine line = PurchaseLine.builder()
                     .item(item)
-                    .quantity(lr.quantity())
+                    .quantity(lr.quantity().multiply(sign))
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
@@ -384,10 +399,11 @@ public class PurchaseService {
             totalSupply = totalSupply.add(supply);
             totalVat = totalVat.add(vat);
 
-            // 재고 증가(입고)
-            stockService.applyDelta(item, purchase.getWarehouse(), lr.quantity(),
-                    StockTransactionType.INBOUND, lr.unitPrice(), purchase.getPurchaseDate(),
-                    "구매 " + purchase.getDocNo(), username);
+            // 재고 증가(입고). 반품이면 반대다 — 되돌려주는 물건이 창고에서 나간다.
+            stockService.applyDelta(item, purchase.getWarehouse(), lr.quantity().multiply(sign),
+                    isReturn ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
+                    lr.unitPrice(), purchase.getPurchaseDate(),
+                    (isReturn ? "구매반품 " : "구매 ") + purchase.getDocNo(), username);
         }
 
         purchase.setSupplyAmount(totalSupply);
