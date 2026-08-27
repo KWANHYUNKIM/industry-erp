@@ -375,6 +375,63 @@ console.log('\n■ 메뉴 이름 ↔ 화면이 여는 자리')
   eq('화면이 나눠 놓은 것을 메뉴가 각각 지목한다', bad.sort().join('\n') || '없음', '없음')
 }
 
+// ── 2-d) 형제 메뉴의 성격이 갈리지 않나 ────────────────────────────────────
+console.log('\n■ 형제 메뉴는 같은 종류인가')
+
+/*
+ * <b>이름이 나란한 형제 메뉴(생산입고 I·II·III)가 성격이 갈리면</b> 알린다.
+ *
+ * <p>메뉴 [생산입고 I(BOM기준소모)]이 오랫동안 <b>조회 화면</b>을 가리키고 있었다.
+ * 원본의 생산입고 I·II·III 은 셋 다 입력인데 우리만 I 이 조회였고, 정작 입력은
+ * 원본에 없는 이름([생산실적])에 숨어 있었다. 사람은 셋이 같은 종류라고 읽고
+ * I 에서 입력을 찾다가 못 찾는다 — <b>경로는 멀쩡해서</b> 기존 검사에 안 걸렸다.
+ *
+ * <p>이름 하나만 보고 "[입력]으로 끝나면 저장이 있어야 한다" 로 잡으려 했는데
+ * 그 규칙은 이 버그를 <b>못 잡는다</b>('생산입고 I(BOM기준소모)' 은 입력으로 안 끝난다).
+ * 접미사를 넓히면 재고수불부·일보·집계표 같은 멀쩡한 조회 화면 49개가 걸려 예외 목록이
+ * 검사보다 길어진다. 그래서 <b>형제끼리만</b> 견준다 — 무리가 셋뿐이라 잡음이 없고,
+ * 갈리는 순간 그것은 거의 항상 실수다.
+ *
+ * <p>형제는 뒤에 붙은 로마숫자·괄호를 뗀 줄기가 같은 메뉴들이다.
+ */
+{
+  const routeComp2 = new Map()
+  for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp2.set(m[1], m[2])
+  const compFile2 = new Map()
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
+
+  /** 뒤에 붙은 (…) 와 로마숫자·번호를 떼고 남는 줄기. 줄기가 같으면 형제다. */
+  const stem = (s) => s.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*(I{1,3}|IV|V|\d+)\s*$/, '').trim()
+
+  const groups = new Map()
+  for (const m of menu.matchAll(/\{ label: '([^']+)', to: '([^']+)'/g)) {
+    const label = m[1]
+    const rel = compFile2.get(routeComp2.get(m[2].split('?')[0]))
+    if (!rel) continue
+    const file = 'frontend/src/' + rel + '.tsx'
+    if (!existsSync(file)) continue
+    // 저장하는 화면은 반드시 쓰기 요청을 한다. api.post<T>(…) 처럼 제네릭이 붙기도 한다.
+    const saves = /api\.(post|put|patch)[<(]/.test(readFileSync(file, 'utf8'))
+    const k = stem(label)
+    if (k === label) continue          // 형제가 아닌 홑이름
+    const cur = groups.get(k) ?? []
+    if (!cur.some((x) => x.label === label)) cur.push({ label, saves })
+    groups.set(k, cur)
+  }
+
+  const mixed = []
+  let families = 0
+  for (const [k, ms] of groups) {
+    if (ms.length < 2) continue
+    families++
+    if (new Set(ms.map((x) => x.saves)).size > 1) {
+      mixed.push(k + ' — ' + ms.map((x) => x.label + (x.saves ? '(저장O)' : '(저장X)')).join(' · '))
+    }
+  }
+  eq('형제 메뉴 ' + families + '무리가 저마다 같은 종류다', mixed.join('\n') || '없음', '없음')
+}
+
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 

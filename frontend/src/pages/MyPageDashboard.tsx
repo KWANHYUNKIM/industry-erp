@@ -244,7 +244,7 @@ const REGISTRY: WidgetDef[] = [
           { icon: '🧾', label: '판매입력', to: '/sales/sell' },
           { icon: '🛒', label: '구매입력', to: '/sales/buy' },
           { icon: '🏭', label: '작업지시', to: '/production/work-orders' },
-          { icon: '⚙️', label: '생산입고', to: '/production/result' },
+          { icon: '⚙️', label: '생산입고', to: '/production/receipt-bom' },
           { icon: '📝', label: '기안서작성', to: '/groupware/approval/draft' },
           { icon: '🕐', label: '출퇴근', to: '/groupware/attendance' },
         ].map((q) => (

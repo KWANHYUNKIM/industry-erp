@@ -8,6 +8,23 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
 const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
+/**
+ * 생산관리 &gt; <b>생산입고 I(BOM기준소모)</b>.
+ *
+ * <p>원본 [생산입고]는 I·II·III 셋이고 <b>셋 다 입력 화면</b>이다.
+ * I 은 소모품목을 고르지 않고 <b>BOM 대로 자동소모</b>하며 입고한다(II 는 골라서,
+ * III 은 고르면서 품질검사요청까지).
+ *
+ * <p>우리 메뉴의 [생산입고 I(BOM기준소모)]은 오랫동안 <b>조회 화면</b>을 가리키고 있었고,
+ * 정작 입력은 원본에 없는 이름인 [생산실적]에 있었다. I·II·III 이 같은 무리인데
+ * 하나만 성격이 달라서, 사람은 셋이 같은 종류라고 읽고 I 에서 입력을 찾다가 못 찾는다.
+ *
+ * <p>원본 머리 실측(사본 '생산입고I-BOM기준소모'): 일자 · 담당자 · 생산된공장 ·
+ * 받는창고 · 프로젝트. 격자는 불러온 전표일자/No. · 작업지시품목코드 · 생산품목코드 ·
+ * 시리얼/로트No. · 생산품목명 · 규격 · BOM버전 · 수량 · 적요 · 노무시간.
+ * BOM버전은 우리 BOM 이 품목당 하나라 없다 — 버전을 만들면 그때 붙인다.
+ */
+
 export default function ProductionResultPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [productions, setProductions] = useState<Production[]>([])
@@ -132,7 +149,7 @@ export default function ProductionResultPage() {
       {/* ☆ 제목 + 상단 툴바 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>생산입고(생산실적)</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>생산입고 I(BOM기준소모)</span>
         <span style={{ marginLeft: 10, fontSize: 11.5, color: '#8a929c' }}>생산 시 BOM 소요량만큼 자재 출고 + 완제품 입고(백플러시)</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
@@ -144,7 +161,7 @@ export default function ProductionResultPage() {
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* 등록 폼 */}
         <div style={{ width: 420, border: '1px solid var(--ec-border)', background: '#fff', padding: 14, flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>생산실적 등록</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>생산입고 등록</div>
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
@@ -255,7 +272,7 @@ export default function ProductionResultPage() {
 
         {/* 생산 이력 */}
         <div style={{ flex: 1, minWidth: 380 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)', marginBottom: 6 }}>최근 생산실적</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)', marginBottom: 6 }}>최근 생산입고</div>
           <table className="w-full text-left">
             <thead>
               <tr>

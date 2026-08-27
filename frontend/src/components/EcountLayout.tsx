@@ -146,7 +146,6 @@ const MENU: TopMenu[] = [
           { label: '작업내역입력', to: '/production/work-result' },
           { label: '작업내역조회', to: '/production/work-result-list' },
           { label: '작업내역현황', to: '/production/work-result-status' },
-          { label: '생산실적', to: '/production/result' },
           { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },
           { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' },
           { label: '생산입고 III(품질검사요청)', to: '/production/receipt-qr' },

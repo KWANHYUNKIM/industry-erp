@@ -208,7 +208,6 @@ const ConditionSearchPage = lazy(() => import('./pages/trade/ConditionSearchPage
 const PurchasePriceBulkPage = lazy(() => import('./pages/trade/PurchasePriceBulkPage'))
 const OrderTypePage = lazy(() => import('./pages/trade/OrderTypePage'))
 const OrderStagePage = lazy(() => import('./pages/trade/OrderStagePage'))
-const BomConsumeReceiptPage = lazy(() => import('./pages/production/BomConsumeReceiptPage'))
 const ManualConsumeReceiptPage = lazy(() => import('./pages/production/ManualConsumeReceiptPage'))
 const ConsumeStatusPage = lazy(() => import('./pages/production/ConsumeStatusPage'))
 const ReceiptInquiryPage = lazy(() => import('./pages/production/ReceiptInquiryPage'))
@@ -266,6 +265,10 @@ export default function App() {
         <Route path="/production" element={<Navigate to="/production/bom" replace />} />
         <Route path="/production/bom" element={<BomPage />} />
         <Route path="/production/work-orders" element={<WorkOrderPage />} />
+        {/*
+          옛 경로. 메뉴에서는 [생산입고 I(BOM기준소모)] 로 부른다 — 원본에 [생산실적] 이라는
+          이름이 없다. 북마크·바로가기가 남아 있을 수 있어 경로는 살려 둔다.
+        */}
         <Route path="/production/result" element={<ProductionResultPage />} />
         <Route path="/production/planning" element={<PlanningPage />} />
         <Route path="/production/mrp" element={<MrpPage />} />
@@ -283,7 +286,8 @@ export default function App() {
         <Route path="/production/receipt-status" element={<ReceiptStatusPage />} />
         <Route path="/production/wo-work" element={<WorkProcessPage />} />
         <Route path="/production/wo-progress" element={<WoProgressPage />} />
-        <Route path="/production/receipt-bom" element={<BomConsumeReceiptPage />} />
+        {/* 원본 [생산입고 I(BOM기준소모)] 는 입력 화면이다 — 소모품목을 고르지 않고 BOM 대로 자동소모한다. */}
+        <Route path="/production/receipt-bom" element={<ProductionResultPage />} />
         <Route path="/production/receipt-manual" element={<ManualConsumeReceiptPage />} />
         <Route path="/production/receipt-qr" element={<ManualConsumeReceiptPage withQualityRequest />} />
         <Route path="/production/receipt-inquiry" element={<ReceiptInquiryPage />} />
