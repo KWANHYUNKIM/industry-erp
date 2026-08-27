@@ -32,6 +32,8 @@ interface MaterialIssue {
   unit: string
   warehouseId: number
   warehouseName: string
+  /** 원본 생산불출조회 열은 [보내는창고명]과 [받는공장명] 둘이다. */
+  toWarehouseName: string | null
   workOrderId: number
   workOrderNo: string
   /** 담당자(사원) id. 이름은 화면이 붙인다. */
@@ -104,7 +106,7 @@ export default function IssueStatusPage() {
   /** 내역 — 작업지시 하나를 한 줄로 접는다. */
   const byOrder = useMemo(() => {
     const m = new Map<number, {
-      workOrderId: number; workOrderNo: string; date: string; warehouseName: string
+      workOrderId: number; workOrderNo: string; date: string; warehouseName: string; toWarehouseName: string | null
       itemName: string; lineCount: number; qty: number
     }>()
     for (const r of shown) {
@@ -112,7 +114,8 @@ export default function IssueStatusPage() {
       if (!cur) {
         m.set(r.workOrderId, {
           workOrderId: r.workOrderId, workOrderNo: r.workOrderNo, date: r.issueDate,
-          warehouseName: r.warehouseName, itemName: r.itemName, lineCount: 1, qty: r.qty,
+          warehouseName: r.warehouseName, toWarehouseName: r.toWarehouseName,
+          itemName: r.itemName, lineCount: 1, qty: r.qty,
         })
       } else {
         cur.lineCount += 1
@@ -242,15 +245,16 @@ export default function IssueStatusPage() {
               <th style={{ width: 140 }}>자재코드</th>
               <th>자재명</th>
               <th style={{ width: 110, textAlign: 'right' }}>불출수량</th>
-              <th style={{ width: 130 }}>창고명</th>
+              <th style={{ width: 130 }}>보내는창고</th>
+              <th style={{ width: 130 }}>받는공장</th>
               <th>적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -260,6 +264,7 @@ export default function IssueStatusPage() {
                 <td>{r.itemName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
                 <td>{r.warehouseName}</td>
+                <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '—'}</td>
                 <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
               </tr>
             ))}
@@ -268,7 +273,7 @@ export default function IssueStatusPage() {
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              <td colSpan={2}></td>
+              <td colSpan={3}></td>
             </tr>
           </tfoot>
         </table>
@@ -281,14 +286,15 @@ export default function IssueStatusPage() {
               <th style={{ width: 170 }}>작업지시번호</th>
               <th>자재명(요약)</th>
               <th style={{ width: 110, textAlign: 'right' }}>불출수량</th>
-              <th style={{ width: 130 }}>창고명</th>
+              <th style={{ width: 130 }}>보내는창고</th>
+              <th style={{ width: 130 }}>받는공장</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : byOrder.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byOrder.map((g, i) => (
               <tr key={g.workOrderId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -297,6 +303,7 @@ export default function IssueStatusPage() {
                 <td>{g.itemName}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
                 <td>{g.warehouseName}</td>
+                <td style={{ color: g.toWarehouseName ? undefined : '#c9ced6' }}>{g.toWarehouseName ?? '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -304,7 +311,7 @@ export default function IssueStatusPage() {
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byOrder.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              <td></td>
+              <td colSpan={2}></td>
             </tr>
           </tfoot>
         </table>

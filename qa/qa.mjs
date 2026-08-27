@@ -4596,6 +4596,41 @@ async function scenarioMaterialIssueMove(f) {
   eq('재고보다 많이 보내면 거부', over.status, 400)
   eq('거절된 요청은 재고를 건드리지 않는다', await stockOf(to.id), toBefore + 20)
 
+  /*
+   * 사용중단한 자재·창고로는 불출할 수 없다.
+   *
+   * 예전에는 MaterialIssueService 가 inventory 의 리포지토리를 직접 잡고 있어서
+   * (CLAUDE.md 4.2 위반) 그 모듈의 규칙을 통째로 건너뛰었다 — 화면 목록에는 안 뜨는
+   * 사용중단 자재도 id 만 알면 그대로 불출됐고, 재고까지 실제로 움직였다.
+   */
+  const itemBody = {
+    name: f.material.name, unit: f.material.unit, category: f.material.category,
+    unitPrice: f.material.unitPrice, purchasePrice: f.material.purchasePrice,
+    safetyStock: f.material.safetyStock,
+  }
+  await must('PUT', `/items/${f.material.id}`, { ...itemBody, active: false })
+  const deadItem = await call('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: to.id, qty: 1,
+  })
+  eq('사용중단한 자재는 불출할 수 없다', deadItem.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중지된 품목/.test(String(deadItem.data?.message ?? '')), true)
+  await must('PUT', `/items/${f.material.id}`, { ...itemBody, active: true })
+  eq('막힌 요청은 재고를 건드리지 않는다', await stockOf(f.warehouse.id), fromBefore - 20)
+
+  // 창고 등록에는 [사용] 이 없다 — 만들 때는 늘 사용중이고, 내리는 것은 수정이다.
+  // (처음엔 POST 에 active:false 를 실었는데 조용히 무시되고 불출이 그대로 됐다.)
+  const madeWh = await must('POST', '/warehouses', { code: `${P}DW`, name: `${P}폐쇄창고` })
+  const deadWh = await must('PUT', `/warehouses/${madeWh.id}`, {
+    name: madeWh.name, active: false,
+  })
+  eq('창고를 사용중단할 수 있다', deadWh.active, false)
+  const toDead = await call('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: deadWh.id, qty: 1,
+  })
+  eq('사용중단한 창고로는 보낼 수 없다', toDead.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중지된 창고/.test(String(toDead.data?.message ?? '')), true)
+  await must('DELETE', `/warehouses/${deadWh.id}`)
+
   eq('불출을 지울 수 있다', (await call('DELETE', `/material-issues/${issue.id}`)).status, 204)
   eq('지우면 보내는창고로 돌아온다', await stockOf(f.warehouse.id), fromBefore)
   eq('지우면 받는공장에서 빠진다', await stockOf(to.id), toBefore)

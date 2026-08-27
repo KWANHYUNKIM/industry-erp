@@ -7,10 +7,10 @@ import com.erp.inventory.domain.Warehouse;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.dto.MaterialIssueDtos.CreateMaterialIssueRequest;
 import com.erp.production.dto.MaterialIssueDtos.MaterialIssueResponse;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.service.ItemService;
 import com.erp.production.repository.MaterialIssueRepository;
 import com.erp.inventory.domain.StockTransactionType;
-import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.service.StockService;
 import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +26,13 @@ import com.erp.production.dto.MaterialIssueDtos;
 public class MaterialIssueService {
 
     private final MaterialIssueRepository materialIssueRepository;
-    private final ItemRepository itemRepository;
-    private final WarehouseRepository warehouseRepository;
+    /*
+     * inventory 의 공개 service 를 거친다(CLAUDE.md 4.2). 리포지토리를 직접 잡으면
+     * 그 모듈의 불변식을 우회하는데, 여기서는 실제로 우회하고 있었다 —
+     * 사용중지한 자재·창고로도 생산불출이 그대로 됐다.
+     */
+    private final ItemService itemService;
+    private final WarehouseService warehouseService;
     private final WorkOrderRepository workOrderRepository;
     private final StockService stockService;
 
@@ -43,14 +48,10 @@ public class MaterialIssueService {
 
     @Transactional
     public MaterialIssueResponse create(CreateMaterialIssueRequest req) {
-        Item item = itemRepository.findById(req.itemId())
-                .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId()));
+        Item item = itemService.getUsable(req.itemId());
 
-        Warehouse warehouse = null;
-        if (req.warehouseId() != null) {
-            warehouse = warehouseRepository.findById(req.warehouseId())
-                    .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
-        }
+        Warehouse warehouse = req.warehouseId() == null ? null
+                : warehouseService.getUsable(req.warehouseId());
 
         WorkOrder workOrder = null;
         if (req.workOrderId() != null) {
@@ -58,11 +59,8 @@ public class MaterialIssueService {
                     .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + req.workOrderId()));
         }
 
-        Warehouse toWarehouse = null;
-        if (req.toWarehouseId() != null) {
-            toWarehouse = warehouseRepository.findById(req.toWarehouseId())
-                    .orElseThrow(() -> ApiException.notFound("받는공장을 찾을 수 없습니다. id=" + req.toWarehouseId()));
-        }
+        Warehouse toWarehouse = req.toWarehouseId() == null ? null
+                : warehouseService.getUsable(req.toWarehouseId());
         if (warehouse != null && toWarehouse != null && warehouse.getId().equals(toWarehouse.getId())) {
             throw ApiException.badRequest("보내는창고와 받는공장이 같습니다: " + warehouse.getName());
         }
