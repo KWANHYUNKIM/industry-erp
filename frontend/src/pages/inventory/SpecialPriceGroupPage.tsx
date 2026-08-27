@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -91,8 +92,16 @@ export default function SpecialPriceGroupPage() {
           ) : shown.map((p, i) => (
             <tr key={p.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{p.code}</td>
-              <td>{p.name}</td>
+              {/*
+                원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). 이 화면은 단가그룹만
+                고치는 자리라 거래처등록으로 보낸다 — 이름으로 찾아 들어가면 된다.
+              */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <Link to={`/sales/partners?q=${encodeURIComponent(p.code)}`} style={{ color: 'var(--ec-blue)' }}>{p.code}</Link>
+              </td>
+              <td>
+                <Link to={`/sales/partners?q=${encodeURIComponent(p.name)}`} style={{ color: 'var(--ec-blue)' }}>{p.name}</Link>
+              </td>
               <td style={{ textAlign: 'right' }}>
                 <select className="ec-input" value={groups[p.id]?.sales ?? ''} onChange={(e) => setGroup(p.id, 'sales', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>

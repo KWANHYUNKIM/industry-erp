@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, GroupMaster, Partner } from '../../api/types'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
@@ -52,8 +53,18 @@ export default function PartnersPage() {
    * 즉 기본 화면에는 사용중단 거래처가 안 나온다. 우리는 늘 다 보여 줬다.
    */
   const [withStopped, setWithStopped] = useState(false)
+  /*
+   * 다른 화면에서 <b>거래처를 물고</b> 넘어올 때 그 거래처만 남긴다(?q=코드 또는 이름).
+   * 거래처특별단가그룹에서 이름을 누르면 여기로 오는데, 걸러 주지 않으면
+   * 300곳짜리 목록 한가운데에 떨어뜨려 놓는 셈이다.
+   */
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('q') ?? '')
+
   /** 화면에 보이는 거래처. 사용중단은 체크를 켜야 나온다 — 원본도 그렇다. */
-  const shown = partners.filter((p) => withStopped || p.active)
+  const shown = partners
+    .filter((p) => withStopped || p.active)
+    .filter((p) => !keyword || `${p.code} ${p.name}`.includes(keyword.trim()))
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -215,6 +226,8 @@ export default function PartnersPage() {
   return (
     <EcListShell
       title="거래처리스트"
+      search={keyword}
+      onSearchChange={setKeyword}
       onNew={openCreate}
       actions={[
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
@@ -516,8 +529,19 @@ export default function PartnersPage() {
                       return next
                     })} />
                   </td>
-                  <td style={{ fontFamily: 'monospace' }}>{p.code}</td>
-                  <td>{p.name}</td>
+                  {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
+                  <td style={{ fontFamily: 'monospace' }}>
+                    <button type="button" onClick={() => openEdit(p)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                      {p.code}
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => openEdit(p)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+                      {p.name}
+                    </button>
+                  </td>
                   <td><span style={{ background: typeColor(p.type).bg, color: typeColor(p.type).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{p.typeName}</span></td>
                   <td>{p.bizRegNo ?? ''}</td>
                   <td>{p.ceoName ?? ''}</td>

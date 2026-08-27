@@ -7,6 +7,7 @@ import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { Link } from 'react-router-dom'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -368,8 +369,13 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           ) : shown.map((r, idx) => (
             <tr key={r.partnerId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td>{r.name}</td>
+              {/* 원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <Link to={`/sales/partners?q=${encodeURIComponent(r.code)}`} style={{ color: 'var(--ec-blue)' }}>{r.code}</Link>
+              </td>
+              <td>
+                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'var(--ec-blue)' }}>{r.name}</Link>
+              </td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
               <td style={{ color: '#6b7280' }}>{aliasOf.get(r.partnerId) ?? ''}</td>
               {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}

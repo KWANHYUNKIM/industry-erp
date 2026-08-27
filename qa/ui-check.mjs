@@ -1563,6 +1563,69 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-l) 원본에서 눌러 여는 열 ────────────────────────────────────────────
+console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 있나')
+
+/*
+ * <b>원본은 목록의 코드·이름을 눌러 그 건을 연다.</b> 사본 tbody 칸에 <code>&lt;a&gt;</code>
+ * 가 든 열을 뽑아 <code>qa/fixtures/ecount-link-columns.json</code>(14화면)에 적었다.
+ *
+ * <p>우리는 오른쪽 끝 [수정] 버튼을 찾아야 했다. 열이 열다섯 개쯤 되는 표에서
+ * 그 버튼은 <b>가로로 스크롤해야 보이는</b> 자리에 있다. 그래서 창고·공정·관리항목은
+ * 아예 수정이 없다는 것도 이 축을 재다가 알았다.
+ *
+ * <p>여는 방법까지 같을 필요는 없다 — 우리 화면은 팝업을 열거나(openEdit) 다른
+ * 화면으로 넘긴다(Link). 그 칸이 <b>눌리는지</b>만 본다.
+ */
+{
+  const LINK_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-link-columns.json'), 'utf8'))
+  /** 원본은 누를 수 있지만 우리는 아닌 칸 — 이유를 적는다. */
+  const NO_LINK = new Map([
+    ['거래처리스트|이체정보', '이체정보는 거래처 팝업 안에서 본다 — 따로 여는 화면이 없다'],
+    ['품목등록 리스트|파일관리', '파일은 품목 팝업의 [이미지] 칸에서 붙이고 뗀다'],
+    ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
+    ['거래처별채권|기타할인등차액', '잔액 API 가 그 내역을 분해해 주지 않는다'],
+    ['거래처별채무|기타할인등차액', '위와 같음'],
+    ['근태현황|전표일자', '근태 전표를 여는 화면이 따로 없다 — 근태조회에서 본다'],
+    ['생산계획_MRP리스트|생성일자', '생성 팝업을 안 만든다'],
+    ['회계미반영현황 (구매)|일자-No.', '전표는 구매조회에서 연다'],
+    ['회계미반영현황(판매)|일자-No.', '전표는 판매조회에서 연다'],
+    ['BOR(작업소요시간)|생산품목코드', '품목은 품목등록에서 연다 — BOR 은 작업 줄만 고친다'],
+  ])
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+
+  const bad = []
+  let checked = 0
+  for (const [screen, cols] of Object.entries(cap)) {
+    const rel = LINK_MAP.get(screen)
+    if (!rel) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    for (const name of cols) {
+      if (NO_LINK.has(`${screen}|${name}`)) continue
+      checked++
+      /*
+       * 그 열의 <td> 안에 누를 것이 있나. 열 이름으로 <th> 를 찾고, 본문에서 같은
+       * 값을 그리는 칸에 onClick 이나 <Link> 가 있는지 본다. 화면마다 변수 이름이
+       * 달라(p·it·r·w) 값 이름으로 찾는다: {p.code} · {r.name} 처럼.
+       */
+      const field = /코드$/.test(name) ? 'code' : /명$|이름$/.test(name) ? 'name' : null
+      if (!field) { checked--; continue }
+      const re = new RegExp(`<td[^>]*>[\\s\\S]{0,400}?\\{\\w+\.${field}\\}`, 'g')
+      const cells = [...src.matchAll(re)].map((m) => m[0])
+      const clickable = cells.some((c) => /onClick=|<Link\b/.test(c))
+      if (cells.length > 0 && !clickable) {
+        bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${name}] 은 눌러서 여는 칸이다`)
+      }
+    }
+  }
+  eq(`원본이 눌러 여는 칸 ${checked}개를 우리도 누를 수 있다`
+    + ` (못 여는 ${NO_LINK.size}개는 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+  void esc
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

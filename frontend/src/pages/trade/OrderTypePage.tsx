@@ -269,8 +269,19 @@ export default function OrderTypePage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td>{r.name}</td>
+              {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                  {r.code}
+                </button>
+              </td>
+              <td>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+                  {r.name}
+                </button>
+              </td>
               {STEP_COLS.map((n) => {
                 const st = r.steps.find((x) => x.seq === n)
                 return (

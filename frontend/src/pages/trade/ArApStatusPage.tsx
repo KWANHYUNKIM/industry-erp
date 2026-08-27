@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcBarChart from '../../components/EcBarChart'
@@ -222,8 +222,9 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
             <tr key={r.partnerId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+              {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
               <td style={{ fontWeight: 600 }}>
-                {r.name}
+                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'var(--ec-blue)' }}>{r.name}</Link>
                 {!r.active && <span style={{ color: '#c60a2e', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
               </td>
               <td style={{ color: '#5a626e' }}>{r.partnerGroupName ?? ''}</td>

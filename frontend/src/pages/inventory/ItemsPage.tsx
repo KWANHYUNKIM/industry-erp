@@ -439,8 +439,19 @@ export default function ItemsPage() {
                     <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggle(it.id)} />
                   </td>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
-                  <td>{it.name}</td>
+                  {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
+                  <td style={{ fontFamily: 'monospace' }}>
+                    <button type="button" onClick={() => openEdit(it)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                      {it.code}
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => openEdit(it)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+                      {it.name}
+                    </button>
+                  </td>
                   <td>
                     {it.imageFileId ? (
                       <img src={`/api/files/${it.imageFileId}`} alt={it.imageFileName ?? it.name}
