@@ -86,6 +86,16 @@ public class Item extends BaseTimeEntity {
     private String barcode;
 
     /**
+     * 원본 품목등록 리스트의 <b>[구매처명]</b> — 이 품목을 늘 사 오는 곳.
+     *
+     * <p><b>@ManyToOne 이 아닌 이유:</b> inventory 는 trade 를 참조할 수 없다(CLAUDE.md §4.1 —
+     * trade → inventory 가 이미 있어 맞물리면 순환이 된다). {@code Warehouse.outsourcingPartnerId},
+     * {@code User.employeeId} 와 같은 자리다. 이름은 화면이 거래처 목록에서 붙인다.
+     */
+    @Column(name = "supplier_id")
+    private Long supplierId;
+
+    /**
      * 원본 품목등록 리스트의 <b>[검색창내용]</b>.
      * 공식 품목명 말고 현장에서 부르는 이름(약칭·옛 코드·영문명)을 적어 두고 그걸로 찾는다.
      */

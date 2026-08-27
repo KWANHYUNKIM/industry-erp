@@ -59,6 +59,7 @@ public class ItemService {
                 .searchKeyword(req.searchKeyword())
                 // 안 주면 관리대상. 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다.
                 .stockTracked(req.stockTracked() == null || req.stockTracked())
+                .supplierId(req.supplierId())
                 .udiDi(req.udiDi())
                 .managementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()))
                 .active(true)
@@ -80,6 +81,7 @@ public class ItemService {
         item.setBarcode(req.barcode());
         item.setSearchKeyword(req.searchKeyword());
         if (req.stockTracked() != null) item.setStockTracked(req.stockTracked());
+        item.setSupplierId(req.supplierId());
         item.setUdiDi(req.udiDi());
         item.setManagementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()));
         if (req.active() != null) {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, GroupMaster, Item, ManagementItem } from '../../api/types'
+import type { CodeOption, GroupMaster, Item, ManagementItem, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
@@ -19,6 +19,8 @@ const emptyForm = {
   purchasePrice: '0',
   safetyStock: '0',
   barcode: '', searchKeyword: '',
+  /** 원본 품목등록 리스트의 [구매처명]. */
+  supplierId: '',
   /** 재고수량관리. 기본은 관리대상 — 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다. */
   stockTracked: 'Y',
   /**
@@ -37,6 +39,8 @@ export default function ItemsPage() {
   const [categories, setCategories] = useState<CodeOption[]>([])
   const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
   const [itemGroups, setItemGroups] = useState<GroupMaster[]>([])
+  /** 구매처 후보. 이름은 서버가 아니라 여기서 붙인다 — inventory 는 거래처를 모른다. */
+  const [partners, setPartners] = useState<Partner[]>([])
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,16 +51,18 @@ export default function ItemsPage() {
   async function load() {
     setLoading(true)
     try {
-      const [i, c, m, g] = await Promise.all([
+      const [i, c, m, g, pt] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<CodeOption[]>('/meta/item-categories'),
         api.get<ManagementItem[]>('/management-items'),
         api.get<GroupMaster[]>('/item-groups'),
+        api.get<Partner[]>('/partners'),
       ])
       setItems(i.data)
       setCategories(c.data)
       setMgmtItems(m.data)
       setItemGroups(g.data)
+      setPartners(pt.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -86,6 +92,7 @@ export default function ItemsPage() {
       purchasePrice: String(item.purchasePrice ?? 0),
       safetyStock: String(item.safetyStock),
       barcode: item.barcode ?? '',
+      supplierId: item.supplierId != null ? String(item.supplierId) : '',
       searchKeyword: item.searchKeyword ?? '',
       stockTracked: item.stockTracked === false ? 'N' : 'Y',
       active: item.active ? 'Y' : 'N',
@@ -112,6 +119,7 @@ export default function ItemsPage() {
       active: form.active === 'Y',
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
+      supplierId: form.supplierId ? Number(form.supplierId) : null,
     }
     try {
       if (editId) {
@@ -259,6 +267,17 @@ export default function ItemsPage() {
               <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
             </div>
             {/*
+              원본 품목등록 리스트의 [구매처명]. 이 품목을 늘 사 오는 곳을 적어 둔다.
+              inventory 는 trade 를 참조할 수 없어 서버는 id 만 들고, 이름은 이 화면이 붙인다.
+            */}
+            <div>
+              <CodePickerField
+                label="구매처" placeholder="구매처 선택" emptyLabel="선택 해제"
+                value={form.supplierId} onChange={(v) => set('supplierId', v)}
+                items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))}
+              />
+            </div>
+            {/*
               원본 품목등록 리스트의 [검색창내용]. 현장에서 부르는 이름(약칭·옛 코드)을
               적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
             */}
@@ -310,6 +329,7 @@ export default function ItemsPage() {
               <th style={{ width: 34 }}></th>
               <th>품목코드 ▼</th>
               <th>품목명 ▼</th>
+              <th style={{ width: 130 }}>구매처명</th>
               <th>규격정보</th>
               <th>단위</th>
               <th>품목구분 ▼</th>
@@ -319,15 +339,16 @@ export default function ItemsPage() {
               <th style={{ width: 110 }}>재고수량관리</th>
               <th>관리항목</th>
               <th>품목그룹 ▼</th>
+              <th style={{ width: 140 }}>검색창내용</th>
               <th>사용 ▼</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
+              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 품목이 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
@@ -337,6 +358,7 @@ export default function ItemsPage() {
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
                   <td>{it.name}</td>
+                  <td>{partners.find((p) => p.id === it.supplierId)?.name ?? ''}</td>
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
                   <td>[{it.categoryName}]</td>
@@ -350,6 +372,7 @@ export default function ItemsPage() {
                   </td>
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.itemGroupName ?? ''}</td>
+                  <td style={{ color: '#6b7280' }}>{it.searchKeyword ?? ''}</td>
                   <td style={{ color: it.active ? '#1c7c3c' : '#c60a2e' }}>{it.active ? '사용' : '사용중단'}</td>
                   <td>
                     <button onClick={() => openEdit(it)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>

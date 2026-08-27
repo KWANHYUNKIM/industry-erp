@@ -262,30 +262,37 @@ async function scenarioPurchaseDiscountBase(f) {
     })
   }
 
+  /*
+   * 이 시나리오는 아래에서 거래유형을 재려고 <b>면세 전표와 1원짜리 전표를 더 만든다.</b>
+   * 그래서 줄을 순서(rows[0])로 집으면 회차마다 다른 줄을 재게 된다 — 실제로 한 번 그렇게
+   * 깨졌다. 재려는 줄(과세 · 10개 · 1,200원)을 <b>이름으로</b> 집는다.
+   */
+  const mainRow = (rs) => rs.find((r) => Number(r.qty) === 10 && r.taxTypeName === '과세')
+
   // 기준을 안 정했으면 계산하지 않는다 — 없는 기준으로 만든 숫자를 보여 주느니 0 이 낫다
-  const before = await rowsOf()
-  eq('구매단가가 0 이면 할인액도 0', Number(before[0].discountAmount), 0)
-  eq('그때는 할인율도 0', Number(before[0].discountRate), 0)
+  const before = mainRow(await rowsOf())
+  eq('구매단가가 0 이면 할인액도 0', Number(before.discountAmount), 0)
+  eq('그때는 할인율도 0', Number(before.discountRate), 0)
 
   await must('PUT', `/items/${item.id}`, {
     name: '구매단가시험', unit: 'EA', category: 'MERCHANDISE',
     unitPrice: 1000, purchasePrice: 1500, safetyStock: 0, active: true,
   })
-  const after = await rowsOf()
-  eq('기준을 정하면 구매단가로 잰다', Number(after[0].basePrice), 1500)
-  eq('1,500 짜리를 1,200 에 샀으니 단가차 300', Number(after[0].discountPerUnit), 300)
-  eq('10개면 할인액 3,000', Number(after[0].discountAmount), 3000)
-  eq('할인율 20%', Number(after[0].discountRate), 20)
+  const after = mainRow(await rowsOf())
+  eq('기준을 정하면 구매단가로 잰다', Number(after.basePrice), 1500)
+  eq('1,500 짜리를 1,200 에 샀으니 단가차 300', Number(after.discountPerUnit), 300)
+  eq('10개면 할인액 3,000', Number(after.discountAmount), 3000)
+  eq('할인율 20%', Number(after.discountRate), 20)
 
   // 판매단가(1,000)로 쟀다면 -200 × 10 = -2,000 (할증) 이 나왔을 것이다 — 그 값이 아님을 못 박는다
-  eq('판매단가 기준이 아니다', Number(after[0].discountAmount) === -2000, false)
+  eq('판매단가 기준이 아니다', Number(after.discountAmount) === -2000, false)
 
   /*
    * 원본 할인현황의 조회조건 <b>[거래유형]</b> — 과세 · 면세.
    * 줄마다 전표에 저장된 과세 여부를 그대로 싣는다. 화면이 부가세가 0 인지로 되짚던 시절에는
    * <b>반올림으로 부가세가 0 이 된 과세 전표가 면세로 섞여</b> 조건을 걸면 엉뚱한 줄이 걸렸다.
    */
-  eq('할인현황 줄이 거래유형을 들고 있다', after[0].taxTypeName, '과세')
+  eq('할인현황 줄이 거래유형을 들고 있다', after.taxTypeName, '과세')
 
   // 면세 전표 (한 번만 만든다 — 매 회차 만들면 재고와 채무가 계속 밀린다)
   if (!(await rowsOf()).some((r) => r.taxTypeName === '면세')) {
@@ -2450,6 +2457,22 @@ async function scenarioWorkspace(f) {
   await must('PUT', `/partners/${f.customer.id}`, { ...pBody, searchKeyword: '' })
   await must('PUT', `/items/${f.product.id}`, { ...iBody, searchKeyword: '' })
   eq('지우면 다시 안 걸린다', (await must('GET', `/workspace/search?q=${ALIAS}`)).total, 0)
+
+  /*
+   * 원본 품목등록 리스트의 <b>[구매처명]</b> — 이 품목을 늘 사 오는 곳.
+   *
+   * 우리 품목에는 적을 자리가 아예 없어서, 같은 물건을 어디서 사는지가 사람 머릿속에만 있었다.
+   * inventory 는 trade 를 참조할 수 없어(DAG) 서버는 <b>id 만</b> 들고 이름은 화면이 붙인다 —
+   * warehouses.outsourcing_partner_id 와 같은 자리다. 그래서 여기서 재는 것은 <b>id 가
+   * 실제로 저장되고 되읽히는가</b>이다. 예전에 창고 PUT 이 안 보낸 칸을 null 로 만든 적이 있어
+   * 되읽기까지 확인한다.
+   */
+  const sup = await must('PUT', `/items/${f.product.id}`, { ...iBody, supplierId: f.supplier.id })
+  eq('품목에 구매처가 저장된다', sup.supplierId, f.supplier.id)
+  eq('다시 조회해도 남는다',
+    (await must('GET', '/items')).find((i) => i.id === f.product.id).supplierId, f.supplier.id)
+  const cleared = await must('PUT', `/items/${f.product.id}`, { ...iBody, supplierId: null })
+  eq('비우면 비워진다', cleared.supplierId, null)
 
   const noHit = await must('GET', '/workspace/search?q=ZZZ_NO_SUCH_KEYWORD_ZZZ')
   eq('일치하는 게 없으면 0건', noHit.total, 0)

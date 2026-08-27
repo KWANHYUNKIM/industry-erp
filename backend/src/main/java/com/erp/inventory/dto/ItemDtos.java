@@ -22,6 +22,11 @@ public final class ItemDtos {
             /** 구매(입고) 기준단가. 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이다. */
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
             @NotNull(message = "안전재고를 입력하세요.") @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
+            /**
+             * 원본 품목등록 리스트의 [구매처명] — 이 품목을 늘 사 오는 곳 (선택).
+             * inventory 가 trade 를 참조할 수 없어 id 만 든다. 이름은 화면이 붙인다.
+             */
+            Long supplierId,
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
@@ -54,6 +59,11 @@ public final class ItemDtos {
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
             @NotNull(message = "안전재고를 입력하세요.")
             @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
+            /**
+             * 원본 품목등록 리스트의 [구매처명] — 이 품목을 늘 사 오는 곳 (선택).
+             * inventory 가 trade 를 참조할 수 없어 id 만 든다. 이름은 화면이 붙인다.
+             */
+            Long supplierId,
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
             String searchKeyword,
@@ -83,6 +93,8 @@ public final class ItemDtos {
             Long itemGroupId,
             String itemGroupName,
             BigDecimal safetyStock,
+            /** 원본 품목등록 리스트의 [구매처명]. 이름은 화면이 거래처 목록에서 붙인다. */
+            Long supplierId,
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. */
             String searchKeyword,
@@ -107,6 +119,7 @@ public final class ItemDtos {
                     item.getItemGroup() != null ? item.getItemGroup().getId() : null,
                     item.getItemGroup() != null ? item.getItemGroup().getName() : null,
                     item.getSafetyStock(),
+                    item.getSupplierId(),
                     item.getBarcode(),
                     item.getSearchKeyword(),
                     item.isStockTracked(),
