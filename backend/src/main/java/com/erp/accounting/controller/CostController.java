@@ -37,9 +37,14 @@ public class CostController {
         return costService.calcActual(period);
     }
 
+    /**
+     * 표준원가생성. {@code basis} 는 원본 원가생성/수정의 [계산기준] 이다 —
+     * WEIGHTED_AVG(총평균법) 또는 안 주면 최종매입가.
+     */
     @PostMapping("/build")
-    public List<CostResponse> build(@RequestParam String period) {
-        return costService.build(period);
+    public List<CostResponse> build(@RequestParam String period,
+                                    @RequestParam(required = false) String basis) {
+        return costService.build(period, basis);
     }
 
     @PutMapping("/{id}")

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
@@ -11,6 +12,17 @@ import ProcessExpenseModal from './ProcessExpenseModal'
  * <p>원본(이카운트)의 버튼 묶음 실측(사본): [사전작업] 노무비/경비등록 ·
  * [원가계산] 표준원가생성 · 생성 · 수정 · [원가현황] 조회 · 수량비교 · 전월금액비교 ·
  * [기타] 삭제 · 회계반영 · 이력.
+ *
+ * <p>원본 조건 실측(사본): 기준년월 · 원가계산방법 · <b>[계산기준] 선입선출법 · 총평균법</b> ·
+ * [기타] 기말금액재계산.
+ *
+ * <p>우리 표준원가는 자재 단가를 늘 <b>최종매입가</b> 하나로만 잡았다. 그러면 마지막 한 번의
+ * 거래에 휘둘린다 — 같은 자재를 100개는 1,000원에, 마지막 1개만 5,000원에 샀다면
+ * 표준원가가 5배로 뛴다. [계산기준]에 총평균법을 두어 그 달 전체(금액 합 ÷ 수량 합)로 잴 수 있게 했다.
+ *
+ * <p>선입선출법은 못 한다. 입고 레이어(어느 입고분이 얼마에 들어와 아직 남았나)를 남기지 않아
+ * 계산할 근거가 없다 — 일별재고현황·이익현황에서도 같은 이유로 빠져 있다.
+ * [기말금액재계산]도 그 레이어가 있어야 해서 아직이다.
  *
  * <p>핵심은 <b>표준원가생성과 원가계산(생성)이 다른 버튼</b>이라는 것이다.
  * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록에
@@ -40,10 +52,19 @@ const emptyForm = () => ({
   actualMaterial: '', actualLabor: '', actualOverhead: '',
 })
 
+/**
+ * 원본 [계산기준]. 선입선출법은 입고 레이어가 없어 못 한다 —
+ * 고를 수 있게 두면 눌렀을 때 아무 일이 없거나 거짓 숫자가 나온다.
+ */
+const BASES = ['최종매입가', '총평균법'] as const
+type Basis = typeof BASES[number]
+
 export default function CostBuildPage() {
   const [rows, setRows] = useState<Cost[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [keyword, setKeyword] = useState('')
+  /** 원본 [계산기준]. 표준원가생성이 자재 단가를 어떻게 잴지 정한다. */
+  const [basis, setBasis] = useState<Basis>('최종매입가')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -123,8 +144,9 @@ export default function CostBuildPage() {
     const period = window.prompt('표준원가를 자동 생성할 기간을 입력하세요 (예: 2026-06)', thisMonth())
     if (!period) return
     try {
-      const res = await api.post<Cost[]>(`/costs/build?period=${encodeURIComponent(period)}`)
-      alert(`${res.data.length}건의 표준원가를 생성했습니다.`)
+      const res = await api.post<Cost[]>(
+        `/costs/build?period=${encodeURIComponent(period)}&basis=${basis === '총평균법' ? 'WEIGHTED_AVG' : 'LAST_PURCHASE'}`)
+      alert(`${res.data.length}건의 표준원가를 ${basis} 으로 생성했습니다.`)
       load()
     } catch (err) {
       alert(extractErrorMessage(err))
@@ -132,6 +154,7 @@ export default function CostBuildPage() {
   }
 
   const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
+  
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
   const editItemName = editId ? rows.find((r) => r.id === editId)?.itemName : ''
 
@@ -166,6 +189,22 @@ export default function CostBuildPage() {
         { label: '새로고침', onClick: load },
         { label: 'Excel' },
       ]}>
+      {/* 원본 [계산기준] — 표준원가생성이 자재 단가를 어떻게 잴지. */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="계산기준">
+          <div className="ec-pills">
+            {BASES.map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                      onClick={() => setBasis(b)}>{b}</button>
+            ))}
+          </div>
+          <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
+            총평균법은 그 달 매입 전체(금액 합 ÷ 수량 합)로 잽니다.
+            선입선출법은 입고 레이어를 남기지 않아 아직 못 합니다.
+          </span>
+        </EcCond>
+      </ul>
+
       {expensePeriod && (
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}

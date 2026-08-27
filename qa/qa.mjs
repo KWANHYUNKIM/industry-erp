@@ -3449,6 +3449,58 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 표준원가생성의 <b>[계산기준]</b> — 최종매입가 vs 총평균법.
+ *
+ * <p>원본 원가생성/수정 조건 실측(사본): 기준년월 · 원가계산방법 ·
+ * [계산기준] <b>선입선출법 · 총평균법</b> · [기타] 기말금액재계산.
+ *
+ * <p>우리 표준원가는 자재 단가를 늘 <b>최종매입가</b> 하나로만 잡았다. 그러면 마지막 한 번의
+ * 거래에 휘둘린다 — 같은 자재를 100개는 싸게, 마지막 1개만 비싸게 샀다면 표준원가가 그 비싼
+ * 값으로 뛴다. 이 시나리오가 재는 것이 정확히 그 차이다.
+ */
+async function scenarioCostBasis(f) {
+  section('■ 표준원가 계산기준')
+
+  const period = '2087-05'
+  const clear = async () => {
+    for (const c of (await must('GET', '/costs')).filter((x) => x.period === period)) {
+      await call('DELETE', `/costs/${c.id}`)
+    }
+  }
+  await clear()
+
+  // 같은 자재를 싸게 많이, 비싸게 조금 산다. 총평균과 최종매입가가 갈라지도록.
+  const buys = []
+  for (const [qty, price, day] of [[100, 1000, '2087-05-02'], [1, 5000, '2087-05-20']]) {
+    buys.push(await must('POST', '/purchases', {
+      partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: day,
+      lines: [{ itemId: f.material.id, quantity: qty, unitPrice: price }],
+    }))
+  }
+
+  const costOf = async (basis) => {
+    await clear()
+    await must('POST', `/costs/build?period=${period}&basis=${basis}`)
+    const row = (await must('GET', '/costs'))
+      .find((x) => x.period === period && x.itemId === f.material.id)
+    return row ? Number(row.materialCost) : null
+  }
+
+  const last = await costOf('LAST_PURCHASE')
+  const avg = await costOf('WEIGHTED_AVG')
+
+  eq('최종매입가는 마지막 거래를 쓴다', last, 5000)
+  // (100×1000 + 1×5000) / 101 = 1039.60…
+  eq('총평균법은 그 달 전체로 잰다', Math.round(avg), 1040)
+  eq('두 기준이 실제로 다르다', last !== avg, true)
+
+  await clear()
+  for (const b of buys) await must('DELETE', `/purchases/${b.id}`)
+  eq('시험용 구매는 남기지 않는다',
+    (await must('GET', '/purchases')).filter((x) => String(x.purchaseDate).startsWith('2087-05')).length, 0)
+}
+
+/**
  * 생산계획에서 <b>작업지시서생성</b>.
  *
  * <p>원본 생산계획/MRP리스트의 버튼이다(생산계획계산 · MRP계산 ·
@@ -6148,6 +6200,7 @@ async function main() {
   await scenarioIssueEmployee(fixtures)
   await scenarioShipmentSettlementProject(fixtures)
   await scenarioPlanToWorkOrder(fixtures)
+  await scenarioCostBasis(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

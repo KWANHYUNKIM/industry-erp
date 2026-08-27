@@ -105,13 +105,26 @@ public class CostService {
      */
     @Transactional
     public List<CostResponse> build(String period) {
+        return build(period, null);
+    }
+
+    /**
+     * @param basis 원본 원가생성/수정의 <b>[계산기준]</b>. 선입선출법 · 총평균법이 있다.
+     *              우리는 총평균법(WEIGHTED_AVG)과 최종매입가(LAST_PURCHASE)를 낸다 —
+     *              안 주면 예전대로 최종매입가다.
+     *
+     *              <p>선입선출법은 못 한다. 입고 레이어(어느 입고분이 얼마에 들어와 아직 남았나)를
+     *              남기지 않아 계산할 근거가 없다 — 일별재고현황·이익현황에서도 같은 이유로 빠져 있다.
+     */
+    @Transactional
+    public List<CostResponse> build(String period, String basis) {
         if (period == null || period.isBlank()) {
             throw ApiException.badRequest("적용기간(period)을 입력하세요.");
         }
         String p = period.trim();
 
-        // 자재 단가: 마지막 매입단가 → 품목 구매단가. 재고자산평가와 같은 규칙이다.
-        Map<Long, BigDecimal> unitCost = materialUnitCosts();
+        Map<Long, BigDecimal> unitCost = "WEIGHTED_AVG".equalsIgnoreCase(basis)
+                ? weightedAvgUnitCosts(p) : materialUnitCosts();
         // 제품 → BOM 라인
         Map<Long, List<BomLineResponse>> bomOf = new HashMap<>();
         for (BomResponse b : bomService.findAll()) {
@@ -189,6 +202,38 @@ public class CostService {
     }
 
     /** 품목별 자재 단가: 마지막 매입단가가 있으면 그것, 없으면 품목의 구매단가. */
+    /**
+     * <b>총평균법</b> 자재 단가 — 그 달에 사 온 것의 (금액 합 ÷ 수량 합).
+     *
+     * <p>최종매입가는 마지막 한 번의 거래에 휘둘린다. 같은 자재를 100개는 1,000원에,
+     * 마지막 1개만 5,000원에 샀다면 표준원가가 5배로 뛴다. 총평균은 그 달 전체를 본다.
+     *
+     * <p>그 달에 매입이 없는 자재는 <b>최종매입가 규칙으로 되돌아간다.</b>
+     * 안 사 왔다고 원가를 0 으로 두면 그 품목의 표준원가가 통째로 비어 버린다.
+     */
+    private Map<Long, BigDecimal> weightedAvgUnitCosts(String period) {
+        Map<Long, BigDecimal> amount = new HashMap<>();
+        Map<Long, BigDecimal> qty = new HashMap<>();
+        for (Purchase pu : purchaseRepository.findAllWithRefs()) {
+            if (pu.getPurchaseDate() == null
+                    || !pu.getPurchaseDate().toString().startsWith(period)) continue;
+            for (PurchaseLine l : pu.getLines()) {
+                Long id = l.getItem().getId();
+                amount.merge(id, l.getUnitPrice().multiply(l.getQuantity()), BigDecimal::add);
+                qty.merge(id, l.getQuantity(), BigDecimal::add);
+            }
+        }
+        Map<Long, BigDecimal> fallback = materialUnitCosts();
+        Map<Long, BigDecimal> out = new HashMap<>(fallback);
+        for (Map.Entry<Long, BigDecimal> e : qty.entrySet()) {
+            BigDecimal q = e.getValue();
+            if (q.signum() <= 0) continue;
+            BigDecimal avg = amount.get(e.getKey()).divide(q, 2, java.math.RoundingMode.HALF_UP);
+            if (avg.signum() > 0) out.put(e.getKey(), avg);
+        }
+        return out;
+    }
+
     private Map<Long, BigDecimal> materialUnitCosts() {
         Map<Long, LocalDate> lastDate = new HashMap<>();
         Map<Long, BigDecimal> lastPrice = new HashMap<>();
