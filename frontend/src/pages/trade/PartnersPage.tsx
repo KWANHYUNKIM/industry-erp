@@ -482,7 +482,7 @@ export default function PartnersPage() {
               <th>거래처명 ▼</th>
               <th>구분 ▼</th>
               <th>사업자번호</th>
-              <th>대표자</th>
+              <th>대표자명</th>
               <th>거래처그룹 ▼</th>
               <th>담당자</th>
               <th>전화</th>

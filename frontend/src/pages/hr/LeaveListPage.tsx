@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
+import { printDocuments } from '../../utils/printDocument'
 
 /**
  * 관리 > 근태관리 > 근태조회.
@@ -65,6 +66,33 @@ export default function LeaveListPage() {
     }
   }
   useEffect(() => { load() }, [])
+
+  /**
+   * 원본 근태조회 [인쇄]. 근태 전표는 <b>금액도 거래 상대도 없다</b> —
+   * 0원짜리 거래처럼 그리지 않도록 금액·공급자 칸을 빼고 찍는다.
+   */
+  async function printOne(r: Row) {
+    await printDocuments([{
+      title: '근태전표',
+      docNo: r.docNo,
+      docDate: r.startDate,
+      hideAmounts: true,
+      hideParties: true,
+      supplier: { label: '', name: '' },
+      customer: { label: '', name: '' },
+      extra: [
+        { label: '사원', value: r.empCode ? `[${r.empCode}] ${r.empName}` : r.empName },
+        { label: '부서', value: r.department },
+        { label: '근태코드', value: r.type },
+        { label: '기간', value: r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}` },
+      ],
+      remark: r.reason,
+      lines: [{
+        itemCode: r.type, itemName: r.empName, unit: '일',
+        quantity: r.days, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      }],
+    }])
+  }
 
   const shown = useMemo(() => rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
@@ -163,13 +191,15 @@ export default function LeaveListPage() {
               <th style={{ textAlign: 'center' }}>적요</th>
               <th style={{ width: 80, textAlign: 'center' }}>진행상태</th>
               <th style={{ width: 100, textAlign: 'center' }}>결재</th>
+              {/* 원본 근태조회의 마지막 열 [인쇄] — 그 한 건을 근태 전표로 찍는다. */}
+              <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -197,6 +227,10 @@ export default function LeaveListPage() {
                       <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
                     </>
                   )}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => printOne(r)}
+                          style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>
             ))}

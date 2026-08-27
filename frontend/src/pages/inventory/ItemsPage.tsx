@@ -341,7 +341,8 @@ export default function ItemsPage() {
                 items={mgmtItems.map((m) => ({ value: String(m.id), code: m.code, name: m.name, sub: m.description }))}
               />
             </div>
-            {/* 원본 품목등록 리스트의 '품목그룹1명'. 우리는 그룹이 하나라 1/2 구분을 두지 않는다. */}
+            {/* 원본 품목등록 리스트의 '품목그룹1명'. 열 이름은 원본을 그대로 쓰고,
+                  우리는 그룹이 하나라 '2명'에 해당하는 열이 없다. */}
             <div>
               <CodePickerField
                 label="품목그룹" placeholder="품목그룹 선택" emptyLabel="선택 해제"
@@ -381,7 +382,7 @@ export default function ItemsPage() {
               <th style={{ textAlign: 'right' }}>안전재고</th>
               <th style={{ width: 110 }}>재고수량관리</th>
               <th>관리항목</th>
-              <th>품목그룹 ▼</th>
+              <th>품목그룹1명 ▼</th>
               <th style={{ width: 140 }}>검색창내용</th>
               <th style={{ textAlign: 'center' }}>사용 ▼</th>
               {/* 원본 마지막 열 [파일관리] — 그 품목의 이미지를 붙이거나 떼는 자리. */}

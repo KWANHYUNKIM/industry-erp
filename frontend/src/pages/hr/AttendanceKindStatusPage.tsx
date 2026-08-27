@@ -166,7 +166,7 @@ export default function AttendanceKindStatusPage() {
             <th style={{ width: 110 }}>사원번호</th>
             <th style={{ width: 120 }}>사원명</th>
             <th style={{ width: 120 }}>근태종류</th>
-            <th style={{ width: 100, textAlign: 'right' }}>근태(일)</th>
+            <th style={{ width: 100, textAlign: 'right' }}>근태</th>
             <th>적요</th>
             <th style={{ width: 90, textAlign: 'center' }}>상태</th>
           </tr>

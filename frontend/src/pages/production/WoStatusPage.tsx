@@ -88,8 +88,7 @@ export default function WoStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>지시일자</th>
-            <th>작업지시번호</th>
+            <th style={{ width: 200, textAlign: 'center' }}>일자-No.</th>
             <th>품목명</th>
             <th style={{ width: 140 }}>거래처명</th>
             <th style={{ width: 90 }}>담당자명</th>
@@ -104,14 +103,13 @@ export default function WoStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderDate}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.orderDate} {r.orderNo}</td>
               <td>[{r.productCode}] {r.productName}</td>
               <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>

@@ -247,12 +247,13 @@ export default function IssuePage() {
             <th style={{ width: 90 }}>담당자</th>
             <th>작업지시번호</th>
             <th>생산품목</th>
-            <th>자재명</th>
-            <th style={{ textAlign: 'right' }}>불출수량</th>
+            <th style={{ width: 120 }}>품목코드</th>
+            <th>품목명</th>
+            <th style={{ textAlign: 'right' }}>수량</th>
             <th>단위</th>
             <th>보내는창고</th>
             <th>받는공장</th>
-            <th>비고</th>
+            <th>적요</th>
             {/* 원본 생산불출조회의 마지막 열 [인쇄] — 그 한 건을 불출증으로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
             <th style={{ width: 60, textAlign: 'center' }}>관리</th>
@@ -260,9 +261,9 @@ export default function IssuePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -272,6 +273,7 @@ export default function IssuePage() {
               <td style={{ color: r.productName ? undefined : '#c9ced6' }}>
                 {r.productName ? `[${r.productCode}] ${r.productName}` : '-'}
               </td>
+              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
@@ -290,7 +292,7 @@ export default function IssuePage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>
                 {shown.reduce((a, r) => a + r.qty, 0).toLocaleString()}
               </td>

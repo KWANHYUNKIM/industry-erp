@@ -117,7 +117,7 @@ export default function LeaveInputPage() {
               <th style={{ width: 130 }}>근태일자</th>
               <th style={{ width: 130 }}>종료일자</th>
               <th style={{ width: 180 }}>사원</th>
-              <th style={{ width: 120 }}>근태코드</th>
+              <th style={{ width: 120 }}>근태</th>
               {/*
                 원본 근태입력 그리드의 [휴가] 열 — 이 근태가 어느 휴가 잔여에서 빠지는가.
                 우리 잔여 계산은 승인된 근태를 모두 그 해 연차에서 빼므로 값이 하나다.
@@ -125,7 +125,7 @@ export default function LeaveInputPage() {
                 고를 수 있는 것처럼 보이면 다른 데서 빠질 수 있다는 뜻이 되어 거짓말이 된다.
               */}
               <th style={{ width: 120 }}>휴가</th>
-              <th style={{ width: 110, textAlign: 'right' }}>근태(일)</th>
+              <th style={{ width: 110, textAlign: 'right' }}>근태(일/시간)</th>
               <th>적요</th>
               <th style={{ width: 50, textAlign: 'center' }}></th>
             </tr>
