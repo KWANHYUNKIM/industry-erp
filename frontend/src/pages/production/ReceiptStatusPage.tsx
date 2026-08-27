@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
@@ -80,6 +81,7 @@ export default function ReceiptStatusPage() {
   const [worker, setWorker] = useState('')
   const [project, setProject] = useState('')
   const [mode, setMode] = useState<Mode>('내역')
+  const [view, setView] = useState<'표' | '그래프'>('표')
 
   async function load() {
     setLoading(true)
@@ -147,6 +149,13 @@ export default function ReceiptStatusPage() {
 
   const totalQty = shown.reduce((n, r) => n + r.producedQty, 0)
 
+  /* 원본 [데이터 보기형식] · [그래프로 보기]. 지금 보고 있는 [구분]을 따라 그린다. */
+  const chartRows = useMemo(() =>
+    mode === '집계'
+      ? byItem.map((r) => ({ label: r.name, value: r.qty }))
+      : shown.map((r) => ({ label: `${r.productionDate} ${r.productName}`, value: r.producedQty })),
+    [mode, byItem, shown])
+
   /** 품목별 평가단가. 재고평가와 같은 규칙을 쓴다 — 화면마다 따로 매기면 한쪽만 어긋난다. */
   const cost = useMemo(() => stockCostMap(items, purchases.map((d) => ({
     purchaseDate: d.purchaseDate,
@@ -174,6 +183,7 @@ export default function ReceiptStatusPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
       >
         <EcCond label="창고" pick>
           <select className="ec-input" value={warehouseId}
@@ -209,7 +219,9 @@ export default function ReceiptStatusPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 생산입고가 없습니다." />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>

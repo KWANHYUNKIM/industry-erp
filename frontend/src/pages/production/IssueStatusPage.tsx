@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { Warehouse } from '../../api/types'
 
@@ -55,6 +56,7 @@ export default function IssueStatusPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
   const [item, setItem] = useState('')
   const [note, setNote] = useState('')
@@ -150,6 +152,17 @@ export default function IssueStatusPage() {
 
   const totalQty = shown.reduce((n, r) => n + r.qty, 0)
 
+  /*
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 표만 있으면 "어느 자재가 많이 나갔나" 를
+   * 숫자 스무 줄에서 눈으로 찾아야 한다 — 현황 화면을 여는 이유가 대개 그것이다.
+   * 무엇을 그릴지는 지금 보고 있는 [구분]을 따라간다.
+   */
+  const chartRows = useMemo(() => {
+    if (mode === '집계') return byItem.map((r) => ({ label: r.itemName, value: r.totalQty }))
+    if (mode === '내역') return byOrder.map((g) => ({ label: g.workOrderNo, value: g.qty }))
+    return shown.map((r) => ({ label: `${r.issueDate} ${r.itemName}`, value: r.qty }))
+  }, [mode, byItem, byOrder, shown])
+
   return (
     <EcListShell
       title="생산불출현황"
@@ -166,6 +179,7 @@ export default function IssueStatusPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
       >
         <EcCond label="창고" pick>
           <select className="ec-input" value={warehouseId}
@@ -196,7 +210,9 @@ export default function IssueStatusPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 불출이 없습니다." />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>

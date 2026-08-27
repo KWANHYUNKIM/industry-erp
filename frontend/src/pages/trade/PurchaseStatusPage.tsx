@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc } from '../../api/types'
 import { STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
@@ -53,6 +54,7 @@ export default function PurchaseStatusPage() {
    * 우리가 '현황' 이라 부르던 것이 원본의 '라인별'이고, '내역'(전표 단위)이 없었다.
    */
   const [mode, setMode] = useState<Mode>('내역')
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
 
@@ -155,6 +157,20 @@ export default function PurchaseStatusPage() {
     { supply: 0, vat: 0 },
   ), [shown])
 
+  /*
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 지금 보고 있는 [구분]을 따라 그린다.
+   * 금액(공급가액)으로 그린다 — 이 화면에서 크기를 비교하는 값이 그것이다.
+   */
+  const chartRows = useMemo(() => {
+    if (mode === '집계') {
+      return grouped.map((g) => ({
+        label: g.g2 ? `${g.g1} / ${g.g2}` : g.g1, value: g.supply,
+      }))
+    }
+    return shown.map((r) => ({ label: `${r.itemName}`, value: r.supply }))
+  }, [mode, grouped, shown])
+
+
   /**
    * [라인별] 을 원본 모양으로 — 줄 사이에 <b>월별 소계</b>를 끼우고 끝에 총합계를 둔다.
    *
@@ -241,6 +257,7 @@ export default function PurchaseStatusPage() {
       {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
       <EcStatusPanel
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
@@ -300,7 +317,9 @@ export default function PurchaseStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 구매가 없습니다." />
+      ) : mode === '집계' ? (
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>

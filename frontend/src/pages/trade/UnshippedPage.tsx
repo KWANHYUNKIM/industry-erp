@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 
 /**
@@ -129,6 +130,7 @@ export default function UnshippedPage() {
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unshippedQty <= Number(cond.qtyTo))
   const [mode, setMode] = useState<Mode>('라인별')
+  const [view, setView] = useState<'표' | '그래프'>('표')
 
   /** 품목별 — 주문서를 가로질러 같은 품목을 모은다. */
   const byItem = useMemo(() => {
@@ -153,6 +155,13 @@ export default function UnshippedPage() {
   }, [shown])
 
   const totalUnshipped = useMemo(() => shown.reduce((s, r) => s + r.unshippedQty, 0), [shown])
+
+  /* 원본 [데이터 보기형식] · [그래프로 보기]. 미출하는 '어느 품목이 밀렸나' 를 보는 화면이다. */
+  const chartRows = useMemo(() =>
+    mode === '품목별'
+      ? byItem.map((r) => ({ label: r.itemName, value: r.unshippedQty }))
+      : shown.map((r) => ({ label: `${r.itemName}`, value: r.unshippedQty })),
+    [mode, byItem, shown])
 
   const reset = () => {
     setCond({ from: '', to: '', partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
@@ -179,6 +188,7 @@ export default function UnshippedPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        view={view} onViewChange={setView}
       >
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
@@ -215,7 +225,9 @@ export default function UnshippedPage() {
         </p>
       )}
 
-      {mode === '품목별' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="미출하 잔량이 없습니다." />
+      ) : mode === '품목별' ? (
         <table className="w-full text-left">
           <thead>
             <tr>

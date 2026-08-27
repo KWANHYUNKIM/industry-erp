@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 
@@ -97,6 +98,17 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
+  /*
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 수금·지급은 <b>거래처별로 얼마</b> 를
+   * 보는 화면이라 거래처로 묶어 그린다 — 전표 한 줄씩 그리면 같은 거래처가 흩어진다.
+   */
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) m.set(r.partnerName, (m.get(r.partnerName) ?? 0) + r.amount)
+    return [...m].map(([label, value]) => ({ label, value }))
+  }, [shown])
   const reset = () => {
     setCond({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
     setKeyword('')
@@ -120,6 +132,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={SETTLE_PICKS}
         fiscalStart={fiscalStart}
+        view={view} onViewChange={setView}
       >
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처명 일부" value={cond.partner}
@@ -147,6 +160,9 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         {moneyLabel} 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
       </div>
 
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText={`조회된 ${moneyLabel} 내역이 없습니다.`} />
+      ) : (
       <table className="w-full text-left">
         <colgroup>
           <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '18%' }} />
@@ -187,6 +203,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }

@@ -32,6 +32,7 @@ export default function EcStatusPanel({
   modes, mode, onModeChange,
   compare, onCompareChange,
   from, to, onPeriod,
+  view, onViewChange,
   picks = INQUIRY_PICKS,
   fiscalStart,
   single,
@@ -65,6 +66,12 @@ export default function EcStatusPanel({
   single?: boolean
   /** 라벨을 바꿔야 하는 화면(예: '기준일(영업주기)'). */
   dateLabel?: string
+  /**
+   * [데이터 보기형식] — 표 · 그래프. 원본 현황 17종에 공통으로 있는 줄이다.
+   * 안 주면 그 줄을 그리지 않는다(그래프로 보여 줄 집계가 없는 화면).
+   */
+  view?: '표' | '그래프'
+  onViewChange?: (v: '표' | '그래프') => void
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
@@ -136,6 +143,23 @@ export default function EcStatusPanel({
       </EcCond>
 
       {children}
+
+      {/* 원본 [데이터 보기형식] — 조건 판의 맨 아래줄이다(사본 실측). */}
+      {view && onViewChange && (
+        <EcCond label="데이터 보기형식">
+          <div className="ec-pills">
+            {(['표', '그래프'] as const).map((v) => (
+              <button
+                key={v} type="button"
+                className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                onClick={() => onViewChange(v)}
+              >
+                {v === '그래프' ? '그래프로 보기' : '표'}
+              </button>
+            ))}
+          </div>
+        </EcCond>
+      )}
     </ul>
   )
 }
