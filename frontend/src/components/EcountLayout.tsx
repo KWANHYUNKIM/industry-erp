@@ -336,8 +336,8 @@ const MENU: TopMenu[] = [
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
           { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
           { label: '지출결의서', to: '/accounting/vouchers' },
-          { label: '입금보고서', to: '/accounting/vouchers' },
-          { label: '가지급금정산서', to: '/accounting/vouchers' },
+          { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+          { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
           { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
         ],
       },
@@ -508,7 +508,7 @@ const MENU: TopMenu[] = [
         label: '원천징수',
         nodes: [
           { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
-          { label: '근로소득원천징수영수증', to: '/accounting/withholding' },
+          { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
         ],
       },
       {

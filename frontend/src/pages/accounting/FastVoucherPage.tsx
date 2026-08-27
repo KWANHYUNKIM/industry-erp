@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -45,7 +46,13 @@ const emptyLine = (): LineForm => ({ accountId: '', amount: '', description: '' 
 
 /** 회계 I > FastEntry — 지출결의서 · 입금보고서 · 가지급금정산서 (저장 즉시 복식부기 분개) */
 export default function FastVoucherPage() {
-  const [type, setType] = useState<FastVoucherType>('EXPENSE_REPORT')
+  /*
+   * 메뉴에 [지출결의서]·[입금보고서]·[가지급금정산서] 세 항목이 있는데 셋 다 이 화면을
+   * 가리켰다. 그래서 <b>무엇을 누르든 지출결의서가 떴다.</b> 메뉴가 ?type= 으로 지목한다.
+   */
+  const [params] = useSearchParams()
+  const [type, setType] = useState<FastVoucherType>(
+    (TABS.find((v) => v.type === params.get('type'))?.type) ?? 'EXPENSE_REPORT')
   const [rows, setRows] = useState<FastVoucher[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])

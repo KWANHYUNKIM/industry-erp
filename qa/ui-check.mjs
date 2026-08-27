@@ -12,7 +12,7 @@
  *     메뉴에만 있으면 눌렀을 때 빈 화면이 뜨고, 라우트에만 있으면 메뉴로 닿을 수 없다
  *     (실제로 채권/채무현황의 채무 쪽이 라우트 없이 화면만 있었다).
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, sep } from 'node:path'
 
 let pass = 0
@@ -217,7 +217,11 @@ const menu = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
 
 const routes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]))
 const menuTargets = new Map()
-for (const m of menu.matchAll(/label: '([^']+)'[^}]*?to: '([^']+)'/g)) {
+/*
+ * <b>잎만</b> 잡는다. 예전 정규식(label 뒤 아무 to)은 그룹 라벨과 첫 자식의 to 를 이어
+ * 붙였다 — 실패 메시지에 '월별이익 → /accounting/cost-build' 처럼 엉뚱한 짝이 찍혔다.
+ */
+for (const m of menu.matchAll(/\{ label: '([^']+)', to: '([^']+)'/g)) {
   const path = m[2].split('?')[0]
   menuTargets.set(path, [...(menuTargets.get(path) ?? []), m[1]])
 }
@@ -259,6 +263,46 @@ console.log('\n■ 화면 안 바로가기 ↔ 라우트')
   }
   eq('화면 안 바로가기가 가리키는 경로에 라우트가 다 있다',
     [...new Set(bad)].sort().join('\n') || '없음', '없음')
+}
+
+// ── 2-c) 화면이 구분해 보여 주는 것을 메뉴가 지목하나 ──────────────────────
+console.log('\n■ 메뉴 이름 ↔ 화면이 여는 자리')
+
+/*
+ * 서로 다른 이름의 메뉴 둘이 <b>글자까지 똑같은 경로</b>를 가리키는데, 그 화면이
+ * 두 이름을 각각 다른 탭·구분으로 갖고 있으면 <b>무엇을 눌러도 첫 번째 것이 뜬다.</b>
+ *
+ * 실제로 그랬다. [근로소득원천징수영수증]을 눌러도 원천징수이행상황신고서가 떴고
+ * ([전혀 다른 서류다] — 신고서는 매월 세무서에, 영수증은 연말정산 뒤 근로자에게 준다),
+ * [입금보고서]·[가지급금정산서]를 눌러도 지출결의서가 떴다.
+ * 라우트는 있으니 위 검사들은 전부 통과했다.
+ *
+ * <b>화면이 그 이름을 문자열로 갖고 있을 때만</b> 건다 — 그때는 화면 스스로가
+ * "이 둘은 다른 것" 이라고 말하고 있는 셈이다. 이름이 그냥 비슷한 경우는 걸지 않는다.
+ */
+{
+  const byTo = new Map()
+  for (const m of menu.matchAll(/\{ label: '([^']+)', to: '([^']+)'/g)) {
+    byTo.set(m[2], [...new Set([...(byTo.get(m[2]) ?? []), m[1]])])
+  }
+  const routeComp = new Map()
+  for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp.set(m[1], m[2])
+  const compFile = new Map()
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile.set(m[1], m[2])
+
+  const bad = []
+  for (const [to, labels] of byTo) {
+    if (labels.length < 2) continue
+    const rel = compFile.get(routeComp.get(to.split('?')[0]))
+    if (!rel) continue
+    const file = 'frontend/src/' + rel + '.tsx'
+    if (!existsSync(file)) continue
+    const src = readFileSync(file, 'utf8')
+    const own = labels.filter((l) => src.includes("'" + l + "'"))
+    if (own.length >= 2) bad.push(to + '  (' + own.join(' · ') + ')')
+  }
+  eq('화면이 나눠 놓은 것을 메뉴가 각각 지목한다', bad.sort().join('\n') || '없음', '없음')
 }
 
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
