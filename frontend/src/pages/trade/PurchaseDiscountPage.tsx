@@ -27,6 +27,9 @@ interface DiscountRow {
   discountRate: number
 }
 
+/** 원본 할인현황의 첫 열은 [월/일] — 연도를 뺀다(조회 기간이 이미 연도를 말해 준다). */
+const monthDay = (d: string) => d.slice(5).replace('-', '/')
+
 export default function PurchaseDiscountPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
@@ -179,7 +182,7 @@ export default function PurchaseDiscountPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자</th><th>전표번호</th><th>매입처</th><th>품목명</th>
+            <th style={{ textAlign: 'center' }}>월/일</th><th>전표번호</th><th>매입처</th><th>품목명</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th style={{ textAlign: 'right' }}>기준단가</th><th style={{ textAlign: 'right' }}>매입가</th>
             <th style={{ textAlign: 'right' }}>할인액</th><th style={{ textAlign: 'right' }}>할인율(%)</th>
@@ -193,7 +196,7 @@ export default function PurchaseDiscountPage() {
           ) : shown.map((r, i) => (
             <tr key={`${r.docNo}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.itemName}</td>

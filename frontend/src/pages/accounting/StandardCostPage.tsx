@@ -72,7 +72,7 @@ export default function StandardCostPage() {
 
   return (
     <EcListShell title="표준원가현황" search={keyword} onSearchChange={setKeyword}
-      newLabel="새로고침" onNew={load} actions={[{ label: 'Excel' }]}>
+      newLabel="새로고침" onNew={load} actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: 'Excel' }]}>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준월">
