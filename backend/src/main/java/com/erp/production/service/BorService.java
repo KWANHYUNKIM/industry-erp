@@ -121,6 +121,22 @@ public class BorService {
         return sum.setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
+    /**
+     * 품목이 <b>공정마다</b> 쓰는 1개당 시간(H). 경비·노무비를 공정별로 배부할 때 쓴다.
+     * 라우팅이 없으면 빈 map.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, BigDecimal> hoursPerUnitByProcess(Long productId) {
+        java.util.Map<Long, BigDecimal> m = new java.util.LinkedHashMap<>();
+        for (BorOperation o : borRepository.findActiveByProduct(productId)) {
+            BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
+                    ? BigDecimal.ONE : o.getBaseQty();
+            BigDecimal h = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            m.merge(o.getProcess().getId(), h, BigDecimal::add);
+        }
+        return m;
+    }
+
     private void requireFreeSeq(Long productId, Integer seq, Long excludeId) {
         borRepository.findByProduct_IdAndSeq(productId, seq).ifPresent(found -> {
             if (!found.getId().equals(excludeId)) {

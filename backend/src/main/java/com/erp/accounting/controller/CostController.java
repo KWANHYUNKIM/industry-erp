@@ -31,6 +31,12 @@ public class CostController {
     }
 
     /** 표준원가 자동 생성 (seed 품목 기준단가 기반) */
+    /** 실제원가 계산 — 그 달 생산실적과 노무비/경비등록에서 낸다. 원본의 [생성]. */
+    @PostMapping("/actual")
+    public List<CostResponse> calcActual(@RequestParam String period) {
+        return costService.calcActual(period);
+    }
+
     @PostMapping("/build")
     public List<CostResponse> build(@RequestParam String period) {
         return costService.build(period);

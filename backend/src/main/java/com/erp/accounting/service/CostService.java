@@ -11,6 +11,11 @@ import com.erp.inventory.repository.ItemRepository;
 import com.erp.production.dto.BomDtos.BomLineResponse;
 import com.erp.production.dto.BomDtos.BomResponse;
 import com.erp.production.service.BomService;
+import com.erp.accounting.repository.ProcessExpenseRepository;
+import com.erp.accounting.domain.ProcessExpense;
+import com.erp.production.domain.Production;
+import com.erp.production.domain.ProductionMaterial;
+import com.erp.production.repository.ProductionRepository;
 import com.erp.production.service.BorService;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.PurchaseLine;
@@ -45,6 +50,8 @@ public class CostService {
     private final ItemRepository itemRepository;
     private final BomService bomService;
     private final BorService borService;
+    private final ProcessExpenseRepository processExpenseRepository;
+    private final ProductionRepository productionRepository;
     private final PurchaseRepository purchaseRepository;
 
     @Transactional(readOnly = true)
@@ -205,6 +212,98 @@ public class CostService {
             }
         }
         return out;
+    }
+
+    /**
+     * <b>실제원가 계산</b> — 그 달에 정말 얼마가 들었나.
+     *
+     * <p>원본(이카운트)도 [표준원가생성] 과 [생성](원가계산)이 다른 버튼이다.
+     * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과
+     * 노무비/경비등록에 적힌 실제 발생액에서 나온다.
+     *
+     * <ul>
+     *   <li>실제재료비 = 그 달 그 품목 생산에 <b>정말 투입한 자재 금액</b> ÷ 생산수량</li>
+     *   <li>실제노무비·경비 = 노무비/경비등록의 공정별 총액을 <b>표준 작업시간 비율</b>로
+     *       배부한 뒤 ÷ 생산수량</li>
+     * </ul>
+     *
+     * <p>배부 기준이 표준시간인 이유: 그 달 실제 작업시간은 작업내역이 있는 작업지시에만
+     * 있어서, 작업내역을 안 적은 생산은 배부에서 통째로 빠진다. 그러면 남은 품목이 경비를
+     * 다 뒤집어쓴다. BOR × 생산수량은 생산한 모든 품목에 있다.
+     *
+     * <p>그 달 생산이 없으면 배부율을 낼 수 없다 — 그 공정 경비는 어디에도 안 붙는다.
+     * 없는 근거로 아무 품목에나 얹지 않는다.
+     *
+     * @return 값이 바뀐 원가 행들
+     */
+    @Transactional
+    public List<CostResponse> calcActual(String period) {
+        if (period == null || period.isBlank()) {
+            throw ApiException.badRequest("기준년월(period)을 입력하세요.");
+        }
+        String p = period.trim();
+
+        // 1) 그 달 생산실적을 품목별로 모은다: 생산수량과 실제 투입 자재 금액
+        Map<Long, BigDecimal> producedQty = new HashMap<>();
+        Map<Long, BigDecimal> materialAmount = new HashMap<>();
+        Map<Long, BigDecimal> unitCost = materialUnitCosts();
+        for (Production pr : productionRepository.findAll()) {
+            if (!p.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+            Long pid = pr.getProduct().getId();
+            producedQty.merge(pid, pr.getProducedQty(), BigDecimal::add);
+            for (ProductionMaterial m : pr.getMaterials()) {
+                BigDecimal price = unitCost.get(m.getComponent().getId());
+                if (price == null) continue;   // 단가를 모르는 자재는 빼고 센다
+                materialAmount.merge(pid, price.multiply(m.getQuantity()), BigDecimal::add);
+            }
+        }
+
+        // 2) 공정별 총액과, 그 공정에 걸린 총 표준시간
+        Map<Long, BigDecimal> laborByProcess = new HashMap<>();
+        Map<Long, BigDecimal> overheadByProcess = new HashMap<>();
+        for (ProcessExpense e : processExpenseRepository.findByPeriodWithRefs(p)) {
+            laborByProcess.merge(e.getProcess().getId(), e.getLaborCost(), BigDecimal::add);
+            overheadByProcess.merge(e.getProcess().getId(), e.getOverheadCost(), BigDecimal::add);
+        }
+        Map<Long, Map<Long, BigDecimal>> hoursOf = new HashMap<>();   // 품목 → 공정 → 1개당 시간
+        Map<Long, BigDecimal> totalHoursByProcess = new HashMap<>();
+        for (Map.Entry<Long, BigDecimal> e : producedQty.entrySet()) {
+            Map<Long, BigDecimal> perProcess = borService.hoursPerUnitByProcess(e.getKey());
+            hoursOf.put(e.getKey(), perProcess);
+            for (Map.Entry<Long, BigDecimal> h : perProcess.entrySet()) {
+                totalHoursByProcess.merge(h.getKey(), h.getValue().multiply(e.getValue()), BigDecimal::add);
+            }
+        }
+
+        // 3) 품목별로 실제원가를 채운다
+        List<CostResponse> updated = new ArrayList<>();
+        for (Map.Entry<Long, BigDecimal> e : producedQty.entrySet()) {
+            Long itemId = e.getKey();
+            BigDecimal qty = e.getValue();
+            if (qty.signum() <= 0) continue;
+
+            ItemCost cost = itemCostRepository.findByItemIdAndPeriod(itemId, p).orElse(null);
+            if (cost == null) continue;   // 표준원가를 먼저 만들어야 한다
+
+            BigDecimal mat = materialAmount.getOrDefault(itemId, BigDecimal.ZERO)
+                    .divide(qty, 2, RoundingMode.HALF_UP);
+
+            BigDecimal lab = BigDecimal.ZERO;
+            BigDecimal oh = BigDecimal.ZERO;
+            for (Map.Entry<Long, BigDecimal> h : hoursOf.getOrDefault(itemId, Map.of()).entrySet()) {
+                BigDecimal total = totalHoursByProcess.get(h.getKey());
+                if (total == null || total.signum() == 0) continue;
+                BigDecimal share = h.getValue().multiply(qty).divide(total, 8, RoundingMode.HALF_UP);
+                lab = lab.add(laborByProcess.getOrDefault(h.getKey(), BigDecimal.ZERO).multiply(share));
+                oh = oh.add(overheadByProcess.getOrDefault(h.getKey(), BigDecimal.ZERO).multiply(share));
+            }
+
+            cost.setActualMaterial(mat);
+            cost.setActualLabor(lab.divide(qty, 2, RoundingMode.HALF_UP));
+            cost.setActualOverhead(oh.divide(qty, 2, RoundingMode.HALF_UP));
+            updated.add(CostResponse.from(cost));
+        }
+        return updated;
     }
 
     private Item getItem(Long id) {

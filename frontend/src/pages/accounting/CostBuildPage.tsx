@@ -3,8 +3,19 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import ProcessExpenseModal from './ProcessExpenseModal'
 
-/** 회계 > 원가생성/수정 (실제 연동: /api/costs) */
+/**
+ * 회계 > 원가생성/수정.
+ *
+ * <p>원본(이카운트)의 버튼 묶음 실측(사본): [사전작업] 노무비/경비등록 ·
+ * [원가계산] 표준원가생성 · 생성 · 수정 · [원가현황] 조회 · 수량비교 · 전월금액비교 ·
+ * [기타] 삭제 · 회계반영 · 이력.
+ *
+ * <p>핵심은 <b>표준원가생성과 원가계산(생성)이 다른 버튼</b>이라는 것이다.
+ * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록에
+ * 적힌 실제 발생액에서 나온다. 우리는 표준만 있었고 실제원가는 사람이 손으로 넣어야 했다.
+ */
 interface Item { id: number; code: string; name: string }
 interface Cost {
   id: number
@@ -124,10 +135,40 @@ export default function CostBuildPage() {
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
   const editItemName = editId ? rows.find((r) => r.id === editId)?.itemName : ''
 
+  /** 사전작업(노무비/경비등록)을 여는 기준년월. 실제원가 계산이 이 달을 본다. */
+  const [expensePeriod, setExpensePeriod] = useState<string | null>(null)
+
+  /**
+   * 실제원가 계산 — 원본의 [생성].
+   * 그 달 생산실적(실제 투입 자재)과 노무비/경비등록(공정별 실제 발생액)에서 낸다.
+   */
+  async function calcActual() {
+    const period = window.prompt('실제원가를 계산할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    if (!period) return
+    try {
+      const res = await api.post<Cost[]>(`/costs/actual?period=${encodeURIComponent(period)}`)
+      alert(res.data.length === 0
+        ? `${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`
+        : `${res.data.length}건의 실제원가를 계산했습니다.`)
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   return (
     <EcListShell title="원가생성/수정" search={keyword} onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '원가등록(F2)'} onNew={() => (showForm ? setShowForm(false) : openNew())}
-      actions={[{ label: '표준원가 자동생성', onClick: build }, { label: '새로고침', onClick: load }, { label: 'Excel' }]}>
+      actions={[
+        { label: '노무비/경비등록', onClick: () => setExpensePeriod(window.prompt('기준년월 (예: 2026-06)', thisMonth()) || null) },
+        { label: '표준원가생성', onClick: build },
+        { label: '실제원가 계산', onClick: calcActual },
+        { label: '새로고침', onClick: load },
+        { label: 'Excel' },
+      ]}>
+      {expensePeriod && (
+        <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
+      )}
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(

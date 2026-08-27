@@ -91,7 +91,7 @@ public final class MenuPermissionCatalog {
         put(m, "WMS", "/api/wms");
         put(m, "EXPORT", "/api/exports");
         put(m, "MALL", "/api/mall-orders", "/api/mall-item-mappings", "/api/mall-accounts");
-        put(m, "PROFIT", "/api/costs");
+        put(m, "PROFIT", "/api/costs", "/api/process-expenses");
         put(m, "PROJECT", "/api/projects", "/api/project-plans");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",

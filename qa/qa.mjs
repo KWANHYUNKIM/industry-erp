@@ -3427,6 +3427,98 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 노무비/경비등록 → <b>실제원가 계산</b>.
+ *
+ * <p>원본도 [표준원가생성] 과 [생성](원가계산)이 다른 버튼이다. 표준은 BOM·BOR 대로
+ * "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록의 실제 발생액에서 나온다.
+ * 우리는 표준만 있었고 실제원가는 사람이 손으로 넣어야 했다 — 그래서 차이분석의
+ * 노무비·경비 차이가 늘 0 이었다.
+ *
+ * <p>배부는 <b>표준 작업시간 비율</b>로 한다. 실제 작업시간으로 하면 작업내역을 안 적은
+ * 생산이 배부에서 통째로 빠지고, 남은 품목이 경비를 다 뒤집어쓴다.
+ */
+async function scenarioActualCost(f) {
+  section('■ 노무비/경비등록 → 실제원가')
+
+  const period = '2098-05'
+  const day = `${period}-15`
+
+  // 이전 실행 잔재를 치운다.
+  for (const c of (await must('GET', '/costs')).filter((x) => x.period === period)) {
+    await call('DELETE', `/costs/${c.id}`)
+  }
+  for (const e of await must('GET', `/process-expenses?period=${period}`)) {
+    await call('DELETE', `/process-expenses/${e.id}`)
+  }
+  for (const o of (await must('GET', '/bor')).filter((x) => x.productId === f.product.id)) {
+    await call('DELETE', `/bor/${o.id}`)
+  }
+
+  const procs = await must('GET', '/processes')
+  const op = await must('POST', '/bor', {
+    productId: f.product.id, processId: procs[0].id, seq: 80,
+    workName: `${P}실제원가시험`, baseQty: 1, workHours: 2,
+  })
+
+  // 그 달 생산실적을 하나 만든다(자재는 BOM 대로 자동 소모).
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 20,
+  })
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: day,
+  })
+  const prod = await must('POST', '/productions', {
+    workOrderId: wo.id, producedQty: 5, productionDate: day,
+  })
+
+  // 사전작업: 그 공정에 노무비 500,000 · 경비 200,000
+  const exp = await must('POST', '/process-expenses', {
+    period, processId: procs[0].id, laborCost: 500000, overheadCost: 200000,
+  })
+  eq('노무비/경비를 등록할 수 있다', Number(exp.overheadCost), 200000)
+  eq('창고를 안 주면 전사 공통', exp.warehouseId, null)
+
+  const dup = await call('POST', '/process-expenses', {
+    period, processId: procs[0].id, laborCost: 1, overheadCost: 1,
+  })
+  eq('같은 달·공정·창고는 한 줄만', dup.status, 400)
+
+  // 표준원가를 먼저 만들어야 실제원가가 붙을 자리가 생긴다.
+  const built = await must('POST', `/costs/build?period=${period}`)
+  eq('표준원가가 먼저 만들어진다', built.some((c) => c.itemId === f.product.id), true)
+
+  const actual = await must('POST', `/costs/actual?period=${period}`)
+  const mine = actual.find((c) => c.itemId === f.product.id)
+  eq('실제원가가 계산된다', !!mine, true)
+
+  // 이 달 이 공정을 쓰는 품목이 하나뿐이므로 총액이 전부 이 품목에 배부된다.
+  eq('실제노무비 = 노무비 총액 ÷ 생산수량', Number(mine.actualLabor), 100000)
+  eq('실제경비 = 경비 총액 ÷ 생산수량', Number(mine.actualOverhead), 40000)
+
+  // BOM 대로 투입했으니 실제재료비는 표준재료비와 같아야 한다.
+  eq('BOM 대로 썼으면 실제재료비 = 표준재료비',
+    Number(mine.actualMaterial), Number(mine.materialCost))
+
+  // 등록을 지우면 실제 노무비·경비가 사라진다 — 근거 없이 남아 있으면 안 된다.
+  await must('DELETE', `/process-expenses/${exp.id}`)
+  const recalc = (await must('POST', `/costs/actual?period=${period}`))
+    .find((c) => c.itemId === f.product.id)
+  eq('근거를 지우면 실제노무비도 0', Number(recalc.actualLabor), 0)
+  eq('근거를 지우면 실제경비도 0', Number(recalc.actualOverhead), 0)
+
+  // 뒷정리
+  await must('DELETE', `/productions/${prod.id}`)
+  await must('DELETE', `/work-orders/${wo.id}`)
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 20,
+  })
+  for (const c of built) await call('DELETE', `/costs/${c.id}`)
+  await must('DELETE', `/bor/${op.id}`)
+  eq('시험용 자료는 남기지 않는다',
+    (await must('GET', '/costs')).filter((c) => c.period === period).length, 0)
+}
+
+/**
  * BOR(작업소요시간) — 품목별 작업 라우팅.
  *
  * <p>BOM 이 "무엇으로 만드는가" 라면 BOR 은 "어떻게 만드는가" 다. 이 표가 없어서
@@ -4255,6 +4347,7 @@ async function main() {
   await scenarioVarianceInputs(fixtures)
   await scenarioStandardCostBuild(fixtures)
   await scenarioBor(fixtures)
+  await scenarioActualCost(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
