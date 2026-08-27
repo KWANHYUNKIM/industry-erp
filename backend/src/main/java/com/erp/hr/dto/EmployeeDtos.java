@@ -3,7 +3,9 @@ package com.erp.hr.dto;
 import com.erp.hr.domain.Employee;
 import com.erp.hr.domain.EmployeeAssignment;
 import com.erp.hr.domain.enums.AssignmentType;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,6 +58,37 @@ public class EmployeeDtos {
      * 사원 한 줄. <b>기본급은 볼 수 있는 사람에게만</b> 담는다 —
      * {@link #maskSalary()} 를 참고.
      */
+    /**
+     * 사원 등록. 원본 사원(담당)등록의 칸이다.
+     *
+     * <p>사번은 사람이 정한다 — 회사마다 규칙이 다르고(입사연도·부서 접두어),
+     * 우리가 지어내면 그 규칙과 어긋난 번호가 섞인다.
+     */
+    public record CreateEmployeeRequest(
+            @NotBlank(message = "사번을 입력하세요.") String code,
+            @NotBlank(message = "성명을 입력하세요.") String name,
+            Long departmentId,
+            String jobTitle,
+            LocalDate hireDate,
+            @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary
+    ) {}
+
+    /**
+     * 사원 수정. <b>퇴사일과 사용 여부</b>가 여기 있다.
+     *
+     * <p>사원은 지우지 않는다 — 판매·구매·출하·작업지시의 담당자이고 급여·근태의 뿌리다.
+     * 지우면 지난 전표가 누구 것인지 잃는다. 퇴사하면 사용중단으로 내린다.
+     */
+    public record UpdateEmployeeRequest(
+            @NotBlank(message = "성명을 입력하세요.") String name,
+            Long departmentId,
+            String jobTitle,
+            LocalDate hireDate,
+            LocalDate resignDate,
+            @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary,
+            Boolean active
+    ) {}
+
     public record EmployeeResponse(
             Long id,
             String code,

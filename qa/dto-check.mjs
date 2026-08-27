@@ -159,7 +159,18 @@ for (const file of javaFiles(ROOT, 'Dtos.java')) {
     if (!stored) continue
 
     checked++
+    /*
+     * 연관을 정하는 요청 칸은 <b>id 로 온다</b> — departmentId · partnerGroupId · itemGroupId.
+     * 응답이 그 연관을 이름으로 풀어 주는(department · partnerGroupName) 것은 정할 수 없는
+     * 값이 아니다. id 를 정할 수 있으면 그 연관은 정해진다.
+     *
+     * 이걸 안 보면 응답 이름을 전부 '…Name' 으로 바꾸는 수밖에 없는데, 그건 검사에
+     * 맞추려고 API 를 바꾸는 것이라 앞뒤가 뒤집힌다.
+     */
     const settable = new Set([...create, ...update])
+    for (const f of [...settable]) {
+      if (f.endsWith('Id')) settable.add(f.slice(0, -2))
+    }
     const missing = fields.filter((f) =>
       stored.has(f) && !settable.has(f) && !SERVER_OWNED.has(f))
     if (missing.length > 0) {

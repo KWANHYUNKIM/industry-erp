@@ -3602,6 +3602,102 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * <b>사원등록</b> — 등록 · 수정 · 사용중단.
+ *
+ * <p>이 화면은 제목이 '사원등록' 인데 <b>등록을 할 수가 없었다.</b> 목록과 기본급 수정만
+ * 있었고 서버에도 POST·PUT 이 아예 없었다 — 사람이 입사해도 넣을 자리가 없어서 사원은
+ * 시드로만 존재했다. 사원은 판매·구매·출하의 담당자이고 급여·근태의 뿌리다.
+ *
+ * <p>사원은 <b>지우지 않는다.</b> 지우면 지난 전표가 누구 것인지 잃는다.
+ * 퇴사하면 사용중단으로 내리고, 그 뒤로는 담당자로 못 고른다.
+ *
+ * <p>퇴사일과 사용 여부를 따로 두면 "퇴사일은 있는데 아직 담당자로 뜨는" 사원이 생긴다.
+ * 그래서 퇴사일을 넣으면 사용중단이 함께 켜지고, 되살리면 퇴사일이 지워진다.
+ */
+async function scenarioEmployeeMaster(f) {
+  section('■ 사원등록 (등록·수정·사용중단)')
+
+  /*
+    * 사원은 <b>지우는 경로를 두지 않았다</b> — 판매·구매·출하의 담당자이고 급여·근태의
+    * 뿌리라 지우면 지난 전표가 누구 것인지 잃는다. 그래서 시험용 사원도 지우지 않고,
+    * 이미 있으면 그것을 다시 쓴다. 남는 것은 QA 사원 하나뿐이고 늘 '사용중' 으로 끝난다.
+    */
+  const CODE = `${P}EMP`
+  const exists = (await must('GET', '/employees/all')).find((x) => x.code === CODE)
+
+  const dept = (await must('GET', '/departments'))[0]
+  const before = (await must('GET', '/employees/all')).length
+  const made = exists ?? await must('POST', '/employees', {
+    code: CODE, name: `${P}신입`, jobTitle: '사원',
+    departmentId: dept ? dept.id : null,
+    hireDate: '2088-03-02', baseSalary: 2500000,
+  })
+  eq('사원을 새로 등록할 수 있다', made.code, CODE)
+  if (!exists) {
+    eq('처음엔 사용중이다', made.active, true)
+    isNull('퇴사일은 비어 있다', made.resignDate)
+    eq('목록이 하나 늘었다', (await must('GET', '/employees/all')).length, before + 1)
+  }
+
+  const dup = await call('POST', '/employees', { code: CODE, name: '중복', baseSalary: 0 })
+  eq('같은 사번은 거부', dup.status, 409)
+
+  const edited = await must('PUT', `/employees/${made.id}`, {
+    name: `${P}신입`, jobTitle: '주임', departmentId: dept ? dept.id : null,
+    hireDate: '2088-03-02', baseSalary: 2700000,
+  })
+  eq('직위를 고칠 수 있다', edited.jobTitle, '주임')
+  eq('부서도 붙는다', edited.department, dept ? dept.name : '')
+  eq('기본급도 고쳐진다', Number(edited.baseSalary), 2700000)
+  eq('고쳐도 사용중이다', edited.active, true)
+
+  // 담당자로 고를 수 있다.
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-05',
+    employeeId: made.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('담당자로 붙는다', sale.employeeId, made.id)
+
+  // 퇴사 → 사용중단이 함께 켜진다.
+  const resigned = await must('PUT', `/employees/${made.id}`, {
+    name: `${P}신입`, jobTitle: '주임', departmentId: dept ? dept.id : null,
+    hireDate: '2088-03-02', baseSalary: 2700000, resignDate: '2088-12-31',
+  })
+  eq('퇴사일을 넣으면 사용중단이 함께 켜진다', resigned.active, false)
+  eq('퇴사일이 저장된다', resigned.resignDate, '2088-12-31')
+
+  const after = await call('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-06',
+    employeeId: made.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('퇴사한 사원은 담당자로 못 고른다', after.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중지된 사원/.test(String(after.data?.message ?? '')), true)
+
+  // 이미 그 사람이 담당한 전표는 그대로다 — 퇴사했다고 지난 전표의 담당자가 사라지면 안 된다.
+  const kept = (await must('GET', '/sales')).find((x) => x.id === sale.id)
+  eq('지난 전표의 담당자는 그대로다', kept.employeeId, made.id)
+
+  // 재직자 목록에서는 빠지고 전체 목록에는 남는다.
+  eq('재직자 목록에서 빠진다',
+    (await must('GET', '/employees')).some((x) => x.id === made.id), false)
+  eq('전체 목록에는 남는다',
+    (await must('GET', '/employees/all')).some((x) => x.id === made.id), true)
+
+  const back = await must('PUT', `/employees/${made.id}`, {
+    name: `${P}신입`, jobTitle: '주임', departmentId: dept ? dept.id : null,
+    hireDate: '2088-03-02', baseSalary: 2700000, active: true,
+  })
+  eq('되살릴 수 있다', back.active, true)
+  isNull('되살리면 퇴사일도 지워진다', back.resignDate)
+
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험이 끝나면 사원은 사용중으로 남는다',
+    (await must('GET', '/employees/all')).find((x) => x.id === made.id).active, true)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/sales')).filter((x) => String(x.saleDate).startsWith('2088-03')).length, 0)
+}
+
+/**
  * <b>사용중지한 계정과목 · 자원 · 관리항목</b>으로 새로 고를 수 없다.
  *
  * <p>사용중단 부류가 네 번째다(품목·창고 → 거래처 → 공정 → 여기). 그래서 하나씩 찾지 않고
@@ -4647,9 +4743,12 @@ async function scenarioUserEmployeeLink() {
     reason: `${P}연결확인`,
   })
   eq('사원번호가 실린다', vac.empCode, emp.code)
-  // 개발 자료의 사원에는 직급이 비어 있고 사원 등록 API 가 없어(읽기 전용) 채울 수가 없다.
-  // 그래서 이 단언이 재는 것은 '값이 있느냐' 가 아니라 <b>지어내지 않느냐</b> 다 —
-  // 마스터에 없는 직급이 근태에 찍히면 그 사람이 아닌 직급이 기록에 남는다.
+  /*
+   * 예전에는 사원 등록 API 가 없어 직급이 전부 비어 있었고, 이 단언은 '지어내지 않느냐'
+   * 만 잴 수 있었다. 사원등록이 생기면서 QA 사원이 직급·부서를 갖게 돼 <b>이제 실제로
+   * 값을 견준다.</b> 마스터에 없는 직급이 근태에 찍히면 그 사람이 아닌 직급이 남는다.
+   */
+  eq('직급이 실제로 채워져 있다', (emp.jobTitle ?? '').length > 0, true)
   eq('직급은 사원 마스터와 같다', vac.jobTitle ?? '', emp.jobTitle ?? '')
   // 부서명은 이어져 있으면 부서 마스터의 이름을 쓴다 — 계정의 자유입력 부서가 아니다.
   eq('부서명은 마스터에서 온다', vac.department, emp.department ?? '자유입력부서')
@@ -6908,6 +7007,7 @@ async function main() {
   await scenarioPlanGenerate(fixtures)
   await scenarioInactiveProcessGuards()
   await scenarioInactiveMasterGuards(fixtures)
+  await scenarioEmployeeMaster(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

@@ -84,7 +84,7 @@ public class ShipmentService {
                 // 비워 두면 그 화면에서 통째로 빠진다.
                 .dueDate(req.dueDate() != null ? req.dueDate() : shipDate)
                 .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
-                .employee(req.employeeId() != null ? employeeService.get(req.employeeId()) : null)
+                .employee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null)
                 .contact(req.contact())
                 .postalCode(req.postalCode())
                 // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,

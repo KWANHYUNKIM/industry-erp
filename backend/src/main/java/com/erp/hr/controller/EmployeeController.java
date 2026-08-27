@@ -88,6 +88,20 @@ public class EmployeeController {
     }
 
     /** 사원 기본급 수정 */
+    /** 원본 사원(담당)등록의 [신규]. */
+    @PostMapping
+    public EmployeeDtos.EmployeeResponse create(
+            @Valid @RequestBody EmployeeDtos.CreateEmployeeRequest req) {
+        return employeeService.create(req);
+    }
+
+    /** 사원 수정. 퇴사·사용중단도 여기서 한다 — 사원은 지우지 않는다. */
+    @PutMapping("/{id}")
+    public EmployeeDtos.EmployeeResponse update(
+            @PathVariable Long id, @Valid @RequestBody EmployeeDtos.UpdateEmployeeRequest req) {
+        return employeeService.update(id, req);
+    }
+
     @PutMapping("/{id}/base-salary")
     public EmployeeResponse updateBaseSalary(@PathVariable Long id, @Valid @RequestBody UpdateSalaryRequest req) {
         return employeeService.updateBaseSalary(id, req);
