@@ -100,6 +100,16 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [moves, setMoves] = useState<Movement[]>([])
+  /**
+   * 원본 대장 열 [검색창내용]. 잔액 API 가 주지 않아 <b>거래처 목록에서 붙인다</b> —
+   * 부르는 이름(별칭)이라, 코드도 상호도 모르는 사람이 이 칸으로 알아본다.
+   */
+  const [aliasOf, setAliasOf] = useState<Map<number, string>>(new Map())
+  useEffect(() => {
+    api.get<{ id: number; searchKeyword: string | null }[]>('/partners')
+      .then((r) => setAliasOf(new Map(r.data.map((x) => [x.id, x.searchKeyword ?? '']))))
+      .catch(() => setAliasOf(new Map()))
+  }, [])
 
   /** 잔액을 다시 읽는다. 원본 [검색(F8)] 이 이 일을 한다. */
   const load = useCallback(() => {
@@ -344,23 +354,33 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             <th>거래처코드 ▼</th>
             <th>상호 ▼</th>
             <th style={{ textAlign: 'center' }}>구분</th>
+            <th style={{ width: 140 }}>검색창내용</th>
             {showAr && <th style={{ textAlign: 'right' }}>채권 (외상매출금)</th>}
             {showAp && <th style={{ textAlign: 'right' }}>채무 (외상매입금)</th>}
+            <th style={{ width: 80, textAlign: 'center' }}>상세내역</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={4 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={4 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>거래처가 없습니다.</td></tr>
+            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>거래처가 없습니다.</td></tr>
           ) : shown.map((r, idx) => (
             <tr key={r.partnerId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
+              <td style={{ color: '#6b7280' }}>{aliasOf.get(r.partnerId) ?? ''}</td>
               {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
               {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{won(r.payable)}{balanceNote(r.payable, '채무')}</td>}
+              <td style={{ textAlign: 'center' }}>
+                {/* 그 거래처만 남기면 아래 움직임 표가 그 거래처 것만 된다 */}
+                <button type="button" onClick={() => setPartner(r.name)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                  보기
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

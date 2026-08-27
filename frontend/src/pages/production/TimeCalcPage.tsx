@@ -49,6 +49,8 @@ interface WoRow {
   orderDate: string
   productId: number
   plannedQty: number
+  /** 원본 조건 [생산공장]. 작업지시가 어느 공장 것인지. */
+  warehouseName: string
 }
 
 /** 계산할 한 줄. 원본 그리드의 [생산품목 · 규격 · 추가수량 · 수량] 이다. */
@@ -76,6 +78,8 @@ export default function TimeCalcPage() {
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 원본 조건 [생산공장]. 공장을 고르면 그 공장 작업지시만 불러온다. */
+  const [plant, setPlant] = useState('')
   const [baseDate, setBaseDate] = useState(ymd(new Date()))
   const [lines, setLines] = useState<CalcLine[]>([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }])
   /** [계산(F8)] 을 눌러야 결과가 나온다 — 원본도 그렇다. */
@@ -89,7 +93,10 @@ export default function TimeCalcPage() {
    * 빈 줄(품목을 아직 안 고른 줄)만 걷어낸다.
    */
   function loadFromOrders() {
-    const todays = orders.filter((o) => o.orderDate === baseDate)
+    const todays = orders
+      .filter((o) => o.orderDate === baseDate)
+      // 원본 조건 [생산공장] — 공장을 고르면 그 공장 지시만 담는다.
+      .filter((o) => !plant || o.warehouseName === plant)
     setNotice('')
     if (todays.length === 0) {
       setNotice(`${baseDate} 에 잡힌 작업지시가 없습니다.`)
@@ -183,6 +190,12 @@ export default function TimeCalcPage() {
           <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
             [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
           </span>
+        </EcCond>
+        <EcCond label="생산공장" pick>
+          <CodePickerField label="생산공장" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+                           value={plant} onChange={(v) => setPlant(v)}
+                           items={[...new Set(orders.map((o) => o.warehouseName).filter(Boolean))]
+                             .map((w) => ({ value: w, name: w }))} />
         </EcCond>
       </ul>
 

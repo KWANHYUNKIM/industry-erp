@@ -22,6 +22,8 @@ const emptyForm = { code: '', name: '', workcenter: '', stdTimeMin: '', costPerH
 
 export default function ProcessPage() {
   const [rows, setRows] = useState<ProductionProcess[]>([])
+  /** 원본 공정등록의 [사용중단/재사용]에 쓸 줄 고르기. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -81,6 +83,26 @@ export default function ProcessPage() {
     }
   }
 
+  /**
+   * 원본 공정등록의 [사용중단/재사용]. 고른 공정을 한 번에 세운다.
+   * 모두 중단이면 되살리고, 하나라도 살아 있으면 중단한다(거래처·창고·품목과 같은 규칙).
+   * 그 공정을 통째로 다시 보낸다 — 몇 칸만 보내면 작업장·표준시간·시간당비용이 지워진다.
+   */
+  async function toggleCheckedActive() {
+    const targets = rows.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 공정을 고르세요.'); return }
+    const reviving = targets.every((r) => !r.active)
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.put(`/processes/${r.id}`, {
+      name: r.name, workcenter: r.workcenter, stdTimeMin: r.stdTimeMin,
+      costPerHr: r.costPerHr, sortOrder: r.sortOrder, active: reviving,
+    })))
+    const failed = results.filter((x) => x.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
   async function remove(p: ProductionProcess) {
     if (!confirm(`공정 '${p.name}'을(를) 삭제할까요?`)) return
     try {
@@ -101,7 +123,10 @@ export default function ProcessPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '작업코드등록', onClick: () => setOpOpen(true) }, { label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '작업코드등록', onClick: () => setOpOpen(true) },
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
+                { label: '새로고침', onClick: load },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -154,7 +179,13 @@ export default function ProcessPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={rows.length > 0 && rows.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       rows.every((r) => checked.has(r.id)) ? new Set() : new Set(rows.map((r) => r.id)),
+                     )} />
+            </th>
             <th>생산공정코드</th>
             <th>생산공정명</th>
             <th style={{ width: 60 }}>순번</th>
@@ -170,9 +201,15 @@ export default function ProcessPage() {
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 공정이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ color: '#5a626e' }}>{r.sortOrder}</td>

@@ -4,6 +4,7 @@ import { formatDays } from '../../utils/dayCount'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 관리 > 휴가잔여일수현황 — 사원별 부여·사용 일수 및 잔여 연차 (/api/hr/vacations/summary).
@@ -71,12 +72,15 @@ export default function VacationRemainPage() {
    * <b>부서별로 얼마가 남았는지</b>를 눈으로 더해야 했다. 연차 소진 독려는
    * 대개 부서 단위로 한다.
    */
+  /** 원본 조건 [휴가코드]. 줄의 '연차(2026년)' 같은 값이다. */
+  const [leaveCode, setLeaveCode] = useState('')
   const SUBTOTALS = ['부서', '휴가명'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('부서')
 
   const shown = rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
+    if (leaveCode && r.leaveName !== leaveCode) return false
     return true
   })
   const days = (n: number) => formatDays(n, decimals)
@@ -121,6 +125,16 @@ export default function VacationRemainPage() {
         <EcCond label="부서" pick>
           <input className="ec-input" placeholder="부서명 일부" value={dept}
                  onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/*
+          원본 조건 [휴가코드]. 줄에 '연차(2026년)' 처럼 코드가 찍히는데 그걸로 거를
+          자리가 없었다 — 연차 말고 다른 휴가를 따로 볼 수가 없었다.
+        */}
+        <EcCond label="휴가코드" pick>
+          <CodePickerField label="휴가코드" hideLabel width={180} placeholder="전체" emptyLabel="전체"
+                           value={leaveCode} onChange={(v) => setLeaveCode(v)}
+                           items={[...new Set(rows.map((r) => r.leaveName).filter(Boolean))]
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="재직구분">
           <div className="ec-pills">
