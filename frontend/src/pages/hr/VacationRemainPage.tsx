@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { formatDays } from '../../utils/dayCount'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -78,9 +79,7 @@ export default function VacationRemainPage() {
     if (dept && !(r.department ?? '').includes(dept)) return false
     return true
   })
-  const days = (n: number) => n.toLocaleString('ko-KR', {
-    minimumFractionDigits: decimals, maximumFractionDigits: decimals,
-  })
+  const days = (n: number) => formatDays(n, decimals)
   const groups = useMemo(() => subtotalBy(shown,
     (r) => (subtotal === '휴가명' ? r.leaveName : r.department),
     { total: (r) => r.totalDays, used: (r) => r.usedDays, remain: (r) => r.remainingDays }),

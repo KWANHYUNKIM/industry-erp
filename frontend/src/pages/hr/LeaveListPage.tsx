@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
+import { formatDays } from '../../utils/dayCount'
 
 /**
  * 관리 > 근태관리 > 근태조회.
@@ -43,7 +44,8 @@ interface Row {
 const TABS = ['전체', '결재중', '확인', '이력'] as const
 type Tab = typeof TABS[number]
 
-const days = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })
+/** 원본은 소수 셋째 자리까지 채워 찍는다 — 자리수가 맞아야 세로로 견줄 수 있다. */
+const days = formatDays
 
 export default function LeaveListPage() {
   /** 원본 근태조회의 [신규(F2)] — 근태입력 화면을 연다. */

@@ -1235,6 +1235,38 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────
+console.log('\n■ 근태·휴가 일수를 화면마다 같은 모양으로 찍나')
+
+/*
+ * <b>같은 일수가 화면마다 다른 모양으로 보이지 않나.</b>
+ *
+ * <p>원본은 소수 <b>셋째 자리까지 채워</b> 찍는다(사본 근태현황 [근태] 값이 1.250).
+ * 우리는 화면마다 달랐다 — 근태조회·휴가사용실적은 두 자리(1.00), 근태현황은
+ * 아예 안 채웠다(1). 반차 0.5 와 반반차 0.25 가 섞이는 자료라, 자리수를 안 맞추면
+ * 세로로 늘어섰을 때 <b>소수점 자리가 어긋나</b> 크기를 눈으로 못 고른다.
+ *
+ * <p>서식은 <code>utils/dayCount.ts</code> 하나로 모았다. 근태·휴가 화면이
+ * <code>toLocaleString</code> 을 직접 부르면 또 갈라지므로 그것을 잡는다.
+ */
+{
+  const DAY_SCREENS = ['hr/LeaveListPage.tsx', 'hr/VacationUsePage.tsx',
+    'hr/VacationRemainPage.tsx', 'hr/AttendanceKindStatusPage.tsx']
+  const bad = []
+  let checked = 0
+  for (const rel of DAY_SCREENS) {
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) { bad.push(`${rel} 없음`); continue }
+    checked++
+    const src = readFileSync(path, 'utf8')
+    if (!/formatDays/.test(src)) bad.push(`${rel} — 일수 서식을 dayCount 로 안 쓴다`)
+    // 자릿수를 화면에서 직접 정하면 또 갈라진다
+    const own = src.match(/minimumFractionDigits/g)
+    if (own) bad.push(`${rel} — 자릿수를 화면에서 직접 정한다(${own.length}곳)`)
+  }
+  eq(`일수를 쓰는 화면 ${checked}개가 같은 서식을 쓴다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

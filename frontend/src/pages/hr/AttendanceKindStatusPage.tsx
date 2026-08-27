@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { formatDays } from '../../utils/dayCount'
 
 /**
  * 관리 > 근태관리 > 근태현황 — 연차·반차 같은 <b>근태 기록</b>을 기간·조건으로 본다.
@@ -42,7 +43,8 @@ interface Vacation {
   statusName: string
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
+/** 원본 [근태] 열은 일수다 — 소수 셋째 자리까지 채워 찍는다(사본 값 1.250). */
+const days = formatDays
 
 export default function AttendanceKindStatusPage() {
   const [rows, setRows] = useState<Vacation[]>([])
@@ -145,10 +147,10 @@ export default function AttendanceKindStatusPage() {
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         근태 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
         <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalDays)}</b>일
+        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totalDays)}</b>일
         {byKind.length > 0 && (
           <span style={{ marginLeft: 10, color: '#8a929c' }}>
-            {byKind.map(([k, v]) => `${k} ${num(v)}일`).join(' · ')}
+            {byKind.map(([k, v]) => `${k} ${days(v)}일`).join(' · ')}
           </span>
         )}
       </div>
@@ -188,7 +190,7 @@ export default function AttendanceKindStatusPage() {
               <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.days)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600 }}>{days(r.days)}</td>
               <td style={{ color: r.reason ? undefined : '#c9ced6' }}>{r.reason ?? ''}</td>
               <td style={{
                 textAlign: 'center', fontWeight: 700,
@@ -200,7 +202,7 @@ export default function AttendanceKindStatusPage() {
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
             <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalDays)}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{days(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>

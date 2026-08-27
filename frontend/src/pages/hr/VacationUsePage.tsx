@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { formatDays } from '../../utils/dayCount'
 
 /** 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동) */
 interface Row {
@@ -36,7 +37,8 @@ interface SummaryRow {
 
 const mono = { fontFamily: 'monospace' as const }
 /** 원본은 0.50 · 0.13 처럼 소수 두 자리로 적는다(시간 단위 휴가가 0.125일씩 쌓인다). */
-const days = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })
+/** 원본은 소수 셋째 자리까지 채워 찍는다. */
+const days = formatDays
 function statusColor(s: VacationStatus) {
   if (s === 'APPROVED') return '#1c7c3c'
   if (s === 'REJECTED') return '#c60a2e'
