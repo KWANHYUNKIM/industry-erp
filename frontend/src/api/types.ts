@@ -6,6 +6,13 @@ export interface User {
   name: string
   email: string | null
   department: string | null
+  /**
+   * 이어진 사원(hr.Employee) id. 안 이으면 null.
+   *
+   * <p>이름·직급·사원번호는 여기 없다 — auth 는 기반층이라 hr 을 참조할 수 없어
+   * 서버가 붙이지 못한다(CLAUDE.md 4.1). 근태 응답은 hr 이 붙여서 보낸다.
+   */
+  employeeId: number | null
   enabled: boolean
   roles: string[]
 }

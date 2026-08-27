@@ -3444,6 +3444,70 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 계정 ↔ 사원 연결이 근태현황의 <b>직급·사원번호·부서명</b>을 채우는가.
+ *
+ * <p>원본 근태현황의 열은 전표일자 · 근태일자 · <b>부서명</b> · <b>직급</b> ·
+ * <b>사원번호</b> · 사원명 · 근태종류 · 적요다. 우리 근태는 User 에 매달려 있는데
+ * User 에는 직급도 사원번호도 없고 부서는 자유입력 문자열이라, 그 세 칸을 아예 못 만들었다.
+ *
+ * <p>User 는 사원 <b>id 만</b> 든다 — auth 는 기반층이라 hr 을 참조할 수 없다(CLAUDE.md 4.1).
+ * 이름·직급·사원번호를 붙이는 일은 hr 이 맡는다. 그 연결이 실제로 이어지는지 못 박는다.
+ *
+ * <p>안 이은 계정은 <b>null</b> 이어야 한다. 지어내면 그 사람이 아닌 직급이 근태에 찍힌다.
+ */
+async function scenarioUserEmployeeLink() {
+  section('■ 계정↔사원 연결')
+
+  const emps = await must('GET', '/employees')
+  // 직급이 적힌 사원을 고른다 — 빈 직급이면 '직급이 실린다' 가 아무것도 안 재게 된다.
+  const emp = emps.find((e) => e.jobTitle) ?? emps[0]
+  eq('사원 마스터가 있다', !!emp, true)
+
+  const uname = `${P}link`.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  for (const u of (await must('GET', '/users')).filter((x) => x.username === uname)) {
+    await call('DELETE', `/users/${u.id}`)
+  }
+
+  const linked = await must('POST', '/users', {
+    username: uname, password: 'qa-pass-1234', name: 'QA연결',
+    department: '자유입력부서', employeeId: emp.id, roleNames: ['STAFF'],
+  })
+  eq('계정에 사원이 붙는다', linked.employeeId, emp.id)
+
+  const day = '2097-09-14'
+  const vac = await must('POST', '/hr/vacations', {
+    userId: linked.id, type: '연차', startDate: day, endDate: day, days: 1,
+    reason: `${P}연결확인`,
+  })
+  eq('사원번호가 실린다', vac.empCode, emp.code)
+  // 개발 자료의 사원에는 직급이 비어 있고 사원 등록 API 가 없어(읽기 전용) 채울 수가 없다.
+  // 그래서 이 단언이 재는 것은 '값이 있느냐' 가 아니라 <b>지어내지 않느냐</b> 다 —
+  // 마스터에 없는 직급이 근태에 찍히면 그 사람이 아닌 직급이 기록에 남는다.
+  eq('직급은 사원 마스터와 같다', vac.jobTitle ?? '', emp.jobTitle ?? '')
+  // 부서명은 이어져 있으면 부서 마스터의 이름을 쓴다 — 계정의 자유입력 부서가 아니다.
+  eq('부서명은 마스터에서 온다', vac.department, emp.department ?? '자유입력부서')
+  eq('전표일자가 실린다', /^\d{4}-\d{2}-\d{2}$/.test(String(vac.docDate)), true)
+
+  // 안 이은 계정은 빈칸이다. 지어내면 그 사람이 아닌 직급이 근태에 찍힌다.
+  const users = await must('GET', '/users')
+  const loose = users.find((u) => u.employeeId == null)
+  if (loose) {
+    const v2 = await must('POST', '/hr/vacations', {
+      userId: loose.id, type: '연차', startDate: day, endDate: day, days: 1,
+      reason: `${P}미연결`,
+    })
+    isNull('안 이은 계정은 사원번호가 없다', v2.empCode)
+    isNull('안 이은 계정은 직급도 없다', v2.jobTitle)
+    await must('DELETE', `/hr/vacations/${v2.id}`)
+  }
+
+  await must('DELETE', `/hr/vacations/${vac.id}`)
+  await must('DELETE', `/users/${linked.id}`)
+  eq('시험용 계정·근태는 남기지 않는다',
+    (await must('GET', '/users')).filter((u) => u.username === uname).length, 0)
+}
+
+/**
  * 출하 <b>줄 적요</b>.
  *
  * <p>원본 출하지시서입력 그리드의 마지막 열이 적요다(품목 · 품목명 · 규격 · 수량 · 적요).
@@ -5549,6 +5613,7 @@ async function main() {
   await scenarioReflectionLines(fixtures)
   await scenarioSalesExtraCost(fixtures)
   await scenarioShipmentLineRemark(fixtures)
+  await scenarioUserEmployeeLink()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

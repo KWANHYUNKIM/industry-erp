@@ -47,6 +47,18 @@ public class HrService {
     private final DocumentNoGenerator docNoGenerator;
     private final VacationRepository vacationRepository;
     private final UserRepository userRepository;
+    private final com.erp.hr.repository.EmployeeRepository employeeRepository;
+
+    /**
+     * 계정에 이어진 사원. 안 이어져 있거나 그 사원이 지워졌으면 null.
+     *
+     * <p>User 는 사원 id 만 든다 — auth 는 기반층이라 hr 을 참조할 수 없다(CLAUDE.md 4.1).
+     * 이름·직급·사원번호를 붙이는 일은 이쪽이 맡는다.
+     */
+    private com.erp.hr.domain.Employee employeeOf(User user) {
+        Long id = user.getEmployeeId();
+        return id == null ? null : employeeRepository.findById(id).orElse(null);
+    }
 
     // ---------------------------------------------------------------- 사원
 
@@ -117,7 +129,7 @@ public class HrService {
     public List<VacationRow> vacations(Integer year) {
         LocalDate[] range = yearRange(year);
         return vacationRepository.findByStartDateBetweenWithUser(range[0], range[1]).stream()
-                .map(VacationRow::from)
+                .map(v -> VacationRow.from(v, employeeOf(v.getUser())))
                 .toList();
     }
 
@@ -152,7 +164,8 @@ public class HrService {
                 .reason(req.reason())
                 .status(VacationStatus.PENDING)
                 .build();
-        return VacationRow.from(vacationRepository.save(v));
+        VacationRequest saved = vacationRepository.save(v);
+        return VacationRow.from(saved, employeeOf(saved.getUser()));
     }
 
     /**
@@ -175,7 +188,7 @@ public class HrService {
         VacationRequest v = vacationRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("휴가 신청을 찾을 수 없습니다. id=" + id));
         v.setStatus(status);
-        return VacationRow.from(v);
+        return VacationRow.from(v, employeeOf(v.getUser()));
     }
 
     @Transactional(readOnly = true)

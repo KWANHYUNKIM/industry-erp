@@ -122,11 +122,28 @@ public final class HrDtos {
 
     // -------------------------------------------------------------- 휴가
 
+    /**
+     * 근태(휴가) 한 줄.
+     *
+     * <p>원본 근태현황의 열 실측(사본): <b>전표일자</b> · 근태일자 · 부서명 ·
+     * <b>직급</b> · <b>사원번호</b> · 사원명 · 근태종류 · 적요.
+     *
+     * <p>직급·사원번호는 사원 마스터(Employee)에 있다. 계정이 사원과 이어져 있으면
+     * 거기서 가져오고, 안 이어져 있으면 null 이다 — 지어내지 않는다.
+     * 부서명도 이어져 있으면 <b>부서 마스터</b>의 이름을 쓴다. 계정의 자유입력 부서는
+     * 부서 마스터와 맞는다는 보장이 없다.
+     */
     public record VacationRow(
             Long id,
             /** 근태번호. 원본 근태조회의 첫 열이다. */
             String docNo,
+            /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
+            LocalDate docDate,
             String empName,
+            /** 사원번호. 계정이 사원과 안 이어져 있으면 null. */
+            String empCode,
+            /** 직급. 계정이 사원과 안 이어져 있으면 null. */
+            String jobTitle,
             String department,
             String type,
             LocalDate startDate,
@@ -137,11 +154,21 @@ public final class HrDtos {
             String statusName
     ) {
         public static VacationRow from(VacationRequest v) {
+            return from(v, null);
+        }
+
+        /** {@code emp} 는 계정에 이어진 사원. 안 이어져 있으면 null 을 넘긴다. */
+        public static VacationRow from(VacationRequest v, com.erp.hr.domain.Employee emp) {
             return new VacationRow(
                     v.getId(),
                     v.getDocNo(),
+                    v.getCreatedAt() != null ? v.getCreatedAt().toLocalDate() : v.getStartDate(),
                     v.getUser().getName(),
-                    v.getUser().getDepartment(),
+                    emp != null ? emp.getCode() : null,
+                    emp != null ? emp.getJobTitle() : null,
+                    emp != null && emp.getDepartment() != null
+                            ? emp.getDepartment().getName()
+                            : v.getUser().getDepartment(),
                     v.getType(),
                     v.getStartDate(),
                     v.getEndDate(),

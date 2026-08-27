@@ -21,7 +21,12 @@ type Status = 'PENDING' | 'APPROVED' | 'REJECTED'
 interface Row {
   id: number
   docNo: string
+  /** 전표일자 — 이 근태를 올린 날. */
+  docDate: string
   empName: string
+  /** 사원번호. 계정이 사원과 안 이어져 있으면 null. */
+  empCode: string | null
+  jobTitle: string | null
   department: string | null
   type: string
   startDate: string
@@ -143,6 +148,7 @@ export default function LeaveListPage() {
               <th style={{ width: 34 }}></th>
               <th style={{ width: 170 }}>근태번호</th>
               <th style={{ width: 190 }}>근태일자</th>
+              <th style={{ width: 110 }}>사원번호</th>
               <th style={{ width: 110 }}>사원명</th>
               <th style={{ width: 100 }}>근태코드</th>
               <th style={{ width: 100, textAlign: 'right' }}>근태수</th>
@@ -153,9 +159,9 @@ export default function LeaveListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -165,6 +171,7 @@ export default function LeaveListPage() {
                 <td style={{ fontFamily: 'monospace' }}>
                   {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
                 </td>
+                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td style={{ textAlign: 'right' }}>{days(r.days)}</td>

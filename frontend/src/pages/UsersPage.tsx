@@ -74,6 +74,7 @@ export default function UsersPage() {
             <th>아이디 ▼</th>
             <th>이름 ▼</th>
             <th>부서</th>
+            <th style={{ width: 110 }}>사원</th>
             <th>권한</th>
             <th style={{ textAlign: 'center' }}>상태</th>
             <th style={{ textAlign: 'center' }}>관리</th>
@@ -81,9 +82,9 @@ export default function UsersPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : users.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 사용자가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 사용자가 없습니다.</td></tr>
           ) : (
             users.map((u, idx) => (
               <tr key={u.id}>
@@ -91,6 +92,7 @@ export default function UsersPage() {
                 <td style={{ fontFamily: 'monospace' }}>{u.username}</td>
                 <td>{u.name}</td>
                 <td>{u.department ?? '-'}</td>
+                <td style={{ color: u.employeeId ? undefined : '#c9ced6' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
                 <td>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {u.roles.map((r) => (
@@ -115,6 +117,13 @@ export default function UsersPage() {
   )
 }
 
+/**
+ * 계정에 이을 사원. 이어 두면 근태현황이 [직급]·[사원번호]·[부서명]을
+ * <b>사원 마스터에서</b> 가져온다 — 계정의 자유입력 부서는 부서 마스터와 맞는다는
+ * 보장이 없어 같은 부서가 두 이름으로 갈릴 수 있다.
+ */
+interface EmployeeLite { id: number; code: string; name: string; jobTitle: string | null }
+
 function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => void }) {
   const [form, setForm] = useState({
     username: '',
@@ -122,7 +131,14 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
     name: '',
     email: '',
     department: '',
+    employeeId: '',
   })
+  const [employees, setEmployees] = useState<EmployeeLite[]>([])
+  useEffect(() => {
+    api.get<EmployeeLite[]>('/employees')
+      .then((r) => setEmployees(r.data))
+      .catch(() => { /* 사원 목록을 못 받아도 계정은 만들 수 있다 */ })
+  }, [])
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['STAFF'])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -146,6 +162,7 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
         ...form,
         email: form.email || undefined,
         department: form.department || undefined,
+        employeeId: form.employeeId ? Number(form.employeeId) : null,
         roleNames: selectedRoles,
       })
       onCreated()
@@ -177,7 +194,19 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
           <label className="mb-1 block text-sm text-slate-600">부서</label>
           <input className={inputCls} value={form.department} onChange={(e) => update('department', e.target.value)} />
         </div>
-        <div className="sm:col-span-2">
+        <div>
+          <label className="mb-1 block text-sm text-slate-600">사원</label>
+          <select className={inputCls} value={form.employeeId} onChange={(e) => update('employeeId', e.target.value)}>
+            <option value="">안 이음</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                [{emp.code}] {emp.name}{emp.jobTitle ? ` · ${emp.jobTitle}` : ''}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: 11, color: '#8a929c' }}>이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
+        </div>
+        <div>
           <label className="mb-1 block text-sm text-slate-600">이메일</label>
           <input type="email" className={inputCls} value={form.email} onChange={(e) => update('email', e.target.value)} />
         </div>

@@ -16,13 +16,22 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
  * 그건 원본의 <b>출/퇴근현황(ID)</b> 에 해당하는 화면이고, 우리 메뉴에도 그 이름으로
  * 같은 경로가 이미 걸려 있다. 그래서 근태현황만 이 화면으로 옮긴다.
  *
- * <p>직급·사원번호는 칸을 만들지 않았다. 근태 기록이 매달린 것은 User 인데 거기에는
- * 직급도 사원번호도 없고, Employee 와 이어 주는 연결도 아직 없다. 값이 없는 칸을
- * 만들어 두면 화면만 원본처럼 보이고 내용은 늘 빈칸이 된다.
+ * <p>[전표일자]·[직급]·[사원번호]는 예전에 칸을 못 만들었다 — 근태가 매달린 것은 User 인데
+ * 거기에 직급도 사원번호도 없고 사원 마스터와 이어 주는 연결도 없었기 때문이다.
+ * 이제 계정에 사원(Employee)을 이을 수 있어 그 세 칸을 채운다(사용자관리에서 잇는다).
+ *
+ * <p>안 이은 계정은 직급·사원번호가 빈칸이다. 지어내지 않는다. 부서명도 이어져 있으면
+ * <b>부서 마스터</b>의 이름을 쓴다 — 계정의 자유입력 부서는 부서 마스터와 맞는다는
+ * 보장이 없어 같은 부서가 두 이름으로 갈릴 수 있다.
  */
 interface Vacation {
   id: number
+  /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
+  docDate: string
   empName: string
+  /** 사원번호·직급. 계정이 사원과 안 이어져 있으면 null. */
+  empCode: string | null
+  jobTitle: string | null
   department: string | null
   type: string
   startDate: string
@@ -150,8 +159,11 @@ export default function AttendanceKindStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            <th style={{ width: 110 }}>전표일자</th>
             <th style={{ width: 190 }}>근태일자</th>
             <th style={{ width: 150 }}>부서명</th>
+            <th style={{ width: 90 }}>직급</th>
+            <th style={{ width: 110 }}>사원번호</th>
             <th style={{ width: 120 }}>사원명</th>
             <th style={{ width: 120 }}>근태종류</th>
             <th style={{ width: 100, textAlign: 'right' }}>근태(일)</th>
@@ -161,16 +173,19 @@ export default function AttendanceKindStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.docDate}</td>
               <td style={{ fontFamily: 'monospace' }}>
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>
+              <td style={{ color: r.jobTitle ? undefined : '#c9ced6' }}>{r.jobTitle ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.days)}</td>
@@ -184,7 +199,7 @@ export default function AttendanceKindStatusPage() {
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>

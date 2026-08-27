@@ -40,6 +40,15 @@ public final class UserDtos {
             String department,
 
             /**
+             * 이을 사원(hr.Employee) id. 안 이으면 null.
+             *
+             * <p>사원과 이어 두면 근태현황이 [직급]·[사원번호]·[부서명]을 <b>사원 마스터에서</b>
+             * 가져온다. 안 이으면 그 칸들이 빈다 — 계정의 자유입력 부서는 부서 마스터와
+             * 맞는다는 보장이 없어 대신 쓰지 않는다.
+             */
+            Long employeeId,
+
+            /**
              * 연간 휴가 부여일수. 안 주면 15일.
              *
              * <p>예전에는 이 값이 서비스 상수 하나였다 — 휴가잔여일수현황이 전원을 15일로
@@ -57,6 +66,14 @@ public final class UserDtos {
             @NotBlank(message = "이름을 입력하세요.") String name,
             @Email(message = "올바른 이메일 형식이 아닙니다.") String email,
             String department,
+            /**
+             * 이을 사원(hr.Employee) id. 안 이으면 null.
+             *
+             * <p>사원과 이어 두면 근태현황이 [직급]·[사원번호]·[부서명]을 <b>사원 마스터에서</b>
+             * 가져온다. 안 이으면 그 칸들이 빈다 — 계정의 자유입력 부서는 부서 마스터와
+             * 맞는다는 보장이 없어 대신 쓰지 않는다.
+             */
+            Long employeeId,
             /**
              * 연간 휴가 부여일수. 안 주면 15일.
              *
@@ -89,6 +106,8 @@ public final class UserDtos {
             String name,
             String email,
             String department,
+            /** 이어진 사원 id. 이름·직급·사원번호는 hr 이 붙인다(auth 는 hr 을 모른다). */
+            Long employeeId,
             /** 연간 휴가 부여일수. 휴가잔여일수현황의 '휴가일수' 열이 이 값이다. */
             BigDecimal annualLeaveDays,
             boolean enabled,
@@ -105,6 +124,7 @@ public final class UserDtos {
                     user.getName(),
                     user.getEmail(),
                     user.getDepartment(),
+                    user.getEmployeeId(),
                     user.getAnnualLeaveDays(),
                     user.isEnabled(),
                     roleNames
