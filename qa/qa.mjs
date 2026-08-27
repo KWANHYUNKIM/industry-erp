@@ -3427,6 +3427,82 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 표준원가 자동생성이 <b>판매단가에서 역산되지 않는가.</b>
+ *
+ * <p>예전에는 표준원가를 판매단가 × 고정비율(재료 60% · 노무 25% · 경비 15%)로 지어냈다.
+ * 원가를 판매가에서 역산한 셈이라 방향이 거꾸로였다 — 판매가를 올리면 원가가 따라 오르고
+ * 매출총이익률은 언제나 40%로 고정된다. 이익현황·차이분석·매출원가가 전부 이 값에 기댄다.
+ *
+ * <p>개발 자료에서 완제품의 표준재료비가 6,000원(판매가 10,000 × 60%)이었는데,
+ * BOM 대로 세면 자재 2개 × 1,200원 = 2,400원이다 — <b>2.5배 부풀려져</b> 있었다.
+ *
+ * <p>이제는 BOM 자재 소요량 × 자재 단가로 센다. 노무비·경비는 배부 근거(품목→공정 라우팅)가
+ * 없어 0 으로 두고 사람이 넣는다 — 원본도 [노무비/경비등록] 이라는 사전작업 화면에서
+ * 공정·창고별로 직접 넣게 돼 있다.
+ */
+async function scenarioStandardCostBuild(f) {
+  section('■ 표준원가 자동생성')
+
+  const period = '2099-01'   // 실제 자료와 겹치지 않는 기간
+  const existing = (await must('GET', '/costs')).filter((c) => c.period === period)
+  for (const c of existing) await call('DELETE', `/costs/${c.id}`)
+
+  const made = await must('POST', `/costs/build?period=${period}`)
+  eq('표준원가가 생성된다', made.length > 0, true)
+
+  const items = await must('GET', '/items')
+  const boms = await must('GET', '/boms')
+  const purchases = await must('GET', '/purchases')
+
+  // 자재 단가: 마지막 매입단가 → 품목 구매단가 (재고자산평가와 같은 규칙)
+  const lastPrice = new Map()
+  const lastDate = new Map()
+  for (const d of purchases) {
+    for (const l of d.lines ?? []) {
+      if (!lastDate.has(l.itemId) || d.purchaseDate >= lastDate.get(l.itemId)) {
+        lastDate.set(l.itemId, d.purchaseDate)
+        lastPrice.set(l.itemId, Number(l.unitPrice))
+      }
+    }
+  }
+  const unitCost = (id) => {
+    const last = lastPrice.get(id)
+    if (last != null && last > 0) return last
+    const it = items.find((x) => x.id === id)
+    return it && Number(it.purchasePrice) > 0 ? Number(it.purchasePrice) : null
+  }
+
+  const product = made.find((c) => c.itemId === f.product.id)
+  eq('완제품 표준원가가 생성됐다', !!product, true)
+
+  const bom = boms.find((b) => b.productId === f.product.id)
+  const expected = (bom?.lines ?? []).reduce((n, l) => {
+    const price = unitCost(l.componentId)
+    return price == null ? n : n + price * Number(l.quantity)
+  }, 0)
+  eq('표준재료비 = BOM 소요량 × 자재단가', Number(product.materialCost), expected)
+
+  const item = items.find((x) => x.id === f.product.id)
+  eq('판매단가 × 60% 가 아니다(예전 방식)',
+    Number(product.materialCost) === Math.round(Number(item.unitPrice) * 0.6 * 100) / 100, false)
+
+  eq('노무비는 지어내지 않는다', Number(product.laborCost), 0)
+  eq('경비도 지어내지 않는다', Number(product.overheadCost), 0)
+  eq('표준원가 = 재료비 + 노무비 + 경비', Number(product.standardTotal), Number(product.materialCost))
+
+  // 자재처럼 BOM 이 없는 품목은 자기 매입단가가 재료비다.
+  const material = made.find((c) => c.itemId === f.material.id)
+  if (material) {
+    eq('BOM 이 없는 품목은 자기 매입단가가 재료비', Number(material.materialCost), unitCost(f.material.id))
+  }
+
+  // 시험용으로 만든 기간은 지운다.
+  for (const c of made) await must('DELETE', `/costs/${c.id}`)
+  eq('시험용 원가는 남기지 않는다',
+    (await must('GET', '/costs')).filter((c) => c.period === period).length, 0)
+}
+
+/**
  * 차이분석이 기대는 자료.
  *
  * <p>원본 [구분] 은 원가비교집계표 · 재료비단가차이 · 소모수량차이 · 노무비/경비/외주비차이다.
@@ -4069,6 +4145,7 @@ async function main() {
   await scenarioWoEfficiencyFields()
   await scenarioCostRollForward()
   await scenarioVarianceInputs(fixtures)
+  await scenarioStandardCostBuild(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

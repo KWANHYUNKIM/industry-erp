@@ -93,7 +93,7 @@ controller  →  service  →  repository  →  domain
 | `trade` | `inventory` |
 | `production` | `inventory` |
 | `quality` | `inventory`, `trade` |
-| `accounting` | `inventory`, `trade` |
+| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
 
