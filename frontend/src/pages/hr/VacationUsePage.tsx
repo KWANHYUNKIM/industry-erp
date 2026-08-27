@@ -13,6 +13,8 @@ interface Row {
   endDate: string
   days: number
   reason: string | null
+  /** 재직 여부. 원본 [재직구분] 조건이 이 값을 본다 — 퇴사자 사용실적은 정산 대상이다. */
+  active: boolean
   /** PENDING / APPROVED / REJECTED */
   status: VacationStatus
   /** 대기 / 승인 / 반려 (표시용) */
@@ -20,6 +22,9 @@ interface Row {
 }
 
 type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+/** 원본 [재직구분]. 휴가잔여일수현황과 같은 값이라 이름도 같게 둔다. */
+const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
 
 /** 휴가잔여일수현황과 같은 요약. 여기서는 사원별 <b>휴가일수(부여)</b>를 가져오는 데 쓴다. */
 interface SummaryRow {
@@ -45,6 +50,7 @@ export default function VacationUsePage() {
   const [vtype, setVtype] = useState('')
   const [reason, setReason] = useState('')
   const [status, setStatus] = useState('전체')
+  const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [grants, setGrants] = useState<Map<string, number>>(new Map())
 
   async function load() {
@@ -80,10 +86,14 @@ export default function VacationUsePage() {
    *   [재직구분] 전체|재직자|퇴사자 · [기타] 사용중단휴가코드포함
    * 우리는 사원명 검색어 하나가 전부였다.
    *
-   * 프로젝트·재직구분·사용중단휴가코드는 휴가 응답에 그 값이 없어 칸을 만들지 않는다.
+   * [재직구분]은 예전에 "휴가 응답에 그 값이 없어" 만들지 않았는데, 이제 응답이 재직 여부를
+   * 싣는다. <b>퇴사자의 사용실적은 정산 대상</b>이라 봐야 하는데 걸러 볼 수가 없었다.
+   * 프로젝트·사용중단휴가코드는 여전히 없어 칸을 만들지 않는다.
    * 원본의 '확인'은 결재가 끝난 것이라 우리 APPROVED, '결재중'은 PENDING 이다.
    */
   const shown = rows.filter((r) => {
+    if (employment === 'ACTIVE' && !r.active) return false
+    if (employment === 'RESIGNED' && r.active) return false
     if (emp && !r.empName.includes(emp)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (vtype && !r.type.includes(vtype)) return false
@@ -127,7 +137,7 @@ export default function VacationUsePage() {
       onNew={undefined}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setVtype(''); setReason(''); setStatus('전체') } },
+        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setVtype(''); setReason(''); setStatus('전체'); setEmployment('ACTIVE') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -148,6 +158,14 @@ export default function VacationUsePage() {
         <EcCond label="적요">
           <input className="ec-input" placeholder="사유 일부" value={reason}
                  onChange={(e) => setReason(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="재직구분">
+          <div className="ec-pills">
+            {EMPLOYMENTS.map(([v, label]) => (
+              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
+                      onClick={() => setEmployment(v)}>{label}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="상태">
           <div className="ec-pills">

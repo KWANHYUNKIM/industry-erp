@@ -3912,7 +3912,8 @@ async function scenarioShipmentLineRemark(f) {
 
   const re = (await must('GET', '/shipments')).find((x) => x.id === ship.id)
   eq('다시 조회해도 줄 적요가 남는다', re.lines[0].remark, `${P}줄적요1`)
-  // 출하현황이 [창고명] 칸을 찍는다 — id 만 오면 화면이 창고 목록을 따로 뒤져야 한다.
+  // 출하현황의 [창고] 조건과 [창고명] 열이 이 값을 본다.
+  // 예전에는 응답에 안 실어서 "출하 전표에 창고가 없다" 고 여기고 조건을 안 만들었다.
   eq('창고명이 실린다', re.warehouseName, f.warehouse.name)
 
   await must('DELETE', `/shipments/${ship.id}`)
@@ -4223,6 +4224,9 @@ async function scenarioLeaveDocNo() {
   eq('근태코드(휴가종류)가 실린다', a.type, '연차')
   eq('근태수가 실린다', Number(a.days), 1)
   eq('진행상태가 실린다', a.status, 'PENDING')
+  // 원본 휴가사용실적현황·근태조회의 [재직구분] 조건이 이 값을 본다.
+  // 퇴사자의 사용실적은 정산 대상이라 봐야 하는데, 없어서 걸러 볼 수가 없었다.
+  eq('재직 여부가 실린다', a.active, true)
 
   for (const x of [a, c, d]) await must('DELETE', `/hr/vacations/${x.id}`)
   eq('시험용 근태는 남기지 않는다',

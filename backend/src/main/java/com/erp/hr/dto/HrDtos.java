@@ -150,6 +150,11 @@ public final class HrDtos {
             LocalDate endDate,
             BigDecimal days,
             String reason,
+            /**
+             * 사원이 재직 중인가. 원본 휴가사용실적현황·근태조회의 [재직구분] 조건이 이 값을 본다.
+             * 퇴사자의 사용실적은 정산 대상이라 봐야 하는데, 없어서 걸러 볼 수가 없었다.
+             */
+            boolean active,
             VacationStatus status,
             String statusName
     ) {
@@ -174,6 +179,7 @@ public final class HrDtos {
                     v.getEndDate(),
                     v.getDays(),
                     v.getReason(),
+                    v.getUser().isEnabled(),
                     v.getStatus(),
                     v.getStatus().getDisplayName());
         }
