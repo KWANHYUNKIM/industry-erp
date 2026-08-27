@@ -195,17 +195,17 @@ export default function IssueStatusPage() {
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouseId} onChange={(v) => setWarehouseId(v)}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
         <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={emp} onChange={(v) => setEmp(v)}
                            items={pickers.employees} />
         </EcCond>

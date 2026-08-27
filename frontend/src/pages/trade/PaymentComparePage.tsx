@@ -194,7 +194,7 @@ export default function PaymentComparePage() {
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>

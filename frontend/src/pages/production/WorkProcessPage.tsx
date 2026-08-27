@@ -238,7 +238,7 @@ export default function WorkProcessPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>

@@ -300,12 +300,12 @@ export default function WoEfficiencyPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouse} onChange={(v) => setWarehouse(v)}
                            items={pickers.warehouses} />
         </EcCond>

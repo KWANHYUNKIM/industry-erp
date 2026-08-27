@@ -182,21 +182,21 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
           <>
             <EcCond label="거래처" pick>
               <CodePickerField
-                label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                label="거래처" hideLabel width={220} emptyLabel="전체"
                 value={partnerId} onChange={setPartnerId}
                 items={partnerCodeItems(partners)}
               />
             </EcCond>
             <EcCond label="품목" pick>
               <CodePickerField
-                label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+                label="품목" hideLabel width={220} emptyLabel="전체"
                 value={itemId} onChange={setItemId}
                 items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec ?? undefined }))}
               />
             </EcCond>
             <EcCond label="창고" pick>
               <CodePickerField
-                label="창고" hideLabel width={180} placeholder="전체" emptyLabel="전체"
+                label="창고" hideLabel width={180} emptyLabel="전체"
                 value={warehouseId} onChange={setWarehouseId}
                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
               />

@@ -325,32 +325,32 @@ export default function SalesStatusPage() {
         )}
         <EcCond label="거래처" pick>
           <CodePickerField
-            label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            label="거래처" hideLabel width={220} emptyLabel="전체"
             value={partnerId} onChange={setPartnerId}
             items={partnerCodeItems(partners)}
           />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField
-            label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            label="품목" hideLabel width={220} emptyLabel="전체"
             value={itemId} onChange={setItemId}
             items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec }))}
           />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField
-            label="창고" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+            label="창고" hideLabel width={220} emptyLabel="전체"
             value={warehouse} onChange={setWarehouse}
             items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name, sub: w.location }))}
           />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={projectOptions.map((p) => ({ value: p, name: p }))} />
         </EcCond>
         <EcCond label="관리항목">
-          <CodePickerField label="관리항목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="관리항목" hideLabel width={200} emptyLabel="전체"
                            value={mgmtItem} onChange={(v) => setMgmtItem(v)}
                            items={mgmtOptions.map((m) => ({ value: m, name: m }))} />
         </EcCond>

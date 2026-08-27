@@ -192,7 +192,7 @@ export default function TimeCalcPage() {
           </span>
         </EcCond>
         <EcCond label="생산공장" pick>
-          <CodePickerField label="생산공장" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="생산공장" hideLabel width={200} emptyLabel="전체"
                            value={plant} onChange={(v) => setPlant(v)}
                            items={[...new Set(orders.map((o) => o.warehouseName).filter(Boolean))]
                              .map((w) => ({ value: w, name: w }))} />

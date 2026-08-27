@@ -1765,6 +1765,36 @@ console.log('\n■ 목록이 비었을 때 하는 말이 원본과 같나')
   eq(`빈 목록 문구 ${checked}곳이 원본과 같은 한 문구다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-n) 코드도움 칸의 안내 문구 ─────────────────────────────────────────
+console.log('\n■ 코드도움 칸이 무엇을 고르는 자리인지 스스로 말하나')
+
+/*
+ * <b>원본은 코드도움 칸의 안내 문구를 그 항목 이름으로 둔다</b>
+ * (사본 실측: <code>placeholder=프로젝트</code> · 거래처 · 창고 · 담당자 …).
+ *
+ * <p>우리는 111곳이 '전체' 였다. 조건 판에 칸이 예닐곱 개 늘어서면 <b>어느 칸이
+ * 무엇인지</b>를 왼쪽 라벨에서만 읽어야 했고, 칸만 보면 모두 똑같이 '전체' 였다.
+ * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 따로 말해 준다.
+ *
+ * <p>CodePickerField 가 안내 문구를 안 받으면 라벨을 그대로 쓴다. 화면에서 '전체' 로
+ * 덮어쓰면 그 화면만 또 갈라지므로 그것을 잡는다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/<CodePickerField[\s\S]{0,400}?\/>/g)) {
+      checked++
+      const ph = m[0].match(/placeholder="([^"]*)"/)
+      if (ph && (ph[1] === '전체' || ph[1] === '선택')) {
+        bad.push(`${f.split(sep).pop()}  코드도움 안내 문구가 '${ph[1]}' 이다`)
+      }
+    }
+  }
+  eq(`코드도움 ${checked}곳이 항목 이름으로 안내한다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

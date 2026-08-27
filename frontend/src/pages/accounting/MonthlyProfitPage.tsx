@@ -252,22 +252,22 @@ export default function MonthlyProfitPage() {
       */}
       <ul className="ec-cond" style={{ marginBottom: 10 }}>
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={pickers.warehouses} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>

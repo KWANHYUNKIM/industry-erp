@@ -84,12 +84,12 @@ export default function CurrentStockPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={warehouses.map((w) => ({ value: w, name: w }))} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>

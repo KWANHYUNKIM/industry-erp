@@ -305,23 +305,23 @@ export default function PurchaseStatusPage() {
           </EcCond>
         )}
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체"
                            value={filters.partner} onChange={(v) => setF({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={220} emptyLabel="전체"
                            value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
                            items={pickers.warehouses} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={220} emptyLabel="전체"
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>
         {/* 원본 구매현황 조건 실측(사본): 구분·기준일자·거래유형·내.외자구분·창고·프로젝트·거래처·품목. */}
         <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={220} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체"
                            value={filters.project} onChange={(v) => setF({ project: v })}
                            items={pickers.projects} />
         </EcCond>

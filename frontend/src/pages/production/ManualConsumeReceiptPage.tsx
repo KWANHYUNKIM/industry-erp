@@ -307,7 +307,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                   <tr key={idx}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                     <td>
-                      <CodePickerField label="소모자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                      <CodePickerField label="소모자재" hideLabel fill emptyLabel="선택 해제"
                                        value={l.itemId} onChange={(v) => updateLine(idx, { itemId: v })}
                                        items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
                     </td>

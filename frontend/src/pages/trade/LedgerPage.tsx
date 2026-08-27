@@ -231,12 +231,12 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           </EcCond>
         )}
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
                            value={manager} onChange={(v) => setManager(v)}
                            items={pickers.employees} />
         </EcCond>

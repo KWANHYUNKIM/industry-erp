@@ -129,7 +129,7 @@ export default function StockAnalysisPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.items} />
         </EcCond>

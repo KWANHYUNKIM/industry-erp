@@ -175,7 +175,7 @@ export default function WorkResultInquiryPage() {
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={product} onChange={(v) => setProduct(v)}
                            items={pickers.items} />
         </EcCond>

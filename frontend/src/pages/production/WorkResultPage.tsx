@@ -231,7 +231,7 @@ export default function WorkResultPage() {
             <div>
               {/* 원본 작업내역입력 머리의 [프로젝트]. 프로젝트별 집계에 이 작업이 잡힌다. */}
               <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
-              <CodePickerField label="프로젝트" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+              <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>

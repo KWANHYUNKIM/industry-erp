@@ -180,23 +180,23 @@ export default function ShipmentOrderStatusPage() {
                  onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
         </EcCond>
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouse} onChange={(v) => setWarehouse(v)}
                            items={pickers.warehouses} />
         </EcCond>
         {/* 원본 출하지시서현황 조건 실측(사본): 구분·일자·출하지시No.·출하예정일·창고·프로젝트·관리항목·거래처·품목. */}
         <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>

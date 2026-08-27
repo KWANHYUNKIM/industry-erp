@@ -233,12 +233,12 @@ export default function SalesOrderStatusPage() {
           </label>
         </EcCond>
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={filters.partner} onChange={(v) => setF({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>

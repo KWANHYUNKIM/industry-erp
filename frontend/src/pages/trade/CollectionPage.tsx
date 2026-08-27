@@ -156,17 +156,17 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
         <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
                            value={cond.manager} onChange={(v) => setC({ manager: v })}
                            items={pickers.employees} />
         </EcCond>

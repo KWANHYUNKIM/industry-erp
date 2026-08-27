@@ -131,7 +131,7 @@ export default function VacationRemainPage() {
           자리가 없었다 — 연차 말고 다른 휴가를 따로 볼 수가 없었다.
         */}
         <EcCond label="휴가코드" pick>
-          <CodePickerField label="휴가코드" hideLabel width={180} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
                            value={leaveCode} onChange={(v) => setLeaveCode(v)}
                            items={[...new Set(rows.map((r) => r.leaveName).filter(Boolean))]
                              .map((n) => ({ value: n, name: n }))} />

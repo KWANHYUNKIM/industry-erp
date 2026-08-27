@@ -360,23 +360,23 @@ export default function ProductionIssueStatusPage() {
           </EcCond>
         )}
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
         {/* 원본 조건은 [생산품목]과 [소모품목]이 따로다. 위 [품목]은 어느 쪽이든 거는 우리 것이다. */}
         <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.product} onChange={(v) => setC({ product: v })}
                            items={pickers.items} />
         </EcCond>
         <EcCond label="소모품목" pick>
-          <CodePickerField label="소모품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="소모품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.material} onChange={(v) => setC({ material: v })}
                            items={pickers.items} />
         </EcCond>

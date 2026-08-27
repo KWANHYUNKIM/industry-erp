@@ -38,7 +38,13 @@ export interface CodeItem {
 }
 
 export default function CodePickerField({
-  label, value, onChange, items, width = 170, placeholder = '전체', emptyLabel = '전체', disabled,
+  /*
+   * 안내 문구(placeholder)는 <b>그 항목 이름</b>이다 — 원본 코드도움 칸이 그렇게 적는다
+   * (사본 실측: placeholder=프로젝트 · 거래처 · 창고 · 담당자 …). 우리는 111곳이 '전체'
+   * 였는데, 칸이 여럿 늘어서면 <b>어느 칸이 무엇인지</b>를 라벨에서만 읽어야 했다.
+   * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
+   */
+  label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
   hideLabel, multiple, values, onChangeMulti, fill, pair,
 }: {
   label: string
@@ -155,11 +161,11 @@ export default function CodePickerField({
           readOnly
           disabled={disabled}
           value={display}
-          placeholder={placeholder}
+          placeholder={placeholder ?? label}
           onClick={() => !disabled && setOpen(true)}
           style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined, minWidth: 0,
                    cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
-          title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : placeholder)}
+          title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : (placeholder ?? label))}
         />
         <button
           type="button"

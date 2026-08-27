@@ -209,7 +209,7 @@ export default function WorkResultListPage() {
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={worker} onChange={(v) => setWorker(v)}
                            items={pickers.employees} />
         </EcCond>
@@ -218,7 +218,7 @@ export default function WorkResultListPage() {
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={product} onChange={(v) => setProduct(v)}
                            items={pickers.items} />
         </EcCond>

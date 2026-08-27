@@ -261,7 +261,7 @@ export default function IssuePage() {
             <div>
               {/* 원본 생산불출입력 머리의 [프로젝트]. 프로젝트별 원가에 이 불출이 잡힌다. */}
               <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
-              <CodePickerField label="프로젝트" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+              <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>
@@ -294,7 +294,7 @@ export default function IssuePage() {
                 <tr key={l.key}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td>
-                    <CodePickerField label="자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                    <CodePickerField label="자재" hideLabel fill emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
                                      items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
                   </td>

@@ -102,7 +102,7 @@ export default function BomStockPage() {
         picks={STOCK_PICKS}
       >
         <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} placeholder="전체" emptyLabel="전체"
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
