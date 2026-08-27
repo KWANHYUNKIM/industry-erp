@@ -3427,6 +3427,66 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 생산입고가 <b>생산된공장 → 받는창고</b>로 옮기는가.
+ *
+ * <p>원본 생산입고조회의 열은 일자-No. · <b>생산된공장명</b> · <b>받는창고명</b> ·
+ * 품목명[규격] · 수량 · 담당자명이다. 생산불출(창고 → 공장)과 짝을 이루는 반대 방향이다 —
+ * 자재는 공장에서 소모되고 완제품은 공장에서 만들어져 창고로 들어간다.
+ *
+ * <p>우리 생산실적에는 창고가 하나뿐이라 자재도 완제품도 같은 창고에서 오갔다.
+ * 그래서 공장으로 불출한 자재가 정작 생산에서는 <b>창고 재고</b>에서 빠졌다.
+ *
+ * <p>되돌릴 때가 특히 중요하다 — 뺐던 곳(공장)으로 돌려놓지 않고 받는창고로 넣으면
+ * 공장 재고가 영영 모자란 채로 남는다.
+ */
+async function scenarioProductionWarehouses(f) {
+  section('■ 생산입고 공장→창고')
+
+  const warehouses = await must('GET', '/warehouses')
+  const store = warehouses.find((w) => w.id !== f.warehouse.id)
+  eq('옮길 창고가 둘 이상 있다', !!store, true)
+
+  const boms = await must('GET', '/boms')
+  const bom = boms.find((b) => b.productId === f.product.id)
+  const line = bom.lines[0]
+  const per = Number(line.quantity)
+
+  const stockOf = async (itemId, warehouseId) => {
+    const rows = await must('GET', '/stock')
+    const r = rows.find((x) => x.itemId === itemId && x.warehouseId === warehouseId)
+    return r ? Number(r.quantity) : 0
+  }
+
+  // 공장(f.warehouse)에 자재를 넣어 둔다.
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: per * 2,
+  })
+  const matBefore = await stockOf(line.componentId, f.warehouse.id)
+  const prodBefore = await stockOf(f.product.id, store.id)
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: store.id, plannedQty: 2, orderDate: '2026-07-15',
+  })
+  const made = await must('POST', '/productions', {
+    workOrderId: wo.id, producedQty: 2, productionDate: '2026-07-15',
+    fromWarehouseId: f.warehouse.id, warehouseId: store.id,
+  })
+  eq('생산된공장이 실린다', made.fromWarehouseId, f.warehouse.id)
+  eq('받는창고가 실린다', made.warehouseId, store.id)
+  eq('자재는 공장에서 빠진다', await stockOf(line.componentId, f.warehouse.id), matBefore - per * 2)
+  eq('완제품은 받는창고로 들어간다', await stockOf(f.product.id, store.id), prodBefore + 2)
+
+  await must('DELETE', `/productions/${made.id}`)
+  eq('지우면 자재가 공장으로 돌아온다', await stockOf(line.componentId, f.warehouse.id), matBefore)
+  eq('지우면 완제품이 받는창고에서 빠진다', await stockOf(f.product.id, store.id), prodBefore)
+
+  await must('DELETE', `/work-orders/${wo.id}`)
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: per * 2,
+  })
+}
+
+/**
  * 근태(휴가) 전표의 <b>근태번호</b>.
  *
  * <p>원본 근태조회의 첫 열이 [근태번호] 다. 우리 휴가에는 번호가 없어서 "그 근태 건" 을
@@ -5198,6 +5258,7 @@ async function main() {
   await scenarioWorkResultResource()
   await scenarioProcessOrderAndOperations()
   await scenarioLeaveDocNo()
+  await scenarioProductionWarehouses(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

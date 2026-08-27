@@ -17,6 +17,7 @@ import com.erp.production.dto.ProductionDtos.ProductionMaterialResponse;
 import com.erp.production.dto.ProductionDtos.ProductionResponse;
 import com.erp.production.repository.BomRepository;
 import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.repository.WarehouseRepository;
 import com.erp.production.repository.ProductionRepository;
 import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ProductionService {
     private final WorkOrderRepository workOrderRepository;
     private final BomRepository bomRepository;
     private final ItemRepository itemRepository;
+    private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -74,13 +76,28 @@ public class ProductionService {
         }
 
         LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
-        Warehouse warehouse = wo.getWarehouse();
+
+        /*
+         * 원본은 [생산된공장] → [받는창고] 로 옮기는 전표다(생산입고조회의 두 열).
+         * 자재는 공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
+         *
+         * <p>둘 다 안 주면 예전처럼 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있다.
+         */
+        Warehouse warehouse = req.warehouseId() != null
+                ? warehouseRepository.findById(req.warehouseId())
+                        .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.warehouseId()))
+                : wo.getWarehouse();
+        Warehouse from = req.fromWarehouseId() != null
+                ? warehouseRepository.findById(req.fromWarehouseId())
+                        .orElseThrow(() -> ApiException.notFound("생산된공장을 찾을 수 없습니다. id=" + req.fromWarehouseId()))
+                : warehouse;
 
         Production production = Production.builder()
                 .prodNo(generateProdNo(date))
                 .workOrder(wo)
                 .product(wo.getProduct())
                 .warehouse(warehouse)
+                .fromWarehouse(req.fromWarehouseId() != null ? from : null)
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)
@@ -95,7 +112,7 @@ public class ProductionService {
                 if (component.getId().equals(wo.getProduct().getId())) {
                     throw ApiException.badRequest("완제품 자신을 소모자재로 선택할 수 없습니다: " + component.getName());
                 }
-                stockService.applyDelta(component, warehouse, line.quantity().negate(),
+                stockService.applyDelta(component, from, line.quantity().negate(),
                         StockTransactionType.OUTBOUND, null, date,
                         "생산소요(수동) " + production.getProdNo(), username);
                 production.addMaterial(ProductionMaterial.builder()
@@ -107,7 +124,7 @@ public class ProductionService {
             for (BomLine line : bom.getLines()) {
                 Item component = line.getComponent();
                 BigDecimal consume = line.getQuantity().multiply(qty);
-                stockService.applyDelta(component, warehouse, consume.negate(),
+                stockService.applyDelta(component, from, consume.negate(),
                         StockTransactionType.OUTBOUND, null, date,
                         "생산소요 " + production.getProdNo(), username);
                 production.addMaterial(ProductionMaterial.builder()
@@ -152,9 +169,11 @@ public class ProductionService {
                 StockTransactionType.OUTBOUND, null, date,
                 "생산입고취소 " + p.getProdNo(), username);
 
-        // 2) 소모했던 자재를 되돌린다.
+        // 2) 소모했던 자재를 되돌린다 — 뺐던 곳(생산된공장)으로 돌려놓는다.
+        //    받는창고로 돌려놓으면 공장 재고가 영영 모자란 채로 남는다.
+        Warehouse consumedAt = p.getFromWarehouse() != null ? p.getFromWarehouse() : warehouse;
         for (ProductionMaterial m : p.getMaterials()) {
-            stockService.applyDelta(m.getComponent(), warehouse, m.getQuantity(),
+            stockService.applyDelta(m.getComponent(), consumedAt, m.getQuantity(),
                     StockTransactionType.INBOUND, null, date,
                     "생산소요취소 " + p.getProdNo(), username);
         }

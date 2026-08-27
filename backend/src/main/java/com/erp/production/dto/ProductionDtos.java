@@ -53,6 +53,13 @@ public final class ProductionDtos {
             @NotNull(message = "작업지시를 선택하세요.") Long workOrderId,
             @NotNull(message = "생산수량을 입력하세요.") @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal producedQty,
             LocalDate productionDate,
+            /**
+             * 생산된공장 — 자재를 소모한 곳. 안 주면 작업지시의 창고에서 소모한다.
+             * 원본은 [생산된공장] → [받는창고] 로 옮기는 전표다.
+             */
+            Long fromWarehouseId,
+            /** 받는창고 — 완제품이 들어갈 곳. 안 주면 작업지시의 창고. */
+            Long warehouseId,
             /** 선택: 수동 소모자재 목록. 있으면 이 목록대로 소모, 없으면 BOM 자동소모 */
             List<@Valid ManualConsumeLine> materials
     ) {}
@@ -76,7 +83,10 @@ public final class ProductionDtos {
             Long id, String prodNo,
             Long workOrderId, String workOrderNo,
             Long productId, String productCode, String productName, String productUnit,
+            /** 받는창고 — 완제품이 들어간 곳. 원본 [받는창고명]. */
             Long warehouseId, String warehouseName,
+            /** 생산된공장 — 자재를 소모한 곳. 원본 [생산된공장명]. 안 정했으면 null. */
+            Long fromWarehouseId, String fromWarehouseName,
             BigDecimal producedQty, LocalDate productionDate, String createdBy,
             List<ProductionMaterialResponse> materials
     ) {
@@ -86,6 +96,8 @@ public final class ProductionDtos {
                     p.getWorkOrder().getId(), p.getWorkOrder().getOrderNo(),
                     p.getProduct().getId(), p.getProduct().getCode(), p.getProduct().getName(), p.getProduct().getUnit(),
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
+                    p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
+                    p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,
                     p.getProducedQty(), p.getProductionDate(), p.getCreatedBy(),
                     p.getMaterials().stream().map(ProductionMaterialResponse::from).toList());
         }

@@ -131,9 +131,9 @@ public class ProductionActualInitializer implements CommandLineRunner {
         saveWorkOrder(items.get("ITM-0004"), wh, 150, LocalDate.of(2026, 7, 4), LocalDate.of(2026, 7, 22), 4);
 
         // 생산실적 등록(BOM 소요 자재 출고 + 완제품 입고 + 작업지시 진척 갱신)
-        productionService.create(new CreateProductionRequest(wo1.getId(), BigDecimal.valueOf(100), LocalDate.of(2026, 7, 5), null), null);
-        productionService.create(new CreateProductionRequest(wo2.getId(), BigDecimal.valueOf(120), LocalDate.of(2026, 7, 6), null), null);
-        productionService.create(new CreateProductionRequest(wo3.getId(), BigDecimal.valueOf(50), LocalDate.of(2026, 7, 7), null), null);
+        productionService.create(new CreateProductionRequest(wo1.getId(), BigDecimal.valueOf(100), LocalDate.of(2026, 7, 5), null, null, null), null);
+        productionService.create(new CreateProductionRequest(wo2.getId(), BigDecimal.valueOf(120), LocalDate.of(2026, 7, 6), null, null, null), null);
+        productionService.create(new CreateProductionRequest(wo3.getId(), BigDecimal.valueOf(50), LocalDate.of(2026, 7, 7), null, null, null), null);
     }
 
     private WorkOrder saveWorkOrder(Item product, Warehouse wh, long plannedQty,

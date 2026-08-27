@@ -28,6 +28,16 @@ public class Production extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
+    /**
+     * 생산된공장 — 자재를 <b>소모한</b> 곳. 원본 생산입고조회의 [생산된공장명] 이다.
+     *
+     * <p>생산불출(창고 → 공장)과 짝이다. 자재는 공장에서 빠지고 완제품은 받는창고로 들어간다.
+     * 비워 두면 예전처럼 받는창고에서 자재도 빠진다 — 공장을 안 쓰는 회사도 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "from_warehouse_id")
+    private Warehouse fromWarehouse;
     /** 생산번호 (예: PR-20260706-0001) */
     @Column(nullable = false, unique = true, length = 30)
     private String prodNo;
