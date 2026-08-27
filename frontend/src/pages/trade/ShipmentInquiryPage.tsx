@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -28,6 +29,7 @@ const TAB_STATUS: Record<Exclude<SendTab, '전체'>, ShipStatus> = { 미발송: 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function ShipmentInquiryPage() {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<Shipment[]>([])
   const [keyword, setKeyword] = useState('')
   const [from, setFrom] = useState('')
@@ -57,7 +59,13 @@ export default function ShipmentInquiryPage() {
   const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQuantity, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
 
   return (
-    <EcListShell title="출하조회" search={keyword} onSearchChange={setKeyword} onSearch={load} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="출하조회" search={keyword} onSearchChange={setKeyword} onSearch={load} /*
+        원본 출하조회의 버튼은 신규(F2)·진행상태변경·보내기·인쇄·바코드(품목)·전자결재·
+        선택삭제·이력조회다. [신규(F2)] 자리가 비어 있었다 — 조회에서 "하나 더 넣자" 가 되면
+        메뉴를 다시 뒤져야 했다. 우리 출하 등록은 출하지시서조회 화면이 겸한다.
+      */
+      onNew={() => navigate('/sales/shipment-order')}
+      actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
         <span>기준일자</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />

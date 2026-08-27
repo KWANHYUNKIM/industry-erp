@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
 
@@ -51,6 +52,7 @@ async function printOne(r: Row) {
 }
 
 export default function ReceiptInquiryPage() {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -79,7 +81,14 @@ export default function ReceiptInquiryPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      /*
+       * 원본 생산입고조회의 버튼은 신규(F2) · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) ·
+       * 전자결재 · 선택삭제 · 이력조회다. 우리에겐 [신규(F2)] 자리가 비어 있었다 —
+       * 조회에서 "하나 더 넣자" 가 되면 메뉴를 다시 뒤져야 했다.
+       * 원본의 신규는 생산입고 I(BOM기준소모)로 간다.
+       */
+      onNew={() => navigate('/production/receipt-bom')}
+      actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
