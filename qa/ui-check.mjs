@@ -575,6 +575,53 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-g) 원본 [구분] 기본값 ↔ 우리 기본 모드 ─────────────────────────────
+console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 같나')
+
+/*
+ * <b>조건 판의 [구분] 라디오 중 원본이 켜 둔 것과 우리 기본 모드가 같은가.</b>
+ *
+ * <p>qa/fixtures/ecount-mode-default.json 은 사본 조건 판에서 <b>checked 가 붙은</b>
+ * 라디오를 뽑은 것이다.
+ *
+ * <p>판매일괄회계반영이 원본은 [거래처별]로 열리는데 우리는 [전표별]로 열고 있었다.
+ * 회계반영은 거래처 단위로 묶어서 하는 일이라, 전표별로 열면 같은 거래처가 여러 줄로
+ * 흩어져 <b>한 번에 반영할 것을 눈으로 모아야</b> 한다. 기간과 마찬가지로
+ * 화면을 열었을 때 보이는 모양이 원본과 다른 것이다.
+ */
+{
+  const capMode = JSON.parse(readFileSync('qa/fixtures/ecount-mode-default.json', 'utf8'))
+
+  /** 사본 화면 이름 → 우리 화면 파일 */
+  const FILE_OF = new Map([
+    ['판매현황', 'trade/SalesStatusPage.tsx'],
+    ['출하현황', 'trade/ShipmentPage.tsx'],
+    ['출하지시서현황', 'trade/ShipmentOrderStatusPage.tsx'],
+    ['미출하현황', 'trade/UnshippedPage.tsx'],
+    ['판매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [fam, conds] of Object.entries(capMode)) {
+    const rel = FILE_OF.get(fam)
+    if (!rel) { bad.push(fam + '  (어느 화면인지 안 이어 놓았다)'); continue }
+    const file = 'frontend/src/pages/' + rel
+    if (!existsSync(file)) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
+    const src = readFileSync(file, 'utf8')
+    const want = conds['구분']
+    if (!want) continue
+    // 기본 모드는 useState<...>('…') 로 잡는다. 못 찾으면 셀 수 없어 알린다.
+    const got = src.match(/useState<(?:Mode|Tab)[^>]*>\('([^']+)'\)/)
+    if (!got) { bad.push(fam + '  (기본 모드를 useState 에서 못 찾았다)'); continue }
+    checked++
+    if (got[1] !== want['기본']) {
+      bad.push(fam + '  원본 [' + want['기본'] + '] · 우리 [' + got[1] + ']')
+    }
+  }
+  eq('[구분] 기본값을 잰 화면 ' + checked + '개가 원본과 같다', bad.join('\n') || '없음', '없음')
+}
+
 // ── 3) 메뉴 그룹 ↔ 권한 ────────────────────────────────────────────────────
 console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 

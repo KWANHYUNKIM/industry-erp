@@ -33,7 +33,13 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
  */
 type Kind = 'sales' | 'purchase'
 
-/** 원본 [구분]. 순서도 원본을 따른다. */
+/**
+ * 원본 [구분]. 순서도 원본을 따른다.
+ *
+ * <p>원본 라디오는 <b>거래처별 · 전표별</b> 둘이고 <b>거래처별이 켜진 채</b> 뜬다
+ * (사본 조건 판의 checked 실측). [품목별]은 우리 것이다 — 어느 품목이 아직 회계로
+ * 안 넘어갔는지를 보려면 그 단위가 필요하다.
+ */
 const MODES = ['거래처별', '전표별', '품목별'] as const
 type Mode = typeof MODES[number]
 
@@ -80,7 +86,12 @@ export default function AccountingReflectionPage() {
   const [params] = useSearchParams()
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
-  const [mode, setMode] = useState<Mode>('전표별')
+  /*
+   * 원본은 <b>거래처별</b>로 열린다. 회계반영은 거래처 단위로 묶어서 하는 일이라
+   * 처음 보이는 판이 그 단위여야 한다 — 전표별로 열면 같은 거래처가 여러 줄로 흩어져
+   * 한 번에 반영할 것을 눈으로 모아야 한다.
+   */
+  const [mode, setMode] = useState<Mode>('거래처별')
   /*
    * 원본 조건 판 실측(사본 · 회계미반영현황(판매)/(구매)):
    *   기준일(영업주기) · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 ·
