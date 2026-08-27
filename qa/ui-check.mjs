@@ -1180,7 +1180,15 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
 
   const bad = []
   let checked = 0
+  /*
+   * 위 묶음 예외에서 <b>이미 만든 것</b>은 빼 준다. 묶음으로 이유를 적어 두면
+   * 그중 하나를 만들었을 때 지우기 쉽지 않은데, 그대로 두면 그 자리는 이후로
+   * 아무도 안 본다. 아래 [낡은 예외] 단언이 이 목록을 강제한다.
+   */
+  for (const k of ['생산입고I-BOM기준소모|적요', '생산입고I-BOM기준소모|노무시간']) NO_COLUMN.delete(k)
+
   let pending = 0
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = MISS_MAP.get(screen)
     if (!rel) continue
@@ -1190,21 +1198,32 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
     const ours = new Set([...src.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
     for (const name of Object.keys(cols)) {
-      if (NO_COLUMN.has(screen + '|' + name)) continue
-      checked++
+      const exempt = NO_COLUMN.has(screen + '|' + name)
+      if (!exempt) checked++
       /*
        * 열 이름이 <b>식</b>인 것도 있다 — 판매는 [수량], 구매는 [기본수량] 처럼
        * 같은 칸을 구분에 따라 다르게 부른다. 그때는 따옴표에 싸인 이름을 찾는다.
        */
       const asExpr = src.includes(`'${name}'`) || src.includes(`"${name}"`)
-      if (!ours.has(flat(name)) && !asExpr) {
-        bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${name}] 열이 없다`)
-      }
+      const here = ours.has(flat(name)) || asExpr
+      /*
+       * <b>낡은 예외</b>를 잡는다. 만들어 놓고 예외를 안 지우면, 그 자리는 이후로
+       * 아무도 안 본다 — 나중에 지워져도 검사가 통과한다. 실제로 [사용중단/재사용]
+       * 셋이 '다음에 붙인다' 고 적힌 채 이미 만들어져 있었다.
+       */
+      /*
+       * 낡았는지는 <b>진짜 열(th)</b> 로만 따진다. 아래 식 fallback 까지 세면,
+       * '열이 아니라 버튼으로 있다' 처럼 이유가 맞는 예외까지 낡았다고 잡는다
+       * (공정등록의 [작업코드등록]이 그랬다).
+       */
+      if (exempt) { if (ours.has(flat(name))) stale.push(`열 [${screen}|${name}] — 이제 열로 있다`); continue }
+      if (!here) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${name}] 열이 없다`)
     }
   }
   eq(`원본 열 ${checked}개가 우리 표에도 있다 (못 만드는 ${NO_COLUMN.size}개는 이유를 적고 뺐다`
     + `, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
     bad.join('\n') || '없음', '없음')
+  eq(`열 예외 ${NO_COLUMN.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
 // ── 2-i) 원본 화면의 버튼 ↔ 우리 버튼 ─────────────────────────────────────
@@ -1323,7 +1342,11 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
 
   const bad = []
   let checked = 0
+  /* 묶음 예외 중 이미 만든 것 — 아래 [낡은 예외] 단언이 이 목록을 강제한다. */
+  for (const k of ['생산불출조회|선택삭제', '생산입고I-BOM기준소모|저장(F8)']) NO_BUTTON.delete(k)
+
   let pending = 0
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   for (const [screen, btns] of Object.entries(cap)) {
     const rel = BTN_MAP.get(screen)
     if (!rel) continue
@@ -1332,15 +1355,18 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
     for (const b of btns) {
-      if (SHELL.has(b) || NO_BUTTON.has(screen + '|' + b)) continue
-      checked++
+      if (SHELL.has(b)) continue
+      const exempt = NO_BUTTON.has(screen + '|' + b)
+      if (!exempt) checked++
       const has = b === '신규(F2)' ? (/onNew=|renderForm=/.test(src) || src.includes(b)) : src.includes(b)
+      if (exempt) { if (has) stale.push(`버튼 [${screen}|${b}] — 이제 있다`); continue }
       if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${b}] 버튼이 없다`)
     }
   }
   eq(`원본 버튼 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_BUTTON.size}개는 이유를 적고 뺐다`
     + `, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
     bad.join('\n') || '없음', '없음')
+  eq(`버튼 예외 ${NO_BUTTON.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
 // ── 2-j) 원본 조건·머리 항목 ↔ 우리 항목 ─────────────────────────────────
