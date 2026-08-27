@@ -209,7 +209,6 @@ const PurchasePriceBulkPage = lazy(() => import('./pages/trade/PurchasePriceBulk
 const OrderTypePage = lazy(() => import('./pages/trade/OrderTypePage'))
 const OrderStagePage = lazy(() => import('./pages/trade/OrderStagePage'))
 const ManualConsumeReceiptPage = lazy(() => import('./pages/production/ManualConsumeReceiptPage'))
-const ConsumeStatusPage = lazy(() => import('./pages/production/ConsumeStatusPage'))
 const ReceiptInquiryPage = lazy(() => import('./pages/production/ReceiptInquiryPage'))
 
 /** 좌측 사이드바는 EcountLayout이 활성 탭 기준으로 그린다.
@@ -291,7 +290,8 @@ export default function App() {
         <Route path="/production/receipt-manual" element={<ManualConsumeReceiptPage />} />
         <Route path="/production/receipt-qr" element={<ManualConsumeReceiptPage withQualityRequest />} />
         <Route path="/production/receipt-inquiry" element={<ReceiptInquiryPage />} />
-        <Route path="/production/consume-status" element={<ConsumeStatusPage />} />
+        {/* 옛 경로. 원본 화면은 [생산입고/소모현황 I] 하나다 — 북마크가 남아 있을 수 있어 살려 둔다. */}
+        <Route path="/production/consume-status" element={<ProductionIssueStatusPage />} />
 
         {/* 판매/구매 */}
         <Route path="/sales" element={<Navigate to="/sales/partners" replace />} />

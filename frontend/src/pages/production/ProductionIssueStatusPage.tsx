@@ -99,7 +99,14 @@ export default function ProductionIssueStatusPage() {
   const [mode, setMode] = useState<Mode>('거래별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '' })
+  const [cond, setCond] = useState({
+    from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '',
+    /**
+     * 원본 조건은 [생산품목]과 [소모품목]이 <b>따로</b>다. 우리 [품목] 하나는 어느 쪽이든
+     * 걸려서, "이 완제품을 만들 때 이 자재를 얼마나 썼나" 를 두 조건으로 좁힐 수가 없었다.
+     */
+    product: '', material: '',
+  })
   const [priceBasis, setPriceBasis] = useState<PriceBasis>('소모품목단가')
   const [boms, setBoms] = useState<BomRow[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -142,6 +149,11 @@ export default function ProductionIssueStatusPage() {
     .filter((p) => !cond.warehouseId || String(p.warehouseId) === cond.warehouseId)
     .filter((p) => !cond.orderNo || p.workOrderNo.includes(cond.orderNo))
     .filter(hitItem)
+    // 원본 조건의 [생산품목]·[소모품목] — 둘을 함께 걸면 그 조합만 남는다.
+    .filter((p) => !cond.product
+      || p.productName.includes(cond.product) || p.productCode.includes(cond.product))
+    .filter((p) => !cond.material
+      || p.materials.some((m) => m.componentName.includes(cond.material) || m.componentCode.includes(cond.material)))
     .sort((a, b) => (a.productionDate < b.productionDate ? 1 : -1))
 
   /**
@@ -184,9 +196,14 @@ export default function ProductionIssueStatusPage() {
     return diffs
       .filter((d) => d.stdQty !== 0 || d.actualQty !== 0)
       .map((d) => {
-        const price = priceBasis === '생산품목단가'
-          ? priceOf(p.productId, p.productionDate)
-          : priceOf(d.componentId, p.productionDate)
+        /*
+         * 원본 결과 열은 <b>생산품목단가</b>와 <b>소모품목단가</b>가 <b>둘 다</b> 있다.
+         * [단가표시]는 그중 <b>어느 것으로 금액을 셀지</b>를 고르는 조건이다 —
+         * 하나만 그리면 고른 쪽만 보이고 다른 쪽은 볼 방법이 없다.
+         */
+        const productPrice = priceOf(p.productId, p.productionDate)
+        const materialPrice = priceOf(d.componentId, p.productionDate)
+        const price = priceBasis === '생산품목단가' ? productPrice : materialPrice
         const gap = d.actualQty - d.stdQty
         return {
           prod: p,
@@ -197,6 +214,8 @@ export default function ProductionIssueStatusPage() {
           stdQty: d.stdQty,
           actualQty: d.actualQty,
           gap,
+          productPrice,
+          materialPrice,
           price,
           amount: price == null ? null : gap * price,
         }
@@ -295,7 +314,7 @@ export default function ProductionIssueStatusPage() {
 
   const reset = () => {
     setMode('거래별')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '', material: '' })
   }
 
   return (
@@ -347,6 +366,15 @@ export default function ProductionIssueStatusPage() {
           <input className="ec-input" placeholder="생산품·소모자재 어느 쪽이든" value={cond.item}
                  onChange={(e) => setC({ item: e.target.value })} style={{ width: 220 }} />
         </EcCond>
+        {/* 원본 조건은 [생산품목]과 [소모품목]이 따로다. 위 [품목]은 어느 쪽이든 거는 우리 것이다. */}
+        <EcCond label="생산품목" pick>
+          <input className="ec-input" placeholder="생산품목코드·품목명 일부" value={cond.product}
+                 onChange={(e) => setC({ product: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="소모품목" pick>
+          <input className="ec-input" placeholder="소모품목코드·품목명 일부" value={cond.material}
+                 onChange={(e) => setC({ material: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
         <EcCond label="작업지시번호">
           <input className="ec-input" placeholder="WO-…" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
@@ -392,16 +420,18 @@ export default function ProductionIssueStatusPage() {
                 <th style={{ textAlign: 'right' }}>생산수량</th>
                 <th style={{ textAlign: 'right' }}>표준소모수량</th>
                 <th style={{ textAlign: 'right' }}>실제소모수량</th>
+                {/* 원본 열 순서: … 실제소모수량 · 생산품목단가 · 소모품목단가 · 차이 · 금액 */}
+                <th style={{ textAlign: 'right' }}>생산품목단가</th>
+                <th style={{ textAlign: 'right' }}>소모품목단가</th>
                 <th style={{ textAlign: 'right' }}>차이</th>
-                <th style={{ textAlign: 'right' }}>{priceBasis}</th>
-                <th style={{ textAlign: 'right' }}>금액</th>
+                <th style={{ textAlign: 'right' }} title={`금액은 [${priceBasis}] 로 셉니다`}>금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
               ) : flatRows.length === 0 ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : flatRows.map((r, i) => {
                 /* 실제가 표준보다 많으면(차이 양수) 그만큼 더 쓴 것이다 — 붉게. */
                 const over = r.gap > 0
@@ -418,10 +448,18 @@ export default function ProductionIssueStatusPage() {
                     <td style={{ textAlign: 'right' }}>{num(r.prod.producedQty)}</td>
                     <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.stdQty)}</td>
                     <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
+                    {/* 금액을 세는 쪽 단가를 굵게 — [단가표시] 가 고른 쪽이 어디인지 표에서 보인다. */}
+                    <td style={{ textAlign: 'right', color: r.productPrice == null ? '#c9ced6' : '#5a626e',
+                                 fontWeight: priceBasis === '생산품목단가' ? 700 : undefined }}>
+                      {won(r.productPrice)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: r.materialPrice == null ? '#c9ced6' : '#5a626e',
+                                 fontWeight: priceBasis === '생산품목단가' ? undefined : 700 }}>
+                      {won(r.materialPrice)}
+                    </td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: over ? '#c60a2e' : r.gap < 0 ? '#1c7c3c' : '#9aa1ab' }}>
                       {num(r.gap)}
                     </td>
-                    <td style={{ textAlign: 'right', color: r.price == null ? '#c9ced6' : '#5a626e' }}>{won(r.price)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? '#c9ced6' : over ? '#c60a2e' : undefined }}>
                       {won(r.amount)}
                     </td>
@@ -435,8 +473,9 @@ export default function ProductionIssueStatusPage() {
                   <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({flatRows.length}줄)</td>
                   <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
                   <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
+                  {/* 생산품목단가 · 소모품목단가 — 단가는 더할 값이 아니라 비워 둔다 */}
+                  <td colSpan={2}></td>
                   <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
-                  <td></td>
                   {/* 단가를 모르는 줄은 빼고 센다 — 0 으로 채우면 차이가 없는 것처럼 보인다 */}
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
                     {won(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
