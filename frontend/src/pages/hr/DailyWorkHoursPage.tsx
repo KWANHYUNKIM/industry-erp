@@ -118,7 +118,7 @@ export default function DailyWorkHoursPage() {
             {loading ? (
               <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : matrix.length === 0 ? (
-              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당 월 근태 내역이 없습니다.</td></tr>
+              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : matrix.map((e) => (
               <tr key={e.empName}>
                 <td style={{ ...nameCol, fontWeight: 600 }}>{e.empName}</td>

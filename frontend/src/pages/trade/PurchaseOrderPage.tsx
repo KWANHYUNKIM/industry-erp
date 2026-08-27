@@ -169,7 +169,7 @@ export default function PurchaseOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>발주서가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
               <tr onClick={() => setOpenId(openId === po.id ? null : po.id)} style={{ cursor: 'pointer' }}>

@@ -197,7 +197,7 @@ export default function ShortMessagePage() {
           {loading ? (
             <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조건에 맞는 쪽지가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((m) => (
             <tr key={m.id} style={{ background: !m.readAt && box !== 'sent' ? '#f4f8fd' : undefined }}>
               <td style={{ textAlign: 'center' }}>

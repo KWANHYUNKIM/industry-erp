@@ -103,7 +103,7 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 항목이 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : items.map((i, idx) => (
                   <tr key={i.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
@@ -149,7 +149,7 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {groups.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 그룹이 없습니다.</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : groups.map((g, i) => (
                   <tr key={g.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -518,7 +518,7 @@ function TransferTab({ transfers, onError, onDone }: {
         </thead>
         <tbody>
           {transfers.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>이체 내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : transfers.map((t, i) => (
             <Fragment key={t.id}>
               <tr onClick={() => setOpenId(openId === t.id ? null : t.id)} style={{ cursor: 'pointer' }}>

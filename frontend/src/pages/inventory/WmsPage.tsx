@@ -120,7 +120,7 @@ export default function WmsPage() {
             </thead>
             <tbody>
               {allocations.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>재고가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : allocations.map((a: AllocationRow, i) => (
                 <tr key={`${a.itemId}-${a.warehouseId}`}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -184,7 +184,7 @@ export default function WmsPage() {
           </thead>
           <tbody>
             {locations.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>로케이션이 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : locations.map((l, i) => (
               <tr key={l.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

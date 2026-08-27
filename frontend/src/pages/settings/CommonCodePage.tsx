@@ -90,7 +90,7 @@ export default function CommonCodePage() {
             </thead>
             <tbody>
               {groups.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>코드 그룹이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : groups.map((g, i) => (
                 <tr
                   key={g.id}
@@ -138,7 +138,7 @@ export default function CommonCodePage() {
             </thead>
             <tbody>
               {!selected || selected.codes.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>코드가 없습니다.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : selected.codes.map((c, i) => (
                 <tr key={c.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

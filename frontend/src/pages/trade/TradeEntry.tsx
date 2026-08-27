@@ -1777,7 +1777,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             </thead>
             <tbody>
               {partnerDocs.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>거래내역이 없습니다.</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : partnerDocs.slice(0, 30).map((d) => (
                 <tr
                   key={d.id} style={{ cursor: 'pointer' }}
@@ -1810,7 +1810,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             </thead>
             <tbody>
               {docs.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>전표가 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : docs.slice(0, 50).map((d) => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => copyFromDoc(d, () => setSlipLoadOpen(false))}>
                   <td style={{ fontFamily: 'ui-monospace, monospace' }}>{d.docNo}</td>
@@ -1900,7 +1900,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           </thead>
           <tbody>
             {lines.filter((l) => l.itemId).length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>명세에 품목이 없습니다.</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lines.filter((l) => l.itemId).map((l, i) => {
               const have = stockWhOf(l.itemId)
               const need = num(l.quantity)

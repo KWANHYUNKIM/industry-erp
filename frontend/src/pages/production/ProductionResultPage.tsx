@@ -285,7 +285,7 @@ export default function ProductionResultPage() {
             </thead>
             <tbody>
               {productions.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>생산 이력이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : productions.map((p) => (
                 <tr key={p.id}>
                   <td style={{ fontFamily: 'monospace' }}>{p.prodNo}</td>

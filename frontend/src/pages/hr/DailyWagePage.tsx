@@ -117,7 +117,7 @@ export default function DailyWagePage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{month} 출역 기록이 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id} style={{ background: selected.includes(r.id) ? '#eef5ff' : undefined }}>
               <td style={{ textAlign: 'center' }}>

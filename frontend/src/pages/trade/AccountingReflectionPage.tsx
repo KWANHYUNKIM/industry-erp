@@ -433,7 +433,7 @@ export default function AccountingReflectionPage() {
             {loading ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lineRows.map((r) => r.kind === 'subtotal' ? (
               <tr key={r.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
                 <td colSpan={7} style={{ textAlign: 'right' }}>{r.month} 계</td>
@@ -486,7 +486,7 @@ export default function AccountingReflectionPage() {
             {loading ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => {
               const partial = g.reflected > 0 && g.unreflected > 0
               return (
@@ -560,7 +560,7 @@ export default function AccountingReflectionPage() {
           {loading ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>

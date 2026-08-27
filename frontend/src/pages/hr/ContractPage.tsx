@@ -125,7 +125,7 @@ export default function ContractPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>근로계약이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((c, i) => (
             <tr key={c.id} onClick={() => setViewing(c)} style={{ cursor: 'pointer' }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

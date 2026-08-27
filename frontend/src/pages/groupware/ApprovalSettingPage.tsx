@@ -126,7 +126,7 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {templates.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 양식이 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : templates.map((t, i) => (
                   <tr key={t.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -180,7 +180,7 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {presets.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 결재선이 없습니다.</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : presets.map((p, i) => (
                   <tr key={p.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

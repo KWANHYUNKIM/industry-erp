@@ -145,7 +145,7 @@ export default function ContractPage() {
           {loading ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>계약이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((c, i) => {
             const warn = c.status === 'SIGNED' && c.daysToExpiry >= 0 && c.daysToExpiry <= EXPIRY_WARN_DAYS
             const expired = c.status === 'SIGNED' && c.daysToExpiry < 0

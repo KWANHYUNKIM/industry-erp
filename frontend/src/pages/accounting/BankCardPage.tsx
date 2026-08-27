@@ -149,7 +149,7 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 계좌가 없습니다.</td></tr>
+          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -185,7 +185,7 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 카드가 없습니다.</td></tr>
+          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -224,7 +224,7 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>입출금 내역이 없습니다.</td></tr>
+          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -264,7 +264,7 @@ function CardUsageTable({ rows }: { rows: CardUsage[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>카드사용 내역이 없습니다.</td></tr>
+          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

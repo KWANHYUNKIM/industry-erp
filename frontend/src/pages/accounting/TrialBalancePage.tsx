@@ -71,7 +71,7 @@ export default function TrialBalancePage() {
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당 기간 회계전표가 없습니다.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : data.rows.map((r) => (
                 <tr key={r.accountId}>
                   <td style={{ fontFamily: 'monospace' }}>{r.accountCode}</td>

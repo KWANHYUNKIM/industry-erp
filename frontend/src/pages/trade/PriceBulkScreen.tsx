@@ -280,7 +280,7 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
         {loading ? (
           <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
         ) : rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조건에 맞는 전표가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => {
           const v = edits[r.lineId]
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
@@ -419,7 +419,7 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
           {loading ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>품목이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => {
             const checked = selected.has(r.id)
             const cur = priceOf(r)

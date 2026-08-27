@@ -351,7 +351,7 @@ export default function WoEfficiencyPage() {
           {loading ? (
             <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((r, i) => {
             const e = efficiency.get(r.id)
             const qtyDiff = r.producedQty - r.plannedQty

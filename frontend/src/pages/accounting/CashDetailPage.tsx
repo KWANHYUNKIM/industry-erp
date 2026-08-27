@@ -169,7 +169,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>계좌간이동 내역이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -321,7 +321,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>결제 내역이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((p, i) => (
             <Fragment key={p.id}>
               <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} style={{ cursor: 'pointer' }}>

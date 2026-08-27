@@ -188,7 +188,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {preview.data.rows.length === 0 ? (
-                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>출력할 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : preview.data.rows.slice(0, 30).map((row, ri) => (
                   <tr key={ri}>
                     {row.map((c, ci) => (

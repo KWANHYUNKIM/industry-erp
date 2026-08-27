@@ -360,7 +360,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조회 내역이 없습니다.</td></tr>
+            <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((d, i) => (
             <Fragment key={d.id}>
               <tr onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>

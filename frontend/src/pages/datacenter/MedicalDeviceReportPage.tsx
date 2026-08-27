@@ -219,7 +219,7 @@ export default function MedicalDeviceReportPage() {
         </tr></thead>
         <tbody>
           {history.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>생성한 보고파일이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : history.map((h) => (
             <tr key={h.id}>
               <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.reportMonth}</td>

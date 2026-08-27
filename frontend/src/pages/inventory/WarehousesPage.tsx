@@ -238,7 +238,7 @@ export default function WarehousesPage() {
             {loading ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : warehouses.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               warehouses.map((w) => (
                 <tr key={w.id} style={{ color: w.active ? undefined : '#9aa1ab' }}>

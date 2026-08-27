@@ -148,7 +148,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            : cards.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 카드사가 없습니다.</td></tr>
+            : cards.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             : cards.map((c, i) => (
               <tr key={c.id} style={{ opacity: c.active ? 1 : 0.5 }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -176,7 +176,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            : agencies.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 결제대행사가 없습니다.</td></tr>
+            : agencies.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             : agencies.map((a, i) => (
               <tr key={a.id} style={{ opacity: a.active ? 1 : 0.5 }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

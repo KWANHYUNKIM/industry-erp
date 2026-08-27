@@ -385,7 +385,7 @@ export default function ApprovalListPage({
             {loading ? (
               <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당하는 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : filtered.map((r, i) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
                 <td

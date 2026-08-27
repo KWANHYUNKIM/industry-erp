@@ -217,7 +217,7 @@ export default function MailPage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>메일이 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((m, i) => (
             <tr key={m.id} onClick={() => rowClick(m)} style={{ cursor: 'pointer' }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -287,7 +287,7 @@ export default function MailPage() {
             </tr></thead>
             <tbody>
               {rules.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 규칙이 없습니다.</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
               ) : rules.map((r) => (
                 <tr key={r.id}>
                   <td>{r.kindName}</td>

@@ -161,7 +161,7 @@ export default function MallPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>주문이 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => {
             const open = o.status === 'RECEIVED' || o.status === 'CONFIRMED'
             return (

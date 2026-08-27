@@ -101,7 +101,7 @@ export default function PayrollPage() {
         </thead>
         <tbody>
           {employees.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>사원이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : employees.map((e, i) => {
             const p = byEmp.get(e.id)
             return (

@@ -188,7 +188,7 @@ export default function StockIoPage() {
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>이력이 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : history.map((t) => (
                 <tr key={t.id}>
                   <td>{t.transactionDate}</td>

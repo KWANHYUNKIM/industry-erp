@@ -87,7 +87,7 @@ export default function IncomePage() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 수입이 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((i, idx) => (
               <tr key={i.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
@@ -155,7 +155,7 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>내역이 없습니다.</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.accountId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

@@ -99,7 +99,7 @@ export default function AccountLedgerPage() {
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당 기간 거래가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : data.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.entryDate}</td>

@@ -1736,6 +1736,35 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-m) 자료가 없을 때 문구 ─────────────────────────────────────────────
+console.log('\n■ 목록이 비었을 때 하는 말이 원본과 같나')
+
+/*
+ * <b>원본은 한 문구만 쓴다: '등록된 데이터가 없습니다.'</b> 사본 40곳이 전부 같다.
+ *
+ * <p>우리는 <b>116가지</b>로 갈려 있었다 — '데이터가 없습니다', '거래처가 없습니다',
+ * '조건에 맞는 거래처가 없습니다', '집계할 내역이 없습니다' …. 같은 상태를 화면마다
+ * 다른 말로 적으면 사람은 <b>다른 상태로 읽는다</b>. 특히 '조건에 맞는 것이 없다' 와
+ * '아직 아무것도 없다' 를 가르는 것처럼 보이는데, 실제로 우리 화면은 그 둘을 가르지 않았다.
+ *
+ * <p>빈 <b>목록</b> 문구만 본다(colSpan 이 붙은 줄). '불러오는 중…' 같은 다른 상태나
+ * 저장할 때 나오는 검증 메시지는 건드리지 않는다.
+ */
+{
+  const EMPTY = '등록된 데이터가 없습니다.'
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/colSpan=\{[^}]*\}[^<>]*>([^<]{0,40}없습니다\.?)</g)) {
+      checked++
+      const msg = m[1].trim()
+      if (msg !== EMPTY) bad.push(`${f.split(sep).pop()}  '${msg}'`)
+    }
+  }
+  eq(`빈 목록 문구 ${checked}곳이 원본과 같은 한 문구다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
