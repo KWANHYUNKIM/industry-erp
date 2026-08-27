@@ -287,6 +287,17 @@ export default function IssuePage() {
             </tr>
           ))}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+              <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                {shown.reduce((a, r) => a + r.qty, 0).toLocaleString()}
+              </td>
+              <td colSpan={6}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )

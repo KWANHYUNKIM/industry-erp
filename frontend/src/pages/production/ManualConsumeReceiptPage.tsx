@@ -320,6 +320,15 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0).toLocaleString()}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           )}
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>

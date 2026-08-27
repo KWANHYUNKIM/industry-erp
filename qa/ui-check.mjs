@@ -865,6 +865,67 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-h) 원본이 합계를 찍는 자리에 우리도 찍나 ────────────────────────────
+console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
+
+/*
+ * <b>원본이 합계행을 두는 화면에 우리도 합계행이 있나.</b>
+ *
+ * <p>원본은 전표 입력 격자와 채권·채무 표 아래에 합계행을 둔다. 사본에서
+ * <code>data-columnsectiontype=tfoot</code> 칸에 <b>값이 들어 있는 열</b>을 뽑아
+ * <code>qa/fixtures/ecount-total-columns.json</code> 에 적어 두었다
+ * (text-bold 는 합계 표시가 아니다 — 빈 칸에도 붙어 있다).
+ *
+ * <p>합계를 화면 위 카드에만 두면, 표를 스크롤해 내려간 사람은 총계를 보려고
+ * <b>다시 올라가야 한다.</b> 거래처별채권이 실제로 그랬다. 자재를 여러 줄 넣는
+ * 입력 격자는 더해 보지 않으면 총 소모량을 아예 모른다.
+ *
+ * <p>열 이름까지 견주지는 않는다 — 우리 표는 열 구성이 다른 곳이 있다
+ * (채권 표가 [기초채권·회계매출] 대신 [채권·채무·순액]). 합계행 자체가 있나만 본다.
+ */
+{
+  const TOTAL_MAP = new Map([
+    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
+    ['거래처별채무', 'trade/ArApStatusPage.tsx'],
+    ['구매입력', 'trade/TradeEntry.tsx'],
+    ['판매입력', 'trade/TradeEntry.tsx'],
+    ['구매조회', 'trade/TradeInquiryPage.tsx'],
+    ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
+    ['생산불출입력', 'production/IssuePage.tsx'],
+    ['생산불출조회', 'production/IssuePage.tsx'],
+    ['생산입고 III-소모품목 선택', 'production/ManualConsumeReceiptPage.tsx'],
+    ['생산입고II-소모품목 선택', 'production/ManualConsumeReceiptPage.tsx'],
+    ['소요시간계산', 'production/TimeCalcPage.tsx'],
+    ['작업내역입력', 'production/WorkResultPage.tsx'],
+    ['회계미반영현황(판매)', 'trade/AccountingReflectionPage.tsx'],
+    ['회계미반영현황 (구매)', 'trade/AccountingReflectionPage.tsx'],
+  ])
+  /** 원본에는 합계가 있지만 우리 화면 구조가 달라 붙일 자리가 없는 것 — 이유를 적는다. */
+  const NO_PLACE = new Map([
+    ['작업지시서입력', '우리 작업지시서는 품목 하나짜리 폼이라 더할 줄이 없다'],
+    ['판매입력II', '금액조정 화면을 아직 안 만들었다'],
+    ['생산입고I-BOM기준소모', 'BOM대로 자동 소모라 사람이 줄을 넣지 않는다'],
+  ])
+
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-total-columns.json'), 'utf8'))
+  const bad = []
+  let checked = 0
+  for (const screen of Object.keys(cap)) {
+    if (NO_PLACE.has(screen)) continue
+    const rel = TOTAL_MAP.get(screen)
+    if (!rel) { bad.push(`${screen} — 어느 화면인지 안 적혀 있다`); continue }
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) { bad.push(`${screen} — ${rel} 없음`); continue }
+    checked++
+    if (!/<tfoot/.test(readFileSync(path, 'utf8'))) {
+      bad.push(`${rel.split('/').pop()} — 원본 ${screen} 은 [${cap[screen].join('·')}] 합계를 찍는데 합계행이 없다`)
+    }
+  }
+  eq(`원본이 합계를 두는 화면 ${checked}개에 우리도 합계행이 있다`
+    + ` (구조가 달라 못 붙이는 ${NO_PLACE.size}개는 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

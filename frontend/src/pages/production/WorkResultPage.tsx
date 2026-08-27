@@ -276,6 +276,17 @@ export default function WorkResultPage() {
             </tr>
           ))}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.goodQty, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.defectQty, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.workTimeMin, 0).toLocaleString()}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )

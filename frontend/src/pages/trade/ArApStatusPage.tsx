@@ -222,6 +222,18 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
             </tr>
           ))}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+              {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable)}</td>}
+              {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.payable)}</td>}
+              {mode === 'BOTH' && (
+                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable - total.payable)}</td>
+              )}
+            </tr>
+          </tfoot>
+        )}
       </table>
       )}
 
