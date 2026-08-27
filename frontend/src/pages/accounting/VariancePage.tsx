@@ -78,7 +78,7 @@ export default function VariancePage() {
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [keyword, setKeyword] = useState('')
   const [period, setPeriod] = useState('전체')
-  const [withInactive, setWithInactive] = useState(false)
+  const [withInactive, setWithInactive] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()

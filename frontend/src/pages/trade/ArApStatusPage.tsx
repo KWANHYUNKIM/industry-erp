@@ -14,6 +14,9 @@ import { ymd } from '../../components/EcPeriodPicks'
  * 그 날짜까지 발생한 매출·매입·수금·지급만 더한다(GET /ledger/partner-balances?asOf=).
  * 거래처그룹·관리담당자·사용중단거래처 포함 여부로 거를 수 있고, 그룹 소계를 낸다.
  *
+ * [사용중단거래처포함]은 원본과 같이 기본으로 켜 둔다. 거래를 그만둔 곳이라도
+ * 못 받은 돈은 그대로 남아 있어서, 꺼 두면 화면의 채권 합계가 실제보다 작게 보인다.
+ *
  * 원본의 거래처계층그룹·하위그룹포함검색·대표거래처합산은 우리 거래처 모델에 계층이 없어 제외했다
  * (거래처그룹은 1단계 평면 그룹이다).
  */
@@ -40,7 +43,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const [searchParams] = useSearchParams()
   const [keyword, setKeyword] = useState(searchParams.get('partner') ?? '')
   const [partnerCode, setPartnerCode] = useState('')
-  const [includeInactive, setIncludeInactive] = useState(false)
+  const [includeInactive, setIncludeInactive] = useState(true)
   const [hideZero, setHideZero] = useState(true)
 
   useEffect(() => { setMode(defaultMode) }, [defaultMode])

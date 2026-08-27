@@ -926,6 +926,62 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
     bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-h) 원본 체크박스 기본값 ↔ 우리 기본값 ───────────────────────────────
+console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같나')
+
+/*
+ * <b>[사용중단거래처포함] 같은 조건이 원본과 반대로 꺼져 있지 않나.</b>
+ *
+ * <p>기간·구분과 마찬가지로 <b>화면을 열자마자 보는 자료가 달라진다.</b> 거래처별채권이
+ * 실제로 그랬다 — 원본은 사용중단 거래처를 기본으로 포함하는데 우리는 뺐다. 거래를
+ * 그만둔 곳이라도 <b>못 받은 돈은 남아 있어서</b>, 화면의 채권 합계가 실제보다 작았다.
+ * 실제원가현황·차이분석도 [사용중단품목포함]이 반대였다.
+ *
+ * <p>사본에서 <code>&lt;input type=checkbox … checked&gt;</code> 여부를 뽑아
+ * <code>qa/fixtures/ecount-checkbox-default.json</code>(35화면 88개)에 적었다.
+ * 우리에 없는 조건은 건너뛴다 — 조건을 다 만들었는지가 아니라 <b>만든 것의 기본값</b>을 본다.
+ */
+{
+  const BOX_MAP = new Map([
+    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
+    ['거래처별채무', 'trade/ArApStatusPage.tsx'],
+    ['실제원가현황', 'accounting/ActualCostPage.tsx'],
+    ['차이분석', 'accounting/VariancePage.tsx'],
+    ['표준원가현황', 'accounting/StandardCostPage.tsx'],
+    ['업무일지', 'groupware/WorkLogPage.tsx'],
+    ['휴가사용실적현황', 'hr/VacationUsePage.tsx'],
+    ['휴가잔여일수현황', 'hr/VacationRemainPage.tsx'],
+    ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
+  ])
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-checkbox-default.json'), 'utf8'))
+  const bad = []
+  let checked = 0
+  for (const [screen, boxes] of Object.entries(cap)) {
+    const rel = BOX_MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const src = readFileSync(path, 'utf8')
+    for (const [label, want] of Object.entries(boxes)) {
+      // 라벨 앞의 <input type="checkbox" checked={변수} … /> 를 찾는다
+      let m = null
+      for (let at = src.indexOf(label); at >= 0; at = src.indexOf(label, at + 1)) {
+        const near = src.slice(Math.max(0, at - 400), at)
+        if (!/type="checkbox"/.test(near)) continue     // 주석에 적힌 이름은 건너뛴다
+        m = [...near.matchAll(/checked=\{(!?)(\w+)\}/g)].pop()
+        if (m) break
+      }
+      if (!m) continue
+      const init = src.match(new RegExp('\\[' + m[2] + ',[^\\]]*\\] = useState(?:<[^>]*>)?\\((true|false)\\)'))
+      if (!init) continue
+      checked++
+      const got = (init[1] === 'true') !== (m[1] === '!') ? '켜짐' : '꺼짐'
+      if (got !== want) bad.push(`${rel.split('/').pop()}  [${label}] 원본 ${want} · 우리 ${got}`)
+    }
+  }
+  eq(`원본과 견준 조건 ${checked}개의 기본 켜짐이 같다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

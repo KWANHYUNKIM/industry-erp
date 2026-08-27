@@ -86,7 +86,7 @@ export default function ActualCostPage() {
   const [mode, setMode] = useState<Mode>('원가집계표')
   const [period, setPeriod] = useState(thisMonth())
   const [keyword, setKeyword] = useState('')
-  const [withInactive, setWithInactive] = useState(false)
+  const [withInactive, setWithInactive] = useState(true)
   const [movement, setMovement] = useState<MovementRow[]>([])
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [items, setItems] = useState<Item[]>([])
