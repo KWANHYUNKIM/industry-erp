@@ -25,9 +25,17 @@ public class StockController {
     private final StockService stockService;
 
     /** 현재고 목록 */
+    /**
+     * 재고 목록. <b>asOf 를 주면 그 시점 재고</b>다(재고현황·창고별재고·일별재고·BOM재고의
+     * [기준일자]). 안 주면 현재고 — 예전 동작 그대로다.
+     */
     @GetMapping
-    public List<StockResponse> current() {
-        return stockService.currentStock();
+    public List<StockResponse> current(
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate asOf) {
+        return asOf != null ? stockService.stockAsOf(asOf) : stockService.currentStock();
     }
 
     /** 입출고 이력 */

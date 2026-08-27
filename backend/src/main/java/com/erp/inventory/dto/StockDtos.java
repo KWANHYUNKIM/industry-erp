@@ -134,5 +134,27 @@ public final class StockDtos {
                     below
             );
         }
+
+        /**
+         * <b>그 시점의 재고</b>로 만든다. 수량만 바꾸고 나머지는 같다.
+         *
+         * <p>안전재고 미달 표시도 <b>그 시점 수량으로</b> 다시 잰다 — 현재고로 재면
+         * 지금은 모자란데 그때는 넉넉했던 품목이 빨갛게 뜬다.
+         */
+        public static StockResponse asOf(Stock s, BigDecimal quantity) {
+            BigDecimal safety = s.getItem().getSafetyStock();
+            return new StockResponse(
+                    s.getItem().getId(),
+                    s.getItem().getCode(),
+                    s.getItem().getName(),
+                    s.getItem().getSpec(),
+                    s.getItem().getUnit(),
+                    s.getWarehouse().getId(),
+                    s.getWarehouse().getName(),
+                    quantity,
+                    safety,
+                    quantity.compareTo(safety) < 0
+            );
+        }
     }
 }

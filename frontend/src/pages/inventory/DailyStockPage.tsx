@@ -25,7 +25,9 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * 있는 척하고 다른 값을 보여 주는 것보다 없는 편이 낫다.
  *
  * 원본 기타 중 '결재방표시'·'수량관리제외품목포함'은 대응 개념이 없다.
- * 기준일자는 재고현황과 같은 이유로 조회에 쓰지 않는다 — 백엔드 `/stock` 이 현재고만 준다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 type Basis = CostBasis
 
@@ -62,7 +64,7 @@ export default function DailyStockPage() {
     try {
       const period = cond.date.slice(0, 7)
       const [s, w, p, i] = await Promise.all([
-        api.get<StockRow[]>('/stock'),
+        api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
         api.get<Warehouse[]>('/warehouses'),
         api.get<PurchaseDoc[]>('/purchases'),
         // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
@@ -166,7 +168,7 @@ export default function DailyStockPage() {
 
       {cond.date !== today && (
         <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          재고수량은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
+          재고수량은 <b>기준일자 시점</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           수량은 달라지지 않습니다(월별원가는 기준일자의 월을 따릅니다).
         </p>
       )}

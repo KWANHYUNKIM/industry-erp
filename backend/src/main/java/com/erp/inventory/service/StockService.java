@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,36 @@ public class StockService {
     public List<StockResponse> currentStock() {
         return stockRepository.findAllWithItemAndWarehouse().stream()
                 .map(StockResponse::from)
+                .toList();
+    }
+
+    /**
+     * <b>그 시점의 재고</b>. 재고현황·창고별재고·일별재고·BOM재고가 [기준일자]로 부른다.
+     *
+     * <p>이 화면들은 기준일자 칸을 <b>받아 놓고 무시하고 있었다</b> — 날짜를 바꿔도 늘
+     * 현재고가 나왔다. 화면에 "과거 시점 재고 계산은 아직 없다" 고 적어 두긴 했지만,
+     * 조건이 있으면 사람은 그 값이 반영된 줄 안다. 그게 제일 나쁜 거짓말이다.
+     *
+     * <p>계산은 <b>현재고 − 그 뒤의 변동</b>이다. 이력만 더해서 구하지 않는다 —
+     * 이력이 지워지거나 잔량만 손으로 고쳐진 자료가 섞이면 그 시점 숫자가 통째로 틀린다.
+     * (잔량과 이력 합이 같은지는 schema-check 가 따로 지킨다.)
+     *
+     * <p>오늘 이후 날짜를 주면 현재고 그대로다 — 앞날의 재고를 지어내지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public List<StockResponse> stockAsOf(LocalDate asOf) {
+        if (asOf == null || !asOf.isBefore(LocalDate.now())) return currentStock();
+
+        Map<String, BigDecimal> after = new HashMap<>();
+        for (Object[] row : transactionRepository.sumChangeAfter(asOf)) {
+            after.put(row[0] + "/" + row[1], (BigDecimal) row[2]);
+        }
+        return stockRepository.findAllWithItemAndWarehouse().stream()
+                .map((s) -> {
+                    BigDecimal moved = after.getOrDefault(
+                            s.getItem().getId() + "/" + s.getWarehouse().getId(), BigDecimal.ZERO);
+                    return StockResponse.asOf(s, s.getQuantity().subtract(moved));
+                })
                 .toList();
     }
 

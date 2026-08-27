@@ -3602,6 +3602,60 @@ async function scenarioInactiveItemGuards(f) {
 }
 
 /**
+ * <b>기준일자 시점의 재고</b> — GET /stock?asOf=.
+ *
+ * <p>재고현황 · 창고별재고현황 · 일별재고현황 · BOM기준재고 다섯 화면이 [기준일자] 칸을
+ * <b>받아 놓고 무시하고 있었다.</b> 날짜를 바꿔도 늘 현재고가 나왔다. 화면에 "과거 시점
+ * 재고 계산은 아직 없다" 고 적어 두긴 했지만, <b>조건이 있으면 사람은 그 값이 반영된 줄
+ * 안다.</b> 값이 안 바뀌는데 바뀌는 척하는 것이 제일 나쁜 실패다.
+ *
+ * <p>계산은 현재고에서 <b>그 뒤의 입출고를 빼는</b> 것이다. 이력만 더해서 구하지 않는다 —
+ * 이력이 지워지거나 잔량만 손으로 고쳐진 자료가 섞이면 그 시점 숫자가 통째로 틀린다.
+ */
+async function scenarioStockAsOf(f) {
+  section('■ 기준일자 시점 재고')
+
+  const qtyOf = async (params) => {
+    const rows = await must('GET', `/stock${params}`)
+    const r = rows.find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const y = yesterday.toISOString().slice(0, 10)
+
+  const now = await qtyOf('')
+  /*
+   * 어제 시점 값을 <b>먼저 재 둔다.</b> 개발 자료에는 오늘 날짜 이동이 내 것 말고도 있어서
+   * '어제 = 현재고 − 내가 넣은 100' 이 아니다. 처음엔 그렇게 단언했다가 QA 가 물었다.
+   * 이 시나리오가 재려는 것은 <b>오늘 넣은 것이 어제 시점에 안 섞이는가</b> 다.
+   */
+  const before = await qtyOf(`?asOf=${y}`)
+  eq('현재고를 읽는다', now >= 0, true)
+
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 100,
+  })
+  eq('현재고가 100 늘었다', await qtyOf(''), now + 100)
+  eq('오늘 넣은 것은 어제 시점에 안 섞인다', await qtyOf(`?asOf=${y}`), before)
+  eq('asOf 를 안 주면 현재고 그대로', await qtyOf(''), now + 100)
+
+  // 앞날을 물으면 현재고 그대로 — 없는 미래를 지어내지 않는다.
+  const future = new Date()
+  future.setDate(future.getDate() + 30)
+  eq('앞날을 물어도 현재고까지만',
+    await qtyOf(`?asOf=${future.toISOString().slice(0, 10)}`), now + 100)
+
+  // 되돌린다.
+  await must('POST', '/stock/transactions', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 100,
+  })
+  eq('되돌리면 제자리', await qtyOf(''), now)
+  eq('되돌린 뒤 어제 시점도 그대로', await qtyOf(`?asOf=${y}`), before)
+}
+
+/**
  * 설문조사의 <b>[첨부]</b>.
  *
  * <p>원본 설문조사입력에 [여기에 파일 놓기]가 있다. 우리 화면 주석에는
@@ -7096,6 +7150,7 @@ async function main() {
   await scenarioEmployeeMaster(fixtures)
   await scenarioWorkPostAttachment()
   await scenarioSurveyAttachment()
+  await scenarioStockAsOf(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

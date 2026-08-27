@@ -68,4 +68,16 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
             "group by t.item.id")
     List<Object[]> aggregateOpening(@Param("from") LocalDate from,
                                     @Param("warehouseId") Long warehouseId);
+
+    /**
+     * <b>기준일 다음날부터 지금까지</b>의 변동 합 — (품목, 창고)별.
+     *
+     * <p>과거 시점 재고는 <b>현재고에서 그 뒤 변동을 빼서</b> 구한다. 이력만 더해서 구하지
+     * 않는 이유는, 이력이 지워지거나 잔량만 손으로 고쳐진 자료가 섞이면 그 시점 숫자가
+     * 통째로 틀리기 때문이다. 현재고는 화면들이 이미 믿고 쓰는 값이다.
+     */
+    @Query("select t.item.id, t.warehouse.id, coalesce(sum(t.quantityChange), 0) " +
+           "from StockTransaction t where t.transactionDate > :asOf " +
+           "group by t.item.id, t.warehouse.id")
+    List<Object[]> sumChangeAfter(@Param("asOf") java.time.LocalDate asOf);
 }

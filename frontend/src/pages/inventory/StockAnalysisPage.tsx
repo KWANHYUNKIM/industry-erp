@@ -22,8 +22,9 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * 원본에는 창고 조건이 없다(품목별로 전 창고를 합쳐 보는 분석표라서). 우리는 창고 조건이
  * 이미 있고 실제로 동작하므로 남긴다 — 원본에 없다고 되는 기능을 빼지는 않는다.
  *
- * 기준일자는 조회에 아직 쓰지 않는다. 백엔드 /stock 이 현재고만 주고 과거 시점 재고를
- * 계산하지 않는다(재고현황과 같은 한계). 오늘이 아닌 날짜를 고르면 그 사실을 화면에 적는다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 
 interface AnalysisRow {
@@ -55,7 +56,7 @@ export default function StockAnalysisPage() {
     setLoading(true); setError('')
     try {
       const [s, i, w, b] = await Promise.all([
-        api.get<StockRow[]>('/stock'),
+        api.get<StockRow[]>('/stock', { params: { asOf: date } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
@@ -146,7 +147,7 @@ export default function StockAnalysisPage() {
 
       {date !== today && (
         <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          지금 보는 것은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
+          지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}

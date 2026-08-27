@@ -21,7 +21,9 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  * 우리 BOM 은 <b>1단계</b>다(구성품목이 다시 BOM 을 가져도 펼치지 않는다). 원본도 이 화면에서는
  * BOM 을 그대로 쓰므로 같지만, 다단 전개가 필요해지면 여기가 아니라 BOM 쪽을 고쳐야 한다.
  *
- * 기준일자는 재고현황과 같은 이유로 조회에 쓰지 않는다 — 백엔드 `/stock` 이 현재고만 준다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 export default function BomStockPage() {
   const [boms, setBoms] = useState<Bom[]>([])
@@ -39,7 +41,7 @@ export default function BomStockPage() {
     setError('')
     Promise.all([
       api.get<Bom[]>('/boms'),
-      api.get<StockRow[]>('/stock'),
+      api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
       api.get<Warehouse[]>('/warehouses'),
     ])
       .then(([b, s, w]) => { setBoms(b.data); setStock(s.data); setWarehouses(w.data) })
@@ -119,7 +121,7 @@ export default function BomStockPage() {
 
       {cond.date !== today && (
         <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          지금 보는 것은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
+          지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}

@@ -21,7 +21,9 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * '창고별안전재고수량포함'은 우리 안전재고가 <b>품목 단위</b>라서(창고별이 아니다) 뜻이 다르므로
  * 라벨을 '안전재고표시'로 적고 품목 안전재고를 보여 준다.
  *
- * 기준일자는 재고현황과 같은 이유로 조회에 쓰지 않는다 — 백엔드 `/stock` 이 현재고만 준다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 export default function WarehouseStockPage() {
   const [stock, setStock] = useState<StockRow[]>([])
@@ -48,7 +50,7 @@ export default function WarehouseStockPage() {
     setLoading(true)
     setError('')
     Promise.all([
-      api.get<StockRow[]>('/stock'),
+      api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
       api.get<Item[]>('/items'),
       api.get<Warehouse[]>('/warehouses'),
     ])
@@ -165,7 +167,7 @@ export default function WarehouseStockPage() {
 
       {cond.date !== today && (
         <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          지금 보는 것은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
+          지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}

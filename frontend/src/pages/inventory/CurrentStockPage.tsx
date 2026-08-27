@@ -16,9 +16,10 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
  *
  * 우리 화면은 조건이 '안전재고 미달만 보기' 체크박스 하나뿐이었다.
  *
- * 기준일자는 칸만 두고 조회에는 아직 쓰지 않는다 — 백엔드 `/stock` 이 <b>현재고만</b> 주고
- * 특정 시점 재고를 계산하지 않는다. 값이 안 바뀌는데 바뀌는 척하면 더 나쁘므로,
- * 오늘이 아닌 날짜를 고르면 그 사실을 화면에 적는다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔고, 그 사실을 화면에 적어 두긴 했지만 조건이 있으면
+ * 사람은 그 값이 반영된 줄 안다. 서버가 현재고에서 그 뒤의 입출고를 빼서 낸다
+ * (GET /stock?asOf=). 안전재고 미달 표시도 <b>그 시점 수량으로</b> 다시 잰다.
  */
 export default function CurrentStockPage() {
   const [rows, setRows] = useState<StockRow[]>([])
@@ -39,7 +40,7 @@ export default function CurrentStockPage() {
   function load() {
     setLoading(true)
     api
-      .get<StockRow[]>('/stock')
+      .get<StockRow[]>('/stock', { params: { asOf: cond.date } })
       .then((res) => setRows(res.data))
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -104,9 +105,8 @@ export default function CurrentStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          지금 보는 것은 <b>현재고</b>입니다. 과거 시점 재고 계산은 아직 없어서 기준일자를 바꿔도
-          숫자가 달라지지 않습니다.
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid #cfe0f5', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          <b>{cond.date}</b> 시점의 재고입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
         </p>
       )}
 
