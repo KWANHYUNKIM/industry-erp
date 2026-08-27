@@ -188,6 +188,7 @@ const TimeCalcPage = lazy(() => import('./pages/production/TimeCalcPage'))
 const ReceiptStatusPage = lazy(() => import('./pages/production/ReceiptStatusPage'))
 const IssueStatusPage = lazy(() => import('./pages/production/IssueStatusPage'))
 const WorkResultListPage = lazy(() => import('./pages/production/WorkResultListPage'))
+const WorkResultInquiryPage = lazy(() => import('./pages/production/WorkResultInquiryPage'))
 const WoProgressPage = lazy(() => import('./pages/production/WoProgressPage'))
 const ExpenseDetailPage = lazy(() => import('./pages/accounting/ExpenseDetailPage'))
 const SwSchedulePage = lazy(() => import('./pages/groupware/SwSchedulePage'))
@@ -275,6 +276,7 @@ export default function App() {
         <Route path="/production/issue" element={<IssuePage />} />
         <Route path="/production/issue-status" element={<IssueStatusPage />} />
         <Route path="/production/work-result" element={<WorkResultPage />} />
+        <Route path="/production/work-result-list" element={<WorkResultInquiryPage />} />
         <Route path="/production/work-result-status" element={<WorkResultListPage />} />
         <Route path="/production/time-calc" element={<TimeCalcPage />} />
         <Route path="/production/receipt-status" element={<ReceiptStatusPage />} />

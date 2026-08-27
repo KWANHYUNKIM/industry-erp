@@ -9,7 +9,10 @@ import java.util.List;
 public interface WorkResultRepository extends JpaRepository<WorkResult, Long> {
 
     @Query("select wr from WorkResult wr " +
-            "left join fetch wr.workOrder " +
+            "left join fetch wr.workOrder wo " +
+            "left join fetch wo.product " +
+            "left join fetch wr.processMaster " +
+            "left join fetch wr.resource " +
             "order by wr.workDate desc, wr.id desc")
     List<WorkResult> findAllWithRefs();
 }

@@ -144,6 +144,7 @@ const MENU: TopMenu[] = [
           { label: '생산불출', to: '/production/issue' },
           { label: '생산불출현황', to: '/production/issue-status' },
           { label: '작업내역입력', to: '/production/work-result' },
+          { label: '작업내역조회', to: '/production/work-result-list' },
           { label: '작업내역현황', to: '/production/work-result-status' },
           { label: '생산실적', to: '/production/result' },
           { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },

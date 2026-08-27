@@ -122,6 +122,23 @@ public class BorService {
     }
 
     /**
+     * 그 품목을 그 <b>공정</b>에서 수량만큼 작업할 때의 표준시간(분).
+     *
+     * <p>원본 작업내역현황의 [표준작업시간] 열이다. 실제 작업시간과 나란히 놓고
+     * [차이(표준-실제)] 를 본다. 라우팅에 그 공정이 없으면 null 이다 —
+     * 0 을 돌려주면 "표준이 0분" 과 "표준을 모른다" 가 같은 얼굴이 되어,
+     * 라우팅을 안 세운 품목이 전부 '표준보다 오래 걸림' 으로 보인다.
+     */
+    @Transactional(readOnly = true)
+    public Integer standardMinutes(Long productId, Long processId, BigDecimal qty) {
+        if (productId == null || processId == null || qty == null) return null;
+        BigDecimal hoursPerUnit = hoursPerUnitByProcess(productId).get(processId);
+        if (hoursPerUnit == null) return null;
+        return hoursPerUnit.multiply(qty).multiply(BigDecimal.valueOf(60))
+                .setScale(0, java.math.RoundingMode.HALF_UP).intValue();
+    }
+
+    /**
      * 품목이 <b>공정마다</b> 쓰는 1개당 시간(H). 경비·노무비를 공정별로 배부할 때 쓴다.
      * 라우팅이 없으면 빈 map.
      */

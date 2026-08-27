@@ -145,3 +145,43 @@ export function workTime(rows: WorkTimeRow[]): TimeTotals {
   }
   return { standard: Math.round(standard * 100) / 100, actual: Math.round(actual * 100) / 100, unknown }
 }
+
+export interface StdActualRow {
+  /** BOR 이 말하는 표준작업시간(분). 라우팅이 없으면 null. */
+  standard: number | null
+  /** 실제 작업시간(분) */
+  actual: number
+}
+
+export interface StdActualTotals extends TimeTotals {
+  /** 표준 - 실제. 양수면 표준보다 빨리 끝냈다는 뜻이다. */
+  diff: number
+}
+
+/**
+ * 작업내역현황의 [표준작업시간] · [작업시간] · [차이(표준-실제)] 합계.
+ *
+ * <p>표준을 모르는 줄(라우팅 없음)은 <b>표준에도 차이에도 넣지 않고</b> 세기만 한다.
+ * 0 으로 치면 그 줄이 전부 '표준보다 오래 걸림' 이 되어, 라우팅을 아직 안 세운 품목
+ * 때문에 합계 차이가 실제 작업시간만큼 통째로 마이너스가 된다.
+ *
+ * <p>실제시간은 표준을 알든 모르든 다 더한다 — 그건 실제로 쓴 시간이라 빼면 거짓이 된다.
+ * 그래서 diff 는 standard - actual 이 아니라, <b>표준을 아는 줄만</b>의 차이 합이다.
+ */
+export function stdVsActual(rows: StdActualRow[]): StdActualTotals {
+  let standard = 0
+  let actual = 0
+  let diff = 0
+  let unknown = 0
+  for (const r of rows) {
+    actual += r.actual
+    if (r.standard == null) {
+      unknown += 1
+      continue
+    }
+    standard += r.standard
+    diff += r.standard - r.actual
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  return { standard: r2(standard), actual: r2(actual), diff: r2(diff), unknown }
+}

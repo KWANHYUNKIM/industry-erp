@@ -28,11 +28,12 @@ public class WorkResultService {
     private final WorkOrderRepository workOrderRepository;
     private final ProcessRepository processRepository;
     private final ResourceRepository resourceRepository;
+    private final BorService borService;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
         return workResultRepository.findAllWithRefs().stream()
-                .map(WorkResultResponse::from)
+                .map(wr -> WorkResultResponse.from(wr, standardOf(wr)))
                 .toList();
     }
 
@@ -62,7 +63,22 @@ public class WorkResultService {
                 .note(req.note())
                 .build();
 
-        return WorkResultResponse.from(workResultRepository.save(wr));
+        WorkResult saved = workResultRepository.save(wr);
+        return WorkResultResponse.from(saved, standardOf(saved));
+    }
+
+    /**
+     * 이 작업내역의 표준작업시간(분). 원본 작업내역현황의 [표준작업시간] 열.
+     *
+     * <p>기준 수량은 <b>양품+불량</b>이다. 불량도 만드느라 시간을 쓴 것이라
+     * 양품만 세면 불량이 많은 날일수록 '표준보다 오래 걸림' 으로 부풀려진다.
+     * 작업지시(=생산품목)나 공정 마스터 연결이 없으면 표준을 말할 수 없어 null.
+     */
+    private Integer standardOf(WorkResult wr) {
+        if (wr.getWorkOrder() == null || wr.getProcessMaster() == null) return null;
+        BigDecimal qty = wr.getGoodQty().add(wr.getDefectQty());
+        return borService.standardMinutes(
+                wr.getWorkOrder().getProduct().getId(), wr.getProcessMaster().getId(), qty);
     }
 
     @Transactional

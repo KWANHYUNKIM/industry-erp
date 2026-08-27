@@ -10,6 +10,8 @@ interface WorkResult {
   workOrderId: number | null
   workOrderNo: string | null
   process: string
+  productCode: string | null
+  productName: string | null
   resourceId: number | null
   resourceName: string | null
   worker: string | null
@@ -179,6 +181,7 @@ export default function WorkResultPage() {
             <th>일자</th>
             <th>작업지시번호</th>
             <th>공정</th>
+            <th>생산품목명</th>
             <th>투입자원</th>
             <th>작업자</th>
             <th style={{ textAlign: 'right' }}>양품</th>
@@ -189,15 +192,16 @@ export default function WorkResultPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 작업내역이 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
               <td>{r.process}</td>
+              <td>{r.productName ?? ''}</td>
               <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
               <td>{r.worker ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>

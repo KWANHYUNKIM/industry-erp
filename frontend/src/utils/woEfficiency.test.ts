@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { actualConsume, materialDiff, standardConsume, workTime } from './woEfficiency.ts'
+import { actualConsume, materialDiff, standardConsume, stdVsActual, workTime } from './woEfficiency.ts'
 
 const price = (m: Record<number, number | null>) => (id: number) => (id in m ? m[id] : null)
 
@@ -88,4 +88,26 @@ test('표준시간을 모르는 작업은 표준에서 빼고 센다', () => {
   assert.equal(t.standard, 120)
   assert.equal(t.actual, 140)     // 실제시간은 다 더한다
   assert.equal(t.unknown, 1)
+})
+
+test('stdVsActual — 표준을 모르는 줄은 차이에 안 넣는다', () => {
+  const t = stdVsActual([
+    { standard: 60, actual: 50 },
+    { standard: 30, actual: 45 },
+    { standard: null, actual: 200 },   // 라우팅 없음
+  ])
+  assert.equal(t.standard, 90)
+  assert.equal(t.actual, 295)          // 실제시간은 다 더한다
+  assert.equal(t.diff, -5)             // (60-50) + (30-45). 200 은 안 들어간다
+  assert.equal(t.unknown, 1)
+})
+
+test('stdVsActual — diff 는 합계끼리의 뺄셈이 아니다', () => {
+  const t = stdVsActual([{ standard: null, actual: 100 }])
+  assert.equal(t.diff, 0)              // standard-actual 로 계산했으면 -100 이 됐다
+  assert.equal(t.actual, 100)
+})
+
+test('stdVsActual — 양수면 표준보다 빨리 끝냈다', () => {
+  assert.equal(stdVsActual([{ standard: 100, actual: 70 }]).diff, 30)
 })

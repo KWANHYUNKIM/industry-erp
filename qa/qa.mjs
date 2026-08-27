@@ -654,6 +654,11 @@ async function scenarioRelations(f) {
   isNull('마스터에 없는 자유입력 공정 → processId 는 null', wrFree.processId)
   eq('자유입력 공정명은 보존', wrFree.process, `${P}임시수작업`)
 
+  // 이 두 줄이 매 실행마다 남아 있었다 — 작업내역이 실행할 때마다 두 건씩 불어났다.
+  for (const r of [wrLinked, wrFree]) await must('DELETE', `/work-results/${r.id}`)
+  eq('시험용 작업내역은 남기지 않는다',
+    (await must('GET', '/work-results')).filter((r) => r.worker === 'QA').length, 0)
+
   // 관리항목 — 이카운트 품목등록 A7 탭의 `item_type`. 전표 라인에는 읽기전용으로 따라 붙는다.
   // 오래도록 아무 테이블도 참조하지 않는 죽은 마스터였다(FK 0개). 그 회귀를 막는 단언이다.
   const mgmt = await ensure('/management-items', 'code', `${P}MG`, null, {
@@ -3876,6 +3881,11 @@ async function scenarioWorkProcess(f) {
   eq('작업내역이 작업지시를 가리킨다', first.workOrderId, wo.id)
   eq('마스터에 있는 공정이면 processId 가 채워진다', first.processId, procs[0].id)
 
+  // 작업내역현황의 [표준작업시간]·[차이(표준-실제)] 는 BOR 이 근거다.
+  // 위 ops 는 1개당 0.1H = 6분이므로 40개면 240분이다.
+  eq('생산품목이 실린다', first.productId, f.product.id)
+  eq('BOR 로 표준작업시간이 나온다', first.standardTimeMin, 240)
+
   eq('앞 공정이 40 끝나면 다음 공정도 40 까지만 열린다',
     remainOf(await doneOf()).join(','), '60,40,0')
 
@@ -3885,6 +3895,20 @@ async function scenarioWorkProcess(f) {
     workTimeMin: 40, workDate: '2026-07-11',
   })
   eq('불량도 진행에 포함된다', remainOf(await doneOf()).join(','), '60,0,40')
+
+  // 불량도 만드느라 시간을 쓴 것이다. 양품만 세면 불량이 많은 날일수록
+  // '표준보다 오래 걸림' 으로 부풀려진다 — 30+10 = 40 개 기준 240분.
+  const withDefect = (await must('GET', '/work-results'))
+    .find((r) => r.workOrderId === wo.id && r.processId === procs[1].id)
+  eq('불량까지 세어 표준시간을 잡는다', withDefect.standardTimeMin, 240)
+
+  // 라우팅에 없는 공정은 표준을 말할 수 없다. 0 을 주면 그 줄이 전부
+  // '표준보다 오래 걸림' 이 되어, 라우팅을 안 세운 품목이 통째로 불리하게 보인다.
+  const noRouting = await must('POST', '/work-results', {
+    workOrderId: wo.id, process: procs[3].name, goodQty: 5, defectQty: 0,
+    workTimeMin: 10, workDate: '2026-07-11',
+  })
+  isNull('라우팅에 없는 공정은 표준시간이 null', noRouting.standardTimeMin)
 
   for (const r of (await must('GET', '/work-results')).filter((x) => x.workOrderId === wo.id)) {
     await must('DELETE', `/work-results/${r.id}`)
