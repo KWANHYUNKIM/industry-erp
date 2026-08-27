@@ -103,6 +103,7 @@ public class PurchaseService {
                         p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                         p.getProject() != null ? p.getProject().getName() : null,
                         p.getEmployee() != null ? p.getEmployee().getName() : null,
+                        p.isTaxable() ? "과세" : "면세",
                         l.getQuantity(), base, buy, perUnit, amount, rate));
             }
         }

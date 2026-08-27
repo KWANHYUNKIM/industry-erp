@@ -26,6 +26,8 @@ interface DiscountRow {
   warehouseName: string | null
   projectName: string | null
   employeeName: string | null
+  /** 원본 조건의 [거래유형] — 과세 · 면세. 전표에 저장된 과세 여부다. */
+  taxTypeName: string
   qty: number
   basePrice: number
   salePrice: number
@@ -46,6 +48,8 @@ export default function SalesDiscountPage() {
   const [project, setProject] = useState('')
   const [employee, setEmployee] = useState('')
   const [minDiscount, setMinDiscount] = useState('')
+  /** 원본 조건의 [거래유형] — 과세 · 면세. */
+  const [taxType, setTaxType] = useState('')
 
   async function load() {
     setLoading(true)
@@ -67,6 +71,7 @@ export default function SalesDiscountPage() {
   const shown = rows.filter((r) => {
     if (keyword && !(r.partnerName.includes(keyword) || r.itemName.includes(keyword)
       || r.itemCode.includes(keyword))) return false
+    if (taxType && r.taxTypeName !== taxType) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
     if (employee && !(r.employeeName ?? '').includes(employee)) return false
@@ -108,7 +113,7 @@ export default function SalesDiscountPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to)
-          setKeyword(''); setWarehouse(''); setProject(''); setEmployee(''); setMinDiscount('')
+          setKeyword(''); setWarehouse(''); setProject(''); setEmployee(''); setMinDiscount(''); setTaxType('')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -124,6 +129,19 @@ export default function SalesDiscountPage() {
         <EcCond label="거래처" pick>
           <input className="ec-input" placeholder="거래처·품목 일부" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        {/*
+          원본 조건의 [거래유형]. 예전에는 못 만들었다 — 전표가 과세 여부를 안 들고 있어서
+          부가세가 0 인지로 되짚어야 했고, 반올림으로 0 이 된 과세 전표가 면세로 섞였다.
+        */}
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${taxType === v ? ' active' : ''}`}
+                      onClick={() => setTaxType(v)}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="창고" pick>
           <input className="ec-input" placeholder="창고명 일부" value={warehouse}

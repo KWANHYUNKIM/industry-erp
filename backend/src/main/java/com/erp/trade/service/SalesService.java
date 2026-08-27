@@ -138,6 +138,7 @@ public class SalesService {
                         s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                         s.getProject() != null ? s.getProject().getName() : null,
                         s.getEmployee() != null ? s.getEmployee().getName() : null,
+                        s.isTaxable() ? "과세" : "면세",
                         l.getQuantity(), base, sale, perUnit, amount, rate));
             }
         }

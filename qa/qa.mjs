@@ -280,6 +280,39 @@ async function scenarioPurchaseDiscountBase(f) {
   // 판매단가(1,000)로 쟀다면 -200 × 10 = -2,000 (할증) 이 나왔을 것이다 — 그 값이 아님을 못 박는다
   eq('판매단가 기준이 아니다', Number(after[0].discountAmount) === -2000, false)
 
+  /*
+   * 원본 할인현황의 조회조건 <b>[거래유형]</b> — 과세 · 면세.
+   * 줄마다 전표에 저장된 과세 여부를 그대로 싣는다. 화면이 부가세가 0 인지로 되짚던 시절에는
+   * <b>반올림으로 부가세가 0 이 된 과세 전표가 면세로 섞여</b> 조건을 걸면 엉뚱한 줄이 걸렸다.
+   */
+  eq('할인현황 줄이 거래유형을 들고 있다', after[0].taxTypeName, '과세')
+
+  // 면세 전표 (한 번만 만든다 — 매 회차 만들면 재고와 채무가 계속 밀린다)
+  if (!(await rowsOf()).some((r) => r.taxTypeName === '면세')) {
+    await must('POST', '/purchases', {
+      purchaseDate: '2026-07-15', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+      taxable: false, lines: [{ itemId: item.id, quantity: 10, unitPrice: 1200 }],
+    })
+  }
+  // 부가세가 반올림으로 0 이 되는 과세 전표 (공급가 1원 → 부가세 0.1 → 0)
+  if (!(await rowsOf()).some((r) => Number(r.qty) === 1)) {
+    await must('POST', '/purchases', {
+      purchaseDate: '2026-07-15', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+      lines: [{ itemId: item.id, quantity: 1, unitPrice: 1 }],
+    })
+  }
+
+  const both = await rowsOf()
+  const free = both.find((r) => r.taxTypeName === '면세')
+  eq('면세 전표는 면세로 나온다', free ? Number(free.qty) : 0, 10)
+  const tiny = both.find((r) => Number(r.qty) === 1)
+  const tinyDoc = (await must('GET', '/purchases')).find((d) => d.docNo === (tiny ? tiny.docNo : ''))
+  eq('1원짜리 과세 전표는 부가세가 반올림으로 0', Number(tinyDoc.vatAmount), 0)
+  eq('부가세가 0 이어도 과세는 과세다', tiny.taxTypeName, '과세')
+  eq('거래유형이 실제로 줄을 갈라 놓는다',
+    both.filter((r) => r.taxTypeName === '과세').length + '/' + both.filter((r) => r.taxTypeName === '면세').length,
+    '2/1')
+
   // 구매전표가 물려 있어 품목은 못 지운다(FK). 다음 회차가 쓰도록 기준단가만 되돌린다.
   await must('PUT', `/items/${item.id}`, {
     name: '구매단가시험', unit: 'EA', category: 'MERCHANDISE',

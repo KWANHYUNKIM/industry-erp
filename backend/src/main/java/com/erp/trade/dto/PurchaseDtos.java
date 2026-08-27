@@ -81,6 +81,12 @@ public final class PurchaseDtos {
     public record PurchaseDiscountRow(
             LocalDate date, String docNo, String partnerName, String itemCode, String itemName,
             String warehouseName, String projectName, String employeeName,
+            /**
+             * 원본 할인현황 조건의 <b>[거래유형]</b> — 과세 · 면세.
+             * 전표에 저장된 과세 여부를 그대로 옮긴다. 예전에는 부가세가 0 인지로 되짚어야 해서
+             * <b>반올림으로 0 이 된 과세 전표가 면세로 섞였다.</b>
+             */
+            String taxTypeName,
             BigDecimal qty, BigDecimal basePrice, BigDecimal buyPrice,
             BigDecimal discountPerUnit, BigDecimal discountAmount, BigDecimal discountRate
     ) {}
