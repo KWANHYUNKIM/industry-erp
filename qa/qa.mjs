@@ -3427,6 +3427,50 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 자원(설비)의 <b>위치</b>와 <b>대상작업</b>.
+ *
+ * <p>원본 자원등록의 열은 자원코드 · 자원명 · 위치 · 대상작업이다
+ * (사본 열 id MT0_WH = 창고, MT0_JOB = 작업). 우리 자원에는 구분·가용능력·단위·시간당비용만
+ * 있어서, 설비를 등록해도 어디 있는지도 무슨 작업에 쓰는지도 알 수 없었다.
+ *
+ * <p>둘 다 <b>비울 수 있어야</b> 한다 — 자리를 안 정한 설비도, 작업을 아직 안 맡긴 설비도 있다.
+ * 대신 없는 공정 id 를 주면 조용히 무시하지 않고 알린다.
+ */
+async function scenarioResourceLocation() {
+  section('■ 자원 위치·대상작업')
+
+  const warehouses = await must('GET', '/warehouses')
+  const processes = await must('GET', '/processes')
+
+  for (const r of (await must('GET', '/resources')).filter((x) => x.code === `${P}RES`)) {
+    await call('DELETE', `/resources/${r.id}`)
+  }
+
+  const made = await must('POST', '/resources', {
+    code: `${P}RES`, name: `${P}절단기`, type: '설비', capacity: 8, unit: '시간/일', costPerHr: 15000,
+    warehouseId: warehouses[0].id, processId: processes[0].id,
+  })
+  eq('위치가 붙는다', made.warehouseName, warehouses[0].name)
+  eq('대상작업이 붙는다', made.processName, processes[0].name)
+
+  const body = {
+    name: made.name, type: made.type, capacity: made.capacity, unit: made.unit,
+    costPerHr: made.costPerHr, active: true,
+  }
+  const cleared = await must('PUT', `/resources/${made.id}`, { ...body, warehouseId: null, processId: null })
+  isNull('위치를 비울 수 있다', cleared.warehouseId)
+  isNull('대상작업도 비울 수 있다', cleared.processId)
+
+  const bad = await call('PUT', `/resources/${made.id}`, { ...body, processId: 99999999 })
+  eq('없는 공정은 400', bad.status, 400)
+  eq('무엇이 없는지 말한다', /공정/.test(String(bad.data?.message ?? '')), true)
+
+  await must('DELETE', `/resources/${made.id}`)
+  eq('시험용 자원은 남기지 않는다',
+    (await must('GET', '/resources')).filter((x) => x.code === `${P}RES`).length, 0)
+}
+
+/**
  * 일괄회계반영의 <b>거래처별</b> 묶음과 '일부반영'.
  *
  * <p>원본 판매일괄회계반영의 [구분] 은 거래처별 · 전표별 둘이고, 결과에 <b>일부반영</b>
@@ -4741,6 +4785,7 @@ async function main() {
   await scenarioTimeCalc(fixtures)
   await scenarioLineCustomFields(fixtures)
   await scenarioAccountingReflectionByPartner(fixtures)
+  await scenarioResourceLocation()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
