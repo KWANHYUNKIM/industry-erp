@@ -1846,9 +1846,36 @@ async function scenarioApprovalSetting() {
   eq('사용중지해도 관리 목록에는 남음', admin.active, false)
   eq('기안 화면 양식 목록에서는 빠짐',
     (await must('GET', '/approval-form-templates')).some((t) => t.id === template.id), false)
-  await must('PUT', `/approval-settings/templates/${template.id}`, {
-    code, name: 'QA 양식', sortOrder: 99, active: true, fieldSchema: template.fieldSchema,
-  })
+  /*
+   * 원본 양식 20종의 <b>본문 서식</b>이 실제로 들어 있나.
+   *
+   * 사본 21장(기안서작성을 양식마다 하나씩 열어 둔 것)을 실측했더니 이름은 다 맞는데
+   * 넷은 field_schema 가 빈 배열이었다 — 고르면 제목과 자유본문만 나오고 양식이
+   * 아무 구실을 안 했다. 결재는 도는데 무엇을 결재하는지가 문서에 없는 상태다.
+   */
+  const forms = await must('GET', '/approval-form-templates')
+  const byName = new Map(forms.map((t) => [t.name, t]))
+  for (const [name, atLeast] of [['기술문서', 3], ['내부일반문서', 3],
+                                 ['급여 지급결의서', 6], ['인사발령공고', 3]]) {
+    const t = byName.get(name)
+    eq(`${name} 양식이 있다`, !!t, true)
+    eq(`${name} 본문 칸이 비어 있지 않다`, (t?.fieldSchema ?? []).length >= atLeast, true)
+  }
+
+  // 매달 같은 목록은 미리 깔아 둔다 — 원본이 없애 주는 수고가 바로 그것이다.
+  const payroll = byName.get('급여 지급결의서')
+  const deduct = (payroll?.fieldSchema ?? []).find((f) => f.key === 'deductDetail')
+  eq('급여 지급결의서에 공제상세 표가 있다', deduct?.type, 'table')
+  eq('공제 항목이 미리 깔려 있다', (deduct?.defaultRows ?? []).length, 12)
+  eq('건강보험이 그 안에 있다',
+    (deduct?.defaultRows ?? []).some((r) => r.kind === '건강보험'), true)
+
+  // 열 이름을 바꿔도 기존 기안서의 값이 갈 곳을 잃으면 안 된다 — 키는 그대로 둔다.
+  const expense = byName.get('개인경비 사용내역서')
+  const cols = (expense?.fieldSchema ?? [])[0]?.columns ?? []
+  eq('개인경비 표가 원본대로 7열', cols.length, 7)
+  eq('쓰던 금액 키는 그대로다', cols.some((c) => c.key === 'amount'), true)
+  eq('쓰던 일자 키도 그대로다', cols.some((c) => c.key === 'useDate'), true)
 
   // ── 결재선 프리셋
   const presetName = `${P}결재선`
@@ -1879,6 +1906,14 @@ async function scenarioApprovalSetting() {
   await must('DELETE', `/approval-settings/presets/${preset.id}`)
   eq('결재선 삭제됨',
     (await must('GET', '/approval-settings/presets')).some((p) => p.id === preset.id), false)
+
+  // 시험용 양식은 치운다. 사용중으로 남겨 두면 실제 기안서작성의 양식 목록에 섞여
+  // 사람이 'QA 양식' 을 고를 수 있게 된다 — 실제로 그렇게 남아 있었다.
+  // 위 결재선이 이 양식을 가리키므로 그것을 지운 뒤에 지운다.
+  eq('시험용 양식을 지울 수 있다',
+    (await call('DELETE', `/approval-settings/templates/${template.id}`)).status, 204)
+  eq('기안 화면 양식 목록에 남지 않는다',
+    (await must('GET', '/approval-form-templates')).some((t) => t.code === code), false)
 }
 
 async function scenarioPrintSign() {

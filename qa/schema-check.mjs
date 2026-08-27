@@ -166,6 +166,21 @@ if (!tenants.length) {
       }
     }
     eq(`${t}: CHECK 제약 허용값 일치`, bad.join(', ') || '없음', '없음')
+
+    /*
+     * 표만 만들고 <b>기준자료를 안 넣은</b> 경우.
+     *
+     * 결재 양식 22종은 V13 이 심는데 그 INSERT 가 `INSERT INTO public.…` 로 스키마를
+     * 박아 넣고 있었다. 테넌트 baseline 은 표만 만든다. 그래서 회사를 새로 만들면
+     * 기안서작성의 양식 목록이 통째로 비어 결재를 시작할 수조차 없었다.
+     * 앱은 멀쩡히 뜨고 그 회사로 로그인해 그 화면을 열어야만 알 수 있는 종류다.
+     */
+    for (const tbl of ['approval_form_templates', 'accounts']) {
+      const [[pub]] = psql(`select count(*) from public.${tbl}`)
+      const [[ten]] = psql(`select count(*) from ${t}.${tbl}`)
+      eq(`${t}: ${tbl} 기준자료가 비어 있지 않다`, Number(ten) > 0, true)
+      if (Number(ten) === 0) console.log(`     본사 ${pub}건, ${t} ${ten}건`)
+    }
   }
 }
 
