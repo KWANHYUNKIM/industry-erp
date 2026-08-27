@@ -3427,6 +3427,67 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 전표 <b>라인</b>에 추가항목을 붙일 수 있는가.
+ *
+ * <p>원본 판매입력II 그리드에는 ADD_TXT_01~06 · ADD_NUM_01~05 · ADD_LTXT_01 ·
+ * ADD_DATE_01~03 · ADD_CD_01~03 같은 <b>라인 추가항목 열</b>이 있다. 우리 추가항목은
+ * 전표 <b>머리</b>에만 붙어서 줄마다 다른 값(차수·납품처 같은 것)을 적을 자리가 없었다.
+ *
+ * <p>붙이려면 먼저 <b>라인을 지목할 키</b>가 있어야 하는데, 판매·구매 라인 응답에
+ * 라인 id 가 없었다(수주는 예전부터 준다). 키가 없으면 라인 단위로 아무것도 못 붙인다.
+ */
+async function scenarioLineCustomFields(f) {
+  section('■ 전표 라인 추가항목')
+
+  const doc = await must('POST', '/sales', {
+    saleDate: '2026-06-13', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [
+      { itemId: f.product.id, quantity: 1, unitPrice: 1000 },
+      { itemId: f.product.id, quantity: 2, unitPrice: 2000 },
+    ],
+  })
+  eq('판매 라인에 라인 id 가 실린다', typeof doc.lines[0].lineId, 'number')
+  eq('줄마다 다른 id 다', doc.lines[0].lineId === doc.lines[1].lineId, false)
+
+  const buy = await must('POST', '/purchases', {
+    purchaseDate: '2026-06-13', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 500 }],
+  })
+  eq('구매 라인에도 라인 id 가 실린다', typeof buy.lines[0].lineId, 'number')
+
+  // 라인 추가항목 정의 — entityType 은 전표 것 뒤에 _LINE 을 붙인다.
+  const def = await must('POST', '/custom-fields/defs', {
+    entityType: 'SALES_LINE', fieldKey: `${P.toLowerCase()}lot_seq`, label: '차수',
+    fieldType: 'TEXT', sortOrder: 1,
+  })
+  eq('라인용 정의를 만들 수 있다', def.entityType, 'SALES_LINE')
+
+  const lineId = doc.lines[0].lineId
+  const saved = await must('PUT',
+    `/custom-fields/values?entityType=SALES_LINE&entityId=${lineId}`,
+    { values: { [def.fieldKey]: '2차' } })
+  eq('라인에 값이 붙는다', saved.values[def.fieldKey], '2차')
+  eq('다시 읽어도 남아 있다',
+    (await must('GET', `/custom-fields/values?entityType=SALES_LINE&entityId=${lineId}`)).values[def.fieldKey], '2차')
+
+  // 같은 전표의 다른 줄은 영향을 받지 않는다 — 줄마다 다른 값을 적는 것이 이 기능의 요점이다.
+  const other = await must('GET',
+    `/custom-fields/values?entityType=SALES_LINE&entityId=${doc.lines[1].lineId}`)
+  eq('다른 줄은 비어 있다', Object.keys(other.values ?? {}).length, 0)
+
+  // 전표 머리의 추가항목과도 섞이지 않는다.
+  const head = await must('GET', `/custom-fields/values?entityType=SALES&entityId=${doc.id}`)
+  eq('머리 추가항목과 섞이지 않는다', Object.keys(head.values ?? {}).length, 0)
+
+  await must('PUT', `/custom-fields/values?entityType=SALES_LINE&entityId=${lineId}`, { values: {} })
+  await must('DELETE', `/custom-fields/defs/${def.id}`)
+  await must('DELETE', `/purchases/${buy.id}`)
+  await must('DELETE', `/sales/${doc.id}`)
+  eq('시험용 정의는 남기지 않는다',
+    (await must('GET', '/custom-fields/defs?entityType=SALES_LINE')).length, 0)
+}
+
+/**
  * 소요시간계산이 기대는 것 — 품목 라우팅의 <b>1개당 시간 합</b>.
  *
  * <p>원본 소요시간계산은 생산품목과 수량을 넣고 [계산(F8)] 하면 시간을 돌려준다.
@@ -4623,6 +4684,7 @@ async function main() {
   await scenarioStatementReceivable(fixtures)
   await scenarioExpenseDocNo()
   await scenarioTimeCalc(fixtures)
+  await scenarioLineCustomFields(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

@@ -50,6 +50,17 @@ interface LineInput {
   sourceDocType: string
   sourceDocDate: string
   sourceDocNo: string
+  /**
+   * 라인 추가항목 값 (fieldKey → 값).
+   *
+   * <p>원본 판매입력II 그리드에는 ADD_TXT_01~06 · ADD_NUM_01~05 · ADD_LTXT_01 ·
+   * ADD_DATE_01~03 · ADD_CD_01~03 같은 <b>라인 추가항목 열</b>이 있다.
+   * 우리 추가항목은 전표 <b>머리</b>에만 붙어서, 줄마다 다른 값(차수·납품처 같은 것)을
+   * 적을 자리가 없었다.
+   */
+  custom: Record<string, string>
+  /** 수정으로 불러온 줄의 원래 라인 id. 저장하면 서버가 라인을 새로 만들어 id 가 바뀐다. */
+  lineId: number | null
   checked: boolean
 }
 
@@ -62,6 +73,7 @@ const today = () => {
 const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lotNo: '', extraCost: '', remark: '',
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
+  custom: {}, lineId: null,
 })
 /** 원본은 빈 입력행 3줄로 뜬다. */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
@@ -194,6 +206,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [docs, setDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [customDefs, setCustomDefs] = useState<CustomFieldDef[]>([])
+  /** 라인 추가항목 정의. entityType 은 전표 것 뒤에 _LINE 을 붙인다(SALES_LINE / PURCHASE_LINE). */
+  const [lineDefs, setLineDefs] = useState<CustomFieldDef[]>([])
 
   // ── 헤더 항목 ──────────────────────────────────────────
   const [date, setDate] = useState(today())
@@ -282,6 +296,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: cfg.entityType } })
       .then((r) => setCustomDefs(r.data.filter((d) => d.active)))
       .catch(() => setCustomDefs([]))
+    api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: `${cfg.entityType}_LINE` } })
+      .then((r) => setLineDefs(r.data.filter((d) => d.active)))
+      .catch(() => setLineDefs([]))
     const [p, w, i] = await Promise.all([
       api.get<Partner[]>('/partners'),
       api.get<Warehouse[]>('/warehouses'),
@@ -334,10 +351,40 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         sourceDocType: l.sourceDocType ?? '',
         sourceDocDate: l.sourceDocDate ?? '',
         sourceDocNo: l.sourceDocNo ?? '',
+        lineId: l.lineId ?? null,
       })),
       emptyLine(),
     ])
   }, [editId, editing, docs])
+
+  /**
+   * 수정으로 불러온 줄의 라인 추가항목 값을 채운다.
+   *
+   * <p>라인마다 한 번씩 부르는 대신 정의가 있을 때만 부른다 — 추가항목을 안 쓰는 회사가
+   * 전표를 열 때마다 쓸데없는 요청이 줄 수만큼 나가면 안 된다.
+   */
+  useEffect(() => {
+    if (lineDefs.length === 0) return
+    const ids = lines.map((l) => l.lineId).filter((v): v is number => v != null)
+    if (ids.length === 0) return
+    let alive = true
+    Promise.all(ids.map((id) =>
+      api.get<{ values: Record<string, string> }>('/custom-fields/values',
+        { params: { entityType: `${cfg.entityType}_LINE`, entityId: id } })
+        .then((r) => [id, r.data.values ?? {}] as const)
+        .catch(() => [id, {} as Record<string, string>] as const)))
+      .then((pairs) => {
+        if (!alive) return
+        const byId = new Map(pairs)
+        setLines((prev) => prev.map((l) => (l.lineId != null && byId.has(l.lineId)
+          ? { ...l, custom: byId.get(l.lineId) ?? {} } : l)))
+      })
+    return () => { alive = false }
+  }, [editId, lineDefs.length])
+
+  /** 라인 추가항목 한 칸을 고친다. */
+  const setLineCustom = (idx: number, key: string, value: string) =>
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, custom: { ...l.custom, [key]: value } } : l)))
 
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
@@ -835,8 +882,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(''); setOk('')
-    const validLines = lines
-      .filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) > 0)
+    // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
+    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) > 0)
+    const validLines = keptLines
       .map((l) => ({
         itemId: Number(l.itemId),
         quantity: num(l.quantity),
@@ -871,6 +919,28 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         await api.put('/custom-fields/values', { values: customValues },
           { params: { entityType: cfg.entityType, entityId: res.data.id } })
           .catch(() => flash('전표는 저장했지만 추가항목 저장에 실패했습니다.'))
+      }
+
+      /*
+       * 라인 추가항목.
+       *
+       * <p>수정하면 서버가 옛 라인을 지우고 새로 만들어 <b>라인 id 가 바뀐다.</b> 그대로 두면
+       * 옛 id 에 붙은 값이 아무도 안 보는 채로 남는다 — 먼저 지우고 새 id 로 다시 붙인다.
+       */
+      if (lineDefs.length > 0) {
+        const lineEntity = `${cfg.entityType}_LINE`
+        const oldIds = editing ? lines.map((l) => l.lineId).filter((v): v is number => v != null) : []
+        const newLines = (res.data.lines ?? []) as { lineId?: number }[]
+        await Promise.all([
+          ...oldIds.map((id) => api.put('/custom-fields/values', { values: {} },
+            { params: { entityType: lineEntity, entityId: id } }).catch(() => {})),
+          ...keptLines.map((l, i) => {
+            const id = newLines[i]?.lineId
+            if (id == null || !Object.values(l.custom ?? {}).some((v) => v?.trim())) return Promise.resolve()
+            return api.put('/custom-fields/values', { values: l.custom },
+              { params: { entityType: lineEntity, entityId: id } }).catch(() => {})
+          }),
+        ]).catch(() => flash('전표는 저장했지만 라인 추가항목 저장에 실패했습니다.'))
       }
       setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
@@ -1350,6 +1420,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <th>부대비용</th>
                 {cols.mgmtItem && <th>관리항목</th>}
                 <th style={{ textAlign: 'left' }}>적요</th>
+                {/* 라인 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 표가 그대로다. */}
+                {lineDefs.map((d) => (
+                  <th key={d.fieldKey} style={{ textAlign: 'left' }}>{d.label}</th>
+                ))}
                 {cols.srcType && <th>불러온 전표</th>}
                 {cols.srcDate && <th>불러온 전표일자</th>}
                 {cols.srcNo && <th style={{ textAlign: 'left' }}>불러온 전표No.</th>}
@@ -1456,6 +1530,26 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       <input className="cell" value={l.remark} disabled={!l.itemId}
                              onChange={(e) => updateLine(idx, 'remark', e.target.value)} />
                     </td>
+                    {lineDefs.map((d) => (
+                      <td key={d.fieldKey}>
+                        {/* 우리 필드 유형은 문자·숫자·일자·코드 넷이다. 코드도 아직 고를 마스터가
+                            없어 문자처럼 받는다 — 없는 선택지를 만들어 두지 않는다. */}
+                        {(d.options ?? '').trim() ? (
+                          <select className="cell" value={l.custom[d.fieldKey] ?? ''} disabled={!l.itemId}
+                                  onChange={(e) => setLineCustom(idx, d.fieldKey, e.target.value)}>
+                            <option value=""></option>
+                            {(d.options ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+                              .map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            className="cell" disabled={!l.itemId}
+                            type={d.fieldType === 'NUMBER' ? 'number' : d.fieldType === 'DATE' ? 'date' : 'text'}
+                            value={l.custom[d.fieldKey] ?? ''}
+                            onChange={(e) => setLineCustom(idx, d.fieldKey, e.target.value)} />
+                        )}
+                      </td>
+                    ))}
                     {/* 불러온 전표 3열은 읽기 전용이다 — 근거전표는 [전표불러오기]로만 붙는다. */}
                     {cols.srcType && (
                       <td className="pad" style={{ textAlign: 'center', color: '#8a929c' }}>{l.sourceDocType}</td>

@@ -182,6 +182,11 @@ export interface Partner {
 }
 
 export interface TradeLine {
+  /**
+   * 라인 id. 라인 단위로 무언가를 붙이려면(추가항목 등) 이 키가 있어야 한다.
+   * 수주는 예전부터 주는데 판매·구매만 빠져 있었다.
+   */
+  lineId: number
   itemId: number
   itemCode: string
   itemName: string

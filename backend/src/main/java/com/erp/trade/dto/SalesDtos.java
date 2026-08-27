@@ -48,6 +48,12 @@ public final class SalesDtos {
     ) {}
 
     public record SalesLineResponse(
+            /**
+             * 라인 id. 수주는 예전부터 주는데 판매·구매만 빠져 있었다 —
+             * 라인을 지목할 키가 없으면 라인 단위로 아무것도 붙일 수 없다
+             * (원본 판매입력II 그리드의 추가항목 열이 그런 것이다).
+             */
+            Long lineId,
             Long itemId, String itemCode, String itemName, String unit, String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             String remark, String lotNo, BigDecimal extraCost,
@@ -57,6 +63,7 @@ public final class SalesDtos {
         static SalesLineResponse from(SalesLine l) {
             SalesOrder src = l.getSourceOrder();
             return new SalesLineResponse(
+                    l.getId(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark(), l.getLotNo(), l.getExtraCost(),
