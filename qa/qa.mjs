@@ -3427,6 +3427,70 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 결제내역자료비교가 기대는 자료.
+ *
+ * <p>원본은 <b>[결제내역] 과 [판매전표II]</b> 를 좌우로 놓고 차이를 본다.
+ * 우리 화면은 "장부금액 대 통장금액" 을 비교했는데, 통장금액을 <b>결제수단 문자열로
+ * 추정</b>했다 — 계좌이체·카드면 통장에서 확인된 것으로 치고 현금·어음이면 0 으로 쳤다.
+ * 은행 자료를 읽은 것이 아니라 글자만 보고 지어낸 값이라 현금 수금은 전부 '불일치' 였다.
+ *
+ * <p>이제 판매전표 금액과 결제(수금) 금액을 맞댄다. 둘 다 실제로 가진 자료다.
+ * 이 시나리오는 그 두 자료가 화면이 기대는 모양으로 오는지, 그리고 결제수단과 무관하게
+ * 금액만으로 대사되는지를 본다.
+ */
+async function scenarioPaymentCompare(f) {
+  section('■ 결제내역자료비교')
+
+  const day = '2026-06-11'
+  const sale = await must('POST', '/sales', {
+    saleDate: day, partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  eq('판매전표에 대사에 쓸 금액이 다 있다',
+    typeof sale.supplyAmount === 'number' && typeof sale.vatAmount === 'number'
+      && typeof sale.totalAmount === 'number', true)
+  eq('합계 = 공급가액 + 부가세', Number(sale.totalAmount),
+    Number(sale.supplyAmount) + Number(sale.vatAmount))
+
+  // 현금으로 전액 수금 — 예전 화면이라면 통장금액 0 이라 불일치로 찍혔을 자리다.
+  const receipt = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: Number(sale.totalAmount),
+    method: '현금', settleDate: day, note: `${P} 대사`,
+  })
+  eq('수금에 일자·거래처·금액이 실린다',
+    typeof receipt.settleDate === 'string' && typeof receipt.amount === 'number'
+      && typeof receipt.partnerName === 'string', true)
+  eq('수금과 지급을 구분할 수 있다', receipt.typeName, '수금')
+
+  const settlements = await must('GET', '/settlements')
+  const sales = await must('GET', '/sales')
+  const saleSum = sales
+    .filter((x) => x.saleDate === day && x.partnerName === receipt.partnerName)
+    .reduce((n, x) => n + Number(x.totalAmount), 0)
+  const paySum = settlements
+    .filter((x) => x.settleDate === day && x.typeName === '수금' && x.partnerName === receipt.partnerName)
+    .reduce((n, x) => n + Number(x.amount), 0)
+  eq('현금이어도 금액이 같으면 일치', Math.abs(saleSum - paySum) < 0.005, true)
+
+  // 지급은 판매와 맞댈 것이 아니다 — 섞이면 차이가 엉뚱해진다.
+  const payment = await must('POST', '/settlements', {
+    type: 'PAYMENT', partnerId: f.supplier.id, amount: 5000,
+    method: '계좌이체', settleDate: day, note: `${P} 지급`,
+  })
+  eq('지급은 수금이 아니다', payment.typeName, '지급')
+  const paySumAfter = (await must('GET', '/settlements'))
+    .filter((x) => x.settleDate === day && x.typeName === '수금' && x.partnerName === receipt.partnerName)
+    .reduce((n, x) => n + Number(x.amount), 0)
+  eq('지급을 넣어도 수금 합계는 그대로', paySumAfter, paySum)
+
+  await must('DELETE', `/settlements/${payment.id}`)
+  await must('DELETE', `/settlements/${receipt.id}`)
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/settlements')).filter((x) => (x.note ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 오더관리 — 유형의 <b>단계 순서</b>와 오더의 진행.
  *
  * <p>원본 오더관리유형리스트의 열은 유형코드 · 유형명 · [1단계]~[10단계] · 사용구분 ·
@@ -4421,6 +4485,7 @@ async function main() {
   await scenarioBor(fixtures)
   await scenarioActualCost(fixtures)
   await scenarioOrderStages(fixtures)
+  await scenarioPaymentCompare(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
