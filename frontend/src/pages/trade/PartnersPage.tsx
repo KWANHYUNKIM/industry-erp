@@ -10,7 +10,14 @@ const inputCls = 'ec-input w-full'
 
 const empty = {
   code: '', name: '', type: 'CUSTOMER', bizRegNo: '', ceoName: '',
-  bizType: '', bizItem: '', manager: '', phone: '', address: '', partnerGroupId: '',
+  bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
+  bankName: '', accountNo: '', accountHolder: '',
+  address: '', partnerGroupId: '',
+  /**
+   * 사용구분. 예전에는 저장할 때 늘 true 를 보냈다 —
+   * <b>사용중단한 거래처를 고치기만 해도 조용히 되살아났다.</b>
+   */
+  active: true,
 }
 
 export default function PartnersPage() {
@@ -18,6 +25,7 @@ export default function PartnersPage() {
   const [types, setTypes] = useState<CodeOption[]>([])
   const [partnerGroups, setPartnerGroups] = useState<GroupMaster[]>([])
   const [loading, setLoading] = useState(true)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   /**
@@ -78,7 +86,10 @@ export default function PartnersPage() {
       code: p.code, name: p.name, type: p.type,
       bizRegNo: p.bizRegNo ?? '', ceoName: p.ceoName ?? '',
       bizType: p.bizType ?? '', bizItem: p.bizItem ?? '',
-      manager: p.manager ?? '', phone: p.phone ?? '', address: p.address ?? '',
+      manager: p.manager ?? '', phone: p.phone ?? '', mobile: p.mobile ?? '',
+      bankName: p.bankName ?? '', accountNo: p.accountNo ?? '', accountHolder: p.accountHolder ?? '',
+      address: p.address ?? '',
+      active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
     })
     setShowForm(true)
@@ -90,10 +101,40 @@ export default function PartnersPage() {
     const body = { ...form, partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null }
     try {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
-      if (editId != null) await api.put(`/partners/${editId}`, { ...body, active: true })
+      if (editId != null) await api.put(`/partners/${editId}`, body)
       else await api.post('/partners', body)
       setForm({ ...empty })
       setShowForm(false)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /**
+   * 사용중단/재사용 — 원본 거래처리스트의 버튼이다.
+   *
+   * <p>거래처는 <b>지우면 안 된다.</b> 그 거래처로 끊은 전표가 이미 있는데 지우면
+   * 그 전표가 누구와의 거래였는지 잃는다. 원본이 지우기가 아니라 사용중단인 이유가 그것이다.
+   * 고른 것이 섞여 있으면 전부 사용중단으로 맞춘다 — 하나씩 뒤집으면 한 번 눌렀을 때
+   * 결과가 뭔지 알 수 없다.
+   */
+  async function toggleActive() {
+    const targets = partners.filter((x) => checked.has(x.id))
+    if (targets.length === 0) return setError('사용중단하거나 되살릴 거래처를 고르세요.')
+    const reviving = targets.every((x) => !x.active)
+    setError('')
+    try {
+      for (const x of targets) {
+        await api.put(`/partners/${x.id}`, {
+          name: x.name, type: x.type, bizRegNo: x.bizRegNo, ceoName: x.ceoName,
+          bizType: x.bizType, bizItem: x.bizItem, manager: x.manager,
+          phone: x.phone, mobile: x.mobile,
+          bankName: x.bankName, accountNo: x.accountNo, accountHolder: x.accountHolder,
+          address: x.address, partnerGroupId: x.partnerGroupId, active: reviving,
+        })
+      }
+      setChecked(new Set())
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -119,7 +160,12 @@ export default function PartnersPage() {
     <EcListShell
       title="거래처등록 리스트"
       onNew={openCreate}
-      actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) }, { label: 'Excel' }, { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
+      actions={[
+        { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+        { label: '계층그룹', onClick: () => setGroupOpen(true) },
+        { label: 'Excel' },
+        { label: '웹자료올리기', onClick: () => setWebOpen(true) },
+      ]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
@@ -163,8 +209,33 @@ export default function PartnersPage() {
               <input className={inputCls} value={form.bizItem} onChange={(e) => set('bizItem', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">연락처</label>
+              <label className="mb-1 block text-sm text-slate-600">전화</label>
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">모바일</label>
+              <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
+            </div>
+            {/* 원본 [이체정보] — 지급할 때 쓸 계좌. 없으면 지급할 때마다 딴 데서 찾아야 한다. */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">은행</label>
+              <input className={inputCls} value={form.bankName} onChange={(e) => set('bankName', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">계좌번호</label>
+              <input className={inputCls} value={form.accountNo} onChange={(e) => set('accountNo', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">예금주</label>
+              <input className={inputCls} value={form.accountHolder} onChange={(e) => set('accountHolder', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+              <select className={inputCls} value={form.active ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === 'Y' }))}>
+                <option value="Y">사용</option>
+                <option value="N">사용중단</option>
+              </select>
             </div>
             {/* 거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다. */}
             <div>
@@ -189,7 +260,13 @@ export default function PartnersPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th style={{ width: 34, textAlign: 'center' }}>
+                <input type="checkbox"
+                       checked={partners.length > 0 && partners.every((x) => checked.has(x.id))}
+                       onChange={() => setChecked(
+                         partners.every((x) => checked.has(x.id)) ? new Set() : new Set(partners.map((x) => x.id)),
+                       )} />
+              </th>
               <th>거래처코드 ▼</th>
               <th>거래처명 ▼</th>
               <th>구분 ▼</th>
@@ -197,19 +274,28 @@ export default function PartnersPage() {
               <th>대표자</th>
               <th>거래처그룹 ▼</th>
               <th>담당자</th>
-              <th>연락처</th>
+              <th>전화</th>
+              <th>모바일</th>
+              <th style={{ width: 90, textAlign: 'center' }}>사용구분</th>
+              <th style={{ width: 90, textAlign: 'center' }}>이체정보</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : partners.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 거래처가 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 거래처가 없습니다.</td></tr>
             ) : (
-              partners.map((p, idx) => (
-                <tr key={p.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+              partners.map((p) => (
+                <tr key={p.id} style={{ color: p.active ? undefined : '#9aa1ab' }}>
+                  <td style={{ textAlign: 'center' }}>
+                    <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(p.id)) next.delete(p.id); else next.add(p.id)
+                      return next
+                    })} />
+                  </td>
                   <td style={{ fontFamily: 'monospace' }}>{p.code}</td>
                   <td>{p.name}</td>
                   <td><span style={{ background: typeColor(p.type).bg, color: typeColor(p.type).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{p.typeName}</span></td>
@@ -218,6 +304,14 @@ export default function PartnersPage() {
                   <td>{p.partnerGroupName ?? ''}</td>
                   <td>{p.manager ?? ''}</td>
                   <td>{p.phone ?? ''}</td>
+                  <td>{p.mobile ?? ''}</td>
+                  <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#c60a2e' }}>
+                    {p.active ? '사용' : '사용중단'}
+                  </td>
+                  {/* 원본은 계좌가 있으면 '등록', 없으면 빈칸이다. 계좌번호를 목록에 늘어놓지 않는다. */}
+                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : '#c9ced6' }}>
+                    {p.accountNo ? '등록' : ''}
+                  </td>
                   <td>
                     <button onClick={() => openEdit(p)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                     <button onClick={() => remove(p)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

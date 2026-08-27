@@ -193,6 +193,12 @@ export interface Partner {
   bizItem: string | null
   manager: string | null
   phone: string | null
+  /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
+  mobile: string | null
+  /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열이 이게 있는지를 보여 준다. */
+  bankName: string | null
+  accountNo: string | null
+  accountHolder: string | null
   address: string | null
   salesPriceGroup: string | null
   purchasePriceGroup: string | null

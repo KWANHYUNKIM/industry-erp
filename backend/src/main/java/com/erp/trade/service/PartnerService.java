@@ -47,6 +47,10 @@ public class PartnerService {
                 .bizItem(req.bizItem())
                 .manager(req.manager())
                 .phone(req.phone())
+                .mobile(req.mobile())
+                .bankName(req.bankName())
+                .accountNo(req.accountNo())
+                .accountHolder(req.accountHolder())
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
                 .active(true)
@@ -65,6 +69,10 @@ public class PartnerService {
         p.setBizItem(req.bizItem());
         p.setManager(req.manager());
         p.setPhone(req.phone());
+        p.setMobile(req.mobile());
+        p.setBankName(req.bankName());
+        p.setAccountNo(req.accountNo());
+        p.setAccountHolder(req.accountHolder());
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
         if (req.active() != null) {

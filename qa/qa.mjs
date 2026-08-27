@@ -3444,6 +3444,61 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 거래처의 <b>모바일</b>·<b>이체정보</b>와 사용구분.
+ *
+ * <p>원본 거래처리스트의 열은 거래처코드 · 거래처명 · 대표자명 · 전화 · <b>모바일</b> ·
+ * 검색창내용 · <b>사용구분</b> · <b>이체정보</b>다. 버튼은 신규(F2) · 관계설정 ·
+ * 계층그룹 · 변경 · <b>사용중단/재사용</b> · 웹자료올리기.
+ *
+ * <p>우리 거래처에는 전화 한 칸뿐이라 담당자 휴대폰을 적을 자리가 없었고,
+ * 이체정보(지급할 계좌)는 아예 없었다.
+ *
+ * <p>그리고 수정 화면이 저장할 때 <b>늘 active=true 를 보냈다</b> —
+ * 사용중단한 거래처를 고치기만 해도 조용히 되살아났다. 그 회귀를 막는 단언이다.
+ */
+async function scenarioPartnerContactAndBank() {
+  section('■ 거래처 모바일·이체정보')
+
+  const code = `${P}PT`
+  for (const x of (await must('GET', '/partners')).filter((y) => y.code === code)) {
+    await call('DELETE', `/partners/${x.id}`)
+  }
+
+  const made = await must('POST', '/partners', {
+    code, name: `${P}거래처`, type: 'CUSTOMER',
+    phone: '02-000-0000', mobile: '010-1234-5678',
+    bankName: '국민', accountNo: '123-45-678910', accountHolder: '홍길동',
+  })
+  eq('모바일이 실린다', made.mobile, '010-1234-5678')
+  eq('은행이 실린다', made.bankName, '국민')
+  eq('계좌번호가 실린다', made.accountNo, '123-45-678910')
+  eq('예금주가 실린다', made.accountHolder, '홍길동')
+  eq('전화와 모바일은 따로다', made.phone, '02-000-0000')
+
+  const re = (await must('GET', '/partners')).find((x) => x.id === made.id)
+  eq('다시 조회해도 이체정보가 남는다', re.accountNo, '123-45-678910')
+
+  // 사용중단 → 고쳐도 되살아나면 안 된다.
+  const body = {
+    name: made.name, type: made.type, phone: made.phone, mobile: made.mobile,
+    bankName: made.bankName, accountNo: made.accountNo, accountHolder: made.accountHolder,
+  }
+  const stopped = await must('PUT', `/partners/${made.id}`, { ...body, active: false })
+  eq('사용중단할 수 있다', stopped.active, false)
+
+  const edited = await must('PUT', `/partners/${made.id}`, { ...body, active: false, mobile: '010-9999-9999' })
+  eq('고쳐도 사용중단이 유지된다', edited.active, false)
+  eq('고친 값은 반영된다', edited.mobile, '010-9999-9999')
+
+  const revived = await must('PUT', `/partners/${made.id}`, { ...body, active: true })
+  eq('되살릴 수 있다', revived.active, true)
+
+  await must('DELETE', `/partners/${made.id}`)
+  eq('시험용 거래처는 남기지 않는다',
+    (await must('GET', '/partners')).filter((x) => x.code === code).length, 0)
+}
+
+/**
  * 품목의 <b>재고수량관리</b>(수량관리대상 / 수량관리제외).
  *
  * <p>원본 품목등록 리스트의 열이고 줄 값이 '수량관리대상'·'수량관리제외' 다.
@@ -5683,6 +5738,7 @@ async function main() {
   await scenarioShipmentLineRemark(fixtures)
   await scenarioUserEmployeeLink()
   await scenarioStockTracked(fixtures)
+  await scenarioPartnerContactAndBank()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

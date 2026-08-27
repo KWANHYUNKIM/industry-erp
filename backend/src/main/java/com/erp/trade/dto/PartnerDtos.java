@@ -19,6 +19,12 @@ public final class PartnerDtos {
             String bizItem,
             String manager,
             String phone,
+            /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
+            String mobile,
+            /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
+            String bankName,
+            String accountNo,
+            String accountHolder,
             String address,
             /**
              * 그룹 (선택). 엔티티에는 관계가 있는데 <b>요청에만 빠져 있어</b> 아무도 그룹을
@@ -37,6 +43,12 @@ public final class PartnerDtos {
             String bizItem,
             String manager,
             String phone,
+            /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
+            String mobile,
+            /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
+            String bankName,
+            String accountNo,
+            String accountHolder,
             String address,
             /** 그룹 (선택). 자세한 설명은 CreatePartnerRequest 쪽에 있다. */
             Long partnerGroupId,
@@ -60,6 +72,12 @@ public final class PartnerDtos {
             String bizItem,
             String manager,
             String phone,
+            /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
+            String mobile,
+            /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열. */
+            String bankName,
+            String accountNo,
+            String accountHolder,
             String address,
             String salesPriceGroup,
             String purchasePriceGroup,
@@ -71,7 +89,9 @@ public final class PartnerDtos {
             return new PartnerResponse(
                     p.getId(), p.getCode(), p.getName(), p.getType(), p.getType().getDisplayName(),
                     p.getBizRegNo(), p.getCeoName(), p.getBizType(), p.getBizItem(),
-                    p.getManager(), p.getPhone(), p.getAddress(),
+                    p.getManager(), p.getPhone(),
+                    p.getMobile(), p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
+                    p.getAddress(),
                     p.getSalesPriceGroup(), p.getPurchasePriceGroup(),
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,

@@ -62,6 +62,26 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(length = 50)
     private String phone;
 
+    /**
+     * 모바일 — 원본 거래처리스트의 열이다. 전화와 따로다.
+     * 대표번호로는 안 되는 일이 있어 담당자 휴대폰을 적어 둔다.
+     */
+    @Column(length = 50)
+    private String mobile;
+
+    /**
+     * 이체정보 — 원본 거래처리스트의 [이체정보] 열(값이 '등록'/빈칸).
+     * 지급할 때 쓸 계좌다. 없으면 지급할 때마다 딴 데서 찾아야 한다.
+     */
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
+
+    @Column(name = "account_no", length = 50)
+    private String accountNo;
+
+    @Column(name = "account_holder", length = 100)
+    private String accountHolder;
+
     /** 주소 */
     @Column(length = 300)
     private String address;
