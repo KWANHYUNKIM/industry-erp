@@ -462,8 +462,25 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
 
   // children 배열을 가진 그룹을 통째로 떠서 그 안의 to: 들을 모은다.
   const groups = []
-  for (const m of menuSrc.matchAll(/label: '([^']+)',\s*\n?\s*children: \[([\s\S]*?)\n(\s*)\],/g)) {
-    const paths = [...m[2].matchAll(/to: '([^']+)'/g)].map((x) => x[1].split('?')[0])
+  /*
+   * children 배열을 <b>괄호를 세어</b> 끊는다. 예전에는 줄바꿈+']' 를 끝으로 봤는데,
+   * 한 줄짜리 그룹(`children: [{ … }]`)은 그 모양이 없어 <b>뒤 그룹들까지 삼켰다</b> —
+   * 그래서 판매 그룹이 어긋난 것을 [견적서] 탓으로 보고했다. 이름이 틀리면 사람은
+   * 엉뚱한 곳을 고치거나, 그 이름으로 예외를 적어 진짜 문제를 덮는다.
+   */
+  // 소스가 CRLF 라 label 과 children 사이에 \r 이 낀다 — [ \t] 로만 두면 여러 줄 그룹을
+  // 통째로 놓치고, 검사는 거의 아무것도 안 보면서 통과한다(실제로 23개가 2개로 줄었다).
+  for (const m of menuSrc.matchAll(/label: '([^']+)',[ \t\r]*\n?[ \t\r]*children: \[/g)) {
+    let k = m.index + m[0].length - 1
+    let depth = 0
+    let end = k
+    for (; k < menuSrc.length; k++) {
+      const c = menuSrc[k]
+      if (c === '[') depth++
+      else if (c === ']') { depth--; if (depth === 0) { end = k; break } }
+    }
+    const body = menuSrc.slice(m.index + m[0].length, end)
+    const paths = [...body.matchAll(/to: '([^']+)'/g)].map((x) => x[1].split('?')[0])
     if (paths.length > 1) groups.push([m[1], paths])
   }
 
@@ -473,6 +490,8 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
    */
   const MIXED_BY_DESIGN = new Map([
     ['판매일괄회계반영', '회계반영 화면이라 ACCOUNTING 이 섞인다'],
+    ['판매', '원본 영업관리 탭이 판매 그룹에 회계미반영현황(판매)까지 둔다 — 그 하나만 ACCOUNTING'],
+    ['구매', '원본 구매관리 탭이 구매 그룹에 회계미반영현황(구매)까지 둔다 — 그 하나만 ACCOUNTING'],
     ['영업관리현황', '회계미반영현황(판매)만 ACCOUNTING'],
     ['구매관리현황', '채무 화면이 /sales 경로를 쓰고, 회계미반영현황은 ACCOUNTING'],
     ['기타이동현황', '불량률파악보고서만 QUALITY'],

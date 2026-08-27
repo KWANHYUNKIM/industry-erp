@@ -74,6 +74,23 @@ const MENU: TopMenu[] = [
               { label: '거래처중심입력', to: '/sales/partner-entry' },
               { label: '품목중심입력', to: '/sales/item-entry' },
               { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
+              /*
+               * 원본 영업관리 탭 실측(사본 '판매현황' 의 메뉴트리): 판매조회 · 판매입력 ·
+               * 판매입력 II · 판매단가일괄변경 · <b>판매현황 · 수금현황 · 판매할인현황 ·
+               * 회계미반영현황 (판매) · 거래처별채권</b> · 거래명세서인쇄 · 결제내역조회 ·
+               * 결제내역자료비교 · 판매일괄회계반영.
+               *
+               * <p>이 다섯이 우리에겐 <b>출력물 탭에만</b> 있었다. 구매관리 탭에는 짝이 되는
+               * 다섯(구매현황·지급현황·구매할인현황·회계미반영현황 (구매)·거래처별채무)이
+               * 이미 들어 있어서, <b>같은 자리인데 영업만 비어 있었다</b> —
+               * 구매에서 되던 일이 판매에서 안 되면 사람은 자기가 잘못 찾는 줄 안다.
+               * 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다).
+               */
+              { label: '판매현황', to: '/sales/sales-status' },
+              { label: '수금현황', to: '/sales/collection' },
+              { label: '판매할인현황', to: '/sales/sales-discount' },
+              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales' },
+              { label: '거래처별채권', to: '/sales/ledger-receivable' },
               { label: '거래명세서인쇄', to: '/sales/statement' },
               { label: '결제내역조회', to: '/sales/payment-history' },
               { label: '결제내역자료비교', to: '/sales/payment-compare' },
