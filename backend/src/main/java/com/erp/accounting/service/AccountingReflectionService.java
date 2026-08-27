@@ -29,9 +29,9 @@ public class AccountingReflectionService {
     @Transactional(readOnly = true)
     public List<SlipResponse> list(SlipKind kind, boolean onlyUnreflected) {
         List<SlipResponse> slips = switch (kind) {
-            case SALES -> salesRepository.findAllWithRefs().stream()
+            case SALES -> salesRepository.findAllWithRefsAndLines().stream()
                     .map(SlipResponse::fromSales).toList();
-            case PURCHASE -> purchaseRepository.findAllWithRefs().stream()
+            case PURCHASE -> purchaseRepository.findAllWithRefsAndLines().stream()
                     .map(SlipResponse::fromPurchase).toList();
         };
         if (onlyUnreflected) {

@@ -21,14 +21,31 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
  * 부가세유형 · <b>일부반영</b>). 우리는 전표별 하나뿐이라, 월말에 거래처별로 묶어
  * 한 번에 반영하는 흐름이 없었다 — 전표가 수십 장이면 체크를 수십 번 해야 한다.
  *
+ * <p><b>원본 회계미반영현황(판매)의 결과 열 실측(사본)</b>: 일자-No. · 거래처명 ·
+ * <b>품목코드</b> · <b>품목명</b> · <b>수량</b> · <b>단가</b> · 공급가액 · 부가세 · 적요.
+ * 그리고 <b>월별 소계</b>('2026/03 계' … '합계')가 들어간다.
+ * 우리는 전표 한 줄에 "첫 품목 외 N건" 요약뿐이라 <b>어느 품목이 회계로 안 넘어갔는지</b>
+ * 알 수가 없었다. 월 소계도 없어 "이번 달 미반영이 얼마인가"를 눈으로 세야 했다.
+ * 그래서 [구분]에 <b>품목별</b>을 더한다.
+ *
  * <p>'조정'과 '부가세유형' 은 만들지 않았다. 우리 전표에 조정 금액 칸이 없고 부가세유형
  * 마스터도 없다 — 늘 비는 열을 두면 화면이 거짓말을 한다.
  */
 type Kind = 'sales' | 'purchase'
 
 /** 원본 [구분]. 순서도 원본을 따른다. */
-const MODES = ['거래처별', '전표별'] as const
+const MODES = ['거래처별', '전표별', '품목별'] as const
 type Mode = typeof MODES[number]
+
+interface SlipLine {
+  itemCode: string
+  itemName: string
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+  remark: string | null
+}
 
 interface Slip {
   id: number
@@ -41,6 +58,8 @@ interface Slip {
   projectName: string | null
   employeeName: string | null
   itemSummary: string
+  /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
+  lines: SlipLine[]
   supplyAmount: number
   vatAmount: number
   totalAmount: number
@@ -137,6 +156,46 @@ export default function AccountingReflectionPage() {
    * <p>'일부반영' 은 그 거래처의 전표 중 <b>일부만</b> 반영된 상태다. 이게 보이지 않으면
    * "이 거래처는 끝냈다" 고 착각하기 쉽다 — 원본에도 그 열이 있다.
    */
+  /**
+   * 품목별 — 전표를 품목 줄로 펼치고 <b>월이 바뀌는 자리에 소계</b>를 끼운다.
+   *
+   * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다.
+   * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
+   */
+  const lineRows = useMemo(() => {
+    type Row =
+      | { kind: 'line'; key: string; no: number; slip: Slip; line: SlipLine }
+      | { kind: 'subtotal'; key: string; month: string; supply: number; vat: number }
+    const sorted = [...shown].sort((a, b) => (a.slipDate < b.slipDate ? -1 : a.slipDate > b.slipDate ? 1 : a.id - b.id))
+    const out: Row[] = []
+    let month = ''
+    // 줄 번호는 소계 줄을 빼고 센다 — 소계까지 세면 번호에 구멍이 뚫린다.
+    let no = 0
+    let supply = 0
+    let vat = 0
+    const flush = () => {
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, supply, vat })
+      supply = 0
+      vat = 0
+    }
+    for (const sl of sorted) {
+      const m = sl.slipDate.slice(0, 7).replace('-', '/')
+      if (m !== month) { flush(); month = m }
+      for (const [i, line] of (sl.lines ?? []).entries()) {
+        out.push({ kind: 'line', key: `${sl.id}-${i}`, no: ++no, slip: sl, line })
+        supply += line.supplyAmount
+        vat += line.vatAmount
+      }
+    }
+    flush()
+    return out
+  }, [shown])
+
+  const lineTotal = useMemo(() => shown.reduce(
+    (t, sl) => ({ supply: t.supply + sl.supplyAmount, vat: t.vat + sl.vatAmount }),
+    { supply: 0, vat: 0 },
+  ), [shown])
+
   const byPartner = useMemo(() => {
     const m = new Map()
     for (const s of shown) {
@@ -272,7 +331,59 @@ export default function AccountingReflectionPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
-      {mode === '거래처별' ? (
+      {mode === '품목별' ? (
+        <table className="ec-grid w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th style={{ width: 190 }}>일자-No.</th>
+              <th style={{ width: 150 }}>거래처명</th>
+              <th style={{ width: 120 }}>품목코드</th>
+              <th>품목명</th>
+              <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 110, textAlign: 'right' }}>단가</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
+              <th style={{ width: 150 }}>적요</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : lineRows.length === 0 ? (
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 전표가 없습니다.</td></tr>
+            ) : lineRows.map((r) => r.kind === 'subtotal' ? (
+              <tr key={r.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
+                <td colSpan={7} style={{ textAlign: 'right' }}>{r.month} 계</td>
+                <td style={{ textAlign: 'right' }}>{r.supply.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right' }}>{r.vat.toLocaleString('ko-KR')}</td>
+                <td></td>
+              </tr>
+            ) : (
+              <tr key={r.key}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{r.no}</td>
+                <td style={{ fontFamily: 'monospace' }}>{r.slip.slipDate} {r.slip.docNo}</td>
+                <td>{r.slip.partnerName}</td>
+                <td style={{ fontFamily: 'monospace' }}>{r.line.itemCode}</td>
+                <td>{r.line.itemName}</td>
+                <td style={{ textAlign: 'right' }}>{r.line.quantity.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right' }}>{r.line.unitPrice.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right' }}>{r.line.supplyAmount.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right' }}>{r.line.vatAmount.toLocaleString('ko-KR')}</td>
+                <td style={{ color: '#8a929c' }}>{r.line.remark ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}전표)</td>
+              <td style={{ textAlign: 'right' }}>{lineTotal.supply.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'right' }}>{lineTotal.vat.toLocaleString('ko-KR')}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : mode === '거래처별' ? (
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>

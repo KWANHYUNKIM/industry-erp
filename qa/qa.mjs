@@ -3444,6 +3444,49 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 회계미반영현황이 <b>품목 줄</b>을 실어 오는가.
+ *
+ * <p>원본 회계미반영현황(판매)의 결과 열은 일자-No. · 거래처명 · <b>품목코드</b> ·
+ * <b>품목명</b> · <b>수량</b> · <b>단가</b> · 공급가액 · 부가세 · 적요이고,
+ * 월이 바뀌는 자리마다 소계가 들어간다.
+ *
+ * <p>우리 응답은 "첫 품목 외 N건" 요약뿐이라 <b>어느 품목이 회계로 안 넘어갔는지</b>
+ * 알 수가 없었다. 화면이 품목별로 펼치려면 응답이 라인을 들고 와야 한다.
+ *
+ * <p>라인 금액의 합은 전표 합계와 <b>같아야</b> 한다. 어긋나면 월 소계와 총합계가
+ * 서로 다른 숫자를 말하게 된다.
+ */
+async function scenarioReflectionLines(f) {
+  section('■ 회계미반영현황 품목 줄')
+
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2094-02-17',
+    lines: [
+      { itemId: f.product.id, quantity: 2, unitPrice: 30000, remark: `${P}줄1` },
+      { itemId: f.material.id, quantity: 3, unitPrice: 1000, remark: `${P}줄2` },
+    ],
+  })
+
+  const slips = await must('GET', '/accounting-reflection?kind=SALES')
+  const row = slips.find((x) => x.id === sale.id)
+  eq('그 전표가 나온다', !!row, true)
+  eq('품목 줄이 실린다', row.lines.length, 2)
+  eq('품목코드가 실린다', row.lines[0].itemCode, f.product.code)
+  eq('수량이 실린다', Number(row.lines[0].quantity), 2)
+  eq('단가가 실린다', Number(row.lines[0].unitPrice), 30000)
+  eq('줄 적요가 실린다', row.lines[0].remark, `${P}줄1`)
+
+  // 라인 합 = 전표 합. 어긋나면 월 소계와 총합계가 다른 말을 한다.
+  const sum = (k) => row.lines.reduce((n, l) => n + Number(l[k]), 0)
+  eq('라인 공급가액 합이 전표 공급가액과 같다', sum('supplyAmount'), Number(row.supplyAmount))
+  eq('라인 부가세 합이 전표 부가세와 같다', sum('vatAmount'), Number(row.vatAmount))
+
+  await must('DELETE', `/sales/${sale.id}`)
+  eq('시험용 전표는 남기지 않는다',
+    (await must('GET', '/accounting-reflection?kind=SALES')).filter((x) => x.id === sale.id).length, 0)
+}
+
+/**
  * 게시판 글을 <b>읽고 고칠 수 있는가</b>.
  *
  * <p>원본 게시판(WORK·건설예정공정표 …)은 제목을 누르면 그 자리에서 펼쳐지고,
@@ -5430,6 +5473,7 @@ async function main() {
   await scenarioProductionWarehouses(fixtures)
   await scenarioPartnerMovements(fixtures)
   await scenarioWorkPostEdit()
+  await scenarioReflectionLines(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

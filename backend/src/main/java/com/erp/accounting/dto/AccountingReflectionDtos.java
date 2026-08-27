@@ -23,6 +23,20 @@ public final class AccountingReflectionDtos {
      * 그 값들은 전표에 이미 있는데 응답에 안 실어서 화면이 거를 수가 없었다 — 같이 보낸다.
      * 품목은 전표에 여러 줄이라 "첫 품목 외 N건" 으로 줄여 보낸다(원본 격자의 '품목명(요약)').
      */
+    /**
+     * 미반영 전표의 <b>라인 한 줄</b>.
+     *
+     * <p>원본 회계미반영현황(판매)의 결과는 전표가 아니라 <b>품목 줄</b>이다 —
+     * 일자-No. · 거래처명 · 품목코드 · 품목명 · 수량 · 단가 · 공급가액 · 부가세 · 적요.
+     * 요약("첫 품목 외 N건")만으로는 <b>어느 품목이 회계로 안 넘어갔는지</b> 알 수 없다.
+     */
+    public record SlipLine(
+            String itemCode, String itemName,
+            BigDecimal quantity, BigDecimal unitPrice,
+            BigDecimal supplyAmount, BigDecimal vatAmount,
+            String remark
+    ) {}
+
     public record SlipResponse(
             Long id,
             SlipKind kind,
@@ -37,7 +51,9 @@ public final class AccountingReflectionDtos {
             BigDecimal supplyAmount,
             BigDecimal vatAmount,
             BigDecimal totalAmount,
-            boolean reflected
+            boolean reflected,
+            /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
+            List<SlipLine> lines
     ) {
         public static SlipResponse fromSales(Sales s) {
             return new SlipResponse(
@@ -48,7 +64,11 @@ public final class AccountingReflectionDtos {
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     summarize(s.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
-                    s.isAccountingReflected());
+                    s.isAccountingReflected(),
+                    s.getLines().stream().map(l -> new SlipLine(
+                            l.getItem().getCode(), l.getItem().getName(),
+                            l.getQuantity(), l.getUnitPrice(),
+                            l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
         }
 
         public static SlipResponse fromPurchase(Purchase p) {
@@ -60,7 +80,11 @@ public final class AccountingReflectionDtos {
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     summarize(p.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
-                    p.isAccountingReflected());
+                    p.isAccountingReflected(),
+                    p.getLines().stream().map(l -> new SlipLine(
+                            l.getItem().getCode(), l.getItem().getName(),
+                            l.getQuantity(), l.getUnitPrice(),
+                            l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
         }
 
         /** "첫 품목 외 N건". 라인이 없으면 빈 문자열. */

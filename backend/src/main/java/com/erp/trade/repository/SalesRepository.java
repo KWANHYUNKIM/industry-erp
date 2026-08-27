@@ -16,6 +16,15 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
             "order by s.saleDate desc, s.id desc")
     List<Sales> findAllWithRefs();
 
+    /**
+     * 전표 + 라인 + 품목까지 한 번에. 회계미반영현황이 <b>품목 줄</b>을 보여 주기 때문에
+     * 라인을 건드리는데, fetch 없이 하면 전표 수만큼 쿼리가 더 나간다(N+1).
+     */
+    @Query("select distinct s from Sales s join fetch s.partner join fetch s.warehouse " +
+            "left join fetch s.lines l left join fetch l.item " +
+            "order by s.saleDate desc, s.id desc")
+    List<Sales> findAllWithRefsAndLines();
+
     /** 기간 내 판매 전표 (이익현황 집계용) */
     List<Sales> findBySaleDateBetween(LocalDate from, LocalDate to);
 
