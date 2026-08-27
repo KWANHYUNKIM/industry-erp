@@ -7728,6 +7728,55 @@ async function scenarioSettlement(f) {
  * 200 인지와 <b>값이 그대로인지</b>를 본다. 값이 달라지면 어느 칸이 사라졌는지 적는다
  * (요청 DTO 에 없는 칸은 조용히 버려지므로 이 방식이 그것도 같이 잡는다).
  */
+/**
+ * <b>화면이 실제로 보내는 모양</b>으로 마스터를 고칠 수 있나.
+ *
+ * <p>창고·공정·관리항목은 <b>수정 화면이 아예 없었다</b> — 만들기만 되고, 이름이나
+ * 표준시간을 잘못 넣으면 지우고 다시 만들어야 했는데 전표가 물려 있으면 지울 수도
+ * 없었다. 백엔드 PUT 은 이미 있었고 화면만 없던 것이라, 화면이 보내는 그대로 재 둔다.
+ *
+ * <p>이름만 바꾼 요청에서 <b>나머지 칸이 살아남는지</b>도 같이 본다. 수정은 통째로
+ * 덮으므로, 화면이 몇 칸만 보내면 안 보낸 칸이 조용히 지워진다.
+ */
+async function scenarioMasterEditFromScreen() {
+  section('■ 화면이 보내는 모양으로 마스터 수정')
+
+  const wh = (await must('GET', '/warehouses'))[0]
+  const whBody = {
+    name: wh.name, location: wh.location, kind: wh.kind,
+    processId: wh.processId, outsourcingPartnerId: wh.outsourcingPartnerId, active: wh.active,
+  }
+  const wh2 = await must('PUT', `/warehouses/${wh.id}`, { ...whBody, name: `${wh.name}${P}` })
+  eq('창고 이름을 고칠 수 있다', wh2.name, `${wh.name}${P}`)
+  eq('창고 위치가 살아남는다', wh2.location ?? null, wh.location ?? null)
+  eq('창고 구분이 살아남는다', wh2.kind, wh.kind)
+  await must('PUT', `/warehouses/${wh.id}`, whBody)
+
+  const pr = (await must('GET', '/processes'))[0]
+  const prBody = {
+    sortOrder: pr.sortOrder, name: pr.name, workcenter: pr.workcenter,
+    stdTimeMin: pr.stdTimeMin, costPerHr: pr.costPerHr, active: pr.active,
+  }
+  const pr2 = await must('PUT', `/processes/${pr.id}`, { ...prBody, name: `${pr.name}${P}` })
+  eq('공정 이름을 고칠 수 있다', pr2.name, `${pr.name}${P}`)
+  eq('공정 표준시간이 살아남는다', String(pr2.stdTimeMin), String(pr.stdTimeMin))
+  eq('공정 시간당비용이 살아남는다', String(pr2.costPerHr), String(pr.costPerHr))
+  await must('PUT', `/processes/${pr.id}`, prBody)
+
+  const mg = (await must('GET', '/management-items'))[0]
+  const mgBody = { name: mg.name, description: mg.description ?? undefined, active: mg.active }
+  const mg2 = await must('PUT', `/management-items/${mg.id}`, { ...mgBody, name: `${mg.name}${P}` })
+  eq('관리항목 이름을 고칠 수 있다', mg2.name, `${mg.name}${P}`)
+  eq('관리항목 설명이 살아남는다', mg2.description ?? null, mg.description ?? null)
+  await must('PUT', `/management-items/${mg.id}`, mgBody)
+
+  eq('셋 다 원래 이름으로 돌아왔다',
+    [(await must('GET', '/warehouses')).find((x) => x.id === wh.id).name,
+      (await must('GET', '/processes')).find((x) => x.id === pr.id).name,
+      (await must('GET', '/management-items')).find((x) => x.id === mg.id).name].join(','),
+    [wh.name, pr.name, mg.name].join(','))
+}
+
 async function scenarioMasterResave() {
   section('■ 마스터를 같은 값으로 다시 저장')
 
@@ -7875,6 +7924,7 @@ async function main() {
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
+  await scenarioMasterEditFromScreen()
 
   checkDeadAssertions()
 

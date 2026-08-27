@@ -29,6 +29,12 @@ export default function WarehousesPage() {
   const [form, setForm] = useState({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
   const [processes, setProcesses] = useState<ProcessRow[]>([])
   const [partners, setPartners] = useState<PartnerRow[]>([])
+  /**
+   * 고치는 중인 창고. <b>수정이 아예 없었다</b> — 이름이나 위치를 잘못 넣으면
+   * 지우고 다시 만들어야 했고, 전표가 물려 있으면 지울 수도 없었다.
+   * 원본은 목록에서 <b>창고코드·창고명을 눌러</b> 그 자리에서 연다.
+   */
+  const [editId, setEditId] = useState<number | null>(null)
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [webOpen, setWebOpen] = useState(false)      // 웹자료올리기 모달
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
@@ -62,16 +68,34 @@ export default function WarehousesPage() {
     load()
   }, [])
 
+  /** 원본처럼 목록에서 눌러 연다. 코드는 못 고친다(전표가 그 코드로 묶여 있다). */
+  function openEdit(w: Warehouse) {
+    setEditId(w.id)
+    setForm({
+      code: w.code, name: w.name, location: w.location ?? '', kind: w.kind ?? '창고',
+      processId: w.processId != null ? String(w.processId) : '',
+      outsourcingPartnerId: w.outsourcingPartnerId != null ? String(w.outsourcingPartnerId) : '',
+    })
+    setShowForm(true)
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/warehouses', {
-        code: form.code, name: form.name, location: form.location, kind: form.kind,
+      const body = {
+        name: form.name, location: form.location, kind: form.kind,
         processId: form.kind === '공장' && form.processId ? Number(form.processId) : null,
         outsourcingPartnerId: form.kind === '외주' && form.outsourcingPartnerId
           ? Number(form.outsourcingPartnerId) : null,
-      })
+      }
+      if (editId) {
+        /* 창고코드는 전표가 그 코드로 묶여 있어 못 고친다 — 수정 요청도 코드를 안 받는다. */
+        await api.put(`/warehouses/${editId}`, { ...body, active: warehouses.find((w) => w.id === editId)?.active })
+      } else {
+        await api.post('/warehouses', { code: form.code, ...body })
+      }
+      setEditId(null)
       setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
       setShowForm(false)
       load()
@@ -117,7 +141,7 @@ export default function WarehousesPage() {
   return (
     <EcListShell
       title="창고등록 리스트"
-      onNew={() => setShowForm(true)}
+      onNew={() => { setEditId(null); setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
                 { label: 'Excel' },
@@ -125,13 +149,18 @@ export default function WarehousesPage() {
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <Modal open={showForm} title="창고등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 창고 등록</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>
+            {editId ? '창고 수정' : '새 창고 등록'}
+          </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고코드 *</label>
-              <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              {/* 코드는 전표가 그 값으로 묶여 있어 만들 때만 정한다(거래처·품목과 같다). */}
+              <input className={inputCls} value={form.code} disabled={editId != null}
+                     title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined}
+                     onChange={(e) => setForm({ ...form, code: e.target.value })} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고명 *</label>
@@ -220,8 +249,19 @@ export default function WarehousesPage() {
                       return next
                     })} />
                   </td>
-                  <td style={{ fontFamily: 'monospace' }}>{w.code}</td>
-                  <td>{w.name}</td>
+                  {/* 원본은 코드·이름을 눌러 그 창고를 연다(사본 실측: 두 칸이 링크다). */}
+                  <td style={{ fontFamily: 'monospace' }}>
+                    <button type="button" onClick={() => openEdit(w)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                      {w.code}
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => openEdit(w)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5 }}>
+                      {w.name}
+                    </button>
+                  </td>
                   <td style={{ textAlign: 'center', color: w.kind === '창고' ? '#5a626e' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
                     {w.kind}
                   </td>

@@ -29,6 +29,12 @@ export default function ProcessPage() {
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  /**
+   * 고치는 중인 공정. <b>수정이 아예 없었다</b> — 표준시간이나 시간당비용을 잘못 넣으면
+   * 지우고 다시 만들어야 했는데, 작업지시가 물려 있으면 지울 수도 없었다.
+   * 원본은 목록에서 <b>생산공정코드·생산공정명을 눌러</b> 연다.
+   */
+  const [editId, setEditId] = useState<number | null>(null)
   /** 원본 공정등록의 [작업코드등록] — 별도 메뉴가 아니라 이 화면에서 연다. */
   const [opOpen, setOpOpen] = useState(false)
 
@@ -46,18 +52,35 @@ export default function ProcessPage() {
 
   useEffect(() => { load() }, [])
 
+  /** 원본처럼 목록에서 눌러 연다. 코드는 만들 때만 정한다. */
+  function openEdit(r: ProductionProcess) {
+    setEditId(r.id)
+    setForm({
+      code: r.code, name: r.name, workcenter: r.workcenter ?? '',
+      stdTimeMin: String(r.stdTimeMin ?? ''), costPerHr: String(r.costPerHr ?? ''),
+      sortOrder: String(r.sortOrder ?? 0),
+    })
+    setShowForm(true)
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/processes', {
+      const body = {
         sortOrder: form.sortOrder === '' ? 0 : Number(form.sortOrder),
-        code: form.code,
         name: form.name,
         workcenter: form.workcenter,
         stdTimeMin: form.stdTimeMin === '' ? 0 : Number(form.stdTimeMin),
         costPerHr: form.costPerHr === '' ? 0 : Number(form.costPerHr),
-      })
+      }
+      if (editId) {
+        /* 공정코드는 작업지시·BOR 이 그 코드로 묶여 있어 못 고친다. */
+        await api.put(`/processes/${editId}`, { ...body, active: rows.find((r) => r.id === editId)?.active })
+      } else {
+        await api.post('/processes', { code: form.code, ...body })
+      }
+      setEditId(null)
       setForm(emptyForm)
       setShowForm(false)
       load()
@@ -122,7 +145,7 @@ export default function ProcessPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      onNew={() => setShowForm(true)}
+      onNew={() => { setEditId(null); setForm(emptyForm); setShowForm(true) }}
       actions={[{ label: '작업코드등록', onClick: () => setOpOpen(true) },
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
                 { label: '새로고침', onClick: load },
@@ -130,13 +153,16 @@ export default function ProcessPage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <Modal open={showForm} title="공정등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={editId ? '공정수정' : '공정등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 공정 등록</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '공정 수정' : '새 공정 등록'}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산공정코드 *</label>
-              <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="PRC-060" />
+              {/* 코드는 작업지시·BOR 이 그 값으로 묶여 있어 만들 때만 정한다. */}
+              <input className={inputCls} value={form.code} disabled={editId != null}
+                     title={editId != null ? '작업지시·BOR 이 코드로 묶여 있어 수정할 수 없습니다.' : undefined}
+                     onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="PRC-060" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산공정명 *</label>
@@ -210,8 +236,19 @@ export default function ProcessPage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td>{r.name}</td>
+              {/* 원본은 코드·이름을 눌러 그 공정을 연다(사본 실측: 두 칸이 링크다). */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                  {r.code}
+                </button>
+              </td>
+              <td>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5 }}>
+                  {r.name}
+                </button>
+              </td>
               <td style={{ color: '#5a626e' }}>{r.sortOrder}</td>
               <td>{r.workcenter ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.stdTimeMin.toLocaleString()}</td>

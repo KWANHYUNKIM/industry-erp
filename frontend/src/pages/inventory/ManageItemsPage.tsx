@@ -7,6 +7,8 @@ import Modal from '../../components/Modal'
 /** 재고 기초등록 > 관리항목등록 — 실제 CRUD 연동 */
 export default function ManageItemsPage() {
   const [rows, setRows] = useState<ManagementItem[]>([])
+  /** 고치는 중인 관리항목. */
+  const [editId, setEditId] = useState<number | null>(null)
   /** 원본 관리항목리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
@@ -29,15 +31,35 @@ export default function ManageItemsPage() {
 
   useEffect(() => { load() }, [])
 
+  /**
+   * 원본처럼 목록에서 눌러 연다. <b>수정이 아예 없었다</b> — 이름을 잘못 넣으면
+   * 지우고 다시 만들어야 했고, 품목이 그 관리항목을 물고 있으면 지울 수도 없었다.
+   */
+  function openEdit(m: ManagementItem) {
+    setEditId(m.id)
+    setForm({ code: m.code, name: m.name, description: m.description ?? '' })
+    setShowForm(true)
+  }
+
   async function submit() {
     setError('')
     if (!form.name.trim()) return setError('관리항목명을 입력하세요.')
     try {
-      await api.post('/management-items', {
-        code: form.code || undefined,
-        name: form.name,
-        description: form.description || undefined,
-      })
+      if (editId) {
+        /* 코드는 품목이 그 값으로 묶여 있어 만들 때만 정한다. */
+        await api.put(`/management-items/${editId}`, {
+          name: form.name,
+          description: form.description || undefined,
+          active: rows.find((r) => r.id === editId)?.active,
+        })
+      } else {
+        await api.post('/management-items', {
+          code: form.code || undefined,
+          name: form.name,
+          description: form.description || undefined,
+        })
+      }
+      setEditId(null)
       setForm({ code: '', name: '', description: '' })
       setShowForm(false)
       load()
@@ -80,16 +102,16 @@ export default function ManageItemsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      onNew={() => setShowForm(true)}
+      onNew={() => { setEditId(null); setForm({ code: '', name: '', description: '' }); setShowForm(true) }}
       actions={[{ label: '새로고침', onClick: load },
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
                 { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <Modal open={showForm} title="관리항목 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={editId ? '관리항목 수정' : '관리항목 등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>관리항목 등록</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>{editId ? '관리항목 수정' : '관리항목 등록'}</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}>
               <div style={{ color: '#5a626e', marginBottom: 3 }}>코드(미입력시 자동)</div>
@@ -138,8 +160,19 @@ export default function ManageItemsPage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td>{r.name}</td>
+              {/* 원본은 코드·이름을 눌러 그 관리항목을 연다. */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                  {r.code}
+                </button>
+              </td>
+              <td>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5 }}>
+                  {r.name}
+                </button>
+              </td>
               <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: r.active ? '#1c7c3c' : '#9aa1ab' }} onClick={() => toggleActive(r)}>
