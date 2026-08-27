@@ -3427,6 +3427,47 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 비용 전표번호.
+ *
+ * <p>원본 비용내역현황의 첫 열이 [일자-No.] 다. 비용도 전표인데 우리에겐 번호가 없어서
+ * "그 비용 건" 을 지목할 방법이 없었다 — 증빙을 붙이거나 회계반영을 되짚을 때 일자와
+ * 금액으로 더듬는 수밖에 없다. 판매·구매·수금·은행거래·카드사용은 이미 다 번호가 있다.
+ *
+ * <p>채번은 DocumentNoGenerator 로만 한다. count()+1 로 매기면 <b>중간을 지운 뒤</b>
+ * 같은 번호가 두 번 나온다 — 다른 전표에서 이미 겪은 일이라 여기서도 못 박는다.
+ */
+async function scenarioExpenseDocNo() {
+  section('■ 비용 전표번호')
+
+  const accounts = await must('GET', '/accounts')
+  const account = accounts[0]
+  const date = '2098-03-14'
+  const mk = (n) => must('POST', '/expenses', {
+    expenseDate: date, accountId: account.id, content: `${P}채번${n}`,
+    amount: 1000 + n, paymentMethod: '현금', department: 'QA',
+  })
+
+  const a = await mk(1)
+  const b = await mk(2)
+  const c = await mk(3)
+
+  eq('비용에 전표번호가 붙는다', /^EX-\d{8}-\d{4}$/.test(String(a.docNo)), true)
+  eq('같은 날은 번호가 이어진다', [a.docNo, b.docNo, c.docNo].map((x) => x.slice(-4)).join(','), '0001,0002,0003')
+  eq('전표번호는 겹치지 않는다', new Set([a.docNo, b.docNo, c.docNo]).size, 3)
+  eq('원본 [비용그룹명] 자리에 넣을 값이 있다', 'accountGroupName' in a, true)
+
+  // 가운데를 지우고 새로 넣어도 번호가 겹치면 안 된다(count()+1 이면 여기서 겹친다).
+  await must('DELETE', `/expenses/${b.id}`)
+  const d = await mk(4)
+  eq('중간을 지운 뒤에도 번호가 겹치지 않는다', d.docNo === b.docNo, false)
+  eq('지운 다음 번호로 이어진다', d.docNo.slice(-4), '0004')
+
+  for (const x of [a, c, d]) await must('DELETE', `/expenses/${x.id}`)
+  eq('시험용 비용은 남기지 않는다',
+    (await must('GET', '/expenses')).filter((x) => (x.content ?? '').startsWith(P)).length, 0)
+}
+
+/**
  * 거래명세서의 <b>미수금집계</b>가 기준일 시점을 보는가.
  *
  * <p>원본 거래명세서인쇄의 [기타] 조건에 미수금집계가 있다. 거래명세서는 대개
@@ -4534,6 +4575,7 @@ async function main() {
   await scenarioOrderStages(fixtures)
   await scenarioPaymentCompare(fixtures)
   await scenarioStatementReceivable(fixtures)
+  await scenarioExpenseDocNo()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

@@ -2,16 +2,31 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 
-/** 회계 > 비용내역현황 — 계정과목별 비용 지출 내역 조회 (실제 연동: /api/expenses) */
+/**
+ * 회계 > 비용내역현황.
+ *
+ * <p>원본 열 실측(사본 열 id DETAIL·RECORD·COST·DETAIL_U):
+ *   <b>일자-No.</b> · 비용그룹명 · 비용명 · 사용자명 · 사용금액 · 사용일자 · 적요.
+ *
+ * <p>우리 화면에는 <b>전표번호가 없었다</b>. 비용도 전표인데 번호가 없으면 "그 비용 건" 을
+ * 지목할 방법이 없어, 증빙을 붙이거나 회계반영을 되짚을 때 일자와 금액으로 더듬어야 한다.
+ * 판매·구매·수금·은행거래·카드사용은 이미 다 번호가 있다(SO-·PO-·RC-·BK-·CU-).
+ *
+ * <p>비용그룹 마스터는 우리에게 없어 계정과목의 세부분류로 갈음한다(없으면 계정구분).
+ * 없는 마스터를 지어내지 않는다.
+ */
 interface Expense {
   id: number
+  docNo: string
   expenseDate: string
   accountName: string
+  accountGroupName: string | null
   content: string | null
   partnerName: string | null
   amount: number
   paymentMethod: string | null
   department: string | null
+  createdBy: string | null
 }
 
 export default function ExpenseDetailPage() {
@@ -58,36 +73,45 @@ export default function ExpenseDetailPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>일자</th>
-            <th style={{ width: 120 }}>계정과목</th>
-            <th style={{ width: 90 }}>부서</th>
+            <th style={{ width: 170 }}>일자-No.</th>
+            <th style={{ width: 110 }}>비용그룹명</th>
+            <th style={{ width: 130 }}>비용명</th>
+            <th style={{ width: 90 }}>사용자명</th>
+            <th style={{ width: 120, textAlign: 'right' }}>사용금액</th>
+            <th style={{ width: 100 }}>사용일자</th>
             <th>적요</th>
-            <th style={{ width: 120 }}>거래처</th>
-            <th style={{ width: 110, textAlign: 'right' }}>금액</th>
+            <th style={{ width: 110 }}>거래처</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.expenseDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+              <td style={{ color: '#5a626e' }}>{r.accountGroupName ?? ''}</td>
               <td>{r.accountName}</td>
-              <td>{r.department ?? ''}</td>
+              {/* 원본 [사용자명]. 우리는 전표를 넣은 계정이 그 자리다 — 부서도 같이 적는다. */}
+              <td>
+                {r.createdBy ?? ''}
+                {r.department && <span style={{ color: '#8a929c', fontSize: 11.5 }}> · {r.department}</span>}
+              </td>
+              <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.amount.toLocaleString('ko-KR')}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.expenseDate.replace(/-/g, '/')}</td>
               <td>{r.content ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.amount.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr style={{ background: '#f5f7fa', fontWeight: 700 }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString()}</td>
+              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString('ko-KR')}</td>
+              <td colSpan={3}></td>
             </tr>
           </tfoot>
         )}

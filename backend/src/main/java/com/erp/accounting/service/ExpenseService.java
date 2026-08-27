@@ -1,6 +1,7 @@
 package com.erp.accounting.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.domain.Account;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.accounting.domain.Expense;
@@ -25,6 +26,7 @@ public class ExpenseService {
     private final ProjectService projectService;
 
     private final ExpenseRepository expenseRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final AccountRepository accountRepository;
     private final BusinessPartnerRepository partnerRepository;
 
@@ -40,8 +42,11 @@ public class ExpenseService {
         Account account = accountRepository.findById(req.accountId())
                 .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + req.accountId()));
 
+        LocalDate date = req.expenseDate() != null ? req.expenseDate() : LocalDate.now();
         Expense e = Expense.builder()
-                .expenseDate(req.expenseDate() != null ? req.expenseDate() : LocalDate.now())
+                .expenseDate(date)
+                // 채번은 DocumentNoGenerator 로만 한다(count()+1 은 삭제·동시성에서 겹친다).
+                .docNo(docNoGenerator.next("EX-", "expenses", "doc_no", "expense_date", date))
                 .account(account)
                 .content(req.content())
                 .partnerName(req.partnerName())
