@@ -134,6 +134,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   }
 
   /**
+   * 원본 구매조회의 <b>[반품처리]</b> 버튼. 그 전표를 근거로 <b>반품 전표를 새로</b> 만든다.
+   *
+   * <p>원 전표는 손대지 않는다 — 산 사실은 남고, 되돌려준 사실이 따로 하나 더 생기는 것이
+   * 반품이다. 원 전표의 수량을 깎아 버리면 애초에 그만큼만 산 것이 되어 이력이 사라진다.
+   *
+   * <p>입력 화면이 [거래구분: 반품]으로 열리고 그 전표 라인이 담겨 있다. 전량 반품이 아니면
+   * 그 자리에서 수량을 고친다 — 얼마를 되돌려주는지는 사람만 안다.
+   */
+  function returnDoc(d: NormalDoc) {
+    navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${d.id}`)
+  }
+
+  /**
    * 전표 삭제. 서버가 재고를 되돌리고 지운다. 회계반영·확인·세금계산서 발행 전표는 서버가 거부한다.
    * 되돌릴 수 없는 조작이라 한 번 더 묻는다.
    */
@@ -461,6 +474,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                         {isSales ? '거래명세서 인쇄' : '매입명세서 인쇄'}
                       </button>
                       <button className="ec-btn" onClick={() => editDoc(d)}>수정</button>
+                      {/* 원본 구매조회의 [반품처리]. 원 전표는 그대로 두고 반품 전표를 새로 만든다. */}
+                      <button className="ec-btn" onClick={() => returnDoc(d)}>반품처리</button>
                       <button
                         className="ec-btn"
                         style={{ color: '#c60a2e', borderColor: '#e2b4bc' }}

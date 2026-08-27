@@ -199,6 +199,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const editId = searchParams.get('edit')
   /** 거래처중심입력에서 넘어오면 거래처를 미리 골라 둔다(?partnerId=). */
   const presetPartnerId = searchParams.get('partnerId')
+  /**
+   * 조회의 <b>[반품처리]</b> 에서 넘어온 근거 전표(?returnFrom=). 그 전표를 <b>베껴서</b>
+   * 거래구분을 반품으로 두고 연다 — 수정이 아니다. 원 전표는 손대지 않는다.
+   */
+  const returnFromId = searchParams.get('returnFrom')
 
   // ── 마스터 ─────────────────────────────────────────────
   const [partners, setPartners] = useState<Partner[]>([])
@@ -223,6 +228,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 부호를 뒤집는 것은 서버가 저장할 때 한 번만 한다.
    */
   const [returnSlip, setReturnSlip] = useState(false)
+  /** [반품처리] 베끼기는 한 번만 한다 — 사람이 고친 뒤 다시 덮어쓰면 안 된다. */
+  const returnLoaded = useRef(false)
   const [foreign, setForeign] = useState(false)          // 통화: 내자/외자
   const [exchangeRate, setExchangeRate] = useState('0')
   const [projectId, setProjectId] = useState('')
@@ -347,6 +354,37 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * <b>`taxable` 은 이제 응답에 있다.</b> 예전에는 부가세 &gt; 0 인지로 되짚었는데,
    * 반올림으로 부가세가 0 이 된 과세 전표를 면세로 바꿔 놓고 저장하는 일이 생겼다.
    */
+  /*
+   * [반품처리] 로 넘어온 경우 — 그 전표를 베껴 담고 거래구분을 반품으로 둔다.
+   * 근거전표(sourceOrderId)는 <b>안 옮긴다</b>. 반품은 그 수주를 다시 채우는 것이 아니라
+   * 되돌려주는 것이라, 옮기면 수주 잔량이 엉뚱하게 줄어든다.
+   */
+  useEffect(() => {
+    if (!returnFromId || editing || docs.length === 0 || returnLoaded.current) return
+    const d = docs.find((x) => String(x.id) === returnFromId)
+    if (!d) return
+    returnLoaded.current = true
+    setDate(today())
+    setPartnerId(String(d.partnerId))
+    setWarehouseId(String(d.warehouseId))
+    setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
+    setTaxable(d.taxable)
+    setVatBySlip(d.vatBySlip)
+    setReturnSlip(true)
+    setRemark(`반품 (근거전표 ${d.docNo})`)
+    setLines([
+      ...d.lines.map((l) => ({
+        ...emptyLine(),
+        itemId: String(l.itemId),
+        quantity: String(Math.abs(l.quantity)),
+        unitPrice: String(l.unitPrice),
+        lotNo: l.lotNo ?? '',
+        remark: l.remark ?? '',
+      })),
+      emptyLine(),
+    ])
+  }, [returnFromId, editing, docs])
+
   useEffect(() => {
     if (!editId || editing || docs.length === 0) return
     const d = docs.find((x) => String(x.id) === editId)

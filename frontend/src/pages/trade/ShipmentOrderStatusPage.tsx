@@ -150,7 +150,7 @@ export default function ShipmentOrderStatusPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
-        { label: 'Excel' },
+        { label: 'Excel(화면)' },
       ]}
       help={
         <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>

@@ -7469,6 +7469,26 @@ async function scenarioReturnSlip(f) {
     refl.map((r) => `${r.docNo}=${r.tradeKind}`).sort().join(' '),
     [`${buy.docNo}=일반`, `${pRet.docNo}=반품`].sort().join(' '))
 
+  /*
+   * 원본 구매조회의 <b>[반품처리]</b> — 그 전표를 근거로 반품 전표를 <b>새로</b> 만든다.
+   * 화면은 구매입력을 [거래구분: 반품]으로 열어 라인을 담아 주고, 저장은 평범한 등록이다.
+   * 여기서 재는 것은 <b>원 전표가 손대지 않고 그대로 남는가</b>이다 —
+   * 원 전표의 수량을 깎으면 애초에 그만큼만 산 것이 되어 이력이 사라진다.
+   */
+  const beforeBuy = (await must('GET', '/purchases')).find((x) => x.id === buy.id)
+  const partial = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-22',
+    returnSlip: true, remark: `반품 (근거전표 ${buy.docNo})`,
+    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 500 }],
+  })
+  eq('일부만 되돌려줄 수 있다', Number(partial.lines[0].quantity), -2)
+  const afterBuy = (await must('GET', '/purchases')).find((x) => x.id === buy.id)
+  eq('원 전표의 수량은 그대로다',
+    Number(afterBuy.lines[0].quantity), Number(beforeBuy.lines[0].quantity))
+  eq('원 전표의 금액도 그대로다', Number(afterBuy.totalAmount), Number(beforeBuy.totalAmount))
+  eq('근거전표를 적요에 남긴다', partial.remark.includes(buy.docNo), true)
+  await must('DELETE', `/purchases/${partial.id}`)
+
   // 뒷정리 — 시험용 전표와 재고를 되돌린다
   await must('DELETE', `/purchases/${pRet.id}`)
   await must('DELETE', `/purchases/${buy.id}`)

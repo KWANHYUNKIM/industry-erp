@@ -264,7 +264,7 @@ export default function PurchaseStatusPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
-        { label: 'Excel' },
+        { label: 'Excel(화면)' },
       ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
