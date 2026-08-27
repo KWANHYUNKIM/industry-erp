@@ -3427,6 +3427,51 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 실제원가현황(원가집계표)의 <b>롤포워드 항등식</b>.
+ *
+ * <p>원본 원가집계표는 기초 → 증가 → 감소 → 기말을 수량·단가·금액으로 늘어놓는다
+ * (원가생성/수정 사본의 열 id B_QTY·I_QTY·D_QTY·L_QTY 가 그것이다).
+ * 그 표가 뜻을 가지려면 <b>기초 + 증가 − 감소 = 기말</b> 이 언제나 맞아야 한다.
+ * 한 품목이라도 어긋나면 기말재고 금액이 틀리고, 그 값이 재무제표까지 간다.
+ *
+ * <p>증가내역·감소내역은 같은 기간 수불부를 부호로 가른 것이다 — 두 갈래의 건수 합이
+ * 수불부 전체와 같아야 한다. 안 그러면 어느 한쪽 화면에서 거래가 사라진다.
+ */
+async function scenarioCostRollForward() {
+  section('■ 실제원가현황 롤포워드')
+
+  const from = '2026-07-01'
+  const to = '2026-07-31'
+  const movement = await must('GET', `/stock/movement?from=${from}&to=${to}`)
+  eq('기간 재고변동표가 나온다', movement.length > 0, true)
+
+  const broken = movement.filter(
+    (r) => Math.abs((Number(r.opening) + Number(r.inQty) - Number(r.outQty)) - Number(r.closing)) > 1e-6)
+  eq('기초 + 증가 − 감소 = 기말 (어긋난 품목 수)', broken.length, 0)
+
+  const ledger = await must('GET', `/stock/ledger?from=${from}&to=${to}`)
+  const inc = ledger.rows.filter((r) => Number(r.quantityChange) > 0)
+  const dec = ledger.rows.filter((r) => Number(r.quantityChange) < 0)
+  eq('증가내역 + 감소내역 = 수불부 전체', inc.length + dec.length, ledger.rows.length)
+  eq('수량이 0 인 거래는 없다', ledger.rows.filter((r) => Number(r.quantityChange) === 0).length, 0)
+
+  // 수불부의 증가 합이 변동표의 증가 합과 같아야 한다 — 두 화면이 같은 자료를 다르게 세면 안 된다.
+  const sumIn = inc.reduce((n, r) => n + Number(r.quantityChange), 0)
+  const sumOut = dec.reduce((n, r) => n - Number(r.quantityChange), 0)
+  eq('증가 수량 합이 변동표와 같다',
+    Math.round(sumIn * 1000) / 1000, Math.round(movement.reduce((n, r) => n + Number(r.inQty), 0) * 1000) / 1000)
+  eq('감소 수량 합이 변동표와 같다',
+    Math.round(sumOut * 1000) / 1000, Math.round(movement.reduce((n, r) => n + Number(r.outQty), 0) * 1000) / 1000)
+
+  // 화면이 기대는 필드
+  const row = movement[0]
+  eq('변동표에 품목코드·단위가 실린다',
+    typeof row.itemCode === 'string' && typeof row.unit === 'string', true)
+  eq('수불부에 일자·적요가 실린다',
+    typeof ledger.rows[0]?.transactionDate === 'string' && 'note' in (ledger.rows[0] ?? {}), true)
+}
+
+/**
  * 작업지시서효율현황이 기대는 <b>응답 필드</b>.
  *
  * <p>이 화면은 원본처럼 소모 표준(BOM 대로) 대 실제(정말 쓴 것)를 금액으로 견준다.
@@ -3967,6 +4012,7 @@ async function main() {
   await scenarioSlipPriceBulk(fixtures)
   await scenarioNestedValidation(fixtures)
   await scenarioWoEfficiencyFields()
+  await scenarioCostRollForward()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)
