@@ -57,6 +57,21 @@ public class SalesOrderController {
         return salesOrderService.updateStatus(id, req.status());
     }
 
+    /**
+     * 오더관리 유형·진행단계를 지정한다. (오더관리진행단계 화면)
+     *
+     * <p>{@code stageId} 를 비우면 <b>다음 단계</b>로 한 칸 나아간다 — 원본 화면의
+     * 단계 이동에 해당한다. {@code complete=true} 면 마지막 단계로 보낸다([전체단계완료]).
+     */
+    @PatchMapping("/{id}/stage")
+    public SalesOrderResponse updateStage(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long orderTypeId,
+            @RequestParam(required = false) Long stageId,
+            @RequestParam(defaultValue = "false") boolean complete) {
+        return salesOrderService.updateStage(id, orderTypeId, stageId, complete);
+    }
+
     /** 주문에서 출하지시 생성. body의 lines를 비우면 남은 잔량 전체를 출하한다. */
     @PostMapping("/{id}/ship")
     public ResponseEntity<ShipmentResponse> ship(

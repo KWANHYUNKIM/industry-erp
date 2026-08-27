@@ -14,6 +14,12 @@ import com.erp.trade.dto.SalesOrderDtos.UnshippedLineResponse;
 import com.erp.trade.dto.SalesOrderDtos.UnsoldLineResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.trade.repository.SalesLineRepository;
+import com.erp.trade.domain.OrderStage;
+import com.erp.trade.domain.OrderType;
+import com.erp.trade.domain.OrderTypeStep;
+import com.erp.trade.repository.OrderStageRepository;
+import com.erp.trade.repository.OrderTypeRepository;
+import com.erp.trade.repository.OrderTypeStepRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.inventory.service.ItemService;
 import com.erp.trade.repository.ShipmentRepository;
@@ -48,6 +54,9 @@ public class SalesOrderService {
     private final QuotationRepository quotationRepository;
     private final ShipmentLineRepository shipmentLineRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final OrderTypeRepository orderTypeRepository;
+    private final OrderStageRepository orderStageRepository;
+    private final OrderTypeStepRepository orderTypeStepRepository;
 
     @Transactional(readOnly = true)
     public List<SalesOrderResponse> findAll() {
@@ -146,6 +155,62 @@ public class SalesOrderService {
         order.setTotalAmount(totalSupply.add(totalVat));
 
         return SalesOrderResponse.from(salesOrderRepository.save(order));
+    }
+
+    /**
+     * 오더관리 유형·진행단계 지정. (오더관리진행단계 화면)
+     *
+     * <p>단계를 안 주면 <b>유형에 적힌 순서대로 한 칸</b> 나아간다. 유형에 단계가 없으면
+     * 나아갈 곳이 없으므로 막는다 — 아무 단계나 찍어 주면 그 순서는 아무 뜻이 없다.
+     *
+     * <p>{@code complete} 면 마지막 단계로 보낸다(원본의 [전체단계완료]).
+     */
+    @Transactional
+    public SalesOrderResponse updateStage(Long id, Long orderTypeId, Long stageId, boolean complete) {
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("수주를 찾을 수 없습니다. id=" + id));
+
+        if (orderTypeId != null) {
+            OrderType type = orderTypeRepository.findById(orderTypeId)
+                    .orElseThrow(() -> ApiException.badRequest("오더유형을 찾을 수 없습니다. id=" + orderTypeId));
+            order.setOrderType(type);
+        }
+
+        if (stageId != null) {
+            OrderStage stage = orderStageRepository.findById(stageId)
+                    .orElseThrow(() -> ApiException.badRequest("진행단계를 찾을 수 없습니다. id=" + stageId));
+            order.setStage(stage);
+            return SalesOrderResponse.from(order);
+        }
+
+        if (order.getOrderType() == null) {
+            throw ApiException.badRequest("오더유형을 먼저 지정하세요. 유형이 있어야 다음 단계를 알 수 있습니다.");
+        }
+        List<OrderTypeStep> steps = orderTypeStepRepository.findByTypeWithStage(order.getOrderType().getId());
+        if (steps.isEmpty()) {
+            throw ApiException.badRequest(
+                    "이 유형에 진행단계가 없습니다. 오더관리유형리스트에서 단계를 먼저 정하세요: "
+                            + order.getOrderType().getName());
+        }
+        if (complete) {
+            order.setStage(steps.get(steps.size() - 1).getStage());
+            return SalesOrderResponse.from(order);
+        }
+
+        int current = -1;
+        if (order.getStage() != null) {
+            for (int i = 0; i < steps.size(); i++) {
+                if (steps.get(i).getStage().getId().equals(order.getStage().getId())) {
+                    current = i;
+                    break;
+                }
+            }
+        }
+        if (current >= steps.size() - 1) {
+            throw ApiException.badRequest("이미 마지막 단계입니다: " + order.getStage().getName());
+        }
+        order.setStage(steps.get(current + 1).getStage());
+        return SalesOrderResponse.from(order);
     }
 
     @Transactional

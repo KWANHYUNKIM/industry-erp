@@ -3427,6 +3427,78 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 오더관리 — 유형의 <b>단계 순서</b>와 오더의 진행.
+ *
+ * <p>원본 오더관리유형리스트의 열은 유형코드 · 유형명 · [1단계]~[10단계] · 사용구분 ·
+ * 입력메뉴에서 사용 · 담당자다. 유형은 <b>그 오더가 밟아 갈 순서</b>를 담는 템플릿이고,
+ * 오더관리진행단계 화면은 실제 오더가 지금 어디까지 갔나를 보여 준다.
+ *
+ * <p>우리 유형에는 단계가 없었고, 수주(SalesOrder)는 유형·단계를 엔티티에 들고 있으면서도
+ * <b>응답에 안 실어</b> 아무도 못 봤다. 그래서 진행단계 화면은 단계 마스터만 나열했다.
+ */
+async function scenarioOrderStages(f) {
+  section('■ 오더관리 유형·진행단계')
+
+  const stages = await must('GET', '/order-stages')
+  eq('진행단계 마스터가 있다', stages.length >= 3, true)
+
+  const type = await must('POST', '/order-types', {
+    code: `${P}OT`, name: `${P}시험유형`,
+    stageIds: [stages[0].id, stages[1].id, stages[2].id],
+    useInInput: true, manager: 'QA담당',
+  })
+  eq('유형에 단계가 순서대로 붙는다', type.steps.map((s) => s.seq).join(','), '1,2,3')
+  eq('첫 단계가 맞다', type.steps[0].stageName, stages[0].name)
+  eq('담당자도 저장된다', type.manager, 'QA담당')
+  eq('입력메뉴에서 사용도 저장된다', type.useInInput, true)
+
+  const dup = await call('PUT', `/order-types/${type.id}`, {
+    name: type.name, stageIds: [stages[0].id, stages[0].id], active: true,
+  })
+  eq('같은 단계를 두 번 넣으면 거부', dup.status, 400)
+
+  const tooMany = await call('PUT', `/order-types/${type.id}`, {
+    name: type.name, stageIds: Array.from({ length: 11 }, (_, i) => stages[i % stages.length].id), active: true,
+  })
+  eq('11단계 이상은 거부(원본이 10단계까지)', tooMany.status, 400)
+
+  // 단계를 안 주는 수정은 단계를 건드리지 않는다.
+  const renamed = await must('PUT', `/order-types/${type.id}`, { name: `${P}시험유형2`, active: true })
+  eq('이름만 고치면 단계는 그대로', renamed.steps.length, 3)
+
+  // ── 오더(수주)의 진행
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-20',
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('수주 응답에 유형·단계 칸이 있다',
+    'orderTypeId' in order && 'stageId' in order, true)
+  isNull('처음에는 유형이 없다', order.orderTypeId)
+
+  const noType = await call('PATCH', `/sales-orders/${order.id}/stage`)
+  eq('유형 없이 다음 단계로는 못 간다', noType.status, 400)
+  eq('유형을 먼저 정하라고 말한다', /오더유형/.test(String(noType.data?.message ?? '')), true)
+
+  const typed = await must('PATCH', `/sales-orders/${order.id}/stage?orderTypeId=${type.id}`)
+  eq('유형을 지정하면 첫 단계로 들어간다', typed.stageName, stages[0].name)
+
+  const next = await must('PATCH', `/sales-orders/${order.id}/stage`)
+  eq('다음 단계로 한 칸 나아간다', next.stageName, stages[1].name)
+
+  const done = await must('PATCH', `/sales-orders/${order.id}/stage?complete=true`)
+  eq('전체단계완료는 마지막 단계로', done.stageName, stages[2].name)
+
+  const past = await call('PATCH', `/sales-orders/${order.id}/stage`)
+  eq('마지막에서 더 가려 하면 거부', past.status, 400)
+
+  // 뒷정리
+  await must('DELETE', `/sales-orders/${order.id}`)
+  await must('DELETE', `/order-types/${type.id}`)
+  eq('시험용 유형은 남기지 않는다',
+    (await must('GET', '/order-types')).filter((t) => t.code === `${P}OT`).length, 0)
+}
+
+/**
  * 노무비/경비등록 → <b>실제원가 계산</b>.
  *
  * <p>원본도 [표준원가생성] 과 [생성](원가계산)이 다른 버튼이다. 표준은 BOM·BOR 대로
@@ -4348,6 +4420,7 @@ async function main() {
   await scenarioStandardCostBuild(fixtures)
   await scenarioBor(fixtures)
   await scenarioActualCost(fixtures)
+  await scenarioOrderStages(fixtures)
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

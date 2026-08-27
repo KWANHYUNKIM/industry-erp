@@ -3,17 +3,37 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 
-/** 영업 > 오더관리유형리스트 — 수주 오더 유형 코드 관리 (/api/order-types 연동) */
+/**
+ * 영업 > 오더관리유형리스트.
+ *
+ * <p>원본 열 실측(사본 열 id TYPE_CD·TYPE_NM·STEPS·USE_YN·INP_USE_TF):
+ *   유형코드 · 유형명 · <b>1단계 ~ 10단계</b> · 사용구분 · 입력메뉴에서 사용 · 담당자.
+ * '기본형' 유형의 단계가 주문서 · 발주서 · 구매 · 판매 · 출하지시서 · 출하다 —
+ * 즉 유형은 <b>그 오더가 밟아 갈 단계의 순서</b>를 담는 템플릿이다.
+ *
+ * <p>우리 유형에는 코드·이름·설명뿐이라 "이 유형은 어떤 단계를 밟나" 를 적을 자리가 없었다.
+ * 그래서 오더관리진행단계 화면도 단계 마스터를 나열할 뿐 진행을 보여 주지 못했다.
+ */
+interface Step { seq: number; stageId: number; stageCode: string; stageName: string }
+
 interface OrderType {
   id: number
   code: string
   name: string
   description: string | null
+  steps: Step[]
+  useInInput: boolean
+  manager: string | null
   active: boolean
 }
 
+interface Stage { id: number; code: string; name: string; sortOrder: number }
+
+/** 원본 열이 [1단계]~[10단계] 라 10 이 상한이다. */
+const MAX_STEPS = 10
+
 const inputCls = 'ec-input w-full'
-const emptyForm = { code: '', name: '', description: '', active: true }
+const emptyForm = { code: '', name: '', description: '', manager: '', useInInput: true, active: true }
 
 export default function OrderTypePage() {
   const [rows, setRows] = useState<OrderType[]>([])
@@ -23,12 +43,19 @@ export default function OrderTypePage() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
+  const [stages, setStages] = useState<Stage[]>([])
+  /** 1단계~10단계 칸. 빈 칸은 그 단계를 안 쓴다는 뜻이다. */
+  const [stepIds, setStepIds] = useState<string[]>(Array(MAX_STEPS).fill(''))
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<OrderType[]>('/order-types')
+      const [res, st] = await Promise.all([
+        api.get<OrderType[]>('/order-types'),
+        api.get<Stage[]>('/order-stages'),
+      ])
       setRows(res.data)
+      setStages(st.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -41,12 +68,19 @@ export default function OrderTypePage() {
   function openCreate() {
     setEditId(null)
     setForm({ ...emptyForm })
+    setStepIds(Array(MAX_STEPS).fill(''))
     setShowForm(true)
   }
 
   function openEdit(t: OrderType) {
     setEditId(t.id)
-    setForm({ code: t.code, name: t.name, description: t.description ?? '', active: t.active })
+    setForm({
+      code: t.code, name: t.name, description: t.description ?? '',
+      manager: t.manager ?? '', useInInput: t.useInInput, active: t.active,
+    })
+    const next = Array(MAX_STEPS).fill('')
+    t.steps.forEach((s) => { if (s.seq >= 1 && s.seq <= MAX_STEPS) next[s.seq - 1] = String(s.stageId) })
+    setStepIds(next)
     setShowForm(true)
   }
 
@@ -54,10 +88,18 @@ export default function OrderTypePage() {
     e.preventDefault()
     setError('')
     try {
+      // 빈 칸은 빼고 앞에서부터 순서대로 보낸다 — 가운데를 비워도 순번이 밀리지 않는다.
+      const stageIds = stepIds.filter(Boolean).map(Number)
       if (editId) {
-        await api.put(`/order-types/${editId}`, { name: form.name, description: form.description, active: form.active })
+        await api.put(`/order-types/${editId}`, {
+          name: form.name, description: form.description, stageIds,
+          useInInput: form.useInInput, manager: form.manager || null, active: form.active,
+        })
       } else {
-        await api.post('/order-types', { code: form.code, name: form.name, description: form.description })
+        await api.post('/order-types', {
+          code: form.code, name: form.name, description: form.description, stageIds,
+          useInInput: form.useInInput, manager: form.manager || null,
+        })
       }
       setShowForm(false)
       load()
@@ -113,6 +155,43 @@ export default function OrderTypePage() {
               </select>
             </div>
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '200px 160px', gap: 10, marginTop: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>담당자</label>
+              <input className={inputCls} value={form.manager} onChange={(e) => setForm((f) => ({ ...f, manager: e.target.value }))} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>입력메뉴에서 사용</label>
+              <select className={inputCls} value={form.useInInput ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, useInInput: e.target.value === 'Y' }))}>
+                <option value="Y">사용</option>
+                <option value="N">미사용</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 원본의 [1단계]~[10단계]. 이 유형의 오더가 밟아 갈 순서다. */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
+              진행단계 <span style={{ color: '#8a929c' }}>— 앞에서부터 순서대로. 빈 칸은 건너뜁니다.</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {stepIds.map((v, i) => (
+                <label key={i} style={{ fontSize: 11.5 }}>
+                  <div style={{ color: '#8a929c', marginBottom: 3 }}>{i + 1}단계</div>
+                  <select className={inputCls} value={v} onChange={(e) => setStepIds((prev) => {
+                    const next = [...prev]
+                    next[i] = e.target.value
+                    return next
+                  })}>
+                    <option value="">(없음)</option>
+                    {stages.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </div>
           <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
@@ -123,16 +202,20 @@ export default function OrderTypePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>유형코드</th><th>유형명</th><th>설명</th>
-            <th style={{ textAlign: 'center' }}>사용여부</th>
+            <th style={{ width: 90 }}>유형코드</th>
+            <th style={{ width: 130 }}>유형명</th>
+            <th>진행단계 (1 → n)</th>
+            <th style={{ width: 90 }}>담당자</th>
+            <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
             <th style={{ width: 90 }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

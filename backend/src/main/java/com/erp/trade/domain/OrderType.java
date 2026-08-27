@@ -32,6 +32,15 @@ public class OrderType extends BaseTimeEntity {
     @Column(length = 200)
     private String description;
 
+    /** 원본 열 [입력메뉴에서 사용] — 전표 입력 화면의 유형 선택에 나올지. */
+    @Column(name = "use_in_input", nullable = false)
+    @Builder.Default
+    private boolean useInInput = true;
+
+    /** 원본 열 [담당자] */
+    @Column(length = 50)
+    private String manager;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

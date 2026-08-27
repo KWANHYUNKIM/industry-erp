@@ -123,6 +123,15 @@ public final class SalesOrderDtos {
             SalesOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
+            /**
+             * 오더관리 유형과 현재 진행단계.
+             *
+             * <p>엔티티에는 예전부터 있었는데 <b>응답에 빠져 있어</b> 화면에서 볼 수도
+             * 고를 수도 없었다. 그래서 오더관리진행단계 화면은 단계 <b>마스터</b>만
+             * 나열했고, 정작 "이 오더가 지금 어디까지 갔나" 는 어디에도 없었다.
+             */
+            Long orderTypeId, String orderTypeName,
+            Long stageId, String stageName,
             List<OrderLineResponse> lines
     ) {
         public static SalesOrderResponse from(SalesOrder o) {
@@ -133,6 +142,10 @@ public final class SalesOrderDtos {
                     o.getStatus(), o.getStatus().getDisplayName(),
                     o.getSupplyAmount(), o.getVatAmount(), o.getTotalAmount(),
                     o.getRemark(), o.getCreatedBy(),
+                    o.getOrderType() != null ? o.getOrderType().getId() : null,
+                    o.getOrderType() != null ? o.getOrderType().getName() : null,
+                    o.getStage() != null ? o.getStage().getId() : null,
+                    o.getStage() != null ? o.getStage().getName() : null,
                     o.getLines().stream().map(OrderLineResponse::from).toList());
         }
     }
