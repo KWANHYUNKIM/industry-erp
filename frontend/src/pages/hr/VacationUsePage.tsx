@@ -6,6 +6,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 /** 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동) */
 interface Row {
   id: number
+  /** 원본 휴가사용실적현황의 [전표번호]. 근태 전표 번호다. */
+  docNo: string
   empName: string
   department: string | null
   type: string
@@ -188,6 +190,8 @@ export default function VacationUsePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/* 원본 휴가사용실적현황의 첫 열 [전표번호]. 어느 근태 전표에서 나온 줄인지가 없었다. */}
+            <th style={{ width: 150 }}>전표번호</th>
             <th>사원명</th>
             <th>부서</th>
             <th>휴가종류</th>
@@ -203,12 +207,13 @@ export default function VacationUsePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : withRemain.map(({ row: r, grant, remain, first }, i) => (
             <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={mono}>{r.docNo}</td>
               <td>{first ? r.empName : ''}</td>
               <td>{first ? (r.department ?? '') : ''}</td>
               <td style={{ textAlign: 'center' }}>{r.type}</td>

@@ -421,7 +421,24 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   <td colSpan={colCount} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
-                        <tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr>
+                        {/*
+                          원본 구매조회 라인 열 실측(사본): 품목코드 · 품목명 · <b>규격</b> ·
+                          <b>기본수량</b> · 단가 · 공급가액 · 부가세 · <b>적요</b>.
+                          규격과 적요가 빠져 있었다 — 같은 품목의 다른 규격을 구분할 수가 없고,
+                          라인에 적어 둔 메모를 조회에서 볼 수가 없었다.
+                          수량 이름은 원본이 판매는 '수량', 구매는 '기본수량' 으로 다르다.
+                        */}
+                        <tr>
+                          <th style={{ width: 34 }}></th>
+                          <th>품목코드</th>
+                          <th>품목명</th>
+                          <th style={{ width: 110 }}>규격</th>
+                          <th style={{ textAlign: 'right' }}>{isSales ? '수량' : '기본수량'}</th>
+                          <th style={{ textAlign: 'right' }}>단가</th>
+                          <th style={{ textAlign: 'right' }}>공급가액</th>
+                          <th style={{ textAlign: 'right' }}>부가세</th>
+                          <th style={{ width: 160 }}>적요</th>
+                        </tr>
                       </thead>
                       <tbody>
                         {d.lines.map((l, li) => (
@@ -429,10 +446,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{li + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
                             <td>{l.itemName}</td>
+                            <td style={{ color: '#5a626e' }}>{l.spec ?? ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
                             <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
+                            <td style={{ color: '#5a626e' }}>{l.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

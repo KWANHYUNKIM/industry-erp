@@ -1459,7 +1459,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 {cols.stockAll && <th>전체수량</th>}
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
-                <th>수량</th>
+                {/* 원본은 판매입력이 [수량], 구매입력이 [기본수량] 이다 — 같은 칸인데 이름이 다르다. */}
+                <th>{mode === 'sales' ? '수량' : '기본수량'}</th>
                 <th>단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
                 <th>공급가액</th>

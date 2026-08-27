@@ -487,6 +487,11 @@ export default function PartnersPage() {
               <th>담당자</th>
               <th>전화</th>
               <th>모바일</th>
+              {/*
+                원본 거래처리스트의 [검색창내용] 열. 품목에는 넣었는데 거래처에는 빠져 있었다 —
+                별명을 적어 놓고도 목록에서는 그게 뭔지 볼 수가 없었다.
+              */}
+              <th style={{ width: 140 }}>검색창내용</th>
               <th style={{ width: 90, textAlign: 'center' }}>사용구분</th>
               <th style={{ width: 90, textAlign: 'center' }}>이체정보</th>
               <th>관리</th>
@@ -494,9 +499,9 @@ export default function PartnersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 거래처가 없습니다.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 거래처가 없습니다.</td></tr>
             ) : (
               shown.map((p) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : '#9aa1ab' }}>
@@ -516,6 +521,7 @@ export default function PartnersPage() {
                   <td>{p.manager ?? ''}</td>
                   <td>{p.phone ?? ''}</td>
                   <td>{p.mobile ?? ''}</td>
+                  <td style={{ color: '#6b7280' }}>{p.searchKeyword ?? ''}</td>
                   <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#c60a2e' }}>
                     {p.active ? '사용' : '사용중단'}
                   </td>

@@ -152,6 +152,14 @@ export default function LeaveListPage() {
               <th style={{ width: 110 }}>사원명</th>
               <th style={{ width: 100 }}>근태코드</th>
               <th style={{ width: 100, textAlign: 'right' }}>근태수</th>
+              {/*
+                원본 근태조회의 [휴가명] 열 — 이 근태가 <b>어느 휴가 잔여</b>에서 빠지는가.
+                우리 잔여 계산(휴가잔여일수현황)은 승인된 근태를 모두 그 해 연차에서 뺀다.
+                그래서 값이 하나뿐이라 지금까지 안 보여 줬는데, 그러면 사람은 이 근태가
+                잔여를 깎는지 아닌지를 화면에서 알 수 없다.
+                반려·대기는 아직 안 깎으므로 빈 칸이다.
+              */}
+              <th style={{ width: 120 }}>휴가명</th>
               <th>적요</th>
               <th style={{ width: 80, textAlign: 'center' }}>진행상태</th>
               <th style={{ width: 100, textAlign: 'center' }}>결재</th>
@@ -159,9 +167,9 @@ export default function LeaveListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -175,6 +183,9 @@ export default function LeaveListPage() {
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
+                <td style={{ color: r.status === 'APPROVED' ? undefined : '#c9ced6' }}>
+                  {r.status === 'APPROVED' ? `연차(${r.startDate.slice(0, 4)}년)` : '-'}
+                </td>
                 <td>{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? '#1c7c3c' : r.status === 'REJECTED' ? '#c60a2e' : '#c07a00' }}>
                   {r.statusName}

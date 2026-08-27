@@ -4,6 +4,7 @@ import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
+import { useAuth } from '../../auth/AuthContext'
 
 const inputCls = 'ec-input w-full'
 
@@ -18,6 +19,7 @@ interface ProcessRow { id: number; name: string; active: boolean }
 interface PartnerRow { id: number; code: string; name: string; type: string }
 
 export default function WarehousesPage() {
+  const { companyName } = useAuth()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -158,14 +160,21 @@ export default function WarehousesPage() {
               <th style={{ width: 140 }}>외주거래처명</th>
               <th>위치</th>
               <th>사용 ▼</th>
+              {/*
+                원본 창고등록리스트의 마지막 열 [추가사업장명]. 사본에서는 모든 창고가
+                <b>본 사업장(주식회사 팜인)</b> 하나로 찍혀 있다.
+                우리에겐 추가사업장 마스터가 없다 — 그래서 지어내지 않고 <b>로그인한 회사</b>를
+                그대로 적는다. 추가사업장을 만들면 그때 이 칸이 갈라진다.
+              */}
+              <th style={{ width: 150 }}>추가사업장명</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : warehouses.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 창고가 없습니다.</td></tr>
             ) : (
               warehouses.map((w, idx) => (
                 <tr key={w.id}>
@@ -184,6 +193,7 @@ export default function WarehousesPage() {
                   </td>
                   <td>{w.location ?? ''}</td>
                   <td>{w.active ? 'YES' : 'NO'}</td>
+                  <td style={{ color: '#5a626e' }}>{companyName ?? ''}</td>
                   <td>
                     <button onClick={() => remove(w)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>

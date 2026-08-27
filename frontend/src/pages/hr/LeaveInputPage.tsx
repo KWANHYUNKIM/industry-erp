@@ -118,6 +118,13 @@ export default function LeaveInputPage() {
               <th style={{ width: 130 }}>종료일자</th>
               <th style={{ width: 180 }}>사원</th>
               <th style={{ width: 120 }}>근태코드</th>
+              {/*
+                원본 근태입력 그리드의 [휴가] 열 — 이 근태가 어느 휴가 잔여에서 빠지는가.
+                우리 잔여 계산은 승인된 근태를 모두 그 해 연차에서 빼므로 값이 하나다.
+                고르는 칸이 아니라 <b>어디서 빠지는지 알려 주는 칸</b>이라 읽기전용으로 둔다 —
+                고를 수 있는 것처럼 보이면 다른 데서 빠질 수 있다는 뜻이 되어 거짓말이 된다.
+              */}
+              <th style={{ width: 120 }}>휴가</th>
               <th style={{ width: 110, textAlign: 'right' }}>근태(일)</th>
               <th>적요</th>
               <th style={{ width: 50, textAlign: 'center' }}></th>
@@ -149,6 +156,9 @@ export default function LeaveInputPage() {
                           onChange={(e) => setLine(l.key, { type: e.target.value })}>
                     {TYPES.map((t) => <option key={t}>{t}</option>)}
                   </select>
+                </td>
+                <td style={{ color: '#6b7280' }}>
+                  {l.startDate ? `연차(${l.startDate.slice(0, 4)}년)` : ''}
                 </td>
                 <td>
                   {/* 반차 0.5, 시간 단위 0.125 까지 넣는다 — 소수 세 자리로 저장된다. */}
