@@ -1626,6 +1626,61 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
   void esc
 }
 
+// ── 2-l) 원본 보기 목록(라디오) ↔ 우리 보기 ──────────────────────────────
+console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있나')
+
+/*
+ * <b>원본이 고르게 하는 보기가 우리에게도 있나.</b> 원본은 드롭다운이 아니라 라디오로
+ * 고르게 한다. 사본에서 라디오 그룹의 보기 목록을 뽑아
+ * <code>qa/fixtures/ecount-radio-options.json</code>(13화면 19그룹)에 적었다.
+ *
+ * <p>보기 하나가 빠지면 <b>그 방식으로는 아예 볼 수가 없다</b> — [구분]에 '집계' 가
+ * 없으면 품목별로 모아 보는 길이 없는 식이다. 기본값이 무엇인지는 2-g 가 따로 본다.
+ */
+{
+  const RADIO_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-radio-options.json'), 'utf8'))
+  /** 원본에 있지만 우리가 안 만든 보기 — 이유를 적는다. */
+  const NO_OPTION = new Map([
+    ['거래처관계기준', '거래처에 계층(대표거래처)이 없다 — 개별 코드로만 본다'],
+    ['개별거래처기준', '위와 같음 — 우리는 늘 개별이라 고를 것이 없다'],
+    ['직접입력', '생산계획/MRP 생성 팝업을 안 만든다'],
+    ['수율차이', '공정별 투입·산출을 쌓지 않아 수율을 못 낸다'],
+    ['노무비배부액', '배부 자료(공정별 노무비)가 없다'],
+    ['경비배부액', '위와 같음'],
+    ['사용자지정집계', '집계축을 사람이 정의하는 기능이 없다'],
+    ['선입선출(판매)', '입고 레이어를 남기지 않아 선입선출로 못 센다'],
+    ['입고단가(VAT포함)', '생산실적에 단가 칸이 없다'],
+    ['입고단가', '위와 같음'],
+    ['사용', '설문 머리말·대상은 등록 화면에서 정한다 — 조회 조건이 아니다'],
+    ['사용안함', '위와 같음'],
+    ['입고단가(품목) - VAT 제외',
+      '우리 입고단가는 매입 전표의 공급가액과 품목 구매단가라 이미 VAT 별도다 — 같은 값이 된다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [screen, groups] of Object.entries(cap)) {
+    const rel = RADIO_MAP.get(screen)
+    if (!rel) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    for (const opts of Object.values(groups)) {
+      for (const raw of opts) {
+        const opt = raw.replace(/^\*/, '')
+        if (NO_OPTION.has(opt)) continue
+        checked++
+        // 따옴표에 싸인 보기 이름을 찾는다(pill·option·문자열 배열 어느 모양이든)
+        if (!src.includes(`'${opt}'`) && !src.includes(`"${opt}"`) && !src.includes(`>${opt}<`)) {
+          bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 보기 [${opt}] 가 없다`)
+        }
+      }
+    }
+  }
+  eq(`원본 보기 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_OPTION.size}종은 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

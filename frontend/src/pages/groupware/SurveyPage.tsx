@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../api/types'
+import { EcCond } from '../../components/EcStatusPanel'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
@@ -33,6 +34,13 @@ export default function SurveyPage() {
   const [rows, setRows] = useState<SurveyDoc[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 설문조사조회의 보기 [설문대상구분](내부·외부)과 [결과공개범위]
+   * (전체공개·일부공개·비공개). 우리는 제목·작성자로만 걸렀다 —
+   * <b>외부 설문만</b> 이나 <b>비공개 설문만</b> 을 보려면 눈으로 골라야 했다.
+   */
+  const [scope, setScope] = useState('')
+  const [visibility, setVisibility] = useState('')
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [answering, setAnswering] = useState<SurveyDoc | null>(null)
@@ -69,8 +77,10 @@ export default function SurveyPage() {
 
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
-    .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? '').includes(keyword)),
-    [rows, tab, keyword])
+    .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? '').includes(keyword))
+    .filter((r) => !scope || r.targetScope === scope)
+    .filter((r) => !visibility || r.resultVisibility === visibility),
+    [rows, tab, keyword, scope, visibility])
 
   const tabCount = (t: Tab) => (t === '전체' ? rows.length : rows.filter((r) => r.status === TAB_STATUS[t]).length)
 
@@ -89,6 +99,26 @@ export default function SurveyPage() {
           </button>
         ))}
       </div>
+
+      {/* 원본 조건의 [설문대상구분]·[결과공개범위]. 보기 이름도 원본 그대로다. */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="설문대상구분">
+          <div className="ec-pills">
+            {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
+              <button key={l} type="button" className={`ec-pill no-ec${scope === v ? ' active' : ''}`}
+                      onClick={() => setScope(v)}>{l}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="결과공개범위">
+          <div className="ec-pills">
+            {([['', '전체'], ['ALL', '전체공개'], ['PARTIAL', '일부공개'], ['NONE', '비공개']] as const).map(([v, l]) => (
+              <button key={l} type="button" className={`ec-pill no-ec${visibility === v ? ' active' : ''}`}
+                      onClick={() => setVisibility(v)}>{l}</button>
+            ))}
+          </div>
+        </EcCond>
+      </ul>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
