@@ -1439,6 +1439,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
   ])
 
   const bad = []
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   let checked = 0
   let pending = 0
   for (const [screen, fields] of Object.entries(cap)) {
@@ -1463,6 +1464,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
   eq(`원본 조건 ${checked}개가 우리 화면에도 있다`
     + ` (안 만든 ${NO_FIELD.size + NO_FIELD_ON.size}종은 이유를 적고 뺐다, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
     bad.join('\n') || '없음', '없음')
+  eq(`조건 예외 ${NO_FIELD.size + NO_FIELD_ON.size}종이 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
 // ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────
@@ -1619,6 +1621,7 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
 
   const bad = []
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   let checked = 0
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = LINK_MAP.get(screen)
@@ -1626,18 +1629,19 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
     const src = pageSource(rel)
     if (!src) continue
     for (const name of cols) {
-      if (NO_LINK.has(`${screen}|${name}`)) continue
-      checked++
+      const exempt = NO_LINK.has(`${screen}|${name}`)
+      if (!exempt) checked++
       /*
        * 그 열의 <td> 안에 누를 것이 있나. 열 이름으로 <th> 를 찾고, 본문에서 같은
        * 값을 그리는 칸에 onClick 이나 <Link> 가 있는지 본다. 화면마다 변수 이름이
        * 달라(p·it·r·w) 값 이름으로 찾는다: {p.code} · {r.name} 처럼.
        */
       const field = /코드$/.test(name) ? 'code' : /명$|이름$/.test(name) ? 'name' : null
-      if (!field) { checked--; continue }
+      if (!field) { if (!exempt) checked--; continue }
       const re = new RegExp(`<td[^>]*>[\\s\\S]{0,400}?\\{\\w+\.${field}\\}`, 'g')
       const cells = [...src.matchAll(re)].map((m) => m[0])
       const clickable = cells.some((c) => /onClick=|<Link\b/.test(c))
+      if (exempt) { if (cells.length > 0 && clickable) stale.push(`링크 [${screen}|${name}] — 이제 누를 수 있다`); continue }
       if (cells.length > 0 && !clickable) {
         bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${name}] 은 눌러서 여는 칸이다`)
       }
@@ -1646,6 +1650,7 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
   eq(`원본이 눌러 여는 칸 ${checked}개를 우리도 누를 수 있다`
     + ` (못 여는 ${NO_LINK.size}개는 이유를 적고 뺐다)`,
     bad.join('\n') || '없음', '없음')
+  eq(`링크 예외 ${NO_LINK.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
   void esc
 }
 
@@ -1675,13 +1680,15 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
     ['선입선출(판매)', '입고 레이어를 남기지 않아 선입선출로 못 센다'],
     ['입고단가(VAT포함)', '생산실적에 단가 칸이 없다'],
     ['입고단가', '위와 같음'],
-    ['사용', '설문 머리말·대상은 등록 화면에서 정한다 — 조회 조건이 아니다'],
-    ['사용안함', '위와 같음'],
+    /* 화면을 가려 적는다 — 등록 화면에는 실제로 있고, 조회 화면에만 없다. */
+    ['설문조사조회|사용', '설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다'],
+    ['설문조사조회|사용안함', '위와 같음'],
     ['입고단가(품목) - VAT 제외',
       '우리 입고단가는 매입 전표의 공급가액과 품목 구매단가라 이미 VAT 별도다 — 같은 값이 된다'],
   ])
 
   const bad = []
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   let checked = 0
   for (const [screen, groups] of Object.entries(cap)) {
     const rel = RADIO_MAP.get(screen)
@@ -1691,17 +1698,18 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
     for (const opts of Object.values(groups)) {
       for (const raw of opts) {
         const opt = raw.replace(/^\*/, '')
-        if (NO_OPTION.has(opt)) continue
-        checked++
+        const exempt = NO_OPTION.has(opt) || NO_OPTION.has(`${screen}|${opt}`)
+        if (!exempt) checked++
         // 따옴표에 싸인 보기 이름을 찾는다(pill·option·문자열 배열 어느 모양이든)
-        if (!src.includes(`'${opt}'`) && !src.includes(`"${opt}"`) && !src.includes(`>${opt}<`)) {
-          bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 보기 [${opt}] 가 없다`)
-        }
+        const has = src.includes(`'${opt}'`) || src.includes(`"${opt}"`) || src.includes(`>${opt}<`)
+        if (exempt) { if (has) stale.push(`보기 [${screen}|${opt}] — 이제 있다`); continue }
+        if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 보기 [${opt}] 가 없다`)
       }
     }
   }
   eq(`원본 보기 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_OPTION.size}종은 이유를 적고 뺐다)`,
     bad.join('\n') || '없음', '없음')
+  eq(`보기 예외 ${NO_OPTION.size}종이 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
 // ── 2-m) 원본 화면 탭 ↔ 우리 탭 ──────────────────────────────────────────
@@ -1740,6 +1748,7 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
   ])
 
   const bad = []
+  const stale = []   // 이미 만들었는데 예외로 남아 있는 것
   let checked = 0
   for (const [screen, tabs] of Object.entries(cap)) {
     if (tabs.length === 2 && tabs[0] === '기본' && tabs[1] === '전체') continue
@@ -1748,15 +1757,16 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
     const src = pageSource(rel)
     if (!src) continue
     for (const t of tabs) {
-      if (NO_TAB.has(`${screen}|${t}`)) continue
-      checked++
-      if (!src.includes(`'${t}'`) && !src.includes(`"${t}"`) && !src.includes(`>${t}<`)) {
-        bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 탭 [${t}] 가 없다`)
-      }
+      const exempt = NO_TAB.has(`${screen}|${t}`)
+      if (!exempt) checked++
+      const has = src.includes(`'${t}'`) || src.includes(`"${t}"`) || src.includes(`>${t}<`)
+      if (exempt) { if (has) stale.push(`탭 [${screen}|${t}] — 이제 있다`); continue }
+      if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 탭 [${t}] 가 없다`)
     }
   }
   eq(`원본 탭 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_TAB.size}개는 이유를 적고 뺐다)`,
     bad.join('\n') || '없음', '없음')
+  eq(`탭 예외 ${NO_TAB.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
 // ── 1-m) 자료가 없을 때 문구 ─────────────────────────────────────────────
