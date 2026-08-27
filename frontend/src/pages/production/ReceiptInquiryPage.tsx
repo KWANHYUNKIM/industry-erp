@@ -73,6 +73,24 @@ export default function ReceiptInquiryPage() {
 
   useEffect(() => { load() }, [])
 
+  /**
+   * 원본은 목록 첫 칸에서 줄을 골라 [선택삭제] 한다(사본 실측: CHK_H 열).
+   * 우리는 줄마다 지우거나 아예 못 지웠다 — 잘못 넣은 열 건을 치우려면 열 번 눌러야 했다.
+   */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+
+  async function removeChecked() {
+    const targets = shown.filter((x) => checked.has(x.id))
+    if (targets.length === 0) { setError('지울 줄을 고르세요.'); return }
+    if (!confirm(`고른 ${targets.length}건을 삭제할까요? 생산으로 늘었던 완제품과 줄었던 자재가 되돌아갑니다.`)) return
+    setError('')
+    const results = await Promise.allSettled(targets.map((x) => api.delete(`/productions/${x.id}`)))
+    const failed = results.filter((x) => x.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패(참조 중이면 못 지운다).`)
+  }
+
   const shown = rows.filter((r) => !keyword || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
 
   return (
@@ -88,13 +106,21 @@ export default function ReceiptInquiryPage() {
        * 원본의 신규는 생산입고 I(BOM기준소모)로 간다.
        */
       onNew={() => navigate('/production/receipt-bom')}
-      actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '검색(F8)', onClick: load },
+                { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
+                     onChange={() => setChecked(
+                       shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
+                     )} />
+            </th>
             <th>일자</th>
             <th>입고번호</th>
             <th>작업지시번호</th>
@@ -113,9 +139,15 @@ export default function ReceiptInquiryPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.productionDate}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.prodNo}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>

@@ -74,6 +74,11 @@ export default function IssuePage() {
   /** 담당자 이름은 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  /**
+   * 원본은 목록 첫 칸에서 줄을 골라 [선택삭제] 한다(사본 실측: CHK_H 열).
+   * 우리는 줄마다 [삭제]뿐이라, 잘못 넣은 열 건을 지우려면 열 번 눌러 열 번 확인해야 했다.
+   */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -188,6 +193,19 @@ export default function IssuePage() {
     }
   }
 
+  /** 원본 [선택삭제]. 지우면 옮겼던 재고도 서버가 되돌린다(줄마다 [삭제]와 같은 길). */
+  async function removeChecked() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('지울 불출내역을 고르세요.'); return }
+    if (!confirm(`고른 ${targets.length}건을 삭제할까요? 옮겼던 재고도 되돌아갑니다.`)) return
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.delete(`/material-issues/${r.id}`)))
+    const failed = results.filter((x) => x.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패.`)
+  }
+
   const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
 
   return (
@@ -197,7 +215,9 @@ export default function IssuePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '검색(F8)', onClick: load },
+                { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -312,7 +332,13 @@ export default function IssuePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
+                     )} />
+            </th>
             <th>일자</th>
             <th style={{ width: 90 }}>담당자</th>
             <th>작업지시번호</th>
@@ -334,9 +360,15 @@ export default function IssuePage() {
             <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 불출내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ fontFamily: 'monospace' }}>{r.issueDate}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
