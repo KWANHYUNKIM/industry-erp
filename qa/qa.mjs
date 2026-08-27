@@ -3444,6 +3444,51 @@ async function scenarioValidationMessages(f) {
 }
 
 /**
+ * 기안서통합관리의 <b>작업자 · 작업일시</b>.
+ *
+ * <p>원본 열 실측(사본): 기안일자 · 제목 · 구분 · 기안자 · 결재자 ·
+ * <b>작업자</b> · <b>작업일시</b>. 마지막으로 이 문서를 움직인 사람과 그 시각이다.
+ *
+ * <p>우리에겐 그 두 칸이 없어 "누가 마지막으로 손댔나" 를 알 수 없었다.
+ * 컬럼을 새로 만들지 않았다 — 결재선이 이미 누가 언제 처리했는지(actedAt)를 들고 있어서
+ * 컬럼을 더 두면 같은 사실이 두 군데 적히고 어긋난다.
+ *
+ * <p>아직 아무도 결재하지 않았으면 <b>기안자와 기안 시각</b>이다. 그것이 이 문서에
+ * 마지막으로 일어난 일이기 때문이다 — 빈칸으로 두면 "아무 일도 없었다" 로 읽힌다.
+ */
+async function scenarioApprovalLastActor() {
+  section('■ 기안서 작업자·작업일시')
+
+  // 기안서를 만들지 않는다. 결재가 끝난 문서는 지울 수 없고 지운 문서도 <b>남기 때문</b>에
+  // (원본에도 [삭제] 탭이 있다), 만들었다 지우면 실행할 때마다 한 줄씩 불어난다.
+  // 그래서 이미 있는 문서로 잰다 — 이 값들은 저장된 것이 아니라 결재선에서 <b>끌어내는</b> 것이라
+  // 읽기만 해도 계산이 맞는지 알 수 있다.
+  //
+  // <b>지금 개발 자료에는 결재가 처리된 문서가 없다.</b> 그래서 아래 두 가지 중
+  // '처리됨' 쪽은 아직 실행되지 않는다 — lastActedAt 을 createdAt 으로 바꿔 봐도
+  // 이 시나리오는 통과한다. 결재를 처리한 문서가 생기면 그때부터 진짜로 잰다.
+  // 만들었다 지우는 방식으로 메우지 않은 이유는 위와 같다.
+  const docs = await must('GET', '/approvals?scope=all&includeDeleted=true')
+  eq('기안서가 있다', docs.length > 0, true)
+
+  for (const d of docs) {
+    const detail = await must('GET', `/approvals/${d.id}`)
+    const acted = (detail.lines ?? []).filter((l) => l.actedAt)
+    if (acted.length === 0) {
+      // 아무도 처리 안 했으면 기안자와 기안 시각이다 —
+      // 빈칸으로 두면 "아무 일도 없었다" 로 읽힌다.
+      eq(`#${d.id} 결재 전이면 기안자가 작업자`, d.lastActorName, d.drafterName)
+      eq(`#${d.id} 작업일시가 비어 있지 않다`, !!d.lastActedAt, true)
+    } else {
+      // 처리됐으면 <b>가장 늦게</b> 처리된 줄이다. 첫 줄을 쓰면 결재가 진행돼도 안 움직인다.
+      const last = acted.reduce((a, b) => (a.actedAt >= b.actedAt ? a : b))
+      eq(`#${d.id} 가장 늦게 처리한 사람이 작업자`, d.lastActorName, last.approverName)
+      eq(`#${d.id} 작업일시가 그 처리 시각`, d.lastActedAt, last.actedAt)
+    }
+  }
+}
+
+/**
  * 휴가잔여일수현황이 <b>몇 년치인지</b> 말하는가.
  *
  * <p>원본 열 실측(사본): <b>휴가명</b> · 부서명 · 성명 · 휴가일수 · 휴가사용일수 ·
@@ -5799,6 +5844,7 @@ async function main() {
   await scenarioStockTracked(fixtures)
   await scenarioPartnerContactAndBank()
   await scenarioVacationYear(fixtures)
+  await scenarioApprovalLastActor()
 
   console.log(`\n${'─'.repeat(50)}`)
   console.log(`통과 ${pass} · 실패 ${fail}`)

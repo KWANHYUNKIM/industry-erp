@@ -516,6 +516,12 @@ export interface ApprovalDoc {
   reference: string | null
   deleted: boolean
   currentApproverName: string | null
+  /**
+   * 작업자 · 작업일시 — 원본 기안서통합관리의 마지막 두 열.
+   * 마지막으로 이 문서를 움직인 사람과 시각이다. 아무도 결재 안 했으면 기안자·기안 시각.
+   */
+  lastActorName: string | null
+  lastActedAt: string | null
   voucherCount: number
   lines: ApprovalLine[]
   participants: ApprovalParticipant[]

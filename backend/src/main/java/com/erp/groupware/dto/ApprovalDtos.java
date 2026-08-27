@@ -120,6 +120,18 @@ public final class ApprovalDtos {
             Long attachmentId, String attachmentName,
             boolean deleted,
             String currentApproverName,
+            /**
+             * 작업자 · 작업일시 — 원본 기안서통합관리의 마지막 두 열이다.
+             *
+             * <p><b>마지막으로 이 문서를 움직인 사람</b>과 그 시각이다. 결재선에서 가장 늦게
+             * 처리된 줄을 본다. 아직 아무도 결재하지 않았으면 기안자와 기안 시각이다 —
+             * 그것이 이 문서에 마지막으로 일어난 일이기 때문이다.
+             *
+             * <p>따로 컬럼을 만들지 않았다. 결재선이 이미 누가 언제 처리했는지(actedAt)를
+             * 들고 있어서, 컬럼을 더 두면 같은 사실이 두 군데 적히고 어긋날 수 있다.
+             */
+            String lastActorName,
+            java.time.LocalDateTime lastActedAt,
             int voucherCount,
             List<ApprovalLineResponse> lines,
             List<ApprovalParticipantResponse> participants,
@@ -130,6 +142,18 @@ public final class ApprovalDtos {
                     .filter(l -> l.getStepOrder() == d.getCurrentStep())
                     .map(l -> l.getApprover().getName())
                     .findFirst().orElse(null);
+
+            // 가장 늦게 처리된 결재선. 아무도 처리 안 했으면 기안 그 자체가 마지막 일이다.
+            var lastLine = d.getLines().stream()
+                    .filter(l -> l.getActedAt() != null)
+                    .max(java.util.Comparator.comparing(
+                            com.erp.groupware.domain.ApprovalLine::getActedAt));
+            String lastActorName = lastLine
+                    .map(l -> l.getApprover().getName())
+                    .orElseGet(() -> d.getDrafter().getName());
+            java.time.LocalDateTime lastActedAt = lastLine
+                    .map(com.erp.groupware.domain.ApprovalLine::getActedAt)
+                    .orElseGet(d::getCreatedAt);
             return new ApprovalResponse(
                     d.getId(), d.getDocNo(), d.getDraftNo(),
                     d.getFormTemplate().getId(),
@@ -148,6 +172,7 @@ public final class ApprovalDtos {
                     d.getAttachment() != null ? d.getAttachment().getName() : null,
                     d.isDeleted(),
                     currentApprover,
+                    lastActorName, lastActedAt,
                     d.getVouchers().size(),
                     d.getLines().stream().map(ApprovalLineResponse::from).toList(),
                     d.getParticipants().stream().map(ApprovalParticipantResponse::from).toList(),

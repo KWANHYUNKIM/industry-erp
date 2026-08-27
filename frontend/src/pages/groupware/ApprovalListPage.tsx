@@ -52,6 +52,11 @@ export default function ApprovalListPage({
   const [rows, setRows] = useState<ApprovalDoc[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
+  /**
+   * 빈 줄이 걸칠 칸 수. [작업자]·[작업일시]가 scope 에 따라 붙었다 빠지므로
+   * 숫자를 두 군데 적으면 한쪽만 고치게 된다 — 실제로 이 저장소에서 가장 자주 낸 실수다.
+   */
+  const colCount = 12 + (scope === 'all' ? 2 : 0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ApprovalDoc | null>(null)
@@ -343,6 +348,9 @@ export default function ApprovalListPage({
               <th>구분</th>
               <th>기안자</th>
               <th>결재자</th>
+              {/* 원본 기안서통합관리의 마지막 두 열. 내결재관리(mine)에는 원본에도 없다. */}
+              {scope === 'all' && <th style={{ width: 90 }}>작업자</th>}
+              {scope === 'all' && <th style={{ width: 150 }}>작업일시</th>}
               <th style={{ textAlign: 'center' }}>진행상태</th>
               <th style={{ textAlign: 'center' }}>결재</th>
               <th style={{ textAlign: 'center' }}>기안서복사</th>
@@ -352,9 +360,9 @@ export default function ApprovalListPage({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당하는 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당하는 데이터가 없습니다.</td></tr>
             ) : filtered.map((r, i) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
                 <td
@@ -376,6 +384,12 @@ export default function ApprovalListPage({
                 <td>{r.formTypeName}</td>
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
+                {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
+                {scope === 'all' && (
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                    {r.lastActedAt ? r.lastActedAt.replace('T', ' ').slice(0, 16) : ''}
+                  </td>
+                )}
                 <td style={{ textAlign: 'center' }}>
                   {r.deleted
                     ? <span style={{ color: '#8a929c' }}>삭제</span>
