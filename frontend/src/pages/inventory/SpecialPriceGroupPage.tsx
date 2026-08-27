@@ -78,8 +78,8 @@ export default function SpecialPriceGroupPage() {
             <th style={{ width: 34 }}></th>
             <th>거래처코드 ▼</th>
             <th>거래처명 ▼</th>
-            <th style={{ width: 200 }}>영업단가그룹명</th>
-            <th style={{ width: 200 }}>구매단가그룹명</th>
+            <th style={{ textAlign: 'right', width: 200 }}>영업단가그룹명</th>
+            <th style={{ textAlign: 'center', width: 200 }}>구매단가그룹명</th>
           </tr>
         </thead>
         <tbody>
@@ -92,13 +92,13 @@ export default function SpecialPriceGroupPage() {
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{p.code}</td>
               <td>{p.name}</td>
-              <td>
+              <td style={{ textAlign: 'right' }}>
                 <select className="ec-input" value={groups[p.id]?.sales ?? ''} onChange={(e) => setGroup(p.id, 'sales', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
                   {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </td>
-              <td>
+              <td style={{ textAlign: 'center' }}>
                 <select className="ec-input" value={groups[p.id]?.purchase ?? ''} onChange={(e) => setGroup(p.id, 'purchase', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
                   {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}

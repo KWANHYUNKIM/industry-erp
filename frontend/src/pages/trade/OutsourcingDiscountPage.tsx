@@ -177,7 +177,7 @@ export default function OutsourcingDiscountPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 80 }}>월/일</th>
+            <th style={{ textAlign: 'center', width: 80 }}>월/일</th>
             <th>거래처명</th>
             <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
             <th style={{ width: 130, textAlign: 'right' }}>회계반영금액</th>
@@ -195,7 +195,7 @@ export default function OutsourcingDiscountPage() {
             return (
               <tr key={`${r.date}-${r.partner}`}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
+                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
                 <td>{r.partner}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.orgAmount)}</td>
                 <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? '#c9ced6' : undefined }}>

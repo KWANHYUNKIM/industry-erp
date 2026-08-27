@@ -778,6 +778,93 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
     mixed.join('\n') || '없음', '없음')
 }
 
+// ── 1-g) 원본 열 정렬 ↔ 우리 열 정렬 ──────────────────────────────────────
+console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
+
+/*
+ * <b>같은 열이 원본에서는 오른쪽인데 우리는 왼쪽으로 붙어 있지 않나.</b>
+ *
+ * <p>숫자를 왼쪽으로 붙이면 자릿수가 안 맞아 1,000 과 900 중 어느 쪽이 큰지
+ * <b>눈으로 못 고른다.</b> 반대로 이름을 오른쪽으로 붙이면 줄마다 시작점이 달라
+ * 훑어 내려가지 못한다. 표를 하나씩 만들다 보면 이게 화면마다 갈리는데,
+ * 타입체크도 눈으로 보는 것도 잘 못 잡는다 — 한 화면만 보면 그럴듯해 보이기 때문이다.
+ *
+ * <p>원본 사본에서 뽑은 <code>qa/fixtures/ecount-column-align.json</code>(49화면 338열)과
+ * 대조한다. 한 화면에 표가 여럿이면 <b>열 이름이 가장 많이 겹치는 표</b>를 고른다 —
+ * 파일에 먼저 나오는 표를 집으면 엉뚱한 표를 고치게 된다(생산입고현황이 실제로 그랬다).
+ */
+{
+  const ALIGN_MAP = new Map([
+    ['거래처리스트', 'trade/PartnersPage.tsx'],
+    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
+    ['거래처특별단가그룹', 'inventory/SpecialPriceGroupPage.tsx'],
+    ['공정등록', 'production/ProcessPage.tsx'],
+    ['구매단가일괄변경', 'trade/PriceBulkScreen.tsx'],
+    ['구매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+    ['근태조회', 'hr/LeaveListPage.tsx'],
+    ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
+    ['단가적용순서설정', 'inventory/PriceOrderPage.tsx'],
+    ['비용내역현황', 'accounting/ExpenseDetailPage.tsx'],
+    ['생산불출조회', 'production/IssuePage.tsx'],
+    ['생산입고조회', 'production/ReceiptInquiryPage.tsx'],
+    ['생산입고현황', 'production/ReceiptStatusPage.tsx'],
+    ['생산입고_소모현황 I', 'production/ProductionIssueStatusPage.tsx'],
+    ['오더관리유형리스트', 'trade/OrderTypePage.tsx'],
+    ['오더관리진행단계', 'trade/OrderStagePage.tsx'],
+    ['외주비할인현황', 'trade/OutsourcingDiscountPage.tsx'],
+    ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
+    ['자원등록', 'production/ResourcePage.tsx'],
+    ['작업내역조회', 'production/WorkResultInquiryPage.tsx'],
+    ['작업내역현황', 'production/WorkResultListPage.tsx'],
+    ['작업지시서조회', 'production/WorkOrderPage.tsx'],
+    ['작업지시서현황', 'production/WoStatusPage.tsx'],
+    ['창고등록리스트', 'inventory/WarehousesPage.tsx'],
+    ['품목등록 리스트', 'inventory/ItemsPage.tsx'],
+    ['휴가잔여일수현황', 'hr/VacationRemainPage.tsx'],
+    ['관리항목리스트', 'inventory/ManageItemsPage.tsx'],
+    ['결제내역조회', 'trade/PaymentHistoryPage.tsx'],
+  ])
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
+    : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
+
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
+  const bad = []
+  const skipped = []
+  let checked = 0
+
+  for (const [screen, cols] of Object.entries(cap)) {
+    const rel = ALIGN_MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) { bad.push(`${screen} — ${rel} 없음`); continue }
+    const src = readFileSync(path, 'utf8')
+
+    // 열 이름이 가장 많이 겹치는 <thead> 를 고른다
+    const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((head) => ({
+      head: head[0],
+      hit: Object.keys(cols)
+        .filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*(?:\u25bc)?\\s*</th>').test(head[0]))
+        .length,
+    })).filter((x) => x.hit > 0).sort((a, b) => b.hit - a.hit)
+    if (scored.length === 0) continue
+    // 두 표가 똑같이 걸리면 어느 쪽이 원본의 그 표인지 못 고른다 — 세지 않는다
+    if (scored.length > 1 && scored[0].hit === scored[1].hit) { skipped.push(screen); continue }
+    const best = scored[0].head
+
+    for (const [name, want] of Object.entries(cols)) {
+      const m = best.match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*(?:\u25bc)?\\s*</th>'))
+      if (!m) continue
+      checked++
+      const got = alignOf(m[1])
+      if (got !== want) bad.push(`${rel.split('/').pop()}  [${name}] 원본 ${want} · 우리 ${got}`)
+    }
+  }
+  eq(`원본과 견준 열 ${checked}개의 정렬이 같다`
+    + (skipped.length ? ` (표를 못 짝지어 건너뛴 화면 ${skipped.length}: ${skipped.join(', ')})` : ''),
+    bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)

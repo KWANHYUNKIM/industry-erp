@@ -417,7 +417,7 @@ export default function ProductionIssueStatusPage() {
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th>
-                <th>일자-No.</th>
+                <th style={{ textAlign: 'center' }}>일자-No.</th>
                 <th>생산품목코드</th>
                 <th>생산품목명</th>
                 <th>소모품목코드</th>
@@ -443,7 +443,7 @@ export default function ProductionIssueStatusPage() {
                 return (
                   <tr key={`${r.prod.id}-${r.componentId}`}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>
+                    <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
                       {r.prod.productionDate.replace(/-/g, '/')} {r.prod.prodNo}
                     </td>
                     <td style={{ fontFamily: 'monospace' }}>{r.prod.productCode}</td>

@@ -371,7 +371,7 @@ export default function ItemsPage() {
               <th>품목코드 ▼</th>
               <th>품목명 ▼</th>
               {/* 원본 열 순서: 품목코드 · 품목명 · [이미지] · 구매처명 · … */}
-              <th style={{ width: 56, textAlign: 'center' }}>이미지</th>
+              <th style={{ width: 56 }}>이미지</th>
               <th style={{ width: 130 }}>구매처명</th>
               <th>규격정보</th>
               <th>단위</th>
@@ -383,7 +383,7 @@ export default function ItemsPage() {
               <th>관리항목</th>
               <th>품목그룹 ▼</th>
               <th style={{ width: 140 }}>검색창내용</th>
-              <th>사용 ▼</th>
+              <th style={{ textAlign: 'center' }}>사용 ▼</th>
               {/* 원본 마지막 열 [파일관리] — 그 품목의 이미지를 붙이거나 떼는 자리. */}
               <th style={{ width: 80, textAlign: 'center' }}>파일관리</th>
               <th>관리</th>
@@ -403,7 +403,7 @@ export default function ItemsPage() {
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
                   <td>{it.name}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td>
                     {it.imageFileId ? (
                       <img src={`/api/files/${it.imageFileId}`} alt={it.imageFileName ?? it.name}
                            title={it.imageFileName ?? ''}
@@ -425,7 +425,7 @@ export default function ItemsPage() {
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.itemGroupName ?? ''}</td>
                   <td style={{ color: '#6b7280' }}>{it.searchKeyword ?? ''}</td>
-                  <td style={{ color: it.active ? '#1c7c3c' : '#c60a2e' }}>{it.active ? '사용' : '사용중단'}</td>
+                  <td style={{ textAlign: 'center', color: it.active ? '#1c7c3c' : '#c60a2e' }}>{it.active ? '사용' : '사용중단'}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => openEdit(it)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>

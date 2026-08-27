@@ -147,7 +147,7 @@ export default function LeaveListPage() {
             <tr>
               <th style={{ width: 34 }}></th>
               <th style={{ width: 170 }}>근태번호</th>
-              <th style={{ width: 190 }}>근태일자</th>
+              <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
               <th style={{ width: 110 }}>사원번호</th>
               <th style={{ width: 110 }}>사원명</th>
               <th style={{ width: 100 }}>근태코드</th>
@@ -159,8 +159,8 @@ export default function LeaveListPage() {
                 잔여를 깎는지 아닌지를 화면에서 알 수 없다.
                 반려·대기는 아직 안 깎으므로 빈 칸이다.
               */}
-              <th style={{ width: 120 }}>휴가명</th>
-              <th>적요</th>
+              <th style={{ textAlign: 'center', width: 120 }}>휴가명</th>
+              <th style={{ textAlign: 'center' }}>적요</th>
               <th style={{ width: 80, textAlign: 'center' }}>진행상태</th>
               <th style={{ width: 100, textAlign: 'center' }}>결재</th>
             </tr>
@@ -176,17 +176,17 @@ export default function LeaveListPage() {
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
                   {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
                 </td>
                 <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
-                <td style={{ color: r.status === 'APPROVED' ? undefined : '#c9ced6' }}>
+                <td style={{ textAlign: 'center', color: r.status === 'APPROVED' ? undefined : '#c9ced6' }}>
                   {r.status === 'APPROVED' ? `연차(${r.startDate.slice(0, 4)}년)` : '-'}
                 </td>
-                <td>{r.reason ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? '#1c7c3c' : r.status === 'REJECTED' ? '#c60a2e' : '#c07a00' }}>
                   {r.statusName}
                 </td>

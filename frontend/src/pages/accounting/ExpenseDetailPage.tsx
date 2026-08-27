@@ -73,7 +73,7 @@ export default function ExpenseDetailPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 170 }}>일자-No.</th>
+            <th style={{ textAlign: 'center', width: 170 }}>일자-No.</th>
             <th style={{ width: 110 }}>비용그룹명</th>
             <th style={{ width: 130 }}>비용명</th>
             <th style={{ width: 90 }}>사용자명</th>
@@ -91,7 +91,7 @@ export default function ExpenseDetailPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.docNo}</td>
               <td style={{ color: '#5a626e' }}>{r.accountGroupName ?? ''}</td>
               <td>{r.accountName}</td>
               {/* 원본 [사용자명]. 우리는 전표를 넣은 계정이 그 자리다 — 부서도 같이 적는다. */}

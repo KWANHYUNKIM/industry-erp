@@ -156,17 +156,17 @@ export default function WarehousesPage() {
               <th>창고코드 ▼</th>
               <th>창고명 ▼</th>
               <th style={{ width: 70, textAlign: 'center' }}>구분</th>
-              <th style={{ width: 120 }}>생산공정명</th>
-              <th style={{ width: 140 }}>외주거래처명</th>
+              <th style={{ textAlign: 'center', width: 120 }}>생산공정명</th>
+              <th style={{ textAlign: 'center', width: 140 }}>외주거래처명</th>
               <th>위치</th>
-              <th>사용 ▼</th>
+              <th style={{ textAlign: 'center' }}>사용 ▼</th>
               {/*
                 원본 창고등록리스트의 마지막 열 [추가사업장명]. 사본에서는 모든 창고가
                 <b>본 사업장(주식회사 팜인)</b> 하나로 찍혀 있다.
                 우리에겐 추가사업장 마스터가 없다 — 그래서 지어내지 않고 <b>로그인한 회사</b>를
                 그대로 적는다. 추가사업장을 만들면 그때 이 칸이 갈라진다.
               */}
-              <th style={{ width: 150 }}>추가사업장명</th>
+              <th style={{ textAlign: 'center', width: 150 }}>추가사업장명</th>
               <th>관리</th>
             </tr>
           </thead>
@@ -185,15 +185,15 @@ export default function WarehousesPage() {
                     {w.kind}
                   </td>
                   {/* 이름은 화면이 붙인다 — 서버는 id 만 준다(inventory 가 다른 모듈을 참조할 수 없다). */}
-                  <td style={{ color: '#5a626e' }}>
+                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
                     {processes.find((pr) => pr.id === w.processId)?.name ?? ''}
                   </td>
-                  <td style={{ color: '#5a626e' }}>
+                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
                     {partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name ?? ''}
                   </td>
                   <td>{w.location ?? ''}</td>
-                  <td>{w.active ? 'YES' : 'NO'}</td>
-                  <td style={{ color: '#5a626e' }}>{companyName ?? ''}</td>
+                  <td style={{ textAlign: 'center' }}>{w.active ? 'YES' : 'NO'}</td>
+                  <td style={{ textAlign: 'center', color: '#5a626e' }}>{companyName ?? ''}</td>
                   <td>
                     <button onClick={() => remove(w)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>

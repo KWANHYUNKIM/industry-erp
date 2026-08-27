@@ -160,7 +160,7 @@ export default function AttendanceKindStatusPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 110 }}>전표일자</th>
-            <th style={{ width: 190 }}>근태일자</th>
+            <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
             <th style={{ width: 150 }}>부서명</th>
             <th style={{ width: 90 }}>직급</th>
             <th style={{ width: 110 }}>사원번호</th>
@@ -179,7 +179,7 @@ export default function AttendanceKindStatusPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docDate}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.docDate}</td>
               <td style={{ fontFamily: 'monospace' }}>
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>

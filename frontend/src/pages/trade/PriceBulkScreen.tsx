@@ -262,7 +262,7 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
     <table className="ec-grid w-full text-left" ref={tableRef}>
       <thead>
         <tr>
-          <th>일자-No.</th>
+          <th style={{ textAlign: 'center' }}>일자-No.</th>
           <th>거래처명</th>
           <th>담당자명</th>
           <th>창고명</th>
@@ -287,7 +287,7 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
           const dirty = next !== r.unitPrice
           return (
             <tr key={r.lineId} style={dirty ? { background: '#fffbe6' } : undefined}>
-              <td style={{ fontFamily: 'monospace' }}>{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.employeeName ?? ''}</td>
               <td>{r.warehouseName}</td>

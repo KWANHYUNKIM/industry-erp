@@ -117,9 +117,9 @@ export default function PriceOrderPage() {
           <thead>
             <tr>
               <th>기능</th>
-              <th style={{ width: 140, textAlign: 'center' }}>적용순서</th>
+              <th style={{ width: 140, textAlign: 'right' }}>적용순서</th>
               <th style={{ width: 150, textAlign: 'center' }}>사용구분</th>
-              <th style={{ width: 150 }}>상세설정</th>
+              <th style={{ textAlign: 'center', width: 150 }}>상세설정</th>
             </tr>
           </thead>
           <tbody>
@@ -128,7 +128,7 @@ export default function PriceOrderPage() {
             ) : lines.map((l, i) => (
               <tr key={l.functionName}>
                 <td style={{ color: l.active ? undefined : '#9aa1ab' }}>{l.functionName}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td style={{ textAlign: 'right' }}>
                   <b style={{ marginRight: 6 }}>{i + 1}</b>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} disabled={i === lines.length - 1} onClick={() => move(i, 1)}>▼</button>
@@ -141,7 +141,7 @@ export default function PriceOrderPage() {
                     <input type="radio" name={`u${i}`} checked={!l.active} onChange={() => setActive(i, false)} /> 사용안함
                   </label>
                 </td>
-                <td>
+                <td style={{ textAlign: 'center' }}>
                   {DETAIL_LINK[l.functionName]
                     ? <Link to={DETAIL_LINK[l.functionName]!.to} style={{ color: 'var(--ec-blue)' }}>
                         {DETAIL_LINK[l.functionName]!.label}

@@ -155,7 +155,7 @@ export default function ProcessPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 60, textAlign: 'right' }}>순번</th>
+            <th style={{ width: 60 }}>순번</th>
             <th>생산공정코드</th>
             <th>생산공정명</th>
             <th>작업장</th>
@@ -173,7 +173,7 @@ export default function ProcessPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.sortOrder}</td>
+              <td style={{ color: '#5a626e' }}>{r.sortOrder}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
               <td>{r.workcenter ?? ''}</td>

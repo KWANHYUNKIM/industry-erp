@@ -314,7 +314,7 @@ export default function ReceiptStatusPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 180 }}>일자-No.</th>
+              <th style={{ textAlign: 'center', width: 180 }}>일자-No.</th>
               <th style={{ width: 150 }}>작업지시번호</th>
               <th style={{ width: 120 }}>출고창고명</th>
               <th style={{ width: 120 }}>입고창고명</th>
@@ -334,7 +334,7 @@ export default function ReceiptStatusPage() {
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.productionDate} {r.prodNo}</td>
+                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.productionDate} {r.prodNo}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
                 <td style={{ color: r.fromWarehouseName ? undefined : '#c9ced6' }}>
                   {r.fromWarehouseName ?? r.warehouseName}
