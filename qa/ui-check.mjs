@@ -83,6 +83,76 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
 eq(`표 ${compared}개의 헤더와 합계행 열 수가 같다 (조건부 열 ${skipped}개는 정적으로 셀 수 없어 건너뜀)`,
   mismatches.join('\n') || '없음', '없음')
 
+// ── 1-a2) 표 헤더 ↔ tbody 본문 열 수 ──────────────────────────────────────
+/*
+ * <b>헤더가 약속한 열 수와 본문이 그리는 열 수가 같은가.</b>
+ *
+ * <p>1-a 는 합계행만 봤다. 합계행이 없는 표는 아무도 안 보고 있었고, 실제로
+ * 오더관리유형리스트가 <b>헤더 8칸 · 본문 6칸</b>으로 돌아가고 있었다 —
+ * 헤더에는 [담당자]·[입력메뉴에서 사용] 이 있는데 본문은 그 자리에 설명을 그리고
+ * 뒤 두 칸을 아예 안 그려서, 사용구분이 두 칸 밀려 담당자 자리에 찍혔다.
+ * <b>화면은 멀쩡해 보인다</b> — 밀린 것을 알아채려면 원본과 나란히 놓아야 한다.
+ *
+ * <p>불러오는 중·데이터 없음 같은 안내 줄은 뺀다(colSpan 하나로 다 덮는 줄이다).
+ */
+console.log('\n■ 표 헤더 ↔ 본문 열 수')
+
+const bodyMismatch = []
+let bodyCompared = 0
+let bodySkipped = 0
+for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
+  const src = readFileSync(f, 'utf8')
+  for (const tm of src.matchAll(/<table\b[\s\S]*?<\/table>/g)) {
+    const t = tm[0]
+    const head = t.match(/<thead\b[\s\S]*?<\/thead>/)?.[0]
+    const body = t.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0]
+    if (!head || !body) continue
+    if (hasConditionalCell(head) || hasConditionalCell(body)) { bodySkipped++; continue }
+
+    // 머리든 본문이든 한쪽만 그래도 두 쪽을 견줄 수 없다(설문조사입력의 보기항목 5칸이 그렇다).
+    /*
+     * <b>칸을 만드는 map</b> 이 있으면 정적으로 셀 수 없다 — 자료 수만큼 칸이 늘어난다
+     * (설문조사입력의 보기항목 5칸, 오더관리유형리스트의 1~10단계).
+     *
+     * <p>줄을 만드는 map(`rows.map((r) => (<tr>…`)은 그냥 지나간다. 그것까지 건너뛰면
+     * 거의 모든 표가 빠져 이 검사가 아무것도 안 보게 된다(실제로 301개 중 2개만 봤다).
+     * 가르는 기준은 <b>map 뒤에 처음 나오는 표 태그</b>다 — tr 이면 줄, td/th 면 칸.
+     */
+    const mapsCells = (x) => {
+      for (const m of x.matchAll(/\.map\(/g)) {
+        const after = x.slice(m.index)
+        const first = after.match(/<(tr|td|th)\b/)
+        if (first && first[1] !== "tr") return true
+      }
+      return false
+    }
+    if (mapsCells(head) || mapsCells(body)) { bodySkipped++; continue }
+    const hRow = firstRow(head)
+    if (!hRow) { bodySkipped++; continue }
+    const hc = countCells(hRow, 'th')
+    if (hc === null || !hc) { bodySkipped++; continue }
+    /*
+     * 자료 줄 = tbody 안에서 <td> 가 두 칸 이상인 첫 줄. 한 칸짜리는 안내 줄이다.
+     * 여러 줄을 그려도 자료 줄의 모양은 하나뿐이라 첫 줄이면 충분하다.
+     */
+    let picked = null
+    let unknown = false
+    for (const rm of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)) {
+      const c = countCells(rm[1], 'td')
+      if (c === null) { unknown = true; break }
+      if (c >= 2) { picked = c; break }
+    }
+    if (unknown || picked === null) { bodySkipped++; continue }
+    bodyCompared++
+    if (picked !== hc) {
+      const line = src.slice(0, tm.index).split('\n').length
+      bodyMismatch.push(`${f.split(sep).pop()}:${line}  헤더 ${hc}칸 vs 본문 ${picked}칸`)
+    }
+  }
+}
+eq(`표 ${bodyCompared}개의 헤더와 본문 열 수가 같다 (정적으로 셀 수 없는 ${bodySkipped}개는 건너뜀)`,
+  bodyMismatch.join('\n') || '없음', '없음')
+
 // ── 1-b) 조건부 열 표의 런타임 검사 ────────────────────────────────────────
 console.log('\n■ 조건부 열 표의 개발 모드 검사')
 

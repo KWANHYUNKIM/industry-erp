@@ -31,6 +31,8 @@ interface Stage { id: number; code: string; name: string; sortOrder: number }
 
 /** 원본 열이 [1단계]~[10단계] 라 10 이 상한이다. */
 const MAX_STEPS = 10
+/** 원본 격자의 [1단계]~[10단계] 열. */
+const STEP_COLS = Array.from({ length: MAX_STEPS }, (_, i) => i + 1)
 
 const inputCls = 'ec-input w-full'
 const emptyForm = { code: '', name: '', description: '', manager: '', useInInput: true, active: true }
@@ -198,13 +200,23 @@ export default function OrderTypePage() {
         </form>
       )}</Modal>
 
+      {/* 단계 열이 열 개라 표가 넓다 — 페이지가 가로로 밀리지 않게 표 안에서만 스크롤한다. */}
+      <div className="overflow-x-auto">
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 90 }}>유형코드</th>
             <th style={{ width: 130 }}>유형명</th>
-            <th>진행단계 (1 → n)</th>
+            {/*
+              원본은 단계를 <b>[1단계] ~ [10단계] 열 열 개</b>로 편다(열 id STEPS∬S1…S10).
+              우리는 '진행단계 (1 → n)' 한 칸에 몰아넣고 있었는데, 그 칸에 실제로 그려지던
+              값은 단계가 아니라 <b>설명(description)</b> 이었다 — 헤더가 약속한 것과
+              본문이 다른 상태였고, 뒤따르는 담당자·입력메뉴에서 사용은 아예 안 그려졌다.
+            */}
+            {STEP_COLS.map((n) => (
+              <th key={n} style={{ width: 96 }}>{n}단계</th>
+            ))}
             <th style={{ width: 90 }}>담당자</th>
             <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
             <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
@@ -213,15 +225,26 @@ export default function OrderTypePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
-              <td>{r.description ?? ''}</td>
+              {STEP_COLS.map((n) => {
+                const st = r.steps.find((x) => x.seq === n)
+                return (
+                  <td key={n} style={{ color: st ? undefined : '#e2e6ea' }}>
+                    {st ? st.stageName : '·'}
+                  </td>
+                )
+              })}
+              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? '-'}</td>
+              <td style={{ textAlign: 'center', color: r.useInInput ? '#1c7c3c' : '#9aa1ab' }}>
+                {r.useInInput ? 'YES' : 'NO'}
+              </td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
@@ -231,6 +254,7 @@ export default function OrderTypePage() {
           ))}
         </tbody>
       </table>
+      </div>
     </EcListShell>
   )
 }
