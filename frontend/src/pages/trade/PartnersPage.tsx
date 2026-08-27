@@ -314,10 +314,14 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-slate-600">모바일</label>
               <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
             </div>
-            {/* 거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다. */}
+            {/*
+              거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다.
+              원본 이름은 [거래처그룹1] 이다 — 우리는 그룹이 하나라 '2' 에 해당하는 칸이 없다
+              (품목의 [품목그룹1명] 과 같은 관계).
+            */}
             <div>
               <CodePickerField
-                label="거래처그룹" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
+                label="거래처그룹1" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
                 value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
                 items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
               />

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState } from 'react'
+import { useCallback, useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -76,7 +76,13 @@ interface Movement {
   closing: number
 }
 
-export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
+export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: LedgerSide }) {
+  /*
+   * 원본 거래처관리대장의 <b>[채권채무구분]</b>. 우리는 메뉴(경로)로만 갈랐다 —
+   * 채권을 보다가 채무를 보려면 <b>메뉴로 되돌아가야</b> 했다. 원본은 화면 안에서 고른다.
+   * 들어온 경로가 기본값이 된다.
+   */
+  const [side, setSide] = useState<LedgerSide>(initialSide)
   const showAr = side !== 'AP'
   const showAp = side !== 'AR'
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -95,13 +101,17 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
   const [to, setTo] = useState(init.to)
   const [moves, setMoves] = useState<Movement[]>([])
 
-  useEffect(() => {
+  /** 잔액을 다시 읽는다. 원본 [검색(F8)] 이 이 일을 한다. */
+  const load = useCallback(() => {
+    setLoading(true)
+    setError('')
     api
       .get<PartnerBalance[]>('/ledger/partner-balances')
       .then((res) => setRows(res.data))
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [])
+  useEffect(() => { load() }, [load])
 
   // 채권·채무를 한쪽만 보는 화면(원본의 거래처별채권/채무)에서만 열을 쪼갠다.
   const oneSide = side !== 'BOTH'
@@ -165,6 +175,7 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
     <EcListShell
       title={TITLE[side]}
       actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setGroup('거래처별'); setPartner(''); setManager(''); setWithInactive(false); setOnlyOpen(false)
         } },
@@ -173,7 +184,17 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
       ]}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="구분">
+        {/* 원본 [채권채무구분] — 채권 · 채무 · 채권채무. */}
+        <EcCond label="채권채무구분">
+          <div className="ec-pills">
+            {([['AR', '채권'], ['AP', '채무'], ['BOTH', '채권채무']] as const).map(([v, l]) => (
+              <button key={v} type="button" className={`ec-pill no-ec${side === v ? ' active' : ''}`}
+                      onClick={() => setSide(v)}>{l}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/* 원본 [집계구분] — 무엇 단위로 모아 볼지. */}
+        <EcCond label="집계구분">
           <div className="ec-pills">
             {(['거래처별', '담당자별'] as const).map((g) => (
               <button key={g} type="button" className={`ec-pill no-ec${group === g ? ' active' : ''}`}
@@ -346,9 +367,10 @@ export default function LedgerPage({ side = 'BOTH' }: { side?: LedgerSide }) {
         {shown.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={4} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
+              <td colSpan={5} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
               {showAr && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totalReceivable)}</td>}
               {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(totalPayable)}</td>}
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}></td>
             </tr>
           </tfoot>
         )}
