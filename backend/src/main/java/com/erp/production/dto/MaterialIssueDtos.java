@@ -1,11 +1,14 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.MaterialIssue;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class MaterialIssueDtos {
 
@@ -24,6 +27,32 @@ public final class MaterialIssueDtos {
             Long employeeId,
             /** 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
+            String note
+    ) {}
+
+    /**
+     * 한 전표에 <b>자재 여러 줄</b>을 넣는다. 원본 생산불출입력이 격자인 이유다 —
+     * 같은 날 같은 작업지시에 자재 다섯 개를 내보내면서 다섯 번 저장할 일이 아니다.
+     *
+     * <p>머리(일자·담당자·창고·작업지시·프로젝트)는 한 번만 주고 줄마다 품목·수량·적요를 준다.
+     * 한 줄이라도 막히면(재고 부족 등) <b>전부 되돌린다</b> — 반쪽 전표가 남는 것이 더 나쁘다.
+     */
+    public record CreateMaterialIssueBatchRequest(
+            Long warehouseId,
+            Long toWarehouseId,
+            Long workOrderId,
+            LocalDate issueDate,
+            Long employeeId,
+            Long projectId,
+            @NotEmpty(message = "자재를 한 줄 이상 넣으세요.")
+            List<@Valid IssueLine> lines
+    ) {}
+
+    /** 격자 한 줄. */
+    public record IssueLine(
+            @NotNull(message = "자재(품목)를 선택하세요.") Long itemId,
+            @NotNull(message = "불출수량을 입력하세요.")
+            @Positive(message = "불출수량은 0보다 커야 합니다.") BigDecimal qty,
             String note
     ) {}
 

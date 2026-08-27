@@ -4741,6 +4741,48 @@ async function scenarioIssueEmployee(f) {
   await must('DELETE', `/material-issues/${withProj.id}`)
   await must('DELETE', `/projects/${proj.id}`)
 
+  /*
+   * 원본 생산불출입력은 <b>한 전표에 자재 여러 줄</b>을 넣는 격자다. 우리는 한 줄씩만
+   * 받아서, 같은 날 같은 작업지시로 자재 다섯 개를 내보내려면 다섯 번 저장해야 했다.
+   *
+   * <p>여러 줄을 한 트랜잭션에 넣는다. <b>한 줄이라도 막히면 전부 되돌린다</b> —
+   * 재고가 모자라 세 줄 중 둘만 들어가면 창고 수량도 전표도 반쪽이 되고,
+   * 사람은 무엇이 들어갔는지 모른다.
+   */
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 6,
+  })
+  const before = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
+    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+
+  const batch = await must('POST', '/material-issues/batch', {
+    warehouseId: f.warehouse.id, issueDate: '2091-07-08', note: null,
+    lines: [
+      { itemId: line.componentId, qty: 1, note: `${P}줄1` },
+      { itemId: line.componentId, qty: 2, note: `${P}줄2` },
+    ],
+  })
+  eq('한 번에 두 줄이 들어간다', batch.length, 2)
+  eq('줄마다 적요가 따로 남는다', batch.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  const afterBatch = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
+    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+  eq('두 줄 합만큼 재고가 준다', Number(before) - Number(afterBatch), 3)
+
+  // 둘째 줄이 재고를 넘으면 첫 줄도 들어가면 안 된다.
+  const partial = await call('POST', '/material-issues/batch', {
+    warehouseId: f.warehouse.id, issueDate: '2091-07-08',
+    lines: [{ itemId: line.componentId, qty: 1 }, { itemId: line.componentId, qty: 99999 }],
+  })
+  eq('한 줄이 막히면 거부한다', partial.status, 400)
+  const afterFail = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
+    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+  eq('막히면 앞 줄도 안 들어간다(전부 되돌림)', Number(afterFail), Number(afterBatch))
+
+  for (const x of batch) await must('DELETE', `/material-issues/${x.id}`)
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 6,
+  })
+
   // 작업지시 없이 낸 불출은 생산품목이 없다. 지어내면 남의 지시 자재가 된다.
   const loose = await must('POST', '/material-issues', {
     itemId: line.componentId, warehouseId: f.warehouse.id, toWarehouseId: factory.id,

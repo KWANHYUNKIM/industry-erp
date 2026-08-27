@@ -8,6 +8,8 @@ import com.erp.production.domain.WorkOrder;
 import com.erp.production.dto.MaterialIssueDtos.CreateMaterialIssueRequest;
 import com.erp.production.dto.MaterialIssueDtos.MaterialIssueResponse;
 import com.erp.inventory.service.ItemService;
+import com.erp.production.dto.MaterialIssueDtos.CreateMaterialIssueBatchRequest;
+import com.erp.production.dto.MaterialIssueDtos.IssueLine;
 import com.erp.production.repository.MaterialIssueRepository;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.service.WarehouseService;
@@ -98,6 +100,23 @@ public class MaterialIssueService {
                     StockTransactionType.INBOUND, null, date, "생산불출 입고 " + noteOf(saved), null);
         }
         return MaterialIssueResponse.from(saved);
+    }
+
+    /**
+     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다(원본 생산불출입력).
+     *
+     * <p>한 줄이라도 막히면 전부 되돌린다 — 재고가 모자라 세 줄 중 두 줄만 들어가면
+     * 창고 수량도 전표도 반쪽이 되고, 사람은 무엇이 들어갔는지 모른다.
+     */
+    @Transactional
+    public List<MaterialIssueResponse> createBatch(CreateMaterialIssueBatchRequest req) {
+        List<MaterialIssueResponse> out = new java.util.ArrayList<>();
+        for (IssueLine line : req.lines()) {
+            out.add(create(new CreateMaterialIssueRequest(
+                    line.itemId(), req.warehouseId(), req.toWarehouseId(), req.workOrderId(),
+                    line.qty(), req.issueDate(), req.employeeId(), req.projectId(), line.note())));
+        }
+        return out;
     }
 
     /** 재고 이력에 적을 이름. 작업지시가 있으면 그 번호로 되짚을 수 있게 한다. */

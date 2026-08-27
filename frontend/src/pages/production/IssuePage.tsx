@@ -53,10 +53,18 @@ const today = () => ymd(new Date())
  */
 const emptyForm = {
   itemId: '', warehouseId: '', toWarehouseId: '', workOrderId: '',
-  employeeId: '', qty: '', issueDate: today(), note: '',
+  employeeId: '', issueDate: today(),
   /** 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
   projectId: '',
 }
+
+/**
+ * 격자 한 줄. 원본 생산불출입력은 <b>한 전표에 자재를 여러 줄</b> 넣는다 —
+ * 같은 날 같은 작업지시로 자재 다섯 개를 내보내면서 다섯 번 저장할 일이 아니다.
+ */
+interface FormLine { key: number; itemId: string; qty: string; note: string }
+let nextLineKey = 1
+const emptyLine = (): FormLine => ({ key: nextLineKey++, itemId: '', qty: '', note: '' })
 
 export default function IssuePage() {
   const [rows, setRows] = useState<MaterialIssue[]>([])
@@ -71,6 +79,9 @@ export default function IssuePage() {
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [lines, setLines] = useState<FormLine[]>([emptyLine()])
+  const setLine = (key: number, patch: Partial<FormLine>) =>
+    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
 
   async function load() {
     setLoading(true)
@@ -113,18 +124,24 @@ export default function IssuePage() {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/material-issues', {
-        itemId: Number(form.itemId),
+      /*
+       * 줄을 <b>한 번에</b> 보낸다. 서버가 한 트랜잭션으로 넣고, 한 줄이라도 막히면
+       * 전부 되돌린다 — 재고가 모자라 세 줄 중 둘만 들어가면 창고 수량도 전표도
+       * 반쪽이 되고, 사람은 무엇이 들어갔는지 모른다.
+       */
+      const filled = lines.filter((l) => l.itemId && l.qty !== '')
+      if (filled.length === 0) { setError('자재를 한 줄 이상 넣으세요.'); return }
+      await api.post('/material-issues/batch', {
         warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         toWarehouseId: form.toWarehouseId === '' ? null : Number(form.toWarehouseId),
         workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
-        qty: form.qty === '' ? 0 : Number(form.qty),
         issueDate: form.issueDate || null,
         employeeId: form.employeeId === '' ? null : Number(form.employeeId),
         projectId: form.projectId === '' ? null : Number(form.projectId),
-        note: form.note,
+        lines: filled.map((l) => ({ itemId: Number(l.itemId), qty: Number(l.qty), note: l.note })),
       })
       setForm(emptyForm)
+      setLines([emptyLine()])
       setShowForm(false)
       load()
     } catch (err) {
@@ -188,12 +205,6 @@ export default function IssuePage() {
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 불출 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">자재 *</label>
-              <CodePickerField label="자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
-                               value={form.itemId} onChange={(v) => setForm({ ...form, itemId: v })}
-                               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
-            </div>
             {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
@@ -235,18 +246,63 @@ export default function IssuePage() {
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">불출수량 *</label>
-              <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} />
-            </div>
-            <div>
               <label className="mb-1 block text-sm text-slate-600">불출일자</label>
               <input type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">비고</label>
-              <input className={inputCls} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            </div>
           </div>
+
+          {/*
+            원본 생산불출입력의 격자. 머리(일자·담당자·창고·작업지시·프로젝트)는 한 번만
+            정하고, 자재는 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>자재</span>
+            <button type="button" className="ec-btn" onClick={() => setLines([...lines, emptyLine()])}>줄 추가</button>
+          </div>
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>품목명</th>
+                <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+                <th style={{ width: 200 }}>적요</th>
+                <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l, idx) => (
+                <tr key={l.key}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td>
+                    <CodePickerField label="자재" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
+                                     items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
+                  </td>
+                  <td>
+                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                           value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
+                  </td>
+                  <td>
+                    <input className={inputCls} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button type="button" onClick={() => setLines(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine()])}
+                            style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                  {lines.reduce((a2, l) => a2 + (Number(l.qty) || 0), 0).toLocaleString()}
+                </td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          </table>
+
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>
