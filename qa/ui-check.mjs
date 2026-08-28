@@ -180,6 +180,16 @@ const choiceNames = (src) => {
    */
   if (/onCompareChange=/.test(src)) for (const c of COMPARE_PERIOD_NAMES) add(c)
 
+  /*
+   * <code>EMPLOYMENTS.map(…)</code> 처럼 <b>이름으로 편 배열</b>도 보기다.
+   * 뒤로 걸어가는 규칙은 <code>]</code> 로 끝나는 <b>그 자리의</b> 배열만 보므로 지나친다.
+   * <b>같은 파일 안에서만</b> 이름을 되짚으니 딴 화면과 부딪힐 일은 없다.
+   */
+  for (const m of src.matchAll(/\b([A-Z][A-Z0-9_]{2,})\.map\(/g)) {
+    const decl = src.match(new RegExp('\\b' + m[1] + '\\b[^\\n=]*=\\s*\\[([\\s\\S]{0,400}?)\\]\\s*(?:as const)?\\s*$', 'm'))
+    if (decl) for (const q of decl[1].matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+
   for (const m of src.matchAll(/\.map\(/g)) {
     const before = src.slice(Math.max(0, m.index - 400), m.index)
     if (!/\]\s*(?:as const\s*)?\)?\s*$/.test(before)) continue

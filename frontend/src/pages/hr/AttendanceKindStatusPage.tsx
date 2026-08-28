@@ -40,9 +40,17 @@ interface Vacation {
   endDate: string
   days: number
   reason: string | null
+  /**
+   * 사원이 재직 중인가. <b>응답에 이미 오고 있었는데</b> 이 화면이 받아 두지 않았다 —
+   * 원본 근태현황의 [재직구분] 조건이 이 값을 본다(휴가 두 화면은 이미 쓰고 있다).
+   */
+  active: boolean
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   statusName: string
 }
+
+/** 원본 [재직구분]. 휴가잔여일수현황·휴가사용실적현황과 같은 값이라 이름도 같게 둔다. */
+const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
 
 /** 원본 [근태] 열은 일수다 — 소수 셋째 자리까지 채워 찍는다(사본 값 1.250). */
 const days = formatDays
@@ -58,6 +66,7 @@ export default function AttendanceKindStatusPage() {
   const [dept, setDept] = useState('')
   const [emp, setEmp] = useState('')
   const [kind, setKind] = useState('')
+  const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [reason, setReason] = useState('')
   const [status, setStatus] = useState('전체')
 
@@ -90,8 +99,11 @@ export default function AttendanceKindStatusPage() {
     if (kind && !r.type.includes(kind)) return false
     if (reason && !(r.reason ?? '').includes(reason)) return false
     if (status !== '전체' && r.status !== (status === '결재중' ? 'PENDING' : 'APPROVED')) return false
+    // 원본 [재직구분] — 기본은 재직자다. 퇴사자 근태는 정산할 때 따로 본다.
+    if (employment === 'ACTIVE' && !r.active) return false
+    if (employment === 'RESIGNED' && r.active) return false
     return true
-  }), [rows, from, to, dept, emp, kind, reason, status])
+  }), [rows, from, to, dept, emp, kind, reason, status, employment])
 
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
 
@@ -140,6 +152,15 @@ export default function AttendanceKindStatusPage() {
             {['전체', '결재중', '확인'].map((s) => (
               <button key={s} type="button" className={`ec-pill no-ec${status === s ? ' active' : ''}`}
                       onClick={() => setStatus(s)}>{s}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/* 원본 [재직구분] — 전체·재직자·퇴사자. 기본은 [재직자]로 뜬다(사본 실측). */}
+        <EcCond label="재직구분">
+          <div className="ec-pills">
+            {EMPLOYMENTS.map(([v, label]) => (
+              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
+                      onClick={() => setEmployment(v)}>{label}</button>
             ))}
           </div>
         </EcCond>
