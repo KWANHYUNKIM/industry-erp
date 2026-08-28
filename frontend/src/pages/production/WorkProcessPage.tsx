@@ -254,11 +254,19 @@ export default function WorkProcessPage() {
           <input type="date" className="ec-input" value={dueDate}
                  onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
         </EcCond>
+        {/*
+          원본 [잔량기준] — <b>작업지시서 · 직전작업</b> 2단이고 [작업지시서]가 켜진 채 뜬다.
+          우리는 체크박스에 '직전작업' 이라고만 적어 두어, <b>안 켰을 때가 무엇인지</b>
+          화면이 말하지 않았다. 두 쪽을 다 적는다.
+        */}
         <EcCond label="잔량기준">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={prevBased} onChange={(e) => setPrevBased(e.target.checked)} />
-            직전작업
-          </label>
+          <div className="ec-pills">
+            {([['지시', '작업지시서'], ['직전', '직전작업']] as const).map(([k, l]) => (
+              <button key={k} type="button"
+                      className={`ec-pill no-ec${(k === '직전') === prevBased ? ' active' : ''}`}
+                      onClick={() => setPrevBased(k === '직전')}>{l}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="생산공장" pick>
           <input className="ec-input" placeholder="공장명 일부" value={plant}
