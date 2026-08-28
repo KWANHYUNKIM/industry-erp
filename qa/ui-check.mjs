@@ -605,6 +605,44 @@ console.log('\n■ 검사가 만드는 정규식이 죽어 있지 않나')
   eq('따옴표로 만든 정규식에 한 겹 역슬래시가 없다', bad.join('\n') || '없음', '없음')
 }
 
+console.log('\n■ 검사의 태그 정규식이 옆 태그까지 먹지 않나')
+
+/*
+ * <b><code>&lt;th[^&gt;]*&gt;</code> 는 <code>&lt;thead&gt;</code> 도 맞는다.</b>
+ * <code>th</code> 뒤의 <code>ead</code> 가 <code>[^&gt;]*</code> 로 먹히기 때문이다.
+ *
+ * <p>그래서 머리 표를 훑을 때마다 <b>열이 하나 덧세어져</b> 있었고, 그 가짜 열의 내용은
+ * <code>&lt;thead&gt;</code> 부터 첫 <code>&lt;/th&gt;</code> 까지 — <b>주석까지 통째</b>였다.
+ * 여태는 그 덩어리가 어떤 열 이름과도 안 맞아 조용히 버려졌을 뿐이다.
+ * ▼ 를 세는 곳에서는 <b>주석 안의 ▼</b> 가 정렬 표시로 잡힐 수 있었다.
+ *
+ * <p>같은 함정이 <code>&lt;b&gt;</code>(<code>&lt;button&gt;·&lt;br&gt;·&lt;body&gt;</code>),
+ * <code>&lt;a&gt;</code>(<code>&lt;article&gt;</code>), <code>&lt;p&gt;</code>(<code>&lt;pre&gt;</code>),
+ * <code>&lt;li&gt;</code>(<code>&lt;link&gt;</code>), <code>&lt;col&gt;</code>(<code>&lt;colgroup&gt;</code>)
+ * 에도 있다. 앞머리를 먹는 태그를 쓸 때는 <code>\b</code> 를 붙인다.
+ */
+{
+  /** JSX 에 실제로 나오는 태그 이름 — 이 가운데 앞머리가 겹치는 짝만 따진다. */
+  const TAGS = ['a', 'abbr', 'article', 'aside', 'b', 'br', 'body', 'blockquote', 'button',
+    'col', 'colgroup', 'div', 'dl', 'dt', 'dd', 'em', 'form', 'h1', 'h2', 'h3', 'h4',
+    'i', 'img', 'input', 'label', 'li', 'link', 'main', 'nav', 'ol', 'option', 'optgroup',
+    'p', 'pre', 'path', 's', 'section', 'select', 'small', 'span', 'strong', 'style', 'sup',
+    'table', 'tbody', 'td', 'textarea', 'tfoot', 'th', 'thead', 'time', 'tr', 'ul']
+  const bad = []
+  for (const f of readdirSync('qa').filter((x) => x.endsWith('.mjs'))) {
+    readFileSync(join('qa', f), 'utf8').split('\n').forEach((line, i) => {
+      /* 여는 태그 뒤에 낱말경계도 글자도 아닌 것이 오면 앞머리만 맞추는 정규식이다. */
+      for (const m of line.matchAll(/<([a-zA-Z][a-zA-Z0-9]*)(\\\\b|\\b)?([^a-zA-Z0-9\\s>]|$)/g)) {
+        const [, tag, guard] = m
+        if (guard || !TAGS.includes(tag)) continue
+        const eaten = TAGS.filter((t) => t !== tag && t.startsWith(tag))
+        if (!eaten.length) continue
+        bad.push(`${f}:${i + 1}  <${tag}…> 가 ${eaten.map((t) => '<' + t + '>').join(' ')} 도 먹는다`)
+      }
+    })
+  }
+  eq('앞머리가 겹치는 태그에 낱말경계(\\b)를 붙였다', bad.join('\n') || '없음', '없음')
+}
 console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
 
 /**
@@ -2507,7 +2545,7 @@ console.log('\n■ 표 머리에 ▼ 를 그려 놓고 정렬은 안 되는 화�
   const stale = []
   let fixed = 0
   /** 표 머리 안에 든 ▼ 만 정렬 표시로 친다. */
-  const headMark = (src) => [...src.matchAll(/<th[\s\S]*?<\/th>/g)].some((m) => m[0].includes('▼'))
+  const headMark = (src) => [...src.matchAll(/<th\b[\s\S]*?<\/th>/g)].some((m) => m[0].includes('▼'))
   for (const f of walk(join('frontend', 'src', 'pages'))) {
     if (!f.endsWith('.tsx')) continue
     const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]

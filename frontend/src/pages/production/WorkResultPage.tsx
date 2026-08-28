@@ -248,6 +248,9 @@ export default function WorkResultPage() {
                   생산품목코드가 [작업]보다 앞이다.
                 */}
                 <th style={{ width: 110 }}>생산품목코드</th>
+                {/* 원본은 코드 옆에 <b>이름</b>도 편다 — 고른 작업지시가 가리키는 품목이 무엇인지
+                    코드만으로는 알 수가 없다. 이름은 이미 작업지시 목록에 있다. */}
+                <th style={{ width: 160 }}>생산품목명</th>
                 <th style={{ width: 120 }}>작업</th>
                 <th style={{ width: 130 }}>작업품목코드</th>
                 <th>작업품목명</th>
@@ -272,6 +275,9 @@ export default function WorkResultPage() {
                   {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
                   <td style={{ fontFamily: 'monospace', color: '#6b7280' }}>
                     {workOrders.find((w) => String(w.id) === l.workOrderId)?.productCode ?? ''}
+                  </td>
+                  <td style={{ color: '#6b7280' }}>
+                    {workOrders.find((w) => String(w.id) === l.workOrderId)?.productName ?? ''}
                   </td>
                   <td>
                     <input className={inputCls} list="wr-process-list" value={l.process} placeholder="조립"
@@ -322,7 +328,7 @@ export default function WorkResultPage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
