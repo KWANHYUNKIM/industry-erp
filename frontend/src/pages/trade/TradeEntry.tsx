@@ -1105,6 +1105,20 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         { label: '지급 화면으로', onClick: () => navigate('/sales/payment') },
       ],
     },
+    /*
+     * 원본 [거래내역보기(판매)]·[거래내역보기(구매)] — 지금 고른 거래처의 지난 거래를 본다.
+     * 전표를 치다가 "이 거래처와 지난달에 얼마에 했더라" 를 확인하는 자리다.
+     * 거래처를 아직 안 골랐으면 누를 것이 없다.
+     */
+    {
+      label: mode === 'sales' ? '거래내역보기(판매)' : '거래내역보기(구매)',
+      disabled: !partnerId,
+      disabledReason: '거래처를 먼저 고르세요.',
+      onClick: () => {
+        const name = partners.find((p) => String(p.id) === partnerId)?.name ?? ''
+        navigate(`${cfg.listTo}?partner=${encodeURIComponent(name)}`)
+      },
+    },
     // 원본 푸터의 마지막 두 개는 [리스트][웹자료올리기] 다. '닫기' 가 아니라 조회 화면으로 간다.
     { label: '리스트', onClick: () => navigate(cfg.listTo) },
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },

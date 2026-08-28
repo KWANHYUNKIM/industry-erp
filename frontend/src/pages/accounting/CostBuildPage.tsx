@@ -68,6 +68,7 @@ export default function CostBuildPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [checkOpen, setCheckOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm())
 
@@ -184,6 +185,12 @@ export default function CostBuildPage() {
       newLabel={showForm ? '입력닫기' : '원가등록(F2)'} onNew={() => (showForm ? setShowForm(false) : openNew())}
       actions={[
         { label: '노무비/경비등록', onClick: () => setExpensePeriod(window.prompt('기준년월 (예: 2026-06)', thisMonth()) || null) },
+        /*
+         * 원본에도 같은 이름의 버튼이 있다. 원가생성은 <b>되돌리기 어려운</b> 일이라
+         * 무엇이 갖춰져 있어야 하는지 누르기 전에 볼 자리가 필요하다.
+         * 원본 안내문을 옮긴 것이 아니라 우리 생성 규칙을 적은 것이다.
+         */
+        { label: '원가생성전 점검사항', onClick: () => setCheckOpen(true) },
         { label: '표준원가생성', onClick: build },
         { label: '실제원가 계산', onClick: calcActual },
         { label: '새로고침', onClick: load },
@@ -287,6 +294,19 @@ export default function CostBuildPage() {
           ))}
         </tbody>
       </table>
+      <Modal open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
+        <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
+          표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
+          원가가 0 이거나 일부 품목만 생깁니다.
+          <ol style={{ margin: '10px 0 0 18px' }}>
+            <li>완제품에 <b>BOM</b>이 있어야 합니다 — 자재비는 BOM 을 펼쳐 계산합니다.</li>
+            <li>자재의 <b>구매단가</b>가 있어야 합니다(품목등록 또는 그 달의 매입 전표).</li>
+            <li>노무비·경비는 [노무비/경비등록]에서 그 기준월로 넣어 둡니다 —
+                안 넣으면 재료비만으로 원가가 잡힙니다.</li>
+            <li>이미 만든 기준월을 다시 만들면 <b>그 달 값이 덮어써집니다.</b></li>
+          </ol>
+        </div>
+      )}</Modal>
     </EcListShell>
   )
 }

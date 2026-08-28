@@ -307,6 +307,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       actions={[
         ...(isSales ? [{ label: `진행상태변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => void confirmSelected() }] : []),
         { label: '선택삭제', onClick: () => void deleteSelected() },
+        /*
+         * 원본 [거래내역보기(구매)] — 지금 고른 거래처의 거래만 남긴다.
+         * 조회 화면에서 한 거래처만 훑고 싶을 때 조건을 다시 고르지 않아도 된다.
+         */
+        { label: isSales ? '거래내역보기(판매)' : '거래내역보기(구매)',
+          onClick: () => setPartnerCond(partnerCond || (shown[0]?.partnerName ?? '')) },
         { label: 'Excel' },
         { label: '인쇄' },
       ]}

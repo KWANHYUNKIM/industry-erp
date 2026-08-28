@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
@@ -83,6 +84,7 @@ export default function DailyProfitPage() {
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [whyOpen, setWhyOpen] = useState(false)
 
   const [mode, setMode] = useState<Mode>('라인별')
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
@@ -256,6 +258,12 @@ export default function DailyProfitPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        /*
+         * 원본에도 같은 이름의 버튼이 있다. 이익이 0 으로 나오는 까닭은 대개 정해져 있어서,
+         * 화면 어딘가에 적어 두지 않으면 "자료가 없나" 하고 되돌아 나가게 된다.
+         * 원본 안내문을 옮긴 것이 아니라 <b>우리 계산 규칙</b>을 적은 것이다.
+         */
+        { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -435,6 +443,19 @@ export default function DailyProfitPage() {
           )}
         </table>
       </div>
+      <Modal open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
+        <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
+          이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나
+          판매액과 같아집니다. 아래를 차례로 보세요.
+          <ol style={{ margin: '10px 0 0 18px' }}>
+            <li>[원가] 를 [월별원가]로 두었다면 그 달 <b>표준원가가 생성돼 있어야</b> 합니다 —
+                [원가생성/수정]에서 그 기준월로 만듭니다.</li>
+            <li>[최종구매가]·[입고단가(품목)]는 그 품목을 <b>사 본 적이 있어야</b> 값이 잡힙니다.</li>
+            <li>기간에 판매 전표가 없으면 줄 자체가 없습니다 — [기준일자]를 넓혀 보세요.</li>
+            <li>[구분]이 품목별인데 전표에 품목이 없으면(수동 금액 전표) 그 줄은 빠집니다.</li>
+          </ol>
+        </div>
+      )}</Modal>
     </EcListShell>
   )
 }
