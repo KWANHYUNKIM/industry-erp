@@ -1806,6 +1806,79 @@ console.log('\n■ 사본에 있는 화면을 하나도 안 빠뜨리고 견주�
   }
 }
 
+// ── 2-r) 열 폭의 앞뒤 차례 ───────────────────────────────────────────────
+console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나')
+
+/*
+ * <b>어느 열을 넓게 두는지는 그 화면이 무엇을 읽으라는 말이다.</b> 사본의 colgroup 에
+ * 열 폭이 픽셀로 박혀 있다(<code>&lt;col style=width:150px&gt;</code>). 거래처명 150 · 나머지 100
+ * 하는 식이라, 이름을 읽으라는 뜻이 폭에 드러난다.
+ *
+ * <p>픽셀을 그대로 맞출 일은 아니다(글꼴도 표도 다르다). 대신 <b>뒤집힘</b>만 본다 —
+ * 원본이 넓게 둔 열을 우리가 <b>더 좁게</b> 못 박아 두면, 그 열의 값이
+ * 잘려서 정작 읽어야 할 것을 못 읽는다. 폭을 안 박은 열은 늘어나므로 넘어간다.
+ *
+ * <p>둘째와 20px 넘게 차이 나는 화면만 담았다(fixture) — 100·100·100 처럼 다 같은 표는
+ * '가장 넓은 열' 이라는 말 자체가 뜻이 없다.
+ */
+{
+  const WIDTH_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-width.json'), 'utf8'))
+  /** 우리 칸에 든 값이 원본보다 길어 폭을 뒤집을 수밖에 없는 곳 — 이유를 적는다. */
+  const WIDTH_SKIP = new Map([
+    ['근태현황|근태일자|근태',
+      '우리 [근태일자]는 기간을 한 칸에 적는다(2026-01-01 ~ 2026-01-03). 원본은 하루라 100 이면 되지만'
+      + ' 우리는 좁히면 잘린다. [근태]는 원본대로 가장 넓게 뒀다'],
+  ])
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+
+  const bad = []
+  let checked = 0
+  let skipped = 0
+  for (const [screen, cols] of Object.entries(cap)) {
+    const rel = WIDTH_MAP.get(screen)
+    if (!rel || PENDING.has(screen)) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    const names = Object.keys(cols)
+    const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
+      head: h[0],
+      hit: names.filter((n) => new RegExp('<th[^>]*>\s*' + esc(n) + '\s*(?:\u25bc)?\s*</th>').test(h[0])).length,
+    })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
+    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
+
+    const widths = new Map()
+    for (const m of scored[0].head.matchAll(/<th([^>]*)>([\s\S]*?)<\/th>/g)) {
+      const w = m[1].match(/width:\s*(\d+)/)
+      if (w) widths.set(flat(m[2]), Number(w[1]))
+    }
+    /*
+     * 양쪽 다 폭을 못 박은 열끼리만 견준다. 폭을 안 박은 열은 늘어나므로
+     * '넓다/좁다' 를 말할 수 없다.
+     */
+    const pairs = Object.entries(cols).filter(([n]) => widths.has(flat(n)))
+    for (let i = 0; i < pairs.length; i += 1) {
+      for (let j = i + 1; j < pairs.length; j += 1) {
+        const [an, aw] = pairs[i]
+        const [bn, bw] = pairs[j]
+        if (Math.abs(aw - bw) < 30) continue      // 원본이 비슷하게 둔 것은 따지지 않는다
+        if (WIDTH_SKIP.has(screen + '|' + an + '|' + bn)
+          || WIDTH_SKIP.has(screen + '|' + bn + '|' + an)) continue
+        checked += 1
+        const mineA = widths.get(flat(an))
+        const mineB = widths.get(flat(bn))
+        if (Math.sign(aw - bw) !== Math.sign(mineA - mineB) && mineA !== mineB) {
+          bad.push(rel.split('/').pop() + '  원본 [' + an + '] ' + aw + ' vs [' + bn + '] ' + bw
+            + ' — 우리는 ' + mineA + ' vs ' + mineB + ' 로 뒤집혀 있다')
+        }
+      }
+    }
+  }
+  eq('폭을 견준 열 짝 ' + checked + '개의 앞뒤가 원본과 같다 (표를 못 짝지어 건너뛴 '
+    + skipped + '개)', bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────
 console.log('\n■ 근태·휴가 일수를 화면마다 같은 모양으로 찍나')
 

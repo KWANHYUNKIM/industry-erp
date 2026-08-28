@@ -308,7 +308,8 @@ export default function ApprovalDraftPage() {
               <th style={{ width: 90 }}>정렬순서</th>
               <th>양식명</th>
               <th style={{ width: 200 }}>구분</th>
-              <th style={{ width: 220 }}>결재문서</th>
+              {/* 원본은 [구분] 200 · [결재문서] 150 이다 — 우리는 거꾸로였다. */}
+              <th style={{ width: 150 }}>결재문서</th>
             </tr>
           </thead>
           <tbody>

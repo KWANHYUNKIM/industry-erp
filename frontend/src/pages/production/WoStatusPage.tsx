@@ -97,7 +97,8 @@ export default function WoStatusPage() {
             <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>잔여수량</th>
             <th style={{ textAlign: 'right' }}>진행률(%)</th>
-            <th style={{ width: 140 }}>거래처명</th>
+            {/* 원본은 [거래처명]을 183 으로 둔다 — 일자-No. 보다 넓다. */}
+            <th style={{ width: 200 }}>거래처명</th>
             <th style={{ width: 90 }}>담당자명</th>
             <th>입고창고</th>
             {/* 원본 열 이름은 [납기일자]다. */}

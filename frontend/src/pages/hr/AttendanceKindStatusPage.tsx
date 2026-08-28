@@ -169,7 +169,8 @@ export default function AttendanceKindStatusPage() {
             <th style={{ width: 110 }}>사원번호</th>
             <th style={{ width: 120 }}>사원명</th>
             <th style={{ width: 120 }}>근태종류</th>
-            <th style={{ width: 100, textAlign: 'right' }}>근태</th>
+            {/* 원본은 이 표에서 [근태]를 가장 넓게 둔다(180 · 나머지 100~120) — 읽으라는 값이다. */}
+            <th style={{ width: 180, textAlign: 'right' }}>근태</th>
             <th>적요</th>
             <th style={{ width: 90, textAlign: 'center' }}>상태</th>
           </tr>
