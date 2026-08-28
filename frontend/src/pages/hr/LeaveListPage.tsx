@@ -62,6 +62,12 @@ export default function LeaveListPage() {
   const [searchParams] = useSearchParams()
   const [emp, setEmp] = useState(searchParams.get('emp') ?? '')
   const [type, setType] = useState('')
+  /*
+   * 원본 근태조회의 조건 차례는 <b>기준일자 · 사원 · 부서 · … · 적요 · 근태일자</b> 다
+   * (사본 실측). 부서와 적요가 없었는데 <b>둘 다 이미 목록에 실려 오고 있었다</b>.
+   */
+  const [dept, setDept] = useState('')
+  const [reasonCond, setReasonCond] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
   async function load() {
@@ -108,11 +114,13 @@ export default function LeaveListPage() {
   const shown = useMemo(() => rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
     if (type && !r.type.includes(type)) return false
+    if (dept && !(r.department ?? '').includes(dept)) return false
+    if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
     if (tab === '결재중' && r.status !== 'PENDING') return false
     if (tab === '확인' && r.status !== 'APPROVED') return false
     if (tab === '이력' && r.status !== 'REJECTED') return false
     return true
-  }), [rows, emp, type, tab])
+  }), [rows, emp, type, tab, dept, reasonCond])
 
   const total = shown.reduce((n, r) => n + r.days, 0)
 
@@ -170,9 +178,18 @@ export default function LeaveListPage() {
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
         </EcCond>
+        {/* 원본은 [사원] 바로 다음이 [부서]다. */}
+        <EcCond label="부서">
+          <input className="ec-input" placeholder="부서명 일부" value={dept}
+                 onChange={(e) => setDept(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
         <EcCond label="근태코드" pick>
           <input className="ec-input" placeholder="연차·반차 등" value={type}
                  onChange={(e) => setType(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={reasonCond}
+                 onChange={(e) => setReasonCond(e.target.value)} style={{ width: 180 }} />
         </EcCond>
       </ul>
 

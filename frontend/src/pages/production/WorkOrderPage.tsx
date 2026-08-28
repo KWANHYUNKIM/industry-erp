@@ -4,6 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse, WorkOrder } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { Link } from 'react-router-dom'
@@ -76,6 +78,13 @@ export default function WorkOrderPage() {
     partnerId: '', employeeId: '', remark: '',
   })
   const [tab, setTab] = useState<Tab>('전체')
+  /*
+   * 원본 작업지시서조회의 조건 차례는 <b>작업지시No. · 창고 · 거래처 · 품목</b> 이다
+   * (사본 실측). 거래처·품목이 없었는데 둘 다 이미 목록에 실려 오고 있었다.
+   */
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const condPickers = useCondPickers(['partners', 'items'])
   /** 납품처·담당자. 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
   const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
@@ -111,7 +120,9 @@ export default function WorkOrderPage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  const shown = orders.filter((o) => tab === '전체' || o.status === TAB_STATUS[tab])
+  const shown = orders.filter((o) => (tab === '전체' || o.status === TAB_STATUS[tab])
+    && (!partnerCond || (o.partnerName ?? '').includes(partnerCond))
+    && (!itemCond || o.productName.includes(itemCond)))
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -160,6 +171,18 @@ export default function WorkOrderPage() {
                   onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
+
+      {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+      </ul>
 
       <Modal open={showForm} title="작업지시 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
