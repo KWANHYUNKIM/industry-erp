@@ -196,10 +196,11 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
           <tr>
             <th></th>
             <th style={{ textAlign: 'center', width: 190 }}>일자-No. ▼</th>
-            <th>거래처</th>
-            <th style={{ textAlign: 'right' }}>{moneyLabel}액</th>
+            {/* 원본 열 이름 그대로 — 수금현황·지급현황 둘 다 [거래처명]·[금액]·[적요] 다. */}
+            <th>거래처명</th>
+            <th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ textAlign: 'center' }}>{moneyLabel}방법</th>
-            <th>비고</th>
+            <th>적요</th>
           </tr>
         </thead>
         <tbody>

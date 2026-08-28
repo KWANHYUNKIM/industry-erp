@@ -700,6 +700,9 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     checked++
     // 그 화면이 쓰는 periodOf 라벨 가운데 원본 기본값이 하나라도 있으면 통과.
     const used = [...src.matchAll(/periodOf\('([^']+)'\)/g)].map((m) => m[1])
+    // 공용 화면을 감싸기만 하는 곳은 기본값을 <b>속성으로</b> 넘긴다
+    // (defaultPick="직전기수"). 파일 안에 periodOf 가 없다고 없는 것이 아니다.
+    for (const m of src.matchAll(/defaultPick=["']([^"']+)["']/g)) used.push(m[1])
     if (!labels.some((l) => used.includes(l))) {
       bad.push(fam + '  원본 [' + labels.join(' | ') + '] · 우리 [' + [...new Set(used)].join(' | ') + ']')
     }
@@ -963,6 +966,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
 
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
   const bad = []
+  let unknown = 0   // 사본의 표가 비어 있어 정렬을 못 잰 열
   const skipped = []
   let checked = 0
 
@@ -986,6 +990,9 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     const best = scored[0].head
 
     for (const [name, want] of Object.entries(cols)) {
+      // '?' 는 정렬을 못 잰 열이다 — 사본에서 그 표가 비어 있어 칸의 정렬을 볼 수 없었다.
+      // 이름과 차례는 다른 검사가 본다. 여기서는 세지 않는다.
+      if (want === '?') { unknown += 1; continue }
       const m = best.match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*(?:\u25bc)?\\s*</th>'))
       if (!m) continue
       checked++
@@ -993,7 +1000,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
       if (got !== want) bad.push(`${rel.split('/').pop()}  [${name}] 원본 ${want} · 우리 ${got}`)
     }
   }
-  eq(`원본과 견준 열 ${checked}개의 정렬이 같다`
+  eq(`원본과 견준 열 ${checked}개의 정렬이 같다 (정렬을 못 잰 ${unknown}개는 뺐다)`
     + (skipped.length ? ` (표를 못 짝지어 건너뛴 화면 ${skipped.length}: ${skipped.join(', ')})` : ''),
     bad.join('\n') || '없음', '없음')
 }

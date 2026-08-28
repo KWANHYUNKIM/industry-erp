@@ -46,6 +46,8 @@ public final class ProductionDtos {
     public record WorkOrderResponse(
             Long id, String orderNo,
             Long productId, String productCode, String productName, String productUnit,
+            /** 규격. 원본 작업지시서현황의 열 이름이 [품목명[규격명]] 이다. */
+            String productSpec,
             Long warehouseId, String warehouseName,
             /** 납품처. 원본 작업지시서조회의 [거래처명] 열. */
             Long partnerId, String partnerName,
@@ -60,6 +62,7 @@ public final class ProductionDtos {
             return new WorkOrderResponse(
                     w.getId(), w.getOrderNo(),
                     w.getProduct().getId(), w.getProduct().getCode(), w.getProduct().getName(), w.getProduct().getUnit(),
+                    w.getProduct().getSpec(),
                     w.getWarehouse().getId(), w.getWarehouse().getName(),
                     w.getPartner() != null ? w.getPartner().getId() : null,
                     w.getPartner() != null ? w.getPartner().getName() : null,
@@ -156,6 +159,8 @@ public final class ProductionDtos {
             Long id, String prodNo,
             Long workOrderId, String workOrderNo,
             Long productId, String productCode, String productName, String productUnit,
+            /** 규격. 원본 생산입고현황의 열 이름이 [품목명[규격명]] 이라 이름만으로는 못 찍는다. */
+            String productSpec,
             /** 받는창고 — 완제품이 들어간 곳. 원본 [받는창고명]. */
             Long warehouseId, String warehouseName,
             /** 생산된공장 — 자재를 소모한 곳. 원본 [생산된공장명]. 안 정했으면 null. */
@@ -176,6 +181,7 @@ public final class ProductionDtos {
                     p.getId(), p.getProdNo(),
                     p.getWorkOrder().getId(), p.getWorkOrder().getOrderNo(),
                     p.getProduct().getId(), p.getProduct().getCode(), p.getProduct().getName(), p.getProduct().getUnit(),
+                    p.getProduct().getSpec(),
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,

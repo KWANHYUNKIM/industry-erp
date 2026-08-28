@@ -53,6 +53,8 @@ interface Production {
   productId: number
   productCode: string
   productName: string
+  /** 원본 열 이름이 [품목명[규격명]] 이다 — 이름만으로는 같은 이름의 다른 규격을 못 가린다. */
+  productSpec: string | null
   productUnit: string
   warehouseId: number
   warehouseName: string
@@ -328,7 +330,7 @@ export default function ReceiptStatusPage() {
               <th style={{ width: 150 }}>작업지시번호</th>
               <th style={{ width: 120 }}>출고창고명</th>
               <th style={{ width: 120 }}>입고창고명</th>
-              <th>생산품목</th>
+              <th>품목명[규격명]</th>
               <th style={{ width: 110, textAlign: 'right' }}>수량</th>
               <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
               <th style={{ width: 90, textAlign: 'right' }}>소모자재</th>
@@ -350,7 +352,7 @@ export default function ReceiptStatusPage() {
                   {r.fromWarehouseName ?? r.warehouseName}
                 </td>
                 <td>{r.warehouseName}</td>
-                <td>[{r.productCode}] {r.productName}</td>
+                <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(r.producedQty)} {r.productUnit}
                 </td>

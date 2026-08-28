@@ -27,6 +27,8 @@ interface Row {
   orderNo: string
   productCode: string
   productName: string
+  /** 원본 열 이름이 [품목명[규격명]] 이다. */
+  productSpec: string | null
   productUnit: string
   warehouseName: string
   /** 납품처. 원본 [거래처명] 열. */
@@ -89,15 +91,17 @@ export default function WoStatusPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 200, textAlign: 'center' }}>일자-No.</th>
-            <th>품목명</th>
-            <th style={{ width: 140 }}>거래처명</th>
-            <th style={{ width: 90 }}>담당자명</th>
-            <th>입고창고</th>
-            <th style={{ textAlign: 'right' }}>지시수량</th>
+            <th>품목명[규격명]</th>
+            {/* 원본 [수량] — 지시수량을 말한다. 생산·잔여는 우리가 더 보여 주는 것이다. */}
+            <th style={{ textAlign: 'right' }}>수량</th>
             <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>잔여수량</th>
             <th style={{ textAlign: 'right' }}>진행률(%)</th>
-            <th>납기</th>
+            <th style={{ width: 140 }}>거래처명</th>
+            <th style={{ width: 90 }}>담당자명</th>
+            <th>입고창고</th>
+            {/* 원본 열 이름은 [납기일자]다. */}
+            <th>납기일자</th>
             <th style={{ textAlign: 'center' }}>상태</th>
           </tr>
         </thead>
@@ -110,14 +114,14 @@ export default function WoStatusPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.orderDate} {r.orderNo}</td>
-              <td>[{r.productCode}] {r.productName}</td>
-              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
-              <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
-              <td>{r.warehouseName}</td>
+              <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.remainingQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.remainingQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty ? Math.round((r.producedQty / r.plannedQty) * 100) : 0}</td>
+              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
+              <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
+              <td>{r.warehouseName}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.dueDate ?? '-'}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
             </tr>
