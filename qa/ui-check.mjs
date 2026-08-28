@@ -193,7 +193,8 @@ console.log('\n■ 표 헤더 ↔ 합계행 열 수')
 /** colSpan 을 반영해 센다. colSpan={표현식} 이면 정적으로 못 세므로 null. */
 const countCells = (row, tag) => {
   let total = 0
-  for (const m of row.matchAll(new RegExp(`<${tag}\\b([^>]*)>`, 'g'))) {
+  // 화살표를 지우고 센다 — <td onClick={() => …} colSpan={4}> 의 colSpan 을 놓치지 않게.
+  for (const m of noArrow(row).matchAll(new RegExp(`<${tag}\\b([^>]*)>`, 'g'))) {
     const attrs = m[1]
     const fixed = attrs.match(/colSpan=\{(\d+)\}/)
     if (fixed) total += Number(fixed[1])
@@ -1187,7 +1188,7 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
       hit: names.filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
-    const ours = [...scored[0].head.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1]))
+    const ours = [...noArrow(scored[0].head).matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1]))
     const want = names.map(flat).filter((n) => ours.includes(n))
     const got = ours.filter((n) => want.includes(n))
     checked += want.length
@@ -1229,10 +1230,11 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
   /** 원본에 있지만 우리에게 없는 열 — 왜 없는지 적는다. 이유 없이 늘리지 말 것. */
   const NO_COLUMN = new Map([
     ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
-    ['작업지시서조회|일자-No.',
+    ['작업지시서조회|작업지시No.',
       '원본은 <b>[일자-No.]</b> 와 <b>[작업지시No.]</b> 를 따로 둔다 — 전표 일자+일련번호와'
-      + ' 작업지시 번호다. 우리 작업지시에는 번호가 하나뿐이라([작업지시No.]) 일자는'
-      + ' <b>[지시일]</b> 열로 따로 찍는다. 없는 번호를 만들어 두 칸으로 나눌 수는 없다'],
+      + ' 작업지시 번호다. 우리 작업지시에는 번호가 하나뿐이라, 원본처럼 일자와 함께'
+      + ' <b>[일자-No.] 한 칸</b>으로 적는다(작업지시서현황도 같은 방식이다). 없는 번호를'
+      + ' 만들어 칸을 하나 더 세울 수는 없다'],
     ['구매단가일괄변경|환율', '외화 전표를 만들지 않는다'],
     ['구매일괄회계반영|거래가액', '외화·조정 항목을 만들지 않는다'],
     ['구매일괄회계반영|조정', '위와 같음'], ['구매일괄회계반영|외화금액', '위와 같음'],
@@ -2087,7 +2089,7 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
 
     const widths = new Map()
-    for (const m of scored[0].head.matchAll(/<th([^>]*)>([\s\S]*?)<\/th>/g)) {
+    for (const m of noArrow(scored[0].head).matchAll(/<th([^>]*)>([\s\S]*?)<\/th>/g)) {
       const w = m[1].match(/width:\s*(\d+)/)
       if (w) widths.set(flat(m[2]), Number(w[1]))
     }

@@ -219,7 +219,12 @@ export default function WorkOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('지시번호')}>작업지시No. {sort.mark('지시번호')}</th>
+            {/*
+              원본 작업지시서조회의 첫 칸은 <b>[일자-No.]</b> 다 — 일자와 번호를 한 칸에 적는다.
+              우리는 번호를 맨 앞에, 일자를 저 뒤 [지시일] 로 따로 두어 <b>차례가 어긋나</b> 있었다.
+              작업지시서현황에서 이미 같은 방식으로 합쳐 두었으니 여기도 맞춘다.
+            */}
+            <th style={{ cursor: 'pointer', width: 170 }} onClick={() => sort.toggle('지시번호')}>일자-No. {sort.mark('지시번호')}</th>
             {/* 원본 작업지시서조회의 이름은 [거래처명]·[담당자명]·[생산수량] 이다(사본 실측). */}
             <th>거래처명</th>
             <th style={{ width: 90 }}>담당자명</th>
@@ -231,7 +236,6 @@ export default function WorkOrderPage() {
             <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>잔여</th>
             <th style={{ textAlign: 'center' }}>상태</th>
-            <th>지시일</th>
             <th style={{ width: 150, textAlign: 'center' }}>현황</th>
             {/* 원본 작업지시서조회의 마지막 열 [인쇄] — 그 지시 한 건을 작업지시서로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -239,14 +243,14 @@ export default function WorkOrderPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{o.orderDate} {o.orderNo}</td>
                 <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? '-'}</td>
                 <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
@@ -257,7 +261,6 @@ export default function WorkOrderPage() {
                 <td style={{ textAlign: 'right' }}>{o.producedQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{o.remainingQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
-                <td>{o.orderDate}</td>
                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                   {LINKS.map((l, i) => (
                     <span key={l.to}>
