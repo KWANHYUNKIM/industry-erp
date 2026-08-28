@@ -576,10 +576,6 @@
   "settings/CurrencyPage.tsx"
  ],
  [
-  "재고실사조회",
-  "inventory/StocktakePage.tsx"
- ],
- [
   "생산불출",
   "production/IssuePage.tsx"
  ],
