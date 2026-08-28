@@ -144,10 +144,12 @@ export default function EcDrivePage() {
       <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
         {/* 드라이브 트리 */}
         <div style={{ width: 200, border: '1px solid var(--ec-border)', background: '#fff', flexShrink: 0, padding: '8px 0' }}>
-          <div onClick={() => setTreeOpen((v) => !v)}
-               style={{ padding: '4px 14px 8px', fontSize: 11.5, color: 'var(--ec-label)', cursor: 'pointer' }}>
+          {/* 누르는 자리는 button 으로 둔다 — div 로 두면 키보드로 닿지 않는다. */}
+          <button type="button" onClick={() => setTreeOpen((v) => !v)}
+                  style={{ padding: '4px 14px 8px', fontSize: 11.5, color: 'var(--ec-label)',
+                    cursor: 'pointer', background: 'none', border: 0, textAlign: 'left', width: '100%' }}>
             {treeOpen ? '▾' : '▸'} 전체펼치기/접기
-          </div>
+          </button>
           {treeOpen && TREE.map((t) => (
             <div key={t.key} onClick={() => setSel(t.key)} style={{
               padding: '7px 14px', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,

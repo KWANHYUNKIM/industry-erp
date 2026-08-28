@@ -1055,6 +1055,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       }
       reset(true)
       loadDocs()
+      if (afterSaveTo) { const to = afterSaveTo; setAfterSaveTo(null); navigate(to) }
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -1073,6 +1074,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   }
 
   // ── 툴바 정의 ─────────────────────────────────────────
+  /**
+   * 저장이 끝나면 갈 곳. 원본 [저장/결제]가 이 값을 정해 두고 저장을 시킨다 —
+   * 저장 자체는 폼 제출 한 길로만 흐르게 두려는 것이다(검증·연결전표가 다 거기 있다).
+   */
+  const [afterSaveTo, setAfterSaveTo] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
   /** 원본에 있으나 아직 백엔드가 없는 버튼. 지우지 않고 사유를 붙여 비활성으로 남긴다. */
   const todo = (why: string) => ({ disabled: true, title: why })
 
@@ -1082,6 +1090,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     {
       label: editing ? '수정저장(F8)' : '저장(F8)', primary: true, submit: true,
       menu: [
+        /*
+         * 원본 [저장/결제] — 저장하고 바로 수금·지급 화면으로 넘어간다.
+         * 현금 거래는 전표를 치고 곧바로 돈을 받거나 주는데, 저장하고 메뉴로
+         * 돌아가 다시 찾아 들어가야 했다.
+         */
+        { label: '저장/결제', onClick: () => { setAfterSaveTo(cfg.cashTo); formRef.current?.requestSubmit() } },
         { label: '임시저장', onClick: () => saveTemp() },
         { label: '입력값 지우기', onClick: () => reset(true) },
         ...(editing ? [{
@@ -1125,7 +1139,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   ]
 
   return (
-    <form onSubmit={submit}>
+    <form ref={formRef} onSubmit={submit}>
       <EcSlipShell
         title={editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
