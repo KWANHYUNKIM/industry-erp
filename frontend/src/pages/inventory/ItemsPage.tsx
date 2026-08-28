@@ -12,6 +12,9 @@ import { useNavigate } from 'react-router-dom'
 
 const inputCls = 'ec-input w-full'
 
+const FORM_TABS = ['품목정보', '수량', '단가', '관리대상'] as const
+type FormTab = typeof FORM_TABS[number]
+
 const emptyForm = {
   code: '',
   name: '',
@@ -44,6 +47,8 @@ export default function ItemsPage() {
   const [categories, setCategories] = useState<CodeOption[]>([])
   const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
   const [itemGroups, setItemGroups] = useState<GroupMaster[]>([])
+  /* 원본 품목등록 폼의 탭. 원가·부가정보는 우리에게 그 칸이 없어 만들지 않는다. */
+  const [formTab, setFormTab] = useState<FormTab>('품목정보')
   /** 구매처 후보. 이름은 서버가 아니라 여기서 붙인다 — inventory 는 거래처를 모른다. */
   const [partners, setPartners] = useState<Partner[]>([])
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
@@ -83,6 +88,7 @@ export default function ItemsPage() {
   }, [])
 
   function openCreate() {
+    setFormTab('품목정보')
     setEditId(null)
     setForm({ ...emptyForm })
     setImage(null)
@@ -106,6 +112,8 @@ export default function ItemsPage() {
   }
 
   function openEdit(item: Item) {
+    /* 고치려고 열 때도 첫 탭부터 — 앞서 보던 탭이 남아 있으면 코드가 안 보인다. */
+    setFormTab('품목정보')
     setEditId(item.id)
     setForm({
       code: item.code,
@@ -330,131 +338,158 @@ export default function ItemsPage() {
       <Modal open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '품목 수정' : '새 품목 등록'}</div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">품목코드 *</label>
-              <input className={inputCls} value={form.code} disabled={!!editId} onChange={(e) => set('code', e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">품명 *</label>
-              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">규격</label>
-              <input className={inputCls} value={form.spec} onChange={(e) => set('spec', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">단위 *</label>
-              <input className={inputCls} value={form.unit} onChange={(e) => set('unit', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">품목분류 *</label>
-              <select className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)}>
-                {categories.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">판매단가</label>
-              <input type="number" className={inputCls} value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
-            </div>
-            <div>
-              {/* 원본 품목등록도 판매단가와 구매단가를 따로 둔다. 하나로 쓰면 구매할인현황이
-                  매입가를 판매가와 견주게 되고, 그러면 화면 이름과 달리 늘 할증만 찍힌다. */}
-              <label className="mb-1 block text-sm text-slate-600">구매단가</label>
-              <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
-                     title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">안전재고</label>
-              <input type="number" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">재고수량관리</label>
-              <select className={inputCls} value={form.stockTracked} onChange={(e) => set('stockTracked', e.target.value)}>
-                <option value="Y">수량관리대상</option>
-                <option value="N">수량관리제외</option>
-              </select>
-              <span style={{ fontSize: 11, color: '#8a929c' }}>
-                제외로 두면 이 품목은 재고를 잡지 않습니다(용역·운반비 등)
-              </span>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
-              <select className={inputCls} value={form.active} onChange={(e) => set('active', e.target.value)}>
-                <option value="Y">사용</option>
-                <option value="N">사용중단</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">바코드</label>
-              <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
-            </div>
-            {/*
-              원본 품목등록 리스트의 [구매처명]. 이 품목을 늘 사 오는 곳을 적어 둔다.
-              inventory 는 trade 를 참조할 수 없어 서버는 id 만 들고, 이름은 이 화면이 붙인다.
-            */}
-            <div>
-              <CodePickerField
-                label="구매처" placeholder="구매처 선택" emptyLabel="선택 해제"
-                value={form.supplierId} onChange={(v) => set('supplierId', v)}
-                items={partnerCodeItems(partners)}
-              />
-            </div>
-            {/*
-              원본 품목등록 리스트의 [이미지] 열. 비슷하게 생긴 부품이 수십 개인데
-              코드와 이름만으로 고르게 하고 있었다. 한 장만 붙는다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">이미지</label>
-              {image ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--ec-border)', padding: 6, background: '#f9fbfd' }}>
-                  <img src={`/api/files/${image.id}`} alt={image.name}
-                       style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid #e6eaef', background: '#fff' }} />
-                  <span style={{ fontSize: 12.5, color: '#5a626e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{image.name}</span>
-                  <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
-                </div>
-              ) : (
-                <EcFileDrop hint="여기에 이미지 놓기" busy={uploading} disabled={uploading}
-                            onFiles={(fs) => { if (fs[0]) void uploadImage(fs[0]) }} />
-              )}
-            </div>
-            {/*
-              원본 품목등록 리스트의 [검색창내용]. 현장에서 부르는 이름(약칭·옛 코드)을
-              적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
-              <input className={inputCls} value={form.searchKeyword}
-                     onChange={(e) => set('searchKeyword', e.target.value)}
-                     placeholder="약칭·옛 코드·영문명 등 (코드도움에서 이 값으로도 찾습니다)" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">UDI-DI (의료기기 표준코드)</label>
-              <input className={inputCls} value={form.udiDi} onChange={(e) => set('udiDi', e.target.value)}
-                     placeholder="의료기기만 입력 (공급내역보고 대상)" />
-            </div>
-            {/* 원본 품목등록 A7 탭의 [관리항목]. 전표 라인에는 여기 값이 읽기전용으로 따라 붙는다. */}
-            <div>
-              <CodePickerField
-                label="관리항목" placeholder="관리항목 선택" emptyLabel="선택 해제"
-                value={form.managementItemId} onChange={(v) => set('managementItemId', v)}
-                items={mgmtItems.map((m) => ({ value: String(m.id), code: m.code, name: m.name, sub: m.description }))}
-              />
-            </div>
-            {/* 원본 품목등록 리스트의 '품목그룹1명'. 열 이름은 원본을 그대로 쓰고,
-                  우리는 그룹이 하나라 '2명'에 해당하는 열이 없다. */}
-            <div>
-              <CodePickerField
-                label="품목그룹" placeholder="품목그룹 선택" emptyLabel="선택 해제"
-                value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
-                items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
-              />
-            </div>
+          {/*
+            원본 품목등록 폼은 <b>품목정보 · 수량 · 단가 · 원가 · 부가정보 · 관리대상</b>
+            여섯 탭이다(사본 실측 — 칸이 어느 탭인지는 ecpath 셋째 조각에 남아 있다).
+            우리는 한 화면에 열여섯 칸을 죽 펴 놓아, 단가를 고치려 해도 코드부터 훑어야 했다.
+            <b>원가·부가정보는 만들지 않는다</b> — 표준원가 넷·숫자형추가항목 열에 해당하는
+            칸이 우리 품목에 없다. 눌러도 빈 탭은 있는 것만 못하다.
+          */}
+          <div className="ec-pills" style={{ marginBottom: 10 }}>
+            {FORM_TABS.map((t) => (
+              <button key={t} type="button" className={`ec-pill no-ec${formTab === t ? ' active' : ''}`}
+                      onClick={() => setFormTab(t)}>{t}</button>
+            ))}
           </div>
+          {formTab === '품목정보' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품목코드 *</label>
+                <input className={inputCls} value={form.code} disabled={!!editId} onChange={(e) => set('code', e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm text-slate-600">품명 *</label>
+                <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">규격</label>
+                <input className={inputCls} value={form.spec} onChange={(e) => set('spec', e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">단위 *</label>
+                <input className={inputCls} value={form.unit} onChange={(e) => set('unit', e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품목분류 *</label>
+                <select className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)}>
+                  {categories.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">재고수량관리</label>
+                <select className={inputCls} value={form.stockTracked} onChange={(e) => set('stockTracked', e.target.value)}>
+                  <option value="Y">수량관리대상</option>
+                  <option value="N">수량관리제외</option>
+                </select>
+                <span style={{ fontSize: 11, color: '#8a929c' }}>
+                  제외로 두면 이 품목은 재고를 잡지 않습니다(용역·운반비 등)
+                </span>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+                <select className={inputCls} value={form.active} onChange={(e) => set('active', e.target.value)}>
+                  <option value="Y">사용</option>
+                  <option value="N">사용중단</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">바코드</label>
+                <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
+              </div>
+              {/*
+                원본 품목등록 리스트의 [구매처명]. 이 품목을 늘 사 오는 곳을 적어 둔다.
+                inventory 는 trade 를 참조할 수 없어 서버는 id 만 들고, 이름은 이 화면이 붙인다.
+              */}
+              <div>
+                <CodePickerField
+                  label="구매처" placeholder="구매처 선택" emptyLabel="선택 해제"
+                  value={form.supplierId} onChange={(v) => set('supplierId', v)}
+                  items={partnerCodeItems(partners)}
+                />
+              </div>
+              {/*
+                원본 품목등록 리스트의 [이미지] 열. 비슷하게 생긴 부품이 수십 개인데
+                코드와 이름만으로 고르게 하고 있었다. 한 장만 붙는다.
+              */}
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">이미지</label>
+                {image ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--ec-border)', padding: 6, background: '#f9fbfd' }}>
+                    <img src={`/api/files/${image.id}`} alt={image.name}
+                         style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid #e6eaef', background: '#fff' }} />
+                    <span style={{ fontSize: 12.5, color: '#5a626e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{image.name}</span>
+                    <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
+                  </div>
+                ) : (
+                  <EcFileDrop hint="여기에 이미지 놓기" busy={uploading} disabled={uploading}
+                              onFiles={(fs) => { if (fs[0]) void uploadImage(fs[0]) }} />
+                )}
+              </div>
+              {/*
+                원본 품목등록 리스트의 [검색창내용]. 현장에서 부르는 이름(약칭·옛 코드)을
+                적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
+              */}
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+                <input className={inputCls} value={form.searchKeyword}
+                       onChange={(e) => set('searchKeyword', e.target.value)}
+                       placeholder="약칭·옛 코드·영문명 등 (코드도움에서 이 값으로도 찾습니다)" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">UDI-DI (의료기기 표준코드)</label>
+                <input className={inputCls} value={form.udiDi} onChange={(e) => set('udiDi', e.target.value)}
+                       placeholder="의료기기만 입력 (공급내역보고 대상)" />
+              </div>
+              {/* 원본 품목등록 A7 탭의 [관리항목]. 전표 라인에는 여기 값이 읽기전용으로 따라 붙는다. */}
+              <div>
+                <CodePickerField
+                  label="품목그룹" placeholder="품목그룹 선택" emptyLabel="선택 해제"
+                  value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
+                  items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+                />
+              </div>
+            </div>
+          )}
+          {formTab === '수량' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">안전재고</label>
+                <input type="number" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
+              </div>
+            </div>
+          )}
+          {formTab === '단가' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">판매단가</label>
+                <input type="number" className={inputCls} value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
+              </div>
+              <div>
+                {/* 원본 품목등록도 판매단가와 구매단가를 따로 둔다. 하나로 쓰면 구매할인현황이
+                    매입가를 판매가와 견주게 되고, 그러면 화면 이름과 달리 늘 할증만 찍힌다. */}
+                <label className="mb-1 block text-sm text-slate-600">구매단가</label>
+                <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
+                       title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
+              </div>
+            </div>
+          )}
+          {formTab === '관리대상' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <CodePickerField
+                  label="관리항목" placeholder="관리항목 선택" emptyLabel="선택 해제"
+                  value={form.managementItemId} onChange={(v) => set('managementItemId', v)}
+                  items={mgmtItems.map((m) => ({ value: String(m.id), code: m.code, name: m.name, sub: m.description }))}
+                />
+              </div>
+              {/* 원본 품목등록 리스트의 '품목그룹1명'. 열 이름은 원본을 그대로 쓰고,
+                    우리는 그룹이 하나라 '2명'에 해당하는 열이 없다. */}
+            </div>
+          )}
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
