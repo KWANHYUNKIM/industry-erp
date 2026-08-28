@@ -44,6 +44,11 @@ export default function OrderStagePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 오더관리진행단계의 조건 차례는 <b>오더관리유형 · 오더관리번호 · …</b> 다(사본 실측).
+   * [오더관리번호]가 없었다 — 표 첫 칸에 찍히는데 그것으로 찾을 수가 없었다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
   const [typeFilter, setTypeFilter] = useState('전체')
   /*
    * 원본 [진행] — <b>전체 · 진행중 · 완료</b> 3단이다(사본 실측). 우리는 체크박스 하나로
@@ -87,6 +92,7 @@ export default function OrderStagePage() {
 
   const shown = orders.filter((o) => {
     if (keyword && !(o.orderNo.includes(keyword) || o.partnerName.includes(keyword))) return false
+    if (orderNoCond && !o.orderNo.includes(orderNoCond)) return false
     if (typeFilter !== '전체' && (o.orderTypeName ?? '(미지정)') !== typeFilter) return false
     if (progress !== '전체') {
       const steps = o.orderTypeId != null ? (stepsOf.get(o.orderTypeId) ?? []) : []
@@ -133,6 +139,11 @@ export default function OrderStagePage() {
           </select>
         </EcCond>
         {/* 원본 [진행] — 전체·진행중·완료. 마지막 단계에 와 있으면 완료로 본다. */}
+        {/* 원본은 [오더관리유형] 바로 다음이 [오더관리번호]다. */}
+        <EcCond label="오더관리번호">
+          <input className="ec-input" value={orderNoCond}
+                 onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
         <EcCond label="진행">
           <div className="ec-pills">
             {(['전체', '진행중', '완료'] as const).map((t) => (

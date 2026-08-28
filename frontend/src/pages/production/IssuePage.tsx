@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
@@ -83,6 +85,11 @@ export default function IssuePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [whCond, setWhCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const condPickers = useCondPickers(['warehouses', 'items', 'employees'])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
@@ -207,7 +214,18 @@ export default function IssuePage() {
     if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패.`)
   }
 
-  const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
+  /*
+   * 원본 생산불출의 조건 차례는 <b>창고 · 품목 · 프로젝트 · 담당자 · 적요</b> 다(사본 실측).
+   * 우리 화면에는 <b>조건이 하나도 없었다</b> — 검색어 한 칸이 품목명·작업지시번호를 겸했다.
+   * [프로젝트]는 생산불출 응답에 그 값이 없어 못 만든다.
+   */
+  const shown = rows
+    .filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
+    .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond)
+      || (r.toWarehouseName ?? '').includes(whCond))
+    .filter((r) => !itemCond || r.itemName.includes(itemCond))
+    .filter((r) => !empCond || empName(r.employeeId).includes(empCond))
+    .filter((r) => !noteCond || (r.note ?? '').includes(noteCond))
 
   return (
     <EcListShell
@@ -332,6 +350,26 @@ export default function IssuePage() {
           </div>
         </form>
       )}</Modal>
+
+      {/* 원본 조건 차례: 창고 · 품목 · 프로젝트 · 담당자 · 적요 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={condPickers.warehouses} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond} items={condPickers.employees} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+      </ul>
 
       <table className="w-full text-left">
         <thead>
