@@ -1292,6 +1292,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     // 두 표가 똑같이 걸리면 어느 쪽이 원본의 그 표인지 못 고른다 — 세지 않는다
     if (scored.length > 1 && scored[0].hit === scored[1].hit) { skipped.push(screen); continue }
     const best = scored[0].head
+    /*
+     * <b>같은 화면의 이웃 격자들.</b> 이름이 <b>둘 이상</b> 겹치는 머리만 모은다 —
+     * 겹침이 하나뿐인 표는 우연이다(판매입력의 [전표불러오기] 팝업에 있는 [합계]가
+     * 판매입력II 의 라인 [합계]로 잘못 세어졌다).
+     */
+    const kin = noArrow([...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)]
+      .filter((h) => Object.keys(cols).filter((n) => thFor(noArrow(h[0]), n)).length > 1)
+      .map((h) => h[0]).join(String.fromCharCode(10)))
 
     /*
      * 열 이름이 <b>절반도 안 걸리면</b> 원본의 그 표가 아니라 옆 표를 집은 것으로 본다.
@@ -1299,7 +1307,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
      */
     if (scored[0].hit / Object.keys(cols).length >= 0.6) {
       for (const name of Object.keys(cols)) {
-        if (thFor(noArrow(best), name)) continue
+        /*
+         * <b>표를 가리지 않고</b> 그 화면의 머리 전부에서 찾는다. 원본 사본은 한 화면의
+         * <b>여러 격자</b>(입력 격자 + 목록)를 열 하나로 뭉쳐 적어 놓아서, 짝지은 표
+         * 하나만 보면 옆 격자에 있는 열을 '없다' 고 말한다 — 생산불출조회의 [품목명]이
+         * 그랬다(입력 격자에는 있다). 어느 표의 정렬인지는 위에서 따로 가리므로,
+         * <b>있나 없나</b>만은 화면 전체에서 본다.
+         */
+        if (thFor(kin, name)) continue
         missing.push(`${screen}  [${name}]`)
       }
     }
