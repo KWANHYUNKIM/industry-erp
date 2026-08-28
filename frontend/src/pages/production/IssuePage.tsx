@@ -342,7 +342,12 @@ export default function IssuePage() {
             <th>일자</th>
             <th style={{ width: 90 }}>담당자</th>
             <th>작업지시번호</th>
-            <th>생산품목</th>
+            {/*
+              원본 이름은 [작업지시품목코드]다. 우리는 [생산품목]이라 적고 '[코드] 이름'
+              을 한 칸에 몰아 두었다 — 원본을 쓰던 사람이 코드로 훑을 때 눈이 걸린다.
+              이름은 잃지 않게 칸의 tooltip 으로 남긴다.
+            */}
+            <th style={{ width: 130 }}>작업지시품목코드</th>
             <th style={{ width: 120 }}>품목코드</th>
             <th>품목명</th>
             <th style={{ textAlign: 'right' }}>수량</th>
@@ -372,8 +377,9 @@ export default function IssuePage() {
               <td style={{ fontFamily: 'monospace' }}>{r.issueDate}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
-              <td style={{ color: r.productName ? undefined : '#c9ced6' }}>
-                {r.productName ? `[${r.productCode}] ${r.productName}` : '-'}
+              <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
+                  title={r.productName ?? ''}>
+                {r.productCode ?? '-'}
               </td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
