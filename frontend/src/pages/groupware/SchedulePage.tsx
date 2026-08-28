@@ -18,6 +18,8 @@ interface ScheduleEvent {
   owner: string | null
   location: string | null
   attendees: string | null
+  /** 원본 [라벨] — 일정구분을 가로지르는 표시('급함·대외비'). */
+  labelText: string | null
   remark: string | null
   createdBy: string | null
 }
@@ -70,6 +72,7 @@ export default function SchedulePage() {
   const [bodyCond, setBodyCond] = useState('')
   const [titleCond, setTitleCond] = useState('')
   const [placeCond, setPlaceCond] = useState('')
+  const [labelCond, setLabelCond] = useState('')
   /** 캘린더에서 고른 날. 빈 문자열이면 고른 날 없음 = 전체 보기. */
   const [pickedDate, setPickedDate] = useState('')
   /** 원본 하단 [선택삭제] 는 고른 행을 한꺼번에 지운다. 고르는 방식은 회색 행번호 칸 클릭 — 다른 목록과 같다. */
@@ -82,6 +85,8 @@ export default function SchedulePage() {
   const [category, setCategory] = useState('회의')
   const [owner, setOwner] = useState('')
   const [location, setLocation] = useState('')
+  /* 원본 일정관리 폼의 [라벨] — 일정구분을 가로지르는 표시다. */
+  const [labelText, setLabelText] = useState('')
   const [attendees, setAttendees] = useState('')
 
   async function load() {
@@ -100,9 +105,10 @@ export default function SchedulePage() {
         eventDate, startTime: startTime || undefined, endTime: endTime || undefined,
         title, category, owner: owner || undefined,
         location: location || undefined, attendees: attendees || undefined,
+        labelText: labelText || undefined,
       })
       setOk('일정 등록 완료')
-      setTitle(''); setStartTime(''); setEndTime(''); setOwner(''); setLocation(''); setAttendees('')
+      setTitle(''); setStartTime(''); setEndTime(''); setOwner(''); setLocation(''); setAttendees(''); setLabelText('')
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -140,6 +146,7 @@ export default function SchedulePage() {
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
     .filter((r) => !kindCond || (r.category ?? '') === kindCond)
+    .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
     .filter((r) => !bodyCond || (r.remark ?? '').includes(bodyCond))
     .filter((r) => !keyword
       || r.title.includes(keyword)
@@ -213,6 +220,10 @@ export default function SchedulePage() {
               <tr>
                 <th style={th}>장소</th>
                 <td><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: 150 }} placeholder="예: 3층 회의실" /></td>
+                <th style={th}>라벨</th>
+                <td><input className={inputCls} value={labelText} onChange={(e) => setLabelText(e.target.value)} style={{ width: 150 }} placeholder="예: 급함" /></td>
+              </tr>
+              <tr>
                 <th style={th}>참석자</th>
                 <td><input className={inputCls} value={attendees} onChange={(e) => setAttendees(e.target.value)} style={{ width: '100%' }} placeholder="콤마로 구분 (예: 김부장, 이대리)" /></td>
               </tr>
@@ -254,6 +265,14 @@ export default function SchedulePage() {
                       onChange={(e) => setKindCond(e.target.value)}>
                 <option value="">전체</option>
                 {[...new Set(rows.map((r) => r.category).filter(Boolean))].map((c) => <option key={c as string}>{c}</option>)}
+              </select>
+            </EcCond>
+            {/* 원본 차례: … 일정구분 · <b>라벨</b> · 기타 · 본문 */}
+            <EcCond label="라벨">
+              <select className="ec-input" value={labelCond} style={{ width: 120 }}
+                      onChange={(e) => setLabelCond(e.target.value)}>
+                <option value="">전체</option>
+                {[...new Set(rows.map((r) => r.labelText).filter(Boolean))].map((l) => <option key={l as string}>{l}</option>)}
               </select>
             </EcCond>
             <EcCond label="본문">

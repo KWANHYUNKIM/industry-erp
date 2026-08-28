@@ -61,8 +61,7 @@ export default function StocktakeStatusPage() {
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({
     from: init.from, to: init.to, warehouseId: '', item: '', reason: '',
-    status: '' as Status, diffOnly: false,
-  })
+    status: '' as Status, diffOnly: false, handler: '',})
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -84,6 +83,9 @@ export default function StocktakeStatusPage() {
     .filter((r) => !cond.to || r.requestDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    /* 원본 재고실사현황 차례: 구분 · 창고 · 품목 · <b>담당자</b> · 적요.
+       실사를 누가 맞췄는지가 자료에는 있는데 거를 수가 없었다. */
+    .filter((r) => !cond.handler || (r.handler ?? '') === cond.handler)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     .filter((r) => !cond.status || r.status === cond.status)
     .filter((r) => !cond.diffOnly || r.diff !== 0)
@@ -109,7 +111,7 @@ export default function StocktakeStatusPage() {
 
   const reset = () => {
     setMode('내역')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', status: '', diffOnly: false })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false })
   }
 
   return (
@@ -148,6 +150,13 @@ export default function StocktakeStatusPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          {/* 담당자는 사원 마스터를 물지 않고 이름으로 적히므로, 후보를 실제 담당자들에서 뽑는다. */}
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.handler} onChange={(v) => setCond((c) => ({ ...c, handler: v }))}
+                           items={[...new Set(rows.map((r) => r.handler).filter(Boolean))]
+                             .map((n) => ({ value: n as string, name: n as string }))} />
         </EcCond>
         <EcCond label="상태">
           <select className="ec-input" value={cond.status}

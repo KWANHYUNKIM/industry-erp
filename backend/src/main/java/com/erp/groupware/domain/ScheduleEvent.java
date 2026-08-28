@@ -54,6 +54,14 @@ public class ScheduleEvent extends BaseTimeEntity {
     @Column(length = 500)
     private String attendees;
 
+    /**
+     * 원본 일정관리의 [라벨]. <b>[일정구분]과 다른 축</b>이다 —
+     * 구분은 '회의·출장' 처럼 일정의 갈래이고, 라벨은 '급함·대외비' 처럼 <b>가로지르는 표시</b>다.
+     * 공용품(SupplyUsage.labelText)이 이미 같은 것을 들고 있어 이름과 길이를 맞춘다.
+     */
+    @Column(name = "label_text", length = 100)
+    private String labelText;
+
     @Column(length = 500)
     private String remark;
 

@@ -19,6 +19,8 @@ public final class ScheduleEventDtos {
             String owner,
             String location,
             String attendees,
+            /* 원본 [라벨] — '급함·대외비' 처럼 일정구분을 가로지르는 표시다. */
+            String labelText,
             String remark
     ) {}
 
@@ -32,18 +34,20 @@ public final class ScheduleEventDtos {
             String owner,
             String location,
             String attendees,
+            String labelText,
             String remark
     ) {}
 
     public record ScheduleEventResponse(
             Long id, LocalDate eventDate, String startTime, String endTime, String title,
             String category, String owner, String location, String attendees,
-            String remark, String createdBy
+            String labelText, String remark, String createdBy
     ) {
         public static ScheduleEventResponse from(ScheduleEvent e) {
             return new ScheduleEventResponse(
                     e.getId(), e.getEventDate(), e.getStartTime(), e.getEndTime(), e.getTitle(),
                     e.getCategory(), e.getOwner(), e.getLocation(), e.getAttendees(),
+                    e.getLabelText(),
                     e.getRemark(), e.getCreatedBy());
         }
     }
