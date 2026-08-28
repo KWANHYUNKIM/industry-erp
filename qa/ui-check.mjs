@@ -82,6 +82,71 @@ const stripJsx = (s) => {
   for (let i = 0; i < 6 && /\{[^{}]*\}/.test(body); i++) body = body.replace(/\{[^{}]*\}/g, ' ')
   return body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
+
+/**
+ * <b>고르는 것</b>의 이름을 모은다 — 알약(버튼) · &lt;option&gt; · 체크박스 글자 ·
+ * 목록으로 그리는 상수 배열(MODES·SUBTOTALS…).
+ *
+ * <p>예전에는 파일 어디든 그 이름이 따옴표에 싸여 있으면 그 보기가 있는 것으로 쳤다.
+ * 상태 이름을 담은 표나 오류 문구에 그 글자가 있으면 그냥 통과했다.
+ */
+const choiceNames = (src) => {
+  const out = new Set()
+  const add = (x) => { const v = String(x).trim(); if (v) out.add(v) }
+  /*
+   * 따옴표 글자를 <b>짝을 맞춰</b> 읽는다. 예전에는 [' 와 "] 를 한 묶음으로 두고
+   * 빈 글자('')를 못 읽게 해서, ['', '전체'] 같은 배열에서 짝이 한 칸씩 밀렸다 —
+   * 값 대신 사이의 ', ' 를 이름으로 주웠다. 홑·겹따옴표를 갈라 보고 빈 글자도 읽는다.
+   */
+  const QUOTED = /'([^']{0,24})'|"([^"]{0,24})"/g
+  for (const tag of ['button', 'option', 'label']) {
+    const re = new RegExp('<' + tag + '\b[\s\S]{0,400}?<\/' + tag + '>', 'g')
+    for (const m of src.matchAll(re)) {
+      for (const q of m[0].matchAll(QUOTED)) add(q[1] ?? q[2])
+      add(stripJsx(m[0]))
+    }
+  }
+  /*
+   * ['표','그래프'].map(…) · ([['A','가'],…] as const).map(…) — 목록으로 그리는 보기.
+   * .map( 에서 <b>뒤로</b> 걸어가 짝이 맞는 여는 대괄호를 찾는다. 앞에서부터 정규식으로
+   * 잡으면 주석 속 '[설문대상구분]' 같은 대괄호에 먼저 걸려 정작 그 배열을 지나쳐 버린다.
+   */
+  for (const m of src.matchAll(/\.map\(/g)) {
+    const before = src.slice(Math.max(0, m.index - 400), m.index)
+    if (!/\]\s*(?:as const\s*)?\)?\s*$/.test(before)) continue
+    const close = before.lastIndexOf(']')
+    let depth = 0
+    let open = -1
+    for (let i = close; i >= 0; i--) {
+      if (before[i] === ']') depth += 1
+      else if (before[i] === '[') { depth -= 1; if (depth === 0) { open = i; break } }
+    }
+    if (open < 0) continue
+    for (const q of before.slice(open, close + 1).matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+  // const MODES = ['거래별', '집계'] — 상수로 두고 아래에서 그리는 것(이 저장소의 관례)
+  for (const m of src.matchAll(/(?:const|let)\s+[A-Z][A-Z0-9_]*\s*=\s*\[[^\]]{0,400}\]/g)) {
+    for (const q of m[0].matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+  // const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', … } — 이름표 표
+  for (const m of src.matchAll(/(?:const|let)\s+[A-Z][A-Z0-9_]*[^=\n]{0,80}=\s*\{[^{}]{0,400}\}/g)) {
+    for (const q of m[0].matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+  // useState<'사용자' | '전체'>('사용자') — 탭 이름을 타입으로 못 박아 두는 곳
+  for (const m of src.matchAll(/useState<[^>\n]{0,160}>/g)) {
+    for (const q of m[0].matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+  /*
+   * {radio('scope', …, '내부')} — 화면에 그리는 <b>함수 호출의 인자</b>.
+   * 설문조사입력이 보기 일곱 개를 이 모양으로 그린다. 이것까지 봐야
+   * "보기가 없다" 는 거짓 경고가 안 난다.
+   */
+  for (const m of src.matchAll(/\{\s*\w+\([\s\S]{0,240}?\)\s*\}/g)) {
+    for (const q of m[0].matchAll(QUOTED)) add(q[1] ?? q[2])
+  }
+  return out
+}
+
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
 
 const pageSource = (rel) => {
@@ -211,6 +276,7 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
     }
     if (unknown || picked === null) { bodySkipped++; continue }
     bodyCompared++
+    console.error('CMP ' + f.split(sep).pop() + ' h=' + hc + ' b=' + picked)
     if (picked !== hc) {
       const line = src.slice(0, tm.index).split('\n').length
       bodyMismatch.push(`${f.split(sep).pop()}:${line}  헤더 ${hc}칸 vs 본문 ${picked}칸`)
@@ -1830,13 +1896,14 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
     if (!rel) continue
     const src = pageSource(rel)
     if (!src) continue
+    const choices = choiceNames(src)
     for (const opts of Object.values(groups)) {
       for (const raw of opts) {
         const opt = raw.replace(/^\*/, '')
         const exempt = NO_OPTION.has(opt) || NO_OPTION.has(`${screen}|${opt}`)
         if (!exempt) checked++
-        // 따옴표에 싸인 보기 이름을 찾는다(pill·option·문자열 배열 어느 모양이든)
-        const has = src.includes(`'${opt}'`) || src.includes(`"${opt}"`) || src.includes(`>${opt}<`)
+        // 고르는 자리(알약·option·체크박스·목록 배열)에서만 찾는다.
+        const has = choices.has(opt)
         if (exempt) { if (has) stale.push(`보기 [${screen}|${opt}] — 이제 있다`); continue }
         if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 보기 [${opt}] 가 없다`)
       }
@@ -1891,10 +1958,11 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
     if (!rel) continue
     const src = pageSource(rel)
     if (!src) continue
+    const choices = choiceNames(src)
     for (const t of tabs) {
       const exempt = NO_TAB.has(`${screen}|${t}`)
       if (!exempt) checked++
-      const has = src.includes(`'${t}'`) || src.includes(`"${t}"`) || src.includes(`>${t}<`)
+      const has = choices.has(t)
       if (exempt) { if (has) stale.push(`탭 [${screen}|${t}] — 이제 있다`); continue }
       if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 탭 [${t}] 가 없다`)
     }
