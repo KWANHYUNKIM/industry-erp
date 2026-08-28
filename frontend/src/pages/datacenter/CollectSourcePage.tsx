@@ -18,7 +18,14 @@ export default function CollectSourcePage() {
   const [ok, setOk] = useState('')
   /* 원본 수집데이터등록의 조건에 <b>[데이터명]</b> 이 있다 — 표에 찍히는데 거를 수가 없었다. */
   const [nameCond, setNameCond] = useState('')
-  const shown = rows.filter((r) => !nameCond || r.name.includes(nameCond))
+  /*
+   * 원본 조건의 <b>[수집대상]</b>. 우리 표는 그것을 [구분] 열로 찍는데
+   * 그 값으로 거를 수가 없었다. 데이터원이 늘수록 목록에서 찾기 어려워진다.
+   */
+  const [targetCond, setTargetCond] = useState('')
+  const shown = rows
+    .filter((r) => !nameCond || r.name.includes(nameCond))
+    .filter((r) => !targetCond || r.category === targetCond)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(empty)
@@ -95,6 +102,11 @@ export default function CollectSourcePage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
         <span>데이터명</span>
         <input className="ec-input" value={nameCond} onChange={(e) => setNameCond(e.target.value)} style={{ width: 170 }} />
+        <span>수집대상</span>
+        <select className="ec-input" value={targetCond} onChange={(e) => setTargetCond(e.target.value)} style={{ width: 140 }}>
+          <option value="">전체</option>
+          {[...new Set(rows.map((r) => r.category))].map((c) => <option key={c}>{c}</option>)}
+        </select>
       </div>
 
       <table className="w-full text-left">

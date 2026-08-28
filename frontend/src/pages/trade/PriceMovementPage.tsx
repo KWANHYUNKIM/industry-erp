@@ -41,6 +41,12 @@ export default function PriceMovementPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 단가변동표 조건 차례: 구분 · 기준일자 · 창고 · 거래처 · <b>품목</b> · <b>단가구분</b> · 단가기준.
+   * [품목]은 검색상자로 갈음하고 있었는데, 그 상자는 규격까지 훑는 <b>글자 찾기</b>라
+   * 품목 하나를 골라 그 단가 흐름만 보는 일은 못 했다. 코드도움으로 따로 세운다.
+   */
+  const [itemCond, setItemCond] = useState('')
 
   async function load() {
     setLoading(true); setError('')
@@ -80,6 +86,7 @@ export default function PriceMovementPage() {
     for (const p of pts) { const a = map.get(p.itemId) ?? []; a.push(p); map.set(p.itemId, a) }
 
     const kw = keyword.trim()
+    const pickedItem = itemCond.trim()
     const out: PriceRow[] = []
     for (const [itemId, list] of map) {
       // 최근 = 날짜(동일 날짜면 뒤에 온 것) 기준
@@ -105,8 +112,9 @@ export default function PriceMovementPage() {
     }
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
+      .filter((r) => !pickedItem || r.itemName === pickedItem)
       .sort((a, b) => (b.max - b.min) - (a.max - a.min))
-  }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner])
+  }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner, itemCond])
 
   const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
@@ -121,14 +129,6 @@ export default function PriceMovementPage() {
       <p className="mb-2 text-xs text-slate-500">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div style={{ display: 'flex', gap: 2 }}>
-          {(['SALE', 'PURCHASE'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
-              padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
-            }}>{m === 'SALE' ? '판매단가' : '매입단가'}</button>
-          ))}
-        </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>기간</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
@@ -146,7 +146,26 @@ export default function PriceMovementPage() {
           <CodePickerField label="거래처" hideLabel width={160} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>품목</span>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </div>
+        {/*
+          원본 단가변동표 조건의 <b>[단가구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
+          무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
+        */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가구분</span>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {(['SALE', 'PURCHASE'] as const).map((m) => (
+            <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
+              padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
+              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
+            }}>{m === 'SALE' ? '판매단가' : '매입단가'}</button>
+          ))}
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목수 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}

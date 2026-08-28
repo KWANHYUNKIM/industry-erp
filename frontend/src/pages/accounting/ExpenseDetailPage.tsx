@@ -46,6 +46,13 @@ export default function ExpenseDetailPage() {
   const [empCond, setEmpCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
+  /*
+   * 원본 조건 차례의 뒤 둘 — <b>[비고]</b>·<b>[결제구분]</b>. 적요는 표에 찍히고
+   * 결제수단도 전표가 들고 있는데 <b>둘 다 거를 수가 없었다</b> — 카드로 쓴 것만
+   * 모아 보려 해도 눈으로 골라야 했다.
+   */
+  const [remarkCond, setRemarkCond] = useState('')
+  const [payCond, setPayCond] = useState('')
   const partnerPick = useCondPickers(['partners', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -75,6 +82,8 @@ export default function ExpenseDetailPage() {
     .filter((r) => !empCond || (r.createdBy ?? '').includes(empCond))
     .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
     .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
+    .filter((r) => !remarkCond || (r.content ?? '').includes(remarkCond))
+    .filter((r) => !payCond || (r.paymentMethod ?? '') === payCond)
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -106,6 +115,14 @@ export default function ExpenseDetailPage() {
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비고</span>
+        <input className="ec-input" value={remarkCond} placeholder="비고"
+               onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 130 }} />
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>결제구분</span>
+        <select className="ec-input" value={payCond} onChange={(e) => setPayCond(e.target.value)} style={{ width: 110 }}>
+          <option value="">전체</option>
+          {[...new Set(rows.map((r) => r.paymentMethod).filter(Boolean))].map((m) => <option key={m as string}>{m}</option>)}
+        </select>
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
         </span>
