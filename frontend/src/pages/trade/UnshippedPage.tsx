@@ -7,6 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useTableSort } from '../../utils/useTableSort'
 
 /**
  * 영업관리 > 미출하현황 (이카운트 E040228)
@@ -122,7 +123,7 @@ export default function UnshippedPage() {
     load()
   }, [])
 
-  const shown = rows.filter(
+  const shownRows = rows.filter(
     (r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.itemName.includes(keyword),
   )
     // 기준일자는 납기일로 본다 — '언제까지 나가야 하는데 안 나갔나'가 이 화면의 질문이다.
@@ -133,6 +134,21 @@ export default function UnshippedPage() {
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unshippedQty <= Number(cond.qtyTo))
+
+  /*
+   * 다섯 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다.
+   * 수량 두 칸은 원본에도 표시가 없어 그대로 뒀다.
+   * [일자-No.] 는 화면에 찍히는 대로 '일자 번호' 를 이어 붙여 견준다 — 일자가 같은 건은
+   * 번호 차례로 선다.
+   */
+  const sort = useTableSort(shownRows, {
+    '일자-No.': (r) => `${r.orderDate} ${r.orderNo}`,
+    '품목명(규격)': (r) => r.itemName,
+    거래처명: (r) => r.partnerName,
+    출하예정일: (r) => r.dueDate,
+    상태: (r) => r.statusName,
+  })
+  const shown = sort.sorted
   const [mode, setMode] = useState<Mode>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
@@ -281,14 +297,14 @@ export default function UnshippedPage() {
                 원본의 창고명·적요는 우리 주문서에 그 값이 없어 칸을 만들지 않는다.
                 맨 끝 [출하지시] 는 우리 화면의 것이다 — 여기서 바로 출하지시서를 낸다. */}
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 170 }}>일자-No. ▼</th>
-            <th>품목명(규격) ▼</th>
+            <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명(규격)')}>품목명(규격) {sort.mark('품목명(규격)')}</th>
             <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             <th style={{ width: 90, textAlign: 'right' }}>미출하수량</th>
-            <th>거래처명 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
             <th style={{ width: 150 }}>적요</th>
-            <th style={{ width: 100 }}>출하예정일 ▼</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
+            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 150, textAlign: 'center' }}>출하지시</th>
           </tr>
         </thead>

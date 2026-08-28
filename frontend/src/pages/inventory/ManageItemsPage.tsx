@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { ManagementItem } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { useTableSort } from '../../utils/useTableSort'
 
 /** 재고 기초등록 > 관리항목등록 — 실제 CRUD 연동 */
 export default function ManageItemsPage() {
@@ -94,7 +95,19 @@ export default function ManageItemsPage() {
     if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
-  const shown = rows.filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
+
+  /*
+   * 원본 관리항목등록도 머리를 눌러 정렬한다(사본이 코드·이름에 정렬 표시를 달았다).
+   * [설명]에는 원본도 표시가 없어 우리도 안 건다 — 표시를 안 단 칸까지 눌리게 하면
+   * 이번에는 <b>표시가 없는데 정렬되는</b> 반대쪽 거짓말이 된다.
+   */
+  const sort = useTableSort(shownRows, {
+    관리항목코드: (r) => r.code,
+    관리항목명: (r) => r.name,
+    사용: (r) => (r.active ? '사용' : '중지'),
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -140,10 +153,10 @@ export default function ManageItemsPage() {
                        shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
                      )} />
             </th>
-            <th>관리항목코드 ▼</th>
-            <th>관리항목명 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목명')}>관리항목명 {sort.mark('관리항목명')}</th>
             <th>설명</th>
-            <th style={{ width: 90, textAlign: 'center' }}>사용 ▼</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>

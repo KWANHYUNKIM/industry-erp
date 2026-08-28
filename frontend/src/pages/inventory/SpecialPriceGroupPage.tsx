@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 
 const SALES_GROUPS = ['일반가', '대리점가', '특판가']
 const PURCHASE_GROUPS = ['표준매입가', '계약단가']
@@ -59,7 +60,20 @@ export default function SpecialPriceGroupPage() {
     }
   }
 
-  const shown = partners.filter((p) => !keyword || p.code.includes(keyword) || p.name.includes(keyword))
+  const shownRows = partners.filter((p) => !keyword || p.code.includes(keyword) || p.name.includes(keyword))
+
+  /*
+   * 원본 거래처특별단가그룹등록은 네 칸 모두 머리를 눌러 정렬한다(사본 실측).
+   * 그룹 두 칸은 <b>고른 값이 아직 저장 전이면 그 값으로</b> 견준다 — 화면에 보이는
+   * 것과 다른 차례로 서면 방금 바꾼 줄이 엉뚱한 자리로 사라진다.
+   */
+  const sort = useTableSort(shownRows, {
+    거래처코드: (p) => p.code,
+    거래처명: (p) => p.name,
+    영업단가그룹명: (p) => groups[p.id]?.sales ?? p.salesPriceGroup,
+    구매단가그룹명: (p) => groups[p.id]?.purchase ?? p.purchasePriceGroup,
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -78,10 +92,10 @@ export default function SpecialPriceGroupPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>거래처코드 ▼</th>
-            <th>거래처명 ▼</th>
-            <th style={{ textAlign: 'right', width: 200 }}>영업단가그룹명</th>
-            <th style={{ textAlign: 'center', width: 200 }}>구매단가그룹명</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+            <th style={{ textAlign: 'right', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('영업단가그룹명')}>영업단가그룹명 {sort.mark('영업단가그룹명')}</th>
+            <th style={{ textAlign: 'center', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('구매단가그룹명')}>구매단가그룹명 {sort.mark('구매단가그룹명')}</th>
           </tr>
         </thead>
         <tbody>

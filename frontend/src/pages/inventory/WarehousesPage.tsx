@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import { useAuth } from '../../auth/AuthContext'
+import { useTableSort } from '../../utils/useTableSort'
 
 const inputCls = 'ec-input w-full'
 
@@ -138,6 +139,24 @@ export default function WarehousesPage() {
     }
   }
 
+
+  /*
+   * 원본 창고등록도 머리를 눌러 정렬한다 — 사본이 정렬 표시를 단 여섯 칸
+   * (창고코드·창고명·구분·생산공정명·외주거래처명·사용)을 그대로 옮겼다.
+   * 우리는 그중 셋에 <b>▼ 만 그려 놓고</b> 정렬은 없었다.
+   * 공정·외주거래처 이름은 화면이 붙이므로, 정렬도 <b>붙인 이름</b>으로 한다 —
+   * id 로 정렬하면 눈에 보이는 차례와 어긋난다.
+   */
+  const sort = useTableSort(warehouses, {
+    창고코드: (w) => w.code,
+    창고명: (w) => w.name,
+    구분: (w) => w.kind,
+    생산공정명: (w) => processes.find((pr) => pr.id === w.processId)?.name,
+    외주거래처명: (w) => partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name,
+    사용: (w) => (w.active ? '사용' : '사용중단'),
+  })
+  const shown = sort.sorted
+
   return (
     <EcListShell
       title="창고등록 리스트"
@@ -217,13 +236,13 @@ export default function WarehousesPage() {
                          warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
                        )} />
               </th>
-              <th>창고코드 ▼</th>
-              <th>창고명 ▼</th>
-              <th style={{ width: 70, textAlign: 'center' }}>구분</th>
-              <th style={{ textAlign: 'center', width: 120 }}>생산공정명</th>
-              <th style={{ textAlign: 'center', width: 140 }}>외주거래처명</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고코드')}>창고코드 {sort.mark('창고코드')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고명')}>창고명 {sort.mark('창고명')}</th>
+              <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
+              <th style={{ textAlign: 'center', width: 120, cursor: 'pointer' }} onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
+              <th style={{ textAlign: 'center', width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('외주거래처명')}>외주거래처명 {sort.mark('외주거래처명')}</th>
               <th>위치</th>
-              <th style={{ textAlign: 'center' }}>사용 ▼</th>
+              <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
               {/*
                 원본 창고등록리스트의 마지막 열 [추가사업장명]. 사본에서는 모든 창고가
                 <b>본 사업장(주식회사 팜인)</b> 하나로 찍혀 있다.
@@ -237,10 +256,10 @@ export default function WarehousesPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : warehouses.length === 0 ? (
+            ) : shown.length === 0 ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
-              warehouses.map((w) => (
+              shown.map((w) => (
                 <tr key={w.id} style={{ color: w.active ? undefined : '#9aa1ab' }}>
                   <td style={{ textAlign: 'center' }}>
                     <input type="checkbox" checked={checked.has(w.id)} onChange={() => setChecked((prev) => {

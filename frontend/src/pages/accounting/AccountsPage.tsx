@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { useTableSort } from '../../utils/useTableSort'
 
 type Division = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
 const DIV_LABEL: Record<Division, string> = { ASSET: '자산', LIABILITY: '부채', EQUITY: '자본', REVENUE: '수익', EXPENSE: '비용' }
@@ -69,9 +70,21 @@ export default function AccountsPage() {
     }
   }
 
-  const shown = rows
+  const shownRows = rows
     .filter((r) => div === '전체' || r.division === div)
     .filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
+
+  /*
+   * 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [구분]·[사용]은 눈에 보이는 <b>이름</b>으로
+   * 견준다 — 안쪽 코드(ASSET/LIABILITY…)로 정렬하면 화면에 찍힌 한글 차례와 어긋난다.
+   */
+  const sort = useTableSort(shownRows, {
+    계정코드: (r) => r.code,
+    계정과목명: (r) => r.name,
+    구분: (r) => r.divisionName,
+    사용: (r) => (r.active ? '사용' : '중단'),
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -116,11 +129,11 @@ export default function AccountsPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>계정코드 ▼</th>
-            <th>계정과목명 ▼</th>
-            <th style={{ width: 90, textAlign: 'center' }}>구분 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('계정코드')}>계정코드 {sort.mark('계정코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('계정과목명')}>계정과목명 {sort.mark('계정과목명')}</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
             <th style={{ width: 140 }}>세부분류</th>
-            <th style={{ width: 100, textAlign: 'center' }}>사용 ▼</th>
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>

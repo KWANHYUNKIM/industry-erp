@@ -7,6 +7,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import GroupMasterModal from '../../components/GroupMasterModal'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 
 const inputCls = 'ec-input w-full'
@@ -272,10 +273,29 @@ export default function ItemsPage() {
    * 이미 안 쓰는 품목이 코드도움·목록에 계속 섞여 나왔다.
    */
   const [withStopped, setWithStopped] = useState(false)
-  const shown = items
+  const shownRows = items
     .filter((it) => withStopped || it.active)
     .filter((it) =>
       !keyword || it.code.toLowerCase().includes(keyword.toLowerCase()) || it.name.toLowerCase().includes(keyword.toLowerCase()))
+
+  /*
+   * 원본 품목등록 리스트는 머리를 눌러 정렬한다 — 사본에서 정렬 표시가 붙은 아홉 칸을
+   * 그대로 옮겼다(품목코드·품목명·구매처명·품목구분·규격정보·재고수량관리·
+   * 품목그룹1명·검색창내용·사용). 우리는 그중 다섯 칸에 <b>▼ 만 그려 놓고</b> 정렬은
+   * 없었다 — 눌러도 아무 일이 없었다.
+   */
+  const sort = useTableSort(shownRows, {
+    품목코드: (it) => it.code,
+    품목명: (it) => it.name,
+    구매처명: (it) => partners.find((p) => p.id === it.supplierId)?.name,
+    품목구분: (it) => it.categoryName,
+    규격정보: (it) => it.spec,
+    재고수량관리: (it) => (it.stockTracked === false ? '수량관리제외' : '수량관리대상'),
+    품목그룹1명: (it) => it.itemGroupName,
+    검색창내용: (it) => it.searchKeyword,
+    사용: (it) => (it.active ? '사용' : '사용중단'),
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -452,22 +472,22 @@ export default function ItemsPage() {
                 />
               </th>
               <th style={{ width: 34 }}></th>
-              <th>품목코드 ▼</th>
-              <th>품목명 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
               {/* 원본 열 순서: 품목코드 · 품목명 · [이미지] · 구매처명 · … */}
               <th style={{ width: 56 }}>이미지</th>
-              <th style={{ width: 130 }}>구매처명</th>
-              <th>품목구분 ▼</th>
-              <th>규격정보</th>
+              <th style={{ width: 130, cursor: 'pointer' }} onClick={() => sort.toggle('구매처명')}>구매처명 {sort.mark('구매처명')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목구분')}>품목구분 {sort.mark('품목구분')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('규격정보')}>규격정보 {sort.mark('규격정보')}</th>
               <th>단위</th>
               <th style={{ textAlign: 'right' }}>판매단가</th>
               <th style={{ textAlign: 'right' }}>구매단가</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
-              <th style={{ width: 110 }}>재고수량관리</th>
+              <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('재고수량관리')}>재고수량관리 {sort.mark('재고수량관리')}</th>
               <th>관리항목</th>
-              <th>품목그룹1명 ▼</th>
-              <th style={{ width: 140 }}>검색창내용</th>
-              <th style={{ textAlign: 'center' }}>사용 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목그룹1명')}>품목그룹1명 {sort.mark('품목그룹1명')}</th>
+              <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
+              <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
               {/* 원본 마지막 열 [파일관리] — 그 품목의 이미지를 붙이거나 떼는 자리. */}
               <th style={{ width: 80, textAlign: 'center' }}>파일관리</th>
               <th>관리</th>

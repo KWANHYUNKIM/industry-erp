@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { Currency, CurrencyConversion, ExchangeRate } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useTableSort } from '../../utils/useTableSort'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -88,24 +89,36 @@ export default function CurrencyPage() {
 }
 
 function CurrencyTable({ rows }: { rows: Currency[] }) {
+  /*
+   * 원본 외화등록은 외화코드·외화명·환율·사용구분을 눌러 정렬한다(사본 실측).
+   * 환율은 <b>숫자로</b> 견준다 — 글자로 보면 1,100 이 900 앞에 선다.
+   * 아직 고시가 없는 줄(null)은 방향과 상관없이 뒤로 간다.
+   */
+  const sort = useTableSort(rows, {
+    통화코드: (c) => c.code,
+    통화명: (c) => c.name,
+    '최근 고시환율': (c) => c.latestRate,
+    사용: (c) => (c.active ? '사용' : '중지'),
+  })
+  const shown = sort.sorted
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 80 }}>통화코드</th>
-          <th style={{ width: 160 }}>통화명</th>
+          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화코드')}>통화코드 {sort.mark('통화코드')}</th>
+          <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
           <th style={{ width: 70, textAlign: 'center' }}>기호</th>
           <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 150, textAlign: 'right' }}>최근 고시환율</th>
+          <th style={{ width: 150, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('최근 고시환율')}>최근 고시환율 {sort.mark('최근 고시환율')}</th>
           <th style={{ width: 110 }}>고시일</th>
-          <th style={{ width: 70, textAlign: 'center' }}>사용</th>
+          <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-        ) : rows.map((c, i) => (
+        ) : shown.map((c, i) => (
           <tr key={c.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{c.code}</td>
@@ -125,24 +138,32 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
 }
 
 function RateTable({ rows }: { rows: ExchangeRate[] }) {
+  /* 고시일 머리에 ▼ 를 그려 놓고 정렬은 없었다. 통화·고시환율도 원본처럼 눌러 세운다. */
+  const sort = useTableSort(rows, {
+    고시일: (r) => r.rateDate,
+    통화: (r) => r.currencyCode,
+    통화명: (r) => r.currencyName,
+    고시환율: (r) => r.rate,
+  })
+  const shown = sort.sorted
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>고시일 ▼</th>
-          <th style={{ width: 80 }}>통화</th>
-          <th style={{ width: 140 }}>통화명</th>
+          <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('고시일')}>고시일 {sort.mark('고시일')}</th>
+          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화')}>통화 {sort.mark('통화')}</th>
+          <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
           <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 140, textAlign: 'right' }}>고시환율</th>
+          <th style={{ width: 140, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('고시환율')}>고시환율 {sort.mark('고시환율')}</th>
           <th style={{ width: 150, textAlign: 'right' }}>1통화당 원화</th>
           <th>등록자</th>
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
+        {shown.length === 0 ? (
           <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-        ) : rows.map((r, i) => (
+        ) : shown.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td>{r.rateDate}</td>

@@ -2,7 +2,6 @@
  "CompaniesPage.tsx",
  "RolesPage.tsx",
  "UsersPage.tsx",
- "accounting/AccountsPage.tsx",
  "accounting/BankCardPage.tsx",
  "accounting/CashDetailPage.tsx",
  "accounting/CheckPage.tsx",
@@ -20,14 +19,10 @@
  "hr/LateArrivalPage.tsx",
  "hr/WorkIntegratedPage.tsx",
  "inventory/CurrentStockPage.tsx",
- "inventory/ItemsPage.tsx",
- "inventory/ManageItemsPage.tsx",
  "inventory/PriceOrderPage.tsx",
  "inventory/ReportsPage.tsx",
- "inventory/SpecialPriceGroupPage.tsx",
  "inventory/StagedAdjustmentPage.tsx",
  "inventory/TransferPage.tsx",
- "inventory/WarehousesPage.tsx",
  "production/PlanningPage.tsx",
  "production/WorkOrderPage.tsx",
  "quality/AsManagePage.tsx",
@@ -36,7 +31,6 @@
  "quality/QualityRequestPage.tsx",
  "quality/QualityStatusPage.tsx",
  "quality/SerialLotPage.tsx",
- "settings/CurrencyPage.tsx",
  "settings/DownloadPage.tsx",
  "settings/EtcSystemPage.tsx",
  "settings/SecurityPage.tsx",
@@ -56,6 +50,5 @@
  "trade/TradeHistoryPage.tsx",
  "trade/TradeInquiryPage.tsx",
  "trade/UnorderedStatusPage.tsx",
- "trade/UnpurchasedStatusPage.tsx",
- "trade/UnshippedPage.tsx"
+ "trade/UnpurchasedStatusPage.tsx"
 ]
