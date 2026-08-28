@@ -210,8 +210,13 @@ export default function TimeCalcPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 230 }}>생산품목</th>
-              <th style={{ width: 120 }}>생산품목코드</th>
+              {/*
+                원본 소요시간계산의 두 열은 <b>[생산품목코드] · [생산품목명]</b> 이다(사본 실측).
+                우리는 고르는 칸을 [생산품목] 이라 부르고 그 옆에 <b>코드를 또</b> 찍고 있었다 —
+                고르는 칸이 이미 [코드] 이름 을 함께 보여 주므로 옆 칸은 이름을 적는 게 맞다.
+              */}
+              <th style={{ width: 230 }}>생산품목코드</th>
+              <th style={{ width: 160 }}>생산품목명</th>
               <th>규격</th>
               <th style={{ width: 110, textAlign: 'right' }}>추가수량</th>
               <th style={{ width: 110, textAlign: 'right' }}>수량</th>
@@ -236,7 +241,7 @@ export default function TimeCalcPage() {
                       items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.categoryName }))}
                     />
                   </td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.item?.code ?? ''}</td>
+                  <td>{r.item?.name ?? ''}</td>
                   <td style={{ color: '#5a626e' }}>{r.item?.spec ?? ''}</td>
                   <td style={{ textAlign: 'right' }}>
                     <input className="ec-input text-right" type="number" style={{ width: 90 }}

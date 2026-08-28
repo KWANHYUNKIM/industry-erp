@@ -302,8 +302,11 @@ export default function WorkResultListPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 110 }}>일자</th>
-              <th style={{ width: 170 }}>작업지시번호</th>
+              {/*
+                원본 작업내역현황은 일자와 번호를 <b>한 칸</b>에 적는다([일자-No.], 사본 실측).
+                우리는 둘로 나눠 두어 원본과 차례가 어긋나 있었다 — 작업지시서조회·현황은 이미 합쳐 두었다.
+              */}
+              <th style={{ width: 200, textAlign: 'center' }}>일자-No.</th>
               <th style={{ width: 130 }}>생산공장명</th>
               {/* 원본 열 이름은 [작업명]이다. */}
               <th>작업명</th>
@@ -324,15 +327,14 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>
-                  {r.workOrderNo ?? '-'}
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+                  {r.workDate}{r.workOrderNo ? ' ' + r.workOrderNo : ''}
                 </td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
                 <td>{r.process}</td>
@@ -361,7 +363,7 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={10} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
               <td style={{ textAlign: 'right' }}>{num(time.standard)}</td>
