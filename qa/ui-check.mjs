@@ -1208,6 +1208,17 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     ['결제내역조회', 'trade/PaymentHistoryPage.tsx'],
   ])
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  /*
+   * 머리 칸 하나를 이름으로 찾는다.
+   *
+   * <p>원본이 <b>같은 칸을 화면에 따라 달리 부르는</b> 자리가 있다 — 판매입력은 [수량],
+   * 구매입력은 [기본수량] 이다. 우리는 한 화면이 둘을 겸하므로 머리를 삼항으로 적는다
+   * (<code>{'{'}mode === 'sales' ? '수량' : '기본수량'{'}'}</code>). 글자만 찾으면 그 칸을
+   * <b>없는 것으로</b> 본다 — 실제로 네 열(판매입력·판매입력II 의 [수량], 구매입력·
+   * 구매조회 의 [기본수량])이 그렇게 빠진 것으로 잡혔다. 따옴표 안의 이름도 본다.
+   */
+  const thFor = (head, name) => head.match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
+    || head.match(new RegExp('<th([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*</th>'))
   const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
     : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
 
@@ -1236,7 +1247,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((head) => ({
       head: head[0],
       hit: Object.keys(cols)
-        .filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(head[0])))
+        .filter((n) => thFor(noArrow(head[0]), n))
         .length,
     })).filter((x) => x.hit > 0).sort((a, b) => b.hit - a.hit)
     if (scored.length === 0) continue
@@ -1250,7 +1261,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
      */
     if (scored[0].hit / Object.keys(cols).length >= 0.6) {
       for (const name of Object.keys(cols)) {
-        if (new RegExp('<th[^>]*>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(best))) continue
+        if (thFor(noArrow(best), name)) continue
         missing.push(`${screen}  [${name}]`)
       }
     }
@@ -1259,7 +1270,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
       // '?' 는 정렬을 못 잰 열이다 — 사본에서 그 표가 비어 있어 칸의 정렬을 볼 수 없었다.
       // 이름과 차례는 다른 검사가 본다. 여기서는 세지 않는다.
       if (want === '?') { unknown += 1; continue }
-      const m = noArrow(best).match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
+      const m = thFor(noArrow(best), name)
       if (!m) continue
       checked++
       const got = alignOf(m[1])

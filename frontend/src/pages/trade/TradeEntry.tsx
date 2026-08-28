@@ -1557,7 +1557,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
                 {/* 원본은 판매입력이 [수량], 구매입력이 [기본수량] 이다 — 같은 칸인데 이름이 다르다. */}
-                <th>{mode === 'sales' ? '수량' : '기본수량'}</th>
+                {/* 값은 이미 오른쪽인데 <b>머리만</b> 왼쪽이었다 — 삼항으로 적은 칸이라
+                    이름으로 찾는 검사가 여태 이 칸을 아예 못 보고 있었다. */}
+                <th style={{ textAlign: 'right' }}>{mode === 'sales' ? '수량' : '기본수량'}</th>
                 <th style={{ textAlign: 'right' }}>단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
                 <th style={{ textAlign: 'right' }}>공급가액</th>
