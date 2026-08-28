@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableSort } from '../../utils/useTableSort'
 import type { DriveDocument } from '../../api/types'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import { useShortcut } from '../../utils/useShortcut'
@@ -46,7 +47,21 @@ export default function EcDrivePage() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!
-  const shown = rows.filter((d) => !keyword || d.name.includes(keyword))
+  const shownRows = rows.filter((d) => !keyword || d.name.includes(keyword))
+
+  /*
+   * 사본 ECDrive 는 <b>이름·최종수정일자·크기·중요</b> 네 칸에 정렬 표시를 단다.
+   * 우리는 표시조차 없었다 — 파일이 쌓이면 <b>이름으로도 날짜로도 못 세운다.</b>
+   * [크기]는 화면에 '2.4 MB' 로 찍히지만 정렬은 <b>바이트 수</b>로 한다 — 찍힌 글자로
+   * 견주면 900 KB 가 2 MB 보다 커진다.
+   */
+  const sort = useTableSort(shownRows, {
+    이름: (d) => d.name,
+    최종수정일자: (d) => d.updatedAt,
+    크기: (d) => d.sizeBytes,
+    중요: (d) => (d.important ? '중요' : ''),
+  })
+  const shown = sort.sorted
 
   async function load(folder = sel) {
     setLoading(true)
@@ -201,10 +216,10 @@ export default function EcDrivePage() {
             <thead>
               <tr>
                 <th></th>
-                <th>이름</th>
-                <th>최종수정일자</th>
-                <th>크기</th>
-                <th>중요</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('최종수정일자')}>최종수정일자 {sort.mark('최종수정일자')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('크기')}>크기 {sort.mark('크기')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('중요')}>중요 {sort.mark('중요')}</th>
                 <th>더보기</th>
               </tr>
             </thead>

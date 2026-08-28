@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import ProcessOperationModal from './ProcessOperationModal'
 
@@ -136,7 +137,19 @@ export default function ProcessPage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+
+  /*
+   * 사본 공정등록의 격자는 <b>생산공정코드·생산공정명·순번</b> 세 칸에 정렬 표시를 단다.
+   * 우리는 표시조차 없어 <b>눌러 볼 생각도 못 하게</b> 두었다.
+   * [순번]은 숫자다 — 글자로 견주면 10 이 9 앞에 선다.
+   */
+  const sort = useTableSort(shownRows, {
+    생산공정코드: (r) => r.code,
+    생산공정명: (r) => r.name,
+    순번: (r) => r.sortOrder,
+  })
+  const shown = sort.sorted
   const total = useMemo(() => shown.reduce((s, r) => s + (r.stdTimeMin ?? 0), 0), [shown])
 
   return (
@@ -212,9 +225,9 @@ export default function ProcessPage() {
                        rows.every((r) => checked.has(r.id)) ? new Set() : new Set(rows.map((r) => r.id)),
                      )} />
             </th>
-            <th>생산공정코드</th>
-            <th>생산공정명</th>
-            <th style={{ width: 60 }}>순번</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('생산공정코드')}>생산공정코드 {sort.mark('생산공정코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
+            <th style={{ width: 60, cursor: 'pointer' }} onClick={() => sort.toggle('순번')}>순번 {sort.mark('순번')}</th>
             <th>작업장</th>
             <th style={{ textAlign: 'right' }}>표준시간(분)</th>
             <th style={{ textAlign: 'right' }}>시간당비용</th>

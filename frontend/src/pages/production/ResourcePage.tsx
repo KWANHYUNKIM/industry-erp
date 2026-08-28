@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 
 /**
@@ -107,8 +108,21 @@ export default function ResourcePage() {
     }
   }
 
-  const shown = rows.filter((r) => (withStopped || r.active)
+  const shownRows = rows.filter((r) => (withStopped || r.active)
     && (!keyword || r.name.includes(keyword) || r.code.includes(keyword)))
+
+  /*
+   * 사본 자원등록의 격자는 <b>자원코드·자원명·위치·대상작업</b> 네 칸에 정렬 표시를 단다.
+   * 우리는 표시조차 없었다. [위치]·[대상작업]은 서버가 id 만 주고 <b>이름은 화면이 붙이므로</b>
+   * 정렬도 붙인 이름으로 한다 — 안 정한 줄은 방향과 상관없이 뒤로 간다.
+   */
+  const sort = useTableSort(shownRows, {
+    자원코드: (r) => r.code,
+    자원명: (r) => r.name,
+    위치: (r) => r.warehouseName,
+    대상작업: (r) => r.processName,
+  })
+  const shown = sort.sorted
 
   const toggle = (id: number) => setChecked((prev) => {
     const next = new Set(prev)
@@ -224,10 +238,10 @@ export default function ResourcePage() {
               <input type="checkbox" checked={allOn}
                      onChange={() => setChecked(allOn ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th>자원코드</th>
-            <th>자원명</th>
-            <th>위치</th>
-            <th>대상작업</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자원코드')}>자원코드 {sort.mark('자원코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자원명')}>자원명 {sort.mark('자원명')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('위치')}>위치 {sort.mark('위치')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('대상작업')}>대상작업 {sort.mark('대상작업')}</th>
             <th style={{ textAlign: 'center' }}>구분</th>
             <th style={{ textAlign: 'right' }}>가용능력</th>
             <th>단위</th>
