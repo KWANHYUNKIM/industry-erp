@@ -1898,6 +1898,52 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
   eq(`코드도움 ${checked}곳이 받은 값 그대로 거른다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-q) 고를 수는 있는데 아무 일도 안 하는 조건 ─────────────────────────
+console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
+
+/*
+ * <b>조건을 걸어도 결과가 그대로면</b> 사람은 자기가 잘못 골랐다고 생각한다.
+ * 눌러도 아무 일 없는 버튼과 같은 종류의 거짓말인데 이쪽이 더 조용하다 —
+ * 목록이 안 바뀌는 것뿐이라 화면은 멀쩡해 보인다.
+ *
+ * <p>조건 칸(EcCond)에 묶인 상태가 <b>그 칸 밖에서 한 번이라도 쓰이는지</b>만 본다.
+ * 거르는 방식이 화면마다 달라(부등호·객체 속성·함수 인자·의존성 배열) 좁게 잡으면
+ * 멀쩡한 조건을 죽었다고 한다. 별칭(const f = filters)과 인자(c: typeof cond)는 푼다.
+ */
+{
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ')
+    for (const m of src.matchAll(/<EcCond[\s\S]{0,700}?<\/EcCond>/g)) {
+      const block = m[0]
+      const label = (block.match(/label=\{?["'`]([^"'`]{1,20})/) ?? [])[1] ?? '?'
+      for (const v of block.matchAll(/(?:value|checked)=\{([\w.]+)\}/g)) {
+        const path = v[1]
+        if (/^(true|false)$/.test(path)) continue
+        const [base, prop] = path.includes('.') ? path.split('.') : [path, null]
+        // 조건 상태만 본다 — 보기 목록을 그리는 콜백 변수(a.id 같은 것)는 상태가 아니다
+        if (!new RegExp('const \\[\\s*' + escRe(base) + '\\b').test(src)) continue
+        const names = [path]
+        for (const al of src.matchAll(new RegExp('const (\\w+) = ' + escRe(base) + '\\b', 'g'))) {
+          names.push(prop ? al[1] + '.' + prop : al[1])
+        }
+        for (const al of src.matchAll(new RegExp('(\\w+): typeof ' + escRe(base) + '\\b', 'g'))) {
+          names.push(prop ? al[1] + '.' + prop : al[1])
+        }
+        const uses = src.split(String.fromCharCode(10))
+          .filter((l) => names.some((nm) => new RegExp(escRe(nm) + '\\b').test(l)))
+          .filter((l) => !/useState|<EcCond|value=\{|checked=\{|setC\(|onChange|reset|다시 작성/.test(l))
+        checked++
+        if (uses.length === 0) bad.push(`${f.split(sep).pop()}  조건 [${label}] 의 값이 어디에도 안 쓰인다`)
+      }
+    }
+  }
+  eq(`조건 ${checked}개가 넣은 값을 실제로 쓴다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
