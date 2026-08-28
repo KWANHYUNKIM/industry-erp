@@ -64,6 +64,7 @@ export default function BorPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
@@ -140,6 +141,7 @@ export default function BorPage() {
   const shown = rows.filter((r) => !keyword
     || r.productName.includes(keyword) || r.productCode.includes(keyword)
     || r.processName.includes(keyword) || r.workName.includes(keyword))
+    .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
 
   /** 품목별 1개당 표준시간 합. 원본은 품목 아래에 작업을 늘어놓으므로 소계가 뜻을 갖는다. */
   const perProduct = useMemo(() => {
@@ -228,7 +230,17 @@ export default function BorPage() {
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">
-          <thead>
+        {/*
+        원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
+        마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
+      */}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {(['전체', '사용', '사용중단'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
+                  onClick={() => setUseTab(t)}>{t}</button>
+        ))}
+      </div>
+        <thead>
             <tr>
               <th style={{ width: 34 }}></th>
               <th>생산품목코드</th>

@@ -28,6 +28,7 @@ export default function ProcessPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   /**
@@ -138,6 +139,7 @@ export default function ProcessPage() {
   }
 
   const shownRows = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+    .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
 
   /*
    * 사본 공정등록의 격자는 <b>생산공정코드·생산공정명·순번</b> 세 칸에 정렬 표시를 단다.
@@ -216,6 +218,16 @@ export default function ProcessPage() {
       )}
 
       <table className="w-full text-left">
+      {/*
+        원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
+        마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
+      */}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {(['전체', '사용', '사용중단'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
+                  onClick={() => setUseTab(t)}>{t}</button>
+        ))}
+      </div>
         <thead>
           <tr>
             <th style={{ width: 34, textAlign: 'center' }}>

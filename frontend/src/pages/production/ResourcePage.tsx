@@ -53,8 +53,12 @@ export default function ResourcePage() {
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([])
   const [processes, setProcesses] = useState<ProcessRow[]>([])
   const [checked, setChecked] = useState<Set<number>>(new Set())
-  /** 원본에는 사용중단된 자원을 볼지 고르는 자리가 없다. 기본은 쓰는 것만 보여 준다. */
-  const [withStopped, setWithStopped] = useState(false)
+  /*
+   * <b>여기 적혀 있던 말이 틀렸다.</b> "원본에는 사용중단된 자원을 볼지 고르는 자리가 없다"
+   * 고 적어 두고 체크박스 하나로 뒀는데, 사본을 보니 <b>전체 · 사용 · 사용중단</b> 3단
+   * 보기가 있고 [사용]이 켜진 채 뜬다. 공정등록·BOR 도 같은 모양이다.
+   */
+  const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
 
   async function load() {
     setLoading(true)
@@ -108,8 +112,9 @@ export default function ResourcePage() {
     }
   }
 
-  const shownRows = rows.filter((r) => (withStopped || r.active)
-    && (!keyword || r.name.includes(keyword) || r.code.includes(keyword)))
+  const shownRows = rows
+    .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
+    .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
 
   /*
    * 사본 자원등록의 격자는 <b>자원코드·자원명·위치·대상작업</b> 네 칸에 정렬 표시를 단다.
@@ -173,10 +178,16 @@ export default function ResourcePage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
-        사용중단 자원 포함
-      </label>
+      {/*
+        원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
+        마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
+      */}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {(['전체', '사용', '사용중단'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
+                  onClick={() => setUseTab(t)}>{t}</button>
+        ))}
+      </div>
 
       <Modal open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
