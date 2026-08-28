@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -33,6 +35,13 @@ export default function QualityRequestPage() {
   const [rows, setRows] = useState<QualityInspectionRequest[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 품질검사요청입력 조건: <b>일자-No.</b> · <b>담당자</b>.
+   * 요청번호·요청일자·요청자가 표에는 다 찍히는데 <b>거를 수가 없었다</b> —
+   * 검색상자는 품목명·로트까지 한꺼번에 훑어서 번호로만 좁힐 수 없었다.
+   */
+  const [docCond, setDocCond] = useState('')
+  const [reqCond, setReqCond] = useState('')
   const [tab, setTab] = useState<Tab>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -85,8 +94,10 @@ export default function QualityRequestPage() {
 
   const shown = useMemo(() => rows
     .filter((r) => tab === 'ALL' || r.status === tab)
+    .filter((r) => !docCond || r.requestNo.includes(docCond) || r.requestDate.includes(docCond))
+    .filter((r) => !reqCond || (r.requester ?? '') === reqCond)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.requestNo.includes(keyword) || (r.lotNo ?? '').includes(keyword)),
-  [rows, tab, keyword])
+  [rows, tab, keyword, docCond, reqCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
@@ -145,6 +156,21 @@ export default function QualityRequestPage() {
           }}>{t.label} ({count(t.v)})</button>
         ))}
       </div>
+
+      {/* 원본 조건 차례: <b>일자-No.</b> · <b>담당자</b> */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="일자-No.">
+          <input className="ec-input" value={docCond} placeholder="요청일자 또는 요청번호"
+                 onChange={(e) => setDocCond(e.target.value)} style={{ width: 190 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          {/* 요청자는 사원 마스터를 물지 않고 이름으로 적히므로, 후보를 실제 요청자들에서 뽑는다. */}
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={reqCond} onChange={setReqCond}
+                           items={[...new Set(rows.map((r) => r.requester).filter(Boolean))]
+                             .map((n) => ({ value: n as string, name: n as string }))} />
+        </EcCond>
+      </ul>
 
       <table className="w-full text-left">
         <thead>

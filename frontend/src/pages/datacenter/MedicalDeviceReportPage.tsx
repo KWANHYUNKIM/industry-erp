@@ -139,7 +139,9 @@ export default function MedicalDeviceReportPage() {
       {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}>{label('기준일자')}
+        {/* 원본 의료기기공급내역보고의 이름은 [기준일자]가 아니라 <b>[납품일자]</b> 다(사본 실측)
+            — 이 구간이 재는 것이 공급(납품)한 날이다. */}
+        <label style={{ fontSize: 12.5 }}>{label('납품일자')}
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
