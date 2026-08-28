@@ -345,12 +345,13 @@ export default function ItemsPage() {
             <b>원가·부가정보는 만들지 않는다</b> — 표준원가 넷·숫자형추가항목 열에 해당하는
             칸이 우리 품목에 없다. 눌러도 빈 탭은 있는 것만 못하다.
           */}
-          <div className="ec-pills" style={{ marginBottom: 10 }}>
+          {/* 폼 탭은 거래처등록과 같은 모양으로 그린다 — 우리끼리 달라 보이면 안 된다. */}
+          <ul className="ec-tabs" style={{ marginBottom: 10 }}>
             {FORM_TABS.map((t) => (
-              <button key={t} type="button" className={`ec-pill no-ec${formTab === t ? ' active' : ''}`}
-                      onClick={() => setFormTab(t)}>{t}</button>
+              <li key={t} className={`ec-tab${formTab === t ? ' active' : ''}`}
+                  onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}</li>
             ))}
-          </div>
+          </ul>
           {formTab === '품목정보' && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
