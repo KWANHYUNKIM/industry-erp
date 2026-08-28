@@ -1405,7 +1405,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           {mode === 'sales' && (
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openProfit()}>이익계산</button>
           )}
-          {/* 원본 툴바 순서: … 검증 · 이익계산 · [전표불러오기] · 거래별부가세계산 */}
+          {/*
+            원본 판매입력 툴바 순서: … 검증 · 이익계산 · [전표불러오기] · 거래별부가세계산.
+            <b>구매입력은 이 버튼이 [할인] 바로 뒤에 있다</b>(사본 실측) — 한 컴포넌트가
+            두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
+          */}
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
           {/* 원본 calcbySlip. 누를 때마다 켜고 끄며, 켜진 상태는 전표에 저장된다. */}
           <button

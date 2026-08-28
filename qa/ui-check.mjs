@@ -1562,20 +1562,14 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
     ['결제내역조회',
       '원본은 [입금보고서작성]이 [신규(F2)]보다 앞에 선다. 우리 EcListShell 은 [신규(F2)]를'
       + ' <b>단추줄 맨 앞에 고정</b>해 그린다(onNew) — 화면 하나 때문에 껍데기 규칙을 흔들지 않는다'],
-    ['내결재관리',
-      '이 화면은 ApprovalListPage 를 감싼 <b>얇은 껍데기</b>다. [인쇄]·[Excel]만 이 파일에 있고'
-      + ' 나머지는 안쪽 화면에 있어, 파일 자리로 재면 <b>넘겨준 두 개가 늘 앞</b>에 온다.'
-      + ' 실제로 그려지는 자리는 안쪽 화면의 맨 뒤다'],
-    /*
-     * 전표 화면 셋은 <b>차례가 아니라 자리</b>가 다르다. 원본은 [주문]·[발주]·[구매]·[현금지급]을
-     * 격자 위 도구줄에 두는데 우리는 아래 단추줄에 뒀다. 버튼을 옮기는 일이라 따로 본다.
-     */
-    ['판매입력', '원본은 [발주]·[주문]·[현금지급]이 격자 위 도구줄에 있다 — 우리는 아래 단추줄에 뒀다'],
-    ['구매입력', '위와 같음([주문]·[구매]·[현금수금])'],
-    ['판매입력II', '위와 같음([현금수금])'],
     ['구매조회',
       '원본 [진행상태변경]은 도구줄 버튼이고 [확인취소]·[반품처리]·[삭제]도 그 옆에 선다.'
       + ' 우리는 진행상태변경만 아래 단추줄에 두고 나머지 셋은 <b>줄마다</b> 버튼으로 뒀다'],
+    ['구매입력',
+      '원본은 [전표불러오기]가 <b>[할인] 바로 뒤</b>인데 판매입력은 [이익계산] 뒤다.'
+      + ' 한 컴포넌트(TradeEntry)가 두 화면을 겸해서 둘 다 맞출 수 없다 — 버튼이 더 많은'
+      + ' 판매입력에 맞췄다. 모드로 갈라 그리면 화면은 맞지만, 파일에는 두 자리가 다 남아'
+      + ' <b>이 검사가 어느 쪽인지 알 수 없게</b> 된다(그렇게 해 보고 되돌렸다)'],
   ])
 
   const bad = []
@@ -1634,10 +1628,23 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
       if (inBar) { if (!barPos.has(k) || i < barPos.get(k)) barPos.set(k, i) }
       if (!pos.has(k) || i < pos.get(k)) pos.set(k, i)
     }
-    // 있는지 보는 검사와 같은 세 모양으로 이름을 읽는다.
-    for (const m of src.matchAll(/\w*[Ll]abel\s*[:=][^\n]{0,160}/g)) {
-      for (const q of m[0].matchAll(new RegExp(String.raw`['"]([^'"]{1,24})['"]`, 'g'))) put(q[1], m.index)
-      for (const q of m[0].matchAll(new RegExp(BTICK + '([^' + BTICK + '$]{1,24})', 'g'))) put(q[1], m.index)
+    /*
+     * <b>이름표가 적힌 곳이 곧 버튼이 서는 곳은 아니다.</b> 판매·구매입력은 화면마다 다른
+     * 말을 파일 <b>맨 위 설정</b>에 모아 둔다(<code>cashLabel: '현금수금'</code>) — 버튼은
+     * 저 아래에서 <code>cfg.cashLabel</code> 로 그린다. 그 declaration 을 자리로 읽으면
+     * [현금수금]·[주문]·[발주]가 늘 <b>맨 앞</b>에 선 것으로 보인다(실제로 그렇게 걸렸다).
+     *
+     * <p>그래서 <code>label:</code> 은 <b>단추줄 목록 안에서만</b> 읽는다. 나머지 버튼은
+     * <code>&lt;button&gt;</code> 요소로 잡는다 — 그건 그리는 자리에 그대로 있다.
+     * 설정에만 있고 그리는 자리에는 이름이 없는 버튼은 <b>자리를 알 수 없어</b> 빠진다.
+     */
+    if (footerRange) {
+      const zone = src.slice(footerRange[0], footerRange[1])
+      for (const m of zone.matchAll(/\w*[Ll]abel\s*[:=][^\n]{0,160}/g)) {
+        const at = footerRange[0] + m.index
+        for (const q of m[0].matchAll(new RegExp(String.raw`['"]([^'"]{1,24})['"]`, 'g'))) put(q[1], at)
+        for (const q of m[0].matchAll(new RegExp(BTICK + '([^' + BTICK + '$]{1,24})', 'g'))) put(q[1], at)
+      }
     }
     for (const m of src.matchAll(/<button\b[\s\S]{0,400}?<\/button>/g)) {
       const plain = stripJsx(m[0])
