@@ -42,6 +42,11 @@ export default function AsManagePage() {
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | AsStatus>('ALL')
+  /*
+   * 원본 A/S접수의 조건에 <b>[담당자]</b> 가 있다(사본 실측). 담당자는 이미 목록에
+   * 찍히는 값이다(AsResponse.charge) — 누가 맡았는지 보이면서도 그것으로 모아 볼 수 없었다.
+   */
+  const [chargeCond, setChargeCond] = useState('')
 
   const [partnerId, setPartnerId] = useState('')
   const [itemId, setItemId] = useState('')
@@ -130,6 +135,7 @@ export default function AsManagePage() {
   const shownRows = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.itemName.includes(keyword) || r.asNo.includes(keyword))
+    .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
@@ -232,6 +238,12 @@ export default function AsManagePage() {
           </table>
         </div>
       )}</Modal>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>담당자</span>
+        <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
+               placeholder="담당자명 일부" style={{ width: 150 }} />
+      </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (

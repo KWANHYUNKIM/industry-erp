@@ -38,6 +38,7 @@ export default function SalesPurchaseSummaryPage() {
   const [projectCond, setProjectCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
   const [empCond, setEmpCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
   const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees'])
 
   const [from, setFrom] = useState('')
@@ -65,6 +66,7 @@ export default function SalesPurchaseSummaryPage() {
   const keepProject = (name: string | null) => !projectCond || (name ?? '').includes(projectCond)
   const keepWarehouse = (name: string) => !warehouseCond || name.includes(warehouseCond)
   const keepEmp = (name: string | null) => !empCond || (name ?? '').includes(empCond)
+  const keepRemark = (t: string | null) => !remarkCond || (t ?? '').includes(remarkCond)
 
 
   const rows = useMemo(() => {
@@ -81,6 +83,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepProject(d.projectName)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
+        if (!keepRemark(d.remark)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.saleCount += 1; a.saleSupply += d.supplyAmount
         a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -91,6 +94,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepProject(d.projectName)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
+        if (!keepRemark(d.remark)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.buyCount += 1; a.buySupply += d.supplyAmount
         a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -102,6 +106,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepProject(d.projectName)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
+        if (!keepRemark(d.remark)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
@@ -113,6 +118,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepProject(d.projectName)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
+        if (!keepRemark(d.remark)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
@@ -123,7 +129,7 @@ export default function SalesPurchaseSummaryPage() {
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
-  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond])
+  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
@@ -168,6 +174,12 @@ export default function SalesPurchaseSummaryPage() {
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
+        </div>
+        {/* 원본 차례: … 거래처 · 품목코드 · <b>적요</b> · 거래구분. 적요는 이미 응답에 온다. */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>적요</span>
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>집계기준</span>
