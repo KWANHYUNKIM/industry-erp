@@ -12,6 +12,7 @@ interface MaterialIssue {
   itemId: number
   itemCode: string
   itemName: string
+  itemSpec: string | null
   unit: string
   warehouseId: number | null
   warehouseName: string | null
@@ -342,7 +343,7 @@ export default function IssuePage() {
             </th>
             <th>일자</th>
             <th style={{ width: 90 }}>담당자</th>
-            <th>작업지시번호</th>
+            <th>작업지시서</th>
             {/*
               원본 이름은 [작업지시품목코드]다. 우리는 [생산품목]이라 적고 '[코드] 이름'
               을 한 칸에 몰아 두었다 — 원본을 쓰던 사람이 코드로 훑을 때 눈이 걸린다.
@@ -350,11 +351,12 @@ export default function IssuePage() {
             */}
             <th style={{ width: 130 }}>작업지시품목코드</th>
             <th style={{ width: 120 }}>품목코드</th>
-            <th>품목명</th>
+            {/* 원본 열 이름은 [품목명[규격명]] — 이름만으로는 같은 이름의 다른 규격을 못 가린다. */}
+            <th>품목명[규격명]</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th>단위</th>
-            <th>보내는창고</th>
-            <th>받는공장</th>
+            <th>보내는창고명</th>
+            <th>받는공장명</th>
             <th>적요</th>
             {/* 원본 생산불출조회의 마지막 열 [인쇄] — 그 한 건을 불출증으로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -383,7 +385,7 @@ export default function IssuePage() {
                 {r.productCode ?? '-'}
               </td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{r.itemSpec ? `[${r.itemSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
               <td>{r.warehouseName ?? '-'}</td>

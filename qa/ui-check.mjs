@@ -276,7 +276,6 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
     }
     if (unknown || picked === null) { bodySkipped++; continue }
     bodyCompared++
-    console.error('CMP ' + f.split(sep).pop() + ' h=' + hc + ' b=' + picked)
     if (picked !== hc) {
       const line = src.slice(0, tm.index).split('\n').length
       bodyMismatch.push(`${f.split(sep).pop()}:${line}  헤더 ${hc}칸 vs 본문 ${picked}칸`)
@@ -1142,12 +1141,18 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
   const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+  /** 차례를 견줄 수 없는 화면 — 왜인지 적는다. */
+  const ORDER_SKIP = new Map([
+    ['생산불출조회',
+      '사본에 격자가 <b>둘</b>이다(입력 격자·목록 격자). 우리는 한 표에 다 펴 두어서,'
+      + ' 두 격자의 열을 하나로 이어 붙인 차례와 견주게 된다 — 원본에도 없는 차례다'],
+  ])
 
   const bad = []
   let checked = 0
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = ORDER_MAP.get(screen)
-    if (!rel) continue
+    if (!rel || ORDER_SKIP.has(screen)) continue
     const path = join('frontend', 'src', 'pages', ...rel.split('/'))
     if (!existsSync(path)) continue
     const src = readFileSync(path, 'utf8')
@@ -1165,7 +1170,7 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
       bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
     }
   }
-  eq(`원본과 견준 열 ${checked}개가 같은 차례로 서 있다`, bad.join('\n') || '없음', '없음')
+  eq(`원본과 견준 열 ${checked}개가 같은 차례로 서 있다 (견줄 수 없는 ${ORDER_SKIP.size}화면은 이유를 적고 뺐다)`, bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-j) 원본에는 있는데 우리 표에 없는 열 ────────────────────────────────
@@ -1197,6 +1202,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['구매일괄회계반영|거래가액', '외화·조정 항목을 만들지 않는다'],
     ['구매일괄회계반영|조정', '위와 같음'], ['구매일괄회계반영|외화금액', '위와 같음'],
     ['구매일괄회계반영|환율', '위와 같음'], ['구매일괄회계반영|상세', '전표를 눌러 연다'],
+    ['생산불출조회|일자-No.', '생산불출 전표에 번호를 매기지 않는다 — 줄 하나가 곧 한 건이라 [일자]만 찍는다'],
     ['생산불출조회|불러온 전표일자', '작업지시번호 한 칸으로 갈음한다'],
     ['생산불출조회|불러온 전표No.', '위와 같음'],
     /* 격자로 바꾼 뒤에도 남는 셋 — [전표불러오기] 로 채워지는 칸이라 그 기능이 없으면 뜻이 없다. */
