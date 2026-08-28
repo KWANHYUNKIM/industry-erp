@@ -34,6 +34,12 @@ export default function QuotationPage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [itemCond, setItemCond] = useState('')
+  /*
+   * 원본 견적서 조건의 맨 뒤 <b>[발송여부]</b>. 우리 견적은 [발송] 을 눌러 상태가
+   * <b>발송</b> 으로 가고, 수주로 전환된 것도 <b>보낸 뒤</b>의 일이라 보낸 것으로 친다.
+   * 여태 알약(진행 단계)으로만 갈라서 "아직 안 보낸 견적" 을 한 번에 볼 수가 없었다.
+   */
+  const [sentCond, setSentCond] = useState<'전체' | '발송' | '미발송'>('전체')
   const [company, setCompany] = useState<DocParty | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -65,8 +71,10 @@ export default function QuotationPage() {
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
-    [rows, tab, itemCond])
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => sentCond === '전체'
+      || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
+    [rows, tab, itemCond, sentCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -141,6 +149,12 @@ export default function QuotationPage() {
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="발송여부">
+          <select className="ec-input" value={sentCond} style={{ width: 100 }}
+                  onChange={(e) => setSentCond(e.target.value as '전체' | '발송' | '미발송')}>
+            <option>전체</option><option>발송</option><option>미발송</option>
+          </select>
         </EcCond>
       </ul>
 
