@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.hr.domain.Employee;
+import com.erp.inventory.service.ProjectService;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.PurchaseOrder;
 import com.erp.trade.domain.PurchaseOrderLine;
@@ -47,6 +48,8 @@ public class PurchaseOrderService {
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final PurchaseOrderRepository orderRepository;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final EmployeeRepository employeeRepository;
@@ -120,6 +123,7 @@ public class PurchaseOrderService {
                 .partner(partner)
                 .employee(employee)
                 .warehouse(warehouse)
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .currency(currency)
                 .status(PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())

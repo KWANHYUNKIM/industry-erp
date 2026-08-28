@@ -35,6 +35,8 @@ public final class PurchaseOrderDtos {
             String remark,
             Long employeeId,
             Long warehouseId,
+            /* 원본 발주서의 [프로젝트]. 발주 시점에는 안 정했을 수 있어 필수가 아니다. */
+            Long projectId,
             String currency,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
     ) {}
@@ -79,7 +81,8 @@ public final class PurchaseOrderDtos {
             Long id, String orderNo, LocalDate orderDate, LocalDate dueDate,
             Long partnerId, String partnerName,
             Long employeeId, String employeeName,
-            Long warehouseId, String warehouseName, String currency,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName, String currency,
             PurchaseOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Boolean taxable, Long convertedPurchaseId, String remark, String createdBy,
@@ -93,6 +96,8 @@ public final class PurchaseOrderDtos {
                     po.getEmployee() != null ? po.getEmployee().getName() : null,
                     po.getWarehouse() != null ? po.getWarehouse().getId() : null,
                     po.getWarehouse() != null ? po.getWarehouse().getName() : null,
+                    po.getProject() != null ? po.getProject().getId() : null,
+                    po.getProject() != null ? po.getProject().getName() : null,
                     po.getCurrency(),
                     po.getStatus(), po.getStatus().getDisplayName(),
                     po.getSupplyAmount(), po.getVatAmount(), po.getTotalAmount(),

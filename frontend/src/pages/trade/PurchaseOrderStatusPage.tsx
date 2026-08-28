@@ -29,6 +29,8 @@ interface Row {
   orderNo: string
   partner: string
   warehouse: string
+  /** 원본 발주서현황의 [프로젝트]. 발주에 프로젝트 칸을 만들면서 같이 실어 온다. */
+  project: string
   employee: string
   status: PurchaseOrderStatus
   statusName: string
@@ -46,13 +48,14 @@ interface Filters {
   employee: string
   orderNo: string
   warehouse: string
+  project: string
   item: string
   status: '' | PurchaseOrderStatus
   sortByDoc: boolean
 }
 
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', employee: '', orderNo: '', warehouse: '', item: '', status: '', sortByDoc: false,
+  dateFrom: '', dateTo: '', partner: '', employee: '', orderNo: '', warehouse: '', project: '', item: '', status: '', sortByDoc: false,
 }
 
 export default function PurchaseOrderStatusPage() {
@@ -78,6 +81,7 @@ export default function PurchaseOrderStatusPage() {
           orderNo: o.orderNo,
           partner: o.partnerName,
           warehouse: o.warehouseName ?? '',
+          project: o.projectName ?? '',
           employee: o.employeeName ?? '',
           status: o.status,
           statusName: o.statusName,
@@ -109,6 +113,7 @@ export default function PurchaseOrderStatusPage() {
       if (f.employee && !r.employee.includes(f.employee)) return false
       if (f.orderNo && !r.orderNo.includes(f.orderNo)) return false
       if (f.warehouse && !r.warehouse.includes(f.warehouse)) return false
+      if (f.project && !r.project.includes(f.project)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.status && r.status !== f.status) return false
       return true
@@ -281,6 +286,12 @@ function SearchPanel({
         <span style={label}>창고</span>
         <input className="ec-input" placeholder="창고명 일부" value={draft.warehouse}
           onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 발주서현황 차례: 발주No. · 내.외자구분 · 창고 · <b>프로젝트</b> · 거래처 · 품목 */}
+        <span style={label}>프로젝트</span>
+        <input className="ec-input" placeholder="프로젝트명 일부" value={draft.project}
+          onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>

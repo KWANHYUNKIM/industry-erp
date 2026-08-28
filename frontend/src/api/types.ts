@@ -1644,6 +1644,9 @@ export interface PurchaseOrder {
   employeeName: string | null
   warehouseId: number | null
   warehouseName: string | null
+  /** 원본 발주서의 [프로젝트]. 발주 시점에는 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
   currency: string | null
   status: PurchaseOrderStatus
   statusName: string

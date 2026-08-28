@@ -32,6 +32,7 @@ export default function PurchaseOrderPage() {
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [tab, setTab] = useState<Tab>('전체')
@@ -39,6 +40,8 @@ export default function PurchaseOrderPage() {
   const [error, setError] = useState('')
   const [orderNoCond, setOrderNoCond] = useState('')
   const [whCond, setWhCond] = useState('')
+  /* 원본 발주서 조건 차례: 발주No. · 내.외자구분 · 창고 · <b>프로젝트</b> · 거래처 · 품목. */
+  const [projCond, setProjCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const condPickers = useCondPickers(['warehouses', 'partners', 'items'])
@@ -59,6 +62,7 @@ export default function PurchaseOrderPage() {
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'CUSTOMER'))).catch(() => {})
     api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
     api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
     api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])
@@ -73,9 +77,10 @@ export default function PurchaseOrderPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
+    .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
-    [rows, tab, orderNoCond, whCond, partnerCond, itemCond])
+    [rows, tab, orderNoCond, whCond, projCond, partnerCond, itemCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -177,6 +182,11 @@ export default function PurchaseOrderPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={condPickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond}
+                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
@@ -291,7 +301,7 @@ export default function PurchaseOrderPage() {
         </tbody>
       </table>
 
-      {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
+      {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} projects={projects} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
       {pricing && <PriceForm order={pricing} onClose={() => setPricing(null)} onSaved={() => { setPricing(null); flash('단가를 확정했습니다.'); load() }} />}
     </EcListShell>
   )
@@ -365,15 +375,18 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   )
 }
 
-function PurchaseOrderForm({ items, partners, employees, warehouses, currencies, onClose, onSaved }: {
-  items: Item[]; partners: Partner[]; employees: EmployeeMaster[]; warehouses: Warehouse[]; currencies: Currency[]
+function PurchaseOrderForm({ items, partners, employees, warehouses, projects, currencies, onClose, onSaved }: {
+  items: Item[]; partners: Partner[]; employees: EmployeeMaster[]; warehouses: Warehouse[]
+  projects: { id: number; code: string; name: string }[]; currencies: Currency[]
   onClose: () => void; onSaved: () => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [orderDate, setOrderDate] = useState(today())
   const [dueDate, setDueDate] = useState('')
   const [employeeId, setEmployeeId] = useState('')   // 담당자
-  const [warehouseId, setWarehouseId] = useState('') // 창고
+  const [warehouseId, setWarehouseId] = useState('') // 입고창고
+  /* 원본 발주서입력의 [프로젝트]. 발주 단계가 빠져 프로젝트별 손익에 안 잡혔다. */
+  const [projectId, setProjectId] = useState('')
   const [currency, setCurrency] = useState('KRW')    // 통화
   const [taxable, setTaxable] = useState(true)   // 거래유형: 부가세율 적용 / 면세
   const [remark, setRemark] = useState('')       // 참조
@@ -414,6 +427,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
         partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
         employeeId: employeeId ? Number(employeeId) : undefined,
         warehouseId: warehouseId ? Number(warehouseId) : undefined,
+        projectId: projectId ? Number(projectId) : undefined,
         currency,
         taxable, remark: remark || undefined, lines: payload,
       })
@@ -449,7 +463,8 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                     {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>발주일</th>
+                {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
+                <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
                 <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
@@ -475,9 +490,10 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                     <option value="FREE">면세</option>
                   </select>
                 </td>
-                <th style={{ background: '#f5f7fa' }}>창고</th>
+                {/* 원본 발주서입력의 이름은 [창고]가 아니라 <b>[입고창고]</b> 다 — 목록 상세도 그렇게 적는다. */}
+                <th style={{ background: '#f5f7fa' }}>입고창고</th>
                 <td>
-                  <CodePickerField label="창고" hideLabel width={150} emptyLabel="창고 선택"
+                  <CodePickerField label="입고창고" hideLabel width={150} emptyLabel="창고 선택"
                                    value={warehouseId} onChange={setWarehouseId}
                                    items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
@@ -492,6 +508,15 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                 </td>
                 <th style={{ background: '#f5f7fa' }}>참조</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
+              </tr>
+              <tr>
+                {/* 원본 발주서입력 차례의 <b>맨 뒤</b>가 [프로젝트]다(사본 실측). */}
+                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <td colSpan={3}>
+                  <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="선택 안 함"
+                                   value={projectId} onChange={setProjectId}
+                                   items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
               </tr>
             </tbody>
           </table>

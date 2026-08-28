@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.erp.common.BaseTimeEntity;
 import com.erp.hr.domain.Employee;
+import com.erp.inventory.domain.Project;
 import com.erp.inventory.domain.Warehouse;
 
 /**
@@ -53,6 +54,15 @@ public class PurchaseOrder extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id")
     private Warehouse warehouse;
+
+    /**
+     * 원본 발주서의 [프로젝트]. 프로젝트별 손익은 판매·구매·비용 전표를 프로젝트로 모아 내는데
+     * <b>발주 단계가 빠져</b> 어느 프로젝트로 주문한 것인지 입고된 뒤에야 알 수 있었다.
+     * 발주 시점에는 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 
     /** 통화 코드 (내자=KRW, 외화=USD 등) */
     @Column(nullable = false, length = 10)

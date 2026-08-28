@@ -805,6 +805,16 @@ async function scenarioQuotationWarehouseProject(f) {
   eq('견적서가 창고를 문다', q.warehouseName, f.warehouse.name)
   eq('견적서가 프로젝트를 문다', q.projectName, proj.name)
 
+  /* 발주서도 같은 칸을 물게 했다 — 여기서 같이 잰다(둘 다 프로젝트별 손익의 원자료다). */
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, projectId: proj.id,
+    orderDate: '2026-03-02', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 5, unitPrice: 1000 }],
+  })
+  eq('발주서가 프로젝트를 문다', po.projectName, proj.name)
+  const poAgain = (await must('GET', '/purchase-orders')).find((x) => x.id === po.id)
+  eq('다시 조회해도 발주의 프로젝트가 남아 있다', poAgain?.projectName, proj.name)
+
   const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
     `${again?.warehouseName}/${again?.projectName}`, `${f.warehouse.name}/${proj.name}`)
