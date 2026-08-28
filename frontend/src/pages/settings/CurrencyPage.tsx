@@ -106,13 +106,18 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화코드')}>통화코드 {sort.mark('통화코드')}</th>
-          <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
+          {/*
+            원본 외화등록의 열 이름은 <b>외화코드 · 외화명 · 환율 · 사용구분</b> 이다(사본 실측).
+            우리는 넷 다 [통화…] 로 부르고 있었다 — 같은 것을 두 이름으로 부르면
+            원본을 쓰던 사람이 매번 되짚어야 한다. 정렬 열쇠는 그대로 둔다(화면에 안 보인다).
+          */}
+          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화코드')}>외화코드 {sort.mark('통화코드')}</th>
+          <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>외화명 {sort.mark('통화명')}</th>
           <th style={{ width: 70, textAlign: 'center' }}>기호</th>
           <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 150, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('최근 고시환율')}>최근 고시환율 {sort.mark('최근 고시환율')}</th>
+          <th style={{ width: 150, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('최근 고시환율')}>환율 {sort.mark('최근 고시환율')}</th>
           <th style={{ width: 110 }}>고시일</th>
-          <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+          <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용구분 {sort.mark('사용')}</th>
         </tr>
       </thead>
       <tbody>

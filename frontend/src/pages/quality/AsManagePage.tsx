@@ -246,8 +246,9 @@ export default function AsManagePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수번호')}>접수번호 {sort.mark('접수번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
-            <th>담당</th><th style={{ textAlign: 'center' }}>상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수번호')}>접수번호 {sort.mark('접수번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
+            {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
+            <th>담당자명</th><th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
