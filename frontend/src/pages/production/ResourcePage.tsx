@@ -60,6 +60,13 @@ export default function ResourcePage() {
    * 보기가 있고 [사용]이 켜진 채 뜬다. 공정등록·BOR 도 같은 모양이다.
    */
   const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
+  /*
+   * 원본 자원등록의 조건은 <b>자원코드 · 자원명 · 위치 · 작업 · 사용구분</b> 이다(사본 실측).
+   * [작업]이 없었다 — 대상작업이 표에 찍히는데 그것으로 모아 볼 수가 없었다.
+   * [사용구분]은 아래 알약이 하는 일인데 <b>이름표가 없어</b> 무엇을 고르는지 안 보였다.
+   */
+  const [locCond, setLocCond] = useState('')
+  const [opCond, setOpCond] = useState('')
 
   async function load() {
     setLoading(true)
@@ -116,6 +123,8 @@ export default function ResourcePage() {
   const shownRows = rows
     .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
     .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
+    .filter((r) => !locCond || (r.warehouseName ?? '').includes(locCond))
+    .filter((r) => !opCond || (r.processName ?? '').includes(opCond))
 
   /*
    * 사본 자원등록의 격자는 <b>자원코드·자원명·위치·대상작업</b> 네 칸에 정렬 표시를 단다.
@@ -183,7 +192,18 @@ export default function ResourcePage() {
         원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
         마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
       */}
-      <div className="ec-pills" style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        {/* 원본 조건 차례: 자원코드 · 자원명 · <b>위치 · 작업</b> · 사용구분 */}
+        <span>위치</span>
+        <input className="ec-input" value={locCond} onChange={(e) => setLocCond(e.target.value)}
+               placeholder="창고명 일부" style={{ width: 150 }} />
+        <span>작업</span>
+        <input className="ec-input" value={opCond} onChange={(e) => setOpCond(e.target.value)}
+               placeholder="작업명 일부" style={{ width: 150 }} />
+      </div>
+
+      <div className="ec-pills" style={{ marginBottom: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>사용구분</span>
         {(['전체', '사용', '사용중단'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
                   onClick={() => setUseTab(t)}>{t}</button>

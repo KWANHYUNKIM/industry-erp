@@ -39,6 +39,18 @@ export default function SurveyPage() {
    * (전체공개·일부공개·비공개). 우리는 제목·작성자로만 걸렀다 —
    * <b>외부 설문만</b> 이나 <b>비공개 설문만</b> 을 보려면 눈으로 골라야 했다.
    */
+  /*
+   * 원본 설문조사조회의 조건 차례는 <b>작성일 · 설문종료일 · 설문대상구분 ·
+   * 제목 · 작성자 · 게시글번호</b> 다(사본 실측). 우리는 둘뿐이었는데
+   * 다섯 값이 다 표에 찍히고 있었다 — 보이면서도 거를 수가 없었다.
+   */
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [endFrom, setEndFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
+  const [titleCond, setTitleCond] = useState('')
+  const [writerCond, setWriterCond] = useState('')
+  const [postNoCond, setPostNoCond] = useState('')
   const [scope, setScope] = useState('')
   const [visibility, setVisibility] = useState('')
   const [error, setError] = useState('')
@@ -79,8 +91,16 @@ export default function SurveyPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? '').includes(keyword))
     .filter((r) => !scope || r.targetScope === scope)
-    .filter((r) => !visibility || r.resultVisibility === visibility),
-    [rows, tab, keyword, scope, visibility])
+    .filter((r) => !visibility || r.resultVisibility === visibility)
+    .filter((r) => !madeFrom || dateOf(r.createdAt) >= madeFrom)
+    .filter((r) => !madeTo || dateOf(r.createdAt) <= madeTo)
+    .filter((r) => !endFrom || dateOf(r.endAt) >= endFrom)
+    .filter((r) => !endTo || dateOf(r.endAt) <= endTo)
+    .filter((r) => !titleCond || r.title.includes(titleCond))
+    .filter((r) => !writerCond || (r.writerName ?? '').includes(writerCond))
+    .filter((r) => !postNoCond || String(r.postNo).includes(postNoCond)),
+    [rows, tab, keyword, scope, visibility, madeFrom, madeTo, endFrom, endTo,
+      titleCond, writerCond, postNoCond])
 
   const tabCount = (t: Tab) => (t === '전체' ? rows.length : rows.filter((r) => r.status === TAB_STATUS[t]).length)
 
@@ -102,6 +122,17 @@ export default function SurveyPage() {
 
       {/* 원본 조건의 [설문대상구분]·[결과공개범위]. 보기 이름도 원본 그대로다. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 차례: <b>작성일 · 설문종료일</b> · 설문대상구분 · 제목 · 작성자 · 게시글번호 */}
+        <EcCond label="작성일">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="설문종료일">
+          <input type="date" className="ec-input" value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="설문대상구분">
           <div className="ec-pills">
             {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
@@ -117,6 +148,15 @@ export default function SurveyPage() {
                       onClick={() => setVisibility(v)}>{l}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="제목">
+          <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="작성자">
+          <input className="ec-input" value={writerCond} onChange={(e) => setWriterCond(e.target.value)} style={{ width: 130 }} />
+        </EcCond>
+        <EcCond label="게시글번호">
+          <input className="ec-input" value={postNoCond} onChange={(e) => setPostNoCond(e.target.value)} style={{ width: 110 }} />
         </EcCond>
       </ul>
 
