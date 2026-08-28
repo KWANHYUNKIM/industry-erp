@@ -34,6 +34,16 @@ export default function DefectReportPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 불량률파악보고서 조건 차례: 창고 · 프로젝트 · <b>담당자</b> · 불량유형 · <b>처리방법</b>.
+   *
+   * <p>[담당자]는 <b>검사자</b>다 — 누가 본 검사만 추릴 수 있어야 한다.
+   * [처리방법]은 불량을 <b>불량처리로 뺐나 폐기로 뺐나</b> 다(재고조정의 갈래).
+   * 둘 다 원자료에는 있는데 <b>합친 뒤라 화면에서 거를 수가 없었다</b> —
+   * 합치기 전에 건다. [창고]·[프로젝트]·[불량유형]은 품질검사에 그 값이 없다.
+   */
+  const [inspectorCond, setInspectorCond] = useState('')
+  const [handleCond, setHandleCond] = useState<'전체' | '불량' | '폐기'>('전체')
 
   async function load() {
     setLoading(true); setError('')
@@ -58,12 +68,15 @@ export default function DefectReportPage() {
     }
     for (const q of inspections) {
       if (!inPeriod(q.inspectionDate)) continue
+      if (inspectorCond && (q.inspector ?? '') !== inspectorCond) continue
       const r = get(q.itemId, q.itemCode, q.itemName, q.unit)
       r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
     }
     for (const a of adjustments) {
       if (!inPeriod(a.adjustDate)) continue
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
+      if (handleCond === '불량' && a.type !== 'DEFECT') continue
+      if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
       const r = get(a.itemId, a.itemCode, a.itemName, a.unit)
       const qty = Math.abs(a.quantityChange)
       if (a.type === 'DEFECT') r.defectHandled += qty
@@ -75,7 +88,7 @@ export default function DefectReportPage() {
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
-  }, [inspections, adjustments, from, to, keyword])
+  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
@@ -105,6 +118,23 @@ export default function DefectReportPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          {/*
+            마스터를 고르는 칸은 코드도움이다. 다만 검사자는 <b>사원 마스터를 물지 않고</b>
+            검사에 이름으로 적히므로, 후보를 <b>실제로 검사한 사람들</b>에서 뽑는다 —
+            사원 목록에서 뽑으면 고를 수 있는데 아무것도 안 나오는 이름이 섞인다.
+          */}
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={inspectorCond} onChange={setInspectorCond}
+                           items={[...new Set(inspections.map((q) => q.inspector).filter(Boolean))]
+                             .map((n) => ({ value: n as string, name: n as string }))} />
+        </EcCond>
+        <EcCond label="처리방법">
+          <select className="ec-input" value={handleCond} style={{ width: 100 }}
+                  onChange={(e) => setHandleCond(e.target.value as '전체' | '불량' | '폐기')}>
+            <option>전체</option><option>불량</option><option>폐기</option>
+          </select>
         </EcCond>
       </EcStatusPanel>
 

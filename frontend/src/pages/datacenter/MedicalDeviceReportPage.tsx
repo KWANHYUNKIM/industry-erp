@@ -54,6 +54,11 @@ export default function MedicalDeviceReportPage() {
   const [to, setTo] = useState(today)
   const [supplyType, setSupplyType] = useState('')
   const [partnerId, setPartnerId] = useState('')
+  /*
+   * 원본 의료기기공급내역보고 조건에 <b>[품목]</b> 이 있다(사본 실측). 공급내역은 품목별로
+   * 줄이 서는데 그것으로 거를 수가 없어, 한 기기의 공급만 보려면 표를 눈으로 훑어야 했다.
+   */
+  const [itemCond, setItemCond] = useState('')
   const [reportMonth, setReportMonth] = useState(thisMonth())
 
   const [lines, setLines] = useState<SupplyLine[]>([])
@@ -84,12 +89,15 @@ export default function MedicalDeviceReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const shownLines = useMemo(() => lines.filter((l) => !itemCond || l.itemName === itemCond), [lines, itemCond])
+
+  /* 요약도 걸러진 것으로 낸다 — 한 기기만 보면서 건수가 전체이면 숫자가 거짓말을 한다. */
   const summary = useMemo(() => ({
-    count: lines.length,
-    qty: lines.reduce((a, l) => a + Number(l.quantity), 0),
-    out: lines.filter((l) => l.supplyType === 'OUT').length,
-    disposal: lines.filter((l) => l.supplyType === 'DISPOSAL').length,
-  }), [lines])
+    count: shownLines.length,
+    qty: shownLines.reduce((a, l) => a + Number(l.quantity), 0),
+    out: shownLines.filter((l) => l.supplyType === 'OUT').length,
+    disposal: shownLines.filter((l) => l.supplyType === 'DISPOSAL').length,
+  }), [shownLines])
 
   async function generate() {
     setBusy(true); setError(''); setNotice('')
@@ -144,6 +152,9 @@ export default function MedicalDeviceReportPage() {
           </select></label>
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
                          items={partnerCodeItems(partners)} />
+        <CodePickerField label="품목" value={itemCond} onChange={setItemCond} width={170}
+                         items={[...new Map(lines.map((l) => [l.itemCode, l])).values()]
+                           .map((l) => ({ value: l.itemName, code: l.itemCode, name: l.itemName }))} />
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <label style={{ fontSize: 12.5 }}>{label('보고기준월')}
@@ -182,11 +193,11 @@ export default function MedicalDeviceReportPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : lines.length === 0 ? (
+          ) : shownLines.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               보고 대상 공급내역이 없습니다. 품목등록에서 UDI-DI 를 입력한 품목의 판매·폐기만 집계됩니다.
             </td></tr>
-          ) : lines.map((l, i) => (
+          ) : shownLines.map((l, i) => (
             <tr key={`${l.supplyType}-${l.docNo}-${l.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{l.supplyDate}</td>
