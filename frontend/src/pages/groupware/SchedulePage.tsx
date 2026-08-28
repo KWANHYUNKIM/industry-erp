@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -57,6 +58,12 @@ export default function SchedulePage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 일정관리 조건 차례: 기준일자 · 참석자 · <b>제목</b> · <b>장소</b> · 일정구분 …
+   * 둘 다 목록에 찍히는데 거를 수가 없었다 — "회의실 A 에서 잡힌 것" 을 못 골랐다.
+   */
+  const [titleCond, setTitleCond] = useState('')
+  const [placeCond, setPlaceCond] = useState('')
   /** 캘린더에서 고른 날. 빈 문자열이면 고른 날 없음 = 전체 보기. */
   const [pickedDate, setPickedDate] = useState('')
   /** 원본 하단 [선택삭제] 는 고른 행을 한꺼번에 지운다. 고르는 방식은 회색 행번호 칸 클릭 — 다른 목록과 같다. */
@@ -124,6 +131,8 @@ export default function SchedulePage() {
       || (calendar === '내 캘린더' ? isMine(r) : !otherOwner || (r.createdBy ?? '') === otherOwner))
     // 달력에서 고른 날이 있으면 그날만. 없으면 전체 — 원본도 같은 규칙이다.
     .filter((r) => !pickedDate || r.eventDate === pickedDate)
+    .filter((r) => !titleCond || r.title.includes(titleCond))
+    .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
     .filter((r) => !keyword
       || r.title.includes(keyword)
       || (r.owner ?? '').includes(keyword)
@@ -222,6 +231,17 @@ export default function SchedulePage() {
               ? `${pickedDate.replace(/-/g, '/')} (${DOW[new Date(pickedDate).getDay()]})`
               : '전체 기간'}
           </div>
+          {/* 원본 차례: 참석자 · 제목 · 장소 — 참석자는 등록 폼의 칸이라 조건 판에는 둘이다. */}
+          <ul className="ec-cond" style={{ marginBottom: 6 }}>
+            <EcCond label="제목">
+              <input className="ec-input" value={titleCond} placeholder="제목"
+                     onChange={(e) => setTitleCond(e.target.value)} style={{ width: 160 }} />
+            </EcCond>
+            <EcCond label="장소">
+              <input className="ec-input" value={placeCond} placeholder="장소"
+                     onChange={(e) => setPlaceCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+          </ul>
           <table className="w-full text-left">
             {/* 원본 실측 폭(25·100·55·55·160·300·170 = 865)을 비율로 옮겼다.
                 고정 px 로 두면 우리 목록 칸이 더 넓어서 제목만 늘어나고 비율이 깨진다. */}

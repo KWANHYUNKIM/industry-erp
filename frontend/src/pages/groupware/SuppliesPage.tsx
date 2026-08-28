@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -62,6 +63,14 @@ export default function SuppliesPage() {
   const [ok, setOk] = useState('')
   const [view, setView] = useState<View>('기본')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 공용품관리 조건 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 ·
+   * <b>제목</b> · <b>적요</b> · <b>반납여부</b>.
+   * 셋 다 표에는 찍는데 <b>거를 수가 없었다</b> — 안 돌려준 것만 보려 해도 눈으로 훑어야 했다.
+   */
+  const [titleCond, setTitleCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [returnCond, setReturnCond] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const today = ymd(new Date())
@@ -164,7 +173,11 @@ export default function SuppliesPage() {
   const toggle = (id: number) =>
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
-  const shown = rows.filter((r) => !keyword
+  const shown = rows
+    .filter((r) => !titleCond || r.title.includes(titleCond))
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !returnCond || r.returnStatusName === returnCond)
+    .filter((r) => !keyword
     || r.title.includes(keyword)
     || r.supplyItemName.includes(keyword)
     || r.userName.includes(keyword)
@@ -304,12 +317,30 @@ export default function SuppliesPage() {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 130 }} />
             <span style={{ color: 'var(--ec-label)' }}>~</span>
             <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 130 }} />
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>
           </div>
+
+          {/* 원본 차례: … 라벨 · 제목 · 적요 · 반납여부 */}
+          <ul className="ec-cond" style={{ marginBottom: 6 }}>
+            <EcCond label="제목">
+              <input className="ec-input" value={titleCond} placeholder="제목"
+                     onChange={(e) => setTitleCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+            <EcCond label="적요">
+              <input className="ec-input" value={remarkCond} placeholder="적요"
+                     onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+            <EcCond label="반납여부">
+              <select className="ec-input" value={returnCond} onChange={(e) => setReturnCond(e.target.value)} style={{ width: 100 }}>
+                <option value="">전체</option>
+                {[...new Set(rows.map((r) => r.returnStatusName))].map((n) => <option key={n}>{n}</option>)}
+              </select>
+            </EcCond>
+          </ul>
 
           <table className="w-full text-left">
             <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>

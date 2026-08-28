@@ -59,6 +59,7 @@ export default function AsManagePage() {
   const [schedFrom, setSchedFrom] = useState('')
   const [schedTo, setSchedTo] = useState('')
   const [titleCond, setTitleCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
 
   const [partnerId, setPartnerId] = useState('')
   const [itemId, setItemId] = useState('')
@@ -155,6 +156,7 @@ export default function AsManagePage() {
     .filter((r) => !schedFrom || (r.scheduledDate ?? '') >= schedFrom)
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
+    .filter((r) => !itemCond || r.itemName.includes(itemCond))
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
@@ -271,6 +273,9 @@ export default function AsManagePage() {
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: '#9aa1ab' }}>~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ marginLeft: 8 }}>품목</span>
+        <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
+               placeholder="품목" style={{ width: 150 }} />
         <span style={{ marginLeft: 8 }}>담당자</span>
         <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
                placeholder="담당자" style={{ width: 150 }} />

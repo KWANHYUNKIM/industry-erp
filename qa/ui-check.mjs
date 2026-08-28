@@ -3522,6 +3522,52 @@ console.log('\n■ 자료 없음 문구가 화면에 그려지는 그 목록을 
   eq(`자료 없음 문구 ${checked}개가 그려지는 그 목록을 본다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-s) 표에는 찍는데 거를 수는 없는 값 ─────────────────────────────────
+console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 있나')
+
+/*
+ * <b>보이는데 못 고른다.</b> 원본이 그 이름을 화면 머리의 조건으로 두는데 우리는
+ * 표의 열로만 갖고 있으면, 그 값으로 좁힐 길이 없어 목록 전체를 눈으로 훑어야 한다.
+ * 열이 늘수록, 행이 늘수록 더 나빠진다.
+ *
+ * <p>이 구멍이 여태 안 보인 것은 <b>한 파일이 입력 화면과 조회 화면을 겸하기</b>
+ * 때문이다 — 조건 검사는 이름표만 찾는데, 입력 폼의 <code>&lt;th&gt;제목&lt;/th&gt;</code> 이
+ * 조회 화면의 조건 자리를 대신 채워 줬다. A/S접수에 [제목]·[수리예정일자] 를 만들고도
+ * <b>거르는 길을 안 냈는데 검사가 초록불이었다.</b>
+ *
+ * <p>그래서 여기서는 <b>&lt;thead&gt; 안의 열머리만</b> 센다(입력 폼의 &lt;th&gt; 는 이름표다).
+ * 화면 이름에 입력·작성·등록·생성·선택이 든 것은 통째로 건너뛴다 — 그 이름들은
+ * 거르는 조건이 아니라 <b>채워 넣는 칸</b>이다.
+ */
+{
+  const FIELDS = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
+  const MISS_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const bad = []
+  let checked = 0
+  for (const [screen, names] of Object.entries(FIELDS)) {
+    const rel = MISS_MAP.get(screen)
+    if (!rel) continue
+    if (/입력|작성|등록|생성|선택/.test(screen)) continue
+    const src = pageSource(rel)
+    const flat = src.replace(/\s*\n\s*/g, '')
+    const thead = (flat.match(/<thead>[\s\S]*?<\/thead>/g) ?? []).join('')
+    const heads = new Set([...thead.matchAll(/<th\b[^>]*>([^<{]{1,14})<\/th>/g)].map((m) => m[1].trim()))
+    for (const n of names) {
+      if (!heads.has(n)) continue
+      checked++
+      const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
+        + '</span>[^<]{0,4}<(input|select)')
+      if (!asCond.test(flat)) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
+    }
+  }
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-see-only.json'), 'utf8'))
+  const grown = bad.filter((x) => !TODO.includes(x))
+  const gone = TODO.filter((x) => !bad.includes(x))
+  eq(`원본이 조건으로도 두는 열 ${checked}개 가운데 새로 못 거르게 된 것이 없다`,
+    grown.join('\n') || '없음', '없음')
+  eq('만들어 놓고 목록에 남겨 둔 것이 없다', gone.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
