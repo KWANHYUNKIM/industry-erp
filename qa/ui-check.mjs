@@ -1217,8 +1217,8 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    * <b>없는 것으로</b> 본다 — 실제로 네 열(판매입력·판매입력II 의 [수량], 구매입력·
    * 구매조회 의 [기본수량])이 그렇게 빠진 것으로 잡혔다. 따옴표 안의 이름도 본다.
    */
-  const thFor = (head, name) => head.match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
-    || head.match(new RegExp('<th([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*</th>'))
+  const thFor = (head, name) => head.match(new RegExp('<th\\b([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
+    || head.match(new RegExp('<th\\b([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*</th>'))
   const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
     : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
 
@@ -1448,6 +1448,20 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
    */
   const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
     .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
+  /*
+   * 머리 칸 하나가 <b>내걸 수 있는 이름</b>. 보통은 flat 한 글자 하나지만, 이름을
+   * <b>삼항으로 적은 칸</b>은 flat 하면 빈 글자가 되어 그 열이 통째로 사라진다
+   * (판매입력 [수량] ↔ 구매입력 [기본수량] 처럼 원본이 화면마다 달리 부르는 칸이다).
+   * 그런 칸은 따옴표 안의 글자를 모두 후보로 둔다.
+   */
+  const thNames = (s) => {
+    const plain = flat(s)
+    if (plain) return [plain]
+    /* 빈 칸이 <b>둘레의 글자</b>를 주워 오지 않게, 식으로 적은 칸만 본다. */
+    const expr = s.match(/\{[^{}]*\}/)
+    if (!expr) return []
+    return [...expr[0].matchAll(/'([^']{1,20})'/g)].map((m) => flat(m[1])).filter(Boolean)
+  }
   /** 차례를 견줄 수 없는 화면 — 왜인지 적는다. */
   const ORDER_SKIP = new Map([
     ['생산불출조회',
@@ -1466,12 +1480,12 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
-      hit: names.filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
+      hit: names.filter((n) => new RegExp('<th\\b[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
-    const ours = [...noArrow(scored[0].head).matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1]))
-    const want = names.map(flat).filter((n) => ours.includes(n))
-    const got = ours.filter((n) => want.includes(n))
+    const ours = [...noArrow(scored[0].head).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => thNames(m[1]))
+    const want = names.map(flat).filter((n) => ours.some((c) => c.includes(n)))
+    const got = ours.map((c) => c.find((x) => want.includes(x))).filter(Boolean)
     checked += want.length
     if (want.join(' ') !== got.join(' ')) {
       bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
@@ -1508,6 +1522,20 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
    */
   const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
     .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
+  /*
+   * 머리 칸 하나가 <b>내걸 수 있는 이름</b>. 보통은 flat 한 글자 하나지만, 이름을
+   * <b>삼항으로 적은 칸</b>은 flat 하면 빈 글자가 되어 그 열이 통째로 사라진다
+   * (판매입력 [수량] ↔ 구매입력 [기본수량] 처럼 원본이 화면마다 달리 부르는 칸이다).
+   * 그런 칸은 따옴표 안의 글자를 모두 후보로 둔다.
+   */
+  const thNames = (s) => {
+    const plain = flat(s)
+    if (plain) return [plain]
+    /* 빈 칸이 <b>둘레의 글자</b>를 주워 오지 않게, 식으로 적은 칸만 본다. */
+    const expr = s.match(/\{[^{}]*\}/)
+    if (!expr) return []
+    return [...expr[0].matchAll(/'([^']{1,20})'/g)].map((m) => flat(m[1])).filter(Boolean)
+  }
   /** 원본에 있지만 우리에게 없는 열 — 왜 없는지 적는다. 이유 없이 늘리지 말 것. */
   const NO_COLUMN = new Map([
     ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
@@ -1617,7 +1645,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     if (PENDING.has(screen)) { pending++; continue }
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
-    const ours = new Set([...noArrow(src).matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
+    const ours = new Set([...noArrow(src).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
     for (const name of Object.keys(cols)) {
       const exempt = NO_COLUMN.has(screen + '|' + name)
       if (!exempt) checked++
@@ -2351,6 +2379,20 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
    */
   const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
     .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
+  /*
+   * 머리 칸 하나가 <b>내걸 수 있는 이름</b>. 보통은 flat 한 글자 하나지만, 이름을
+   * <b>삼항으로 적은 칸</b>은 flat 하면 빈 글자가 되어 그 열이 통째로 사라진다
+   * (판매입력 [수량] ↔ 구매입력 [기본수량] 처럼 원본이 화면마다 달리 부르는 칸이다).
+   * 그런 칸은 따옴표 안의 글자를 모두 후보로 둔다.
+   */
+  const thNames = (s) => {
+    const plain = flat(s)
+    if (plain) return [plain]
+    /* 빈 칸이 <b>둘레의 글자</b>를 주워 오지 않게, 식으로 적은 칸만 본다. */
+    const expr = s.match(/\{[^{}]*\}/)
+    if (!expr) return []
+    return [...expr[0].matchAll(/'([^']{1,20})'/g)].map((m) => flat(m[1])).filter(Boolean)
+  }
 
   const bad = []
   let checked = 0
@@ -2369,14 +2411,14 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
        * <code>s*</code> 는 빈 것도 맞아 대부분 통했지만, <b>공백이 든 머리</b>는 못 짚어
        * 그 화면의 표를 통째로 건너뛰었다. 보기 이름 쪽과 같은 함정이다.
        */
-      hit: names.filter((n) => new RegExp(String.raw`<th[^>]*>\s*${esc(n)}\s*${MARK_TAIL}\s*</th>`).test(noArrow(h[0]))).length,
+      hit: names.filter((n) => new RegExp(String.raw`<th\b[^>]*>\s*${esc(n)}\s*${MARK_TAIL}\s*</th>`).test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
 
     const widths = new Map()
-    for (const m of noArrow(scored[0].head).matchAll(/<th([^>]*)>([\s\S]*?)<\/th>/g)) {
+    for (const m of noArrow(scored[0].head).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)) {
       const w = m[1].match(/width:\s*(\d+)/)
-      if (w) widths.set(flat(m[2]), Number(w[1]))
+      if (w) for (const n of thNames(m[2])) widths.set(n, Number(w[1]))
     }
     /*
      * 양쪽 다 폭을 못 박은 열끼리만 견준다. 폭을 안 박은 열은 늘어나므로
