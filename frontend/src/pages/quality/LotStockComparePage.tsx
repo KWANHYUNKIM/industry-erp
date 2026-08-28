@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Lot, StockRow } from '../../api/types'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 II > 시리얼/로트No. > 품목vs시리얼재고수량비교 (이카운트 E041018)
@@ -23,47 +25,62 @@ interface Row {
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function LotStockComparePage() {
-  const [rows, setRows] = useState<Row[]>([])
+  /*
+   * 받아 온 자료를 <b>그대로 둔다.</b> 예전에는 load() 안에서 품목별로 세어 Row 만
+   * 남겼는데, 그러면 조건이 바뀌어도 다시 셀 수가 없다 — 원본이 두는 [창고] 조건을
+   * 달려면 <b>창고를 고를 때마다 다시 세야</b> 한다.
+   */
+  const [stocks, setStocks] = useState<StockRow[]>([])
+  const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [diffOnly, setDiffOnly] = useState(false)
+  /* 원본 조건에 <b>[창고]</b> 가 있다(사본 실측). 재고도 로트도 창고를 달고 온다. */
+  const [warehouse, setWarehouse] = useState('')
+  const pickers = useCondPickers(['warehouses'])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, l] = await Promise.all([
+      const [s2, l] = await Promise.all([
         api.get<StockRow[]>('/stock'),
         api.get<Lot[]>('/lots'),
       ])
-      // 품목별 집계
-      const map = new Map<number, Row>()
-      const ensure = (itemId: number, code: string, name: string, unit: string): Row => {
-        let r = map.get(itemId)
-        if (!r) { r = { itemId, itemCode: code, itemName: name, unit, itemStock: 0, lotStock: 0, lotCount: 0, diff: 0 }; map.set(itemId, r) }
-        return r
-      }
-      // 로트가 있는 품목만 대상(로트 추적 품목)
-      for (const lot of l.data) {
-        const r = ensure(lot.itemId, lot.itemCode, lot.itemName, lot.unit)
-        r.lotStock += lot.stockQty
-        if (lot.stockQty > 0) r.lotCount += 1
-      }
-      // 품목재고(창고 합계)를 로트 추적 품목에만 더한다
-      for (const st of s.data) {
-        const r = map.get(st.itemId)
-        if (r) r.itemStock += st.quantity
-      }
-      const out = [...map.values()].map((r) => ({ ...r, diff: r.itemStock - r.lotStock }))
-      out.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || a.itemName.localeCompare(b.itemName))
-      setRows(out)
+      setStocks(s2.data); setLots(l.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
+
   useEffect(() => { load() }, [])
+
+  const rows = useMemo<Row[]>(() => {
+    const keep = (name: string | null) => !warehouse || (name ?? '').includes(warehouse)
+    const map = new Map<number, Row>()
+    const ensure = (itemId: number, code: string, name: string, unit: string): Row => {
+      let r = map.get(itemId)
+      if (!r) { r = { itemId, itemCode: code, itemName: name, unit, itemStock: 0, lotStock: 0, lotCount: 0, diff: 0 }; map.set(itemId, r) }
+      return r
+    }
+    // 로트가 있는 품목만 대상(로트 추적 품목)
+    for (const lot of lots) {
+      if (!keep(lot.warehouseName)) continue
+      const r = ensure(lot.itemId, lot.itemCode, lot.itemName, lot.unit)
+      r.lotStock += lot.stockQty
+      if (lot.stockQty > 0) r.lotCount += 1
+    }
+    // 품목재고(창고 합계)를 로트 추적 품목에만 더한다
+    for (const st of stocks) {
+      if (!keep(st.warehouseName)) continue
+      const r = map.get(st.itemId)
+      if (r) r.itemStock += st.quantity
+    }
+    return [...map.values()].map((r) => ({ ...r, diff: r.itemStock - r.lotStock }))
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || a.itemName.localeCompare(b.itemName))
+  }, [stocks, lots, warehouse])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -87,6 +104,13 @@ export default function LotStockComparePage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
+      {/* 원본 조건: <b>[창고]</b> — 창고를 고르면 그 창고의 재고와 로트만 다시 센다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>창고</span>
+        <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                         value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+      </div>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>

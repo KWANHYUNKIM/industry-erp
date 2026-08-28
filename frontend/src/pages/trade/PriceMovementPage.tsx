@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 단가변동표 (이카운트 E040819)
@@ -26,6 +28,14 @@ export default function PriceMovementPage() {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /*
+   * 원본 단가변동표의 조건 차례는 <b>구분 · 기준일자 · 창고 · 거래처 · 품목 …</b> 다(사본 실측).
+   * 창고·거래처가 없었다 — 같은 품목도 창고나 거래처가 다르면 단가가 다른데,
+   * 그것들을 <b>한 줄로 뭉쳐</b> 평균을 내고 있었다.
+   */
+  const [warehouse, setWarehouse] = useState('')
+  const [partner, setPartner] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners'])
 
   const [mode, setMode] = useState<Mode>('SALE')
   const [from, setFrom] = useState('')
@@ -53,9 +63,11 @@ export default function PriceMovementPage() {
     // (date, itemId, spec, unit, name, price) 포인트 수집
     interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number }
     const pts: Pt[] = []
+    const keep = (wh: string, pt: string) =>
+      (!warehouse || wh.includes(warehouse)) && (!partner || pt.includes(partner))
     const docs = mode === 'SALE'
-      ? sales.map((d) => ({ date: d.saleDate, lines: d.lines }))
-      : purchases.map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+      ? sales.filter((d) => keep(d.warehouseName, d.partnerName)).map((d) => ({ date: d.saleDate, lines: d.lines }))
+      : purchases.filter((d) => keep(d.warehouseName, d.partnerName)).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
     for (const d of docs) {
       if (!inPeriod(d.date)) continue
       for (const l of d.lines) {
@@ -94,7 +106,7 @@ export default function PriceMovementPage() {
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .sort((a, b) => (b.max - b.min) - (a.max - a.min))
-  }, [sales, purchases, items, priceById, mode, from, to, keyword])
+  }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner])
 
   const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
@@ -122,6 +134,17 @@ export default function PriceMovementPage() {
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+        </div>
+        {/* 원본 조건 차례: 구분 · 기준일자 · <b>창고 · 거래처</b> · 품목 … */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>창고</span>
+          <CodePickerField label="창고" hideLabel width={160} emptyLabel="전체"
+                           value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>거래처</span>
+          <CodePickerField label="거래처" hideLabel width={160} emptyLabel="전체"
+                           value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
       </div>
