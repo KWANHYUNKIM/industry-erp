@@ -1333,6 +1333,17 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
 }
 
 // ── 2-i) 원본 화면의 버튼 ↔ 우리 버튼 ─────────────────────────────────────
+/**
+ * 화면마다 똑같이 붙는 껍데기·기간 버튼. <b>있는지 보는 검사와 차례를 보는 검사가</b>
+ * 같은 목록을 써야 한다 — 한쪽만 고치면 두 검사가 서로 다른 화면을 보게 된다.
+ */
+const SHELL_BUTTONS = new Set(['사이트맵', 'Option', '도움말', 'Search(F3)', '찾기(F3)', '다시 작성',
+  '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근30일(+1개월)',
+  '이번기수', '직전기수', '설정', '웹자료올리기', '자동알림', '이력조회',
+  // 기간 빠른선택은 EcPeriodPicks 가 화면마다 같은 규칙으로 그린다.
+  // 어떤 묶음을 쓰는지는 기간 fixture 와 2-f 검사가 따로 본다.
+  '금월', '금년', '전년', '최근3일+7일', '전월+금월', '말일', '금주', '차주', '차월'])
+
 console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나')
 
 /*
@@ -1351,13 +1362,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
 {
   const BTN_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-buttons.json'), 'utf8'))
-  /** 화면마다 똑같이 붙는 껍데기·기간 버튼 */
-  const SHELL = new Set(['사이트맵', 'Option', '도움말', 'Search(F3)', '찾기(F3)', '다시 작성',
-    '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근30일(+1개월)',
-    '이번기수', '직전기수', '설정', '웹자료올리기', '자동알림', '이력조회',
-    // 기간 빠른선택은 EcPeriodPicks 가 화면마다 같은 규칙으로 그린다.
-    // 어떤 묶음을 쓰는지는 기간 fixture 와 2-f 검사가 따로 본다.
-    '금월', '금년', '전년', '최근3일+7일', '전월+금월', '말일', '금주', '차주', '차월'])
+  const SHELL = SHELL_BUTTONS
   /** 원본에 있지만 우리에게 없는 버튼 — 왜 없는지 적는다. */
   const NO_BUTTON = new Map([
 
@@ -1529,6 +1534,136 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     + `, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
     bad.join('\n') || '없음', '없음')
   eq(`버튼 예외 ${NO_BUTTON.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
+}
+
+// ── 2-i2) 버튼의 차례 ────────────────────────────────────────────────────
+console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나')
+
+/*
+ * <b>버튼이 있기만 하면 되는 게 아니다.</b> 조건 차례(2-p)와 열 차례(2-c)는 이미
+ * 보고 있었는데 <b>버튼 차례는 안 봤다.</b> 손이 먼저 기억하는 것이 버튼 자리다 —
+ * 늘 [Excel] 옆이던 [인쇄]가 반대쪽에 가 있으면 매번 눈으로 찾아 읽어야 한다.
+ *
+ * <p>사본에서 뽑은 <code>ecount-buttons.json</code>은 <b>원본 DOM 차례 그대로</b>다.
+ * 우리 화면에 있는 것만 골라 서로의 앞뒤가 같은지 본다(없는 버튼은 건너뛴다).
+ * 껍데기·기간 버튼은 있는지 보는 검사와 <b>같은 목록</b>으로 뺀다.
+ *
+ * <p>자리는 <b>화면 파일 안에서만</b> 잰다. 공용 껍데기(Modal·EcSlipShell)가 그려 주는
+ * 버튼은 화면 파일에 글자가 없어 저절로 빠진다 — 그건 껍데기가 늘 같은 자리에 그린다.
+ */
+{
+  const ORDER_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-buttons.json'), 'utf8'))
+  /** 차례를 아직 못 맞춘 화면 — 왜인지 적는다. */
+  const ORDER_SKIP = new Map([
+    ['거래처리스트',
+      '원본은 등록 폼이 <b>팝업</b>이라 그 [닫기]가 맨 뒤에 선다. 우리 폼은 목록 위에 펴지는'
+      + ' <b>판</b>이라 [닫기]가 단추줄보다 앞에 온다 — 차례가 아니라 폼을 어디에 두느냐의 차이다'],
+    ['결제내역조회',
+      '원본은 [입금보고서작성]이 [신규(F2)]보다 앞에 선다. 우리 EcListShell 은 [신규(F2)]를'
+      + ' <b>단추줄 맨 앞에 고정</b>해 그린다(onNew) — 화면 하나 때문에 껍데기 규칙을 흔들지 않는다'],
+    ['내결재관리',
+      '이 화면은 ApprovalListPage 를 감싼 <b>얇은 껍데기</b>다. [인쇄]·[Excel]만 이 파일에 있고'
+      + ' 나머지는 안쪽 화면에 있어, 파일 자리로 재면 <b>넘겨준 두 개가 늘 앞</b>에 온다.'
+      + ' 실제로 그려지는 자리는 안쪽 화면의 맨 뒤다'],
+    /*
+     * 전표 화면 셋은 <b>차례가 아니라 자리</b>가 다르다. 원본은 [주문]·[발주]·[구매]·[현금지급]을
+     * 격자 위 도구줄에 두는데 우리는 아래 단추줄에 뒀다. 버튼을 옮기는 일이라 따로 본다.
+     */
+    ['판매입력', '원본은 [발주]·[주문]·[현금지급]이 격자 위 도구줄에 있다 — 우리는 아래 단추줄에 뒀다'],
+    ['구매입력', '위와 같음([주문]·[구매]·[현금수금])'],
+    ['판매입력II', '위와 같음([현금수금])'],
+    ['구매조회',
+      '원본 [진행상태변경]은 도구줄 버튼이고 [확인취소]·[반품처리]·[삭제]도 그 옆에 선다.'
+      + ' 우리는 진행상태변경만 아래 단추줄에 두고 나머지 셋은 <b>줄마다</b> 버튼으로 뒀다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [screen, btns] of Object.entries(cap)) {
+    const rel = ORDER_MAP.get(screen)
+    if (!rel || PENDING.has(screen) || ORDER_SKIP.has(screen)) continue
+    const raw = pageSource(rel)
+    if (!raw) continue
+    /*
+     * <b>팝업 안의 버튼은 단추줄이 아니다.</b> 등록 폼(Modal)의 [저장(F8)]·[닫기]는
+     * 목록 위가 아니라 뜬 창 안에 선다 — 목록 버튼들과 앞뒤를 견줄 자리가 아니다.
+     * 사본은 팝업 마크업을 화면 <b>끝</b>에 담고 있어 그대로 재면 늘 어긋난 것처럼 보인다.
+     * 자리를 잴 때는 팝업을 지우고, 팝업에만 있는 버튼은 저절로 빠지게 둔다.
+     */
+    const src = raw.replace(/<Modal\b[\s\S]*?<\/Modal>/g, (m) => ' '.repeat(m.length))
+
+    /*
+     * 전표 화면(EcSlipShell)은 <b>소스 차례와 화면 차례가 뒤집힌다.</b> 아래 단추줄에
+     * 들어갈 목록(<code>actions={footerActions}</code>)을 파일 <b>위쪽</b>에서 만들어 두는데,
+     * 껍데기는 그것을 본문(children) <b>아래</b>에 그린다. 그대로 재면 저장·리스트가
+     * 격자 위 버튼보다 앞선 것으로 보인다. 그 목록 안의 자리는 뒤로 밀어 둔다.
+     */
+    const footerRange = (() => {
+      // actions={footerActions} — 목록을 파일 위쪽에서 따로 만든 경우
+      const named = src.match(/actions=\{(\w+)\}/)
+      if (named) {
+        const i = src.indexOf('const ' + named[1])
+        const j = i < 0 ? -1 : src.indexOf('\n  ]', i)
+        if (j > i && i >= 0) return [i, j]
+      }
+      // actions={[ … ]} — 그 자리에 바로 적은 경우. 대괄호를 세어 끝을 찾는다.
+      const i = src.indexOf('actions={[')
+      if (i < 0) return null
+      let depth = 0
+      for (let k = src.indexOf('[', i); k < src.length; k += 1) {
+        if (src[k] === '[') depth += 1
+        else if (src[k] === ']') { depth -= 1; if (depth === 0) return [i, k] }
+      }
+      return null
+    })()
+
+    /** 그 버튼이 <b>버튼 자리</b>에 처음 나오는 곳(화면에 그려지는 차례로). */
+    const pos = new Map()
+    /*
+     * 같은 이름이 <b>단추줄과 표 안에 둘 다</b> 있으면 단추줄 자리를 쓴다.
+     * 작업내역조회에는 줄마다 [인쇄] 버튼이 있는 <b>열</b>이 따로 있어서, 이른 자리만
+     * 집으면 그 열이 단추줄의 [인쇄] 자리를 가로챈다 — 원본의 toolbar 와 견줄 것은 단추줄이다.
+     */
+    const barPos = new Map()
+    const put = (name, at) => {
+      const k = String(name).replace(/['"\s]+$/, '').trim()
+      if (!k) return
+      const inBar = footerRange && at >= footerRange[0] && at < footerRange[1]
+      const i = inBar ? src.length + at : at
+      if (inBar) { if (!barPos.has(k) || i < barPos.get(k)) barPos.set(k, i) }
+      if (!pos.has(k) || i < pos.get(k)) pos.set(k, i)
+    }
+    // 있는지 보는 검사와 같은 세 모양으로 이름을 읽는다.
+    for (const m of src.matchAll(/\w*[Ll]abel\s*[:=][^\n]{0,160}/g)) {
+      for (const q of m[0].matchAll(new RegExp(String.raw`['"]([^'"]{1,24})['"]`, 'g'))) put(q[1], m.index)
+      for (const q of m[0].matchAll(new RegExp(BTICK + '([^' + BTICK + '$]{1,24})', 'g'))) put(q[1], m.index)
+    }
+    for (const m of src.matchAll(/<button\b[\s\S]{0,400}?<\/button>/g)) {
+      const plain = stripJsx(m[0])
+      if (plain) put(plain, m.index)
+    }
+    /*
+     * [신규(F2)]는 <b>글자가 아니라 자리가 정해져 있다.</b> EcListShell 이 아래 단추줄의
+     * <b>맨 앞</b>에 그린다(onNew/renderForm). 소스에서 그 prop 이 몇째 줄에 적혔는지는
+     * 화면에 보이는 자리와 아무 상관이 없다 — 그대로 재면 [Excel] 뒤에 선 것처럼 보인다.
+     */
+    if (/onNew=|renderForm=/.test(src)) pos.set('신규(F2)', -1)
+
+    const ours = btns.filter((b) => !SHELL_BUTTONS.has(b))
+      // '없는 버튼'과 '맨 앞에 붙는 버튼'을 같은 -1 로 적으면 안 된다 — 없는 것까지 끼어든다.
+      .map((b) => [b, barPos.has(b) ? barPos.get(b) : (pos.has(b) ? pos.get(b) : null)])
+      .filter(([, p]) => p !== null)
+    if (ours.length < 3) continue   // 두 개로는 차례를 말할 것이 없다
+    checked += ours.length
+    const want = ours.map(([b]) => b)
+    const got = [...ours].sort((a, b) => a[1] - b[1]).map(([b]) => b)
+    if (want.join(' · ') !== got.join(' · ')) {
+      bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
+    }
+  }
+  eq(`원본과 견준 버튼 ${checked}개가 같은 차례로 서 있다`
+    + ` (아직 못 맞춘 ${ORDER_SKIP.size}화면은 이유를 적고 뺐다)`, bad.join('\n') || '없음', '없음')
 }
 
 // ── 2-j) 원본 조건·머리 항목 ↔ 우리 항목 ─────────────────────────────────

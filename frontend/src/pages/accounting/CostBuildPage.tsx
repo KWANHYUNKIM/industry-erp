@@ -190,11 +190,12 @@ export default function CostBuildPage() {
          * 무엇이 갖춰져 있어야 하는지 누르기 전에 볼 자리가 필요하다.
          * 원본 안내문을 옮긴 것이 아니라 우리 생성 규칙을 적은 것이다.
          */
-        { label: '원가생성전 점검사항', onClick: () => setCheckOpen(true) },
         { label: '표준원가생성', onClick: build },
         { label: '실제원가 계산', onClick: calcActual },
         { label: '새로고침', onClick: load },
+        // 원본 차례: … Excel · 원가생성전 점검사항 (사본 실측)
         { label: 'Excel' },
+        { label: '원가생성전 점검사항', onClick: () => setCheckOpen(true) },
       ]}>
       {/* 원본 [계산기준] — 표준원가생성이 자재 단가를 어떻게 잴지. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>

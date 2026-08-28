@@ -302,12 +302,13 @@ export default function PartnersPage() {
       onSearchChange={setKeyword}
       onNew={openCreate}
       actions={[
+        // 원본 차례: 계층그룹 · 변경 · 사용중단/재사용 · Excel (사본 실측)
+        { label: '계층그룹', onClick: () => setGroupOpen(true) },
         { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
           if (checked.size === 0) { setError('바꿀 거래처를 고르세요.'); return }
           setError(''); setBulkValue(''); setBulkOpen(true)
         } },
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
-        { label: '계층그룹', onClick: () => setGroupOpen(true) },
         { label: 'Excel' },
         { label: '웹자료올리기', onClick: () => setWebOpen(true) },
       ]}

@@ -263,10 +263,11 @@ export default function DailyProfitPage() {
          * 화면 어딘가에 적어 두지 않으면 "자료가 없나" 하고 되돌아 나가게 된다.
          * 원본 안내문을 옮긴 것이 아니라 <b>우리 계산 규칙</b>을 적은 것이다.
          */
-        { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
-        { label: '다시 작성', onClick: reset },
+        // 원본 차례: 인쇄 · Excel · 이익이 안 나올 경우 (사본 실측)
         { label: '인쇄' },
         { label: 'Excel' },
+        { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
+        { label: '다시 작성', onClick: reset },
       ]}
     >
       <EcStatusPanel

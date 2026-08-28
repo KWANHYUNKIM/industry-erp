@@ -145,8 +145,9 @@ export default function WorkResultInquiryPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '신규(F2)', onClick: () => navigate('/production/work-result') },
-        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
+        // 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측)
         { label: '인쇄' },
+        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
         { label: 'Excel' },
       ]}
     >

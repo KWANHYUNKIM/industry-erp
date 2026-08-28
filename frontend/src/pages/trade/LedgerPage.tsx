@@ -223,6 +223,9 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       title={TITLE[side]}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        // 원본 차례: 검색(F8) · 인쇄 · Excel · 전표입력 (사본 실측)
+        { label: '인쇄' },
+        { label: 'Excel' },
         /*
          * 원본 [전표입력] — 대장을 보다가 그 자리에서 전표를 만든다. 우리는 판매입력에서
          * 만들므로 그 화면으로 넘긴다. 거래처를 골라 뒀으면 물고 간다.
@@ -235,8 +238,6 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         { label: '다시 작성', onClick: () => {
           setGroup('거래처별'); setPartner(''); setManager(''); setWithInactive(false); setOnlyOpen(false)
         } },
-        { label: 'Excel' },
-        { label: '인쇄' },
       ]}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>

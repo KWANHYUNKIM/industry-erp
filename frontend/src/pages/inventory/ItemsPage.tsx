@@ -303,16 +303,17 @@ export default function ItemsPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onNew={showForm ? () => setShowForm(false) : openCreate}
+      // 원본 차례: 계층그룹 · 변경 · 재고조정 · 사용중단/재사용 · Excel (사본 실측)
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
+                { label: `변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => {
+                  if (selected.size === 0) { alert('바꿀 품목을 먼저 선택하세요.'); return }
+                  setBulkValue(''); setBulkOpen(true)
+                } },
                 // 원본 [재고조정] — 고른 품목을 물고 재고조정 화면을 연다
                 { label: '재고조정', onClick: () => {
                   const [first] = [...selected]
                   if (first == null) { alert('재고를 조정할 품목을 먼저 선택하세요.'); return }
                   navigate(`/inventory/staged-adjustment?item=${first}`)
-                } },
-                { label: `변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => {
-                  if (selected.size === 0) { alert('바꿀 품목을 먼저 선택하세요.'); return }
-                  setBulkValue(''); setBulkOpen(true)
                 } },
                 { label: `사용중단/재사용${selected.size ? ` (${selected.size})` : ''}`, onClick: toggleActive },
                 { label: 'Excel' },
