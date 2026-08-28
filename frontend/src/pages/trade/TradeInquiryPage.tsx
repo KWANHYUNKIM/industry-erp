@@ -66,6 +66,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [whCond, setWhCond] = useState('')
   const [typeCond, setTypeCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
   const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount > 0 ? '부가세율 적용' : '면세')
   const [from, setFrom] = useState('')
@@ -224,6 +225,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !partnerCond || d.partnerName === partnerCond)
     .filter((d) => !managerCond || (d.createdBy ?? '') === managerCond)
     .filter((d) => !whCond || d.warehouseName === whCond)
+    .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
     .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
     .filter((d) => !from || d.date >= from)
@@ -354,29 +356,48 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <CodePickerField label="거래처" width={150} emptyLabel="전체"
-                           value={partnerCond} onChange={setPartnerCond}
-                           items={[...new Set(docs.map((d) => d.partnerName))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-          <CodePickerField label="담당자" width={120} emptyLabel="전체"
-                           value={managerCond} onChange={setManagerCond}
-                           items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-          {/* 목록에 열로 있는 값은 걸러 낼 수도 있어야 한다. 원본 조회의 조건이 그것이다. */}
-          <CodePickerField label={isSales ? '출하창고' : '입고창고'} width={130} emptyLabel="전체"
-                           value={whCond} onChange={setWhCond}
-                           items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+          {/*
+            원본 판매조회 조건 차례 실측(사본): 기준일자 · <b>거래유형 · 창고 · 프로젝트 ·
+            거래처 · 품목</b> · 발송여부. 우리는 거래처·담당자·창고·품목·거래유형 차례였다.
+          */}
           <CodePickerField label="거래유형" width={130} emptyLabel="전체"
                            value={typeCond} onChange={setTypeCond}
                            items={[...new Set(docs.map(tradeTypeOf))].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {!isSales && (
-            <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
-                             value={projectCond} onChange={setProjectCond}
-                             items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
+          {/*
+            목록에 열로 있는 값은 걸러 낼 수도 있어야 한다. 원본 조회의 조건이 그것이다.
+            이름은 화면마다 다르다 — 원본 <b>판매조회는 [창고], 구매조회는 [입고창고]</b> 다.
+            한 이름으로 묶으면 한쪽은 원본과 다른 말을 쓰게 된다.
+          */}
+          {isSales ? (
+            <CodePickerField label="창고" width={130} emptyLabel="전체"
+                             value={whCond} onChange={setWhCond}
+                             items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          ) : (
+            <CodePickerField label="입고창고" width={130} emptyLabel="전체"
+                             value={whCond} onChange={setWhCond}
+                             items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
                                .map((n) => ({ value: n, name: n }))} />
           )}
+          <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          <CodePickerField label="거래처" width={150} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond}
+                           items={[...new Set(docs.map((d) => d.partnerName))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 [품목] — 전표 안의 어느 줄이든 그 품목이 있으면 걸린다. */}
+          <CodePickerField label="품목" width={130} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.itemName)).filter(Boolean))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 구매조회에만 있는 [담당자]. */}
+          <CodePickerField label="담당자" width={120} emptyLabel="전체"
+                           value={managerCond} onChange={setManagerCond}
+                           items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </span>
       </div>
 

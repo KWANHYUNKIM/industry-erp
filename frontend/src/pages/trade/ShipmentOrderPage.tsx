@@ -4,6 +4,9 @@ import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
@@ -18,6 +21,8 @@ interface Shipment {
   /** 원본 출하지시서입력의 머리 항목들 — 출하예정일 · 출하창고 · 담당자 · 배송지. */
   dueDate: string | null
   warehouseId: number | null; warehouseName: string | null
+  /** 응답에 이미 오던 값. 원본 조건의 [프로젝트]를 걸려면 화면이 받아 둬야 한다. */
+  projectName: string | null
   employeeId: number | null; employeeName: string | null
   contact: string | null; postalCode: string | null; address: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
@@ -41,6 +46,15 @@ export default function ShipmentOrderPage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [condFrom, setCondFrom] = useState('')
+  const [condTo, setCondTo] = useState('')
+  const [shipNoCond, setShipNoCond] = useState('')
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const [sendCond, setSendCond] = useState<'' | ShipStatus>('')
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
 
   const [partnerId, setPartnerId] = useState('')
   const [shipDate, setShipDate] = useState(today())
@@ -145,7 +159,24 @@ export default function ShipmentOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const shownRows = shipments.filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
+  /*
+   * 원본 출하지시서조회의 조건 실측(사본): <b>기준일자 · 출하지시No. · 창고 · 프로젝트 ·
+   * 관리항목 · 거래처 · 품목 · 발송여부</b>.
+   * 우리는 <b>조건 판이 아예 없었다</b> — 검색상자 하나로 거래처와 번호만 걸렀다.
+   * 출하지시가 쌓이면 "저 창고 것만", "아직 안 나간 것만" 을 물을 방법이 없다.
+   *
+   * <p>[관리항목]은 품목 마스터에 붙는 값이라 출하 전표에는 없다(다른 화면과 같은 이유).
+   */
+  const shownRows = shipments
+    .filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
+    .filter((s) => !condFrom || s.shipDate >= condFrom)
+    .filter((s) => !condTo || s.shipDate <= condTo)
+    .filter((s) => !shipNoCond || s.shipNo.includes(shipNoCond))
+    .filter((s) => !warehouseCond || (s.warehouseName ?? '').includes(warehouseCond))
+    .filter((s) => !projectCond || (s.projectName ?? '').includes(projectCond))
+    .filter((s) => !partnerCond || s.partnerName.includes(partnerCond))
+    .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((s) => !sendCond || s.status === sendCond)
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
@@ -167,6 +198,44 @@ export default function ShipmentOrderPage() {
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">매출처로 반출할 물품의 출하지시 · 출하지시 → 출하완료. 미출하현황에서 대기건 확인.</p>
+
+      {/* 원본 조건 차례: 기준일자 · 출하지시No. · 창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 발송여부 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={condFrom} onChange={(e) => setCondFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={condTo} onChange={(e) => setCondTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="출하지시No.">
+          <input className="ec-input" value={shipNoCond} onChange={(e) => setShipNoCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        {/* 원본 [발송여부] — 우리 출하 상태가 그 자리다(지시 · 출하완료 · 취소). */}
+        <EcCond label="발송여부">
+          <div className="ec-pills">
+            {([['', '전체'], ['READY', '지시'], ['SHIPPED', '출하완료'], ['CANCELED', '취소']] as const).map(([v, l]) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${sendCond === v ? ' active' : ''}`}
+                      onClick={() => setSendCond(v)}>{l}</button>
+            ))}
+          </div>
+        </EcCond>
+      </ul>
 
       <Modal open={showForm} title="출하지시서 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
