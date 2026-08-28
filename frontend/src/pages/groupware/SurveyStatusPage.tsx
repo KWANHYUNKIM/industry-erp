@@ -31,6 +31,12 @@ export default function SurveyStatusPage() {
   const [from, setFrom] = useState(ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
   const [to, setTo] = useState(ymd(today))
   const [scope, setScope] = useState<'' | 'INTERNAL' | 'EXTERNAL'>('')
+  /*
+   * 원본 [진행] — <b>전체 · 진행중 · 완료</b>(사본 실측). 우리는 없었다.
+   * 설문에 따로 상태를 두지 않으니 <b>설문종료일이 지났는지</b>로 가른다 —
+   * 종료일이 없는 설문은 끝나지 않은 것으로 본다.
+   */
+  const [progress, setProgress] = useState<'전체' | '진행중' | '완료'>('전체')
   const [useEnd, setUseEnd] = useState(false)
   const [endFrom, setEndFrom] = useState(ymd(today))
   const [endTo, setEndTo] = useState(ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0)))
@@ -69,6 +75,12 @@ export default function SurveyStatusPage() {
       const created = (r.createdAt ?? '').slice(0, 10)
       if (created && (created < from || created > to)) return false
       if (scope && r.targetScope !== scope) return false
+      if (progress !== '전체') {
+        const end = (r.endAt ?? '').slice(0, 10)
+        const done = !!end && end < ymd(new Date())
+        if (progress === '진행중' && done) return false
+        if (progress === '완료' && !done) return false
+      }
       if (useEnd) {
         const end = (r.endAt ?? '').slice(0, 10)
         if (!end || end < endFrom || end > endTo) return false
@@ -79,7 +91,7 @@ export default function SurveyStatusPage() {
       if (postNo && !String(r.postNo).includes(postNo)) return false
       return true
     })
-  }, [rows, from, to, scope, useEnd, endFrom, endTo, title, question, writer, postNo, users])
+  }, [rows, from, to, scope, progress, useEnd, endFrom, endTo, title, question, writer, postNo, users])
 
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const totals = shown.reduce((a, r) => ({
@@ -113,6 +125,17 @@ export default function SurveyStatusPage() {
               {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
                 <label key={l} style={{ marginRight: 12, fontSize: 12 }}>
                   <input type="radio" name="scope" checked={scope === v} onChange={() => setScope(v)} /> {l}
+                </label>
+              ))}
+            </td>
+          </tr>
+          <tr>
+            {/* 원본 [진행] — 설문종료일이 지났으면 완료로 본다. */}
+            <th style={th}>진행</th>
+            <td colSpan={3}>
+              {(['전체', '진행중', '완료'] as const).map((t) => (
+                <label key={t} style={{ marginRight: 12, fontSize: 12 }}>
+                  <input type="radio" name="progress" checked={progress === t} onChange={() => setProgress(t)} /> {t}
                 </label>
               ))}
             </td>

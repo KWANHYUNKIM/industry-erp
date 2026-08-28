@@ -44,7 +44,13 @@ export default function OrderStagePage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState('전체')
-  const [onlyOpen, setOnlyOpen] = useState(false)
+  /*
+   * 원본 [진행] — <b>전체 · 진행중 · 완료</b> 3단이다(사본 실측). 우리는 체크박스 하나로
+   * "진행중만" 을 켜고 끄기만 해서, <b>끝난 것만 보는 길이 없었다.</b>
+   */
+  const [progress, setProgress] = useState<'전체' | '진행중' | '완료'>('전체')
+  /** 원본 [사용여부] — 오더관리유형이 사용중단된 것을 볼지. 기본은 쓰는 것만. */
+  const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [detailId, setDetailId] = useState<number | null>(null)
 
   async function load() {
@@ -81,10 +87,20 @@ export default function OrderStagePage() {
   const shown = orders.filter((o) => {
     if (keyword && !(o.orderNo.includes(keyword) || o.partnerName.includes(keyword))) return false
     if (typeFilter !== '전체' && (o.orderTypeName ?? '(미지정)') !== typeFilter) return false
-    if (onlyOpen) {
+    if (progress !== '전체') {
       const steps = o.orderTypeId != null ? (stepsOf.get(o.orderTypeId) ?? []) : []
       const last = steps.length > 0 ? steps[steps.length - 1].stageId : null
-      if (last != null && o.stageId === last) return false
+      // 마지막 단계에 와 있으면 '완료', 아니면 '진행중'. 단계가 없는 유형은 늘 진행중으로 본다.
+      const done = last != null && o.stageId === last
+      if (progress === '진행중' && done) return false
+      if (progress === '완료' && !done) return false
+    }
+    if (useTab !== '전체') {
+      const t = o.orderTypeId != null ? types.find((x) => x.id === o.orderTypeId) : undefined
+      // 유형이 없는 건은 사용중단으로 몰지 않는다 — 내린 유형이 아니라 아예 안 정한 것이다.
+      const on = t ? t.active : true
+      if (useTab === '사용' && !on) return false
+      if (useTab === '사용중단' && on) return false
     }
     return true
   })
@@ -110,11 +126,23 @@ export default function OrderStagePage() {
             {types.map((t) => <option key={t.id}>{t.name}</option>)}
           </select>
         </EcCond>
-        <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />
-            진행중만 (마지막 단계 제외)
-          </label>
+        {/* 원본 [진행] — 전체·진행중·완료. 마지막 단계에 와 있으면 완료로 본다. */}
+        <EcCond label="진행">
+          <div className="ec-pills">
+            {(['전체', '진행중', '완료'] as const).map((t) => (
+              <button key={t} type="button" className={`ec-pill no-ec${progress === t ? ' active' : ''}`}
+                      onClick={() => setProgress(t)}>{t}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/* 원본 [사용여부] — 내린 오더관리유형의 건을 볼지. 기본은 [사용]이 켜진 채 뜬다. */}
+        <EcCond label="사용여부">
+          <div className="ec-pills">
+            {(['전체', '사용', '사용중단'] as const).map((t) => (
+              <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
+                      onClick={() => setUseTab(t)}>{t}</button>
+            ))}
+          </div>
         </EcCond>
       </ul>
 
