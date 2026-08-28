@@ -158,28 +158,34 @@ export default function TransferStatusPage() {
             <thead>
               <tr>
                 <th></th>
-                <th>전표번호</th>
-                <th>일자</th>
-                <th>품목</th>
-                <th>출고창고</th>
-                <th>입고창고</th>
-                <th style={{ textAlign: 'right' }}>이동수량</th>
+                {/*
+                  원본 창고이동조회의 열은 <b>일자-No. · 보내는창고명 · 받는창고명 ·
+                  품목명[규격명] · 수량</b> 이다(사본 실측). 우리는 다섯 칸이 다 다른
+                  이름이었고, 일자와 번호도 둘로 나눠 두었다. 생산불출조회는 이미
+                  [보내는창고명]·[받는공장명]을 쓰고 있어 <b>우리끼리도 어긋나</b> 있었다.
+                */}
+                <th>일자-No.</th>
+                <th>보내는창고명</th>
+                <th>받는창고명</th>
+                <th>품목명[규격명]</th>
+                <th style={{ textAlign: 'right' }}>수량</th>
                 <th>적요</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.transferNo}</td>
-                  <td>{r.transferDate.replace(/-/g, '/')}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
+                  <td style={{ fontFamily: 'monospace' }}>
+                    {r.transferDate.replace(/-/g, '/')} {r.transferNo}
+                  </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
                   <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
+                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
@@ -190,7 +196,7 @@ export default function TransferStatusPage() {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
                   <td style={{ background: '#f5f7fa' }}></td>
                 </tr>

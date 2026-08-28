@@ -165,7 +165,8 @@ export default function SerialLotPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('로트No.')}>로트No. {sort.mark('로트No.')}</th>
+            {/* 원본 이름은 [로트No.] 가 아니라 <b>[시리얼/로트No.]</b> 다(사본 실측). */}
+            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('로트No.')}>시리얼/로트No. {sort.mark('로트No.')}</th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('입고일')}>입고일 {sort.mark('입고일')}</th>
             <th style={{ width: 100 }}>유효기한</th>
