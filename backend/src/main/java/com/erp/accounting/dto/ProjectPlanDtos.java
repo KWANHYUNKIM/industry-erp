@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public final class ProjectPlanDtos {
 
@@ -41,6 +42,12 @@ public final class ProjectPlanDtos {
             Long projectId, String projectCode, String projectName,
             BigDecimal planRevenue, BigDecimal planCost, BigDecimal planProfit,
             BigDecimal actualRevenue, BigDecimal actualCost, BigDecimal actualProfit,
-            BigDecimal revenueAchieveRate, BigDecimal profitAchieveRate
+            BigDecimal revenueAchieveRate, BigDecimal profitAchieveRate,
+            /*
+             * 원본 프로젝트계획 조건에 <b>[시작일]·[종료일]·[적요]</b> 가 있다(사본 실측).
+             * 시작·종료는 프로젝트 마스터의 것이고 적요는 계획행의 것인데, 셋 다
+             * 응답에 싣지 않아 <b>화면이 볼 수도 거를 수도 없었다.</b>
+             */
+            LocalDate startDate, LocalDate endDate, String remark
     ) {}
 }

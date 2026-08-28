@@ -31,6 +31,9 @@ export default function TransferPage() {
   const [stock, setStock] = useState<StockRow[]>([])
   const [keyword, setKeyword] = useState('')
   const [whCond, setWhCond] = useState('')
+  /* 원본 조건 [적요]. 사유는 두 표에 다 찍히는데 검색상자로만 걸렀다 —
+     그 상자는 품목명까지 훑어서 적요만으로 좁힐 수가 없었다. */
+  const [reasonCond, setReasonCond] = useState('')
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -79,10 +82,12 @@ export default function TransferPage() {
    */
   const shownTransfers = transfers
     .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
+    .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!whCond || r.warehouseName === whCond) &&
+    (!reasonCond || (r.reason ?? '').includes(reasonCond)) &&
     (!keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword)))
 
   /*
@@ -125,6 +130,10 @@ export default function TransferPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={reasonCond} placeholder="적요"
+                 onChange={(e) => setReasonCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
       </ul>
 

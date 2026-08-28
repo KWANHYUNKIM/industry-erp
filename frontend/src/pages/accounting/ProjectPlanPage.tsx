@@ -26,6 +26,9 @@ interface ComparisonRow {
   actualProfit: number
   revenueAchieveRate: number
   profitAchieveRate: number
+  startDate: string | null
+  endDate: string | null
+  remark: string | null
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -36,6 +39,15 @@ export default function ProjectPlanPage() {
   const [year, setYear] = useState<number>(thisYear())
   const [rows, setRows] = useState<ComparisonRow[]>([])
   const [projectCond, setProjectCond] = useState('')
+  /*
+   * 원본 프로젝트계획 조건 차례: 프로젝트 · <b>시작일</b> · <b>종료일</b> ·
+   * 판매계획 · 구매계획 · 노무비계획 · 경비계획 · <b>적요</b>.
+   * 셋 다 값이 응답에 실려 오지도 않아 <b>볼 수도 거를 수도 없었다</b> — 서버에서 같이 싣고
+   * 조건을 만든다. 가운데 네 계획은 우리 계획이 매출·이익 두 값이라 축 자체가 없다.
+   */
+  const [startCond, setStartCond] = useState('')
+  const [endCond, setEndCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -84,7 +96,11 @@ export default function ProjectPlanPage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const shown = rows.filter((r) => !projectCond || r.projectName === projectCond)
+  const shown = rows
+    .filter((r) => !projectCond || r.projectName === projectCond)
+    .filter((r) => !startCond || (r.startDate ?? '') >= startCond)
+    .filter((r) => !endCond || (r.endDate != null && r.endDate <= endCond))
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
 
   /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
   const totals = shown.reduce((s, r) => ({
@@ -115,6 +131,15 @@ export default function ProjectPlanPage() {
         <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond}
                          items={projects.map((p) => ({ value: p.name, code: p.code, name: p.name }))} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>시작일</span>
+        <input type="date" className={inputCls} value={startCond}
+               onChange={(e) => setStartCond(e.target.value)} style={{ width: 140 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>종료일</span>
+        <input type="date" className={inputCls} value={endCond}
+               onChange={(e) => setEndCond(e.target.value)} style={{ width: 140 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>적요</span>
+        <input className={inputCls} value={remarkCond} placeholder="적요"
+               onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 150 }} />
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
