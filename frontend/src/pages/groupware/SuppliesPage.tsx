@@ -68,6 +68,17 @@ export default function SuppliesPage() {
    * <b>제목</b> · <b>적요</b> · <b>반납여부</b>.
    * 셋 다 표에는 찍는데 <b>거를 수가 없었다</b> — 안 돌려준 것만 보려 해도 눈으로 훑어야 했다.
    */
+  /*
+   * 원본 공용품관리 조건 차례: 기준일자 · <b>시간</b> · 사용자 · <b>공용물품</b> · 라벨 ·
+   * 제목 · 적요 · 반납여부 · <b>전체시간표시</b>.
+   *
+   * <p>[시간]은 그 시각에 걸친 사용만, [공용물품]은 어느 물건인가,
+   * [전체시간표시]는 <b>종일 잡힌 것</b>까지 같이 볼지다. 셋 다 표에는 찍히는데
+   * 거를 수가 없어, 회의실이 몇 개만 돼도 목록을 눈으로 훑어야 했다.
+   */
+  const [timeCond, setTimeCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const [allDayCond, setAllDayCond] = useState(true)
   const [titleCond, setTitleCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [returnCond, setReturnCond] = useState('')
@@ -174,6 +185,10 @@ export default function SuppliesPage() {
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const shown = rows
+    .filter((r) => !timeCond || r.allDay
+      || ((r.startTime ?? '') <= timeCond && timeCond <= (r.endTime ?? '23:59')))
+    .filter((r) => !itemCond || r.supplyItemName === itemCond)
+    .filter((r) => allDayCond || !r.allDay)
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .filter((r) => !returnCond || r.returnStatusName === returnCond)
@@ -326,6 +341,15 @@ export default function SuppliesPage() {
 
           {/* 원본 차례: … 라벨 · 제목 · 적요 · 반납여부 */}
           <ul className="ec-cond" style={{ marginBottom: 6 }}>
+            <EcCond label="시간">
+              <input type="time" className="ec-input" value={timeCond}
+                     onChange={(e) => setTimeCond(e.target.value)} style={{ width: 110 }} />
+            </EcCond>
+            <EcCond label="공용물품" pick>
+              <CodePickerField label="공용물품" hideLabel width={170} emptyLabel="전체"
+                               value={itemCond} onChange={setItemCond}
+                               items={supplies.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+            </EcCond>
             <EcCond label="제목">
               <input className="ec-input" value={titleCond} placeholder="제목"
                      onChange={(e) => setTitleCond(e.target.value)} style={{ width: 140 }} />
@@ -339,6 +363,12 @@ export default function SuppliesPage() {
                 <option value="">전체</option>
                 {[...new Set(rows.map((r) => r.returnStatusName))].map((n) => <option key={n}>{n}</option>)}
               </select>
+            </EcCond>
+            <EcCond label="전체시간표시">
+              <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={allDayCond} onChange={(e) => setAllDayCond(e.target.checked)} />
+                종일 잡힌 것도
+              </label>
             </EcCond>
           </ul>
 

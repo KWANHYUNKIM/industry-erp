@@ -222,6 +222,12 @@ function SearchPanel({
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
       </div>
       <div style={rowStyle}>
+        {/* 원본 A/S접수현황의 이름은 [담당]이 아니라 <b>[담당자]</b> 다(사본 실측). */}
+        <span style={label}>담당자</span>
+        <input className="ec-input" placeholder="담당자명 일부" value={draft.charge}
+          onChange={(e) => onChange({ charge: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
         <span style={label}>거래처</span>
         <input className="ec-input" placeholder="거래처명 일부" value={draft.partner}
           onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
@@ -230,11 +236,6 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>담당</span>
-        <input className="ec-input" placeholder="담당자명 일부" value={draft.charge}
-          onChange={(e) => onChange({ charge: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
         <span style={label}>상태</span>

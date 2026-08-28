@@ -70,6 +70,13 @@ export default function ApprovalListPage({
    * 원본 조건 판에는 [제목]·[기안서No.]도 따로 있다. 우리는 목록 글자를 훑는
    * 검색상자 하나뿐이라, 제목만으로 좁히고 싶어도 본문·기안자까지 걸려들었다.
    */
+  /*
+   * 원본 내결재관리 조건 차례: 기준일자 · 기안서No. · 구분 · <b>기안자</b> · 제목 · <b>내용</b>.
+   * 둘 다 문서에 실려 오는데 거를 수가 없어, 검색상자 하나로 제목·본문·기안자가
+   * 한꺼번에 걸렸다 — 누가 쓴 것인지로만 좁힐 수가 없었다.
+   */
+  const [drafterCond, setDrafterCond] = useState('')
+  const [contentCond, setContentCond] = useState('')
   const [titleCond, setTitleCond] = useState('')
   const [docNoCond, setDocNoCond] = useState('')
   /** 원본 [결재라인] — 그 사람이 결재선에 든 문서만 본다. */
@@ -168,6 +175,8 @@ export default function ApprovalListPage({
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || (r.projectName ?? '') === project)
     .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
+    .filter((r) => !drafterCond || r.drafterName.includes(drafterCond))
+    .filter((r) => !contentCond || (r.content ?? '').includes(contentCond))
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !docNoCond || r.docNo.includes(docNoCond) || (r.draftNo ?? '').includes(docNoCond))
     .filter((r) => !lineCond || (r.lines ?? []).some((l) => l.approverName === lineCond))
@@ -391,9 +400,15 @@ export default function ApprovalListPage({
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>기안자</label>
+        <input className="ec-input" value={drafterCond} onChange={(e) => setDrafterCond(e.target.value)}
+               style={{ width: 110 }} placeholder="기안자" />
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>제목</label>
         <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
                style={{ width: 140 }} placeholder="제목 일부" />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>내용</label>
+        <input className="ec-input" value={contentCond} onChange={(e) => setContentCond(e.target.value)}
+               style={{ width: 140 }} placeholder="내용 일부" />
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>결재라인</label>
         <select className="ec-input" value={lineCond} onChange={(e) => setLineCond(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>

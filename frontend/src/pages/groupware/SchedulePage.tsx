@@ -62,6 +62,12 @@ export default function SchedulePage() {
    * 원본 일정관리 조건 차례: 기준일자 · 참석자 · <b>제목</b> · <b>장소</b> · 일정구분 …
    * 둘 다 목록에 찍히는데 거를 수가 없었다 — "회의실 A 에서 잡힌 것" 을 못 골랐다.
    */
+  /*
+   * 원본 일정관리 조건 차례: 기준일자 · 참석자 · 제목 · 장소 · <b>일정구분</b> ·
+   * 라벨 · 기타 · <b>본문</b>. 분류와 본문은 일정에 실려 오는데 거를 수가 없었다.
+   */
+  const [kindCond, setKindCond] = useState('')
+  const [bodyCond, setBodyCond] = useState('')
   const [titleCond, setTitleCond] = useState('')
   const [placeCond, setPlaceCond] = useState('')
   /** 캘린더에서 고른 날. 빈 문자열이면 고른 날 없음 = 전체 보기. */
@@ -133,6 +139,8 @@ export default function SchedulePage() {
     .filter((r) => !pickedDate || r.eventDate === pickedDate)
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
+    .filter((r) => !kindCond || (r.category ?? '') === kindCond)
+    .filter((r) => !bodyCond || (r.remark ?? '').includes(bodyCond))
     .filter((r) => !keyword
       || r.title.includes(keyword)
       || (r.owner ?? '').includes(keyword)
@@ -240,6 +248,17 @@ export default function SchedulePage() {
             <EcCond label="장소">
               <input className="ec-input" value={placeCond} placeholder="장소"
                      onChange={(e) => setPlaceCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+            <EcCond label="일정구분">
+              <select className="ec-input" value={kindCond} style={{ width: 120 }}
+                      onChange={(e) => setKindCond(e.target.value)}>
+                <option value="">전체</option>
+                {[...new Set(rows.map((r) => r.category).filter(Boolean))].map((c) => <option key={c as string}>{c}</option>)}
+              </select>
+            </EcCond>
+            <EcCond label="본문">
+              <input className="ec-input" value={bodyCond} placeholder="본문"
+                     onChange={(e) => setBodyCond(e.target.value)} style={{ width: 150 }} />
             </EcCond>
           </ul>
           <table className="w-full text-left">
