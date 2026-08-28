@@ -32,6 +32,12 @@ interface Shipment {
    */
   warehouseName: string | null
   projectName: string | null
+  /**
+   * 출하 <b>담당자</b>. 목록의 [담당] 칸이 이제까지 <code>createdBy</code>(전표를 친 계정)를
+   * 찍고 있었는데, 그건 <b>다른 사람</b>이다 — 출하지시서에 담당자를 따로 고르게 해 두고
+   * 목록에서는 그 값을 안 보여 주고 있었다. 응답에는 실려 오고 있었다.
+   */
+  employeeName: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
   remark: string | null; createdBy: string | null; lines: ShipLine[]
 }
@@ -189,7 +195,7 @@ export default function ShipmentInquiryPage() {
                 <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
-                <td>{r.createdBy ?? ''}</td>
+                <td>{r.employeeName ?? ''}</td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">

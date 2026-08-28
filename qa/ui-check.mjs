@@ -117,6 +117,38 @@ const COMPARE_PERIOD_NAMES = (() => {
   return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : []
 })()
 
+/**
+ * <b>"그 값, 서버는 이미 보내고 있다" 를 대신 알려 준다.</b>
+ *
+ * <p>같은 발견을 세 판 내리 손으로 했다 — 출하조회의 창고·프로젝트, 작업지시서조회의 규격,
+ * 근태현황의 재직여부. 셋 다 <b>응답에 실려 오는데 화면이 받아 두지 않아</b> 조건을 못 걸고
+ * 있었고, 화면 주석에는 "그 값이 없어서 안 만들었다" 고 <b>틀린 이유</b>가 적혀 있었다.
+ *
+ * <p>그래서 조건이 없다고 걸릴 때, 그 이름에 해당하는 필드가 <b>백엔드 응답 DTO 에 있는지</b>
+ * 찾아 한 줄 덧붙인다. 있다고 해서 반드시 그 화면 응답에 있는 것은 아니므로 <b>단정하지 않고
+ * 귀띔만</b> 한다 — 없다고 적기 전에 한 번 열어 보게 하는 것이 목적이다.
+ */
+const DTO_SRC = (() => {
+  const dir = join('backend', 'src', 'main', 'java')
+  if (!existsSync(dir)) return ''
+  return walk(dir).filter((f) => f.endsWith('Dtos.java')).map((f) => readFileSync(f, 'utf8')).join('')
+})()
+
+/** 조건 이름 → 응답에서 찾아볼 필드 이름. 되풀이해 걸린 것만 적는다. */
+const COND_FIELD = new Map([
+  ['창고', 'warehouseName'], ['출하창고', 'warehouseName'], ['입고창고', 'warehouseName'],
+  ['프로젝트', 'projectName'], ['담당자', 'employeeName'], ['거래처', 'partnerName'],
+  ['품목', 'itemName'], ['규격', 'spec'], ['재직구분', 'active'], ['적요', 'remark'],
+])
+
+const serverHasHint = (cond) => {
+  const field = COND_FIELD.get(cond)
+  if (!field) return ''
+  return new RegExp('\\b' + field + '\\b').test(DTO_SRC)
+    ? `  ← 응답 DTO 에 ${field} 가 있다. 없다고 적기 전에 그 화면 응답을 열어 볼 것`
+    : ''
+}
+
 const stripJsx = (s) => {
   let body = s
   for (let i = 0; i < 6 && /\{[^{}]*\}/.test(body); i++) body = body.replace(/\{[^{}]*\}/g, ' ')
@@ -1985,7 +2017,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
         continue
       }
       checked++
-      if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${f}] 조건이 없다`)
+      if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${f}] 조건이 없다${serverHasHint(f)}`)
     }
   }
   eq(`원본 조건 ${checked}개가 우리 화면에도 있다`
