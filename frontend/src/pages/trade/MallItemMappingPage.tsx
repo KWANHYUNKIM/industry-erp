@@ -112,25 +112,32 @@ export default function MallItemMappingPage() {
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 140 }}>쇼핑몰</th>
-          <th style={{ width: 160 }}>몰품목코드</th>
+          {/*
+            원본 쇼핑몰품목코드연결의 열은 <b>쇼핑몰명 · 품목코드 · 품목명 · 쇼핑몰품목key</b>
+            다(사본 실측). 우리는 넷 다 다르게 부르고, 품목은 코드와 이름을 <b>한 칸</b>에
+            몰아 두어 코드로 훑을 수가 없었다.
+          */}
+          <th style={{ width: 140 }}>쇼핑몰명</th>
+          <th style={{ width: 120 }}>품목코드</th>
+          <th>품목명</th>
+          <th style={{ width: 160 }}>쇼핑몰품목key</th>
           <th>몰상품명</th>
-          <th>연결 품목</th>
           <th style={{ textAlign: 'center', width: 80 }}>사용</th>
           <th style={{ textAlign: 'center', width: 90 }}>관리</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : rows.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td>{m.mall}</td>
+              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{m.itemCode}</td>
+              <td>{m.itemName}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{m.mallProductCode}</td>
               <td style={{ color: '#6b7280' }}>{m.mallProductName ?? ''}</td>
-              <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{m.itemCode}</span>{m.itemName}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => toggleActive(m)} style={{ border: '1px solid var(--ec-border)', background: m.active ? '#eaf6ec' : '#f2f3f5', color: m.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{m.active ? '사용' : '중단'}</button>
               </td>

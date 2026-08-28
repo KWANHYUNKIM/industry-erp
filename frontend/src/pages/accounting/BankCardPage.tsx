@@ -144,8 +144,9 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
           <th style={{ width: 100 }}>예금주</th>
           <th style={{ width: 130 }}>예금계정</th>
           <th style={{ width: 130, textAlign: 'right' }}>잔액</th>
+          {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
+          <th>적요</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
-          <th>비고</th>
         </tr>
       </thead>
       <tbody>
@@ -159,8 +160,8 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
             <td>{r.holder ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.glAccountCode} {r.glAccountName}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
-            <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
             <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+            <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
           </tr>
         ))}
       </tbody>
@@ -179,7 +180,8 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
           <th style={{ width: 180 }}>카드번호</th>
           <th style={{ width: 90, textAlign: 'center' }}>종류</th>
           <th style={{ width: 100 }}>명의자</th>
-          <th>결제계좌</th>
+          {/* 원본 카드등록의 이름은 <b>[결제계좌명]</b> 이다. */}
+            <th>결제계좌명</th>
           <th style={{ width: 80, textAlign: 'center' }}>결제일</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
         </tr>
