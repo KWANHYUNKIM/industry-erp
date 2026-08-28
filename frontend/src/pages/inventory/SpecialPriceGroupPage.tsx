@@ -15,6 +15,13 @@ export default function SpecialPriceGroupPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 거래처특별단가그룹등록의 조건은 <b>거래처 · 영업단가그룹 · 구매단가그룹</b>
+   * 이다(사본 실측). 우리는 검색어 한 칸뿐이라 <b>그룹으로 거를 길이 없었다.</b>
+   */
+  const [partnerCond, setPartnerCond] = useState('')
+  const [salesGroupCond, setSalesGroupCond] = useState('전체')
+  const [purchaseGroupCond, setPurchaseGroupCond] = useState('전체')
   const [groups, setGroups] = useState<Record<number, { sales: string; purchase: string }>>({})
   const [saving, setSaving] = useState(false)
 
@@ -61,7 +68,14 @@ export default function SpecialPriceGroupPage() {
     }
   }
 
-  const shownRows = partners.filter((p) => !keyword || p.code.includes(keyword) || p.name.includes(keyword))
+  /* 그룹은 <b>아직 저장 전인 고른 값</b>을 먼저 본다 — 정렬과 같은 규칙이다. */
+  const groupOf = (p: Partner, kind: 'sales' | 'purchase') =>
+    (kind === 'sales' ? groups[p.id]?.sales ?? p.salesPriceGroup : groups[p.id]?.purchase ?? p.purchasePriceGroup) ?? ''
+  const shownRows = partners
+    .filter((p) => !keyword || p.code.includes(keyword) || p.name.includes(keyword))
+    .filter((p) => !partnerCond || p.name.includes(partnerCond))
+    .filter((p) => salesGroupCond === '전체' || groupOf(p, 'sales') === salesGroupCond)
+    .filter((p) => purchaseGroupCond === '전체' || groupOf(p, 'purchase') === purchaseGroupCond)
 
   /*
    * 원본 거래처특별단가그룹등록은 네 칸 모두 머리를 눌러 정렬한다(사본 실측).
@@ -94,6 +108,23 @@ export default function SpecialPriceGroupPage() {
       ]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {/* 원본 조건 차례: 거래처 · 영업단가그룹 · 구매단가그룹 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>거래처</span>
+        <input className="ec-input" value={partnerCond} onChange={(e) => setPartnerCond(e.target.value)}
+               placeholder="거래처명 일부" style={{ width: 150 }} />
+        <span>영업단가그룹</span>
+        <select className="ec-input" value={salesGroupCond} onChange={(e) => setSalesGroupCond(e.target.value)} style={{ width: 120 }}>
+          <option>전체</option>
+          {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <span>구매단가그룹</span>
+        <select className="ec-input" value={purchaseGroupCond} onChange={(e) => setPurchaseGroupCond(e.target.value)} style={{ width: 120 }}>
+          <option>전체</option>
+          {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>

@@ -90,6 +90,14 @@ export default function CurrencyPage() {
 
 function CurrencyTable({ rows }: { rows: Currency[] }) {
   /*
+   * 원본 외화등록의 조건은 <b>외화코드 · 외화명 · 환율 · 금액소수점 · 사용구분</b> 이다(사본 실측).
+   * 우리 화면에는 <b>조건이 하나도 없었다</b> — 통화가 늘면 눈으로 찾는 수밖에 없었다.
+   * [환율]은 사본이 비어 있어 한 칸인지 구간인지 모르고, [금액소수점]은 우리에게 그 값이 없다.
+   */
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [use, setUse] = useState<'전체' | '사용' | '중지'>('전체')
+  /*
    * 원본 외화등록은 외화코드·외화명·환율·사용구분을 눌러 정렬한다(사본 실측).
    * 환율은 <b>숫자로</b> 견준다 — 글자로 보면 1,100 이 900 앞에 선다.
    * 아직 고시가 없는 줄(null)은 방향과 상관없이 뒤로 간다.
@@ -100,8 +108,22 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
     '최근 고시환율': (c) => c.latestRate,
     사용: (c) => (c.active ? '사용' : '중지'),
   })
-  const shown = sort.sorted
+  const shown = sort.sorted.filter((c) => (!code || c.code.includes(code))
+    && (!name || c.name.includes(name))
+    && (use === '전체' || (c.active ? '사용' : '중지') === use))
   return (
+    <>
+      {/* 원본 조건 차례: 외화코드 · 외화명 · … · 사용구분 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>외화코드</span>
+        <input className="ec-input" value={code} onChange={(e) => setCode(e.target.value)} style={{ width: 110 }} />
+        <span>외화명</span>
+        <input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 140 }} />
+        <span>사용구분</span>
+        <select className="ec-input" value={use} onChange={(e) => setUse(e.target.value as '전체' | '사용' | '중지')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중지</option>
+        </select>
+      </div>
     <table className="w-full text-left">
       <thead>
         <tr>
@@ -139,6 +161,7 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
         ))}
       </tbody>
     </table>
+    </>
   )
 }
 
