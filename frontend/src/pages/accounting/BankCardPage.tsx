@@ -42,6 +42,9 @@ export default function BankCardPage() {
   const [kw, setKw] = useState('')
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중지'>('전체')
   const [glCond, setGlCond] = useState('')
+  /* 원본 차례: <b>계좌코드 · 계좌명</b> · 계정 · 검색창내용 · 외화통장환종 · 사용구분 */
+  const [codeCond, setCodeCond] = useState('')
+  const [nameCond, setNameCond] = useState('')
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
@@ -99,16 +102,19 @@ export default function BankCardPage() {
    */
   const onOff = (active: boolean) => (active ? '사용' : '중지')
   const shownAccounts = useMemo(() => accounts
+    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
+    .filter((r) => !nameCond || (r.name ?? '').includes(nameCond))
     .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
     .filter((r) => !glCond || r.glAccountName === glCond)
     .filter((r) => !kw || [r.bankName, r.accountNo, r.holder, r.glAccountName, r.remark]
       .some((v) => (v ?? '').includes(kw))),
-    [accounts, useCond, glCond, kw])
+    [accounts, useCond, glCond, kw, codeCond, nameCond])
   const shownCards = useMemo(() => cards
+    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
     .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
     .filter((r) => !kw || [r.cardName, r.cardCompany, r.cardNo, r.ownerName, r.settlementAccountName, r.remark]
       .some((v) => (v ?? '').includes(kw))),
-    [cards, useCond, kw])
+    [cards, useCond, kw, codeCond])
 
   return (
     <EcListShell
@@ -150,6 +156,17 @@ export default function BankCardPage() {
 
       {(tab === '계좌등록' || tab === '카드등록') && (
         <ul className="ec-cond" style={{ marginBottom: 8 }}>
+          {/* 원본 차례: <b>계좌코드 · 계좌명</b> · 계정 · 검색창내용 · 외화통장환종 · 사용구분 */}
+          <EcCond label={tab === '계좌등록' ? '계좌코드' : '카드코드'}>
+            <input className="ec-input" value={codeCond} placeholder="코드"
+                   onChange={(e) => setCodeCond(e.target.value)} style={{ width: 110 }} />
+          </EcCond>
+          {tab === '계좌등록' && (
+            <EcCond label="계좌명">
+              <input className="ec-input" value={nameCond} placeholder="계좌명"
+                     onChange={(e) => setNameCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+          )}
           {tab === '계좌등록' && (
             <EcCond label="계정" pick>
               <CodePickerField label="계정" hideLabel width={170} emptyLabel="전체"
@@ -187,6 +204,8 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
+          <th style={{ width: 90 }}>계좌코드</th>
+          <th style={{ width: 130 }}>계좌명</th>
           <th style={{ width: 120 }}>은행</th>
           <th style={{ width: 180 }}>계좌번호</th>
           <th style={{ width: 100 }}>예금주</th>
@@ -199,10 +218,12 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
+            <td>{r.name ?? ''}</td>
             <td>{r.bankName}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
@@ -223,6 +244,7 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
+          <th style={{ width: 90 }}>카드코드</th>
           <th style={{ width: 120 }}>카드명</th>
           <th style={{ width: 100 }}>카드사</th>
           <th style={{ width: 180 }}>카드번호</th>
@@ -236,10 +258,11 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
             <td style={{ fontWeight: 600 }}>{r.cardName}</td>
             <td>{r.cardCompany}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.cardNo}</td>
@@ -370,6 +393,7 @@ function BankAccountForm({ glAccounts, onError, onSaved }: {
 }) {
   const deposits = useMemo(() => glAccounts.filter((a) => a.division === 'ASSET'), [glAccounts])
   const [form, setForm] = useState({
+    code: '', name: '',
     bankName: '', accountNo: '', holder: '', glAccountId: '', openingBalance: '', remark: '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -380,6 +404,8 @@ function BankAccountForm({ glAccounts, onError, onSaved }: {
     if (!form.accountNo) return onError('계좌번호를 입력하세요.')
     try {
       await api.post('/bank-cards/accounts', {
+        code: form.code || undefined,
+        name: form.name || undefined,
         bankName: form.bankName,
         accountNo: form.accountNo,
         holder: form.holder || undefined,
@@ -396,6 +422,13 @@ function BankAccountForm({ glAccounts, onError, onSaved }: {
   return (
     <Panel title="계좌등록" submitLabel="등록" onSubmit={submit}
       hint="※ 예금계정을 비우면 보통예금(103)으로 분개됩니다. 기초잔액 이후 잔액은 입출금으로만 움직입니다.">
+      {/* 원본 계좌등록 차례: <b>계좌코드 · 계좌명</b> · 계정 · … */}
+      <Field label="계좌코드">
+        <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 110 }} placeholder="A001" />
+      </Field>
+      <Field label="계좌명">
+        <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 150 }} placeholder="주거래통장" />
+      </Field>
       <Field label="은행 *">
         <input className="ec-input" value={form.bankName} onChange={(e) => set('bankName', e.target.value)} style={{ width: 130 }} placeholder="국민은행" />
       </Field>
@@ -425,6 +458,7 @@ function CardForm({ accounts, onError, onSaved }: {
   accounts: BankAccountRow[]; onError: (m: string) => void; onSaved: () => void
 }) {
   const [form, setForm] = useState({
+    code: '',
     cardName: '', cardCompany: '', cardNo: '', type: 'CORPORATE' as CardType,
     ownerName: '', settlementAccountId: '', settlementDay: '', remark: '',
   })
@@ -437,6 +471,7 @@ function CardForm({ accounts, onError, onSaved }: {
     if (!form.cardNo) return onError('카드번호를 입력하세요.')
     try {
       await api.post('/bank-cards/cards', {
+        code: form.code || undefined,
         cardName: form.cardName,
         cardCompany: form.cardCompany,
         cardNo: form.cardNo,
@@ -455,6 +490,10 @@ function CardForm({ accounts, onError, onSaved }: {
   return (
     <Panel title="카드등록" submitLabel="등록" onSubmit={submit}
       hint="※ 카드번호는 마스킹된 형태로 저장하세요(예: 5310-****-****-1234). 결제계좌는 카드대금이 빠져나갈 계좌입니다.">
+      {/* 원본 카드등록 차례: <b>카드코드</b> · … */}
+      <Field label="카드코드">
+        <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 110 }} placeholder="C001" />
+      </Field>
       <Field label="카드명 *">
         <input className="ec-input" value={form.cardName} onChange={(e) => set('cardName', e.target.value)} style={{ width: 130 }} placeholder="법인 업무용" />
       </Field>

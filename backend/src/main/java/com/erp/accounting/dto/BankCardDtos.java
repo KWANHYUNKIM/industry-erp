@@ -20,6 +20,9 @@ public final class BankCardDtos {
     // ── 계좌 ──────────────────────────────────────────────────────────
 
     public record BankAccountRequest(
+            /* 원본 [계좌코드]·[계좌명]. 이미 있는 계좌에는 없으므로 필수가 아니다. */
+            String code,
+            String name,
             @NotBlank(message = "은행명을 입력하세요.") String bankName,
             @NotBlank(message = "계좌번호를 입력하세요.") String accountNo,
             String holder,
@@ -31,13 +34,15 @@ public final class BankCardDtos {
     ) {}
 
     public record BankAccountResponse(
-            Long id, String bankName, String accountNo, String holder,
+            Long id, String code, String name,
+            String bankName, String accountNo, String holder,
             Long glAccountId, String glAccountCode, String glAccountName,
             BigDecimal balance, boolean active, String remark
     ) {
         public static BankAccountResponse from(BankAccount b) {
             return new BankAccountResponse(
-                    b.getId(), b.getBankName(), b.getAccountNo(), b.getHolder(),
+                    b.getId(), b.getCode(), b.getName(),
+                    b.getBankName(), b.getAccountNo(), b.getHolder(),
                     b.getGlAccount().getId(), b.getGlAccount().getCode(), b.getGlAccount().getName(),
                     b.getBalance(), b.isActive(), b.getRemark());
         }
@@ -46,6 +51,8 @@ public final class BankCardDtos {
     // ── 카드 ──────────────────────────────────────────────────────────
 
     public record CreditCardRequest(
+            /* 원본 [카드코드]. 이미 있는 카드에는 없으므로 필수가 아니다. */
+            String code,
             @NotBlank(message = "카드명을 입력하세요.") String cardName,
             @NotBlank(message = "카드사를 입력하세요.") String cardCompany,
             @NotBlank(message = "카드번호를 입력하세요.") String cardNo,
@@ -58,7 +65,7 @@ public final class BankCardDtos {
     ) {}
 
     public record CreditCardResponse(
-            Long id, String cardName, String cardCompany, String cardNo,
+            Long id, String code, String cardName, String cardCompany, String cardNo,
             CardType type, String typeName, String ownerName,
             Long settlementAccountId, String settlementAccountName,
             Integer settlementDay, boolean active, String remark
@@ -66,7 +73,7 @@ public final class BankCardDtos {
         public static CreditCardResponse from(CreditCard c) {
             BankAccount s = c.getSettlementAccount();
             return new CreditCardResponse(
-                    c.getId(), c.getCardName(), c.getCardCompany(), c.getCardNo(),
+                    c.getId(), c.getCode(), c.getCardName(), c.getCardCompany(), c.getCardNo(),
                     c.getType(), c.getType().getDisplayName(), c.getOwnerName(),
                     s != null ? s.getId() : null,
                     s != null ? s.getBankName() + " " + s.getAccountNo() : null,

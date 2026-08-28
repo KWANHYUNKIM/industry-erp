@@ -66,6 +66,8 @@ public class BankCardService {
             throw ApiException.conflict("이미 등록된 계좌번호입니다: " + req.accountNo());
         }
         BankAccount b = BankAccount.builder()
+                .code(req.code())
+                .name(req.name())
                 .bankName(req.bankName())
                 .accountNo(req.accountNo())
                 .holder(req.holder())
@@ -83,6 +85,8 @@ public class BankCardService {
         if (!b.getAccountNo().equals(req.accountNo()) && bankAccountRepository.existsByAccountNo(req.accountNo())) {
             throw ApiException.conflict("이미 등록된 계좌번호입니다: " + req.accountNo());
         }
+        b.setCode(req.code());
+        b.setName(req.name());
         b.setBankName(req.bankName());
         b.setAccountNo(req.accountNo());
         b.setHolder(req.holder());
@@ -106,6 +110,7 @@ public class BankCardService {
             throw ApiException.conflict("이미 등록된 카드번호입니다: " + req.cardNo());
         }
         CreditCard c = CreditCard.builder()
+                .code(req.code())
                 .cardName(req.cardName())
                 .cardCompany(req.cardCompany())
                 .cardNo(req.cardNo())
@@ -125,6 +130,7 @@ public class BankCardService {
         if (!c.getCardNo().equals(req.cardNo()) && cardRepository.existsByCardNo(req.cardNo())) {
             throw ApiException.conflict("이미 등록된 카드번호입니다: " + req.cardNo());
         }
+        c.setCode(req.code());
         c.setCardName(req.cardName());
         c.setCardCompany(req.cardCompany());
         c.setCardNo(req.cardNo());

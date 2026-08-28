@@ -1,12 +1,9 @@
 [
  "PriceRequestProgressPage.tsx  원본 단가요청진행단계 의 [수취금액] 열이 없다",
  "PriceRequestProgressPage.tsx  원본 단가요청진행단계 의 [이력] 열이 없다",
- "BankCardPage.tsx  원본 카드등록 의 [카드코드] 열이 없다",
  "BankCardPage.tsx  원본 카드등록 의 [계정명] 열이 없다",
  "BankCardPage.tsx  원본 카드등록 의 [카드관리자] 열이 없다",
  "BankCardPage.tsx  원본 카드등록 의 [검색창내용] 열이 없다",
- "BankCardPage.tsx  원본 계좌등록 의 [계좌코드] 열이 없다",
- "BankCardPage.tsx  원본 계좌등록 의 [계좌명] 열이 없다",
  "BankCardPage.tsx  원본 계좌등록 의 [검색창내용] 열이 없다",
  "BankCardPage.tsx  원본 계좌등록 의 [외화통장] 열이 없다",
  "BankCardPage.tsx  원본 계좌등록 의 [이체정보] 열이 없다",

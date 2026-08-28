@@ -1108,6 +1108,9 @@ export type CardType = 'CORPORATE' | 'PERSONAL'
 
 export interface BankAccountRow {
   id: number
+  /** 원본 계좌등록의 [계좌코드]·[계좌명]. 이미 있는 계좌에는 없으므로 널이다. */
+  code: string | null
+  name: string | null
   bankName: string
   accountNo: string
   holder: string | null
@@ -1121,6 +1124,8 @@ export interface BankAccountRow {
 
 export interface CreditCardRow {
   id: number
+  /** 원본 카드등록의 [카드코드]. 이미 있는 카드에는 없으므로 널이다. */
+  code: string | null
   cardName: string
   cardCompany: string
   cardNo: string

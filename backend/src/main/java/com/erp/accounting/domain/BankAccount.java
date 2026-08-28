@@ -27,6 +27,18 @@ public class BankAccount extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String bankName;
 
+    /**
+     * 원본 계좌등록의 [계좌코드]. 이 저장소의 다른 마스터는 <b>모두 코드로 식별</b>되는데
+     * 계좌만 없어서, 코드도움에서도 은행·계좌번호를 통째로 외워야 골랐다.
+     * 이미 있는 계좌에는 코드가 없으므로 nullable 이다.
+     */
+    @Column(length = 20)
+    private String code;
+
+    /** 원본 계좌등록의 [계좌명] — '주거래통장' 처럼 <b>사람이 부르는 이름</b>이다. */
+    @Column(length = 100)
+    private String name;
+
     @Column(nullable = false, unique = true, length = 50)
     private String accountNo;
 
