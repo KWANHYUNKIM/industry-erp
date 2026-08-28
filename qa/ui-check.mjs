@@ -1859,6 +1859,45 @@ console.log('\n■ 코드도움이 주는 값으로 화면이 실제로 거르�
   eq('코드도움이 이름을 주고 화면이 이름으로 거른다', bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-p) 코드도움이 주는 값 ↔ 화면이 거르는 값 (화면별) ──────────────────
+console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
+
+/*
+ * 앞 검사(1-o)는 공용 코드도움 목록이 <b>무엇을 담는지</b>만 본다. 화면이 인라인으로
+ * 만든 목록은 각자 다르다 — <code>value: String(w.id)</code> 로 담아 놓고 이름으로
+ * 거르면, 거래처에서 겪은 것과 같이 <b>목록이 통째로 빈다.</b>
+ *
+ * <p>타입은 둘 다 string 이라 타입체크가 못 잡고, 화면을 열어 골라 봐야만 드러난다.
+ * 그래서 코드도움마다 <b>담는 값의 종류</b>와 <b>거르는 방식</b>을 맞춰 본다.
+ */
+{
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8').replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ')
+    for (const m of src.matchAll(/<CodePickerField[\s\S]{0,700}?\/>/g)) {
+      const block = m[0]
+      const val = block.match(/value=\{([\w.]+)\}/)
+      if (!val) continue
+      const path = val[1]
+      const shared = /items=\{pickers\.\w+\}/.test(block)   // 공용 목록 = 이름
+      const byId = /value: String\(/.test(block)
+      if (!byId && !shared) continue
+      const lines = src.split('\n')
+        .filter((l) => new RegExp(escRe(path) + '\\b').test(l) && /filter|includes|===/.test(l))
+        .filter((l) => !/CodePickerField|setC\(|useState|value=\{/.test(l))
+      if (!lines.length) continue
+      checked++
+      const nameCmp = lines.some((l) => /(Name|\.name)[\s\S]{0,24}?\.includes\(|(Name|\.name)\s*===/.test(l))
+      const idCmp = lines.some((l) => /String\([\w.]+\.\w*[iI]d\)|\bid\b\s*===|Number\(/.test(l))
+      if (byId && nameCmp && !idCmp) bad.push(`${f.split(sep).pop()}  [${path}] 은 id 를 받는데 이름으로 거른다`)
+      if (shared && idCmp && !nameCmp) bad.push(`${f.split(sep).pop()}  [${path}] 은 이름을 받는데 id 로 거른다`)
+    }
+  }
+  eq(`코드도움 ${checked}곳이 받은 값 그대로 거른다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
