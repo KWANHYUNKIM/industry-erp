@@ -64,6 +64,11 @@ export default function CostBuildPage() {
   const [items, setItems] = useState<Item[]>([])
   const [keyword, setKeyword] = useState('')
   /** 원본 [계산기준]. 표준원가생성이 자재 단가를 어떻게 잴지 정한다. */
+  /*
+   * 원본 원가생성 조건 차례의 맨 앞 <b>[기준년월]</b>. 원가는 달마다 새로 잡히는데
+   * 목록이 <b>모든 달을 한꺼번에</b> 보여 줘서, 이번 달 원가만 보려 해도 눈으로 골라야 했다.
+   */
+  const [periodCond, setPeriodCond] = useState('')
   const [basis, setBasis] = useState<Basis>('최종매입가')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -154,7 +159,9 @@ export default function CostBuildPage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
+  const shown = rows
+    .filter((r) => !periodCond || r.period === periodCond)
+    .filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
   
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
   const editItemName = editId ? rows.find((r) => r.id === editId)?.itemName : ''
@@ -199,6 +206,10 @@ export default function CostBuildPage() {
       ]}>
       {/* 원본 [계산기준] — 표준원가생성이 자재 단가를 어떻게 잴지. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준년월">
+          <input type="month" className="ec-input" value={periodCond}
+                 onChange={(e) => setPeriodCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="계산기준">
           <div className="ec-pills">
             {BASES.map((b) => (
