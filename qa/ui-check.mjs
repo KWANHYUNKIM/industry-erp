@@ -1261,17 +1261,13 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
  * 우리에 없는 조건은 건너뛴다 — 조건을 다 만들었는지가 아니라 <b>만든 것의 기본값</b>을 본다.
  */
 {
-  const BOX_MAP = new Map([
-    ['거래처별채권', 'trade/LedgerPage.tsx'],
-    ['거래처별채무', 'trade/LedgerPage.tsx'],
-    ['실제원가현황', 'accounting/ActualCostPage.tsx'],
-    ['차이분석', 'accounting/VariancePage.tsx'],
-    ['표준원가현황', 'accounting/StandardCostPage.tsx'],
-    ['업무일지', 'groupware/WorkLogPage.tsx'],
-    ['휴가사용실적현황', 'hr/VacationUsePage.tsx'],
-    ['휴가잔여일수현황', 'hr/VacationRemainPage.tsx'],
-    ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
-  ])
+  /*
+   * <b>여기 손으로 적은 아홉 줄만 보고 있었다.</b> fixture 에는 35화면이 적혀 있는데
+   * 그중 <b>26화면은 한 번도 걸리지 않았다</b> — 지도가 자료보다 좁으면 자료를 늘려도
+   * 검사가 커지지 않는다(조건 검사에서 이미 같은 것을 겪었다).
+   * 다른 검사들처럼 대조표를 그대로 쓴다.
+   */
+  const BOX_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-checkbox-default.json'), 'utf8'))
   const bad = []
   let checked = 0
@@ -1285,6 +1281,14 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
       // 라벨 앞의 <input type="checkbox" checked={변수} … /> 를 찾는다
       let m = null
       for (let at = src.indexOf(label); at >= 0; at = src.indexOf(label, at + 1)) {
+        /*
+         * <b>이름은 낱말째로 본다.</b> 그냥 부분일치로 찾으면 [사용]이
+         * <b>[사용중단포함]</b> 의 앞부분에 걸린다 — 거래처리스트의 그 체크박스를
+         * 거래처관리대장 II 의 [사용]으로 잘못 짚어, 기본값이 다르다고 걸렸다.
+         */
+        const before = src[at - 1]
+        const after = src[at + label.length]
+        if ((before && /[가-힣]/.test(before)) || (after && /[가-힣]/.test(after))) continue
         const near = src.slice(Math.max(0, at - 400), at)
         if (!/type="checkbox"/.test(near)) continue     // 주석에 적힌 이름은 건너뛴다
         m = [...near.matchAll(/checked=\{(!?)(\w+)\}/g)].pop()
