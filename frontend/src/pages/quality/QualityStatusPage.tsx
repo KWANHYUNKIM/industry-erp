@@ -26,13 +26,16 @@ const resultColor = (r: QualityResult | null) =>
 
 interface Filters {
   dateFrom: string
+  /** 원본 품질검사현황 조건의 [창고]·[프로젝트]. 검사에 그 칸이 없어 못 걸렀다. */
+  warehouse: string
+  project: string
   dateTo: string
   type: '' | QualityInspectionType
   item: string
   result: '' | QualityResult
   inspector: string
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', type: '', item: '', result: '', inspector: '' }
+const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', type: '', item: '', warehouse: '', project: '', result: '', inspector: '' }
 
 const pct = (n: number) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
 
@@ -65,6 +68,8 @@ export default function QualityStatusPage() {
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.inspectionNo.includes(kw) && !(r.lotNo ?? '').includes(kw)) return false
       if (f.dateFrom && r.inspectionDate < f.dateFrom) return false
+      if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
+      if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.dateTo && r.inspectionDate > f.dateTo) return false
       if (f.type && r.type !== f.type) return false
       if (f.item && !r.itemName.includes(f.item)) return false
@@ -228,6 +233,17 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 품질검사현황 차례: 품목 · <b>창고 · 프로젝트</b> · 출처(요청)구분 */}
+        <span style={label}>창고</span>
+        <input className="ec-input" placeholder="창고명" value={draft.warehouse}
+          onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>프로젝트</span>
+        <input className="ec-input" placeholder="프로젝트명" value={draft.project}
+          onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>판정결과</span>

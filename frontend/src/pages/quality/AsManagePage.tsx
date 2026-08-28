@@ -21,6 +21,8 @@ const NEXT: Record<AsStatus, AsStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PR
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; title: string | null; scheduledDate: string | null
+  warehouseId: number | null; warehouseName: string | null
+  projectId: number | null; projectName: string | null
   symptom: string | null; charge: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
 }
@@ -32,6 +34,7 @@ export default function AsManagePage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
 
   // 소모부품 관리
@@ -60,6 +63,7 @@ export default function AsManagePage() {
   const [schedTo, setSchedTo] = useState('')
   const [titleCond, setTitleCond] = useState('')
   const [itemCond, setItemCond] = useState('')
+  const [projCond, setProjCond] = useState('')
 
   const [partnerId, setPartnerId] = useState('')
   const [itemId, setItemId] = useState('')
@@ -69,19 +73,23 @@ export default function AsManagePage() {
      증상 전문을 읽어야 알았고, 언제까지 고쳐 주기로 했는지는 적을 데가 없었다. */
   const [title, setTitle] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
+  /* 원본 A/S접수의 [창고]·[프로젝트]. 접수 시점에 못 적어 소모부품 창고로만 되짚어야 했다. */
+  const [fWarehouse, setFWarehouse] = useState('')
+  const [fProject, setFProject] = useState('')
   const [charge, setCharge] = useState('')
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
 
   async function load() {
     try {
-      const [a, p, i, w] = await Promise.all([
+      const [a, p, i, w, pj] = await Promise.all([
         api.get<AsRow[]>('/as-requests'),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
-      setRows(a.data); setPartners(p.data); setItems(i.data); setWarehouses(w.data)
+      setRows(a.data); setPartners(p.data); setItems(i.data); setWarehouses(w.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { load() }, [])
@@ -124,6 +132,8 @@ export default function AsManagePage() {
       const res = await api.post<AsRow>('/as-requests', {
         partnerId: Number(partnerId), itemId: Number(itemId), receiptDate,
         title: title || undefined, scheduledDate: scheduledDate || undefined,
+        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
+        projectId: fProject ? Number(fProject) : undefined,
         symptom: symptom || undefined, charge: charge || undefined,
       })
       setOk(`${res.data.asNo} A/S 접수 완료`)
@@ -157,6 +167,7 @@ export default function AsManagePage() {
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
+    .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
@@ -209,6 +220,20 @@ export default function AsManagePage() {
                 </td>
                 <th style={th}>담당</th>
                 <td><input className={inputCls} value={charge} onChange={(e) => setCharge(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>창고</th>
+                <td>
+                  <CodePickerField label="창고" hideLabel width={200} emptyLabel="선택 안 함"
+                                   value={fWarehouse} onChange={setFWarehouse}
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
+                <th style={th}>프로젝트</th>
+                <td>
+                  <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="선택 안 함"
+                                   value={fProject} onChange={setFProject}
+                                   items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
               </tr>
               <tr>
                 <th style={th}>제목</th>
@@ -273,6 +298,10 @@ export default function AsManagePage() {
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: '#9aa1ab' }}>~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ marginLeft: 8 }}>프로젝트</span>
+        <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
+                         value={projCond} onChange={setProjCond}
+                         items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         <span style={{ marginLeft: 8 }}>품목</span>
         <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
                placeholder="품목" style={{ width: 150 }} />

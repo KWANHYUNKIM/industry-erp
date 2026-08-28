@@ -3,6 +3,8 @@ package com.erp.quality.service;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.Lot;
 import com.erp.quality.domain.QualityInspection;
 import com.erp.quality.domain.QualityResult;
@@ -28,6 +30,9 @@ public class QualityInspectionService {
     private final ItemRepository itemRepository;
     private final LotRepository lotRepository;
     private final DocumentNoGenerator docNoGenerator;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<InspectionResponse> findAll() {
@@ -62,6 +67,8 @@ public class QualityInspectionService {
                 .item(item)
                 .lotNo(req.lotNo())
                 .lot(lot)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .inspectedQty(req.inspectedQty())
                 .defectQty(defect)
                 .result(result)

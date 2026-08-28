@@ -50,6 +50,9 @@ public final class AsDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             LocalDate receiptDate,
+            /* 원본 조건의 [창고]·[프로젝트]. 접수 시점에 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
             String title,
             LocalDate scheduledDate,
             String symptom,
@@ -71,6 +74,8 @@ public final class AsDtos {
             Long itemId, String itemName,
             LocalDate receiptDate,
             String title, LocalDate scheduledDate,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
             String symptom, String charge,
             AsStatus status, String statusName,
             LocalDate doneDate, String repairNote
@@ -82,6 +87,10 @@ public final class AsDtos {
                     a.getItem().getId(), a.getItem().getName(),
                     a.getReceiptDate(),
                     a.getTitle(), a.getScheduledDate(),
+                    a.getWarehouse() != null ? a.getWarehouse().getId() : null,
+                    a.getWarehouse() != null ? a.getWarehouse().getName() : null,
+                    a.getProject() != null ? a.getProject().getId() : null,
+                    a.getProject() != null ? a.getProject().getName() : null,
                     a.getSymptom(), a.getCharge(),
                     a.getStatus(), a.getStatus().getDisplayName(),
                     a.getDoneDate(), a.getRepairNote());

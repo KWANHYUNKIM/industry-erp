@@ -19,6 +19,9 @@ public final class QualityDtos {
             @NotNull(message = "검사구분을 선택하세요.") QualityInspectionType type,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             String lotNo,
+            /* 원본 조건의 [창고]·[프로젝트]. 검사 시점에 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
             @NotNull(message = "검사수량을 입력하세요.") @PositiveOrZero(message = "검사수량은 0 이상이어야 합니다.") BigDecimal inspectedQty,
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             QualityResult result,
@@ -35,6 +38,8 @@ public final class QualityDtos {
             Long lotId,
             BigDecimal inspectedQty, BigDecimal defectQty, BigDecimal goodQty, BigDecimal defectRate,
             QualityResult result, String resultName,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
             String inspector, String remark
     ) {
         public static InspectionResponse from(QualityInspection q) {
@@ -51,6 +56,10 @@ public final class QualityDtos {
                     q.getLot() != null ? q.getLot().getId() : null,
                     q.getInspectedQty(), q.getDefectQty(), good, rate,
                     q.getResult(), q.getResult().getDisplayName(),
+                    q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                    q.getWarehouse() != null ? q.getWarehouse().getName() : null,
+                    q.getProject() != null ? q.getProject().getId() : null,
+                    q.getProject() != null ? q.getProject().getName() : null,
                     q.getInspector(), q.getRemark());
         }
     }

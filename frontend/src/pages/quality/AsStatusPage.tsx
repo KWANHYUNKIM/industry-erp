@@ -19,13 +19,15 @@ const COLOR: Record<AsStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; symptom: string | null; charge: string | null
+  warehouseName: string | null; projectName: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
 }
 
 interface Filters {
-  dateFrom: string; dateTo: string; partner: string; item: string; charge: string; status: '' | AsStatus
+  dateFrom: string; dateTo: string; warehouse: string; project: string
+  partner: string; item: string; charge: string; status: '' | AsStatus
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', partner: '', item: '', charge: '', status: '' }
+const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
 
 /** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
 function daysBetween(from: string, to: string | null): number | null {
@@ -67,6 +69,8 @@ export default function AsStatusPage() {
       if (f.dateTo && r.receiptDate > f.dateTo) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
+      if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.charge && !(r.charge ?? '').includes(f.charge)) return false
       if (f.status && r.status !== f.status) return false
       return true
@@ -220,6 +224,17 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 A/S접수현황 차례: <b>창고 · 프로젝트</b> · 담당자 · 접수진행상태 · 거래처 · 품목 */}
+        <span style={label}>창고</span>
+        <input className="ec-input" placeholder="창고명" value={draft.warehouse}
+          onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>프로젝트</span>
+        <input className="ec-input" placeholder="프로젝트명" value={draft.project}
+          onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         {/* 원본 A/S접수현황의 이름은 [담당]이 아니라 <b>[담당자]</b> 다(사본 실측). */}

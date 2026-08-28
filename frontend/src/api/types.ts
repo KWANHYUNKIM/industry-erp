@@ -797,6 +797,11 @@ export interface QualityInspection {
   defectRate: number
   result: QualityResult
   resultName: string
+  /** 원본 조건의 [창고]·[프로젝트]. 검사 시점에 안 정했을 수 있어 널이다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  projectId: number | null
+  projectName: string | null
   inspector: string | null
   remark: string | null
 }

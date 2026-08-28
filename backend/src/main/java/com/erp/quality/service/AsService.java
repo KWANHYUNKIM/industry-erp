@@ -7,6 +7,8 @@ import com.erp.quality.domain.AsRequest;
 import com.erp.quality.domain.AsStatus;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
 import com.erp.quality.dto.AsDtos.AsConsumptionRow;
@@ -38,6 +40,8 @@ import com.erp.quality.dto.AsDtos;
 public class AsService {
 
     private final AsRequestRepository asRepository;
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
     private final AsPartRepository asPartRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
@@ -64,6 +68,8 @@ public class AsService {
                 .partner(partner)
                 .item(item)
                 .receiptDate(date)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .title(req.title())
                 .scheduledDate(req.scheduledDate())
                 .symptom(req.symptom())

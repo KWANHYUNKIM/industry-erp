@@ -859,7 +859,10 @@ async function scenarioAsConsumption(f) {
     partnerId: f.customer.id, itemId: f.product.id,
     receiptDate: '2026-03-05', symptom: 'QA 소모현황용 접수', charge: 'QA담당',
     title: 'QA 제목', scheduledDate: '2026-03-12',
+    warehouseId: f.warehouse.id,
   })
+  /* 원본 A/S접수의 [창고]. 접수 시점에 못 적어 소모부품 창고로만 되짚어야 했다. */
+  eq('A/S 접수가 창고를 문다', as.warehouseName, f.warehouse.name)
   /*
    * 원본 A/S접수입력의 [제목]·[수리예정일자]. 응답 record 에 필드를 만들어 놓고
    * <b>Create 요청에 빠뜨리면 서버가 조용히 버린다</b>(record 에 없는 키는 JSON 에서 무시된다).

@@ -7,6 +7,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import com.erp.common.BaseTimeEntity;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.domain.Project;
+import com.erp.inventory.domain.Warehouse;
 import com.erp.inventory.domain.Lot;
 
 /**
@@ -40,6 +42,21 @@ public class QualityInspection extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "item_id", nullable = false)
     private Item item;
+
+    /**
+     * 원본 조건의 [창고]. 같은 품목이 창고 셋에 있으면 <b>어느 창고 것을 본 검사인지</b>
+     * 알 수가 없었고, 불량률파악보고서에서 창고로 거를 수도 없었다.
+     * 검사 시점에 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    /** 원본 조건의 [프로젝트]. 위와 같은 까닭으로 nullable 이다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
 
     @Column(length = 50)
     private String lotNo;
