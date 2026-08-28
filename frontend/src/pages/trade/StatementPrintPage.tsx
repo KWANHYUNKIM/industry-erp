@@ -208,11 +208,6 @@ export default function StatementPrintPage() {
         onPeriod={(r) => { setFromDate(r.from); setToDate(r.to) }}
         picks={STATUS_PICKS}
       >
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel value={partnerId === '' ? '' : String(partnerId)} width={220}
-                           onChange={(v) => setPartnerId(v ? Number(v) : '')}
-                           items={partnerCodeItems(partners)} />
-        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouse} onChange={(v) => setWarehouse(v)}
@@ -222,6 +217,11 @@ export default function StatementPrintPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel value={partnerId === '' ? '' : String(partnerId)} width={220}
+                           onChange={(v) => setPartnerId(v ? Number(v) : '')}
+                           items={partnerCodeItems(partners)} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"

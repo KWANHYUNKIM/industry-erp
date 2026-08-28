@@ -344,15 +344,19 @@ export default function AccountingReflectionPage() {
             ))}
           </div>
         </EcCond>
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={cond.partner} onChange={(v) => setC({ partner: v })}
-                           items={pickers.partners} />
-        </EcCond>
         {/* 원본은 [판매No.]·[구매No.] 라고 부른다(사본 실측) — 어느 전표인지가 이름에 있다. */}
         <EcCond label={kind === 'sales' ? '판매No.' : '구매No.'} pick>
           <input className="ec-input" placeholder="전표번호 일부" value={cond.docNo}
                  onChange={(e) => setC({ docNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={`ec-pill no-ec${cond.vatType === v ? ' active' : ''}`}
+                      onClick={() => setC({ vatType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -364,21 +368,17 @@ export default function AccountingReflectionPage() {
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
         </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
         {/* 원본 조건의 [거래유형]. 전표의 과세 여부를 그대로 본다. */}
-        <EcCond label="거래유형">
-          <div className="ec-pills">
-            {['', '과세', '면세'].map((v) => (
-              <button key={v || 'all'} type="button"
-                      className={`ec-pill no-ec${cond.vatType === v ? ' active' : ''}`}
-                      onClick={() => setC({ vatType: v })}>{v || '전체'}</button>
-            ))}
-          </div>
-        </EcCond>
         {/* 원본 판매일괄회계반영의 [거래구분] · 구매일괄회계반영의 [구매구분]. */}
         <EcCond label={kind === 'sales' ? '거래구분' : '구매구분'}>
           <div className="ec-pills">

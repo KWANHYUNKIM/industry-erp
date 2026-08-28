@@ -298,15 +298,20 @@ export default function WoProgressPage() {
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={item} onChange={(v) => setItem(v)}
-                           items={pickers.items} />
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         {/* 원본 [거래처관리담당자]. 그 거래처를 맡은 영업담당자다. */}
         <EcCond label="담당자" pick>
@@ -318,11 +323,6 @@ export default function WoProgressPage() {
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
                            value={partnerManager} onChange={(v) => setPartnerManager(v)}
                            items={pickers.employees} />
-        </EcCond>
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
-                           value={warehouse} onChange={(v) => setWarehouse(v)}
-                           items={pickers.warehouses} />
         </EcCond>
       </EcStatusPanel>
 

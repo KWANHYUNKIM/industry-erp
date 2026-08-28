@@ -48,6 +48,8 @@ interface WorkOrderRow {
   warehouseName: string | null
   /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   employeeId: number | null
+  /** 원본 조건 판의 [거래처] — 작업지시의 납품처. 위와 같이 안 받고 있었다. */
+  partnerName: string | null
   /** 원본 조건 판의 [적요]. 위와 같음. */
   remark: string | null
 }
@@ -94,7 +96,7 @@ interface WorkResultRow {
 
 export default function WoEfficiencyPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items', 'warehouses', 'employees'])
+  const pickers = useCondPickers(['items', 'warehouses', 'employees', 'partners'])
   const [orders, setOrders] = useState<WorkOrderRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
@@ -117,6 +119,8 @@ export default function WoEfficiencyPage() {
   /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
   const [manager, setManager] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
+  /** 원본 [거래처] — 작업지시의 납품처. */
+  const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [status, setStatus] = useState('전체')
@@ -261,6 +265,7 @@ export default function WoEfficiencyPage() {
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
+    if (partner && (r.partnerName ?? '') !== partner) return false
     if (status !== '전체' && r.statusName !== status) return false
     return true
   })
@@ -313,15 +318,20 @@ export default function WoEfficiencyPage() {
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={item} onChange={(v) => setItem(v)}
-                           items={pickers.items} />
-        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouse} onChange={(v) => setWarehouse(v)}
                            items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"

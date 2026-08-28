@@ -180,6 +180,22 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
       >
         {mode === '전표단가' && (
           <>
+            <EcCond label="거래유형">
+              <div className="ec-pills">
+                {['', '과세', '면세'].map((v) => (
+                  <button key={v || 'all'} type="button"
+                          className={`ec-pill no-ec${taxType === v ? ' active' : ''}`}
+                          onClick={() => setTaxType(v)}>{v || '전체'}</button>
+                ))}
+              </div>
+            </EcCond>
+            <EcCond label="창고" pick>
+              <CodePickerField
+                label="창고" hideLabel width={180} emptyLabel="전체"
+                value={warehouseId} onChange={setWarehouseId}
+                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
+              />
+            </EcCond>
             <EcCond label="거래처" pick>
               <CodePickerField
                 label="거래처" hideLabel width={220} emptyLabel="전체"
@@ -194,27 +210,11 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
                 items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec ?? undefined }))}
               />
             </EcCond>
-            <EcCond label="창고" pick>
-              <CodePickerField
-                label="창고" hideLabel width={180} emptyLabel="전체"
-                value={warehouseId} onChange={setWarehouseId}
-                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
-              />
-            </EcCond>
             {/*
               원본 조건의 [거래유형]. 예전에는 만들지 않았다 — 전표가 과세 여부를 안 들고
               있어서 부가세가 0 인지로 되짚어야 했고, 반올림으로 0 이 된 과세 전표가 면세로
               섞였기 때문이다. 이제 전표가 그 값을 저장하므로 걸 수 있다.
             */}
-            <EcCond label="거래유형">
-              <div className="ec-pills">
-                {['', '과세', '면세'].map((v) => (
-                  <button key={v || 'all'} type="button"
-                          className={`ec-pill no-ec${taxType === v ? ' active' : ''}`}
-                          onClick={() => setTaxType(v)}>{v || '전체'}</button>
-                ))}
-              </div>
-            </EcCond>
             {/*
               원본 [구매구분](구매) · [거래구분](판매) — 전체 · 일반 · 반품.
               반품 전표는 수량·금액이 음수라, 단가를 고칠 대상에서 갈라 볼 수 있어야 한다.

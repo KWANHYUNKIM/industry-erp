@@ -208,6 +208,10 @@ export default function WorkResultListPage() {
           <input className="ec-input" placeholder="공정명 일부" value={process}
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 200 }} />
         </EcCond>
+        <EcCond label="생산공장" pick>
+          <input className="ec-input" placeholder="공장명 일부" value={plant}
+                 onChange={(e) => setPlant(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={worker} onChange={(v) => setWorker(v)}
@@ -217,19 +221,15 @@ export default function WorkResultListPage() {
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
         </EcCond>
-        <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
-                           value={product} onChange={(v) => setProduct(v)}
-                           items={pickers.items} />
-        </EcCond>
         {/* 원본 조건의 [작업품목]. 그 작업이 실제로 다루는 품목 — 생산품목과 다르다. */}
         <EcCond label="작업품목" pick>
           <input className="ec-input" placeholder="작업품목명 일부" value={workItem}
                  onChange={(e) => setWorkItem(e.target.value)} style={{ width: 200 }} />
         </EcCond>
-        <EcCond label="생산공장" pick>
-          <input className="ec-input" placeholder="공장명 일부" value={plant}
-                 onChange={(e) => setPlant(e.target.value)} style={{ width: 160 }} />
+        <EcCond label="생산품목" pick>
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
+                           value={product} onChange={(v) => setProduct(v)}
+                           items={pickers.items} />
         </EcCond>
       </EcStatusPanel>
 

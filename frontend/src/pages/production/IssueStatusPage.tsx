@@ -45,13 +45,15 @@ interface MaterialIssue {
   qty: number
   issueDate: string
   note: string | null
+  /** 원본 조건 판의 [프로젝트]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  projectName: string | null
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function IssueStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items', 'employees'])
+  const pickers = useCondPickers(['items', 'employees', 'projects'])
   const [rows, setRows] = useState<MaterialIssue[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +65,8 @@ export default function IssueStatusPage() {
   const [mode, setMode] = useState<Mode>('내역')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
+  /** 원본 조건 판의 [프로젝트]. */
+  const [project, setProject] = useState('')
   const [item, setItem] = useState('')
   const [note, setNote] = useState('')
   const [emp, setEmp] = useState('')
@@ -112,9 +116,10 @@ export default function IssueStatusPage() {
     if (item && !`${r.itemCode} ${r.itemName}`.includes(item)) return false
     if (note && !(r.note ?? '').includes(note)) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
+    if (project && (r.projectName ?? '') !== project) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, from, to, warehouseId, item, note, emp, employees])
+  }), [rows, from, to, warehouseId, item, note, emp, project, employees])
 
   /** 내역 — 작업지시 하나를 한 줄로 접는다. */
   const byOrder = useMemo(() => {
@@ -200,6 +205,11 @@ export default function IssueStatusPage() {
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouseId} onChange={(v) => setWarehouseId(v)}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"

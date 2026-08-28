@@ -213,15 +213,15 @@ export default function ReceiptStatusPage() {
                            value={warehouseId} onChange={(v) => setWarehouseId(v)}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={item} onChange={(v) => setItem(v)}
-                           items={pickers.items} />
-        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"

@@ -37,6 +37,7 @@ interface Row {
   partner: string
   warehouse: string | null
   employee: string | null
+  project: string | null
   /** 전표 공급가액 합(판매·구매·외주). */
   orgAmount: number
   /** 그중 회계로 넘어간 금액 */
@@ -60,7 +61,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   withTradeType?: boolean
 }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['warehouses', 'partners', 'employees'])
+  const pickers = useCondPickers(['warehouses', 'partners', 'employees', 'projects'])
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -73,6 +74,8 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const [minDiff, setMinDiff] = useState('')
   /** 원본 [거래유형]. 전표의 과세 여부로 거른다. */
   const [tradeType, setTradeType] = useState<'전체' | '과세' | '면세'>('전체')
+  /** 원본 조건 판의 [프로젝트]. 전표가 프로젝트를 들고 있는데 거를 수가 없었다. */
+  const [project, setProject] = useState('')
 
   async function load() {
     setLoading(true)
@@ -99,7 +102,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
       const key = `${date}|${d.partnerName}`
       const cur = m.get(key) ?? {
         date, partner: d.partnerName,
-        warehouse: d.warehouseName, employee: d.employeeName,
+        warehouse: d.warehouseName, employee: d.employeeName, project: d.projectName ?? null,
         orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
       }
       cur.orgAmount += d.supplyAmount
@@ -116,6 +119,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     if (keyword && !r.partner.includes(keyword)) return false
     if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
     if (employee && !(r.employee ?? '').includes(employee)) return false
+    if (project && (r.project ?? '') !== project) return false
     if (minDiff && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
     return true
   })
@@ -173,16 +177,6 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
-                           value={warehouse} onChange={(v) => setWarehouse(v)}
-                           items={pickers.warehouses} />
-        </EcCond>
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
-                           items={pickers.partners} />
-        </EcCond>
         {withTradeType && (
           <EcCond label="거래유형">
             {/* 원본 [거래유형] — 과세·면세. 전표가 그 값을 들고 있다(taxable). */}
@@ -194,6 +188,21 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
             </div>
           </EcCond>
         )}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
                            value={employee} onChange={(v) => setEmployee(v)}

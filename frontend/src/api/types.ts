@@ -580,6 +580,9 @@ export interface ApprovalDoc {
   deleted: boolean
   /** 원본 기안서통합관리 조건의 [라벨] — 문서에 붙이는 꼬리표. 서버는 이미 주고 있었다. */
   labelText: string | null
+  /** 원본 조건의 [첨부] — 붙임 파일. 서버는 이미 주고 있었다. */
+  attachmentId: number | null
+  attachmentName: string | null
   currentApproverName: string | null
   /**
    * 작업자 · 작업일시 — 원본 기안서통합관리의 마지막 두 열.

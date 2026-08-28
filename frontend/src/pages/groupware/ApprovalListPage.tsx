@@ -64,6 +64,16 @@ export default function ApprovalListPage({
    */
   const [project, setProject] = useState('')
   const [labelCond, setLabelCond] = useState('')
+  /*
+   * 원본 조건 판에는 [제목]·[기안서No.]도 따로 있다. 우리는 목록 글자를 훑는
+   * 검색상자 하나뿐이라, 제목만으로 좁히고 싶어도 본문·기안자까지 걸려들었다.
+   */
+  const [titleCond, setTitleCond] = useState('')
+  const [docNoCond, setDocNoCond] = useState('')
+  /** 원본 [결재라인] — 그 사람이 결재선에 든 문서만 본다. */
+  const [lineCond, setLineCond] = useState('')
+  /** 원본 [첨부] — 붙임 파일이 있는 문서만/없는 문서만. */
+  const [attachCond, setAttachCond] = useState<'전체' | '있음' | '없음'>('전체')
   const [tab, setTab] = useState<Tab>('전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   /**
@@ -156,12 +166,17 @@ export default function ApprovalListPage({
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || (r.projectName ?? '') === project)
     .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
+    .filter((r) => !titleCond || r.title.includes(titleCond))
+    .filter((r) => !docNoCond || r.docNo.includes(docNoCond) || (r.draftNo ?? '').includes(docNoCond))
+    .filter((r) => !lineCond || (r.lines ?? []).some((l) => l.approverName === lineCond))
+    .filter((r) => attachCond === '전체' || (attachCond === '있음' ? r.attachmentId != null : r.attachmentId == null))
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
   const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort() as string[]
   const projects = [...new Set(rows.map((r) => r.projectName).filter(Boolean))].sort() as string[]
   const labels = [...new Set(rows.map((r) => r.labelText).filter(Boolean))].sort() as string[]
+  const approvers = [...new Set(rows.flatMap((r) => (r.lines ?? []).map((l) => l.approverName)))].sort()
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -347,9 +362,19 @@ export default function ApprovalListPage({
 
       {/* 원본은 알약 아래에 기안일자 기간 + [출력양식]·[부서] 조건을 적어 둔다 */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+        {/* 원본은 이 기간을 [일자]라고 부른다. 이름표가 없으면 무슨 날짜인지 모른다. */}
+        <label style={{ fontSize: 12.5, color: '#5a626e' }}>일자</label>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>제목</label>
+        <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
+               style={{ width: 140 }} placeholder="제목 일부" />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>결재라인</label>
+        <select className="ec-input" value={lineCond} onChange={(e) => setLineCond(e.target.value)} style={{ width: 130 }}>
+          <option value="">전체</option>
+          {approvers.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>출력양식</label>
         <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
           <option value="">전체</option>
@@ -364,6 +389,14 @@ export default function ApprovalListPage({
         <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 150 }}>
           <option value="">전체</option>
           {projects.map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>기안서No.</label>
+        <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
+               style={{ width: 140 }} placeholder="문서번호 일부" />
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>첨부</label>
+        <select className="ec-input" value={attachCond} style={{ width: 100 }}
+                onChange={(e) => setAttachCond(e.target.value as '전체' | '있음' | '없음')}>
+          {(['전체', '있음', '없음'] as const).map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>라벨</label>
         <select className="ec-input" value={labelCond} onChange={(e) => setLabelCond(e.target.value)} style={{ width: 130 }}>

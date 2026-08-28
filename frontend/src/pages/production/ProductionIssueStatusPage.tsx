@@ -368,11 +368,6 @@ export default function ProductionIssueStatusPage() {
             </div>
           </EcCond>
         )}
-        <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
-                           value={cond.manager} onChange={(v) => setCond({ ...cond, manager: v })}
-                           items={pickers.employees} />
-        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
@@ -393,6 +388,11 @@ export default function ProductionIssueStatusPage() {
           <CodePickerField label="소모품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.material} onChange={(v) => setC({ material: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
+                           value={cond.manager} onChange={(v) => setCond({ ...cond, manager: v })}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="작업지시번호">
           <input className="ec-input" placeholder="WO-…" value={cond.orderNo}
