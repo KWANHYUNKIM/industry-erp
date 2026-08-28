@@ -608,10 +608,6 @@
   "trade/SalesPlanPage.tsx"
  ],
  [
-  "시리얼/로트No.내역조회",
-  "quality/SerialLotPage.tsx"
- ],
- [
   "오더관리유형등록",
   "trade/OrderTypePage.tsx"
  ]
