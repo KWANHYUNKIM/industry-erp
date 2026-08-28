@@ -1,14 +1,46 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.WorkResult;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.time.LocalDate;
 
 public final class WorkResultDtos {
 
     private WorkResultDtos() {}
+
+    /**
+     * 한 번에 <b>작업내역 여러 줄</b>. 원본 작업내역입력이 격자인 이유다 —
+     * 같은 날 같은 공장에서 세 공정을 적으면서 머리(일자·생산공장·프로젝트)를
+     * 세 번 다시 고를 일이 아니다.
+     *
+     * <p>한 줄이라도 막히면 <b>전부 되돌린다.</b> 두 줄만 들어가면 작업시간 합계가
+     * 조용히 모자란 채로 남고, 효율현황이 그 값으로 계산된다.
+     */
+    public record CreateWorkResultBatchRequest(
+            LocalDate workDate,
+            Long warehouseId,
+            Long projectId,
+            @NotEmpty(message = "작업내역을 한 줄 이상 넣으세요.")
+            List<@Valid WorkResultLine> lines
+    ) {}
+
+    /** 격자 한 줄. */
+    public record WorkResultLine(
+            Long workOrderId,
+            @NotBlank(message = "공정을 입력하세요.") String process,
+            Long workItemId,
+            Long resourceId,
+            String worker,
+            BigDecimal goodQty,
+            BigDecimal defectQty,
+            Integer workTimeMin,
+            String note
+    ) {}
 
     public record CreateWorkResultRequest(
             Long workOrderId,

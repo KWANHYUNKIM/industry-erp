@@ -46,12 +46,29 @@ interface Project { id: number; code: string; name: string }
 
 const inputCls = 'ec-input w-full'
 const today = () => ymd(new Date())
+/** 원본 머리: 일자 · 생산공장 · 담당자 · 프로젝트. 줄마다 되풀이하지 않는다. */
 const emptyForm = {
-  workOrderId: '', process: '', workItemId: '', warehouseId: '', resourceId: '', worker: '',
-  goodQty: '', defectQty: '', workTimeMin: '', workDate: today(), note: '',
+  warehouseId: '', worker: '', workDate: today(),
   /** 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */
   projectId: '',
 }
+/** 원본 격자 한 줄. */
+interface WrLine {
+  key: number
+  workOrderId: string
+  process: string
+  workItemId: string
+  resourceId: string
+  goodQty: string
+  defectQty: string
+  workTimeMin: string
+  note: string
+}
+let wrLineKey = 0
+const emptyLine = (): WrLine => ({
+  key: ++wrLineKey, workOrderId: '', process: '', workItemId: '', resourceId: '',
+  goodQty: '', defectQty: '', workTimeMin: '', note: '',
+})
 
 export default function WorkResultPage() {
   const [rows, setRows] = useState<WorkResult[]>([])
@@ -68,6 +85,9 @@ export default function WorkResultPage() {
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [wrLines, setWrLines] = useState<WrLine[]>([emptyLine()])
+  const setWrLine = (key: number, patch: Partial<WrLine>) =>
+    setWrLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
 
   async function load() {
     setLoading(true)
@@ -108,22 +128,33 @@ export default function WorkResultPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    // 아무것도 안 적은 빈 줄은 보내지 않는다. 줄 추가만 눌러 두고 지우지 않은 경우다.
+    const lines = wrLines.filter(
+      (l) => l.process.trim() !== '' || l.workOrderId !== '' || l.goodQty !== '' || l.defectQty !== '',
+    )
+    if (lines.length === 0) {
+      setError('작업을 한 줄 이상 넣으세요.')
+      return
+    }
     try {
-      await api.post('/work-results', {
-        workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
-        process: form.process,
-        workItemId: form.workItemId === '' ? null : Number(form.workItemId),
-        warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
-        resourceId: form.resourceId === '' ? null : Number(form.resourceId),
-        worker: form.worker,
-        goodQty: form.goodQty === '' ? 0 : Number(form.goodQty),
-        defectQty: form.defectQty === '' ? 0 : Number(form.defectQty),
-        workTimeMin: form.workTimeMin === '' ? 0 : Number(form.workTimeMin),
+      await api.post('/work-results/batch', {
         workDate: form.workDate || null,
+        warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         projectId: form.projectId === '' ? null : Number(form.projectId),
-        note: form.note || null,
+        lines: lines.map((l) => ({
+          workOrderId: l.workOrderId === '' ? null : Number(l.workOrderId),
+          process: l.process,
+          workItemId: l.workItemId === '' ? null : Number(l.workItemId),
+          resourceId: l.resourceId === '' ? null : Number(l.resourceId),
+          worker: form.worker,
+          goodQty: l.goodQty === '' ? 0 : Number(l.goodQty),
+          defectQty: l.defectQty === '' ? 0 : Number(l.defectQty),
+          workTimeMin: l.workTimeMin === '' ? 0 : Number(l.workTimeMin),
+          note: l.note || null,
+        })),
       })
       setForm(emptyForm)
+      setWrLines([emptyLine()])
       setShowForm(false)
       load()
     } catch (err) {
@@ -159,31 +190,8 @@ export default function WorkResultPage() {
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업지시</label>
-              <select className={inputCls} value={form.workOrderId} onChange={(e) => setForm({ ...form, workOrderId: e.target.value })}>
-                <option value="">선택</option>
-                {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">공정 *</label>
-              <input className={inputCls} list="wr-process-list" value={form.process} onChange={(e) => setForm({ ...form, process: e.target.value })} placeholder="조립" />
-              <datalist id="wr-process-list">
-                {processes.map((p) => <option key={p.id} value={p.name} />)}
-              </datalist>
-            </div>
-            {/*
-              원본 그리드의 [작업품목]. 생산품목(작업지시가 가리키는 최종 품목)과 다르다 —
-              AQD 를 만드는 지시 안에서 이 작업은 'AQD 몸체' 를 다니는 식이다.
-              예전에는 이 자리에 공정명을 대신 넣어 조회 화면에 '작업품목(공정)' 이라고
-              적어 두고 있었다. 품목별로 작업량을 셀 수가 없었다.
-            */}
-            <div>
-              <CodePickerField
-                label="작업품목" placeholder="작업품목 선택" emptyLabel="선택 해제"
-                value={form.workItemId} onChange={(v) => setForm({ ...form, workItemId: v })}
-                items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))}
-              />
+              <label className="mb-1 block text-sm text-slate-600">작업일자</label>
+              <input type="date" className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산공장</label>
@@ -194,39 +202,8 @@ export default function WorkResultPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">투입자원</label>
-              {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 지금 고른 공정에 맞는 것만 낸다. */}
-              <select className={inputCls} value={form.resourceId}
-                      onChange={(e) => setForm({ ...form, resourceId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {resources
-                  .filter((r) => !r.processName || !form.process || r.processName === form.process)
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}{r.processName ? ` (${r.processName})` : ''}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div>
               <label className="mb-1 block text-sm text-slate-600">작업자</label>
               <input className={inputCls} value={form.worker} onChange={(e) => setForm({ ...form, worker: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">작업일자</label>
-              <input type="date" className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">양품</label>
-              <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.goodQty} onChange={(e) => setForm({ ...form, goodQty: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">불량</label>
-              <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.defectQty} onChange={(e) => setForm({ ...form, defectQty: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">작업시간(분)</label>
-              <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.workTimeMin} onChange={(e) => setForm({ ...form, workTimeMin: e.target.value })} />
             </div>
             <div>
               {/* 원본 작업내역입력 머리의 [프로젝트]. 프로젝트별 집계에 이 작업이 잡힌다. */}
@@ -235,12 +212,99 @@ export default function WorkResultPage() {
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
             </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">적요</label>
-              <input className={inputCls} value={form.note} placeholder="원본 그리드의 마지막 열"
-                     onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            </div>
           </div>
+
+          {/*
+            원본 작업내역입력은 격자다. 머리(일자·생산공장·작업자·프로젝트)를 한 번 정하고
+            작업은 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다 — 두 줄만 들어가면
+            작업시간 합계가 조용히 모자란 채로 남고 효율현황이 그 값으로 계산된다.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>작업</span>
+            <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
+          </div>
+          <table className="ec-grid" style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th style={{ width: 170 }}>작업지시</th>
+                <th style={{ width: 120 }}>작업</th>
+                <th>작업품목</th>
+                <th style={{ width: 150 }}>투입자원</th>
+                <th style={{ width: 80, textAlign: 'right' }}>양품</th>
+                <th style={{ width: 80, textAlign: 'right' }}>불량</th>
+                <th style={{ width: 100, textAlign: 'right' }}>작업시간</th>
+                <th style={{ width: 140 }}>적요</th>
+                <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wrLines.map((l, idx) => (
+                <tr key={l.key}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td>
+                    <select className={inputCls} value={l.workOrderId} onChange={(e) => setWrLine(l.key, { workOrderId: e.target.value })}>
+                      <option value="">선택</option>
+                      {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <input className={inputCls} list="wr-process-list" value={l.process} placeholder="조립"
+                           onChange={(e) => setWrLine(l.key, { process: e.target.value })} />
+                  </td>
+                  <td>
+                    {/*
+                      원본 그리드의 [작업품목]. 생산품목(작업지시가 가리키는 최종 품목)과 다르다 —
+                      AQD 를 만드는 지시 안에서 이 작업은 'AQD 몸체' 를 다니는 식이다.
+                    */}
+                    <CodePickerField label="작업품목" hideLabel fill emptyLabel="선택 해제"
+                                     value={l.workItemId} onChange={(v) => setWrLine(l.key, { workItemId: v })}
+                                     items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))} />
+                  </td>
+                  <td>
+                    {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 그 줄의 작업에 맞는 것만 낸다. */}
+                    <select className={inputCls} value={l.resourceId} onChange={(e) => setWrLine(l.key, { resourceId: e.target.value })}>
+                      <option value="">선택 안 함</option>
+                      {resources
+                        .filter((r) => !r.processName || !l.process || r.processName === l.process)
+                        .map((r) => <option key={r.id} value={r.id}>{r.name}{r.processName ? ' (' + r.processName + ')' : ''}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                           value={l.goodQty} onChange={(e) => setWrLine(l.key, { goodQty: e.target.value })} />
+                  </td>
+                  <td>
+                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                           value={l.defectQty} onChange={(e) => setWrLine(l.key, { defectQty: e.target.value })} />
+                  </td>
+                  <td>
+                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                           value={l.workTimeMin} onChange={(e) => setWrLine(l.key, { workTimeMin: e.target.value })} />
+                  </td>
+                  <td>
+                    <input className={inputCls} value={l.note} onChange={(e) => setWrLine(l.key, { note: e.target.value })} />
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button type="button" style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                            onClick={() => setWrLines(wrLines.length > 1 ? wrLines.filter((x) => x.key !== l.key) : [emptyLine()])}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          </table>
+          <datalist id="wr-process-list">
+            {processes.map((p) => <option key={p.id} value={p.name} />)}
+          </datalist>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>

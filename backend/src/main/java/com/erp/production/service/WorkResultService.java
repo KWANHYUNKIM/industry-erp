@@ -4,6 +4,8 @@ import com.erp.common.ApiException;
 import com.erp.production.domain.ProductionProcess;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.domain.WorkResult;
+import com.erp.production.dto.WorkResultDtos.CreateWorkResultBatchRequest;
+import com.erp.production.dto.WorkResultDtos.WorkResultLine;
 import com.erp.production.dto.WorkResultDtos.CreateWorkResultRequest;
 import com.erp.production.dto.WorkResultDtos.WorkResultResponse;
 import com.erp.production.domain.ProductionResource;
@@ -39,6 +41,23 @@ public class WorkResultService {
         return workResultRepository.findAllWithRefs().stream()
                 .map(wr -> WorkResultResponse.from(wr, standardOf(wr)))
                 .toList();
+    }
+
+    /**
+     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다(원본 작업내역입력).
+     * 한 줄이라도 막히면 전부 되돌린다 — 두 줄만 들어가면 작업시간 합계가 조용히
+     * 모자란 채로 남고, 효율현황이 그 값으로 계산된다.
+     */
+    @Transactional
+    public java.util.List<WorkResultResponse> createBatch(CreateWorkResultBatchRequest req) {
+        java.util.List<WorkResultResponse> out = new java.util.ArrayList<>();
+        for (WorkResultLine line : req.lines()) {
+            out.add(create(new CreateWorkResultRequest(
+                    line.workOrderId(), line.process(), line.workItemId(), line.resourceId(),
+                    req.warehouseId(), line.worker(), line.goodQty(), line.defectQty(),
+                    line.workTimeMin(), req.workDate(), req.projectId(), line.note())));
+        }
+        return out;
     }
 
     @Transactional

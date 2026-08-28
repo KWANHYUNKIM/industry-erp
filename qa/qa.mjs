@@ -3805,6 +3805,62 @@ async function scenarioProductionBatch(f) {
     (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, 0)
 }
 
+async function scenarioWorkResultBatch(f) {
+  section('■ 작업내역 격자 — 한 번에 여러 줄')
+
+  const D = '2087-04-04'
+  const clear = async () => {
+    for (const wr of (await must('GET', '/work-results')).filter((x) => x.workDate === D)) {
+      await call('DELETE', `/work-results/${wr.id}`)
+    }
+    for (const w of (await must('GET', '/work-orders')).filter((x) => x.orderDate === D)) {
+      await call('DELETE', `/work-orders/${w.id}`)
+    }
+  }
+  await clear()
+
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 10, orderDate: D,
+  })
+
+  // 원본 작업내역입력은 머리(일자·생산공장·담당자·프로젝트) 하나에 작업 여러 줄이다.
+  const made = await must('POST', '/work-results/batch', {
+    workDate: D, warehouseId: f.warehouse.id,
+    lines: [
+      { workOrderId: wo.id, process: '조립', worker: `${P}작업자`, goodQty: 3, defectQty: 1, workTimeMin: 30, note: `${P}줄1` },
+      { workOrderId: wo.id, process: '검사', worker: `${P}작업자`, goodQty: 2, defectQty: 0, workTimeMin: 20, note: `${P}줄2` },
+    ],
+  })
+  eq('한 번에 두 줄이 들어간다', made.length, 2)
+  eq('줄마다 작업이 따로 남는다', made.map((x) => x.process).join(','), '조립,검사')
+  eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  eq('머리의 일자가 모든 줄에 붙는다', made.map((x) => x.workDate).join(','), `${D},${D}`)
+  eq('머리의 생산공장이 모든 줄에 붙는다',
+    made.every((x) => x.warehouseId === f.warehouse.id), true)
+  eq('작업시간이 줄마다 따로 쌓인다', made.reduce((n, x) => n + x.workTimeMin, 0), 50)
+
+  // 둘째 줄이 없는 작업지시를 가리키면 첫 줄도 들어가면 안 된다.
+  // 두 줄만 들어가면 작업시간 합계가 조용히 모자란 채로 남고 효율현황이 그 값으로 계산된다.
+  const before = (await must('GET', '/work-results')).filter((x) => x.workDate === D).length
+  const partial = await call('POST', '/work-results/batch', {
+    workDate: D, warehouseId: f.warehouse.id,
+    lines: [
+      { workOrderId: wo.id, process: '포장', workTimeMin: 5 },
+      { workOrderId: 99999999, process: '포장', workTimeMin: 5 },
+    ],
+  })
+  eq('없는 작업지시가 섞이면 거부한다', partial.status, 404)
+  eq('막히면 앞 줄도 안 들어간다(전부 되돌림)',
+    (await must('GET', '/work-results')).filter((x) => x.workDate === D).length, before)
+
+  const empty = await call('POST', '/work-results/batch', { workDate: D, lines: [] })
+  eq('빈 격자는 거부한다', empty.status, 400)
+
+  await clear()
+  eq('시험용 작업내역은 남기지 않는다',
+    (await must('GET', '/work-results')).filter((x) => x.workDate === D).length, 0)
+}
+
 async function scenarioProductionLaborMinutes(f) {
   section('■ 생산입고 노무시간 → 실제노무비')
 
@@ -8061,6 +8117,7 @@ async function main() {
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioProductionBatch(fixtures)
+  await scenarioWorkResultBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()
