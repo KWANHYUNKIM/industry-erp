@@ -1,11 +1,4 @@
 [
- "PurchaseOrderPage.tsx  원본 발주서 의 [일자-No.] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [거래처명] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [담당자명] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [품목명[규격명]] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [납기일자] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [발주금액합계] 열이 없다",
- "PurchaseOrderPage.tsx  원본 발주서 의 [생성한 전표] 열이 없다",
  "PriceRequestProgressPage.tsx  원본 단가요청진행단계 의 [수취금액] 열이 없다",
  "PriceRequestProgressPage.tsx  원본 단가요청진행단계 의 [이력] 열이 없다",
  "BankCardPage.tsx  원본 카드등록 의 [카드코드] 열이 없다",

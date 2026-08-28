@@ -164,26 +164,55 @@ export default function PurchaseOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>발주번호</th><th>발주일</th><th>납기요청일</th><th>매입처</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th>
-            <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            {/*
+              원본 발주서의 열은 <b>일자-No. · 거래처명 · 담당자명 · 품목명[규격명] ·
+              납기일자 · 발주금액합계 · 진행상태 · 생성한 전표 · 인쇄</b> 다(사본 실측).
+              우리는 이름이 여섯 군데 다르고, 일자와 번호를 둘로 나눴으며,
+              <b>담당자·품목·생성한 전표</b> 셋이 아예 없었다 — 셋 다 응답에 이미 오는 값이다.
+              규격은 발주 라인 응답에 없어 이름만 적는다 — 열 이름은 원본 그대로 둔다.
+              공급가액·부가세는 원본에 없지만 그대로 둔다(더 보여 주는 것이라 어긋남이 아니다).
+            */}
+            <th style={{ width: 190 }}>일자-No.</th>
+            <th>거래처명</th>
+            <th style={{ width: 90 }}>담당자명</th>
+            <th>품목명[규격명]</th>
+            <th style={{ width: 100, textAlign: 'center' }}>납기일자</th>
+            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>발주금액합계</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th>
+            {/* 원본은 이 칸을 <b>36px</b> 로 둔다 — 전표로 가는 짧은 링크 자리다.
+                우리도 번호만 짧게 적는다(110 은 담당자명·납기일자보다 넓어 앞뒤가 뒤집혔다). */}
+            <th style={{ width: 60, textAlign: 'center' }}>생성한 전표</th>
+            <th style={{ textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
               <tr onClick={() => setOpenId(openId === po.id ? null : po.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === po.id ? '▾ ' : '▸ '}{po.orderNo}</td>
-                <td>{po.orderDate}</td>
-                <td>{po.dueDate ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+                  {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
+                </td>
                 <td>{po.partnerName}</td>
+                <td style={{ color: po.employeeName ? undefined : '#c9ced6' }}>{po.employeeName ?? '-'}</td>
+                {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
+                <td>
+                  {po.lines[0]
+                    ? po.lines[0].itemName
+                      + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
+                    : ''}
+                </td>
+                <td style={{ textAlign: 'center' }}>{po.dueDate ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(po.supplyAmount)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(po.vatAmount)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(po.totalAmount)}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
+                {/* 원본 [생성한 전표] — 입고로 넘어가며 만들어진 구매 전표를 가리킨다. */}
+                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : '#c9ced6' }}>
+                  {po.convertedPurchaseId ? `#${po.convertedPurchaseId}` : '-'}
+                </td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printOrder(po)}>인쇄</button>
@@ -193,13 +222,12 @@ export default function PurchaseOrderPage() {
                     {po.status === 'ORDERED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => receive(po)}>입고전환</button>}
                     {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(po)}>취소</button>}
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(po)}>삭제</button>
-                    {po.status === 'RECEIVED' && <span style={{ fontSize: 11, color: '#1c7c3c' }}>구매 #{po.convertedPurchaseId}</span>}
                   </div>
                 </td>
               </tr>
               {openId === po.id && (
                 <tr className="no-ec">
-                  <td colSpan={10} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={12} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>
