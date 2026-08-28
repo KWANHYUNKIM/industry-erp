@@ -57,6 +57,13 @@ export default function ApprovalListPage({
    */
   const [formType, setFormType] = useState('')
   const [dept, setDept] = useState('')
+  /*
+   * 원본 기안서통합관리 조건은 구분 · 출력양식 · 부서 · [프로젝트] · [라벨] 이다.
+   * 뒤 둘이 없었다 — 응답에는 projectName·labelText 가 <b>이미 실려 있었는데</b>
+   * 화면이 거르는 데 쓰지 않았다. 라벨은 목록에서 달아 놓고 그걸로 찾을 수가 없었다.
+   */
+  const [project, setProject] = useState('')
+  const [labelCond, setLabelCond] = useState('')
   const [tab, setTab] = useState<Tab>('전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   /**
@@ -147,10 +154,14 @@ export default function ApprovalListPage({
   const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
     .filter((r) => !formType || r.formTypeName === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
+    .filter((r) => !project || (r.projectName ?? '') === project)
+    .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
   const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort() as string[]
+  const projects = [...new Set(rows.map((r) => r.projectName).filter(Boolean))].sort() as string[]
+  const labels = [...new Set(rows.map((r) => r.labelText).filter(Boolean))].sort() as string[]
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -348,6 +359,16 @@ export default function ApprovalListPage({
         <select className="ec-input" value={dept} onChange={(e) => setDept(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
           {depts.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>프로젝트</label>
+        <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {projects.map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>라벨</label>
+        <select className="ec-input" value={labelCond} onChange={(e) => setLabelCond(e.target.value)} style={{ width: 130 }}>
+          <option value="">전체</option>
+          {labels.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
       </div>
 
