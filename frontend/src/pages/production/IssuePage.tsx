@@ -345,7 +345,13 @@ export default function IssuePage() {
             </th>
             <th>일자</th>
             <th style={{ width: 90 }}>담당자</th>
-            <th>작업지시서</th>
+            {/*
+              원본 차례: 일자-No. · <b>보내는창고명 · 받는공장명</b> · 품목명[규격명] ·
+              수량 · <b>작업지시서</b> · 인쇄. 어디서 어디로 갔는지가 먼저고,
+              어느 지시 때문인지는 뒤따라 읽는다. 우리는 그 셋이 다 딴 자리에 있었다.
+            */}
+            <th>보내는창고명</th>
+            <th>받는공장명</th>
             {/*
               원본 이름은 [작업지시품목코드]다. 우리는 [생산품목]이라 적고 '[코드] 이름'
               을 한 칸에 몰아 두었다 — 원본을 쓰던 사람이 코드로 훑을 때 눈이 걸린다.
@@ -362,8 +368,7 @@ export default function IssuePage() {
             <th>품목명[규격명]</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th>단위</th>
-            <th>보내는창고명</th>
-            <th>받는공장명</th>
+            <th>작업지시서</th>
             <th>적요</th>
             {/* 원본 생산불출조회의 마지막 열 [인쇄] — 그 한 건을 불출증으로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -386,7 +391,8 @@ export default function IssuePage() {
               </td>
               <td style={{ fontFamily: 'monospace' }}>{r.issueDate}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
+              <td>{r.warehouseName ?? '-'}</td>
+              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
               <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}
@@ -395,8 +401,7 @@ export default function IssuePage() {
               <td>{r.itemName}{r.itemSpec ? `[${r.itemSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
-              <td>{r.warehouseName ?? '-'}</td>
-              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
               <td>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>

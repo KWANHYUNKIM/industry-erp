@@ -546,5 +546,45 @@
  [
   "창고이동조회",
   "inventory/TransferStatusPage.tsx"
+ ],
+ [
+  "A/S접수",
+  "quality/AsManagePage.tsx"
+ ],
+ [
+  "A/S접수입력",
+  "quality/AsManagePage.tsx"
+ ],
+ [
+  "A/S접수조회",
+  "quality/AsManagePage.tsx"
+ ],
+ [
+  "A/S접수현황",
+  "quality/AsStatusPage.tsx"
+ ],
+ [
+  "품질검사요청입력",
+  "quality/QualityRequestPage.tsx"
+ ],
+ [
+  "창고등록",
+  "inventory/WarehousesPage.tsx"
+ ],
+ [
+  "외화등록",
+  "settings/CurrencyPage.tsx"
+ ],
+ [
+  "재고실사조회",
+  "inventory/StocktakePage.tsx"
+ ],
+ [
+  "생산불출",
+  "production/IssuePage.tsx"
+ ],
+ [
+  "프로젝트계획조회",
+  "accounting/ProjectPlanPage.tsx"
  ]
 ]
