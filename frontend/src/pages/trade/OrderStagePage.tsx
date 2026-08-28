@@ -49,6 +49,13 @@ export default function OrderStagePage() {
    * [오더관리번호]가 없었다 — 표 첫 칸에 찍히는데 그것으로 찾을 수가 없었다.
    */
   const [orderNoCond, setOrderNoCond] = useState('')
+  /*
+   * 원본 조건의 <b>[검색창내용]</b> — 화면에는 안 보이고 <b>찾는 데만</b> 쓰는 이름이다
+   * (약칭·옛 상호 같은 것). 거래처 마스터가 그 값을 들고 있는데 여기서 못 썼다.
+   */
+  const [searchKeywordCond, setSearchKeywordCond] = useState('')
+  /* 검색창내용은 거래처 마스터가 들고 있다 — 오더 전표는 거래처 이름만 들고 온다. */
+  const [partnerAlias, setPartnerAlias] = useState<Map<string, string>>(new Map())
   const [typeFilter, setTypeFilter] = useState('전체')
   /*
    * 원본 [진행] — <b>전체 · 진행중 · 완료</b> 3단이다(사본 실측). 우리는 체크박스 하나로
@@ -76,6 +83,11 @@ export default function OrderStagePage() {
     }
   }
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    api.get<{ name: string; searchKeyword: string | null }[]>('/partners')
+      .then((r) => setPartnerAlias(new Map(r.data.map((p) => [p.name, p.searchKeyword ?? '']))))
+      .catch(() => {})
+  }, [])
 
   const stepsOf = useMemo(
     () => new Map(types.map((t) => [t.id, t.steps])), [types])
@@ -92,6 +104,7 @@ export default function OrderStagePage() {
 
   const shown = orders.filter((o) => {
     if (keyword && !(o.orderNo.includes(keyword) || o.partnerName.includes(keyword))) return false
+    if (searchKeywordCond && !(partnerAlias.get(o.partnerName) ?? '').includes(searchKeywordCond)) return false
     if (orderNoCond && !o.orderNo.includes(orderNoCond)) return false
     if (typeFilter !== '전체' && (o.orderTypeName ?? '(미지정)') !== typeFilter) return false
     if (progress !== '전체') {
@@ -143,6 +156,10 @@ export default function OrderStagePage() {
         <EcCond label="오더관리번호">
           <input className="ec-input" value={orderNoCond}
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="검색창내용">
+          <input className="ec-input" value={searchKeywordCond} placeholder="검색창내용"
+                 onChange={(e) => setSearchKeywordCond(e.target.value)} style={{ width: 160 }} />
         </EcCond>
         <EcCond label="진행">
           <div className="ec-pills">

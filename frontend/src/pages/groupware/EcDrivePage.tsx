@@ -38,6 +38,7 @@ export default function EcDrivePage() {
   const [totalKB, setTotalKB] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [nameCond, setNameCond] = useState('')
   /** 열려 있는 [더보기] ⋮ 메뉴의 문서 id */
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [treeOpen, setTreeOpen] = useState(true)
@@ -47,7 +48,10 @@ export default function EcDrivePage() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!
-  const shownRows = rows.filter((d) => !keyword || d.name.includes(keyword))
+  /* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자. */
+  const shownRows = rows
+    .filter((d) => !nameCond || d.name.includes(nameCond))
+    .filter((d) => !keyword || d.name.includes(keyword))
 
   /*
    * 사본 ECDrive 는 <b>이름·최종수정일자·크기·중요</b> 네 칸에 정렬 표시를 단다.
@@ -206,6 +210,13 @@ export default function EcDrivePage() {
               hint={`여기에 파일 놓기 (${sel === 'shared' ? '공유드라이브' : '내드라이브'})`}
               onFiles={(fs) => { for (const f of fs) void uploadFile(f) }}
             />
+          </div>
+
+          {/* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0', fontSize: 12.5, color: '#5a626e' }}>
+            <span>이름</span>
+            <input className="ec-input" value={nameCond} placeholder="파일·폴더 이름"
+                   onChange={(e) => setNameCond(e.target.value)} style={{ width: 200 }} />
           </div>
 
           {/* 원본 실측 폭(67-984-447-224-89-134)을 비율로 옮겼다 */}

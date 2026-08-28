@@ -13,6 +13,11 @@ export default function ManageItemsPage() {
   /** 원본 관리항목리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 관리항목등록 조건 차례: <b>관리항목코드</b> · 관리항목명 · 사용구분.
+   * 검색상자는 코드와 이름을 <b>한꺼번에</b> 훑어서, 코드로만 좁힐 수가 없었다.
+   */
+  const [codeCond, setCodeCond] = useState('')
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -96,7 +101,9 @@ export default function ManageItemsPage() {
     if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
-  const shownRows = rows.filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
+  const shownRows = rows
+    .filter((r) => !codeCond || r.code.includes(codeCond))
+    .filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
     .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
 
   /*
@@ -145,8 +152,11 @@ export default function ManageItemsPage() {
         </div>
       )}</Modal>
 
-      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      {/* 원본 조건 차례: <b>관리항목코드</b> · 관리항목명 · 사용구분 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>관리항목코드</span>
+        <input className="ec-input" value={codeCond} placeholder="관리항목코드"
+               onChange={(e) => setCodeCond(e.target.value)} style={{ width: 150 }} />
         <span>사용구분</span>
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
