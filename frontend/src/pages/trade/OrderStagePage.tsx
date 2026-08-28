@@ -159,10 +159,11 @@ export default function OrderStagePage() {
               <th style={{ width: 34 }}></th>
               <th style={{ width: 170 }}>오더관리번호</th>
               <th>오더관리명</th>
-              <th style={{ width: 130 }}>오더관리유형명</th>
+              <th style={{ width: 100 }}>오더관리유형명</th>
               <th style={{ width: 100 }}>기준일자</th>
               <th>진행단계</th>
-              <th style={{ width: 150, textAlign: 'center' }}>상세</th>
+              {/* 원본 폭 실측: [오더관리유형명] 100 · [상세] 50 — 상세는 링크 한 칸이라 좁다. */}
+              <th style={{ width: 50, textAlign: 'center' }}>상세</th>
             </tr>
           </thead>
           <tbody>
