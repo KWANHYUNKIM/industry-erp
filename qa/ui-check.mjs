@@ -382,7 +382,7 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
     const head = t.match(/<thead\b[\s\S]*?<\/thead>/)?.[0]
     const body = t.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0]
     if (!head || !body) continue
-    if (hasConditionalCell(head) || hasConditionalCell(body)) { bodySkipped++; continue }
+    if (hasConditionalCell(head)) { bodySkipped++; continue }
 
     // 머리든 본문이든 한쪽만 그래도 두 쪽을 견줄 수 없다(설문조사입력의 보기항목 5칸이 그렇다).
     /*
@@ -413,6 +413,12 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
     let picked = null
     let unknown = false
     for (const rm of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)) {
+      /*
+       * <b>줄 안에서 갈리는 칸</b>은 정적으로 못 센다. 판매입력 이익표가 그렇다 —
+       * 원가가 없으면 <code>colSpan={4}</code> 한 칸, 있으면 네 칸을 그린다.
+       * 둘 다 4열이라 실제로는 맞는데, 다 세면 11칸으로 읽혀 <b>거짓 경보</b>가 된다.
+       */
+      if (hasConditionalCell(rm[1])) { unknown = true; break }
       const c = countCells(rm[1], 'td')
       if (c === null) { unknown = true; break }
       if (c >= 2) { picked = c; break }
