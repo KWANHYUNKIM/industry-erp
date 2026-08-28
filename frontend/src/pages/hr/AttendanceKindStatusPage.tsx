@@ -131,13 +131,17 @@ export default function AttendanceKindStatusPage() {
         picks={STATUS_PICKS}
         dateLabel="근태일자"
       >
-        <EcCond label="부서명" pick>
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
-        </EcCond>
-        <EcCond label="사원명" pick>
+        {/*
+          원본 근태현황의 조건 이름과 차례는 <b>사원 · 부서</b> 다(사본 실측).
+          우리는 [부서명]·[사원명] 으로 이름도 다르고 앞뒤도 뒤집혀 있었다.
+        */}
+        <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <input className="ec-input" placeholder="부서명 일부" value={dept}
+                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="근태종류" pick>
           <input className="ec-input" placeholder="연차·반차·병가 …" value={kind}

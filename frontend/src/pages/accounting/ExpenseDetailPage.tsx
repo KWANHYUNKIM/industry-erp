@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 회계 > 비용내역현황.
@@ -33,6 +35,13 @@ export default function ExpenseDetailPage() {
   const [rows, setRows] = useState<Expense[]>([])
   const [keyword, setKeyword] = useState('')
   const [accountFilter, setAccountFilter] = useState('전체')
+  /*
+   * 원본 비용내역현황의 조건 차례는 <b>비용그룹 · 비용 · 사원 · 거래처 · 프로젝트 …</b>
+   * 다(사본 실측). [거래처]가 없었는데 <b>거래처명은 이미 목록에 찍히고 있었다</b> —
+   * 어느 거래처에 쓴 비용인지 보이면서도 그것으로 모아 볼 수는 없었다.
+   */
+  const [partnerCond, setPartnerCond] = useState('')
+  const partnerPick = useCondPickers(['partners'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -53,6 +62,7 @@ export default function ExpenseDetailPage() {
   const shown = rows
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || r.accountName.includes(keyword) || (r.content ?? '').includes(keyword) || (r.department ?? '').includes(keyword))
+    .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -65,6 +75,9 @@ export default function ExpenseDetailPage() {
           <option>전체</option>
           {accountNames.map((a) => <option key={a}>{a}</option>)}
         </select>
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처</span>
+        <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                         value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
         </span>

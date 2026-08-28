@@ -68,6 +68,8 @@ export default function MrpPage() {
   const [weekTo, setWeekTo] = useState('')
   /** 원본 [기준품목]. */
   const [item, setItem] = useState('')
+  /* 원본 생산계획/MRP생성 조건에 <b>[적요]</b> 가 있다(사본 실측). 적요는 이미 목록에 온다. */
+  const [remarkCond, setRemarkCond] = useState('')
   const [ok, setOk] = useState('')
   const [genWeek, setGenWeek] = useState('')
   const [deductStock, setDeductStock] = useState(true)
@@ -137,8 +139,9 @@ export default function MrpPage() {
     if (weekFrom && r.planWeek < weekFrom) return false
     if (weekTo && r.planWeek > weekTo) return false
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
+    if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
     return !keyword || r.productName.includes(keyword) || r.planWeek.includes(keyword)
-  }), [rows, tab, weekFrom, weekTo, item, keyword])
+  }), [rows, tab, weekFrom, weekTo, item, keyword, remarkCond])
 
   return (
     <EcListShell
@@ -205,6 +208,10 @@ export default function MrpPage() {
         <EcCond label="기준품목" pick>
           <input className="ec-input" placeholder="품목코드·품명 일부" value={item}
                  onChange={(e) => setItem(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
       </ul>
 
