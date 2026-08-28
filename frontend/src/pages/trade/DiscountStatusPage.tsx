@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { subtotalBy } from '../../utils/subtotalBy'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -66,7 +66,15 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const init = periodOf(defaultPick ?? '금월(~오늘)')!
+  /*
+   * <b>[직전기수]는 회계연도 시작월을 모르면 계산할 수 없다</b>(periodOf 가 null 을 준다).
+   * 처음엔 periodOf(...)! 로 눌러 뒀는데, 구매할인현황이 그 기본값이라 화면이 <b>통째로
+   * 하얗게</b> 떴다 — 타입 검사는 ! 때문에 아무 말도 안 했고 브라우저로 열어 보고 알았다.
+   * 시작월은 회사 설정에서 받아 오고, 그 전에는 [금월(~오늘)]로 연다.
+   */
+  const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
+  const fallback = periodOf('금월(~오늘)')!
+  const init = periodOf(defaultPick ?? '금월(~오늘)', new Date(), fiscalStart) ?? fallback
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
@@ -91,6 +99,22 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   }
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind])
+
+  useEffect(() => {
+    // 회계 기수 계산에 쓸 시작월. 못 받으면 [이번기수]·[직전기수] 는 눌러도 아무 일이 없다
+    // — 잘못된 기간을 내놓는 것보다 낫다(수금현황과 같은 규칙).
+    api.get<{ fiscalStart?: string } | null>('/preferences')
+      .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
+      .catch(() => {})
+  }, [])
+
+  /* 시작월을 늦게 받으면 그때 기본 기간을 다시 건다 — 화면을 열자마자 본 기간이 달라진다. */
+  const applied = useRef(false)
+  useEffect(() => {
+    if (applied.current || !fiscalStart || !defaultPick) return
+    const r = periodOf(defaultPick, new Date(), fiscalStart)
+    if (r) { applied.current = true; setFrom(r.from); setTo(r.to) }
+  }, [fiscalStart, defaultPick])
 
   /** 원본은 한 줄이 <b>일자 × 거래처</b>다. 전표가 여럿이면 합쳐 한 줄로 낸다. */
   const rows = useMemo(() => {
@@ -173,6 +197,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
+        fiscalStart={fiscalStart}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}

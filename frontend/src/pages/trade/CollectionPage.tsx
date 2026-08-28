@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -59,7 +59,12 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
    * 우리는 비워 두어 수금 전체가 나왔다 — 이번 기수에 얼마 받았는지를 보는 화면인데
    * 지난 기수 것까지 섞여 합계가 그 뜻이 아니게 된다.
    */
-  const initPeriod = periodOf('이번기수')!
+  /*
+   * [이번기수] 는 회계연도 시작월을 알아야 계산된다 — 모르면 periodOf 가 null 이다.
+   * ! 로 눌러 두어서 <b>수금현황·지급현황이 통째로 하얗게 떴다</b>(브라우저로 열어 보고 알았다).
+   * 시작월은 아래에서 받아 오는데 첫 그림 다음이라 늦다 — 그때까지는 [금월(~오늘)]로 연다.
+   */
+  const initPeriod = periodOf('이번기수', new Date(), undefined) ?? periodOf('금월(~오늘)')!
   const [cond, setCond] = useState({
     from: initPeriod.from, to: initPeriod.to, partner: '', method: '', manager: '', project: '',
   })
@@ -90,6 +95,15 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
       .catch(() => {})
   }, [])
+
+  /* 시작월을 받으면 원본 기본 기간([이번기수])으로 한 번 다시 건다. */
+  const applied = useRef(false)
+  useEffect(() => {
+    if (applied.current || !fiscalStart) return
+    const r = periodOf('이번기수', new Date(), fiscalStart)
+    if (r) { applied.current = true; setC({ from: r.from, to: r.to }) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fiscalStart])
 
   const methods = useMemo(
     () => [...new Set(rows.map((r) => r.method).filter(Boolean))].sort() as string[], [rows])

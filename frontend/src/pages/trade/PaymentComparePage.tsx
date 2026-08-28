@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -74,7 +74,13 @@ export default function PaymentComparePage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const init = periodOf('이번기수(~전월)')!
+  /*
+   * [이번기수(~전월)] 은 회계연도 시작월을 알아야 계산된다 — 모르면 periodOf 가 null 이다.
+   * 여기서 ! 로 눌러 두어서 <b>이 화면이 통째로 하얗게 떴다</b>(브라우저로 열어 보고 알았다).
+   * 시작월은 아래에서 회사 설정으로 받아 오는데 그건 <b>첫 그림 다음</b>이라 늦다.
+   * 그때까지는 [금월(~오늘)]로 열고, 받으면 그 기간으로 다시 건다.
+   */
+  const init = periodOf('이번기수(~전월)', new Date(), undefined) ?? periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [partner, setPartner] = useState('')
@@ -109,6 +115,14 @@ export default function PaymentComparePage() {
       })
       .catch(() => { /* 못 받으면 기수 버튼만 안 눌린다 */ })
   }, [])
+
+  /* 시작월을 받으면 원본 기본 기간([이번기수(~전월)])으로 한 번 다시 건다. */
+  const applied = useRef(false)
+  useEffect(() => {
+    if (applied.current || !fiscalStart) return
+    const r = periodOf('이번기수(~전월)', new Date(), fiscalStart)
+    if (r) { applied.current = true; setFrom(r.from); setTo(r.to) }
+  }, [fiscalStart])
 
   /**
    * 한 줄 = 일자 × 거래처. 판매전표 금액과 그날 받은 결제(수금)를 맞댄다.

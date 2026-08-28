@@ -698,7 +698,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     const src = readFileSync(file, 'utf8')
     checked++
     // 그 화면이 쓰는 periodOf 라벨 가운데 원본 기본값이 하나라도 있으면 통과.
-    const used = [...src.matchAll(/periodOf\('([^']+)'\)/g)].map((m) => m[1])
+    // periodOf('이번기수', new Date(), fiscalStart) 처럼 인자가 더 붙기도 한다.
+    const used = [...src.matchAll(/periodOf\('([^']+)'[^)]*\)/g)].map((m) => m[1])
     // 공용 화면을 감싸기만 하는 곳은 기본값을 <b>속성으로</b> 넘긴다
     // (defaultPick="직전기수"). 파일 안에 periodOf 가 없다고 없는 것이 아니다.
     for (const m of src.matchAll(/defaultPick=["']([^"']+)["']/g)) used.push(m[1])
@@ -1879,6 +1880,42 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
   }
   eq('폭을 견준 열 짝 ' + checked + '개의 앞뒤가 원본과 같다 (표를 못 짝지어 건너뛴 '
     + skipped + '개)', bad.join('\n') || '없음', '없음')
+}
+
+// ── 2-s) 회계기수 기간을 ! 로 눌러 쓰지 않았나 ────────────────────────────
+console.log('\n■ 회계기수가 있어야 나오는 기간을 ! 로 눌러 쓰지 않았나')
+
+/*
+ * <b>화면 셋이 통째로 하얗게 떠 있었다.</b> [이번기수]·[직전기수]·[이번기수(~전월)] 는
+ * 회사 회계연도 시작월을 알아야 계산된다 — 모르면 <code>periodOf</code> 가 null 을 준다.
+ * 그 자리에 <code>!</code> 를 붙여 두면 타입 검사는 아무 말도 안 하고, 화면을 열 때
+ * <code>init.from</code> 에서 터져 아무것도 안 그려진다.
+ *
+ * <p>수금현황·지급현황·결제내역자료비교가 그렇게 죽어 있었다. 정적 검사로는 못 잡고
+ * 브라우저로 열어 보고서야 알았다 — 그래서 이 검사를 둔다.
+ *
+ * <p>시작월은 <code>/preferences</code> 에서 받아 오는데 그건 첫 그림 다음이라 늦다.
+ * 그러니 <b>기본값은 시작월 없이도 되는 기간</b>으로 열고, 받은 뒤에 다시 걸어야 한다.
+ */
+{
+  const NEEDS_FISCAL = ['이번기수', '직전기수', '이번기수(~전월)']
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!f.endsWith('.tsx') && !f.endsWith('.ts')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const label of NEEDS_FISCAL) {
+      // periodOf('이번기수')! · periodOf('이번기수', new Date())!  — 시작월을 안 넘기고 ! 를 붙인 것
+      const re = new RegExp('periodOf' + '\\' + '(' + "'" + label + "'" + '([^)]*)' + '\\' + ')' + '\\' + '!', 'g')
+      for (const m of src.matchAll(re)) {
+        checked += 1
+        const args = m[1] || ''
+        // 셋째 인자(시작월)를 넘겼으면 null 이 아닐 수 있다 — 그래도 ! 는 위험하다.
+        bad.push(f.split(sep).pop() + '  periodOf(' + "'" + label + "'" + args + ')! — 시작월이 없으면 null 이라 화면이 죽는다')
+      }
+    }
+  }
+  eq('회계기수 기간을 ! 로 눌러 쓴 곳이 없다 (' + checked + '군데 살펴봄)', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────
