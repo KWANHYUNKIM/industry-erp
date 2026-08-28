@@ -6,6 +6,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
+import EcBarChart from '../../components/EcBarChart'
+import { subtotalBy } from '../../utils/subtotalBy'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -96,8 +98,19 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   const [group, setGroup] = useState<Group>('거래처별')
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
-  const [withInactive, setWithInactive] = useState(false)
+  /*
+   * 원본 [사용중단거래처포함]은 <b>켜짐</b>이 기본이다(사본 실측).
+   * 거래를 그만둔 곳이라도 못 받은 돈은 그대로 남아 있다 — 꺼 두면 화면 위 [총 채권]과
+   * 움직임 표의 합계가 실제보다 작게 나온다. 채권현황(ArApStatusPage)에서 같은 것을
+   * 이미 한 번 고쳤는데 이 화면이 남아 있었다.
+   */
+  const [withInactive, setWithInactive] = useState(true)
   const [onlyOpen, setOnlyOpen] = useState(false)
+  /** 원본 [정렬/소계기준]. 채권현황과 같은 두 기준을 쓴다. */
+  const SUBTOTALS = ['거래처그룹', '거래처관리담당자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처그룹')
+  /** 원본 [데이터 보기형식]. 기본은 표다 — 사본의 [그래프로 보기]가 꺼짐이다. */
+  const [view, setView] = useState<'표' | '그래프'>('표')
   /** 원본 조건 판의 기준일자. 기본값도 원본 그대로 [전월+금월] 이다. */
   const init = periodOf('전월+금월')!
   const [from, setFrom] = useState(init.from)
@@ -172,6 +185,16 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
     acct: t.acct + m.accountingAmount, settled: t.settled + m.settledAmount,
     other: t.other + m.otherDiff, closing: t.closing + m.closing,
   }), { opening: 0, stock: 0, acct: 0, settled: 0, other: 0, closing: 0 }), [shownMoves])
+
+  const subtotals = useMemo(
+    () => subtotalBy(shown, (r) => (subtotal === '거래처관리담당자' ? r.manager : r.partnerGroupName),
+      { receivable: (r) => r.receivable, payable: (r) => r.payable }),
+    [shown, subtotal])
+  /* 한쪽만 보는 화면이면 그 쪽 잔액을, 둘 다 보면 순채권(채권−채무)을 그린다. */
+  const chartRows = useMemo(() => shown.map((r) => ({
+    label: r.name,
+    value: side === 'AR' ? r.receivable : side === 'AP' ? r.payable : r.receivable - r.payable,
+  })), [shown, side])
 
   const totalReceivable = shown.reduce((a, r) => a + r.receivable, 0)
   const totalPayable = shown.reduce((a, r) => a + r.payable, 0)
@@ -261,6 +284,23 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             잔액 있는 거래처만
           </label>
         </EcCond>
+        {/* 원본 차례: … 잔액 · 정렬/소계기준 · 데이터 보기형식 (사본 실측). */}
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="데이터 보기형식">
+          <div className="ec-pills">
+            {(['표', '그래프'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                      onClick={() => setView(v)}>{v === '그래프' ? '그래프로 보기' : '표'}</button>
+            ))}
+          </div>
+        </EcCond>
       </ul>
 
       {/* 요약 박스 */}
@@ -277,7 +317,9 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      {group === '담당자별' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
+      ) : group === '담당자별' ? (
         <table ref={mgrTableRef} className="w-full text-left">
           <thead>
             <tr>
@@ -412,6 +454,30 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           </tfoot>
         )}
       </table>
+      )}
+
+      {view === '표' && shown.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>{subtotal}</th>
+              <th style={{ width: 90, textAlign: 'right' }}>거래처수</th>
+              {showAr && <th style={{ width: 140, textAlign: 'right' }}>채권</th>}
+              {showAp && <th style={{ width: 140, textAlign: 'right' }}>채무</th>}
+            </tr></thead>
+            <tbody>
+              {subtotals.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                  {showAr && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.receivable)}</td>}
+                  {showAp && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.payable)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>

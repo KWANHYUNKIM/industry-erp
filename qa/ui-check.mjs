@@ -833,7 +833,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
 {
   const ALIGN_MAP = new Map([
     ['거래처리스트', 'trade/PartnersPage.tsx'],
-    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
+    ['거래처별채권', 'trade/LedgerPage.tsx'],
     ['거래처특별단가그룹', 'inventory/SpecialPriceGroupPage.tsx'],
     ['공정등록', 'production/ProcessPage.tsx'],
     ['구매단가일괄변경', 'trade/PriceBulkScreen.tsx'],
@@ -922,8 +922,8 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
  */
 {
   const TOTAL_MAP = new Map([
-    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
-    ['거래처별채무', 'trade/ArApStatusPage.tsx'],
+    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['거래처별채무', 'trade/LedgerPage.tsx'],
     ['구매입력', 'trade/TradeEntry.tsx'],
     ['판매입력', 'trade/TradeEntry.tsx'],
     ['구매조회', 'trade/TradeInquiryPage.tsx'],
@@ -980,8 +980,8 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
  */
 {
   const BOX_MAP = new Map([
-    ['거래처별채권', 'trade/ArApStatusPage.tsx'],
-    ['거래처별채무', 'trade/ArApStatusPage.tsx'],
+    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['거래처별채무', 'trade/LedgerPage.tsx'],
     ['실제원가현황', 'accounting/ActualCostPage.tsx'],
     ['차이분석', 'accounting/VariancePage.tsx'],
     ['표준원가현황', 'accounting/StandardCostPage.tsx'],
@@ -1089,13 +1089,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
   const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
   /** 원본에 있지만 우리에게 없는 열 — 왜 없는지 적는다. 이유 없이 늘리지 말 것. */
   const NO_COLUMN = new Map([
-    ['거래처별채권|기초채권', '잔액 API 가 기초·발생·수금으로 분해해 주지 않는다'],
-    ['거래처별채권|재고매출', '위와 같음'], ['거래처별채권|회계매출', '위와 같음'],
-    ['거래처별채권|수금합계', '위와 같음'], ['거래처별채권|기타할인등차액', '위와 같음'],
-    ['거래처별채권|잔액', '우리 열 이름은 [채권]이다'],
-    ['거래처별채무|기초채무', '위와 같음'], ['거래처별채무|재고매입', '위와 같음'],
-    ['거래처별채무|회계매입', '위와 같음'], ['거래처별채무|지급합계', '위와 같음'],
-    ['거래처별채무|기타할인등차액', '위와 같음'], ['거래처별채무|잔액', '우리 열 이름은 [채무]이다'],
     ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
     ['구매단가일괄변경|환율', '외화 전표를 만들지 않는다'],
     ['구매일괄회계반영|거래가액', '외화·조정 항목을 만들지 않는다'],
@@ -1512,7 +1505,7 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
  *
  * <p>여기서 걸린 것: 거래처리스트(우리 '거래처등록 리스트'), 오더관리유형리스트
  * (우리 '오더관리유형등록'), 작업지시서조회(우리 '작업지시 리스트'),
- * 생산불출조회(우리 '생산불출'), 거래처별채권·채무(우리 '채권현황').
+ * 생산불출조회(우리 '생산불출').
  * 원본을 쓰던 사람이 <b>같은 화면을 다른 이름으로 만나면</b> 그게 그건지 알 수 없다.
  *
  * <p>한 화면이 원본 화면 둘을 겸하면(판매·구매, 채권·채무) 제목도 고른 구분을 따라
@@ -1568,19 +1561,33 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
     let text = typeof line === 'string' ? line : line[0]
     // 설정표에서 오는 제목(title={cfg.title})은 그 표의 title: '…' 줄을 같이 본다
     if (/\.title/.test(text)) {
-      for (const d of src.matchAll(/title:\s*'([^']{2,40})'/g)) text += ' ' + d[1]
+      for (const d of src.matchAll(/title:\s*'([^']{2,40})'/g)) text += " '" + d[1] + "'"
     }
-    const ident = text.match(/title=\{(\w+)\}/)
+    // title={TITLE[side]} · title={cfg.title} 처럼 골라 쓰는 모양도 그 표를 따라간다.
+    const ident = text.match(/title=\{(\w+)(?:\s*[.\[][^}]*)?\}/)
     // 같은 파일 안의 공용 화면에 이름을 넘기는 모양(title={title} … <X title="수금현황" />)
-    if (ident) for (const d of src.matchAll(/title="([^"]{2,40})"/g)) text += ' ' + d[1]
+    if (ident) for (const d of src.matchAll(/title="([^"]{2,40})"/g)) text += " '" + d[1] + "'"
     if (ident) {
-      for (const d of src.matchAll(new RegExp('(?:const|let)\\s+' + ident[1] + '\\s*=[^\\n]{0,160}', 'g'))) {
-        text += ' ' + d[0]
+      for (const d of src.matchAll(new RegExp('(?:const|let)\\s+' + ident[1] + '\\b[\\s\\S]{0,400}', 'g'))) {
+        // 선언 한 덩어리만 본다 — 줄머리 } 에서 끊는다. 뒤를 통째로 삼키면
+        // 엉뚱한 곳의 글자로 통과해 버려 이 검사가 아무것도 재지 않게 된다.
+        text += ' ' + d[0].split(/\n\}/)[0]
       }
     }
     // EcListShell 을 안 쓰고 제목을 직접 그리는 화면도 있다(업무일지)
-    if (!norm(text).includes(norm(screen)) && norm(src).includes(norm(`>${screen}<`))) continue
-    if (!norm(text).includes(norm(screen))) {
+    /*
+     * 제목 <b>한 칸</b>과 견준다. 예전에는 모아 놓은 글자에 이름이 들어 있기만 하면
+     * 통과였는데, 그러면 겸하는 화면의 긴 제목(거래처별 채권·채무 현황)이 짧은 이름
+     * (거래처별채권)을 품어 버려 <b>AR 제목을 엉뚱하게 바꿔도 통과했다.</b> 실제로 그랬다.
+     * 그래서 글자값 하나하나와 <b>똑같은지</b>를 본다.
+     */
+    const literals = [...text.matchAll(/['"]([^'"]{2,40})['"]/g)]
+      // 한 제목이 원본 둘을 겸하면 구분자로 이어 붙인다. 조각 하나하나도 이름으로 친다.
+      .flatMap((m) => [m[1], ...m[1].split(/[\/|—]/)])
+      .map((x) => norm(x))
+    const hit = literals.includes(norm(screen))
+    if (!hit && norm(src).includes(norm(`>${screen}<`))) continue
+    if (!hit) {
       bad.push(`${rel.split('/').pop()}  원본 [${screen}] · 우리 [${text.slice(0, 60)}]`)
     }
   }
