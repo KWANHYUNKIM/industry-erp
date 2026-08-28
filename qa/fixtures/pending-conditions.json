@@ -70,7 +70,6 @@
  "QualityStatusPage.tsx  원본 품질검사현황 의 [창고] 조건이 없다",
  "QualityStatusPage.tsx  원본 품질검사현황 의 [프로젝트] 조건이 없다",
  "QualityStatusPage.tsx  원본 품질검사현황 의 [출처(요청)구분] 조건이 없다",
- "SpecialPricePage.tsx  원본 특별단가등록 의 [사용구분] 조건이 없다",
  "SpecialPricePage.tsx  원본 특별단가등록 의 [수정일자순(정렬)] 조건이 없다",
  "ExpenseDetailPage.tsx  원본 비용내역현황 의 [비고] 조건이 없다",
  "ExpenseDetailPage.tsx  원본 비용내역현황 의 [결제구분] 조건이 없다",
@@ -144,9 +143,7 @@
  "QualityRequestPage.tsx  원본 품질검사요청입력 의 [담당자] 조건이 없다",
  "WarehousesPage.tsx  원본 창고등록 의 [추가사업장] 조건이 없다",
  "WarehousesPage.tsx  원본 창고등록 의 [창고계층그룹] 조건이 없다",
- "WarehousesPage.tsx  원본 창고등록 의 [사용구분] 조건이 없다",
  "ManageItemsPage.tsx  원본 관리항목등록 의 [관리항목코드] 조건이 없다",
- "ManageItemsPage.tsx  원본 관리항목등록 의 [사용구분] 조건이 없다",
  "PurchaseOrderPage.tsx  원본 발주서입력 의 [일자] 조건이 없다",
  "PurchaseOrderPage.tsx  원본 발주서입력 의 [입고창고] 조건이 없다",
  "PurchaseOrderPage.tsx  원본 발주서입력 의 [프로젝트] 조건이 없다",
@@ -164,6 +161,5 @@
  "SalesPlanPage.tsx  원본 매출계획현황 의 [창고] 조건이 없다",
  "SalesPlanPage.tsx  원본 매출계획현황 의 [거래처] 조건이 없다",
  "SalesPlanPage.tsx  원본 매출계획현황 의 [프로젝트] 조건이 없다",
- "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다",
- "OrderTypePage.tsx  원본 오더관리유형등록 의 [사용구분] 조건이 없다"
+ "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다"
 ]

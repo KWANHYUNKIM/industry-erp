@@ -22,6 +22,7 @@ interface PartnerRow { id: number; code: string; name: string; type: string }
 
 export default function WarehousesPage() {
   const { companyName } = useAuth()
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -156,7 +157,7 @@ export default function WarehousesPage() {
     외주거래처명: (w) => partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name,
     사용: (w) => (w.active ? '사용' : '사용중단'),
   })
-  const shown = sort.sorted
+  const shown = sort.sorted.filter((w) => useCond === '전체' || (w.active ? '사용' : '중단') === useCond)
 
   return (
     <EcListShell
@@ -225,6 +226,14 @@ export default function WarehousesPage() {
       )}</Modal>
 
       <div className="overflow-x-auto">
+      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>사용구분</span>
+        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중단</option>
+        </select>
+      </div>
+
         <table className="w-full text-left">
           <thead>
             <tr>

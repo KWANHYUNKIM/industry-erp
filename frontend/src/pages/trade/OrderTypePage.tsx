@@ -51,6 +51,7 @@ export default function OrderTypePage() {
   const tableRef = useRef<HTMLTableElement>(null)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
@@ -152,6 +153,7 @@ export default function OrderTypePage() {
   }
 
   const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
+    .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
 
 
   useTableColumnCheck(tableRef, '오더관리유형등록', [rows.length, loading])
@@ -238,6 +240,14 @@ export default function OrderTypePage() {
 
       {/* 단계 열이 열 개라 표가 넓다 — 페이지가 가로로 밀리지 않게 표 안에서만 스크롤한다. */}
       <div className="overflow-x-auto">
+      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>사용구분</span>
+        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중단</option>
+        </select>
+      </div>
+
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
