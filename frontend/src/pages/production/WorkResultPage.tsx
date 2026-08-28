@@ -39,7 +39,8 @@ interface WorkResult {
   workDate: string
   note: string | null
 }
-interface WorkOrder { id: number; orderNo: string; productName: string }
+/** 원본 격자의 [생산품목코드]·[생산품목명] — 고른 작업지시에서 따라온다. */
+interface WorkOrder { id: number; orderNo: string; productCode: string; productName: string }
 interface Process { id: number; name: string }
 interface Warehouse { id: number; name: string; kind: string; active: boolean }
 interface Project { id: number; code: string; name: string }
@@ -228,8 +229,15 @@ export default function WorkResultPage() {
               <tr>
                 <th style={{ width: 34 }}></th>
                 <th style={{ width: 170 }}>작업지시</th>
+                {/*
+                  원본 격자는 품목을 <b>코드와 이름 두 칸</b>으로 편다(판매·구매입력도 같다).
+                  한 칸에 몰아 두면 코드로 훑을 수가 없다. 차례도 원본 그대로 —
+                  생산품목코드가 [작업]보다 앞이다.
+                */}
+                <th style={{ width: 110 }}>생산품목코드</th>
                 <th style={{ width: 120 }}>작업</th>
-                <th>작업품목</th>
+                <th style={{ width: 130 }}>작업품목코드</th>
+                <th>작업품목명</th>
                 <th style={{ width: 150 }}>투입자원</th>
                 <th style={{ width: 80, textAlign: 'right' }}>양품</th>
                 <th style={{ width: 80, textAlign: 'right' }}>불량</th>
@@ -248,18 +256,25 @@ export default function WorkResultPage() {
                       {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
                     </select>
                   </td>
+                  {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
+                  <td style={{ fontFamily: 'monospace', color: '#6b7280' }}>
+                    {workOrders.find((w) => String(w.id) === l.workOrderId)?.productCode ?? ''}
+                  </td>
                   <td>
                     <input className={inputCls} list="wr-process-list" value={l.process} placeholder="조립"
                            onChange={(e) => setWrLine(l.key, { process: e.target.value })} />
                   </td>
                   <td>
                     {/*
-                      원본 그리드의 [작업품목]. 생산품목(작업지시가 가리키는 최종 품목)과 다르다 —
-                      AQD 를 만드는 지시 안에서 이 작업은 'AQD 몸체' 를 다니는 식이다.
+                      원본 그리드의 [작업품목]. 생산품목과 다르다 — AQD 를 만드는 지시 안에서
+                      이 작업은 'AQD 몸체' 를 다니는 식이다. 코드 칸에서 고르면 이름 칸이 따라온다.
                     */}
                     <CodePickerField label="작업품목" hideLabel fill emptyLabel="선택 해제"
                                      value={l.workItemId} onChange={(v) => setWrLine(l.key, { workItemId: v })}
                                      items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))} />
+                  </td>
+                  <td style={{ color: '#6b7280' }}>
+                    {items.find((x) => String(x.id) === l.workItemId)?.name ?? ''}
                   </td>
                   <td>
                     {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 그 줄의 작업에 맞는 것만 낸다. */}
@@ -294,7 +309,7 @@ export default function WorkResultPage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
