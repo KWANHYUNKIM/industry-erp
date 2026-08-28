@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
+import CodePickerField from '../components/CodePickerField'
 import type { Role, User } from '../api/types'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
@@ -206,14 +207,11 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
         </div>
         <div>
           <label className="mb-1 block text-sm text-slate-600">사원</label>
-          <select className={inputCls} value={form.employeeId} onChange={(e) => update('employeeId', e.target.value)}>
-            <option value="">안 이음</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                [{emp.code}] {emp.name}{emp.jobTitle ? ` · ${emp.jobTitle}` : ''}
-              </option>
-            ))}
-          </select>
+          {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+          <CodePickerField label="사원" hideLabel fill placeholder="사원"
+                           emptyLabel="안 이음"
+                           value={form.employeeId} onChange={(v) => update('employeeId', v)}
+                           items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
           <span style={{ fontSize: 11, color: '#8a929c' }}>이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
         </div>
         <div>

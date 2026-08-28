@@ -657,6 +657,39 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
     }
   }
   eq(`원본이 코드도움으로 받는 칸 ${checked}개를 우리도 코드로 고른다`, bad.join('\n') || '없음', '없음')
+
+  /*
+   * <b>지도에 없는 화면까지.</b> 위 fixture 는 우리가 짝지은 화면만 덮는다. 그런데
+   * 사본에서 창고 102 · 프로젝트 110 · 거래처 98 · 품목 100 · 담당자 82 · 부서 21 —
+   * <b>525칸이 예외 없이 코드도움</b>이었다. 이름만으로도 말할 수 있는 규칙이라,
+   * 화면을 가리지 않고 <b>코드 마스터 이름표 옆의 드롭다운</b>을 찾는다.
+   */
+  const MASTER = ['창고', '거래처', '품목', '프로젝트', '담당자', '사원', '부서', '공정', '자원', '계정', '납품처', '구매처', '공장']
+  /** 이름은 코드 마스터를 닮았지만 <b>고를 값이 정해져 있는</b> 칸 — 왜인지 적는다. */
+  const NOT_MASTER = new Map([
+    ['trade/PartnersPage.tsx|거래처코드구분', '코드 마스터가 아니라 <b>구분</b>이다 — 등록번호 자릿수가 여기서 갈린다'],
+    ['trade/PartnersPage.tsx|출하대상거래처', '거래처를 고르는 칸이 아니라 <b>대상/제외</b> 두 값이다'],
+    ['production/ResourcePage.tsx|자원명 *', '남의 자원을 고르는 칸이 아니라 <b>이 자원의 이름</b>이다'],
+    ['groupware/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
+    ['groupware/ApprovalListPage.tsx|프로젝트', '위와 같음'],
+  ])
+  const loose = []
+  const unused = new Set(NOT_MASTER.keys())
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const flat = readFileSync(f, 'utf8').replace(/\s*\n\s*/g, '')
+    for (const m of flat.matchAll(/<label\b[^>]*>([^<]{1,14})<\/label>(.{0,200}?)<select/g)) {
+      const label = m[1].trim()
+      if (!MASTER.some((c) => label.includes(c))) continue
+      if (m[2].includes('<CodePickerField')) continue
+      const key = rel + '|' + label
+      if (NOT_MASTER.has(key)) { unused.delete(key); continue }
+      loose.push(`${rel}  [${label}] — 코드 마스터인데 드롭다운이다`)
+    }
+  }
+  eq('코드 마스터 이름표 옆에 드롭다운이 없다', [...new Set(loose)].join('\n') || '없음', '없음')
+  eq(`코드 마스터가 아니라고 적어 둔 ${NOT_MASTER.size}칸이 아직 그대로다`,
+    [...unused].join('\n') || '없음', '없음')
 }
 
 console.log('\n■ 검사의 태그 정규식이 옆 태그까지 먹지 않나')

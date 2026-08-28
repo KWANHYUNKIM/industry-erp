@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -103,12 +104,11 @@ export default function AttendanceInputPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
               <label className="mb-1 block text-sm text-slate-600">사원 *</label>
-              <select className={inputCls} value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
-                <option value="">선택</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>{emp.name}{emp.department ? ` (${emp.department})` : ''}</option>
-                ))}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="사원 *" hideLabel fill placeholder="사원"
+                               emptyLabel="선택"
+                               value={form.userId} onChange={(v) => setForm({ ...form, userId: v })}
+                               items={employees.map((x) => ({ value: String(x.id), name: x.name, sub: x.department }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">일자 *</label>

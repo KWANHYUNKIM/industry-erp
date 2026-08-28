@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -199,23 +200,21 @@ export default function WarehousesPage() {
             {form.kind === '공장' && (
               <div>
                 <label className="mb-1 block text-sm text-slate-600">생산공정</label>
-                <select className={inputCls} value={form.processId}
-                        onChange={(e) => setForm({ ...form, processId: e.target.value })}>
-                  <option value="">선택 안 함</option>
-                  {processes.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-                </select>
+                {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+                <CodePickerField label="생산공정" hideLabel fill placeholder="생산공정"
+                                 emptyLabel="선택 안 함"
+                                 value={form.processId} onChange={(v) => setForm({ ...form, processId: v })}
+                                 items={processes.map((x) => ({ value: String(x.id), name: x.name }))} />
               </div>
             )}
             {form.kind === '외주' && (
               <div>
                 <label className="mb-1 block text-sm text-slate-600">외주거래처 *</label>
-                <select className={inputCls} value={form.outsourcingPartnerId}
-                        onChange={(e) => setForm({ ...form, outsourcingPartnerId: e.target.value })}>
-                  <option value="">선택하세요</option>
-                  {partners.filter((pt) => pt.type !== 'CUSTOMER').map((pt) => (
-                    <option key={pt.id} value={pt.id}>[{pt.code}] {pt.name}</option>
-                  ))}
-                </select>
+                {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+                <CodePickerField label="외주거래처 *" hideLabel fill placeholder="외주거래처"
+                                 emptyLabel="선택하세요"
+                                 value={form.outsourcingPartnerId} onChange={(v) => setForm({ ...form, outsourcingPartnerId: v })}
+                                 items={partners.filter((pt) => pt.type !== 'CUSTOMER').map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               </div>
             )}
           </div>

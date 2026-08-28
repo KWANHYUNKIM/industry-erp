@@ -246,37 +246,37 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              <select className={inputCls} value={form.employeeId}
-                      onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="담당자" hideLabel fill placeholder="담당자"
+                               emptyLabel="선택 안 함"
+                               value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
+                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산된공장</label>
-              <select className={inputCls} value={form.fromWarehouseId}
-                      onChange={(e) => setForm({ ...form, fromWarehouseId: e.target.value })}>
-                <option value="">{formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="생산된공장" hideLabel fill placeholder="생산된공장"
+                               emptyLabel={formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}
+                               value={form.fromWarehouseId} onChange={(v) => setForm({ ...form, fromWarehouseId: v })}
+                               items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
               <span style={{ fontSize: 11, color: '#8a929c' }}>자재가 빠지는 곳</span>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">받는창고</label>
-              <select className={inputCls} value={form.toWarehouseId}
-                      onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}>
-                <option value="">{formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="받는창고" hideLabel fill placeholder="받는창고"
+                               emptyLabel={formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}
+                               value={form.toWarehouseId} onChange={(v) => setForm({ ...form, toWarehouseId: v })}
+                               items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
               <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
-              <select className={inputCls} value={form.projectId}
-                      onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="프로젝트" hideLabel fill placeholder="프로젝트"
+                               emptyLabel="선택 안 함"
+                               value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
+                               items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm text-slate-600">적요</label>

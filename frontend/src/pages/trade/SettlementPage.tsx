@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
@@ -128,10 +129,11 @@ export default function SettlementPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-600">거래처 *</label>
-              <select className={inputCls} style={{ width: '100%' }} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
-                <option value="">선택하세요</option>
-                {usablePartners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="거래처 *" hideLabel fill placeholder="거래처"
+                               emptyLabel="선택하세요"
+                               value={partnerId} onChange={(v) => setPartnerId(v)}
+                               items={usablePartners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-600">일자</label>
@@ -149,11 +151,11 @@ export default function SettlementPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-600">프로젝트</label>
-              <select className={inputCls} style={{ width: '100%' }} value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}>
-                <option value="">선택 안 함</option>
-                {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="프로젝트" hideLabel fill placeholder="프로젝트"
+                               emptyLabel="선택 안 함"
+                               value={projectId} onChange={(v) => setProjectId(v)}
+                               items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-600">비고</label>

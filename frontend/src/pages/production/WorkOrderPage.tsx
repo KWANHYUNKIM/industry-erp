@@ -173,9 +173,11 @@ export default function WorkOrderPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">창고 *</label>
-              <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)}>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="창고 *" hideLabel fill placeholder="창고"
+                               emptyLabel="선택"
+                               value={form.warehouseId} onChange={(v) => set('warehouseId', v)}
+                               items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">지시수량 *</label>
