@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api } from '../../api/client'
 import type { CollectSource } from '../../api/types'
 
@@ -66,7 +67,20 @@ export default function DataCollectPage() {
     }).catch(() => setRows([]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shown = rows.filter((r) => !keyword || r.source.includes(keyword) || r.type.includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.source.includes(keyword) || r.type.includes(keyword))
+
+  /*
+   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [최근 실행]은 아직 안 돈 줄이 '-' 라
+   * 빈 값이 아니다 — 그대로 두면 '-' 가 날짜 사이에 섞인다. 안 돈 줄은 빈 값으로 넘겨
+   * 방향과 상관없이 뒤로 보낸다.
+   */
+  const sort = useTableSort(shownRows, {
+    수집소스: (r) => r.source,
+    모듈: (r) => r.type,
+    '최근 실행': (r) => (r.lastRun === '-' ? '' : r.lastRun),
+    상태: (r) => r.status,
+  })
+  const shown = sort.sorted
   const totalRows = rows.reduce((s, r) => s + r.rows, 0)
   const failCount = rows.filter((r) => r.status === '실패').length
 
@@ -88,12 +102,12 @@ export default function DataCollectPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>수집소스 ▼</th>
-            <th style={{ width: 100, textAlign: 'center' }}>모듈 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수집소스')}>수집소스 {sort.mark('수집소스')}</th>
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
             <th style={{ width: 220 }}>엔드포인트</th>
-            <th style={{ width: 140 }}>최근 실행 ▼</th>
+            <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('최근 실행')}>최근 실행 {sort.mark('최근 실행')}</th>
             <th style={{ width: 100, textAlign: 'right' }}>수집건수</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
           </tr>
         </thead>
         <tbody>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Lot, LotStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -100,9 +101,21 @@ export default function SerialLotPage() {
     }
   }
 
-  const shown = rows
+  const shownRows = rows
     .filter((r) => !keyword || r.lotNo.includes(keyword) || r.itemName.includes(keyword))
     .filter((r) => !onlyStock || r.stockQty > 0)
+
+  /*
+   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [상태]는 저장된 값이 아니라
+   * 수량·보류에서 파생되는 이름이므로, 정렬도 <b>파생된 이름</b>으로 한다.
+   */
+  const sort = useTableSort(shownRows, {
+    '로트No.': (r) => r.lotNo,
+    품목명: (r) => r.itemName,
+    입고일: (r) => r.inboundDate,
+    상태: (r) => r.statusName,
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -152,14 +165,14 @@ export default function SerialLotPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 150 }}>로트No. ▼</th>
-            <th>품목명 ▼</th>
-            <th style={{ width: 100 }}>입고일 ▼</th>
+            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('로트No.')}>로트No. {sort.mark('로트No.')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('입고일')}>입고일 {sort.mark('입고일')}</th>
             <th style={{ width: 100 }}>유효기한</th>
             <th style={{ width: 80, textAlign: 'right' }}>입고수량</th>
             <th style={{ width: 80, textAlign: 'right' }}>현재고</th>
             <th style={{ width: 100 }}>창고</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 130, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>

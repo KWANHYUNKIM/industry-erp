@@ -6,6 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 
 /**
@@ -144,7 +145,7 @@ export default function AccountingReflectionPage() {
     setOk('')
   }, [kind])
 
-  const shown = slips
+  const shownRows = slips
     .filter((s) => !onlyUnreflected || !s.reflected)
     .filter((s) => !cond.from || s.slipDate >= cond.from)
     .filter((s) => !cond.to || s.slipDate <= cond.to)
@@ -160,6 +161,18 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
     .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
     .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
+
+  /*
+   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [회계반영]은 안쪽 참/거짓이 아니라
+   * 화면에 찍히는 '반영/미반영' 으로 세운다 — 눈에 보이는 글자 차례와 맞아야 한다.
+   */
+  const sort = useTableSort(shownRows, {
+    전표일: (s) => s.slipDate,
+    전표번호: (s) => s.docNo,
+    거래처: (s) => s.partnerName,
+    회계반영: (s) => (s.reflected ? '반영' : '미반영'),
+  })
+  const shown = sort.sorted
   const unreflectedCount = slips.filter((s) => !s.reflected).length
   const selectedTotal = useMemo(
     () => slips.filter((s) => checked.has(s.id)).reduce((sum, s) => sum + s.totalAmount, 0),
@@ -571,14 +584,14 @@ export default function AccountingReflectionPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>전표일 ▼</th>
-            <th style={{ width: 150 }}>전표번호 ▼</th>
-            <th>거래처 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('전표일')}>전표일 {sort.mark('전표일')}</th>
+            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('전표번호')}>전표번호 {sort.mark('전표번호')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th>
             <th>품목명(요약)</th>
             <th style={{ width: 120 }}>창고명</th>
             <th style={{ width: 120, textAlign: 'right' }}>공급가액</th>
             <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
-            <th style={{ width: 90, textAlign: 'center' }}>회계반영 ▼</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('회계반영')}>회계반영 {sort.mark('회계반영')}</th>
             <th style={{ width: 150 }}>회계전표No.</th>
           </tr>
         </thead>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -76,7 +77,19 @@ export default function QualityInspectionPage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || (r.lotNo ?? '').includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.itemName.includes(keyword) || (r.lotNo ?? '').includes(keyword))
+
+  /*
+   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [검사구분]·[판정]은 안쪽 코드가 아니라
+   * 화면에 찍히는 이름으로 세운다.
+   */
+  const sort = useTableSort(shownRows, {
+    검사일자: (r) => r.inspectionDate,
+    검사구분: (r) => r.typeName,
+    품목명: (r) => r.itemName,
+    판정: (r) => r.resultName,
+  })
+  const shown = sort.sorted
   const inputCls = 'ec-input'
 
   return (
@@ -127,14 +140,14 @@ export default function QualityInspectionPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>검사번호</th>
-            <th style={{ width: 100 }}>검사일자 ▼</th>
-            <th style={{ width: 90 }}>검사구분 ▼</th>
-            <th>품목명 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
+            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('검사구분')}>검사구분 {sort.mark('검사구분')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
             <th style={{ width: 130 }}>로트No.</th>
             <th style={{ width: 80, textAlign: 'right' }}>검사수량</th>
             <th style={{ width: 60, textAlign: 'right' }}>불량수</th>
             <th style={{ width: 80, textAlign: 'right' }}>불량률(%)</th>
-            <th style={{ width: 90, textAlign: 'center' }}>판정 ▼</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('판정')}>판정 {sort.mark('판정')}</th>
             <th style={{ width: 80 }}>검사자</th>
           </tr>
         </thead>

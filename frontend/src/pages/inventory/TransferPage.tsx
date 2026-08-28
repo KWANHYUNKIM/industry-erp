@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -72,6 +73,20 @@ export default function TransferPage() {
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword)))
 
+  /*
+   * 두 표 모두 [일자]·[품목명] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다.
+   * 탭에 따라 다른 표가 서므로 <b>정렬 상태도 표마다 따로</b> 든다 — 하나로 묶으면
+   * 창고이동에서 고른 차례가 재고조정 탭으로 넘어가 엉뚱한 열에 붙는다.
+   */
+  const transferSort = useTableSort(shownTransfers, {
+    일자: (r) => r.transferDate,
+    품목명: (r) => r.itemName,
+  })
+  const adjustSort = useTableSort(shownAdjustments, {
+    일자: (r) => r.adjustDate,
+    품목명: (r) => r.itemName,
+  })
+
   const count = (t: Tab) => (t === '창고이동' ? transfers.length : adjustments.filter((r) => r.type === TAB_TYPE[t]).length)
 
   return (
@@ -105,8 +120,8 @@ export default function TransferPage() {
             <tr>
               <th style={{ width: 34 }}></th>
               <th style={{ width: 130 }}>이동번호</th>
-              <th style={{ width: 100 }}>일자 ▼</th>
-              <th>품목명 ▼</th>
+              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => transferSort.toggle('일자')}>일자 {transferSort.mark('일자')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => transferSort.toggle('품목명')}>품목명 {transferSort.mark('품목명')}</th>
               <th style={{ width: 120 }}>출고창고</th>
               <th style={{ width: 120 }}>입고창고</th>
               <th style={{ width: 90, textAlign: 'right' }}>수량</th>
@@ -118,7 +133,7 @@ export default function TransferPage() {
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownTransfers.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shownTransfers.map((r, i) => (
+            ) : transferSort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.transferNo}</td>
@@ -138,8 +153,8 @@ export default function TransferPage() {
             <tr>
               <th style={{ width: 34 }}></th>
               <th style={{ width: 130 }}>전표번호</th>
-              <th style={{ width: 100 }}>일자 ▼</th>
-              <th>품목명 ▼</th>
+              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => adjustSort.toggle('일자')}>일자 {adjustSort.mark('일자')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => adjustSort.toggle('품목명')}>품목명 {adjustSort.mark('품목명')}</th>
               <th style={{ width: 120 }}>창고</th>
               <th style={{ width: 90, textAlign: 'right' }}>처리전</th>
               <th style={{ width: 90, textAlign: 'right' }}>증감</th>
@@ -152,7 +167,7 @@ export default function TransferPage() {
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownAdjustments.length === 0 ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shownAdjustments.map((r, i) => (
+            ) : adjustSort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
