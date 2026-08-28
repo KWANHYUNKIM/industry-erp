@@ -147,6 +147,24 @@ const choiceNames = (src) => {
   return out
 }
 
+/**
+ * 표 머리 이름 뒤에 붙을 수 있는 <b>정렬 표시</b>.
+ *
+ * <p>예전에는 ▼ 글자 하나였다. 머리를 눌러 정렬하게 만들면서
+ * <code>{sort.mark('거래처')}</code> 로 바뀌었는데, 검사들이 그것을 모르고 있어
+ * <b>정렬을 건 화면이 열·폭·탭 검사에서 통째로 빠졌다.</b> 둘 다 받아들인다.
+ */
+/**
+ * 화살표 함수의 <code>=&gt;</code> 를 지운다.
+ *
+ * <p><code>&lt;th[^&gt;]*&gt;</code> 는 <code>onClick={() =&gt; …}</code> 의 화살표를
+ * 태그 끝으로 읽어 <b>그 머리를 통째로 못 찾는다.</b> 정렬을 걸면서 머리마다
+ * onClick 이 붙었으니, 검사에 넣기 전에 화살표만 지운다.
+ */
+const noArrow = (h) => h.replace(/=>/g, '  ')
+
+const MARK_TAIL = '(?:\u25bc|\\{sort\\.mark\\([^)]*\\)\\})?'
+
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
 
 const pageSource = (rel) => {
@@ -981,7 +999,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((head) => ({
       head: head[0],
       hit: Object.keys(cols)
-        .filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*(?:\u25bc)?\\s*</th>').test(head[0]))
+        .filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(head[0])))
         .length,
     })).filter((x) => x.hit > 0).sort((a, b) => b.hit - a.hit)
     if (scored.length === 0) continue
@@ -993,7 +1011,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
       // '?' 는 정렬을 못 잰 열이다 — 사본에서 그 표가 비어 있어 칸의 정렬을 볼 수 없었다.
       // 이름과 차례는 다른 검사가 본다. 여기서는 세지 않는다.
       if (want === '?') { unknown += 1; continue }
-      const m = best.match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*(?:\u25bc)?\\s*</th>'))
+      const m = noArrow(best).match(new RegExp('<th([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
       if (!m) continue
       checked++
       const got = alignOf(m[1])
@@ -1141,7 +1159,13 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
   const ORDER_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
-  const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+  /*
+   * \uba38\ub9ac \uc774\ub984\uc744 \ub0a9\uc791\ud558\uac8c. <b>\uc911\uad04\ud638 \uc2dd\uc744 \uba3c\uc800 \uc9c0\uc6b4\ub2e4</b> \u2014 \uc815\ub82c\uc744 \uac78\uba74\uc11c \uba38\ub9ac\uc5d0
+   * <code>{sort.mark('X')}</code> \uac00 \ubd99\uc5c8\ub294\ub370, \uadf8\uac78 \ub0a8\uae30\uba74 \uc774\ub984\uc774
+   * <code>\uc791\uc5c5\uc9c0\uc2dcNo.{sort.mark('\uc9c0\uc2dc\ubc88\ud638')}</code> \uac00 \ub418\uc5b4 \uc6d0\ubcf8\uacfc \uc548 \ub9de\ub294\ub2e4.
+   */
+  const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
+    .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
   /** 차례를 견줄 수 없는 화면 — 왜인지 적는다. */
   const ORDER_SKIP = new Map([
     ['생산불출조회',
@@ -1160,7 +1184,7 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
-      hit: names.filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*(?:\u25bc)?\\s*</th>').test(h[0])).length,
+      hit: names.filter((n) => new RegExp('<th[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
     const ours = [...scored[0].head.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1]))
@@ -1195,10 +1219,20 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
 {
   const MISS_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
-  const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+  /*
+   * \uba38\ub9ac \uc774\ub984\uc744 \ub0a9\uc791\ud558\uac8c. <b>\uc911\uad04\ud638 \uc2dd\uc744 \uba3c\uc800 \uc9c0\uc6b4\ub2e4</b> \u2014 \uc815\ub82c\uc744 \uac78\uba74\uc11c \uba38\ub9ac\uc5d0
+   * <code>{sort.mark('X')}</code> \uac00 \ubd99\uc5c8\ub294\ub370, \uadf8\uac78 \ub0a8\uae30\uba74 \uc774\ub984\uc774
+   * <code>\uc791\uc5c5\uc9c0\uc2dcNo.{sort.mark('\uc9c0\uc2dc\ubc88\ud638')}</code> \uac00 \ub418\uc5b4 \uc6d0\ubcf8\uacfc \uc548 \ub9de\ub294\ub2e4.
+   */
+  const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
+    .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
   /** 원본에 있지만 우리에게 없는 열 — 왜 없는지 적는다. 이유 없이 늘리지 말 것. */
   const NO_COLUMN = new Map([
     ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
+    ['작업지시서조회|일자-No.',
+      '원본은 <b>[일자-No.]</b> 와 <b>[작업지시No.]</b> 를 따로 둔다 — 전표 일자+일련번호와'
+      + ' 작업지시 번호다. 우리 작업지시에는 번호가 하나뿐이라([작업지시No.]) 일자는'
+      + ' <b>[지시일]</b> 열로 따로 찍는다. 없는 번호를 만들어 두 칸으로 나눌 수는 없다'],
     ['구매단가일괄변경|환율', '외화 전표를 만들지 않는다'],
     ['구매일괄회계반영|거래가액', '외화·조정 항목을 만들지 않는다'],
     ['구매일괄회계반영|조정', '위와 같음'], ['구매일괄회계반영|외화금액', '위와 같음'],
@@ -1302,7 +1336,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     if (PENDING.has(screen)) { pending++; continue }
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
-    const ours = new Set([...src.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
+    const ours = new Set([...noArrow(src).matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
     for (const name of Object.keys(cols)) {
       const exempt = NO_COLUMN.has(screen + '|' + name)
       if (!exempt) checked++
@@ -2029,7 +2063,13 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
       + ' 우리는 좁히면 잘린다. [근태]는 원본대로 가장 넓게 뒀다'],
   ])
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
-  const flat = (s) => s.replace(/<[^>]*>/g, '').replace(/[\s\u25bc]/g, '')
+  /*
+   * \uba38\ub9ac \uc774\ub984\uc744 \ub0a9\uc791\ud558\uac8c. <b>\uc911\uad04\ud638 \uc2dd\uc744 \uba3c\uc800 \uc9c0\uc6b4\ub2e4</b> \u2014 \uc815\ub82c\uc744 \uac78\uba74\uc11c \uba38\ub9ac\uc5d0
+   * <code>{sort.mark('X')}</code> \uac00 \ubd99\uc5c8\ub294\ub370, \uadf8\uac78 \ub0a8\uae30\uba74 \uc774\ub984\uc774
+   * <code>\uc791\uc5c5\uc9c0\uc2dcNo.{sort.mark('\uc9c0\uc2dc\ubc88\ud638')}</code> \uac00 \ub418\uc5b4 \uc6d0\ubcf8\uacfc \uc548 \ub9de\ub294\ub2e4.
+   */
+  const flat = (s) => s.replace(/\{[^{}]*\}/g, '')
+    .replace(/<[^>]*>/g, '').replace(/[\s\u25bc\u25b2]/g, '')
 
   const bad = []
   let checked = 0
@@ -2042,7 +2082,7 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
-      hit: names.filter((n) => new RegExp('<th[^>]*>\s*' + esc(n) + '\s*(?:\u25bc)?\s*</th>').test(h[0])).length,
+      hit: names.filter((n) => new RegExp('<th[^>]*>\s*' + esc(n) + '\s*' + MARK_TAIL + '\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
 

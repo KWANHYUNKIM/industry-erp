@@ -310,7 +310,14 @@ export default function ShipmentOrderPage() {
           <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
+                {/*
+                  원본 출하입력 격자 실측(사본): 품목 · <b>품목명 · 규격</b> · 수량 · 적요.
+                  우리는 고르는 칸 하나뿐이라, 코드를 고른 뒤 <b>무엇을 골랐는지</b>가
+                  드롭다운 안에만 있었다 — 줄이 여럿이면 눈으로 훑을 수가 없다.
+                */}
                 <th style={{ width: 34 }}></th><th>품목</th>
+                <th style={{ width: 150 }}>품목명</th>
+                <th style={{ width: 120 }}>규격</th>
                 <th style={{ width: 120, textAlign: 'right' }}>수량</th>
                 <th style={{ width: 140, textAlign: 'right' }}>단가</th>
                 <th style={{ width: 150, textAlign: 'right' }}>금액</th>
@@ -327,6 +334,9 @@ export default function ShipmentOrderPage() {
                       {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
                     </select>
                   </td>
+                  {/* 고른 품목의 이름·규격 — 읽기만 한다. 품목 마스터가 가진 값이다. */}
+                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.name ?? ''}</td>
+                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.spec ?? ''}</td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
                   <td style={{ textAlign: 'right' }}>{won(computed[idx])}</td>
@@ -337,7 +347,8 @@ export default function ShipmentOrderPage() {
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+                {/* 머리에 [품목명]·[규격]을 더했으니 여기도 2칸 늘린다 — 안 늘리면 합계가 엉뚱한 열 아래 붙는다. */}
+                <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
                 <td></td>
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>

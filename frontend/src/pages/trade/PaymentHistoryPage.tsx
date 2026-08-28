@@ -176,8 +176,9 @@ export default function PaymentHistoryPage() {
             <th style={{ width: 150 }}>전표번호</th>
             <th>거래처</th>
             <th style={{ width: 60, textAlign: 'center' }}>구분</th>
-            <th style={{ width: 110 }}>결제방법</th>
+            {/* 원본 차례는 <b>결제금액 · 결제방법</b> 이다(사본 실측) — 우리는 뒤집혀 있었다. */}
             <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
+            <th style={{ width: 110 }}>결제방법</th>
             <th style={{ width: 110 }}>결제요청자</th>
             <th style={{ width: 90, textAlign: 'center' }}>회계반영</th>
             <th style={{ width: 150 }}>회계전표No.</th>
@@ -206,8 +207,8 @@ export default function PaymentHistoryPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.vatType}</td>
-              <td>{r.itemSummary || '-'}</td>
               <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
+              <td>{r.itemSummary || '-'}</td>
               <td style={{ color: '#5a626e', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
                            color: r.reflected ? '#1c7c3c' : '#c07a00' }}>

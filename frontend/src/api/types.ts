@@ -387,6 +387,11 @@ export interface WorkOrder {
   productId: number
   productCode: string
   productName: string
+  /**
+   * 규격. 원본 작업지시서조회의 열 이름이 <b>[품목명[규격]]</b> 이다 —
+   * 서버는 보내고 있었는데 이 타입에 없어 화면이 쓸 수가 없었다.
+   */
+  productSpec: string | null
   productUnit: string
   warehouseId: number
   warehouseName: string

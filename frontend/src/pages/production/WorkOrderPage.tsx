@@ -219,17 +219,19 @@ export default function WorkOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('지시번호')}>지시번호 {sort.mark('지시번호')}</th>
-            <th>납품처</th>
-            <th style={{ width: 90 }}>담당자</th>
-            <th>제품</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('지시번호')}>작업지시No. {sort.mark('지시번호')}</th>
+            {/* 원본 작업지시서조회의 이름은 [거래처명]·[담당자명]·[생산수량] 이다(사본 실측). */}
+            <th>거래처명</th>
+            <th style={{ width: 90 }}>담당자명</th>
+            {/* 원본 차례는 거래처명 · 담당자명 · <b>납기일자</b> · 품목명[규격] · 지시수량 · 생산수량 이다. */}
+            <th style={{ width: 100 }}>납기일자</th>
+            <th>품목명[규격]</th>
             <th>창고</th>
             <th style={{ textAlign: 'right' }}>지시수량</th>
-            <th style={{ textAlign: 'right' }}>생산완료</th>
+            <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>잔여</th>
             <th style={{ textAlign: 'center' }}>상태</th>
             <th>지시일</th>
-            <th style={{ width: 100 }}>납기일자</th>
             <th style={{ width: 150, textAlign: 'center' }}>현황</th>
             {/* 원본 작업지시서조회의 마지막 열 [인쇄] — 그 지시 한 건을 작업지시서로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -247,14 +249,15 @@ export default function WorkOrderPage() {
                 <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
                 <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? '-'}</td>
                 <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
-                <td>{o.productName}</td>
+                {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
+                <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{o.dueDate ?? '-'}</td>
+                <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>
                 <td style={{ textAlign: 'right' }}>{o.plannedQty.toLocaleString()} {o.productUnit}</td>
                 <td style={{ textAlign: 'right' }}>{o.producedQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{o.remainingQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
                 <td>{o.orderDate}</td>
-                <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{o.dueDate ?? '-'}</td>
                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                   {LINKS.map((l, i) => (
                     <span key={l.to}>
