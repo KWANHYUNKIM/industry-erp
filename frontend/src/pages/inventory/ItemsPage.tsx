@@ -372,13 +372,10 @@ export default function ItemsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm text-slate-600">품목분류 *</label>
-                <select className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)}>
-                  {categories.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="품목분류 *" hideLabel width={200} emptyLabel="선택"
+                                 value={form.category} onChange={(v) => set('category', v)}
+                                 items={categories.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-slate-600">재고수량관리</label>

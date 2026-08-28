@@ -270,10 +270,10 @@ export default function ShipmentOrderPage() {
               <tr>
                 <th style={th}>출하창고</th>
                 <td>
-                  <select className={inputCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택 안 함</option>
-                    {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="출하창고" hideLabel width={220} emptyLabel="선택 안 함"
+                                 value={warehouseId} onChange={setWarehouseId}
+                                 items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
                 <th style={th}>출하예정일</th>
                 <td>
@@ -285,10 +285,10 @@ export default function ShipmentOrderPage() {
               <tr>
                 <th style={th}>담당자</th>
                 <td>
-                  <select className={inputCls} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택 안 함</option>
-                    {employees.map((e2) => <option key={e2.id} value={e2.id}>{e2.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="담당자" hideLabel width={220} emptyLabel="선택 안 함"
+                                 value={employeeId} onChange={setEmployeeId}
+                                 items={employees.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
                 <th style={th}>연락처</th>
                 <td><input className={inputCls} value={contact} onChange={(e) => setContact(e.target.value)} style={{ width: 150 }} /></td>
@@ -296,11 +296,10 @@ export default function ShipmentOrderPage() {
               <tr>
                 <th style={th}>프로젝트</th>
                 <td>
-                  <select className={inputCls} value={projectId} onChange={(e) => setProjectId(e.target.value)}
-                          style={{ width: '100%' }}>
-                    <option value="">선택 안 함</option>
-                    {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="선택 안 함"
+                                 value={projectId} onChange={setProjectId}
+                                 items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>

@@ -173,10 +173,10 @@ export default function AsManagePage() {
               <tr>
                 <th style={th}>품목 *</th>
                 <td>
-                  <select className={inputCls} value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ minWidth: 200 }}>
-                    <option value="">선택하세요</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="품목 *" hideLabel width={200} emptyLabel="선택하세요"
+                                 value={itemId} onChange={setItemId}
+                                 items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
                 <th style={th}>담당</th>
                 <td><input className={inputCls} value={charge} onChange={(e) => setCharge(e.target.value)} style={{ width: 150 }} /></td>

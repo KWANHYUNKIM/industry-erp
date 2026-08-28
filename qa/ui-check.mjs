@@ -669,6 +669,7 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
   const NOT_MASTER = new Map([
     ['trade/PartnersPage.tsx|거래처코드구분', '코드 마스터가 아니라 <b>구분</b>이다 — 등록번호 자릿수가 여기서 갈린다'],
     ['trade/PartnersPage.tsx|출하대상거래처', '거래처를 고르는 칸이 아니라 <b>대상/제외</b> 두 값이다'],
+    ['trade/PartnersPage.tsx|세무신고거래처', '위와 같음 — 거래처를 고르는 칸이 아니라 <b>대상/제외</b> 두 값이다'],
     ['production/ResourcePage.tsx|자원명 *', '남의 자원을 고르는 칸이 아니라 <b>이 자원의 이름</b>이다'],
     ['groupware/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
     ['groupware/ApprovalListPage.tsx|프로젝트', '위와 같음'],

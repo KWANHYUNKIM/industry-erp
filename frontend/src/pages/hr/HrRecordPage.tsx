@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -235,10 +236,10 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>부서</th>
                 <td>
-                  <select className="ec-input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} style={{ width: 200 }} disabled={type === 'RESIGN'}>
-                    <option value="">(변경 없음)</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+            {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+            <CodePickerField label="부서" hideLabel width={200} emptyLabel="(변경 없음)"
+                             value={departmentId} onChange={setDepartmentId}
+                             items={departments.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
               </tr>
               <tr>

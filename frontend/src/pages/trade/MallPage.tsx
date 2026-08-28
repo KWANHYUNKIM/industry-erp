@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../api/types'
@@ -429,10 +430,10 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
           <tr>
             <th style={{ background: '#f5f7fa' }}>품목 매핑</th>
             <td colSpan={3}>
-              <select className="ec-input" value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: 280 }}>
-                <option value="">(비우면 몰품목코드로 자동연결 시도)</option>
-                {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-              </select>
+            {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+            <CodePickerField label="품목 매핑" hideLabel width={280} emptyLabel="(비우면 몰품목코드로 자동연결 시도)"
+                             value={itemId} onChange={setItemId}
+                             items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>매핑해야 판매전환할 수 있습니다.</span>
             </td>
           </tr>
