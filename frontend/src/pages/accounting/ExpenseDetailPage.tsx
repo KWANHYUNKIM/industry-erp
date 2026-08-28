@@ -28,6 +28,8 @@ interface Expense {
   amount: number
   paymentMethod: string | null
   department: string | null
+  /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면 형이 안 받아 조건으로 쓸 수 없었다. */
+  projectName: string | null
   createdBy: string | null
 }
 
@@ -41,7 +43,8 @@ export default function ExpenseDetailPage() {
    * 어느 거래처에 쓴 비용인지 보이면서도 그것으로 모아 볼 수는 없었다.
    */
   const [partnerCond, setPartnerCond] = useState('')
-  const partnerPick = useCondPickers(['partners'])
+  const [projectCond, setProjectCond] = useState('')
+  const partnerPick = useCondPickers(['partners', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -63,6 +66,7 @@ export default function ExpenseDetailPage() {
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || r.accountName.includes(keyword) || (r.content ?? '').includes(keyword) || (r.department ?? '').includes(keyword))
     .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
+    .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -78,6 +82,9 @@ export default function ExpenseDetailPage() {
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>프로젝트</span>
+        <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                         value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
         </span>
