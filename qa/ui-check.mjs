@@ -3540,6 +3540,16 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
  * 거르는 조건이 아니라 <b>채워 넣는 칸</b>이다.
  */
 {
+  /** 그 자리가 등록 창(Modal) 안인가 — 창 안의 이름표는 조건이 아니라 채워 넣는 칸이다. */
+  const inModal = (flat, at) => {
+    for (const m of flat.matchAll(/<Modal/g)) {
+      if (m.index > at) break
+      // 그 <Modal 이 아직 안 닫혔으면 안쪽이다
+      const close = flat.indexOf('</Modal>', m.index)
+      if (close < 0 || close > at) return true
+    }
+    return false
+  }
   const FIELDS = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
   const MISS_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const bad = []
@@ -3555,9 +3565,26 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
     for (const n of names) {
       if (!heads.has(n)) continue
       checked++
+      /*
+       * 조건 이름표를 그리는 <b>세 가지 관용구</b>를 다 본다. 하나라도 빠뜨리면
+       * 멀쩡히 거르고 있는 화면을 "못 거른다" 고 한다 — 업무일지가 그랬다.
+       * 그 화면은 <code>&lt;div class="title"&gt;요일&lt;/div&gt;</code> 로 이름표를 그리는데,
+       * EcCond 와 &lt;span&gt; 만 찾고 있어서 조건 다섯을 통째로 못 봤다.
+       */
       const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
-        + '</span>[^<]{0,4}<(input|select)')
-      if (!asCond.test(flat)) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
+        + '</span>[^<]{0,4}<(input|select)|<div className="title">' + n + '</div>'
+        + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]')
+      /*
+       * <b>같은 &lt;th&gt; 라도 어디 있느냐로 뜻이 갈린다.</b> 등록 창(Modal) 안의
+       * <code>&lt;th&gt;제목&lt;/th&gt;</code> 은 <b>채워 넣는 칸</b>이고, 창 밖의 것은
+       * 조건 판의 <b>이름표</b>다(설문조사현황·거래처관리대장이 그렇게 그린다).
+       * 이걸 안 가르면 둘 중 하나가 된다 — 창 안까지 세면 검사가 아무것도 못 잡고,
+       * 아예 안 세면 멀쩡히 거르는 화면을 못 거른다고 한다. 실제로 둘 다 겪었다.
+       */
+      const noHead = flat.replace(/<thead>[\s\S]*?<\/thead>/g, (m) => ' '.repeat(m.length))
+      const asThLabel = [...noHead.matchAll(new RegExp('<th\\b[^>]*>' + n + '\\s*\\*?</th>', 'g'))]
+        .some((m) => !inModal(flat, m.index))
+      if (!asCond.test(flat) && !asThLabel) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
     }
   }
   const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-see-only.json'), 'utf8'))
