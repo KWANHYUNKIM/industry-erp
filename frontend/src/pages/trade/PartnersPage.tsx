@@ -60,11 +60,31 @@ export default function PartnersPage() {
    */
   const [searchParams] = useSearchParams()
   const [keyword, setKeyword] = useState(searchParams.get('q') ?? '')
+  /*
+   * 원본 [거래처관리대장 II]는 <b>거래처를 찾는 화면</b>이다 — 조건 판에 상호·대표자명·
+   * 업태·종목·전화·Email·주소·검색창내용·사업자번호 …가 다 있다.
+   * 우리는 검색창 하나뿐이라 코드·상호로만 좁힐 수 있었다. 거래처가 300곳을 넘으면
+   * "그 대표자 이름이 뭐였더라" 로는 찾을 길이 없었다.
+   *
+   * <p>원본 조건 이름을 그대로 쓰되, <b>우리 거래처에 있는 값만</b> 둔다.
+   */
+  const [cond, setCond] = useState({
+    /* 원본 조건 판의 차례 그대로다 — 상호 다음이 종사업장번호, 그 다음이 대표자명이다. */
+    '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
+    Email: '', 주소1: '', 검색창내용: '',
+  })
+  const setCd = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
+  const hit = (v: string | null, q: string) => !q || (v ?? '').includes(q.trim())
 
   /** 화면에 보이는 거래처. 사용중단은 체크를 켜야 나온다 — 원본도 그렇다. */
   const shown = partners
     .filter((p) => withStopped || p.active)
     .filter((p) => !keyword || `${p.code} ${p.name}`.includes(keyword.trim()))
+    .filter((p) => hit(p.name, cond['상호(이름)']) && hit(p.ceoName, cond.대표자명)
+      && hit(p.bizType, cond.업태) && hit(p.bizItem, cond.종목)
+      && hit(p.phone, cond.전화) && hit(p.email, cond.Email)
+      && hit(p.address, cond.주소1) && hit(p.searchKeyword, cond.검색창내용)
+      && hit(p.subBizNo, cond.종사업장번호))
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -279,6 +299,21 @@ export default function PartnersPage() {
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
         사용중단포함
       </label>
+
+      {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+        {(Object.keys(cond) as (keyof typeof cond)[]).map((k) => (
+          <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ fontSize: 12.5, color: '#5a626e' }}>{k}</label>
+            <input className="ec-input" style={{ width: 120 }} value={cond[k]}
+                   onChange={(e) => setCd(k, e.target.value)} />
+          </span>
+        ))}
+        <button type="button" className="ec-btn" onClick={() => setCond({
+          '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
+          Email: '', 주소1: '', 검색창내용: '',
+        })}>조건 지우기</button>
+      </div>
 
       <Modal open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
