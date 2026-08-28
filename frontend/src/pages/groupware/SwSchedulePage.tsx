@@ -37,6 +37,7 @@ export default function SwSchedulePage() {
   const [endFrom, setEndFrom] = useState('')
   const [endTo, setEndTo] = useState('')
   const [title2, setTitle2] = useState('')
+  const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
@@ -81,7 +82,16 @@ export default function SwSchedulePage() {
    *
    * <p>[실제완료일]은 넣지 않았다 — 우리 프로젝트에는 실제로 끝난 날을 적는 칸이 없다.
    */
+  /*
+   * 원본 SW개발일정관리 탭 실측(사본): <b>전체 · 진행중 · 완료</b>.
+   * 쌍둥이 화면인 건설예정공정표에는 이 알약이 있는데 <b>여기만 없었다</b> —
+   * 같은 <code>/projects</code> 를 쓰는 화면인데 한쪽만 끝난 것을 걸러 낼 수 있었다.
+   */
+  const inTab = (r: Project) =>
+    tab === '전체' ? true : tab === '완료' ? r.status === 'DONE' : r.status === 'IN_PROGRESS'
+
   const shown = rows
+    .filter(inTab)
     .filter((r) => !from || (r.startDate ?? '') >= from)
     .filter((r) => !to || (r.startDate ?? '') <= to)
     .filter((r) => !endFrom || (r.endDate ?? '') >= endFrom)
@@ -107,6 +117,15 @@ export default function SwSchedulePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <p className="mb-2 text-xs text-slate-500">개발 건별 목표일·진행률(%) 관리 · +10% 버튼으로 진척 반영 (프로젝트관리와 저장소 공유)</p>
+
+      {/* 원본 상단 알약 — 전체·진행중·완료 */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {(['전체', '진행중', '완료'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+            {t} {rows.filter((r) => (t === '전체' ? true : t === '완료' ? r.status === 'DONE' : r.status === 'IN_PROGRESS')).length}
+          </button>
+        ))}
+      </div>
 
       {/* 원본 조회 조건 — 우리 데이터에 있는 것만(계획시작일·계획종료일) */}
       <table className="w-full text-left" style={{ marginBottom: 8 }}>

@@ -228,7 +228,8 @@ export default function ShipmentOrderPage() {
         {/* 원본 [발송여부] — 우리 출하 상태가 그 자리다(지시 · 출하완료 · 취소). */}
         <EcCond label="발송여부">
           <div className="ec-pills">
-            {([['', '전체'], ['READY', '지시'], ['SHIPPED', '출하완료'], ['CANCELED', '취소']] as const).map(([v, l]) => (
+            {/* 원본 출하지시서조회의 탭 이름이 [전체]·[진행중]·[완료] 다(사본 실측). */}
+            {([['', '전체'], ['READY', '진행중'], ['SHIPPED', '완료'], ['CANCELED', '취소']] as const).map(([v, l]) => (
               <button key={v || 'all'} type="button"
                       className={`ec-pill no-ec${sendCond === v ? ' active' : ''}`}
                       onClick={() => setSendCond(v)}>{l}</button>
