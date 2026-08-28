@@ -62,6 +62,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    */
   const [partnerCond, setPartnerCond] = useState('')
   const [managerCond, setManagerCond] = useState('')
+  const [whCond, setWhCond] = useState('')
+  const [typeCond, setTypeCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
+  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount > 0 ? '부가세율 적용' : '면세')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
@@ -217,10 +222,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
     .filter((d) => !partnerCond || d.partnerName === partnerCond)
     .filter((d) => !managerCond || (d.createdBy ?? '') === managerCond)
+    .filter((d) => !whCond || d.warehouseName === whCond)
+    .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
+    .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), [docs, keyword, partnerCond, managerCond, from, to, tab, isSales])
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -341,6 +349,21 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={managerCond} onChange={setManagerCond}
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+          {/* 목록에 열로 있는 값은 걸러 낼 수도 있어야 한다. 원본 조회의 조건이 그것이다. */}
+          <CodePickerField label={isSales ? '출하창고' : '입고창고'} width={130} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond}
+                           items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          <CodePickerField label="거래유형" width={130} emptyLabel="전체"
+                           value={typeCond} onChange={setTypeCond}
+                           items={[...new Set(docs.map(tradeTypeOf))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          {!isSales && (
+            <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
+                             value={projectCond} onChange={setProjectCond}
+                             items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          )}
         </span>
       </div>
 
