@@ -183,7 +183,8 @@ export default function LeaveListPage() {
           <input className="ec-input" placeholder="부서명 일부" value={dept}
                  onChange={(e) => setDept(e.target.value)} style={{ width: 160 }} />
         </EcCond>
-        <EcCond label="근태코드" pick>
+        {/* 원본 근태조회의 이름은 [근태코드]가 아니라 <b>[근태항목]</b> 이다(사본 실측). */}
+        <EcCond label="근태항목" pick>
           <input className="ec-input" placeholder="연차·반차 등" value={type}
                  onChange={(e) => setType(e.target.value)} style={{ width: 160 }} />
         </EcCond>

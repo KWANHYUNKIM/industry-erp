@@ -16,6 +16,9 @@ export default function CollectSourcePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  /* 원본 수집데이터등록의 조건에 <b>[데이터명]</b> 이 있다 — 표에 찍히는데 거를 수가 없었다. */
+  const [nameCond, setNameCond] = useState('')
+  const shown = rows.filter((r) => !nameCond || r.name.includes(nameCond))
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(empty)
@@ -88,6 +91,12 @@ export default function CollectSourcePage() {
         </form>
       )}</Modal>
 
+      {/* 원본 조건 [데이터명] */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>데이터명</span>
+        <input className="ec-input" value={nameCond} onChange={(e) => setNameCond(e.target.value)} style={{ width: 170 }} />
+      </div>
+
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
@@ -103,9 +112,9 @@ export default function CollectSourcePage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
+          ) : shown.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((s) => (
+          ) : shown.map((s) => (
             <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
               <td></td>
               <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{s.sortOrder}</td>
