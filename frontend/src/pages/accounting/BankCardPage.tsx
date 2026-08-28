@@ -3,6 +3,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -37,6 +39,9 @@ export default function BankCardPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [kw, setKw] = useState('')
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중지'>('전체')
+  const [glCond, setGlCond] = useState('')
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
@@ -84,6 +89,27 @@ export default function BankCardPage() {
 
   const totalBalance = accounts.filter((a) => a.active).reduce((s, a) => s + a.balance, 0)
 
+  /*
+   * 원본 계좌등록 조건: 계좌코드 · 계좌명 · <b>계정</b> · <b>검색창내용</b> · 외화통장환종 · <b>사용구분</b>
+   * 원본 카드등록 조건: 카드코드 · <b>검색창내용</b> · <b>사용구분</b>
+   *
+   * <p>두 탭 다 표만 있고 조건이 하나도 없어서, 쓰지 않는 계좌까지 늘 같이 보였다.
+   * 굵게 표시한 다섯을 만든다 — [계좌코드]·[계좌명]·[카드코드]·[외화통장환종]은
+   * 우리 엔티티에 그 값이 없다(코드 없이 은행+계좌번호로 식별하고, 통장은 원화만 둔다).
+   */
+  const onOff = (active: boolean) => (active ? '사용' : '중지')
+  const shownAccounts = useMemo(() => accounts
+    .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
+    .filter((r) => !glCond || r.glAccountName === glCond)
+    .filter((r) => !kw || [r.bankName, r.accountNo, r.holder, r.glAccountName, r.remark]
+      .some((v) => (v ?? '').includes(kw))),
+    [accounts, useCond, glCond, kw])
+  const shownCards = useMemo(() => cards
+    .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
+    .filter((r) => !kw || [r.cardName, r.cardCompany, r.cardNo, r.ownerName, r.settlementAccountName, r.remark]
+      .some((v) => (v ?? '').includes(kw))),
+    [cards, useCond, kw])
+
   return (
     <EcListShell
       title="계좌/카드"
@@ -122,9 +148,31 @@ export default function BankCardPage() {
           onError={setError} onSaved={() => saved('카드사용을 등록하고 회계전표를 생성했습니다.')} />
       )}</Modal>
 
+      {(tab === '계좌등록' || tab === '카드등록') && (
+        <ul className="ec-cond" style={{ marginBottom: 8 }}>
+          {tab === '계좌등록' && (
+            <EcCond label="계정" pick>
+              <CodePickerField label="계정" hideLabel width={170} emptyLabel="전체"
+                               value={glCond} onChange={setGlCond}
+                               items={glAccounts.map((a) => ({ value: a.name, code: a.code, name: a.name }))} />
+            </EcCond>
+          )}
+          <EcCond label="검색창내용">
+            <input className="ec-input" value={kw} placeholder="검색창내용"
+                   onChange={(e) => setKw(e.target.value)} style={{ width: 190 }} />
+          </EcCond>
+          <EcCond label="사용구분">
+            <select className="ec-input" value={useCond} style={{ width: 90 }}
+                    onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중지')}>
+              <option>전체</option><option>사용</option><option>중지</option>
+            </select>
+          </EcCond>
+        </ul>
+      )}
+
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        : tab === '계좌등록' ? <BankAccountTable rows={accounts} />
-        : tab === '카드등록' ? <CardTable rows={cards} />
+        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} />
+        : tab === '카드등록' ? <CardTable rows={shownCards} />
         : tab === '계좌입출금' ? <BankTxnTable rows={txns} />
         : <CardUsageTable rows={usages} />}
     </EcListShell>
