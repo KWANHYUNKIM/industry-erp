@@ -188,17 +188,19 @@ export default function WorkOrderPage() {
             {/* 원본 작업지시서입력 머리: 작업지시No. · 일자 · 납품처 · 담당자 · 납기일자 */}
             <div>
               <label className="mb-1 block text-sm text-slate-600">납품처</label>
-              <select className={inputCls} value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)}>
-                <option value="">선택 안 함</option>
-                {partners.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
+                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
+              <CodePickerField label="납품처" hideLabel fill placeholder="납품처" emptyLabel="선택 안 함"
+                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                               items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              <select className={inputCls} value={form.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
-                <option value="">선택 안 함</option>
-                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
+                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
+              <CodePickerField label="담당자" hideLabel fill placeholder="담당자" emptyLabel="선택 안 함"
+                               value={form.employeeId} onChange={(v) => set('employeeId', v)}
+                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">납기일자</label>

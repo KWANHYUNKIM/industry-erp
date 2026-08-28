@@ -43,7 +43,7 @@ interface WorkResult {
 /** 원본 격자의 [생산품목코드]·[생산품목명] — 고른 작업지시에서 따라온다. */
 interface WorkOrder { id: number; orderNo: string; productCode: string; productName: string }
 interface Process { id: number; name: string }
-interface Warehouse { id: number; name: string; kind: string; active: boolean }
+interface Warehouse { id: number; code: string; name: string; kind: string; active: boolean }
 interface Project { id: number; code: string; name: string }
 
 const inputCls = 'ec-input w-full'
@@ -207,11 +207,11 @@ export default function WorkResultPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산공장</label>
-              <select className={inputCls} value={form.warehouseId}
-                      onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
-              </select>
+              {/* 원본은 <b>코드도움</b>으로 받는다(사본 실측) — 창고가 몇십 개만 돼도
+                  드롭다운으로는 코드로 못 찾는다. */}
+              <CodePickerField label="생산공장" hideLabel fill placeholder="생산공장" emptyLabel="선택 안 함"
+                               value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v })}
+                               items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>

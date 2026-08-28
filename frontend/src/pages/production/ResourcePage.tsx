@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
@@ -221,11 +222,11 @@ export default function ResourcePage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">위치</label>
-              <select className={inputCls} value={form.warehouseId}
-                      onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}>
-                <option value="">(안 정함)</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고가 몇십 개만 돼도
+                  드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
+              <CodePickerField label="위치" hideLabel fill placeholder="위치" emptyLabel="안 정함"
+                               value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v })}
+                               items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">대상작업</label>

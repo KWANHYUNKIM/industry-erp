@@ -605,6 +605,60 @@ console.log('\n■ 검사가 만드는 정규식이 죽어 있지 않나')
   eq('따옴표로 만든 정규식에 한 겹 역슬래시가 없다', bad.join('\n') || '없음', '없음')
 }
 
+console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았나')
+
+/*
+ * <b>원본이 코드도움으로 받는 칸을 우리도 코드도움으로 받나.</b>
+ *
+ * <p>사본의 조건 판은 칸마다 어떤 <b>입력 모양</b>인지가 마크업에 남아 있다 —
+ * <code>btn-code-search</code>/<code>code.container</code>(코드도움) ·
+ * <code>date.selectbox</code>(달력) · <code>select.selectbox</code>(드롭다운).
+ * 232화면 4014칸을 뽑아 보니 <b>창고·거래처·품목·프로젝트·담당자는 예외 없이 코드도움</b>이다.
+ * 그중 우리가 화면을 만든 58화면 520칸을
+ * <code>qa/fixtures/ecount-code-helper-fields.json</code> 에 적었다.
+ *
+ * <p>드롭다운은 <b>항목이 늘어나는 순간 못 쓰는 칸</b>이 된다. 코드로도 이름으로도
+ * 못 찾고, 스크롤로만 뒤져야 한다. 실제로 열 곳이 그렇게 되어 있었다 —
+ * 생산불출입력의 [담당자]·[보내는창고]·[받는공장], 작업지시서입력의 [납품처]·[담당자],
+ * 자원등록의 [위치], 작업내역입력의 [생산공장].
+ *
+ * <p>우리 화면에 <b>그 이름의 칸이 아예 없으면</b> 여기서는 따지지 않는다 —
+ * 없는 칸은 다른 검사(조건 견주기)가 본다.
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-code-helper-fields.json'), 'utf8'))
+  const MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const esc = (s2) => s2.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const bad = []
+  let checked = 0
+  for (const [screen, fields] of Object.entries(cap)) {
+    const rel = MAP.get(screen)
+    if (!rel) continue
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) continue
+    const src = readFileSync(path, 'utf8')
+    const flatSrc = src.replace(/\s*\n\s*/g, '')
+    for (const label of fields) {
+      const picker = new RegExp('CodePickerField[^>]{0,400}?label="' + esc(label) + '"').test(src)
+        || new RegExp('label="' + esc(label) + '"[^>]{0,400}?items=').test(src)
+      /*
+       * 라벨과 칸 사이에 <b>주석이나 감싸는 태그</b>가 끼는 일이 흔하다. 딱 붙은 것만 보면
+       * 주석 한 줄에 검사가 눈을 감는다 — 실제로 그렇게 통과하는 걸 확인하고 고쳤다.
+       * 라벨 뒤 300자 안에서 <b>어느 쪽이 먼저 나오나</b>로 가린다.
+       */
+      const at = flatSrc.search(new RegExp('<label\\b[^>]*>\\s*' + esc(label) + '\\s*</label>'))
+      const near = at < 0 ? '' : flatSrc.slice(at, at + 300)
+      const iSel = near.indexOf('<select')
+      const iPick = near.indexOf('<CodePickerField')
+      const sel = iSel >= 0 && (iPick < 0 || iSel < iPick)
+      if (!picker && !sel) continue
+      checked += 1
+      if (sel && !picker) bad.push(`${rel.split('/').pop()}  [${label}] — 원본은 코드도움인데 우리는 드롭다운이다`)
+    }
+  }
+  eq(`원본이 코드도움으로 받는 칸 ${checked}개를 우리도 코드로 고른다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n■ 검사의 태그 정규식이 옆 태그까지 먹지 않나')
 
 /*

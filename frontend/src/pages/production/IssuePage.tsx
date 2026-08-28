@@ -38,7 +38,7 @@ interface MaterialIssue {
 /** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
 interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
 /** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
-interface Warehouse { id: number; name: string; kind: string }
+interface Warehouse { id: number; code: string; name: string; kind: string }
 interface Project { id: number; code: string; name: string }
 interface WorkOrder { id: number; orderNo: string; productName: string }
 interface EmployeeLite { id: number; code: string; name: string }
@@ -234,28 +234,30 @@ export default function IssuePage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              <select className={inputCls} value={form.employeeId}
-                      onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
+                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
+              <CodePickerField label="담당자" hideLabel fill placeholder="담당자" emptyLabel="선택 안 함"
+                               value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
+                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">보내는창고</label>
-              <select className={inputCls} value={form.warehouseId} onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}>
-                <option value="">선택</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
+                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
+              <CodePickerField label="보내는창고" hideLabel fill placeholder="보내는창고" emptyLabel="선택"
+                               value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v })}
+                               items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">받는공장</label>
-              <select className={inputCls} value={form.toWarehouseId} onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}>
-                <option value="">선택</option>
-                {/* 구분이 공장인 창고를 앞에 둔다 — 받는 쪽은 대개 공장이다. */}
-                {[...warehouses].sort((a, b) => (a.kind === '공장' ? -1 : 1) - (b.kind === '공장' ? -1 : 1))
-                  .filter((w) => String(w.id) !== form.warehouseId)
-                  .map((w) => <option key={w.id} value={w.id}>{w.name}{w.kind !== '창고' ? ` (${w.kind})` : ''}</option>)}
-              </select>
+              {/* 원본은 이 칸도 <b>코드도움</b>이다. 구분이 공장인 창고를 앞에 두고,
+                  보내는 창고와 같은 곳은 뺀다 — 제 창고로 보낼 수는 없다. */}
+              <CodePickerField label="받는공장" hideLabel fill placeholder="받는공장" emptyLabel="선택"
+                               value={form.toWarehouseId} onChange={(v) => setForm({ ...form, toWarehouseId: v })}
+                               items={[...warehouses]
+                                 .sort((a, b) => (a.kind === '공장' ? -1 : 1) - (b.kind === '공장' ? -1 : 1))
+                                 .filter((w) => String(w.id) !== form.warehouseId)
+                                 .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind !== '창고' ? w.kind : null }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업지시</label>
