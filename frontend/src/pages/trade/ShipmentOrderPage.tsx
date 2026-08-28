@@ -249,8 +249,16 @@ export default function ShipmentOrderPage() {
                     {customers.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
                   </select>
                 </td>
-                <th style={th}>출하일자</th>
-                <td><input type="date" className={inputCls} value={shipDate} onChange={(e) => setShipDate(e.target.value)} style={{ width: 150 }} /></td>
+                {/*
+                  원본 출하입력의 머리 항목은 <b>[일자-No.]</b> 한 칸이다 — 일자와 전표번호를
+                  나란히 둔다. 우리는 [출하일자]라고만 적어 두어, 번호가 어디서 나오는지
+                  화면에 아무 말이 없었다. 번호는 저장할 때 서버가 매긴다(채번 규칙 하나로 모아 둔다).
+                */}
+                <th style={th}>일자-No.</th>
+                <td>
+                  <input type="date" className={inputCls} value={shipDate} onChange={(e) => setShipDate(e.target.value)} style={{ width: 150 }} />
+                  <span style={{ marginLeft: 6, fontSize: 11.5, color: '#9aa1ab' }}>번호는 저장할 때 매깁니다</span>
+                </td>
               </tr>
               <tr>
                 <th style={th}>출하창고</th>

@@ -333,19 +333,21 @@ export default function SalesStatusPage() {
             </select>
           </EcCond>
         )}
-        <EcCond label="거래처" pick>
-          <CodePickerField
-            label="거래처" hideLabel width={220} emptyLabel="전체"
-            value={partnerId} onChange={setPartnerId}
-            items={partnerCodeItems(partners)}
-          />
-        </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField
-            label="품목" hideLabel width={220} emptyLabel="전체"
-            value={itemId} onChange={setItemId}
-            items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec }))}
-          />
+        {/*
+          원본 판매현황 조건 차례 실측(사본): 구분 · 기준일자 · <b>거래유형 · 내.외자구분 ·
+          창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 시리얼/로트No. · 거래구분</b>.
+          우리는 거래처·품목을 앞에 두고 거래유형을 뒤로 보내 두었다.
+        */}
+        <EcCond label="거래유형">
+          {(['전체', '과세', '면세'] as const).map((t) => (
+            <button
+              key={t} type="button"
+              className={`ec-btn ec-btn-sm${taxType === t ? ' ec-btn-primary' : ''}`}
+              onClick={() => setTaxType(t)}
+            >
+              {t}
+            </button>
+          ))}
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField
@@ -364,22 +366,24 @@ export default function SalesStatusPage() {
                            value={mgmtItem} onChange={(v) => setMgmtItem(v)}
                            items={mgmtOptions.map((m) => ({ value: m, name: m }))} />
         </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField
+            label="거래처" hideLabel width={220} emptyLabel="전체"
+            value={partnerId} onChange={setPartnerId}
+            items={partnerCodeItems(partners)}
+          />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField
+            label="품목" hideLabel width={220} emptyLabel="전체"
+            value={itemId} onChange={setItemId}
+            items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec }))}
+          />
+        </EcCond>
         <EcCond label="시리얼/로트No.">
           <input className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)}
                  placeholder="부분일치" style={{ width: 220 }} />
         </EcCond>
-        <EcCond label="거래유형">
-          {(['전체', '과세', '면세'] as const).map((t) => (
-            <button
-              key={t} type="button"
-              className={`ec-btn ec-btn-sm${taxType === t ? ' ec-btn-primary' : ''}`}
-              onClick={() => setTaxType(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </EcCond>
-        {/* 원본 판매현황 조건 실측(사본)에 [거래구분] 이 있다 — 반품만/반품제외로 갈라 본다. */}
         <EcCond label="거래구분">
           {(['전체', '일반', '반품'] as const).map((t) => (
             <button
