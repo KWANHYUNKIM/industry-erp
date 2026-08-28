@@ -42,6 +42,8 @@ export default function ExpenseDetailPage() {
    * 다(사본 실측). [거래처]가 없었는데 <b>거래처명은 이미 목록에 찍히고 있었다</b> —
    * 어느 거래처에 쓴 비용인지 보이면서도 그것으로 모아 볼 수는 없었다.
    */
+  const [groupCond, setGroupCond] = useState('전체')
+  const [empCond, setEmpCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const partnerPick = useCondPickers(['partners', 'projects'])
@@ -62,9 +64,15 @@ export default function ExpenseDetailPage() {
   useEffect(() => { load() }, [])
 
   const accountNames = useMemo(() => Array.from(new Set(rows.map((r) => r.accountName))), [rows])
+  const groupNames = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.accountGroupName).filter(Boolean))) as string[],
+    [rows],
+  )
   const shown = rows
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || r.accountName.includes(keyword) || (r.content ?? '').includes(keyword) || (r.department ?? '').includes(keyword))
+    .filter((r) => groupCond === '전체' || r.accountGroupName === groupCond)
+    .filter((r) => !empCond || (r.createdBy ?? '').includes(empCond))
     .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
     .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
@@ -74,11 +82,24 @@ export default function ExpenseDetailPage() {
       newLabel="새로고침" onNew={load} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>계정</span>
+        {/*
+          원본 비용내역현황의 조건 차례는 <b>비용그룹 · 비용 · 사원 · 거래처 · 프로젝트</b> 다.
+          주석에는 다섯을 적어 놓고 <b>뒤 둘만</b> 만들어 두었다 — 앞 셋도 목록에 이미
+          찍히는 값이다(비용그룹명 · 비용명 · 사용자명). 우리 [계정]은 원본 이름이 <b>[비용]</b> 이다.
+        */}
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비용그룹</span>
+        <select className="ec-input" value={groupCond} onChange={(e) => setGroupCond(e.target.value)} style={{ width: 150 }}>
+          <option>전체</option>
+          {groupNames.map((g) => <option key={g}>{g}</option>)}
+        </select>
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비용</span>
         <select className="ec-input" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} style={{ width: 160 }}>
           <option>전체</option>
           {accountNames.map((a) => <option key={a}>{a}</option>)}
         </select>
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>사원</span>
+        <input className="ec-input" value={empCond} onChange={(e) => setEmpCond(e.target.value)}
+               placeholder="사용자명 일부" style={{ width: 130 }} />
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
