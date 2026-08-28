@@ -186,7 +186,11 @@ export default function WorkResultPage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <Modal open={showForm} title="작업내역입력" onClose={() => setShowForm(false)}>{(
+      {/*
+        격자가 열두 칸이라 기본 폭(640)으로는 팝업 밖으로 넘친다 — 브라우저로 열어 보고 알았다.
+        Modal 은 maxWidth 96vw 라 좁은 화면에서는 알아서 줄어든다.
+      */}
+      <Modal open={showForm} title="작업내역입력" width={1180} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -225,7 +229,9 @@ export default function WorkResultPage() {
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>작업</span>
             <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
           </div>
-          <table className="ec-grid" style={{ width: '100%' }}>
+          {/* 좁은 창에서는 열두 칸이 다 안 들어간다 — 잘리지 말고 옆으로 밀리게 둔다. */}
+          <div style={{ overflowX: 'auto' }}>
+          <table className="ec-grid" style={{ width: '100%', minWidth: 1040 }}>
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th>
@@ -318,6 +324,7 @@ export default function WorkResultPage() {
               </tr>
             </tfoot>
           </table>
+          </div>
           <datalist id="wr-process-list">
             {processes.map((p) => <option key={p.id} value={p.name} />)}
           </datalist>

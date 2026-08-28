@@ -447,7 +447,7 @@ export default function DailyProfitPage() {
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나
           판매액과 같아집니다. 아래를 차례로 보세요.
-          <ol style={{ margin: '10px 0 0 18px' }}>
+          <ol style={{ margin: '10px 0 0 20px', listStyleType: 'decimal' }}>
             <li>[원가] 를 [월별원가]로 두었다면 그 달 <b>표준원가가 생성돼 있어야</b> 합니다 —
                 [원가생성/수정]에서 그 기준월로 만듭니다.</li>
             <li>[최종구매가]·[입고단가(품목)]는 그 품목을 <b>사 본 적이 있어야</b> 값이 잡힙니다.</li>

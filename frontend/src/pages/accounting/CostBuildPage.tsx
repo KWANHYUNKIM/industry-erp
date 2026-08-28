@@ -298,7 +298,7 @@ export default function CostBuildPage() {
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
           원가가 0 이거나 일부 품목만 생깁니다.
-          <ol style={{ margin: '10px 0 0 18px' }}>
+          <ol style={{ margin: '10px 0 0 20px', listStyleType: 'decimal' }}>
             <li>완제품에 <b>BOM</b>이 있어야 합니다 — 자재비는 BOM 을 펼쳐 계산합니다.</li>
             <li>자재의 <b>구매단가</b>가 있어야 합니다(품목등록 또는 그 달의 매입 전표).</li>
             <li>노무비·경비는 [노무비/경비등록]에서 그 기준월로 넣어 둡니다 —
