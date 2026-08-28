@@ -429,7 +429,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             <th style={{ width: 140 }}>검색창내용</th>
             {showAr && <th style={{ textAlign: 'right' }}>채권 (외상매출금)</th>}
             {showAp && <th style={{ textAlign: 'right' }}>채무 (외상매입금)</th>}
-            <th style={{ width: 80, textAlign: 'center' }}>상세내역</th>
+            {/* 원본 실측: 왼쪽. */}
+            <th style={{ width: 80 }}>상세내역</th>
           </tr>
         </thead>
         <tbody>

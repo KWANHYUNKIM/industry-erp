@@ -1551,17 +1551,18 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <th style={{ textAlign: 'left' }}>품목코드</th>
                 <th style={{ textAlign: 'left' }}>품목명</th>
                 <th style={{ textAlign: 'left' }}>규격</th>
-                <th style={{ textAlign: 'left' }}>시리얼/로트</th>
+                {/* 원본 실측: [시리얼/로트]는 가운데, 금액 칸들은 오른쪽이다. 값은 이미 오른쪽인데 머리만 안 따라갔다. */}
+                <th style={{ textAlign: 'center' }}>시리얼/로트</th>
                 {cols.stockAll && <th>전체수량</th>}
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
                 {/* 원본은 판매입력이 [수량], 구매입력이 [기본수량] 이다 — 같은 칸인데 이름이 다르다. */}
                 <th>{mode === 'sales' ? '수량' : '기본수량'}</th>
-                <th>단가</th>
+                <th style={{ textAlign: 'right' }}>단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
-                <th>공급가액</th>
-                <th>부가세</th>
-                <th>부대비용</th>
+                <th style={{ textAlign: 'right' }}>공급가액</th>
+                <th style={{ textAlign: 'right' }}>부가세</th>
+                <th style={{ textAlign: 'right' }}>부대비용</th>
                 {cols.mgmtItem && <th>관리항목</th>}
                 <th style={{ textAlign: 'left' }}>적요</th>
                 {/* 라인 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 표가 그대로다. */}

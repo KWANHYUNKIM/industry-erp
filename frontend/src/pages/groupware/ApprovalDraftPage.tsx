@@ -305,7 +305,8 @@ export default function ApprovalDraftPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 90 }}>정렬순서</th>
+              {/* 원본 실측: 가운데. */}
+              <th style={{ width: 90, textAlign: 'center' }}>정렬순서</th>
               <th>양식명</th>
               <th style={{ width: 200 }}>구분</th>
               {/* 원본은 [구분] 200 · [결재문서] 150 이다 — 우리는 거꾸로였다. */}

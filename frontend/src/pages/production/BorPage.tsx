@@ -248,7 +248,8 @@ export default function BorPage() {
               <th style={{ width: 80 }}>품목구분</th>
               <th>생산공정명</th>
               <th style={{ width: 80, textAlign: 'right' }}>생산수량</th>
-              <th style={{ width: 80, textAlign: 'right' }}>작업순서</th>
+              {/* 원본 실측: [작업순서]는 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이다. */}
+              <th style={{ width: 80 }}>작업순서</th>
               <th>작업명</th>
               <th style={{ width: 100, textAlign: 'right' }}>작업시간(H)</th>
               <th style={{ width: 100, textAlign: 'right' }}>1개당(H)</th>

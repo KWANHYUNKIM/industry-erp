@@ -234,8 +234,9 @@ export default function SurveyInputPage() {
         <thead>
           <tr>
             <th></th><th>질문유형</th><th>질문내용</th>
-            <th>보기항목1</th><th>보기항목2</th><th>보기항목3</th><th>보기항목4</th><th>보기항목5</th>
-            <th>필수항목</th>
+            {/* 원본 실측: 보기항목 다섯 칸과 [필수항목]은 가운데다. */}
+            <th style={{ textAlign: 'center' }}>보기항목1</th><th style={{ textAlign: 'center' }}>보기항목2</th><th style={{ textAlign: 'center' }}>보기항목3</th><th style={{ textAlign: 'center' }}>보기항목4</th><th style={{ textAlign: 'center' }}>보기항목5</th>
+            <th style={{ textAlign: 'center' }}>필수항목</th>
           </tr>
         </thead>
         <tbody>

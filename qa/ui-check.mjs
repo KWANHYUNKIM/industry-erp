@@ -1109,7 +1109,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
  * 파일에 먼저 나오는 표를 집으면 엉뚱한 표를 고치게 된다(생산입고현황이 실제로 그랬다).
  */
 {
+  /*
+   * <b>대조표를 밑에 깔고</b> 손으로 적어 둔 것을 덧쓴다. 손으로 적은 지도만 쓰면
+   * fixture 를 늘려도 검사가 안 커진다 — 체크박스 기본값 검사가 실제로 그랬다
+   * (35화면 중 9화면만 보고 있었다). 이름이 대조표와 다른 화면은 아래 줄이 이긴다.
+   */
+  const ORDERMAP_BASE = JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8'))
   const ALIGN_MAP = new Map([
+    ...ORDERMAP_BASE,
     ['거래처리스트', 'trade/PartnersPage.tsx'],
     ['거래처별채권', 'trade/LedgerPage.tsx'],
     ['거래처특별단가그룹', 'inventory/SpecialPriceGroupPage.tsx'],
@@ -1203,7 +1210,14 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
  * (채권 표가 [기초채권·회계매출] 대신 [채권·채무·순액]). 합계행 자체가 있나만 본다.
  */
 {
+  /*
+   * <b>대조표를 밑에 깔고</b> 손으로 적어 둔 것을 덧쓴다. 손으로 적은 지도만 쓰면
+   * fixture 를 늘려도 검사가 안 커진다 — 체크박스 기본값 검사가 실제로 그랬다
+   * (35화면 중 9화면만 보고 있었다). 이름이 대조표와 다른 화면은 아래 줄이 이긴다.
+   */
+  const ORDERMAP_BASE = JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8'))
   const TOTAL_MAP = new Map([
+    ...ORDERMAP_BASE,
     ['거래처별채권', 'trade/LedgerPage.tsx'],
     ['거래처별채무', 'trade/LedgerPage.tsx'],
     ['구매입력', 'trade/TradeEntry.tsx'],

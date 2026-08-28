@@ -457,7 +457,8 @@ export default function AccountingReflectionPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 190 }}>일자-No.</th>
+              {/* 원본 실측: 가운데. */}
+              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
               <th style={{ width: 150 }}>거래처명</th>
               <th style={{ width: 120 }}>품목코드</th>
               <th>품목명</th>
