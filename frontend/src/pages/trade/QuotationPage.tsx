@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
@@ -32,6 +33,7 @@ export default function QuotationPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [itemCond, setItemCond] = useState('')
   const [company, setCompany] = useState<DocParty | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -53,7 +55,18 @@ export default function QuotationPage() {
     return `${q.quoteDate.replace(/-/g, '/')} -${Number(seq) || seq}`
   }
 
-  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  /*
+   * 원본 견적서 조건 차례: 기준일자 · 견적No. · 내.외자구분 · 창고 · 프로젝트 ·
+   * 관리항목 · 거래처 · <b>품목</b> · 발송여부.
+   *
+   * <p>품목은 목록에 <b>[품목명(요약)]</b> 으로 찍히는데 그것으로 거를 수가 없었다 —
+   * 그 품목이 든 견적을 찾으려면 한 줄씩 펼쳐 봐야 했다. 요약에는 첫 줄만 보이므로
+   * <b>모든 줄</b>을 훑는다(요약만 보고 거르면 둘째 줄부터가 안 걸린다).
+   */
+  const shown = useMemo(() => rows
+    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
+    [rows, tab, itemCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -122,6 +135,15 @@ export default function QuotationPage() {
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+      </ul>
+
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
           <button

@@ -3,6 +3,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -28,6 +30,8 @@ export default function TransferPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [stock, setStock] = useState<StockRow[]>([])
   const [keyword, setKeyword] = useState('')
+  const [whCond, setWhCond] = useState('')
+  const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -68,9 +72,17 @@ export default function TransferPage() {
     await load()
   }
 
-  const shownTransfers = transfers.filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
+  /*
+   * 원본 기타이동현황 조건 차례: <b>창고</b> · 프로젝트 · 품목 · 담당자 · 적요.
+   * 창고는 두 표에 다 찍히는데 그것으로 거를 수가 없었다 — 창고이동은 출고·입고
+   * <b>어느 쪽이든</b> 걸리게 한다(그 창고가 낀 이동을 보려는 것이므로).
+   */
+  const shownTransfers = transfers
+    .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
+    .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
+    (!whCond || r.warehouseName === whCond) &&
     (!keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword)))
 
   /*
@@ -107,6 +119,14 @@ export default function TransferPage() {
           }}>{t} ({count(t)})</button>
         ))}
       </div>
+
+      {/* 원본 조건 차례: <b>창고</b> · 프로젝트 · 품목 · 담당자 · 적요 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+      </ul>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 

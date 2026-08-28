@@ -85,7 +85,10 @@ export default function WorkOrderPage() {
    */
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
-  const condPickers = useCondPickers(['partners', 'items'])
+  const condPickers = useCondPickers(['partners', 'items', 'warehouses'])
+  /* 원본 작업지시서조회 조건 차례: 작업지시No. · <b>창고</b> · 거래처 · 품목.
+     창고는 목록에 찍히는데 그것으로 거를 수가 없었다. */
+  const [whCond, setWhCond] = useState('')
   /** 납품처·담당자. 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
   const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
@@ -122,6 +125,7 @@ export default function WorkOrderPage() {
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
   const shown = orders.filter((o) => (tab === '전체' || o.status === TAB_STATUS[tab])
+    && (!whCond || o.warehouseName === whCond)
     && (!partnerCond || (o.partnerName ?? '').includes(partnerCond))
     && (!itemCond || o.productName.includes(itemCond)))
 
@@ -180,6 +184,10 @@ export default function WorkOrderPage() {
 
       {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={condPickers.warehouses} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />

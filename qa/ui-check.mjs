@@ -3572,7 +3572,7 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * EcCond 와 &lt;span&gt; 만 찾고 있어서 조건 다섯을 통째로 못 봤다.
        */
       const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
-        + '</span>[^<]{0,4}<(input|select)|<div className="title">' + n + '</div>'
+        + '</span>[^<]{0,4}<(input|select|CodePickerField)|<div className="title">' + n + '</div>'
         + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]'
         + '|<label[^>]*>' + n + '</label>')
       /*
