@@ -314,27 +314,12 @@ export default function PurchaseStatusPage() {
             </select>
           </EcCond>
         )}
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체"
-                           value={filters.partner} onChange={(v) => setF({ partner: v })}
-                           items={pickers.partners} />
-        </EcCond>
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={220} emptyLabel="전체"
-                           value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
-                           items={pickers.warehouses} />
-        </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={220} emptyLabel="전체"
-                           value={filters.item} onChange={(v) => setF({ item: v })}
-                           items={pickers.items} />
-        </EcCond>
-        {/* 원본 구매현황 조건 실측(사본): 구분·기준일자·거래유형·내.외자구분·창고·프로젝트·거래처·품목. */}
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체"
-                           value={filters.project} onChange={(v) => setF({ project: v })}
-                           items={pickers.projects} />
-        </EcCond>
+        {/*
+          원본 구매현황 조건 차례 실측(사본): 구분 · 기준일자 · <b>거래유형 · 내.외자구분 ·
+          창고 · 프로젝트 · 거래처 · 품목</b> · 적용양식 · 정렬기준.
+          우리는 거래처·창고·품목·프로젝트·거래유형 차례로 서 있었다 — 조건 판을 눈으로
+          훑어 내려가는 사람에게는 자리가 곧 이름이다.
+        */}
         <EcCond label="거래유형">
           <div className="ec-pills">
             {['', '과세', '면세'].map((v) => (
@@ -343,6 +328,26 @@ export default function PurchaseStatusPage() {
                       onClick={() => setF({ taxType: v })}>{v || '전체'}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} emptyLabel="전체"
+                           value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체"
+                           value={filters.project} onChange={(v) => setF({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체"
+                           value={filters.partner} onChange={(v) => setF({ partner: v })}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={220} emptyLabel="전체"
+                           value={filters.item} onChange={(v) => setF({ item: v })}
+                           items={pickers.items} />
         </EcCond>
         <EcCond label="구매구분">
           <div className="ec-pills">

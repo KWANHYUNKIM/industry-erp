@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 
@@ -9,7 +12,12 @@ import { useNavigate } from 'react-router-dom'
  * 판매조회/구매조회(TradeInquiryPage)의 출하판. 출하현황(ShipmentPage)이 상태 집계 뷰라면
  * 이 화면은 기준일자 범위·발송여부 검색폼 + 라인 상세를 가진 전표 조회다.
  * 백엔드 무변경 — `/shipments` 가 이미 라인까지 반환한다.
- * 원본 Search 패널의 창고·프로젝트·관리항목은 Shipment 엔티티에 필드가 없어 의도적 제외(구매현황 선례).
+ *
+ * <p><b>여기 적혀 있던 말이 틀렸다.</b> "창고·프로젝트는 Shipment 엔티티에 필드가 없어
+ * 의도적 제외" 라고 적어 두고 있었는데, 엔티티에도 응답에도 <b>둘 다 있다</b>
+ * (<code>warehouse</code>·<code>project</code>, <code>warehouseName</code>·<code>projectName</code>).
+ * 값이 오는데 화면이 받아 두지 않아 못 거르고 있었을 뿐이다. 조건으로 걸었다.
+ * [관리항목]만 여전히 없다 — 그건 품목 마스터에 붙는 값이라 출하 전표에는 없다.
  */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
@@ -18,6 +26,12 @@ interface ShipLine { itemCode: string; itemName: string; unit: string; quantity:
 interface Shipment {
   id: number; shipNo: string; partnerName: string; shipDate: string
   salesOrderNo: string | null
+  /**
+   * 창고·프로젝트는 <b>응답에 이미 오고 있었는데</b> 이 화면이 받아 두지 않았다 —
+   * 원본 출하조회는 둘 다 조회 조건이다. 값이 오는데 못 거르고 있었던 셈이다.
+   */
+  warehouseName: string | null
+  projectName: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
   remark: string | null; createdBy: string | null; lines: ShipLine[]
 }
@@ -36,6 +50,12 @@ export default function ShipmentInquiryPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SendTab>('전체')
+  const [shipNoCond, setShipNoCond] = useState('')
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const [openId, setOpenId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,12 +69,24 @@ export default function ShipmentInquiryPage() {
   }
   useEffect(() => { load() }, [])
 
+  /*
+   * 원본 출하조회의 조건은 <b>기준일자·출하No.·창고·프로젝트·거래처·품목·발송여부</b> 다(사본 실측).
+   * 우리는 기준일자와 발송여부(알약)뿐이라, 나머지 다섯은 <b>검색상자 하나</b>로 뭉뚱그렸다.
+   * 출하가 쌓이면 "저 창고에서 나간 것만" 을 물을 방법이 없다 — 창고·프로젝트는
+   * <b>응답에 이미 오고 있었는데</b> 화면이 받아 두지도 않고 있었다.
+   */
   const shownRows = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.shipNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !from || r.shipDate >= from)
     .filter((r) => !to || r.shipDate <= to)
-    .sort((a, b) => b.shipDate.localeCompare(a.shipDate) || b.id - a.id), [rows, keyword, from, to, tab])
+    .filter((r) => !shipNoCond || r.shipNo.includes(shipNoCond))
+    .filter((r) => !warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
+    .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
+    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond) || l.itemCode.includes(itemCond)))
+    .sort((a, b) => b.shipDate.localeCompare(a.shipDate) || b.id - a.id),
+  [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond])
 
   /*
    * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -86,10 +118,40 @@ export default function ShipmentInquiryPage() {
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</span>
       </div>
 
+      {/* 원본 조건 차례: 기준일자 · 출하No. · 창고 · 프로젝트 · 거래처 · 품목 · 발송여부 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="출하No.">
+          <input className="ec-input" value={shipNoCond} onChange={(e) => setShipNoCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        {/* 마스터를 고르는 조건은 직접 입력이 아니라 코드도움이다 — 다른 화면과 같은 규칙. */}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+      </ul>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
-      <div className="ec-pills" style={{ marginBottom: 6 }}>
+      {/*
+        상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
+        원본은 이 줄에 <b>[발송여부]</b> 라는 이름표를 붙인다. 이름이 없으면 무엇을 고르는
+        알약인지 화면만 보고는 알 수 없다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', minWidth: 62 }}>발송여부</span>
+      <div className="ec-pills">
         {SEND_TABS.map((t) => (
           <button
             key={t} type="button" onClick={() => setTab(t)}
@@ -98,6 +160,7 @@ export default function ShipmentInquiryPage() {
             {t} ({tabCount(t)})
           </button>
         ))}
+      </div>
       </div>
 
       <table className="w-full text-left">
