@@ -167,7 +167,12 @@ export default function SerialLotPage() {
             <th style={{ width: 34 }}></th>
             {/* 원본 이름은 [로트No.] 가 아니라 <b>[시리얼/로트No.]</b> 다(사본 실측). */}
             <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('로트No.')}>시리얼/로트No. {sort.mark('로트No.')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
+            {/*
+              원본 열은 <b>[품목명[규격]] · [규격]</b> 두 칸이다(사본 실측).
+              규격이 로트 응답에 없어 못 만들던 것을 이번에 실었다.
+            */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
+            <th style={{ width: 110 }}>규격</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('입고일')}>입고일 {sort.mark('입고일')}</th>
             <th style={{ width: 100 }}>유효기한</th>
             <th style={{ width: 80, textAlign: 'right' }}>입고수량</th>
@@ -179,14 +184,15 @@ export default function SerialLotPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
               <td>{r.inboundDate}</td>
               <td>{r.expireDate ?? '-'}</td>
               <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>

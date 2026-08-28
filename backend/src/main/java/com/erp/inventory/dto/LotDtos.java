@@ -60,6 +60,8 @@ public final class LotDtos {
     public record LotResponse(
             Long id, String lotNo,
             Long itemId, String itemCode, String itemName, String unit,
+            /** 규격. 원본 시리얼/로트No.등록의 열이 [품목명[규격]]·[규격] 이다. */
+            String spec,
             Long warehouseId, String warehouseName,
             LocalDate inboundDate, LocalDate expireDate,
             BigDecimal inboundQty, BigDecimal stockQty,
@@ -71,6 +73,7 @@ public final class LotDtos {
             return new LotResponse(
                     l.getId(), l.getLotNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getSpec(),
                     l.getWarehouse() != null ? l.getWarehouse().getId() : null,
                     l.getWarehouse() != null ? l.getWarehouse().getName() : null,
                     l.getInboundDate(), l.getExpireDate(),

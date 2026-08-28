@@ -1222,6 +1222,8 @@ export interface Lot {
   itemId: number
   itemCode: string
   itemName: string
+  /** 규격 — 원본 열 [품목명[규격]]·[규격] 이 쓴다. */
+  spec: string | null
   unit: string
   warehouseId: number | null
   warehouseName: string | null
