@@ -1,14 +1,9 @@
 [
- "BorPage.tsx  BOR(작업소요시간) [생산수량] — 열로는 찍는데 거를 수 없다",
- "PartnersPage.tsx  거래처관리대장 II [사용구분] — 열로는 찍는데 거를 수 없다",
  "LedgerPage.tsx  거래처별채권 [구분] — 열로는 찍는데 거를 수 없다",
  "LedgerPage.tsx  거래처별채무 [구분] — 열로는 찍는데 거를 수 없다",
- "ApprovalAllPage.tsx  기안서통합관리 [제목] — 열로는 찍는데 거를 수 없다",
- "IssuePage.tsx  생산불출조회 [일자] — 열로는 찍는데 거를 수 없다",
  "MonthlyProfitPage.tsx  월별이익현황 [판매액] — 열로는 찍는데 거를 수 없다",
  "ShipmentInquiryPage.tsx  출하조회 [발송여부] — 열로는 찍는데 거를 수 없다",
  "ShipmentOrderStatusPage.tsx  출하지시서현황 [일자] — 열로는 찍는데 거를 수 없다",
- "StagedAdjustmentPage.tsx  단계별재고조정 [창고] — 열로는 찍는데 거를 수 없다",
  "WorkOrderPage.tsx  작업지시서조회 [창고] — 열로는 찍는데 거를 수 없다",
  "MallItemMappingPage.tsx  쇼핑몰품목코드연결 [쇼핑몰품목key] — 열로는 찍는데 거를 수 없다",
  "QuotationPage.tsx  견적서 [품목] — 열로는 찍는데 거를 수 없다",
@@ -18,13 +13,8 @@
  "ProjectPlanPage.tsx  프로젝트계획 [프로젝트] — 열로는 찍는데 거를 수 없다",
  "ExpenseDetailPage.tsx  비용내역현황 [거래처] — 열로는 찍는데 거를 수 없다",
  "LeaveListPage.tsx  근태조회 [근태일자] — 열로는 찍는데 거를 수 없다",
- "MyApprovalPage.tsx  내결재관리 [제목] — 열로는 찍는데 거를 수 없다",
  "AsManagePage.tsx  A/S접수 [창고] — 열로는 찍는데 거를 수 없다",
  "AsManagePage.tsx  A/S접수조회 [창고] — 열로는 찍는데 거를 수 없다",
- "SalesPlanPage.tsx  매출계획 [품목] — 열로는 찍는데 거를 수 없다",
- "SalesPlanPage.tsx  매출계획조회 [품목] — 열로는 찍는데 거를 수 없다",
  "ProjectPlanPage.tsx  프로젝트계획조회 [프로젝트] — 열로는 찍는데 거를 수 없다",
- "TransferPage.tsx  기타이동현황 [창고] — 열로는 찍는데 거를 수 없다",
- "SalesPlanPage.tsx  매출계획비교표 [품목] — 열로는 찍는데 거를 수 없다",
- "SalesPlanPage.tsx  매출계획현황 [품목] — 열로는 찍는데 거를 수 없다"
+ "TransferPage.tsx  기타이동현황 [창고] — 열로는 찍는데 거를 수 없다"
 ]

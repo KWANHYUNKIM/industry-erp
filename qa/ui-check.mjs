@@ -3573,7 +3573,8 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        */
       const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
         + '</span>[^<]{0,4}<(input|select)|<div className="title">' + n + '</div>'
-        + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]')
+        + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]'
+        + '|<label[^>]*>' + n + '</label>')
       /*
        * <b>같은 &lt;th&gt; 라도 어디 있느냐로 뜻이 갈린다.</b> 등록 창(Modal) 안의
        * <code>&lt;th&gt;제목&lt;/th&gt;</code> 은 <b>채워 넣는 칸</b>이고, 창 밖의 것은

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -33,6 +35,11 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 export default function SalesPlanPage() {
   const [year, setYear] = useState<number>(thisYear())
   const [rows, setRows] = useState<ComparisonRow[]>([])
+  /*
+   * 원본 매출계획 조건의 <b>[품목]</b>. 품목은 목록에 찍히는데 그것으로 거를 수가 없어,
+   * 한 품목의 열두 달을 보려면 표 전체를 눈으로 훑어야 했다.
+   */
+  const [itemCond, setItemCond] = useState('')
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,11 +74,14 @@ export default function SalesPlanPage() {
     }
   }
 
+  const shown = useMemo(() => rows.filter((r) => !itemCond || r.itemName === itemCond), [rows, itemCond])
+
+  /* 합계도 걸러진 것으로 낸다 — 한 품목만 보면서 합계는 전체이면 숫자가 거짓말을 한다. */
   const totals = useMemo(() => {
-    const t = rows.reduce((s, r) => ({ plan: s.plan + r.planAmount, actual: s.actual + r.actualAmount }), { plan: 0, actual: 0 })
+    const t = shown.reduce((s, r) => ({ plan: s.plan + r.planAmount, actual: s.actual + r.actualAmount }), { plan: 0, actual: 0 })
     const rate = t.plan > 0 ? (t.actual / t.plan) * 100 : 0
     return { ...t, rate }
-  }, [rows])
+  }, [shown])
 
   return (
     <EcListShell
@@ -101,6 +111,15 @@ export default function SalesPlanPage() {
         <PlanForm year={year} items={items} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
       </Modal>
 
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="품목">
+          {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+      </ul>
+
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -118,9 +137,9 @@ export default function SalesPlanPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
+          ) : shown.length === 0 ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
-          ) : rows.map((r, i) => (
+          ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>

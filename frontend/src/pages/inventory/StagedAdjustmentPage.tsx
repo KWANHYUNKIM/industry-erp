@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
@@ -34,6 +35,9 @@ export default function StagedAdjustmentPage() {
   const [keyword, setKeyword] = useState('')
   /* 원본 단계별재고조정 조건에 <b>[적요]</b> 가 있다(사본 실측). 사유는 이미 목록에 온다. */
   const [reasonCond, setReasonCond] = useState('')
+  /* 원본 조건 [창고]. 창고는 목록에 찍히는데 그것으로 거를 수가 없었다. */
+  const [whCond, setWhCond] = useState('')
+  const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /*
@@ -93,8 +97,9 @@ export default function StagedAdjustmentPage() {
   const shown = useMemo(() => rows
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.adjustNo.includes(keyword) || r.warehouseName.includes(keyword))
+    .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond)),
-  [rows, tab, keyword, reasonCond])
+  [rows, tab, keyword, reasonCond, whCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
@@ -140,6 +145,11 @@ export default function StagedAdjustmentPage() {
 
       {/* 원본 단계별재고조정 조건의 <b>[적요]</b>. 사유는 목록에 이미 찍히는데 그것으로 거를 수가 없었다. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고">
+          {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond}
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 200 }} />
