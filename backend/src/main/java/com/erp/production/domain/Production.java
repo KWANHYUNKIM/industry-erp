@@ -72,6 +72,16 @@ public class Production extends BaseTimeEntity {
     @JoinColumn(name = "project_id")
     private com.erp.inventory.domain.Project project;
 
+    /**
+     * 담당자(사원) id. 원본 생산입고 I·II·III 머리의 [담당자].
+     *
+     * <p>작업지시와 같이 <b>id 만</b> 든다 — production 은 hr 을 참조할 수 없다
+     * (hr → accounting → production 이 이미 있어 맞물리면 순환이다. CLAUDE.md 4.1).
+     * 이름은 화면이 사원 목록에서 붙인다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
     @Column(length = 50)
     private String createdBy;
 

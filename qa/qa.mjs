@@ -3774,14 +3774,21 @@ async function scenarioProductionBatch(f) {
   const a = await wo(5)
   const b = await wo(5)
 
+  // 원본 머리의 [담당자]. 전표 하나에 한 사람이고 모든 줄에 같이 붙어야 한다.
+  const emp = (await must('GET', '/employees'))[0]
   const made = await must('POST', '/productions/batch', {
     productionDate: D,
+    employeeId: emp?.id ?? null,
     lines: [
       { workOrderId: a.id, producedQty: 2, note: `${P}줄1` },
       { workOrderId: b.id, producedQty: 3, note: `${P}줄2` },
     ],
   })
   eq('한 번에 두 줄이 들어간다', made.length, 2)
+  eq('머리의 담당자가 모든 줄에 붙는다',
+    made.every((x) => x.employeeId === (emp?.id ?? null)), true)
+  eq('담당자는 다시 읽어도 남아 있다',
+    (await must('GET', '/productions')).find((x) => x.id === made[0].id).employeeId, emp?.id ?? null)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
   eq('줄마다 번호가 따로 매겨진다', new Set(made.map((x) => x.prodNo)).size, 2)
   eq('작업지시 기생산이 줄만큼 는다',

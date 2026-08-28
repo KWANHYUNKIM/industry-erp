@@ -68,6 +68,8 @@ const today = () => ymd(new Date())
 const emptyForm = {
   workOrderId: '', producedQty: '', productionDate: today(),
   fromWarehouseId: '', toWarehouseId: '', note: '', projectId: '',
+  /** 원본 생산입고 II·III 머리의 [담당자]. 전표 하나에 한 사람이다. */
+  employeeId: '',
 }
 
 export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
@@ -81,6 +83,8 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
+  /** 원본 머리의 [담당자] 후보. 전표에는 id 만 남고 이름은 화면이 붙인다. */
+  const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -102,16 +106,18 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
 
   async function loadRefs() {
     try {
-      const [wo, it, wh, pj] = await Promise.all([
+      const [wo, it, wh, pj, em] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<{ id: number; code: string; name: string }[]>('/projects'),
+        api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees'),
       ])
       setWorkOrders(wo.data)
       setItems(it.data)
       setWarehouses(wh.data.filter((w) => w.active))
       setProjects(pj.data)
+      setEmployees(em.data.filter((e) => e.active !== false))
     } catch {
       /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
     }
@@ -154,6 +160,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
         warehouseId: form.toWarehouseId ? Number(form.toWarehouseId) : null,
         note: form.note || null,
         projectId: form.projectId ? Number(form.projectId) : null,
+        employeeId: form.employeeId ? Number(form.employeeId) : null,
         materials,
       })
       let msg = `생산입고 ${res.data.prodNo} 등록`
@@ -254,6 +261,14 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
               </select>
               <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <select className={inputCls} value={form.employeeId}
+                      onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">프로젝트</label>

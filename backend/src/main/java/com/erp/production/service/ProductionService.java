@@ -78,7 +78,7 @@ public class ProductionService {
             out.add(create(new CreateProductionRequest(
                     line.workOrderId(), line.producedQty(), req.productionDate(),
                     req.fromWarehouseId(), req.warehouseId(), req.projectId(),
-                    line.note(), line.laborMinutes(), line.materials()), username));
+                    line.note(), line.laborMinutes(), req.employeeId(), line.materials()), username));
         }
         return out;
     }
@@ -122,6 +122,7 @@ public class ProductionService {
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .laborMinutes(req.laborMinutes())
+                .employeeId(req.employeeId())
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)

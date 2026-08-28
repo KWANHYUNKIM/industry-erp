@@ -57,6 +57,12 @@ export default function ProductionResultPage() {
   const [laborMinutes, setLaborMinutes] = useState('')
   /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
   const [projectId, setProjectId] = useState('')
+  /**
+   * 담당자 — 원본 생산입고 I 머리의 [담당자]. 전표 하나에 한 사람이다.
+   * 생산입고 전표에는 사람이 안 남아 있었다 — 누가 넣은 입고인지 알 수 없었다.
+   */
+  const [employeeId, setEmployeeId] = useState('')
+  const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   /**
    * 원본 생산입고 I 의 머리 항목 — [생산된공장] · [받는창고].
@@ -80,6 +86,11 @@ export default function ProductionResultPage() {
     const res = await api.get<{ id: number; code: string; name: string }[]>('/projects')
     setProjects(res.data)
   }
+  async function loadEmployees() {
+    // 사원은 hr 의 것이지만 화면이 이름을 붙이는 것뿐이다 — 전표에는 id 만 남는다.
+    const res = await api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
+    setEmployees(res.data.filter((e) => e.active !== false))
+  }
   async function loadProductions() {
     const res = await api.get<Production[]>('/productions')
     setProductions(res.data)
@@ -89,6 +100,7 @@ export default function ProductionResultPage() {
     loadOrders()
     loadWarehouses()
     loadProjects()
+    loadEmployees()
     loadProductions()
   }, [])
 
@@ -132,6 +144,7 @@ export default function ProductionResultPage() {
         fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
         warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
         projectId: projectId ? Number(projectId) : null,
+        employeeId: employeeId ? Number(employeeId) : null,
         lines: filled.map((l) => ({
           workOrderId: Number(l.workOrderId),
           producedQty: Number(l.qty),
@@ -275,6 +288,17 @@ export default function ProductionResultPage() {
                     ))}
                   </select>
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
+                </td>
+              </tr>
+              <tr>
+                {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
+                <th style={th}>담당자</th>
+                <td>
+                  <select className="ec-input" value={employeeId}
+                          onChange={(e) => setEmployeeId(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">선택 안 함</option>
+                    {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+                  </select>
                 </td>
               </tr>
               <tr>
