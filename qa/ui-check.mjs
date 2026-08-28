@@ -1216,6 +1216,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   let unknown = 0   // 사본의 표가 비어 있어 정렬을 못 잰 열
   const skipped = []
   let checked = 0
+  /*
+   * <b>원본에 있는데 우리 화면에 아예 없는 열.</b> 아래 정렬 견주기는 못 찾은 열을
+   * 조용히 건너뛴다(<code>if (!m) continue</code>) — 열이 <b>빠져 있으면</b> 정렬이
+   * 틀릴 일도 없으니 늘 통과한다. 그래서 작업지시서조회가 원본의 세 열
+   * ([작업지시서별불출·생산·작업현황])을 한 칸에 뭉쳐 놓고도 여태 통과했다.
+   * 여기서 따로 센다.
+   */
+  const missing = []
 
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = ALIGN_MAP.get(screen)
@@ -1236,6 +1244,17 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     if (scored.length > 1 && scored[0].hit === scored[1].hit) { skipped.push(screen); continue }
     const best = scored[0].head
 
+    /*
+     * 열 이름이 <b>절반도 안 걸리면</b> 원본의 그 표가 아니라 옆 표를 집은 것으로 본다.
+     * 그런 짝에서 "없는 열"을 세면 전부 거짓이다(실측: 문턱 없이 93개 → 6할 문턱 26개).
+     */
+    if (scored[0].hit / Object.keys(cols).length >= 0.6) {
+      for (const name of Object.keys(cols)) {
+        if (new RegExp('<th[^>]*>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(best))) continue
+        missing.push(`${screen}  [${name}]`)
+      }
+    }
+
     for (const [name, want] of Object.entries(cols)) {
       // '?' 는 정렬을 못 잰 열이다 — 사본에서 그 표가 비어 있어 칸의 정렬을 볼 수 없었다.
       // 이름과 차례는 다른 검사가 본다. 여기서는 세지 않는다.
@@ -1250,6 +1269,18 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   eq(`원본과 견준 열 ${checked}개의 정렬이 같다 (정렬을 못 잰 ${unknown}개는 뺐다)`
     + (skipped.length ? ` (표를 못 짝지어 건너뛴 화면 ${skipped.length}: ${skipped.join(', ')})` : ''),
     bad.join('\n') || '없음', '없음')
+
+  /*
+   * 지금 없는 열을 <code>ecount-missing-columns.json</code> 에 적어 두고 <b>늘지만 않게</b> 한다.
+   * 한 번에 다 채울 수 없는 것들이다 — 우리 자료에 아예 없는 값(작업지시No.)도 있고,
+   * 이름만 다른 것(수량 ↔ 판매수량)도 섞여 있다. 채운 열은 목록에서 <b>지워야</b> 통과한다.
+   */
+  const knownMissing = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-missing-columns.json'), 'utf8'))
+  const grown = missing.filter((x) => !knownMissing.includes(x))
+  const stale = knownMissing.filter((x) => !missing.includes(x))
+  eq(`원본에 있는데 우리에게 없는 열이 늘지 않았다 (아직 ${knownMissing.length}개 남음)`,
+    grown.join('\n') || '없음', '없음')
+  eq('채워 놓고 목록에 남겨 둔 열이 없다', stale.join('\n') || '없음', '없음')
 }
 
 // ── 1-h) 원본이 합계를 찍는 자리에 우리도 찍나 ────────────────────────────

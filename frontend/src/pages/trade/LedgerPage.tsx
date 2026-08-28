@@ -210,7 +210,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    */
   const sort = useTableSort(shown, {
     거래처코드: (r) => r.code,
-    상호: (r) => r.name,
+    /* 원본 거래처관리대장 I 의 이름은 [상호] 가 아니라 <b>[거래처명]</b> 이다(사본 실측). */
+    거래처명: (r) => r.name,
   })
 
   useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shown.length, group])
@@ -424,7 +425,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('상호')}>상호 {sort.mark('상호')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
             <th style={{ textAlign: 'center' }}>구분</th>
             <th style={{ width: 140 }}>검색창내용</th>
             {showAr && <th style={{ textAlign: 'right' }}>채권 (외상매출금)</th>}

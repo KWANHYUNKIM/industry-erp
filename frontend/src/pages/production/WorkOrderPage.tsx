@@ -235,17 +235,25 @@ export default function WorkOrderPage() {
             <th style={{ textAlign: 'right' }}>지시수량</th>
             <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>잔여</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ width: 150, textAlign: 'center' }}>현황</th>
+            {/* 원본의 이름은 [상태]가 아니라 <b>[진행상태]</b> 다(사본 실측). */}
+            <th style={{ textAlign: 'center' }}>진행상태</th>
+            {/*
+              원본은 여기를 <b>세 칸</b>으로 나눈다 — [작업지시서별불출현황]·[작업지시서별생산현황]·
+              [작업지시서별작업현황] 이 각각 55px 열이다(사본 실측). 우리는 셋을 한 칸([현황])에
+              가운뎃점으로 이어 붙여 두었어서, 열을 세어도 원본과 수가 달랐다.
+            */}
+            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별불출현황</th>
+            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별생산현황</th>
+            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별작업현황</th>
             {/* 원본 작업지시서조회의 마지막 열 [인쇄] — 그 지시 한 건을 작업지시서로 찍는다. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
@@ -261,14 +269,11 @@ export default function WorkOrderPage() {
                 <td style={{ textAlign: 'right' }}>{o.producedQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{o.remainingQty.toLocaleString()}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
-                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  {LINKS.map((l, i) => (
-                    <span key={l.to}>
-                      {i > 0 && <span style={{ color: '#c9ced6', margin: '0 3px' }}>·</span>}
-                      <Link to={l.to} title={l.title} style={{ color: 'var(--ec-blue)' }}>{l.label}</Link>
-                    </span>
-                  ))}
-                </td>
+                {LINKS.map((l) => (
+                  <td key={l.to} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <Link to={l.to} title={l.title} style={{ color: 'var(--ec-blue)' }}>{l.label}</Link>
+                  </td>
+                ))}
                 <td style={{ textAlign: 'center' }}>
                   <button onClick={() => printOne(o, empName)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
