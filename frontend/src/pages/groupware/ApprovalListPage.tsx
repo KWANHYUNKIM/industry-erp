@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
+import { useTableSort } from '../../utils/useTableSort'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -170,6 +171,23 @@ export default function ApprovalListPage({
     .filter((r) => !docNoCond || r.docNo.includes(docNoCond) || (r.draftNo ?? '').includes(docNoCond))
     .filter((r) => !lineCond || (r.lines ?? []).some((l) => l.approverName === lineCond))
     .filter((r) => attachCond === '전체' || (attachCond === '있음' ? r.attachmentId != null : r.attachmentId == null))
+
+  /*
+   * 사본 내결재관리는 <b>기안일자·구분·기안자</b> 세 칸에 정렬 표시를 단다.
+   * 우리는 표시조차 없어 결재함이 쌓이면 <b>누가 올린 것부터</b> 볼 수가 없었다.
+   *
+   * <p>[기안일자] 칸에 찍히는 값은 <code>draftNo</code> 다(20260828-001 처럼 일자+일련번호).
+   * 그래서 그 값으로 세우면 <b>날짜 차례가 되고 같은 날은 낸 차례</b>로 선다 —
+   * 찍힌 글자와 정렬이 어긋나지 않는다.
+   *
+   * <p>고르기(selected)와 전체선택은 <code>filtered</code> 를 그대로 쓴다. 정렬은 보이는
+   * 차례만 바꾸지 <b>어떤 줄이 있는지는 안 바꾸므로</b> 그쪽은 손대지 않는다.
+   */
+  const sort = useTableSort(filtered, {
+    기안일자: (r) => r.draftNo,
+    구분: (r) => r.formTypeName,
+    기안자: (r) => r.drafterName,
+  })
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
@@ -419,11 +437,11 @@ export default function ApprovalListPage({
               >
                 {filtered.length > 0 && selected.size === filtered.length ? '☑' : ''}
               </th>
-              <th>기안일자</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
               <th style={{ textAlign: 'center' }}>ERP전표(건)</th>
-              <th>구분</th>
-              <th>기안자</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
               {/* 원본 기안서통합관리의 마지막 두 열. 내결재관리(mine)에는 원본에도 없다. */}
               {scope === 'all' && <th style={{ width: 90 }}>작업자</th>}
@@ -440,7 +458,7 @@ export default function ApprovalListPage({
               <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : filtered.map((r, i) => (
+            ) : sort.sorted.map((r, i) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
                 <td
                   style={{

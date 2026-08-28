@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
@@ -127,7 +128,20 @@ export default function EmployeePage() {
     }
   }
 
-  const shown = rows.filter((e) => includeInactive || e.active)
+  const shownRows = rows.filter((e) => includeInactive || e.active)
+
+  /*
+   * 사본의 사원(담당)등록 격자는 <b>코드·이름·사용</b>에 정렬 표시를 단다(부서등록의
+   * 담당자 격자도 같은 열이다). 우리 [사번]·[성명]·[사용]이 그 세 칸이다.
+   * 원본이 표시를 안 단 칸(부서·직위·입사일 …)에는 걸지 않았다 — 표시 없이 정렬되면
+   * 이번에는 반대쪽 거짓말이 된다.
+   */
+  const sort = useTableSort(shownRows, {
+    사번: (e) => e.code,
+    성명: (e) => e.name,
+    사용: (e) => (e.active ? '사용' : '중지'),
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -206,14 +220,14 @@ export default function EmployeePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>사번</th>
-            <th>성명</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('사번')}>사번 {sort.mark('사번')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('성명')}>성명 {sort.mark('성명')}</th>
             <th>부서</th>
             <th>직위</th>
             <th style={{ width: 110 }}>입사일</th>
             <th style={{ width: 110 }}>퇴사일</th>
             <th style={{ textAlign: 'right' }}>기본급</th>
-            <th style={{ width: 90, textAlign: 'center' }}>사용</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
             <th style={{ width: 130, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
