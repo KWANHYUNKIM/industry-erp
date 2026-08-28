@@ -68,6 +68,12 @@ export default function LeaveListPage() {
    */
   const [dept, setDept] = useState('')
   const [reasonCond, setReasonCond] = useState('')
+  /*
+   * 원본 조건 차례의 <b>맨 뒤 [근태일자]</b>. [기준일자]는 신청한 날의 구간이고,
+   * 이것은 <b>그날 근태가 걸쳐 있는가</b>를 묻는다 — 3일짜리 휴가는 가운데 날로도 걸려야 한다.
+   * 목록에 근태일자가 찍히는데 그 날짜로 좁힐 수가 없었다.
+   */
+  const [dayCond, setDayCond] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
   async function load() {
@@ -116,11 +122,12 @@ export default function LeaveListPage() {
     if (type && !r.type.includes(type)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
+    if (dayCond && !(r.startDate <= dayCond && dayCond <= r.endDate)) return false
     if (tab === '결재중' && r.status !== 'PENDING') return false
     if (tab === '확인' && r.status !== 'APPROVED') return false
     if (tab === '이력' && r.status !== 'REJECTED') return false
     return true
-  }), [rows, emp, type, tab, dept, reasonCond])
+  }), [rows, emp, type, tab, dept, reasonCond, dayCond])
 
   const total = shown.reduce((n, r) => n + r.days, 0)
 
@@ -191,6 +198,11 @@ export default function LeaveListPage() {
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond}
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/* 원본 조건 차례의 맨 뒤 — 그날 근태가 걸쳐 있는 것만. */}
+        <EcCond label="근태일자">
+          <input type="date" className="ec-input" value={dayCond}
+                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </ul>
 

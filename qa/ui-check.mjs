@@ -3552,6 +3552,14 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
   }
   const FIELDS = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
   const MISS_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  /** 거를 수 있는데 <b>이름이 달라</b> 안 잡히는 자리 — 왜 그 이름인지 적는다. */
+  const NAMED_DIFFERENTLY = new Map([
+    ['거래처별채권|구분',
+      '한 파일이 <b>세 화면을 겸하는데 원본이 같은 칸을 두 이름으로 부른다</b> —'
+      + ' 거래처별채권·채무에서는 [구분], 거래처관리대장 I 에서는 [집계구분] 이다.'
+      + ' 하는 일이 <b>거래처별|담당자별</b> 로 모아 보는 것이라 뜻이 또렷한 쪽을 골랐다'],
+    ['거래처별채무|구분', '위와 같음'],
+  ])
   const bad = []
   let checked = 0
   for (const [screen, names] of Object.entries(FIELDS)) {
@@ -3564,6 +3572,7 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
     const heads = new Set([...thead.matchAll(/<th\b[^>]*>([^<{]{1,14})<\/th>/g)].map((m) => m[1].trim()))
     for (const n of names) {
       if (!heads.has(n)) continue
+      if (NAMED_DIFFERENTLY.has(screen + '|' + n)) continue
       checked++
       /*
        * 조건 이름표를 그리는 <b>세 가지 관용구</b>를 다 본다. 하나라도 빠뜨리면
@@ -3583,8 +3592,14 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * 아예 안 세면 멀쩡히 거르는 화면을 못 거른다고 한다. 실제로 둘 다 겪었다.
        */
       const noHead = flat.replace(/<thead>[\s\S]*?<\/thead>/g, (m) => ' '.repeat(m.length))
-      const asThLabel = [...noHead.matchAll(new RegExp('<th\\b[^>]*>' + n + '\\s*\\*?</th>', 'g'))]
-        .some((m) => !inModal(flat, m.index))
+      /*
+       * 코드도움은 <b>스스로 이름표를 그린다</b>(hideLabel 을 안 준 자리). 증빙센터 [작업자]가
+       * 그렇게 서 있는데 못 보고 "거를 수 없다" 고 했다. <code>&lt;th&gt;</code> 와 같은 규칙 —
+       * 등록 창 밖의 것만 조건으로 친다.
+       */
+      const asThLabel = [...noHead.matchAll(new RegExp(
+        '<th\\b[^>]*>' + n + '\\s*\\*?</th>|<CodePickerField[^>]{0,60}label="' + n + '"', 'g'))]
+        .some((m) => !inModal(flat, m.index) && !/hideLabel/.test(m[0]))
       if (!asCond.test(flat) && !asThLabel) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
     }
   }

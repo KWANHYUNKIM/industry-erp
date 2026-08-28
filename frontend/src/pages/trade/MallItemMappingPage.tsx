@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallItemMapping } from '../../api/types'
@@ -18,6 +20,14 @@ export default function MallItemMappingPage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
+  /*
+   * 원본 쇼핑몰품목코드연결의 조건은 <b>품목 · 쇼핑몰 · 쇼핑몰품목key</b> 다(사본 실측).
+   * 우리 화면은 <b>조건이 하나도 없어</b>, 몰이 여럿이면 연결이 수백 줄로 늘어서는데
+   * 그 가운데 한 건을 찾으려면 눈으로 훑어야 했다.
+   */
+  const [itemCond, setItemCond] = useState('')
+  const [mallCond, setMallCond] = useState('')
+  const [keyCond, setKeyCond] = useState('')
   const [form, setForm] = useState({ mall: '', mallProductCode: '', mallProductName: '', itemId: '' })
 
   async function load() {
@@ -77,6 +87,11 @@ export default function MallItemMappingPage() {
 
   const inputCls = 'ec-input'
 
+  const shown = rows
+    .filter((m) => !itemCond || m.itemName === itemCond)
+    .filter((m) => !mallCond || m.mall === mallCond)
+    .filter((m) => !keyCond || m.mallProductCode.includes(keyCond))
+
   return (
     <EcListShell
       title="쇼핑몰품목코드연결"
@@ -109,6 +124,25 @@ export default function MallItemMappingPage() {
         </form>
       )}</Modal>
 
+      {/* 원본 조건 차례: 품목 · 쇼핑몰 · 쇼핑몰품목key */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="쇼핑몰">
+          <select className="ec-input" value={mallCond} onChange={(e) => setMallCond(e.target.value)} style={{ width: 150 }}>
+            <option value="">전체</option>
+            {mallNames.map((m) => <option key={m}>{m}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="쇼핑몰품목key">
+          <input className="ec-input" value={keyCond} placeholder="쇼핑몰품목key"
+                 onChange={(e) => setKeyCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+      </ul>
+
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
@@ -128,9 +162,9 @@ export default function MallItemMappingPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
+          ) : shown.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
-          ) : rows.map((m, i) => (
+          ) : shown.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td>{m.mall}</td>
