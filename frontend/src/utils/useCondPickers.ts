@@ -18,6 +18,12 @@ import { partnerCodeItems, type PartnerLike, type PartnerCodeItem } from './code
  */
 export interface CondPickerItem {
   value: string
+  /**
+   * 원래 자료의 id. 전표가 <b>이름이 아니라 id 로</b> 사람을 가리킬 때 쓴다
+   * (작업지시의 담당자는 employeeId 다 — production 은 hr 을 참조할 수 없어서다).
+   * 이름만 있으면 그 전표가 누구 것인지 화면에서 이을 수가 없다.
+   */
+  id?: number
   code?: string | null
   name: string
   sub?: string | null
@@ -96,7 +102,7 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
       jobs.push(api.get<{ id: number; code: string; name: string; department?: string | null; active?: boolean }[]>('/employees')
         .then((r) => ({
           employees: r.data.filter((e) => e.active !== false)
-            .map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department })),
+            .map((e) => ({ id: e.id, value: e.name, code: e.code, name: e.name, sub: e.department })),
         }))
         .catch(() => ({})))
     }

@@ -38,6 +38,8 @@ interface WorkOrder {
   dueDate: string | null
   statusName: string
   warehouseName: string | null
+  /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  employeeId: number | null
 }
 
 interface BorRow {
@@ -77,7 +79,7 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function WorkProcessPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'employees'])
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [bor, setBor] = useState<BorRow[]>([])
   const [results, setResults] = useState<WorkResult[]>([])
@@ -107,6 +109,8 @@ export default function WorkProcessPage() {
   const [dueDate, setDueDate] = useState('')
   const [plant, setPlant] = useState('')
   const [work, setWork] = useState('')
+  /** 원본 [담당자]. 값은 사원명이고, 전표에는 id 만 있어 목록으로 잇는다. */
+  const [manager, setManager] = useState('')
   /** 줄마다 입력한 처리 수량·시간 */
   const [input, setInput] = useState<Record<string, { qty: string; minutes: string }>>({})
 
@@ -132,6 +136,11 @@ export default function WorkProcessPage() {
   useEffect(() => { load() }, [])
 
   /** 품목 → 작업(순서대로) */
+  /** 사원 id → 이름. */
+  const nameOfEmployee = useMemo(
+    () => new Map(pickers.employees.filter((e) => e.id != null).map((e) => [e.id as number, e.name])),
+    [pickers.employees])
+
   const opsOf = useMemo(() => {
     const m = new Map<number, BorRow[]>()
     for (const o of bor) {
@@ -181,10 +190,13 @@ export default function WorkProcessPage() {
     const min = Number(minRemain)
     return out
       .filter((r) => !work || `${r.processName} ${r.workName}`.includes(work))
+      // 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 사원 목록으로 이름과 잇는다.
+      .filter((r) => !manager || (nameOfEmployee.get(r.wo.employeeId ?? -1) ?? '') === manager)
       .filter((r) => (minRemain && !Number.isNaN(min) ? r.remainQty >= min : r.remainQty > 0))
       .sort((a, b) => (a.wo.orderDate < b.wo.orderDate ? 1 : a.wo.orderDate > b.wo.orderDate ? -1
         : a.wo.orderNo.localeCompare(b.wo.orderNo) || a.seq - b.seq))
-  }, [orders, opsOf, doneOf, from, to, item, orderNo, prevBased, minRemain, dueDate, plant, work])
+  }, [orders, opsOf, doneOf, from, to, item, orderNo, prevBased, minRemain, dueDate, plant, work,
+    manager, nameOfEmployee])
 
   async function process(r: Row) {
     const v = input[r.key]
@@ -254,6 +266,11 @@ export default function WorkProcessPage() {
         <EcCond label="작업" pick>
           <input className="ec-input" placeholder="공정명·작업명 일부" value={work}
                  onChange={(e) => setWork(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
+                           value={manager} onChange={(v) => setManager(v)}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="잔량기준">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

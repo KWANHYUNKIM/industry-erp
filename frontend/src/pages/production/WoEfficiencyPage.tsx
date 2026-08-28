@@ -46,6 +46,10 @@ interface WorkOrderRow {
   dueDate: string | null
   /** 원본 조건 판의 [창고]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   warehouseName: string | null
+  /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  employeeId: number | null
+  /** 원본 조건 판의 [적요]. 위와 같음. */
+  remark: string | null
 }
 
 interface ProductionRow {
@@ -90,7 +94,7 @@ interface WorkResultRow {
 
 export default function WoEfficiencyPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items', 'warehouses'])
+  const pickers = useCondPickers(['items', 'warehouses', 'employees'])
   const [orders, setOrders] = useState<WorkOrderRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
@@ -110,6 +114,9 @@ export default function WoEfficiencyPage() {
   const [dueFrom, setDueFrom] = useState(init.from)
   const [dueTo, setDueTo] = useState(init.to)
   const [orderNo, setOrderNo] = useState('')
+  /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
+  const [manager, setManager] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [status, setStatus] = useState('전체')
@@ -238,6 +245,11 @@ export default function WoEfficiencyPage() {
     return m
   }, [orders, productions, results, bomByProduct, stdMinByProcess, borMinPerUnit, priceOf])
 
+  /** 사원 id → 이름. 조건은 이름으로 고르는데 전표에는 id 만 있다. */
+  const nameOfEmployee = useMemo(
+    () => new Map(pickers.employees.filter((e) => e.id != null).map((e) => [e.id as number, e.name])),
+    [pickers.employees])
+
   const shown = orders.filter((r) => {
     if (r.orderDate < from || r.orderDate > to) return false
     if (useDue) {
@@ -247,6 +259,8 @@ export default function WoEfficiencyPage() {
     if (orderNo && !r.orderNo.includes(orderNo)) return false
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
+    if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
     if (status !== '전체' && r.statusName !== status) return false
     return true
   })
@@ -308,6 +322,15 @@ export default function WoEfficiencyPage() {
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={warehouse} onChange={(v) => setWarehouse(v)}
                            items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
+                           value={manager} onChange={(v) => setManager(v)}
+                           items={pickers.employees} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">
