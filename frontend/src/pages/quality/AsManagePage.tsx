@@ -48,6 +48,17 @@ export default function AsManagePage() {
    * 찍히는 값이다(AsResponse.charge) — 누가 맡았는지 보이면서도 그것으로 모아 볼 수 없었다.
    */
   const [chargeCond, setChargeCond] = useState('')
+  /*
+   * 원본 A/S접수조회 조건 차례(사본 실측): <b>수리예정일자</b> · 창고 · 거래처 · 품목 ·
+   * 프로젝트 · 담당자 · <b>제목</b> · 최종수정자 · 기타 · 발송여부 · 적용양식.
+   *
+   * <p>제목·수리예정일자를 <b>찍기만 하고 거를 수는 없으면</b> 값이 있으나 마나다 —
+   * 이 저장소에서 되풀이한 실수라 만들 때 조건까지 같이 단다.
+   * [창고]·[프로젝트]·[발송여부]·[최종수정자]는 A/S 전표에 그 값이 없다.
+   */
+  const [schedFrom, setSchedFrom] = useState('')
+  const [schedTo, setSchedTo] = useState('')
+  const [titleCond, setTitleCond] = useState('')
 
   const [partnerId, setPartnerId] = useState('')
   const [itemId, setItemId] = useState('')
@@ -141,7 +152,10 @@ export default function AsManagePage() {
   const shownRows = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.itemName.includes(keyword) || r.asNo.includes(keyword))
+    .filter((r) => !schedFrom || (r.scheduledDate ?? '') >= schedFrom)
+    .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
+    .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
@@ -253,9 +267,16 @@ export default function AsManagePage() {
       )}</Modal>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>담당자</span>
+        <span>수리예정일자</span>
+        <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: '#9aa1ab' }}>~</span>
+        <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ marginLeft: 8 }}>담당자</span>
         <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
-               placeholder="담당자명 일부" style={{ width: 150 }} />
+               placeholder="담당자" style={{ width: 150 }} />
+        <span style={{ marginLeft: 8 }}>제목</span>
+        <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
+               placeholder="제목" style={{ width: 170 }} />
       </div>
 
       {/* 원본 A/S접수의 조건 이름은 <b>[접수진행상태]</b> 다 — 이 알약이 그 일을 한다. */}
