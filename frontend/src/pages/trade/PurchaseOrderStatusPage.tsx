@@ -270,16 +270,8 @@ function SearchPanel({
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
       </div>
-      <div style={rowStyle}>
-        <span style={label}>거래처</span>
-        <input className="ec-input" placeholder="매입처명 일부" value={draft.partner}
-          onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>담당자</span>
-        <input className="ec-input" placeholder="담당자명 일부" value={draft.employee}
-          onChange={(e) => onChange({ employee: e.target.value })} style={{ width: 220 }} />
-      </div>
+      {/* 원본 발주서현황의 조건 차례는 <b>발주No. · 창고 · 거래처 · 품목</b> 이다(사본 실측).
+          우리는 거래처를 맨 앞에 두어 눈으로 훑는 자리가 어긋나 있었다. */}
       <div style={rowStyle}>
         <span style={label}>발주No.</span>
         <input className="ec-input" placeholder="발주번호 일부" value={draft.orderNo}
@@ -289,6 +281,16 @@ function SearchPanel({
         <span style={label}>창고</span>
         <input className="ec-input" placeholder="창고명 일부" value={draft.warehouse}
           onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>거래처</span>
+        <input className="ec-input" placeholder="매입처명 일부" value={draft.partner}
+          onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>담당자</span>
+        <input className="ec-input" placeholder="담당자명 일부" value={draft.employee}
+          onChange={(e) => onChange({ employee: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>품목</span>

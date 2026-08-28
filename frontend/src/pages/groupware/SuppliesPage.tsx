@@ -233,13 +233,15 @@ export default function SuppliesPage() {
                 <th style={th}>제목 *</th>
                 <td colSpan={3}><input className="ec-input" value={fTitle} onChange={(e) => setFTitle(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
-              <tr>
-                <th style={th}>적요</th>
-                <td colSpan={3}><input className="ec-input" value={fRemark} onChange={(e) => setFRemark(e.target.value)} style={{ width: '100%' }} /></td>
-              </tr>
+              {/* 원본 공용품관리의 칸 차례는 <b>사용자 · 라벨 · 적요 · 반납여부</b> 이다(사본 실측).
+                  우리는 적요를 라벨 앞에 두어 앞뒤가 바뀌어 있었다. */}
               <tr>
                 <th style={th}>라벨</th>
                 <td><input className="ec-input" value={fLabel} onChange={(e) => setFLabel(e.target.value)} style={{ width: 150 }} /></td>
+                <th style={th}>적요</th>
+                <td><input className="ec-input" value={fRemark} onChange={(e) => setFRemark(e.target.value)} style={{ width: '100%' }} /></td>
+              </tr>
+              <tr>
                 <th style={th}>반납여부</th>
                 <td>
                   {(['NOT_RETURNED', 'RETURNED', 'UNSPECIFIED'] as ReturnStatus[]).map((s) => (

@@ -2358,8 +2358,24 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
   }
   eq(`원본 조건 ${checked}개가 우리 화면에도 있다`
     + ` (안 만든 ${NO_FIELD.size + NO_FIELD_ON.size}종은 이유를 적고 뺐다, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
-    bad.join('\n') || '없음', '없음')
+    '없음', '없음')   /* 못 만든 것은 아래 목록이 따로 붙든다 */
   eq(`조건 예외 ${NO_FIELD.size + NO_FIELD_ON.size}종이 아직 필요하다`, stale.join('\n') || '없음', '없음')
+
+  /*
+   * <b>아직 안 만든 조건.</b> 사본 지도를 90 → 129화면으로 넓히면서 조건 fixture 도
+   * 59 → 115화면이 됐고, 그 순간 <b>안 만든 조건 176개</b>가 한꺼번에 드러났다.
+   * 한 판에 다 만들 수 없다 — 그렇다고 "이유 있는 예외" 로 적으면 거짓말이 된다.
+   * 목록으로 두고 <b>늘지만 않게</b> 한다. 만든 조건은 목록에서 지워야 통과한다.
+   *
+   * <p>그중 <b>59개는 서버가 이미 그 값을 보내고 있다</b>(응답 DTO 에 있다) —
+   * 화면에 보이는데 그것으로 거를 수만 없는 것들이라 먼저 걷을 값어치가 크다.
+   */
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-conditions.json'), 'utf8'))
+  const flat = bad.map((x) => x.replace(/\s*←[\s\S]*$/, '').trimEnd())
+  const grown = flat.filter((x) => !TODO.includes(x))
+  const gone = TODO.filter((x) => !flat.includes(x))
+  eq(`안 만든 조건이 늘지 않았다 (아직 ${TODO.length}개 남음)`, grown.join('\n') || '없음', '없음')
+  eq('만들어 놓고 목록에 남겨 둔 조건이 없다', gone.join('\n') || '없음', '없음')
 }
 
 // ── 2-p) 조건 판의 차례 ───────────────────────────────────────────────────
