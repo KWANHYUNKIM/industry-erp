@@ -318,7 +318,7 @@ export default function ApprovalListPage({
               <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
                 {[
-                  { label: 'Excel 내려받기', run: () => { void doExcel() } },
+                  { label: 'Excel', run: () => { void doExcel() } },   // 원본 버튼 이름 그대로
                   { label: '인쇄', run: () => doPrint() },
                   { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
                 ].map((m) => (

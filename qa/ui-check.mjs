@@ -52,6 +52,36 @@ const walk = (dir) => readdirSync(dir).flatMap((f) => {
  * 늘 찍는다 — 숨기는 것이 아니라 <b>세어 두는</b> 것이다. 목록에서 이름을 지우면
  * 그 화면이 곧바로 검사 대상이 된다.
  */
+/** 본문 글자(template literal)를 여는 글자. 소스에 그대로 쓰면 읽기 어려워 이름을 준다. */
+const BTICK = String.fromCharCode(96)
+
+/**
+ * JSX 한 덩어리에서 <b>사람이 보는 글자</b>만 남긴다.
+ *
+ * <p>중괄호는 겹친다 — onClick={() => { a(); b() }} 처럼. 한 번만 지우면 바깥 짝이
+ * 남고, 그 안의 '=>' 에 '>' 가 있어 태그 지우기가 거기서 끊긴다. 그래서 [할인]·
+ * [현금수금] 같은 버튼이 <b>없는 것으로</b> 세어졌다. 안쪽부터 되풀이해 지운다.
+ */
+/**
+ * 팝업 껍데기(Modal)가 그리는 [닫기]. 그 화면이 <b>실제로 Modal 을 쓸 때만</b> 더한다.
+ * 전부 더하면 팝업이 없는 화면까지 통과한다.
+ *
+ * <p>EcListShell·EcSlipShell 은 일부러 뺐다 — 거기 있는 [닫기]는 <b>도움말 팝업</b>을
+ * 닫는 것이라 화면을 닫는 원본 [닫기]와 다르다. 넣으면 목록 화면 전부가 통과해 버린다.
+ */
+const SHELL_FILES = new Map(['Modal']
+  .map((c) => [c, join('frontend', 'src', 'components', `${c}.tsx`)])
+  .filter(([, f]) => existsSync(f))
+  .map(([c, f]) => [c, readFileSync(f, 'utf8')]))
+const shellSrcFor = (src) => [...SHELL_FILES]
+  .filter(([c]) => new RegExp('import[^\n]{0,40}\\b' + c + '\\b').test(src))
+  .map(([, text]) => text).join('')
+
+const stripJsx = (s) => {
+  let body = s
+  for (let i = 0; i < 6 && /\{[^{}]*\}/.test(body); i++) body = body.replace(/\{[^{}]*\}/g, ' ')
+  return body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
 
 const pageSource = (rel) => {
@@ -1101,7 +1131,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['생산불출입력|불러온 전표일자', '전표불러오기를 안 만든다 — 작업지시를 골라 잇는다'],
     ['생산불출입력|불러온 전표No.', '위와 같음'],
     ['생산불출입력|작업지시품목코드', '머리에서 작업지시를 고르면 생산품목이 따라온다'],
-    ['설문조사조회|질문유형', '질문은 설문 상세 화면에서 다룬다'],
+    ['설문조사조회|질문유형', '사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력(SurveyInputPage)에 그대로 있다'],
     ['설문조사조회|질문내용', '위와 같음'], ['설문조사조회|보기항목1', '위와 같음'],
     ['설문조사조회|보기항목2', '위와 같음'], ['설문조사조회|보기항목3', '위와 같음'],
     ['설문조사조회|보기항목4', '위와 같음'], ['설문조사조회|보기항목5', '위와 같음'],
@@ -1266,6 +1296,17 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['건설예정공정표|진행상태변경', '공정표는 줄마다 상태를 고친다'],
     ['출하지시서조회|진행상태변경', '출하지시서는 줄마다 상태를 고친다'],
     ['작업지시서효율현황|닫기', '화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다'],
+    /*
+     * 버튼 검사를 <b>버튼 자리</b>에서만 찾도록 죄면서 드러난 것들. 예전에는 파일 어디든
+     * 그 글자가 있으면 통과라, 표 머리의 [라벨]·[일부반영]이 버튼 노릇을 하고 있었다.
+     */
+    ['거래처리스트|H', '원본 [H]는 그 화면의 변경이력을 여는 버튼이다(사본 button id=history) — 우리는 이력을 남기지 않는다'],
+    ['단가적용순서설정|H', '위와 같음'],
+    ['거래처리스트|관계설정', '거래처 관계 마스터(대표거래처·계층)가 없다 — 채권 화면의 대표거래처 합산도 같은 이유로 못 한다'],
+    ['공용품관리|라벨', '우리 [라벨]은 표의 열이다. 원본 버튼이 무엇을 하는지 사본으로 알 수 없다(같은 자리의 미리보기·라벨변경도 그렇다)'],
+    ['구매일괄회계반영|일부반영', '우리는 버튼이 아니라 <b>열</b>로 보여 준다 — 거래처별 묶음에서 일부만 반영된 상태를 표에 찍는다'],
+    ['근태입력|출/퇴근', '출퇴근 시각은 [출/퇴근기록부(ID)]가 맡는다 — 이 화면은 근태(휴가)를 넣는 자리다'],
+    ['설문조사조회|저장', '사본이 질문 격자가 열린 채로 찍혔다 — 그 격자와 [저장]은 설문조사입력(SurveyInputPage)에 있다'],
     ['설문조사현황|전월+금월', '기간 빠른선택에 그 조합을 두지 않았다'],
     ['거래처관리대장 I|Email', '전표를 메일로 보내지 않는다'],
     ['거래처관리대장 I|사용중단포함', '조건 판의 체크박스로 둔다 — 버튼이 아니다'],
@@ -1337,7 +1378,12 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
   const bad = []
   let checked = 0
   /* 묶음 예외 중 이미 만든 것 — 아래 [낡은 예외] 단언이 이 목록을 강제한다. */
-  for (const k of ['생산불출조회|선택삭제', '생산입고I-BOM기준소모|저장(F8)']) NO_BUTTON.delete(k)
+  /*
+   * 묶음으로 뺐지만 실제로는 있는 것들. 아래 [낡은 예외] 단언이 이 목록을 강제한다.
+   * [닫기] 둘은 그 화면이 팝업(Modal)으로 입력을 받아서 팝업에 닫기가 있다.
+   */
+  for (const k of ['생산불출조회|선택삭제', '생산입고I-BOM기준소모|저장(F8)',
+    'BOR(작업소요시간)|닫기', '생산불출조회|닫기']) NO_BUTTON.delete(k)
 
   let pending = 0
   const stale = []   // 이미 만들었는데 예외로 남아 있는 것
@@ -1348,11 +1394,51 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     if (PENDING.has(screen)) { pending++; continue }
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
+    const SHELL_SRC = shellSrcFor(src)
+    /*
+     * 버튼 이름은 <b>버튼 자리</b>에서만 찾는다. 예전에는 파일 어디든 그 글자가 있으면
+     * 통과라, 표 머리나 안내 문구가 버튼 노릇을 했다. 조건 검사에서 같은 것을 이미 겪었다.
+     */
+    /*
+     * 공용 껍데기가 그려 주는 버튼도 그 화면의 버튼이다 — 팝업의 [닫기]는 Modal 이,
+     * 전표 화면의 푸터는 EcSlipShell 이 그린다. 화면 파일만 보면 없는 것으로 센다.
+     */
+    const btnSet = new Set()
+    const addBtn = (x) => btnSet.add(String(x).replace(/['"\s]+$/, '').trim())
+    /*
+     * 버튼 이름은 세 모양으로 적힌다:
+     *   label: '저장'                       — 정해진 글자
+     *   label: editing ? '수정저장' : '저장'  — 고른 것에 따라 갈리는 식
+     *   label: `사용중단/재사용${n}`          — 개수를 뒤에 붙이는 본문 글자
+     * 앞의 하나만 보면 나머지 둘이 <b>없는 버튼</b>이 된다. 셋 다 읽는다.
+     */
+      // cashLabel: '현금수금' 처럼 앞에 말이 붙은 이름표도 이름이다.
+    for (const m of (src + SHELL_SRC).matchAll(/\w*[Ll]abel\s*[:=][^\n]{0,160}/g)) {
+      for (const q of m[0].matchAll(new RegExp(String.raw`['"]([^'"]{1,24})['"]`, 'g'))) addBtn(q[1])
+      // 본문 글자는 ${…} 앞까지가 이름이다
+      for (const q of m[0].matchAll(new RegExp(BTICK + '([^' + BTICK + '$]{1,24})', 'g'))) addBtn(q[1])
+    }
+    /*
+     * 버튼 <b>요소 전체</b>를 잡아 글자를 꺼낸다. 여는 태그만 잡으면 안 된다 —
+     * onClick={() => ...} 의 화살표에도 '>' 가 있어 태그가 거기서 끊긴다.
+     * 그래서 [바코드]·[현금수금] 같은 버튼이 <b>없는 것으로</b> 세어졌다.
+     */
+    for (const m of (src + SHELL_SRC).matchAll(/<button\b[\s\S]{0,400}?<\/button>/g)) {
+      for (const q of m[0].matchAll(/['"]([^'"]{1,24})['"]/g)) addBtn(q[1])
+      const plain = stripJsx(m[0])
+      if (plain) addBtn(plain)
+    }
+    // 체크박스·라디오는 <label> 글자가 곧 이름이다(원본은 그 자리를 버튼으로 두기도 한다).
+    for (const m of (src + SHELL_SRC).matchAll(/<label\b[\s\S]{0,300}?<\/label>/g)) {
+      // <label><input …/>사용중단포함</label> — 안쪽 태그를 걷어 내야 글자가 보인다.
+      const plain = stripJsx(m[0])
+      if (plain) addBtn(plain)
+    }
     for (const b of btns) {
       if (SHELL.has(b)) continue
       const exempt = NO_BUTTON.has(screen + '|' + b)
       if (!exempt) checked++
-      const has = b === '신규(F2)' ? (/onNew=|renderForm=/.test(src) || src.includes(b)) : src.includes(b)
+      const has = b === '신규(F2)' ? (/onNew=|renderForm=/.test(src) || btnSet.has(b)) : btnSet.has(b)
       if (exempt) { if (has) stale.push(`버튼 [${screen}|${b}] — 이제 있다`); continue }
       if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${b}] 버튼이 없다`)
     }
