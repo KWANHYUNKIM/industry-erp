@@ -227,6 +227,15 @@ function SearchPanel({
         <input className="ec-input" placeholder="담당자명 일부" value={draft.charge}
           onChange={(e) => onChange({ charge: e.target.value })} style={{ width: 220 }} />
       </div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        {/* 원본 A/S접수현황의 이름은 [상태]가 아니라 <b>[접수진행상태]</b> 다(사본 실측). */}
+        <span style={label}>접수진행상태</span>
+        <select className="ec-input" value={draft.status}
+          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
+        </select>
+      </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>
         <input className="ec-input" placeholder="거래처명 일부" value={draft.partner}
@@ -236,14 +245,6 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>상태</span>
-        <select className="ec-input" value={draft.status}
-          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
-        </select>
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <button className="ec-btn" onClick={onReset}>초기화</button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Lot, LotStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -17,6 +18,13 @@ export default function SerialLotPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [keyword, setKeyword] = useState('')
   const [onlyStock, setOnlyStock] = useState(false)
+  /*
+   * 원본 시리얼/로트No.등록 조건: 유효기한 · 품목 · <b>시리얼/로트No.</b> · <b>사용구분</b>.
+   * 로트번호는 검색상자로만 걸렀는데 그 상자는 <b>품목명까지</b> 훑는다 —
+   * 번호를 정확히 알아도 엉뚱한 로트가 같이 걸렸다. 상태도 표에는 찍히는데 못 골랐다.
+   */
+  const [lotCond, setLotCond] = useState('')
+  const [useCond, setUseCond] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -104,6 +112,8 @@ export default function SerialLotPage() {
   const shownRows = rows
     .filter((r) => !keyword || r.lotNo.includes(keyword) || r.itemName.includes(keyword))
     .filter((r) => !onlyStock || r.stockQty > 0)
+    .filter((r) => !lotCond || r.lotNo.includes(lotCond))
+    .filter((r) => !useCond || r.statusName === useCond)
 
   /*
    * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [상태]는 저장된 값이 아니라
@@ -154,6 +164,21 @@ export default function SerialLotPage() {
           </div>
         </div>
       )}</Modal>
+
+      {/* 원본 조건 차례: … 시리얼/로트No. · 사용구분 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="시리얼/로트No.">
+          <input className="ec-input" value={lotCond} placeholder="시리얼/로트No."
+                 onChange={(e) => setLotCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="사용구분">
+          <select className="ec-input" value={useCond} style={{ width: 110 }}
+                  onChange={(e) => setUseCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.statusName))].map((n) => <option key={n}>{n}</option>)}
+          </select>
+        </EcCond>
+      </ul>
 
       <div style={{ marginBottom: 8 }}>
         <label style={{ fontSize: 12.5, color: '#3a4453', cursor: 'pointer' }}>

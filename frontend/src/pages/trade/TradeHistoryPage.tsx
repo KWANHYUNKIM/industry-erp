@@ -139,7 +139,8 @@ export default function TradeHistoryPage() {
                            items={partnerCodeItems(partners)} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
+          {/* 원본 거래이력조회의 이름은 [기간]이 아니라 <b>[전표일자]</b> 다(사본 실측). */}
+          <span style={label}>전표일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
