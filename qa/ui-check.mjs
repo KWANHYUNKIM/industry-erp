@@ -3460,6 +3460,46 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
   eq(`조건 ${checked}개가 넣은 값을 실제로 쓴다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-r) 거른 목록을 그리면서 "자료 없음"은 거르기 전을 보나 ─────────────
+console.log('\n■ 자료 없음 문구가 화면에 그려지는 그 목록을 보고 있나')
+
+/*
+ * <b>조건에 아무것도 안 걸리면 아무 말 없는 빈 표가 나온다.</b>
+ * 목록은 걸러진 것(<code>shown</code>)을 그리는데 "자료가 없습니다" 판단은
+ * <b>거르기 전(<code>rows</code>)</b> 을 보고 있으면, 자료는 있고 조건에만 안 걸릴 때
+ * 문구도 줄도 없는 <b>텅 빈 표</b>가 뜬다. 사람은 화면이 덜 그려진 줄 안다.
+ *
+ * <p>수집데이터등록에 [데이터명] 조건을 만들다가 실제로 낼 뻔했다 — 거르는 줄을
+ * 넣으면서 그 위의 <code>rows.length === 0</code> 을 같이 못 고쳤다.
+ * 조건을 새로 다는 화면마다 되풀이될 실수라 못 박는다.
+ *
+ * <p>비었나 보는 배열이 <b>그리는 배열의 뿌리</b>이고 <b>거르지 않으면</b> 넘어간다 — 묶어 그리거나
+ * (<code>groupByCategory(summary)</code>) 줄로 펼치는(<code>lineRows</code>) 경우는
+ * 뿌리가 비면 그리는 쪽도 비므로 문구가 제대로 뜬다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    const flat = src.replace(/[ \t]*\n[ \t]*/g, ' ')
+    for (const m of flat.matchAll(/(\w+)\.length === 0 \? \(.{0,300}?\) : (\w+)\.map\(/g)) {
+      const [, empty, drawn] = m
+      checked++
+      if (empty === drawn) continue
+      // 그리는 것이 비었나 보는 것에서 갈라져 나왔나 (뿌리면 문구가 제대로 뜬다)
+      const i = src.indexOf('const ' + drawn + ' =')
+      // 창을 다음 선언 앞에서 끊는다 — 고정 길이로 자르면 옆 선언의 .filter( 까지 먹는다
+      const end = i < 0 ? -1 : src.indexOf('\n  const ', i + 10)
+      const from = i < 0 ? '' : src.slice(i, end < 0 ? i + 900 : end)
+      // 거르면 뿌리가 차 있어도 그리는 쪽은 빌 수 있다 — 그 때가 바로 텅 빈 표다
+      if (i >= 0 && new RegExp('\\b' + empty + '\\b').test(from) && !/\.filter\(|\.slice\(/.test(from)) continue
+      bad.push(`${f.split(sep).pop()}  그리는 건 ${drawn} 인데 비었나 보는 건 ${empty} 다`)
+    }
+  }
+  eq(`자료 없음 문구 ${checked}개가 그려지는 그 목록을 본다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n' + '─'.repeat(50))
 console.log(`통과 ${pass} · 실패 ${fail}`)
 if (fail) process.exit(1)
