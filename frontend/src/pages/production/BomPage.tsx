@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Bom, Item } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -83,6 +84,11 @@ export default function BomPage() {
 
   const itemLabel = (it: Item) => `[${it.code}] ${it.name}`
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, 'BOM 등록', [])
+
   return (
     <EcListShell
       title="BOM(자재명세서) 리스트"
@@ -111,7 +117,7 @@ export default function BomPage() {
           </table>
 
           <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', margin: '6px 0 4px' }}>구성 자재 (제품 1단위당 소요량)</div>
-          <table className="w-full text-left" style={{ maxWidth: 720 }}>
+          <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 720 }}>
             <thead>
               <tr><th>자재</th><th style={{ width: 150, textAlign: 'right' }}>소요량</th><th style={{ width: 40 }}></th></tr>
             </thead>

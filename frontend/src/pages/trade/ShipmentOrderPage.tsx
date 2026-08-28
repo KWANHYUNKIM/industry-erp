@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
@@ -188,6 +189,11 @@ export default function ShipmentOrderPage() {
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '출하지시서', [])
+
   return (
     <EcListShell
       title="출하지시서"
@@ -308,7 +314,7 @@ export default function ShipmentOrderPage() {
             </tbody>
           </table>
 
-          <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+          <table ref={tableRef} className="w-full text-left" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
                 {/*

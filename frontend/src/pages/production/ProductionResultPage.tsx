@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Production, ProductionMaterial, Warehouse, WorkOrder } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
@@ -176,6 +177,11 @@ export default function ProductionResultPage() {
   useShortcut('F8', () => formRef.current
     ?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '생산실적입력', [])
+
   return (
     <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* ☆ 제목 + 상단 툴바 */}
@@ -199,7 +205,7 @@ export default function ProductionResultPage() {
         <div style={{ width: 620, maxWidth: '100%', border: '1px solid var(--ec-border)',
           background: '#fff', padding: 14, flexShrink: 0, overflowX: 'auto' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>생산입고 등록</div>
-          <table className="w-full text-left" style={{ marginBottom: 10 }}>
+          <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
                 {/* 원본 생산입고 I 의 격자 — 한 전표에 완제품 여러 줄. */}

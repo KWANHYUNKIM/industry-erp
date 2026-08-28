@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -175,6 +176,11 @@ export default function WorkResultPage() {
 
   const shown = rows.filter((r) => !keyword || (r.workOrderNo ?? '').includes(keyword) || r.process.includes(keyword))
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '작업내역입력', [])
+
   return (
     <EcListShell
       title="작업내역입력"
@@ -231,7 +237,7 @@ export default function WorkResultPage() {
           </div>
           {/* 좁은 창에서는 열두 칸이 다 안 들어간다 — 잘리지 말고 옆으로 밀리게 둔다. */}
           <div style={{ overflowX: 'auto' }}>
-          <table className="ec-grid" style={{ width: '100%', minWidth: 1040 }}>
+          <table ref={tableRef} className="ec-grid" style={{ width: '100%', minWidth: 1040 }}>
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th>

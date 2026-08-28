@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
@@ -132,6 +133,7 @@ export default function PurchaseOrderPage() {
       if (window.confirm('생성된 구매전표를 확인할까요?')) navigate('/sales/purchase-list')
     } catch (err) { alert(extractErrorMessage(err)) }
   }
+
 
   return (
     <EcListShell title="발주서" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
@@ -356,6 +358,11 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
     }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '발주서 품목 격자', [])
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 880, maxWidth: '96vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
@@ -419,7 +426,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
             </tbody>
           </table>
 
-          <table className="w-full text-left">
+          <table ref={tableRef} className="w-full text-left">
             <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
