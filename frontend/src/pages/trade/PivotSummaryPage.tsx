@@ -38,7 +38,8 @@ export default function PivotSummaryPage() {
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
-  const condPick = useCondPickers(['partners', 'items', 'projects'])
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const condPick = useCondPickers(['partners', 'items', 'projects', 'warehouses'])
 
   async function load() {
     setLoading(true); setError('')
@@ -52,8 +53,8 @@ export default function PivotSummaryPage() {
 
   const rows = useMemo<PivotRow[]>(() => {
     const docs = mode === 'SALE'
-      ? sales.filter((d) => d.saleDate.slice(0, 4) === String(year)).map((d) => ({ date: d.saleDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, lines: d.lines }))
-      : purchases.filter((d) => d.purchaseDate.slice(0, 4) === String(year)).map((d) => ({ date: d.purchaseDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, lines: d.lines }))
+      ? sales.filter((d) => d.saleDate.slice(0, 4) === String(year)).map((d) => ({ date: d.saleDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, lines: d.lines }))
+      : purchases.filter((d) => d.purchaseDate.slice(0, 4) === String(year)).map((d) => ({ date: d.purchaseDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, lines: d.lines }))
 
     const map = new Map<string, PivotRow>()
     const bump = (key: string, name: string): PivotRow => {
@@ -63,6 +64,7 @@ export default function PivotSummaryPage() {
     }
     for (const d of docs) {
       if (partnerCond && !d.partnerName.includes(partnerCond)) continue
+      if (warehouseCond && !d.warehouseName.includes(warehouseCond)) continue
       if (projectCond && !(d.projectName ?? '').includes(projectCond)) continue
       if (itemCond && !d.lines.some((l) => l.itemName.includes(itemCond))) continue
       const m = Number(d.date.slice(5, 7)) - 1
@@ -80,7 +82,7 @@ export default function PivotSummaryPage() {
     }
     const kw = keyword.trim()
     return [...map.values()].filter((r) => !kw || r.name.includes(kw)).sort((a, b) => b.total - a.total)
-  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond, projectCond])
+  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond, projectCond, warehouseCond])
 
   const colTotals = useMemo(() => {
     const t = new Array(12).fill(0)
@@ -123,6 +125,8 @@ export default function PivotSummaryPage() {
           ))}
         </div>
         {/* 원본 조건 차례: … 창고 · <b>프로젝트</b> · … · 거래처 · 품목 — 프로젝트가 거래처보다 앞이다. */}
+        <CodePickerField label="창고" width={150} emptyLabel="전체"
+                         value={warehouseCond} onChange={setWarehouseCond} items={condPick.warehouses} />
         <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={condPick.projects} />
         <CodePickerField label="거래처" width={150} emptyLabel="전체"

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -26,6 +28,14 @@ export default function MonthlyCumulativePage() {
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /*
+   * 원본 현황누계표의 조건 차례는 <b>창고 · 거래처 · 품목 · 프로젝트</b> 다(사본 실측).
+   * 해가 전부였다 — 판매·구매 응답이 셋을 다 보내고 있는데 걸 자리가 없었다.
+   */
+  const [warehouse, setWarehouse] = useState('')
+  const [partner, setPartner] = useState('')
+  const [project, setProject] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners', 'projects'])
 
   async function load() {
     setLoading(true); setError('')
@@ -40,8 +50,20 @@ export default function MonthlyCumulativePage() {
   const rows = useMemo<MonthRow[]>(() => {
     const saleByM = new Array(13).fill(0)
     const buyByM = new Array(13).fill(0)
-    for (const d of sales) { if (d.saleDate.slice(0, 4) === String(year)) saleByM[Number(d.saleDate.slice(5, 7))] += d.supplyAmount }
-    for (const d of purchases) { if (d.purchaseDate.slice(0, 4) === String(year)) buyByM[Number(d.purchaseDate.slice(5, 7))] += d.supplyAmount }
+    const keep = (wh: string, pt: string, pj: string | null) =>
+      (!warehouse || wh.includes(warehouse))
+      && (!partner || pt.includes(partner))
+      && (!project || (pj ?? '').includes(project))
+    for (const d of sales) {
+      if (d.saleDate.slice(0, 4) !== String(year)) continue
+      if (!keep(d.warehouseName, d.partnerName, d.projectName)) continue
+      saleByM[Number(d.saleDate.slice(5, 7))] += d.supplyAmount
+    }
+    for (const d of purchases) {
+      if (d.purchaseDate.slice(0, 4) !== String(year)) continue
+      if (!keep(d.warehouseName, d.partnerName, d.projectName)) continue
+      buyByM[Number(d.purchaseDate.slice(5, 7))] += d.supplyAmount
+    }
     const out: MonthRow[] = []
     let saleCum = 0, buyCum = 0, profitCum = 0
     for (let m = 1; m <= 12; m++) {
@@ -50,7 +72,7 @@ export default function MonthlyCumulativePage() {
       out.push({ month: m, sale, saleCum, buy, buyCum, profit, profitCum })
     }
     return out
-  }, [sales, purchases, year])
+  }, [sales, purchases, year, warehouse, partner, project])
 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const yTotal = rows.length ? rows[rows.length - 1] : null
@@ -67,6 +89,13 @@ export default function MonthlyCumulativePage() {
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
+        {/* 원본 조건 차례: 창고 · 거래처 · 품목 · 프로젝트 */}
+        <CodePickerField label="창고" width={150} emptyLabel="전체"
+                         value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+        <CodePickerField label="거래처" width={150} emptyLabel="전체"
+                         value={partner} onChange={setPartner} items={pickers.partners} />
+        <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
+                         value={project} onChange={setProject} items={pickers.projects} />
         {yTotal && (
           <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
             연매출 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(yTotal.saleCum)}</b>

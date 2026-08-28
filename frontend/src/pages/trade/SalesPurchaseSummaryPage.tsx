@@ -36,7 +36,9 @@ export default function SalesPurchaseSummaryPage() {
   const [error, setError] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
-  const partnerPick = useCondPickers(['partners', 'projects'])
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees'])
 
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -61,6 +63,8 @@ export default function SalesPurchaseSummaryPage() {
    */
   const keepPartner = (name: string) => !partnerCond || name.includes(partnerCond)
   const keepProject = (name: string | null) => !projectCond || (name ?? '').includes(projectCond)
+  const keepWarehouse = (name: string) => !warehouseCond || name.includes(warehouseCond)
+  const keepEmp = (name: string | null) => !empCond || (name ?? '').includes(empCond)
 
 
   const rows = useMemo(() => {
@@ -75,6 +79,8 @@ export default function SalesPurchaseSummaryPage() {
         if (!inPeriod(d.saleDate)) continue
         if (!keepPartner(d.partnerName)) continue
         if (!keepProject(d.projectName)) continue
+        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepEmp(d.employeeName)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.saleCount += 1; a.saleSupply += d.supplyAmount
         a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -83,6 +89,8 @@ export default function SalesPurchaseSummaryPage() {
         if (!inPeriod(d.purchaseDate)) continue
         if (!keepPartner(d.partnerName)) continue
         if (!keepProject(d.projectName)) continue
+        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepEmp(d.employeeName)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.buyCount += 1; a.buySupply += d.supplyAmount
         a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -92,6 +100,8 @@ export default function SalesPurchaseSummaryPage() {
         if (!inPeriod(d.saleDate)) continue
         if (!keepPartner(d.partnerName)) continue
         if (!keepProject(d.projectName)) continue
+        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepEmp(d.employeeName)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
@@ -101,6 +111,8 @@ export default function SalesPurchaseSummaryPage() {
         if (!inPeriod(d.purchaseDate)) continue
         if (!keepPartner(d.partnerName)) continue
         if (!keepProject(d.projectName)) continue
+        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepEmp(d.employeeName)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
@@ -111,7 +123,7 @@ export default function SalesPurchaseSummaryPage() {
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
-  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond])
+  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
@@ -138,9 +150,19 @@ export default function SalesPurchaseSummaryPage() {
         </div>
         {/* 원본 차례: 창고 · <b>프로젝트</b> · 담당자 · 거래처 … — 프로젝트가 거래처보다 앞이다. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>창고</span>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseCond} onChange={setWarehouseCond} items={partnerPick.warehouses} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>담당자</span>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond} items={partnerPick.employees} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>

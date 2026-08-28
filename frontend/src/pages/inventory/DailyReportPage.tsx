@@ -26,7 +26,13 @@ const today = () => ymd(new Date())
 export default function DailyReportPage() {
   /** 펼쳐 볼 하루. 빈 값이면 아무 줄도 안 펼친 상태. */
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  /*
+   * 원본 일보의 조건 차례는 <b>기준일자 · 창고 · 거래처 · 품목 · 프로젝트</b> 다(사본 실측).
+   * 창고와 프로젝트가 없었는데 <b>판매·구매 응답이 이미 둘 다 보내고</b> 있었다.
+   */
+  const [warehouse, setWarehouse] = useState('')
+  const [project, setProject] = useState('')
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const [date, setDate] = useState(today())
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
@@ -57,9 +63,13 @@ export default function DailyReportPage() {
   const hitSales = (d: SalesDoc) =>
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
+    && (!warehouse || d.warehouseName.includes(warehouse))
+    && (!project || (d.projectName ?? '').includes(project))
   const hitPurch = (d: PurchaseDoc) =>
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
+    && (!warehouse || d.warehouseName.includes(warehouse))
+    && (!project || (d.projectName ?? '').includes(project))
 
   const inRange = (d: string) => (!from || d >= from) && (!to || d <= to)
 
@@ -80,14 +90,14 @@ export default function DailyReportPage() {
     // 날짜 축은 오름차순 — 재고수불부·재고변동표(일별)와 같은 방향으로 읽힌다.
     return [...map.values()].sort((a, b) => (a.date < b.date ? -1 : 1))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sales, purchases, from, to, partner, item])
+  }, [sales, purchases, from, to, partner, item, warehouse, project])
 
   const daySales = useMemo(() => sales.filter((d) => d.saleDate === date).filter(hitSales),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, date, partner, item])
+    [sales, date, partner, item, warehouse, project])
   const dayPurch = useMemo(() => purchases.filter((d) => d.purchaseDate === date).filter(hitPurch),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [purchases, date, partner, item])
+    [purchases, date, partner, item, warehouse, project])
 
   const salesSum = daySales.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, total: a.total + d.totalAmount }), { supply: 0, total: 0 })
   const purchSum = dayPurch.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, total: a.total + d.totalAmount }), { supply: 0, total: 0 })
@@ -130,6 +140,12 @@ export default function DailyReportPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={INQUIRY_PICKS}
       >
+        {/* 원본은 [창고]가 [거래처]보다 앞이다. */}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
@@ -139,6 +155,11 @@ export default function DailyReportPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={project} onChange={(v) => setProject(v)}
+                           items={pickers.projects} />
         </EcCond>
       </EcStatusPanel>
 
