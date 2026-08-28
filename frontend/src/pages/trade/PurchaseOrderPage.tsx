@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
@@ -35,6 +37,11 @@ export default function PurchaseOrderPage() {
   const [tab, setTab] = useState<Tab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [whCond, setWhCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const condPickers = useCondPickers(['warehouses', 'partners', 'items'])
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [pricing, setPricing] = useState<PurchaseOrder | null>(null)
@@ -56,7 +63,19 @@ export default function PurchaseOrderPage() {
     api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])
 
-  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  /*
+   * 원본 발주서의 조건 차례는 <b>발주No. · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 ·
+   * 발송여부</b> 다(사본 실측). 우리 목록에는 <b>알약(진행 단계)뿐</b>이라
+   * 발주번호를 알아도 눈으로 찾아야 했다. 넷을 만든다 —
+   * [프로젝트]는 발주 응답에 그 값이 없고, [내.외자구분]·[발송여부]는 우리 전표에 없다.
+   */
+  const shown = useMemo(() => rows
+    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
+    .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
+    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
+    [rows, tab, orderNoCond, whCond, partnerCond, itemCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -149,6 +168,26 @@ export default function PurchaseOrderPage() {
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      {/* 원본 조건 차례: 발주No. · … · 창고 · … · 거래처 · 품목 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="발주No.">
+          <input className="ec-input" value={orderNoCond}
+                 onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={condPickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+      </ul>
+
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
           <button
@@ -414,7 +453,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                 <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>납기요청일</th>
+                {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
+                    목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
+                <th style={{ background: '#f5f7fa' }}>납기일자</th>
                 <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
