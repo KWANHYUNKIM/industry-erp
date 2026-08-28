@@ -791,6 +791,52 @@ async function scenarioRelations(f) {
  * 견적서의 [창고]·[프로젝트] — 응답 record 에만 만들고 <b>Create 요청에 빠뜨리면
  * 서버가 조용히 버린다.</b> 이 저장소에서 세 번 낸 실수라 저장·재조회를 둘 다 잰다.
  */
+/**
+ * 매출계획이 <b>고른 축으로만</b> 실적을 센다.
+ *
+ * <p>계획에 [창고]·[거래처]가 생기면서 <b>실적을 맞추는 규칙도 같이 바뀌었다.</b>
+ * 이걸 안 맞추면 창고별로 계획을 쪼갠 순간 <b>같은 판매가 모든 줄에 중복으로</b> 잡혀
+ * 달성률이 다 같이 부풀어 오른다 — 숫자는 그럴듯한데 전부 틀린, 가장 나쁜 종류의 버그다.
+ */
+async function scenarioSalesPlanScope(f) {
+  section('■ 시나리오. 매출계획이 고른 축으로만 실적을 센다')
+
+  const wh2 = await ensure('/warehouses', 'code', `${P}WHP`, null, {
+    code: `${P}WHP`, name: 'QA계획창고2', location: 'QA동 3층',
+  })
+  const year = 2027   // 다른 시나리오와 안 겹치는 해
+  /* 재고를 100 으로 맞춘다. 두 번째 실행이면 이미 100 이라 거절되는데, 그것도 맞은 상태다. */
+  await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 100,
+    adjustDate: `${year}-05-01`,
+  })
+  await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: `${year}-05-10`,
+    taxable: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 10000 }],
+  })
+
+  const planAll = await must('POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 10, planAmount: 100000,
+  })
+  const planHere = await must('POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 10, planAmount: 100000,
+    warehouseId: f.warehouse.id,
+  })
+  const planThere = await must('POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 10, planAmount: 100000,
+    warehouseId: wh2.id,
+  })
+
+  const rows = await must('GET', `/sales-plans/comparison?year=${year}`)
+  const qtyOf = (id) => Number(rows.find((r) => r.id === id)?.actualQty ?? -1)
+  eq('창고를 안 고른 계획은 전부를 센다', qtyOf(planAll.id), 3)
+  eq('그 창고 계획은 그 창고 판매를 센다', qtyOf(planHere.id), 3)
+  eq('<b>다른 창고 계획은 0 이다</b> — 안 그러면 같은 판매가 두 줄에 중복으로 잡힌다',
+    qtyOf(planThere.id), 0)
+
+  for (const p of [planAll, planHere, planThere]) await must('DELETE', `/sales-plans/${p.id}`)
+}
+
 async function scenarioQuotationWarehouseProject(f) {
   section('■ 시나리오. 견적서가 창고·프로젝트를 기억한다')
 
@@ -8257,6 +8303,7 @@ async function main() {
   await scenarioMasterEditFromScreen()
   await scenarioAsConsumption(fixtures)
   await scenarioQuotationWarehouseProject(fixtures)
+  await scenarioSalesPlanScope(fixtures)
 
   checkDeadAssertions()
 

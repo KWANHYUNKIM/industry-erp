@@ -1,6 +1,8 @@
 package com.erp.trade.service;
 
 import com.erp.common.ApiException;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.Item;
 import com.erp.inventory.service.ItemService;
 import com.erp.trade.domain.Sales;
@@ -32,6 +34,10 @@ import java.util.Map;
 public class SalesPlanService {
 
     private final SalesPlanRepository planRepository;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
+    private final PartnerService partnerService;
     private final SalesRepository salesRepository;   // 같은 모듈(trade)
     private final ItemService itemService;           // inventory 의 공개 API
 
@@ -48,6 +54,9 @@ public class SalesPlanService {
         Item item = itemService.get(req.itemId());
         SalesPlan plan = SalesPlan.builder()
                 .item(item)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .partner(req.partnerId() == null ? null : partnerService.get(req.partnerId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .planYear(req.planYear())
                 .planMonth(req.planMonth())
                 .planQty(req.planQty())
@@ -74,25 +83,32 @@ public class SalesPlanService {
     public List<ComparisonRow> comparison(int year) {
         List<SalesPlan> plans = planRepository.findByPlanYearWithItem(year);
 
-        // (itemId, month) → 실적 합계
-        Map<String, BigDecimal[]> actual = new HashMap<>();
+        /*
+         * 계획이 고른 축으로만 실적을 센다.
+         *
+         * <p>계획에 [창고]·[거래처]·[프로젝트]가 생기면서 <b>실적을 맞추는 규칙도 같이 바뀐다.</b>
+         * 창고를 고른 계획은 <b>그 창고에서 나간 판매만</b> 실적이다. 안 그러면 창고별로
+         * 계획을 쪼갠 순간 같은 판매가 <b>모든 줄에 중복으로</b> 잡혀 달성률이 다 같이
+         * 부풀어 오른다. 축을 안 고른(널) 계획은 그 축 전부를 합친다 — 예전 동작 그대로다.
+         */
         List<Sales> sales = salesRepository.findWithLinesBySaleDateBetween(
                 LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31));
-        for (Sales s : sales) {
-            int month = s.getSaleDate().getMonthValue();
-            for (SalesLine l : s.getLines()) {
-                String key = l.getItem().getId() + "-" + month;
-                BigDecimal[] agg = actual.computeIfAbsent(key, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
-                agg[0] = agg[0].add(nz(l.getQuantity()));
-                agg[1] = agg[1].add(nz(l.getSupplyAmount()));
-            }
-        }
 
         List<ComparisonRow> out = new ArrayList<>();
         for (SalesPlan p : plans) {
-            String key = p.getItem().getId() + "-" + p.getPlanMonth();
-            BigDecimal[] agg = actual.getOrDefault(key, new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
-            BigDecimal actualQty = agg[0], actualAmount = agg[1];
+            BigDecimal actualQty = BigDecimal.ZERO;
+            BigDecimal actualAmount = BigDecimal.ZERO;
+            for (Sales s : sales) {
+                if (s.getSaleDate().getMonthValue() != p.getPlanMonth()) continue;
+                if (!matches(p.getWarehouse(), s.getWarehouse())) continue;
+                if (!matches(p.getPartner(), s.getPartner())) continue;
+                if (!matches(p.getProject(), s.getProject())) continue;
+                for (SalesLine l : s.getLines()) {
+                    if (!l.getItem().getId().equals(p.getItem().getId())) continue;
+                    actualQty = actualQty.add(nz(l.getQuantity()));
+                    actualAmount = actualAmount.add(nz(l.getSupplyAmount()));
+                }
+            }
             BigDecimal rate = p.getPlanAmount().signum() == 0
                     ? BigDecimal.ZERO
                     : actualAmount.multiply(BigDecimal.valueOf(100))
@@ -100,9 +116,32 @@ public class SalesPlanService {
             out.add(new ComparisonRow(
                     p.getId(), p.getPlanYear(), p.getPlanMonth(),
                     p.getItem().getId(), p.getItem().getName(), p.getItem().getUnit(),
+                    p.getWarehouse() != null ? p.getWarehouse().getId() : null,
+                    p.getWarehouse() != null ? p.getWarehouse().getName() : null,
+                    p.getPartner() != null ? p.getPartner().getId() : null,
+                    p.getPartner() != null ? p.getPartner().getName() : null,
+                    p.getProject() != null ? p.getProject().getId() : null,
+                    p.getProject() != null ? p.getProject().getName() : null,
                     p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate));
         }
         return out;
+    }
+
+    /**
+     * 계획이 고른 축과 전표의 축이 맞나. <b>계획이 안 고른 축(널)은 무엇과도 맞는다</b> —
+     * "그 축은 안 나눈다" 는 뜻이기 때문이다.
+     */
+    private boolean matches(Object planSide, Object docSide) {
+        if (planSide == null) return true;
+        if (docSide == null) return false;
+        return idOf(planSide).equals(idOf(docSide));
+    }
+
+    private Long idOf(Object o) {
+        if (o instanceof com.erp.inventory.domain.Warehouse w) return w.getId();
+        if (o instanceof com.erp.inventory.domain.Project pr) return pr.getId();
+        if (o instanceof com.erp.trade.domain.BusinessPartner bp) return bp.getId();
+        throw new IllegalStateException("맞출 수 없는 축: " + o.getClass());
     }
 
     private static BigDecimal nz(BigDecimal v) {

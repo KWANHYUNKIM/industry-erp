@@ -19,6 +19,10 @@ interface ComparisonRow {
   planMonth: number
   itemId: number
   itemName: string
+  /** 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 그 축을 안 나눈다. */
+  warehouseName: string | null
+  partnerName: string | null
+  projectName: string | null
   unit: string
   planQty: number
   planAmount: number
@@ -32,6 +36,8 @@ const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
+interface CodeRow { id: number; code: string; name: string }
+
 export default function SalesPlanPage() {
   const [year, setYear] = useState<number>(thisYear())
   const [rows, setRows] = useState<ComparisonRow[]>([])
@@ -40,6 +46,13 @@ export default function SalesPlanPage() {
    * 한 품목의 열두 달을 보려면 표 전체를 눈으로 훑어야 했다.
    */
   const [itemCond, setItemCond] = useState('')
+  /* 원본 매출계획 조건 차례: <b>창고 · 거래처</b> · 품목 · <b>프로젝트</b>. */
+  const [whCond, setWhCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [projCond, setProjCond] = useState('')
+  const [warehouses, setWarehouses] = useState<CodeRow[]>([])
+  const [partners, setPartners] = useState<CodeRow[]>([])
+  const [projects, setProjects] = useState<CodeRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,12 +62,16 @@ export default function SalesPlanPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [c, i] = await Promise.all([
+      const [c, i, w, pt, pj] = await Promise.all([
         api.get<ComparisonRow[]>('/sales-plans/comparison', { params: { year } }),
         api.get<Item[]>('/items'),
+        api.get<CodeRow[]>('/warehouses'),
+        api.get<CodeRow[]>('/partners'),
+        api.get<CodeRow[]>('/projects'),
       ])
       setRows(c.data)
       setItems(i.data)
+      setWarehouses(w.data); setPartners(pt.data); setProjects(pj.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -74,7 +91,12 @@ export default function SalesPlanPage() {
     }
   }
 
-  const shown = useMemo(() => rows.filter((r) => !itemCond || r.itemName === itemCond), [rows, itemCond])
+  const shown = useMemo(() => rows
+    .filter((r) => !itemCond || r.itemName === itemCond)
+    .filter((r) => !whCond || r.warehouseName === whCond)
+    .filter((r) => !partnerCond || r.partnerName === partnerCond)
+    .filter((r) => !projCond || r.projectName === projCond),
+    [rows, itemCond, whCond, partnerCond, projCond])
 
   /* 합계도 걸러진 것으로 낸다 — 한 품목만 보면서 합계는 전체이면 숫자가 거짓말을 한다. */
   const totals = useMemo(() => {
@@ -108,15 +130,30 @@ export default function SalesPlanPage() {
       </div>
 
       <Modal open={showForm} title="매출계획 등록" onClose={() => setShowForm(false)}>
-        <PlanForm year={year} items={items} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
+        <PlanForm year={year} items={items} warehouses={warehouses} partners={partners} projects={projects} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
       </Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond}
+                           items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond}
+                           items={partners.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="품목">
           {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond}
+                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
       </ul>
 
@@ -161,10 +198,13 @@ export default function SalesPlanPage() {
 }
 
 function PlanForm({
-  year, items, onError, onSaved,
+  year, items, warehouses, partners, projects, onError, onSaved,
 }: {
   year: number
   items: Item[]
+  warehouses: CodeRow[]
+  partners: CodeRow[]
+  projects: CodeRow[]
   onError: (m: string) => void
   onSaved: () => void
 }) {
@@ -173,6 +213,13 @@ function PlanForm({
   const [planQty, setPlanQty] = useState('')
   const [planAmount, setPlanAmount] = useState('')
   const [remark, setRemark] = useState('')
+  /*
+   * 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 <b>그 축을 안 나눈다</b>는 뜻이고,
+   * 고르면 <b>그 창고/거래처에서 나간 판매만</b> 실적으로 잡힌다(서버가 그렇게 맞춘다).
+   */
+  const [fWarehouse, setFWarehouse] = useState('')
+  const [fPartner, setFPartner] = useState('')
+  const [fProject, setFProject] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
@@ -186,6 +233,9 @@ function PlanForm({
         planMonth: Number(month),
         planQty: Number(planQty || 0),
         planAmount: Number(planAmount || 0),
+        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
+        partnerId: fPartner ? Number(fPartner) : undefined,
+        projectId: fProject ? Number(fProject) : undefined,
         remark: remark || undefined,
       })
       onSaved()
@@ -220,6 +270,23 @@ function PlanForm({
         <label style={{ flex: 1 }}><span style={lbl}>계획금액</span>
           <input className={cls} type="number" step="any" value={planAmount} onChange={(e) => setPlanAmount(e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></label>
       </div>
+      {/* 원본 차례: 창고 · 거래처 · 품목 · 프로젝트 — 안 고르면 그 축을 안 나눈다. */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <label style={{ flex: 1 }}><span style={lbl}>창고</span>
+          <CodePickerField label="창고" hideLabel fill emptyLabel="안 나눔"
+                           value={fWarehouse} onChange={setFWarehouse}
+                           items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </label>
+        <label style={{ flex: 1 }}><span style={lbl}>거래처</span>
+          <CodePickerField label="거래처" hideLabel fill emptyLabel="안 나눔"
+                           value={fPartner} onChange={setFPartner}
+                           items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </label>
+      </div>
+      <label><span style={lbl}>프로젝트</span>
+        <CodePickerField label="프로젝트" hideLabel fill emptyLabel="안 나눔"
+                         value={fProject} onChange={setFProject}
+                         items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} /></label>
       <label><span style={lbl}>적요</span>
         <input className={cls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} placeholder="선택" /></label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>

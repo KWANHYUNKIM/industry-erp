@@ -14,6 +14,10 @@ public final class SalesPlanDtos {
 
     public record CreateSalesPlanRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            /* 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 그 축을 안 나눈다. */
+            Long warehouseId,
+            Long partnerId,
+            Long projectId,
             @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
             @NotNull(message = "계획월을 입력하세요.") @Min(value = 1, message = "월은 1~12 입니다.") @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
             @NotNull(message = "계획수량을 입력하세요.") @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
@@ -38,6 +42,9 @@ public final class SalesPlanDtos {
     public record ComparisonRow(
             Long id, int planYear, int planMonth,
             Long itemId, String itemName, String unit,
+            Long warehouseId, String warehouseName,
+            Long partnerId, String partnerName,
+            Long projectId, String projectName,
             BigDecimal planQty, BigDecimal planAmount,
             BigDecimal actualQty, BigDecimal actualAmount,
             BigDecimal achieveRate
