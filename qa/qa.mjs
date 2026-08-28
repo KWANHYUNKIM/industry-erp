@@ -780,6 +780,46 @@ async function scenarioRelations(f) {
 }
 
 /** 설정이 실제로 영속되는지 */
+/**
+ * A/S소모현황 — 조건이 <b>합계를 바꾸는</b> 자리라 못 박는다.
+ *
+ * <p>이 화면은 서버가 품목별로 <b>합쳐서</b> 준다. 합친 뒤에는 화면에서 거를 수가 없어
+ * 조건(접수일자·창고·거래처·수리품목)을 서버가 받아 <b>거른 뒤 합친다.</b>
+ * 조건을 잘못 걸면 화면은 멀쩡한 채 숫자만 조용히 틀린다.
+ */
+async function scenarioAsConsumption(f) {
+  section('■ 시나리오. A/S소모현황이 조건대로 걸러 합친다')
+
+  const as = await must('POST', '/as-requests', {
+    partnerId: f.customer.id, itemId: f.product.id,
+    receiptDate: '2026-03-05', symptom: 'QA 소모현황용 접수', charge: 'QA담당',
+  })
+  await must('POST', `/as-requests/${as.id}/parts`, {
+    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 3, unitPrice: 1000,
+  })
+
+  const qtyOf = (rows) => {
+    const r = rows.find((x) => x.itemId === f.material.id)
+    return r ? Number(r.totalQty) : 0
+  }
+  const url = (q) => `/as-requests/parts/consumption?${q}`
+
+  eq('접수일자 안이면 소모수량이 잡힌다',
+    qtyOf(await must('GET', url('from=2026-03-01&to=2026-03-31'))) >= 3, true)
+  eq('접수일자 밖이면 안 잡힌다',
+    qtyOf(await must('GET', url('from=2026-01-01&to=2026-01-31'))), 0)
+  eq('다른 창고로 거르면 안 잡힌다',
+    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&warehouseId=${f.warehouse.id + 99999}`))), 0)
+  eq('그 거래처로 거르면 잡힌다',
+    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.customer.id}`))) >= 3, true)
+  eq('다른 거래처로 거르면 안 잡힌다',
+    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.supplier.id}`))), 0)
+  eq('수리품목으로 거르면 잡힌다 — 소모부품이 아니라 <b>수리 대상</b> 품목이다',
+    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.product.id}`))) >= 3, true)
+  eq('소모부품 품목을 수리품목으로 주면 안 잡힌다',
+    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.material.id}`))), 0)
+}
+
 async function scenarioSettings() {
   section('■ 시나리오 5. 환경설정 · 보안정책 영속')
 
@@ -8136,6 +8176,7 @@ async function main() {
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()
+  await scenarioAsConsumption(fixtures)
 
   checkDeadAssertions()
 

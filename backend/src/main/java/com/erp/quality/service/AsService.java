@@ -139,11 +139,24 @@ public class AsService {
         asPartRepository.delete(part);
     }
 
-    /** A/S소모현황 — 품목별 소모 수량·금액·A/S 건수 집계. */
+    /**
+     * A/S소모현황 — 품목별 소모 수량·금액·A/S 건수 집계.
+     *
+     * <p>원본 조건 실측(사본): 접수일자 · 창고 · 프로젝트 · 수리담당자 · 접수담당자 ·
+     * 수리유형 · 거래처 · 수리품목. 이 가운데 우리가 가진 넷(접수일자·창고·거래처·수리품목)을
+     * 받는다. <b>합친 뒤에는 못 거르므로</b> 화면이 아니라 여기서 걸러야 한다.
+     */
     @Transactional(readOnly = true)
-    public List<AsConsumptionRow> consumption() {
+    public List<AsConsumptionRow> consumption(LocalDate from, LocalDate to,
+                                              Long warehouseId, Long partnerId, Long repairItemId) {
         Map<Long, Acc> byItem = new LinkedHashMap<>();
         for (AsPart p : asPartRepository.findAllWithRefs()) {
+            AsRequest as = p.getAsRequest();
+            if (from != null && as.getReceiptDate().isBefore(from)) continue;
+            if (to != null && as.getReceiptDate().isAfter(to)) continue;
+            if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
+            if (partnerId != null && !partnerId.equals(as.getPartner().getId())) continue;
+            if (repairItemId != null && !repairItemId.equals(as.getItem().getId())) continue;
             Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
                     k -> new Acc(p.getItem().getName()));
             acc.totalQty = acc.totalQty.add(p.getQuantity());

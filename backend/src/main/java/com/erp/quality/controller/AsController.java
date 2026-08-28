@@ -12,8 +12,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.quality.dto.AsDtos;
 
@@ -43,10 +45,15 @@ public class AsController {
 
     // 소모부품 -------------------------------------------------------------
 
-    /** A/S소모현황 — 품목별 소모 집계 */
+    /** A/S소모현황 — 품목별 소모 집계. 원본 조건 접수일자·창고·거래처·수리품목으로 거른다. */
     @GetMapping("/parts/consumption")
-    public List<AsConsumptionRow> consumption() {
-        return asService.consumption();
+    public List<AsConsumptionRow> consumption(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long repairItemId) {
+        return asService.consumption(from, to, warehouseId, partnerId, repairItemId);
     }
 
     @GetMapping("/{id}/parts")
