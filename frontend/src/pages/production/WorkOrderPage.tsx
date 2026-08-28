@@ -175,7 +175,7 @@ export default function WorkOrderPage() {
               <input type="number" step="any" className={inputCls} value={form.plannedQty} onChange={(e) => set('plannedQty', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">지시일자</label>
+              <label className="mb-1 block text-sm text-slate-600">일자</label>
               <input type="date" className={inputCls} value={form.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
             </div>
             <div>

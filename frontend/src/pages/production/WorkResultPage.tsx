@@ -202,7 +202,7 @@ export default function WorkResultPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업자</label>
+              <label className="mb-1 block text-sm text-slate-600">담당자</label>
               <input className={inputCls} value={form.worker} onChange={(e) => setForm({ ...form, worker: e.target.value })} />
             </div>
             <div>
@@ -215,7 +215,7 @@ export default function WorkResultPage() {
           </div>
 
           {/*
-            원본 작업내역입력은 격자다. 머리(일자·생산공장·작업자·프로젝트)를 한 번 정하고
+            원본 작업내역입력은 격자다. 머리(일자·생산공장·담당자·프로젝트)를 한 번 정하고
             작업은 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다 — 두 줄만 들어가면
             작업시간 합계가 조용히 모자란 채로 남고 효율현황이 그 값으로 계산된다.
           */}

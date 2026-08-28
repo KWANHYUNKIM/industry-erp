@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -54,6 +55,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
  */
   const [searchParams] = useSearchParams()
   const [keyword, setKeyword] = useState(searchParams.get('partner') ?? '')
+  /*
+   * 원본 조회 화면의 조건 판: 일자 · 거래처 · 담당자 · 창고 · 거래유형 · 통화 · 프로젝트.
+   * 우리는 기간과 검색창만 있어 <b>거래처·담당자로 좁힐 수가 없었다.</b> 전표가 쌓이면
+   * 검색창 하나로는 '이 담당자가 이 달에 친 구매' 를 뽑지 못한다.
+   */
+  const [partnerCond, setPartnerCond] = useState('')
+  const [managerCond, setManagerCond] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
@@ -207,10 +215,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
+    .filter((d) => !partnerCond || d.partnerName === partnerCond)
+    .filter((d) => !managerCond || (d.createdBy ?? '') === managerCond)
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), [docs, keyword, from, to, tab, isSales])
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), [docs, keyword, partnerCond, managerCond, from, to, tab, isSales])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -318,9 +328,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
+          {/* 원본은 이 조건을 [일자]라고 부른다(사본 실측). 이름표가 없으면 무슨 날짜인지 모른다. */}
+          <span>일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <CodePickerField label="거래처" width={150} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond}
+                           items={[...new Set(docs.map((d) => d.partnerName))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          <CodePickerField label="담당자" width={120} emptyLabel="전체"
+                           value={managerCond} onChange={setManagerCond}
+                           items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </span>
       </div>
 

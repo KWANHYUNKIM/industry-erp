@@ -195,7 +195,9 @@ export default function ReceiptStatusPage() {
         { label: 'Excel' },
       ]}
     >
+      {/* 원본은 기간 줄을 [일자]라고 부른다(사본 실측) — 기본값 [기준일자]가 아니다. */}
       <EcStatusPanel
+        dateLabel="일자"
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}

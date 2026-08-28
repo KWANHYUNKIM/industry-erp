@@ -234,7 +234,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.producedQty} onChange={(e) => setForm({ ...form, producedQty: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산일자</label>
+              <label className="mb-1 block text-sm text-slate-600">일자</label>
               <input type="date" className={inputCls} value={form.productionDate} onChange={(e) => setForm({ ...form, productionDate: e.target.value })} />
             </div>
             <div>
