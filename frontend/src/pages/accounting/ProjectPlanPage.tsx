@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../api/types'
@@ -34,6 +35,7 @@ const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 export default function ProjectPlanPage() {
   const [year, setYear] = useState<number>(thisYear())
   const [rows, setRows] = useState<ComparisonRow[]>([])
+  const [projectCond, setProjectCond] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -82,7 +84,10 @@ export default function ProjectPlanPage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const totals = rows.reduce((s, r) => ({
+  const shown = rows.filter((r) => !projectCond || r.projectName === projectCond)
+
+  /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
+  const totals = shown.reduce((s, r) => ({
     planRevenue: s.planRevenue + r.planRevenue, planProfit: s.planProfit + r.planProfit,
     actualRevenue: s.actualRevenue + r.actualRevenue, actualProfit: s.actualProfit + r.actualProfit,
   }), { planRevenue: 0, planProfit: 0, actualRevenue: 0, actualProfit: 0 })
@@ -102,6 +107,14 @@ export default function ProjectPlanPage() {
         <select className={inputCls} value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 110 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
+        {/*
+          원본 프로젝트계획 조건의 <b>[프로젝트]</b>. 프로젝트는 목록에 찍히는데
+          그것으로 거를 수가 없어, 한 프로젝트의 계획·실적만 보려 해도 표 전체를 훑어야 했다.
+        */}
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>프로젝트</span>
+        <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                         value={projectCond} onChange={setProjectCond}
+                         items={projects.map((p) => ({ value: p.name, code: p.code, name: p.name }))} />
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -143,9 +156,9 @@ export default function ProjectPlanPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
+          ) : shown.length === 0 ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
-          ) : rows.map((r, i) => (
+          ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.projectCode}</span>{r.projectName}</td>
@@ -161,7 +174,7 @@ export default function ProjectPlanPage() {
             </tr>
           ))}
         </tbody>
-        {rows.length > 0 && (
+        {shown.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>

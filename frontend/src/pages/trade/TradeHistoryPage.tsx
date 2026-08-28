@@ -148,8 +148,12 @@ export default function TradeHistoryPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {/* 구분 탭 + 요약 */}
+      {/*
+        원본 거래이력조회 조건의 <b>[구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
+        무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
+      */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((k) => (
             <button key={k} onClick={() => setKindFilter(k)} className="no-ec" style={{

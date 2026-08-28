@@ -3581,9 +3581,13 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * EcCond 와 &lt;span&gt; 만 찾고 있어서 조건 다섯을 통째로 못 봤다.
        */
       const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
-        + '</span>[^<]{0,4}<(input|select|CodePickerField)|<div className="title">' + n + '</div>'
+        // 이름표 뒤에 오는 것이 칸 하나일 수도, <b>알약 묶음(div 안의 button)</b>일 수도 있다
+        + '</span>[^<]{0,4}<(input|select|CodePickerField|div[^>]{0,200}>[\\s\\S]{0,400}?<button)'
+        + '|<div className="title">' + n + '</div>'
         + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]'
-        + '|<label[^>]*>' + n + '</label>')
+        + '|<label[^>]*>' + n + '</label>'
+        // 기간 조건은 EcStatusPanel 이 dateLabel 로 이름을 받는다(출하지시서현황 [일자]).
+        + '|dateLabel="' + n + '"')
       /*
        * <b>같은 &lt;th&gt; 라도 어디 있느냐로 뜻이 갈린다.</b> 등록 창(Modal) 안의
        * <code>&lt;th&gt;제목&lt;/th&gt;</code> 은 <b>채워 넣는 칸</b>이고, 창 밖의 것은

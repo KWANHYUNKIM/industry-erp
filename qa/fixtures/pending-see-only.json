@@ -1,11 +1,5 @@
 [
- "MonthlyProfitPage.tsx  월별이익현황 [판매액] — 열로는 찍는데 거를 수 없다",
- "ShipmentInquiryPage.tsx  출하조회 [발송여부] — 열로는 찍는데 거를 수 없다",
- "ShipmentOrderStatusPage.tsx  출하지시서현황 [일자] — 열로는 찍는데 거를 수 없다",
  "PaymentHistoryPage.tsx  결제내역조회 [결제금액] — 열로는 찍는데 거를 수 없다",
- "TradeHistoryPage.tsx  거래이력조회 [구분] — 열로는 찍는데 거를 수 없다",
- "ProjectPlanPage.tsx  프로젝트계획 [프로젝트] — 열로는 찍는데 거를 수 없다",
  "AsManagePage.tsx  A/S접수 [창고] — 열로는 찍는데 거를 수 없다",
- "AsManagePage.tsx  A/S접수조회 [창고] — 열로는 찍는데 거를 수 없다",
- "ProjectPlanPage.tsx  프로젝트계획조회 [프로젝트] — 열로는 찍는데 거를 수 없다"
+ "AsManagePage.tsx  A/S접수조회 [창고] — 열로는 찍는데 거를 수 없다"
 ]
