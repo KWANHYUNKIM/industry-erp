@@ -35,7 +35,8 @@ export default function MonthlyCumulativePage() {
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
   const [project, setProject] = useState('')
-  const pickers = useCondPickers(['warehouses', 'partners', 'projects'])
+  const [item, setItem] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners', 'projects', 'items'])
 
   async function load() {
     setLoading(true); setError('')
@@ -50,18 +51,21 @@ export default function MonthlyCumulativePage() {
   const rows = useMemo<MonthRow[]>(() => {
     const saleByM = new Array(13).fill(0)
     const buyByM = new Array(13).fill(0)
-    const keep = (wh: string, pt: string, pj: string | null) =>
-      (!warehouse || wh.includes(warehouse))
-      && (!partner || pt.includes(partner))
-      && (!project || (pj ?? '').includes(project))
+    /* 품목은 전표가 아니라 <b>라인</b>에 있다 — 그 품목이 든 전표만 센다. */
+    const keep = (d: { warehouseName: string; partnerName: string; projectName: string | null;
+                      lines: { itemName: string }[] }) =>
+      (!warehouse || d.warehouseName.includes(warehouse))
+      && (!partner || d.partnerName.includes(partner))
+      && (!project || (d.projectName ?? '').includes(project))
+      && (!item || d.lines.some((l) => l.itemName.includes(item)))
     for (const d of sales) {
       if (d.saleDate.slice(0, 4) !== String(year)) continue
-      if (!keep(d.warehouseName, d.partnerName, d.projectName)) continue
+      if (!keep(d)) continue
       saleByM[Number(d.saleDate.slice(5, 7))] += d.supplyAmount
     }
     for (const d of purchases) {
       if (d.purchaseDate.slice(0, 4) !== String(year)) continue
-      if (!keep(d.warehouseName, d.partnerName, d.projectName)) continue
+      if (!keep(d)) continue
       buyByM[Number(d.purchaseDate.slice(5, 7))] += d.supplyAmount
     }
     const out: MonthRow[] = []
@@ -72,7 +76,7 @@ export default function MonthlyCumulativePage() {
       out.push({ month: m, sale, saleCum, buy, buyCum, profit, profitCum })
     }
     return out
-  }, [sales, purchases, year, warehouse, partner, project])
+  }, [sales, purchases, year, warehouse, partner, project, item])
 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const yTotal = rows.length ? rows[rows.length - 1] : null
@@ -94,6 +98,10 @@ export default function MonthlyCumulativePage() {
                          value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
         <CodePickerField label="거래처" width={150} emptyLabel="전체"
                          value={partner} onChange={setPartner} items={pickers.partners} />
+        {/* 원본 차례는 창고 · 거래처 · <b>품목</b> · 프로젝트 — 품목이 프로젝트보다 앞이다.
+            주석에는 넷을 다 적어 놓고 셋만 만들어 두었다. */}
+        <CodePickerField label="품목" width={150} emptyLabel="전체"
+                         value={item} onChange={setItem} items={pickers.items} />
         <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
                          value={project} onChange={setProject} items={pickers.projects} />
         {yTotal && (

@@ -38,7 +38,8 @@ export default function LotStockComparePage() {
   const [diffOnly, setDiffOnly] = useState(false)
   /* 원본 조건에 <b>[창고]</b> 가 있다(사본 실측). 재고도 로트도 창고를 달고 온다. */
   const [warehouse, setWarehouse] = useState('')
-  const pickers = useCondPickers(['warehouses'])
+  const [item, setItem] = useState('')
+  const pickers = useCondPickers(['warehouses', 'items'])
 
   async function load() {
     setLoading(true); setError('')
@@ -86,10 +87,11 @@ export default function LotStockComparePage() {
     const kw = keyword.trim()
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
+      if (item && !r.itemName.includes(item)) return false
       if (diffOnly && r.diff === 0) return false
       return true
     })
-  }, [rows, keyword, diffOnly])
+  }, [rows, keyword, diffOnly, item])
 
   const stats = useMemo(() => ({
     items: shown.length,
@@ -109,6 +111,11 @@ export default function LotStockComparePage() {
         <span>창고</span>
         <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                          value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+        {/* 원본 조건 차례: … 창고 · <b>품목</b>. 검색어 칸이 품목 노릇을 하고 있었지만
+            이름이 없어 무엇으로 거르는 칸인지 화면만 보고는 알 수 없었다. */}
+        <span>품목</span>
+        <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                         value={item} onChange={setItem} items={pickers.items} />
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
