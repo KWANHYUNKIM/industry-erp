@@ -32,6 +32,11 @@ export default function SwSchedulePage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [endFrom, setEndFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
+  const [title2, setTitle2] = useState('')
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
@@ -69,7 +74,20 @@ export default function SwSchedulePage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
+  /*
+   * 원본 조건 실측: <b>계획시작일(구간) · 계획종료일(구간) · 실제완료일(구간)</b>.
+   * 우리는 <b>조건 판이 아예 없어</b> 검색상자 하나로만 좁혔다 — 일정이 쌓이면
+   * '이번 달에 끝나는 것' 을 물을 방법이 없었다.
+   *
+   * <p>[실제완료일]은 넣지 않았다 — 우리 프로젝트에는 실제로 끝난 날을 적는 칸이 없다.
+   */
+  const shown = rows
+    .filter((r) => !from || (r.startDate ?? '') >= from)
+    .filter((r) => !to || (r.startDate ?? '') <= to)
+    .filter((r) => !endFrom || (r.endDate ?? '') >= endFrom)
+    .filter((r) => !endTo || (r.endDate ?? '') <= endTo)
+    .filter((r) => !title2 || r.name.includes(title2))
+    .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
@@ -89,6 +107,33 @@ export default function SwSchedulePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <p className="mb-2 text-xs text-slate-500">개발 건별 목표일·진행률(%) 관리 · +10% 버튼으로 진척 반영 (프로젝트관리와 저장소 공유)</p>
+
+      {/* 원본 조회 조건 — 우리 데이터에 있는 것만(계획시작일·계획종료일) */}
+      <table className="w-full text-left" style={{ marginBottom: 8 }}>
+        <tbody>
+          <tr>
+            <th style={{ ...th, width: 110 }}>계획시작일</th>
+            <td>
+              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            </td>
+            <th style={{ ...th, width: 110 }}>계획종료일</th>
+            <td>
+              <input type="date" className={inputCls} value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className={inputCls} value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+            </td>
+          </tr>
+          <tr>
+            {/* 원본 [제목] — 우리 작업/기능명이 그 자리다. */}
+            <th style={{ ...th, width: 110 }}>제목</th>
+            <td colSpan={3}>
+              <input className={inputCls} value={title2} onChange={(e) => setTitle2(e.target.value)} style={{ width: 260 }} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <Modal open={showForm} title="SW개발일정 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>

@@ -46,7 +46,10 @@ export default function ConstructionSchedulePage() {
   const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [endFrom, setEndFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
   const [manager2, setManager2] = useState('')
+  const [title2, setTitle2] = useState('')
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
@@ -81,19 +84,29 @@ export default function ConstructionSchedulePage() {
       : tab === '완료' ? r.status === 'DONE'
       : r.status === 'IN_PROGRESS'
 
-  /** 기간은 '착수예정일이 이 구간에 걸리는가'로 본다 — 원본 조건 이름은 게시일이지만 우리 공정에는 게시일이 없다. */
+  /*
+   * 원본 조건 실측: <b>계획시작일(구간) · 계획종료일(구간) · 실제완료일(구간)</b> 셋이다.
+   * 우리는 <b>구간이 하나뿐</b>이라 '언제 시작하는 일' 만 좁힐 수 있고 '이번 달에 끝나는 일'
+   * 은 못 물었다 — 일정 화면에서 정작 급한 물음이 그쪽이다.
+   *
+   * <p>[실제완료일]은 넣지 않았다. 우리 프로젝트에는 <b>실제로 끝난 날을 적는 칸이 없다</b>
+   * (진행률과 상태만 있다). 칸만 만들면 눌러도 아무 일이 없다.
+   */
   const shown = rows
     .filter(inTab)
     .filter((r) => !from || (r.startDate ?? '') >= from)
     .filter((r) => !to || (r.startDate ?? '') <= to)
+    .filter((r) => !endFrom || (r.endDate ?? '') >= endFrom)
+    .filter((r) => !endTo || (r.endDate ?? '') <= endTo)
     .filter((r) => !manager2 || (r.manager ?? '').includes(manager2))
+    .filter((r) => !title2 || r.name.includes(title2))
     .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
 
   const tabCount = (t: typeof tab) =>
     rows.filter((r) => (t === '전체' ? true : t === '완료' ? r.status === 'DONE' : r.status === 'IN_PROGRESS')).length
 
   function reset() {
-    setTab('전체'); setFrom(''); setTo(''); setManager2(''); setKeyword('')
+    setTab('전체'); setFrom(''); setTo(''); setEndFrom(''); setEndTo(''); setManager2(''); setTitle2(''); setKeyword('')
   }
 
   const inputCls = 'ec-input'
@@ -132,7 +145,8 @@ export default function ConstructionSchedulePage() {
       <table className="w-full text-left" style={{ marginBottom: 8 }}>
         <tbody>
           <tr>
-            <th style={{ ...th, width: 110 }}>착수예정일</th>
+            {/* 원본 조건 이름은 [계획시작일] 이다 — 우리가 '착수예정일' 이라 달리 적고 있었다. */}
+            <th style={{ ...th, width: 110 }}>계획시작일</th>
             <td colSpan={3}>
               <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
               <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
@@ -144,9 +158,22 @@ export default function ConstructionSchedulePage() {
             </td>
           </tr>
           <tr>
-            <th style={{ ...th, width: 110 }}>담당</th>
+            <th style={{ ...th, width: 110 }}>계획종료일</th>
             <td colSpan={3}>
+              <input type="date" className={inputCls} value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className={inputCls} value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+            </td>
+          </tr>
+          <tr>
+            <th style={{ ...th, width: 110 }}>담당</th>
+            <td>
               <input className={inputCls} value={manager2} onChange={(e) => setManager2(e.target.value)} style={{ width: 200 }} />
+            </td>
+            {/* 원본 [제목] — 우리 공정명이 그 자리다. 검색상자와 달리 담당은 안 걸린다. */}
+            <th style={{ ...th, width: 110 }}>제목</th>
+            <td>
+              <input className={inputCls} value={title2} onChange={(e) => setTitle2(e.target.value)} style={{ width: 200 }} />
             </td>
           </tr>
         </tbody>
