@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse, WorkOrder } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { Link } from 'react-router-dom'
@@ -139,6 +140,12 @@ export default function WorkOrderPage() {
     }
   }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    지시번호: (o) => o.orderNo,
+  })
+
   return (
     <EcListShell
       title="작업지시서조회"
@@ -212,7 +219,7 @@ export default function WorkOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>지시번호 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('지시번호')}>지시번호 {sort.mark('지시번호')}</th>
             <th>납품처</th>
             <th style={{ width: 90 }}>담당자</th>
             <th>제품</th>
@@ -234,7 +241,7 @@ export default function WorkOrderPage() {
           ) : shown.length === 0 ? (
             <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
-            shown.map((o, idx) => (
+            sort.sorted.map((o, idx) => (
               <tr key={o.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>

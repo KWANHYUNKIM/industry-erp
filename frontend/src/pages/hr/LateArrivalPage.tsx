@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 
@@ -82,6 +83,12 @@ export default function LateArrivalPage() {
   const totalMin = useMemo(() => late.reduce((s, r) => s + r.lateMin, 0), [late])
   const reset = () => { setFrom(''); setTo(''); setKeyword('') }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(late, {
+    일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title="지각현황"
@@ -135,7 +142,7 @@ export default function LateArrivalPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th><th>사원명</th><th>부서</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원명</th><th>부서</th>
             <th style={{ textAlign: 'center' }}>출근시각</th>
             <th style={{ textAlign: 'right' }}>지각시간</th>
             <th>비고</th>
@@ -146,7 +153,7 @@ export default function LateArrivalPage() {
             <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : late.length === 0 ? (
             <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : late.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={mono}>{r.date}</td>

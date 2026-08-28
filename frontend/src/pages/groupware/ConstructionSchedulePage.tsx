@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { PROJECT_PICKS, ymd } from '../../components/EcPeriodPicks'
 
@@ -98,6 +99,12 @@ export default function ConstructionSchedulePage() {
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    착수예정: (r) => r.startDate,
+  })
+
   return (
     <EcListShell
       title="건설예정공정표"
@@ -179,7 +186,7 @@ export default function ConstructionSchedulePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>착수예정 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('착수예정')}>착수예정 {sort.mark('착수예정')}</th>
             <th style={{ width: 100 }}>완료예정</th>
             <th>공정명</th>
             <th style={{ width: 100 }}>담당</th>
@@ -192,7 +199,7 @@ export default function ConstructionSchedulePage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.startDate ?? '-'}</td>

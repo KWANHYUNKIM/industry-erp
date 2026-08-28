@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
@@ -93,6 +94,12 @@ export default function StagedAdjustmentPage() {
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    요청일: (r) => r.requestDate,
+  })
+
   return (
     <EcListShell
       title="단계별재고조정"
@@ -141,7 +148,7 @@ export default function StagedAdjustmentPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>조정번호</th>
-            <th style={{ width: 100 }}>요청일 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
             <th>품목</th>
             <th>창고</th>
             <th style={{ textAlign: 'right' }}>장부수량</th>
@@ -156,7 +163,7 @@ export default function StagedAdjustmentPage() {
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>

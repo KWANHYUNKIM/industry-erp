@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 /**
@@ -99,6 +100,12 @@ export default function AsStatusPage() {
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    접수일: (r) => r.receiptDate,
+  })
+
   return (
     <EcListShell
       title="A/S현황"
@@ -140,7 +147,7 @@ export default function AsStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>접수일 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th>
             <th>접수번호</th>
             <th>거래처</th>
             <th>품목</th>
@@ -159,7 +166,7 @@ export default function AsStatusPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
+          ) : sort.sorted.map((r, i) => {
             const days = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
             return (
               <tr key={r.id}>

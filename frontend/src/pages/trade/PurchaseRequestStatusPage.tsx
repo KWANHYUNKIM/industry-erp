@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
@@ -179,6 +180,12 @@ export default function PurchaseRequestStatusPage({
     { qty: 0, supply: 0, vat: 0 },
   ), [shown])
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    발주일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title={title}
@@ -322,7 +329,7 @@ export default function PurchaseRequestStatusPage({
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>발주일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>발주일자 {sort.mark('발주일자')}</th>
             <th>납기</th>
             <th>발주번호</th>
             <th>매입처</th>
@@ -342,7 +349,7 @@ export default function PurchaseRequestStatusPage({
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? `${STATUS_LABEL[status]} 상태의 발주서가 없습니다.` : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.date}</td>

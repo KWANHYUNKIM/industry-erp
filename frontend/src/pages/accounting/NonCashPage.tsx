@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -68,6 +69,12 @@ export default function NonCashPage() {
   const shown = rows.filter((r) => filter === '전체' || r.type === filter)
   const count = (t: NonCashType | '전체') => rows.filter((r) => t === '전체' || r.type === t).length
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (t) => t.txnDate,
+  })
+
   return (
     <EcListShell
       title="비현금거래 (대체전표)"
@@ -106,7 +113,7 @@ export default function NonCashPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 120 }}>유형</th>
             <th style={{ width: 150 }}>차변</th>
             <th style={{ width: 150 }}>대변</th>
@@ -121,7 +128,7 @@ export default function NonCashPage() {
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((t, i) => (
+          ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.txnNo}</td>

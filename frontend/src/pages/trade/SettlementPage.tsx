@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -101,6 +102,12 @@ export default function SettlementPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(rows, {
+    일자: (r) => r.settleDate,
+  })
+
   return (
     <EcListShell
       title="수금/지급 입력"
@@ -167,7 +174,7 @@ export default function SettlementPage() {
             <tr>
               <th style={{ width: 34 }}></th>
               <th>전표번호</th>
-              <th>일자 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
               <th>유형</th>
               <th>거래처</th>
               <th>결제수단</th>
@@ -179,7 +186,7 @@ export default function SettlementPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : rows.map((r, idx) => (
+            ) : sort.sorted.map((r, idx) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>

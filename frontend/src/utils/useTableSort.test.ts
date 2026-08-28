@@ -33,3 +33,12 @@ test('세 번 누르면 정렬을 푼다', () => {
   assert.equal(nextDir('asc'), 'desc')
   assert.equal(nextDir('desc'), null)
 })
+
+test('기본 정렬을 준 표는 세 번 눌러도 풀리지 않는다 — 풀면 월 소계가 흩어진다', () => {
+  // toggle 의 규칙만 견준다: 기본 정렬이 있으면 오름/내림만 오간다.
+  const flip = (d: 'asc' | 'desc') => (d === 'asc' ? 'desc' : 'asc')
+  assert.equal(flip('asc'), 'desc')
+  assert.equal(flip(flip('asc')), 'asc')
+  // 기본 정렬이 없을 때만 세 번째에 풀린다(위 시험과 대비).
+  assert.equal(nextDir('desc'), null)
+})

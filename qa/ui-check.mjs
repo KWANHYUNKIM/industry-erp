@@ -1930,6 +1930,11 @@ console.log('\n■ 표 머리에 ▼ 를 그려 놓고 정렬은 안 되는 화�
  * 화면을 <code>decorative-sort-marks.json</code> 에 적어 두고 <b>늘지 않는지</b>만 본다.
  *
  * <p>화면을 고치면(useTableSort 를 쓰면) 그 줄을 지워야 한다 — 안 지우면 여기서 걸린다.
+ *
+ * <p><b>낱말만 보면 안 된다.</b> ▼ 는 표 머리 말고 다른 데도 쓴다 — 특별단가순서의
+ * [순서 내리기] 버튼, 상세검색 판의 접기/펼치기 표시가 그렇다. 그런 ▼ 는 정렬을
+ * 약속하지 않으므로 거짓말이 아니다. 그래서 <b>&lt;th&gt; 안에 있는 ▼ 만</b> 센다.
+ * (처음에 낱말만 보다가 특별단가순서 화면을 '고칠 수 없는 빚' 으로 잘못 적어 뒀다.)
  */
 {
   const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'decorative-sort-marks.json'), 'utf8'))
@@ -1937,11 +1942,13 @@ console.log('\n■ 표 머리에 ▼ 를 그려 놓고 정렬은 안 되는 화�
   const grown = []
   const stale = []
   let fixed = 0
+  /** 표 머리 안에 든 ▼ 만 정렬 표시로 친다. */
+  const headMark = (src) => [...src.matchAll(/<th[\s\S]*?<\/th>/g)].some((m) => m[0].includes('▼'))
   for (const f of walk(join('frontend', 'src', 'pages'))) {
     if (!f.endsWith('.tsx')) continue
     const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
     const src = readFileSync(f, 'utf8')
-    const hasMark = src.includes('▼')
+    const hasMark = headMark(src)
     const sorts = src.includes('useTableSort')
     if (hasMark && !sorts && !listed.has(rel)) grown.push(rel + ' — ▼ 를 새로 그렸는데 정렬이 없다')
     if (listed.has(rel) && (sorts || !hasMark)) { stale.push(rel + ' — 이제 정렬된다(목록에서 지우세요)'); fixed += 1 }

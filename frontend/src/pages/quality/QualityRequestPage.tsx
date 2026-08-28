@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -89,6 +90,12 @@ export default function QualityRequestPage() {
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    요청일자: (r) => r.requestDate,
+  })
+
   return (
     <EcListShell
       title="품질검사요청"
@@ -144,7 +151,7 @@ export default function QualityRequestPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>요청번호</th>
-            <th style={{ width: 100 }}>요청일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일자')}>요청일자 {sort.mark('요청일자')}</th>
             <th style={{ width: 90 }}>검사구분</th>
             <th>품목명</th>
             <th style={{ width: 120 }}>로트No.</th>
@@ -160,7 +167,7 @@ export default function QualityRequestPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.requestNo}</td>

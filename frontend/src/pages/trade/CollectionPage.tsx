@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -147,6 +148,15 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     setKeyword('')
   }
 
+
+  /*
+   * 한 칸에 일자와 번호를 함께 적는 칸이라 <b>찍히는 그대로</b> 이어 붙여 견준다 —
+   * 일자가 같은 건은 번호 차례로 선다.
+   */
+  const sort = useTableSort(shown, {
+    '일자-No.': (r) => `${r.settleDate} ${r.docNo}`,
+  })
+
   return (
     <EcListShell
       title={title}
@@ -209,7 +219,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         <thead>
           <tr>
             <th></th>
-            <th style={{ textAlign: 'center', width: 190 }}>일자-No. ▼</th>
+            <th style={{ textAlign: 'center', width: 190, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             {/* 원본 열 이름 그대로 — 수금현황·지급현황 둘 다 [거래처명]·[금액]·[적요] 다. */}
             <th>거래처명</th>
             <th style={{ textAlign: 'right' }}>금액</th>
@@ -222,7 +232,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
             <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>

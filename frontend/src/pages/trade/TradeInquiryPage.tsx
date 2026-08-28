@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
@@ -292,6 +293,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   }
   useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
+
+  /* 화면에 찍히는 <code>dateNo</code> 그대로 견준다 — 보이는 글자와 차례가 맞아야 한다. */
+  const sort = useTableSort(shown, {
+    '일자-No.': (d) => dateNo(d),
+  })
+
   return (
     <EcListShell
       title={cfg.title} search={keyword} onSearchChange={setKeyword}
@@ -388,7 +395,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
             */}
-            <th>일자-No. ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             <th>{cfg.partnerLabel}</th>
             <th>품목명(요약)</th>
             <th style={{ textAlign: 'right' }}>금액합계</th>
@@ -410,7 +417,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((d, i) => (
+          ) : sort.sorted.map((d, i) => (
             <Fragment key={d.id}>
               <tr onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
                 <td

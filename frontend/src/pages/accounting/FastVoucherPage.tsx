@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -91,6 +92,12 @@ export default function FastVoucherPage() {
   const count = (t: FastVoucherType) => rows.filter((r) => r.type === t).length
   const label = TABS.find((t) => t.type === type)!.label
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (v) => v.voucherDate,
+  })
+
   return (
     <EcListShell
       title="FastEntry (지출결의서·입금보고서·가지급금정산서)"
@@ -125,7 +132,7 @@ export default function FastVoucherPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 110, textAlign: 'center' }}>결제수단</th>
             <th style={{ width: 170 }}>계좌</th>
             <th style={{ width: 120 }}>거래처</th>
@@ -141,7 +148,7 @@ export default function FastVoucherPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((v, i) => (
+          ) : sort.sorted.map((v, i) => (
             <Fragment key={v.id}>
               <tr onClick={() => setOpenId(openId === v.id ? null : v.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

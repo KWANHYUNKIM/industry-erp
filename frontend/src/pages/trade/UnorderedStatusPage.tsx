@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Quotation, QuotationStatus } from '../../api/types'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -133,6 +134,12 @@ export default function UnorderedStatusPage() {
 
   const reset = () => { setFilters(EMPTY_FILTERS); setKeyword('') }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    견적일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title="미주문현황"
@@ -193,7 +200,7 @@ export default function UnorderedStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>견적일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('견적일자')}>견적일자 {sort.mark('견적일자')}</th>
             <th>유효기간</th>
             <th>견적번호</th>
             <th>매출처</th>
@@ -212,7 +219,7 @@ export default function UnorderedStatusPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '미주문(미전환) 견적이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.date}</td>

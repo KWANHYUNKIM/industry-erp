@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 
@@ -99,6 +100,12 @@ export default function QualityStatusPage() {
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    검사일자: (r) => r.inspectionDate,
+  })
+
   return (
     <EcListShell
       title="품질검사현황"
@@ -138,7 +145,7 @@ export default function QualityStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>검사일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
             <th>검사번호</th>
             <th style={{ textAlign: 'center' }}>검사구분</th>
             <th>품목명</th>
@@ -158,7 +165,7 @@ export default function QualityStatusPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionDate}</td>

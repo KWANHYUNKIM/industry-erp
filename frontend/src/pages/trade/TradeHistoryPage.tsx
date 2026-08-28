@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
 import { partnerCodeItems } from '../../utils/codeItems'
 
@@ -114,6 +115,12 @@ export default function TradeHistoryPage() {
   const saleCount = rows.filter((r) => r.kind === 'SALE').length
   const buyCount = rows.filter((r) => r.kind === 'PURCHASE').length
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title="거래이력조회"
@@ -164,7 +171,7 @@ export default function TradeHistoryPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ textAlign: 'center', width: 54 }}>구분</th>
             <th>전표번호</th>
             <th>거래처</th>
@@ -184,7 +191,7 @@ export default function TradeHistoryPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
+          ) : sort.sorted.map((r, i) => {
             const c = KIND_COLOR[r.kind]
             return (
               <tr key={r.key}>

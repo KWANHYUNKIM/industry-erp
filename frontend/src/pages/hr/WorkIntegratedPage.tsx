@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { useAuth } from '../../auth/AuthContext'
 
 /**
@@ -93,6 +94,12 @@ export default function WorkIntegratedPage() {
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(rows, {
+    일자: (r) => r.date,
+  })
+
   return (
     <EcListShell title="출퇴근/근태/일정 통합현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
@@ -123,7 +130,7 @@ export default function WorkIntegratedPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th><th>사원/담당</th><th>부서</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원/담당</th><th>부서</th>
             <th style={{ textAlign: 'center' }}>출근</th><th style={{ textAlign: 'center' }}>퇴근</th>
             <th style={{ textAlign: 'center' }}>근태</th><th>일정</th>
           </tr>
@@ -133,7 +140,7 @@ export default function WorkIntegratedPage() {
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={mono}>{r.date}</td>

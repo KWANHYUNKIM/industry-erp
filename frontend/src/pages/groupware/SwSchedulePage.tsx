@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -72,6 +73,12 @@ export default function SwSchedulePage() {
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    목표일: (r) => r.endDate,
+  })
+
   return (
     <EcListShell
       title="SW개발일정관리"
@@ -120,7 +127,7 @@ export default function SwSchedulePage() {
             <th style={{ width: 90 }}>코드</th>
             <th>작업/기능명</th>
             <th style={{ width: 100 }}>담당</th>
-            <th style={{ width: 100 }}>목표일 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('목표일')}>목표일 {sort.mark('목표일')}</th>
             <th style={{ width: 170 }}>진행률(%)</th>
             <th style={{ width: 70, textAlign: 'center' }}>상태</th>
             <th style={{ width: 80, textAlign: 'center' }}>처리</th>
@@ -129,7 +136,7 @@ export default function SwSchedulePage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code ?? '-'}</td>

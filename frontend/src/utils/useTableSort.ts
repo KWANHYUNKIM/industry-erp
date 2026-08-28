@@ -51,9 +51,22 @@ export function sortRows<T>(rows: T[], get: (r: T) => SortValue, dir: 'asc' | 'd
     .map(([r]) => r)
 }
 
-export function useTableSort<T>(rows: T[], accessors: Record<string, (r: T) => SortValue>) {
-  const [key, setKey] = useState<string | null>(null)
-  const [dir, setDir] = useState<'asc' | 'desc' | null>(null)
+/**
+ * 기본 정렬. <b>이미 어떤 차례로 세워 두고 있던 표</b>에 쓴다.
+ *
+ * <p>판매·구매현황처럼 <b>월 소계가 줄 사이에 끼는</b> 표는 날짜로 묶여 있어야 소계가
+ * 맞는다. 그런 표에서 정렬을 <b>풀어 버리면</b> 달이 흩어져 소계가 엉킨다. 그래서
+ * 기본 정렬을 준 표는 <b>'정렬 없음' 상태로 가지 않는다</b> — 오름/내림만 오간다.
+ */
+export type InitialSort = { key: string; dir: 'asc' | 'desc' }
+
+export function useTableSort<T>(
+  rows: T[],
+  accessors: Record<string, (r: T) => SortValue>,
+  initial?: InitialSort,
+) {
+  const [key, setKey] = useState<string | null>(initial?.key ?? null)
+  const [dir, setDir] = useState<'asc' | 'desc' | null>(initial?.dir ?? null)
 
   const sorted = useMemo(() => {
     if (!key || !dir || !accessors[key]) return rows
@@ -64,6 +77,8 @@ export function useTableSort<T>(rows: T[], accessors: Record<string, (r: T) => S
   /** 머리를 눌렀을 때. 다른 열을 누르면 그 열의 오름차순부터 시작한다. */
   const toggle = (k: string) => {
     if (k !== key) { setKey(k); setDir('asc'); return }
+    // 기본 정렬을 준 표는 풀 수 없다 — 풀면 묶음(월 소계)이 흩어진다.
+    if (initial) { setDir(dir === 'asc' ? 'desc' : 'asc'); return }
     const d = nextDir(dir)
     setDir(d)
     if (!d) setKey(null)

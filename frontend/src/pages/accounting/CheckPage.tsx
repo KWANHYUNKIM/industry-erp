@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -90,6 +91,15 @@ export default function CheckPage() {
   const held = shown.filter((r) => r.status === 'HELD')
   const heldTotal = held.reduce((s, r) => s + r.amount, 0)
 
+
+  /*
+   * 이 칸의 이름은 탭에 따라 [수취일]/[발행일]로 바뀌지만 <b>같은 칸</b>이다(issueDate).
+   * 그래서 정렬 열쇠는 하나로 둔다 — 탭을 옮겼다고 정렬이 풀리면 이상하다.
+   */
+  const sort = useTableSort(shown, {
+    일자: (c) => c.issueDate,
+  })
+
   return (
     <EcListShell
       title="수표관리"
@@ -126,7 +136,7 @@ export default function CheckPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>수표번호</th>
-            <th style={{ width: 100 }}>{type === 'RECEIVED' ? '수취일' : '발행일'} ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>{type === 'RECEIVED' ? '수취일' : '발행일'} {sort.mark('일자')}</th>
             <th style={{ width: 120, textAlign: 'right' }}>금액</th>
             <th style={{ width: 110 }}>은행</th>
             <th style={{ width: 130 }}>거래처</th>
@@ -142,7 +152,7 @@ export default function CheckPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((c, i) => (
+          ) : sort.sorted.map((c, i) => (
             <tr key={c.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.checkNo}</td>

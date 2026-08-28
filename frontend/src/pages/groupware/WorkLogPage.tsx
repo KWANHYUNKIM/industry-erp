@@ -3,6 +3,7 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableSort } from '../../utils/useTableSort'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -154,6 +155,12 @@ export default function WorkLogPage() {
       setError(extractErrorMessage(err))
     }
   }
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    업무보고일: (r) => r.reportDate,
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -328,7 +335,7 @@ export default function WorkLogPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>업무보고일 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('업무보고일')}>업무보고일 {sort.mark('업무보고일')}</th>
               <th style={{ width: 44, textAlign: 'center' }}>요일</th>
               <th>부서</th>
               <th>프로젝트</th>
@@ -342,7 +349,7 @@ export default function WorkLogPage() {
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
+            ) : sort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.reportDate}</td>

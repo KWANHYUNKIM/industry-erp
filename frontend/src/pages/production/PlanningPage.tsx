@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
@@ -71,6 +72,12 @@ export default function PlanningPage() {
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    계획주차: (p) => p.planWeek,
+  })
+
   return (
     <EcListShell
       title="생산계획 (MPS)"
@@ -121,7 +128,7 @@ export default function PlanningPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>계획주차 ▼</th><th>제품</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('계획주차')}>계획주차 {sort.mark('계획주차')}</th><th>제품</th>
             <th style={{ textAlign: 'right' }}>수요량</th>
             <th style={{ textAlign: 'right' }}>현재고</th>
             <th style={{ textAlign: 'right' }}>부족량</th>
@@ -134,7 +141,7 @@ export default function PlanningPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((p, i) => (
+          ) : sort.sorted.map((p, i) => (
             <tr key={p.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{p.planWeek}</td>

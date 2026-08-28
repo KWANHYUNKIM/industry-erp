@@ -1,5 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { periodOf, STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -218,11 +219,20 @@ export default function SalesStatusPage() {
    * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다 —
    * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
    */
+  /*
+   * [일자] 머리에 ▼ 를 그려 놓고 <b>눌러도 아무 일이 없었다.</b> 이 표는 실은 늘
+   * 일자 오름차순으로 세워져 있었다 — 표시가 '고를 수 있다' 고 말하는데 고를 수가 없었다.
+   *
+   * <p>이 표는 달이 바뀌는 자리에 <b>월 소계 줄을 끼워 넣는다.</b> 그래서 정렬을
+   * <b>풀 수는 없다</b> — 날짜로 묶여 있지 않으면 소계가 엉킨다. 오름/내림만 오간다.
+   */
+  const sort = useTableSort(shown, { 일자: (r) => r.date }, { key: '일자', dir: 'asc' })
+
   const lineRows = useMemo(() => {
     type Row =
       | { kind: 'line'; key: string; no: number; r: typeof shown[number] }
       | { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
-    const sorted = [...shown].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    const sorted = sort.sorted
     const out: Row[] = []
     let month = ''
     let no = 0
@@ -243,7 +253,7 @@ export default function SalesStatusPage() {
     }
     flush()
     return out
-  }, [shown])
+  }, [shown, sort.sorted])
 
   /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
@@ -503,7 +513,7 @@ export default function SalesStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th>전표번호</th>
             <th>거래처</th>
             <th>품목명</th>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { Company } from '../api/types'
 import EcListShell from '../components/EcListShell'
+import { useTableSort } from '../utils/useTableSort'
 
 /** 회사(테넌트) 관리 — 본사 관리자만. 회사를 만들면 전용 데이터 스키마와 첫 관리자 계정이
  *  자동 생성되고, 발급된 회사코드로 그 회사에 로그인한다. */
@@ -26,6 +27,12 @@ export default function CompaniesPage() {
   useEffect(() => {
     load()
   }, [])
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(companies, {
+    회사코드: (c) => c.code,
+  })
 
   return (
     <EcListShell
@@ -54,7 +61,7 @@ export default function CompaniesPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>회사코드 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('회사코드')}>회사코드 {sort.mark('회사코드')}</th>
             <th>회사명</th>
             <th>데이터 스키마</th>
             <th style={{ textAlign: 'center' }}>상태</th>
@@ -66,7 +73,7 @@ export default function CompaniesPage() {
           ) : companies.length === 0 ? (
             <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
-            companies.map((c, idx) => (
+            sort.sorted.map((c, idx) => (
               <tr key={c.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>
