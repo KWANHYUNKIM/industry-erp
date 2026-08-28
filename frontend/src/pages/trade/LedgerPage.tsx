@@ -229,10 +229,13 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       ]}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        {/* 원본 [채권채무구분] — 채권 · 채무 · 채권채무. */}
+        {/*
+          원본 [채권채무구분] — <b>전체 · 채권 · 채무</b> 차례다(사본 실측).
+          우리는 '채권채무' 라 적고 맨 뒤에 두었다. 이름도 자리도 원본에 맞춘다.
+        */}
         <EcCond label="채권채무구분">
           <div className="ec-pills">
-            {([['AR', '채권'], ['AP', '채무'], ['BOTH', '채권채무']] as const).map(([v, l]) => (
+            {([['BOTH', '전체'], ['AR', '채권'], ['AP', '채무']] as const).map(([v, l]) => (
               <button key={v} type="button" className={`ec-pill no-ec${side === v ? ' active' : ''}`}
                       onClick={() => setSide(v)}>{l}</button>
             ))}
