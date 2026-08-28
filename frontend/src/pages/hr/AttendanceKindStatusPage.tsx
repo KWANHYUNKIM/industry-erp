@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -181,7 +182,11 @@ export default function AttendanceKindStatusPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.docDate}</td>
+              {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+                <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
+                      style={{ color: 'var(--ec-blue)' }}>{r.docDate}</Link>
+              </td>
               <td style={{ fontFamily: 'monospace' }}>
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>

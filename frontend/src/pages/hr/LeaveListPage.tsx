@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
@@ -54,7 +54,13 @@ export default function LeaveListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('전체')
-  const [emp, setEmp] = useState('')
+  /*
+   * 근태현황에서 줄을 눌러 넘어올 때 <b>그 사원을 물고</b> 열린다(?emp=사원명).
+   * 원본은 현황의 [전표일자]를 눌러 그 전표를 연다. 현황에서 고르고 넘어왔는데
+   * 전체 목록이 나오면 다시 찾아야 해서, 눌러 온 뜻이 없어진다.
+   */
+  const [searchParams] = useSearchParams()
+  const [emp, setEmp] = useState(searchParams.get('emp') ?? '')
   const [type, setType] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
