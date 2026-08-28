@@ -20,7 +20,8 @@ const NEXT: Record<AsStatus, AsStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PR
 
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
-  receiptDate: string; symptom: string | null; charge: string | null
+  receiptDate: string; title: string | null; scheduledDate: string | null
+  symptom: string | null; charge: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
 }
 
@@ -52,6 +53,10 @@ export default function AsManagePage() {
   const [itemId, setItemId] = useState('')
   const [receiptDate, setReceiptDate] = useState(today())
   const [symptom, setSymptom] = useState('')
+  /* 원본 A/S접수입력의 [제목]·[수리예정일자]. 목록에서 한 건이 무슨 일인지
+     증상 전문을 읽어야 알았고, 언제까지 고쳐 주기로 했는지는 적을 데가 없었다. */
+  const [title, setTitle] = useState('')
+  const [scheduledDate, setScheduledDate] = useState('')
   const [charge, setCharge] = useState('')
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
@@ -106,6 +111,7 @@ export default function AsManagePage() {
     try {
       const res = await api.post<AsRow>('/as-requests', {
         partnerId: Number(partnerId), itemId: Number(itemId), receiptDate,
+        title: title || undefined, scheduledDate: scheduledDate || undefined,
         symptom: symptom || undefined, charge: charge || undefined,
       })
       setOk(`${res.data.asNo} A/S 접수 완료`)
@@ -173,7 +179,8 @@ export default function AsManagePage() {
                                  value={partnerId} onChange={setPartnerId}
                                  items={customers.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
-                <th style={th}>접수일</th>
+                {/* 원본 A/S접수입력의 이름은 [접수일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
+                <th style={th}>일자</th>
                 <td><input type="date" className={inputCls} value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
@@ -186,6 +193,12 @@ export default function AsManagePage() {
                 </td>
                 <th style={th}>담당</th>
                 <td><input className={inputCls} value={charge} onChange={(e) => setCharge(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                <th style={th}>제목</th>
+                <td><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} placeholder="무슨 건인지 한 줄로" /></td>
+                <th style={th}>수리예정일자</th>
+                <td><input type="date" className={inputCls} value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>증상</th>
@@ -260,23 +273,25 @@ export default function AsManagePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수번호')}>접수번호 {sort.mark('접수번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수번호')}>접수번호 {sort.mark('접수번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
             {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
-            <th>담당자명</th><th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th>담당자명</th><th>수리예정일자</th><th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
               <td>{r.receiptDate}</td>
+              <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.itemName}</td>
               <td>{r.symptom ?? ''}</td>
               <td>{r.charge ?? ''}</td>
+              <td>{r.scheduledDate ?? ''}</td>
               <td style={{ textAlign: 'center', color: COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
               <td>{r.doneDate ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>

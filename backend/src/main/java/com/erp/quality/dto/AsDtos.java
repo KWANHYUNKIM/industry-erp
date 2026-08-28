@@ -50,6 +50,8 @@ public final class AsDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             LocalDate receiptDate,
+            String title,
+            LocalDate scheduledDate,
             String symptom,
             String charge
     ) {}
@@ -57,6 +59,8 @@ public final class AsDtos {
     public record UpdateAsRequest(
             AsStatus status,
             String charge,
+            String title,
+            LocalDate scheduledDate,
             String repairNote,
             LocalDate doneDate
     ) {}
@@ -66,6 +70,7 @@ public final class AsDtos {
             Long partnerId, String partnerName,
             Long itemId, String itemName,
             LocalDate receiptDate,
+            String title, LocalDate scheduledDate,
             String symptom, String charge,
             AsStatus status, String statusName,
             LocalDate doneDate, String repairNote
@@ -76,6 +81,7 @@ public final class AsDtos {
                     a.getPartner().getId(), a.getPartner().getName(),
                     a.getItem().getId(), a.getItem().getName(),
                     a.getReceiptDate(),
+                    a.getTitle(), a.getScheduledDate(),
                     a.getSymptom(), a.getCharge(),
                     a.getStatus(), a.getStatus().getDisplayName(),
                     a.getDoneDate(), a.getRepairNote());

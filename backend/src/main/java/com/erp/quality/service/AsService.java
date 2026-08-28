@@ -64,6 +64,8 @@ public class AsService {
                 .partner(partner)
                 .item(item)
                 .receiptDate(date)
+                .title(req.title())
+                .scheduledDate(req.scheduledDate())
                 .symptom(req.symptom())
                 .charge(req.charge())
                 .status(AsStatus.RECEIVED)
@@ -85,6 +87,8 @@ public class AsService {
             }
         }
         if (req.charge() != null) as.setCharge(req.charge());
+        if (req.title() != null) as.setTitle(req.title());
+        if (req.scheduledDate() != null) as.setScheduledDate(req.scheduledDate());
         if (req.repairNote() != null) as.setRepairNote(req.repairNote());
         if (req.doneDate() != null) as.setDoneDate(req.doneDate());
         return AsResponse.from(as);

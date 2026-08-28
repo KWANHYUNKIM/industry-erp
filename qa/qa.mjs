@@ -793,7 +793,18 @@ async function scenarioAsConsumption(f) {
   const as = await must('POST', '/as-requests', {
     partnerId: f.customer.id, itemId: f.product.id,
     receiptDate: '2026-03-05', symptom: 'QA 소모현황용 접수', charge: 'QA담당',
+    title: 'QA 제목', scheduledDate: '2026-03-12',
   })
+  /*
+   * 원본 A/S접수입력의 [제목]·[수리예정일자]. 응답 record 에 필드를 만들어 놓고
+   * <b>Create 요청에 빠뜨리면 서버가 조용히 버린다</b>(record 에 없는 키는 JSON 에서 무시된다).
+   * 화면은 값을 보내고 저장됐다고 믿는데 다시 열면 비어 있다.
+   */
+  eq('A/S 제목이 저장된다', as.title, 'QA 제목')
+  eq('A/S 수리예정일자가 저장된다', as.scheduledDate, '2026-03-12')
+  const reread = (await must('GET', '/as-requests')).find((x) => x.id === as.id)
+  eq('다시 조회해도 제목·수리예정일자가 남아 있다',
+    `${reread?.title}/${reread?.scheduledDate}`, 'QA 제목/2026-03-12')
   await must('POST', `/as-requests/${as.id}/parts`, {
     itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 3, unitPrice: 1000,
   })

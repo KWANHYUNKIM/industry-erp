@@ -39,6 +39,13 @@ public class AsRequest extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate receiptDate;
 
+    /** 원본 A/S접수입력 [제목]. 목록에서 한 건이 무슨 일인지 증상 전문을 읽지 않고 알게 한다. */
+    @Column(length = 200)
+    private String title;
+
+    /** 원본 A/S접수입력 [수리예정일자]. 언제까지 고쳐 주기로 했나 — 완료일은 끝난 뒤에야 생긴다. */
+    private LocalDate scheduledDate;
+
     /** 고장 증상 */
     @Column(length = 500)
     private String symptom;
