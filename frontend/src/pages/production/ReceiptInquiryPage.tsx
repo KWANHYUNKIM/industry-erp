@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
 
 /**
@@ -20,6 +23,8 @@ interface Row {
   productUnit: string
   warehouseName: string
   fromWarehouseName: string | null
+  /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면이 안 받아 조건으로 쓸 수 없었다. */
+  projectName: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
@@ -57,6 +62,14 @@ export default function ReceiptInquiryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 생산입고조회의 조건 차례는 <b>창고 · 프로젝트 · 품목</b> 이다(사본 실측).
+   * 우리는 이름 한 칸뿐이라 창고로 좁힐 길이 없었다.
+   */
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const pickers = useCondPickers(['warehouses', 'projects', 'items'])
 
   async function load() {
     setLoading(true)
@@ -91,7 +104,12 @@ export default function ReceiptInquiryPage() {
     if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패(참조 중이면 못 지운다).`)
   }
 
-  const shown = rows.filter((r) => !keyword || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
+  const shown = rows.filter((r) => (!keyword
+    || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
+    && (!warehouseCond || r.warehouseName.includes(warehouseCond)
+      || (r.fromWarehouseName ?? '').includes(warehouseCond))
+    && (!projectCond || (r.projectName ?? '').includes(projectCond))
+    && (!itemCond || r.productName.includes(itemCond)))
 
   return (
     <EcListShell
@@ -110,6 +128,22 @@ export default function ReceiptInquiryPage() {
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
+      {/* 원본 조건 차례: 창고 · 프로젝트 · 품목 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+      </ul>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>

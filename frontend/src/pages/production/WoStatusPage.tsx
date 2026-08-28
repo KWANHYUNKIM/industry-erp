@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -50,6 +53,16 @@ export default function WoStatusPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+  /*
+   * 원본 작업지시서현황의 조건은 <b>작업지시No. · 창고 · 거래처 · 품목</b> 이다(사본 실측).
+   * 우리는 이름 한 칸(keyword)뿐이라, 창고로 좁히려면 눈으로 훑어야 했다 —
+   * 네 값 모두 이미 목록에 실려 오고 있었다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [warehouseCond, setWarehouseCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners', 'items'])
 
   async function load() {
     setLoading(true)
@@ -75,7 +88,11 @@ export default function WoStatusPage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  const shown = rows.filter((r) => !keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
+  const shown = rows.filter((r) => (!keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
+    && (!orderNoCond || r.orderNo.includes(orderNoCond))
+    && (!warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
+    && (!partnerCond || (r.partnerName ?? '').includes(partnerCond))
+    && (!itemCond || r.productName.includes(itemCond)))
 
   return (
     <EcListShell
@@ -85,6 +102,27 @@ export default function WoStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
+      {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="작업지시No.">
+          <input className="ec-input" value={orderNoCond}
+                 onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        {/* 마스터를 고르는 조건은 직접 입력이 아니라 코드도움이다 — 다른 화면과 같은 규칙. */}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+      </ul>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>

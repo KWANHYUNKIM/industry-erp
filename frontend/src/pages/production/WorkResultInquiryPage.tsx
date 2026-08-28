@@ -78,7 +78,7 @@ async function printOne(r: Row) {
 export default function WorkResultInquiryPage() {
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'warehouses', 'employees'])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -89,6 +89,14 @@ export default function WorkResultInquiryPage() {
   const [to, setTo] = useState(init.to)
   const [process, setProcess] = useState('')
   const [product, setProduct] = useState('')
+  /*
+   * 원본 작업내역조회의 조건 차례는 <b>생산공장 · 작업 · 담당자 · 작업품목 · 생산품목</b>
+   * 이다(사본 실측). 셋이 없었는데 <b>값은 이미 목록에 실려 오고 있었다</b> —
+   * 화면에 보이는데 그것으로 거를 수만 없었다.
+   */
+  const [warehouse, setWarehouse] = useState('')
+  const [worker, setWorker] = useState('')
+  const [workItem, setWorkItem] = useState('')
 
   async function load() {
     setLoading(true)
@@ -110,8 +118,11 @@ export default function WorkResultInquiryPage() {
     if (r.workDate < from || r.workDate > to) return false
     if (process && !r.process.includes(process)) return false
     if (product && !(r.productName ?? '').includes(product)) return false
+    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (worker && !(r.worker ?? '').includes(worker)) return false
+    if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
     return true
-  }), [rows, from, to, process, product])
+  }), [rows, from, to, process, product, warehouse, worker, workItem])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.goodQty + r.defectQty, time: s.time + r.workTimeMin }),
@@ -171,9 +182,25 @@ export default function WorkResultInquiryPage() {
             ))}
           </span>
         </EcCond>
-        <EcCond label="작업(공정)" pick>
+        {/* 원본은 [생산공장]이 [작업]보다 앞이다. 우리는 그 칸이 아예 없었다. */}
+        <EcCond label="생산공장" pick>
+          <CodePickerField label="생산공장" hideLabel width={180} emptyLabel="전체"
+                           value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+        </EcCond>
+        {/* 원본 조건 이름은 [작업(공정)]이 아니라 <b>[작업]</b> 이다. */}
+        <EcCond label="작업" pick>
           <input className="ec-input" placeholder="공정명 일부" value={process}
                  onChange={(e) => setProcess(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/* 담당자는 자유입력 글자로 저장돼 있지만, <b>고르는 칸은 사원 목록</b>이다 —
+            사람이 이름을 외워 치게 두면 오타 하나로 아무것도 안 걸린다. */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
+                           value={worker} onChange={setWorker} items={pickers.employees} />
+        </EcCond>
+        <EcCond label="작업품목" pick>
+          <CodePickerField label="작업품목" hideLabel width={200} emptyLabel="전체"
+                           value={workItem} onChange={setWorkItem} items={pickers.items} />
         </EcCond>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
