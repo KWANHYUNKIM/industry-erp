@@ -28,12 +28,17 @@ export default function QuotationPage() {
   const [rows, setRows] = useState<Quotation[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [itemCond, setItemCond] = useState('')
+  /* 원본 견적서 조건 차례: … <b>창고</b> · <b>프로젝트</b> · 관리항목 · 거래처 · 품목 · 발송여부. */
+  const [whCond, setWhCond] = useState('')
+  const [projCond, setProjCond] = useState('')
   /*
    * 원본 견적서 조건의 맨 뒤 <b>[발송여부]</b>. 우리 견적은 [발송] 을 눌러 상태가
    * <b>발송</b> 으로 가고, 수주로 전환된 것도 <b>보낸 뒤</b>의 일이라 보낸 것으로 친다.
@@ -53,6 +58,8 @@ export default function QuotationPage() {
     load()
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'SUPPLIER'))).catch(() => {})
+    api.get<{ id: number; code: string; name: string }[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
   }, [])
 
   /** 원본은 일자와 번호를 '2026/08/03 -1' 로 한 칸에 적는다(판매조회와 같은 규칙). */
@@ -71,10 +78,12 @@ export default function QuotationPage() {
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !whCond || r.warehouseName === whCond)
+    .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => sentCond === '전체'
       || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
-    [rows, tab, itemCond, sentCond])
+    [rows, tab, itemCond, sentCond, whCond, projCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -145,6 +154,16 @@ export default function QuotationPage() {
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond}
+                           items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond}
+                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
@@ -254,16 +273,22 @@ export default function QuotationPage() {
         </tbody>
       </table>
 
-      {showForm && <QuotationForm items={items} partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}
+      {showForm && <QuotationForm items={items} partners={partners} warehouses={warehouses} projects={projects} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}
     </EcListShell>
   )
 }
 
-function QuotationForm({ items, partners, onClose, onSaved }: {
-  items: Item[]; partners: Partner[]; onClose: () => void; onSaved: () => void
+function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved }: {
+  items: Item[]; partners: Partner[]
+  warehouses: { id: number; code: string; name: string }[]
+  projects: { id: number; code: string; name: string }[]
+  onClose: () => void; onSaved: () => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [quoteDate, setQuoteDate] = useState(today())
+  /* 원본 견적서의 [창고]·[프로젝트]. 판매전표는 이미 물고 있는데 견적만 없었다. */
+  const [fWarehouse, setFWarehouse] = useState('')
+  const [fProject, setFProject] = useState('')
   const [validUntil, setValidUntil] = useState('')
   const [lines, setLines] = useState<LineForm[]>([emptyLine()])
   const [saving, setSaving] = useState(false)
@@ -290,7 +315,10 @@ function QuotationForm({ items, partners, onClose, onSaved }: {
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
     setSaving(true)
     try {
-      await api.post('/quotations', { partnerId: Number(partnerId), quoteDate, validUntil: validUntil || undefined, taxable: true, lines: payload })
+      await api.post('/quotations', { partnerId: Number(partnerId), quoteDate,
+        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
+        projectId: fProject ? Number(fProject) : undefined,
+        validUntil: validUntil || undefined, taxable: true, lines: payload })
       onSaved()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -324,7 +352,20 @@ function QuotationForm({ items, partners, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>유효기한</th>
                 <td><input type="date" className="ec-input" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} style={{ width: 150 }} /></td>
-                <td colSpan={2}></td>
+                <th style={{ background: '#f5f7fa' }}>창고</th>
+                <td>
+                  <CodePickerField label="창고" hideLabel width={200} emptyLabel="선택 안 함"
+                                   value={fWarehouse} onChange={setFWarehouse}
+                                   items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+                </td>
+              </tr>
+              <tr>
+                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <td colSpan={3}>
+                  <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함"
+                                   value={fProject} onChange={setFProject}
+                                   items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
               </tr>
             </tbody>
           </table>

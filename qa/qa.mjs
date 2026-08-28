@@ -787,6 +787,36 @@ async function scenarioRelations(f) {
  * 조건(접수일자·창고·거래처·수리품목)을 서버가 받아 <b>거른 뒤 합친다.</b>
  * 조건을 잘못 걸면 화면은 멀쩡한 채 숫자만 조용히 틀린다.
  */
+/**
+ * 견적서의 [창고]·[프로젝트] — 응답 record 에만 만들고 <b>Create 요청에 빠뜨리면
+ * 서버가 조용히 버린다.</b> 이 저장소에서 세 번 낸 실수라 저장·재조회를 둘 다 잰다.
+ */
+async function scenarioQuotationWarehouseProject(f) {
+  section('■ 시나리오. 견적서가 창고·프로젝트를 기억한다')
+
+  const proj = await ensure('/projects', 'code', `${P}PRJQ`, null, {
+    code: `${P}PRJQ`, name: 'QA견적프로젝트', startDate: '2026-01-01',
+  })
+  const q = await must('POST', '/quotations', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, projectId: proj.id,
+    quoteDate: '2026-03-02', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 10000 }],
+  })
+  eq('견적서가 창고를 문다', q.warehouseName, f.warehouse.name)
+  eq('견적서가 프로젝트를 문다', q.projectName, proj.name)
+
+  const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
+  eq('다시 조회해도 창고·프로젝트가 남아 있다',
+    `${again?.warehouseName}/${again?.projectName}`, `${f.warehouse.name}/${proj.name}`)
+
+  /* 안 고르고도 만들 수 있어야 한다 — 견적 시점에는 아직 못 정하는 일이 흔하다. */
+  const bare = await must('POST', '/quotations', {
+    partnerId: f.customer.id, quoteDate: '2026-03-02', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  eq('창고·프로젝트 없이도 견적이 만들어진다', `${bare.warehouseName}/${bare.projectName}`, 'null/null')
+}
+
 async function scenarioAsConsumption(f) {
   section('■ 시나리오. A/S소모현황이 조건대로 걸러 합친다')
 
@@ -8188,6 +8218,7 @@ async function main() {
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()
   await scenarioAsConsumption(fixtures)
+  await scenarioQuotationWarehouseProject(fixtures)
 
   checkDeadAssertions()
 

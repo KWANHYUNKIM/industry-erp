@@ -24,6 +24,9 @@ public final class QuotationDtos {
 
     public record CreateQuotationRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
             LocalDate quoteDate,
             LocalDate validUntil,
             Boolean taxable,
@@ -47,6 +50,8 @@ public final class QuotationDtos {
     public record QuotationResponse(
             Long id, String quoteNo, LocalDate quoteDate, LocalDate validUntil,
             Long partnerId, String partnerName,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
             QuotationStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Long convertedOrderId, String remark, String createdBy,
@@ -56,6 +61,10 @@ public final class QuotationDtos {
             return new QuotationResponse(
                     q.getId(), q.getQuoteNo(), q.getQuoteDate(), q.getValidUntil(),
                     q.getPartner().getId(), q.getPartner().getName(),
+                    q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                    q.getWarehouse() != null ? q.getWarehouse().getName() : null,
+                    q.getProject() != null ? q.getProject().getId() : null,
+                    q.getProject() != null ? q.getProject().getName() : null,
                     q.getStatus(), q.getStatus().getDisplayName(),
                     q.getSupplyAmount(), q.getVatAmount(), q.getTotalAmount(),
                     q.getConvertedOrderId(), q.getRemark(), q.getCreatedBy(),

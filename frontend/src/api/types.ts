@@ -1599,6 +1599,11 @@ export interface Quotation {
   validUntil: string | null
   partnerId: number
   partnerName: string
+  /** 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 널이다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  projectId: number | null
+  projectName: string | null
   status: QuotationStatus
   statusName: string
   supplyAmount: number

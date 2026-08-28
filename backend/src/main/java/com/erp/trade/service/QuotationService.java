@@ -16,6 +16,8 @@ import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.trade.repository.QuotationRepository;
 import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,9 @@ public class QuotationService {
     private final QuotationRepository quotationRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
+    /* 다른 모듈의 값은 그 모듈이 공개한 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -61,6 +66,8 @@ public class QuotationService {
                 .quoteDate(quoteDate)
                 .validUntil(req.validUntil())
                 .partner(partner)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .status(QuotationStatus.DRAFT)
                 .remark(req.remark())
                 .createdBy(username)
