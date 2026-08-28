@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 
 interface Account { id: number; code: string; name: string; division: string }
-interface Partner { id: number; name: string }
+interface Partner { id: number; code: string; name: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -82,10 +83,11 @@ export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) 
           <tr>
             <th style={{ background: '#f5f7fa' }}>거래처</th>
             <td>
-              <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 280 }}>
-                <option value="">선택(선택사항)</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+            {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
+                거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
+            <CodePickerField label="거래처" hideLabel width={280} emptyLabel="선택(선택사항)"
+                             value={partnerId} onChange={setPartnerId}
+                             items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </td>
           </tr>
           <tr>

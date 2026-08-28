@@ -138,9 +138,10 @@ export default function StockIoPage() {
               <tr>
                 <th style={th}>창고 *</th>
                 <td>
-                  <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)}>
-                    {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="창고 *" hideLabel width={220} emptyLabel="선택"
+                                   value={form.warehouseId} onChange={(v) => set('warehouseId', v)}
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>

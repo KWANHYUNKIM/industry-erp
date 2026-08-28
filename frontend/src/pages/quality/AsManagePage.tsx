@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import type { Item, Partner, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
@@ -160,10 +161,11 @@ export default function AsManagePage() {
               <tr>
                 <th style={th}>거래처 *</th>
                 <td>
-                  <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 200 }}>
-                    <option value="">선택하세요</option>
-                    {customers.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="거래처 *" hideLabel fill
+                                 emptyLabel="선택하세요"
+                                 value={partnerId} onChange={setPartnerId}
+                                 items={customers.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
                 <th style={th}>접수일</th>
                 <td><input type="date" className={inputCls} value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>

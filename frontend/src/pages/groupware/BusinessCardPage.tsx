@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BusinessCard, Partner, User } from '../../api/types'
@@ -241,10 +242,11 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>거래처</th>
                 <td colSpan={3}>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">(등록된 거래처 아님 — 회사명 직접 입력)</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
+                    거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
+                <CodePickerField label="거래처" hideLabel width={240} emptyLabel="(등록된 거래처 아님 — 회사명 직접 입력)"
+                                 value={partnerId} onChange={setPartnerId}
+                                 items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               {!partnerId && (

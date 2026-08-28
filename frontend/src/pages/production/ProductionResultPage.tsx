@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Production, ProductionMaterial, Warehouse, WorkOrder } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -279,47 +280,42 @@ export default function ProductionResultPage() {
                 {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
                 <th style={th}>담당자</th>
                 <td>
-                  <select className="ec-input" value={employeeId}
-                          onChange={(e) => setEmployeeId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">선택 안 함</option>
-                    {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="담당자" hideLabel width={200} emptyLabel="선택 안 함"
+                                   value={employeeId} onChange={setEmployeeId}
+                                   items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>
                 <th style={th}>생산된공장</th>
                 <td>
-                  <select className="ec-input" value={fromWarehouseId}
-                          onChange={(e) => setFromWarehouseId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">{orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>
-                    ))}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="생산된공장" hideLabel fill
+                                 emptyLabel={orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}
+                                 value={fromWarehouseId} onChange={setFromWarehouseId}
+                                 items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>자재가 빠지는 곳</div>
                 </td>
               </tr>
               <tr>
                 <th style={th}>받는창고</th>
                 <td>
-                  <select className="ec-input" value={toWarehouseId}
-                          onChange={(e) => setToWarehouseId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">{orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>
-                    ))}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="받는창고" hideLabel fill
+                                 emptyLabel={orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}
+                                 value={toWarehouseId} onChange={setToWarehouseId}
+                                 items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
                 </td>
               </tr>
               <tr>
                 <th style={th}>프로젝트</th>
                 <td>
-                  <select className="ec-input" value={projectId}
-                          onChange={(e) => setProjectId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">선택 안 함</option>
-                    {projects.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                <CodePickerField label="프로젝트" hideLabel fill
+                                 emptyLabel="선택 안 함"
+                                 value={projectId} onChange={setProjectId}
+                                 items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>

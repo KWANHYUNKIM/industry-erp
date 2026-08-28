@@ -586,5 +586,33 @@
  [
   "프로젝트계획조회",
   "accounting/ProjectPlanPage.tsx"
+ ],
+ [
+  "발주서입력",
+  "trade/PurchaseOrderPage.tsx"
+ ],
+ [
+  "발주서조회",
+  "trade/PurchaseOrderPage.tsx"
+ ],
+ [
+  "기타이동현황",
+  "inventory/TransferPage.tsx"
+ ],
+ [
+  "매출계획비교표",
+  "trade/SalesPlanPage.tsx"
+ ],
+ [
+  "매출계획현황",
+  "trade/SalesPlanPage.tsx"
+ ],
+ [
+  "시리얼/로트No.내역조회",
+  "quality/SerialLotPage.tsx"
+ ],
+ [
+  "오더관리유형등록",
+  "trade/OrderTypePage.tsx"
  ]
 ]

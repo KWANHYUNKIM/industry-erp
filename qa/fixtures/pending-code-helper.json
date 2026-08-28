@@ -1,0 +1,10 @@
+[
+ "hr/HrRecordPage.tsx  [부서] — 코드 마스터인데 드롭다운이다",
+ "inventory/ItemsPage.tsx  [품목분류 *] — 코드 마스터인데 드롭다운이다",
+ "quality/AsManagePage.tsx  [품목 *] — 코드 마스터인데 드롭다운이다",
+ "trade/MallPage.tsx  [품목 매핑] — 코드 마스터인데 드롭다운이다",
+ "trade/PartnersPage.tsx  [세무신고거래처] — 코드 마스터인데 드롭다운이다",
+ "trade/ShipmentOrderPage.tsx  [출하창고] — 코드 마스터인데 드롭다운이다",
+ "trade/ShipmentOrderPage.tsx  [담당자] — 코드 마스터인데 드롭다운이다",
+ "trade/ShipmentOrderPage.tsx  [프로젝트] — 코드 마스터인데 드롭다운이다"
+]

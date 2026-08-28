@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
@@ -314,10 +315,10 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>소속 부서</th>
                 <td>
-                  <select className="ec-input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} style={{ width: 220 }}>
-                    <option value="">(미배치)</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="소속 부서" hideLabel width={220} emptyLabel="(미배치)"
+                                   value={departmentId} onChange={setDepartmentId}
+                                   items={departments.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
                 <th style={{ background: '#f5f7fa' }}>직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={{ width: 150 }} /></td>

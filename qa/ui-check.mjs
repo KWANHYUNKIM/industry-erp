@@ -677,17 +677,49 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
   const unused = new Set(NOT_MASTER.keys())
   for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
     const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
-    const flat = readFileSync(f, 'utf8').replace(/\s*\n\s*/g, '')
-    for (const m of flat.matchAll(/<label\b[^>]*>([^<]{1,14})<\/label>(.{0,200}?)<select/g)) {
-      const label = m[1].trim()
+    /*
+     * <b>표 머리는 이름표가 아니다.</b> &lt;th&gt; 를 이름표로 치기 시작하니
+     * 쇼핑몰관리의 열 머리 [품목 매핑] 이 걸렸다 — 그 아래 본문에 &lt;select&gt; 가
+     * 있어서다. thead 를 걷어 내고 본다(등록 폼의 &lt;th&gt; 만 남는다).
+     */
+    const flat = readFileSync(f, 'utf8').replace(/\s*\n\s*/g, '').replace(/<thead>[\s\S]*?<\/thead>/g, '')
+    /*
+     * 이름표가 <b>&lt;label&gt; 만은 아니다.</b> 폼을 표로 짜는 화면(발주서입력 …)은
+     * <code>&lt;th&gt;담당자&lt;/th&gt;&lt;td&gt;…&lt;/td&gt;</code> 로 적는다 — label 만 보다가
+     * 발주서입력의 [담당자]·[창고]가 드롭다운인 걸 <b>못 보고 있었다.</b>
+     */
+    /*
+     * <b>그 칸의 자리 안에서만</b> 본다. 처음엔 이름표 뒤 300자를 훑었는데,
+     * 표로 짠 폼은 줄이 촘촘해서 <b>다음 칸의 입력</b>까지 창에 들어왔다 —
+     * 쇼핑몰관리의 [품목](글자만 찍는 칸)이 바로 아래 [거래처(몰)] 의 드롭다운 때문에
+     * 걸렸다. &lt;th&gt; 는 짝이 되는 &lt;/td&gt; 까지, &lt;label&gt; 은 뒤 300자까지 본다.
+     */
+    const spots = []
+    for (const m of flat.matchAll(/<th\b[^>]*>([^<]{1,14})<\/th>(<td\b[^>]*>[\s\S]*?<\/td>)/g)) spots.push([m[1], m[2]])
+    for (const m of flat.matchAll(/<label\b[^>]*>([^<]{1,14})<\/label>/g)) {
+      spots.push([m[1], flat.slice(m.index, m.index + 300)])
+    }
+    for (const m of spots) {
+      const label = m[0].trim()
       if (!MASTER.some((c) => label.includes(c))) continue
-      if (m[2].includes('<CodePickerField')) continue
+      if (!m[1].includes('<select')) continue
+      if (m[1].includes('<CodePickerField')) continue
       const key = rel + '|' + label
       if (NOT_MASTER.has(key)) { unused.delete(key); continue }
       loose.push(`${rel}  [${label}] — 코드 마스터인데 드롭다운이다`)
     }
   }
-  eq('코드 마스터 이름표 옆에 드롭다운이 없다', [...new Set(loose)].join('\n') || '없음', '없음')
+  /*
+   * 이름표를 &lt;th&gt; 까지 넓히고 창을 그 칸 안으로 좁히자 <b>여덟</b>이 더 드러났다.
+   * 한 판에 다 바꾸지 않고 목록에 적어 <b>늘지만 않게</b> 한다 — 몇은 코드 마스터인지
+   * 판단이 필요하다(품목분류·세무신고거래처는 고를 값이 정해진 칸일 수 있다).
+   */
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-code-helper.json'), 'utf8'))
+  const found = [...new Set(loose)]
+  const grown = found.filter((x) => !TODO.includes(x))
+  const gone = TODO.filter((x) => !found.includes(x))
+  eq(`코드 마스터 이름표 옆에 드롭다운이 없다 (아직 ${TODO.length}칸 남음)`, grown.join('\n') || '없음', '없음')
+  eq('바꿔 놓고 목록에 남겨 둔 칸이 없다', gone.join('\n') || '없음', '없음')
   eq(`코드 마스터가 아니라고 적어 둔 ${NOT_MASTER.size}칸이 아직 그대로다`,
     [...unused].join('\n') || '없음', '없음')
 }
@@ -1645,6 +1677,8 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
     ['생산불출조회',
       '사본에 격자가 <b>둘</b>이다(입력 격자·목록 격자). 우리는 한 표에 다 펴 두어서,'
       + ' 두 격자의 열을 하나로 이어 붙인 차례와 견주게 된다 — 원본에도 없는 차례다'],
+    ['시리얼/로트No.내역조회',
+      '한 화면이 원본 <b>둘</b>을 겸하는데 차례가 서로 다르다 — [시리얼/로트No.등록]은 로트번호가 먼저고 [내역조회]는 품목명이 먼저다. 등록 쪽 차례를 따른다(그 화면이 이 표의 주인이다)'],
   ])
 
   const bad = []
@@ -2830,6 +2864,13 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
     ['재고실사조회', '재고실사 한 화면이 조회를 겸한다'],
     ['생산불출', '생산불출조회 한 화면이 입력(팝업)과 목록을 겸한다'],
     ['프로젝트계획조회', '프로젝트계획 한 화면이 조회를 겸한다'],
+    ['발주서입력', '발주서 한 화면이 입력(폼)과 목록을 겸한다'],
+    ['발주서조회', '위와 같음'],
+    ['기타이동현황', '기타이동 한 화면이 현황을 겸한다'],
+    ['매출계획비교표', '매출계획 / 비교표 한 화면이 셋을 겸한다'],
+    ['매출계획현황', '위와 같음'],
+    ['시리얼/로트No.내역조회', '시리얼/로트No. 관리 한 화면이 내역조회를 겸한다'],
+    ['오더관리유형등록', '오더관리유형리스트 한 화면이 등록과 목록을 겸한다'],
     ['판매입력II', '판매입력 한 화면이 겸한다 — 원본 II 는 격자만 간단한 판이다'],
     ['거래처관리대장 II', '위와 같음'],
     ['생산입고II-소모품목 선택', '한 화면이 II·III 을 [품질검사요청] 여부로 겸한다'],
@@ -3121,6 +3162,11 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
      * 그리고 <b>아직 안 만든 것</b>(품목등록의 여섯 탭). 갈래는 qa/README.md 에 적었다.
      */
     ['발주서|결재중', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
+    ['발주서조회|결재중', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
+    ['발주서조회|미확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
+    ['발주서조회|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
+    ['발주서조회|진행중', '우리 발주 탭은 <b>더 잘게</b> 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소'],
+    ['발주서조회|완료', '위와 같음(원본 [완료]는 우리 [입고전환]이다)'],
     ['발주서|미확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['발주서|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['창고이동조회|전체', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],

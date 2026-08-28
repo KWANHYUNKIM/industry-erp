@@ -416,6 +416,17 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
               <tr>
                 <th style={{ background: '#f5f7fa' }}>납기요청일</th>
                 <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+{/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
+                    사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}
+                <th style={{ background: '#f5f7fa' }}>담당자</th>
+                <td>
+                  <CodePickerField label="담당자" hideLabel width={150} emptyLabel="담당자 선택"
+                                   value={employeeId} onChange={setEmployeeId}
+                                   items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
+              </tr>
+              <tr>
                 <th style={{ background: '#f5f7fa' }}>거래유형</th>
                 <td>
                   <select className="ec-input" value={taxable ? 'VAT' : 'FREE'} onChange={(e) => setTaxable(e.target.value === 'VAT')} style={{ width: 150 }}>
@@ -423,21 +434,11 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, currencies,
                     <option value="FREE">면세</option>
                   </select>
                 </td>
-              </tr>
-              <tr>
-                <th style={{ background: '#f5f7fa' }}>담당자</th>
-                <td>
-                  <select className="ec-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ width: 150 }}>
-                    <option value="">담당자 선택</option>
-                    {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                  </select>
-                </td>
                 <th style={{ background: '#f5f7fa' }}>창고</th>
                 <td>
-                  <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 150 }}>
-                    <option value="">창고 선택</option>
-                    {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
+                  <CodePickerField label="창고" hideLabel width={150} emptyLabel="창고 선택"
+                                   value={warehouseId} onChange={setWarehouseId}
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>
