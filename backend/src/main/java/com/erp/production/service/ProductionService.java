@@ -11,6 +11,8 @@ import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.domain.WorkOrderStatus;
+import com.erp.production.dto.ProductionDtos.CreateProductionBatchRequest;
+import com.erp.production.dto.ProductionDtos.ProductionLine;
 import com.erp.production.dto.ProductionDtos.CreateProductionRequest;
 import com.erp.production.dto.ProductionDtos.ManualConsumeLine;
 import com.erp.production.dto.ProductionDtos.ProductionMaterialResponse;
@@ -64,6 +66,23 @@ public class ProductionService {
     }
 
     /** 생산실적 등록: 자재 출고(수동 소모목록 있으면 그대로, 없으면 BOM 자동소모) + 완제품 입고 */
+    /**
+     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다(원본 생산입고 II·III).
+     * 한 줄이라도 막히면 전부 되돌린다 — 반쪽 입고가 남으면 재고와 실적이
+     * 서로 다른 말을 한다.
+     */
+    @Transactional
+    public java.util.List<ProductionResponse> createBatch(CreateProductionBatchRequest req, String username) {
+        java.util.List<ProductionResponse> out = new java.util.ArrayList<>();
+        for (ProductionLine line : req.lines()) {
+            out.add(create(new CreateProductionRequest(
+                    line.workOrderId(), line.producedQty(), req.productionDate(),
+                    req.fromWarehouseId(), req.warehouseId(), req.projectId(),
+                    line.note(), line.laborMinutes(), line.materials()), username));
+        }
+        return out;
+    }
+
     @Transactional
     public ProductionResponse create(CreateProductionRequest req, String username) {
         WorkOrder wo = getWorkOrder(req.workOrderId());

@@ -3739,6 +3739,72 @@ async function scenarioInactiveItemGuards(f) {
  * <p>노무시간을 안 적은 품목은 <b>표준 그대로</b>다. 0 으로 두면 "노무비가 안 들었다" 로
  * 읽혀 원가가 통째로 낮아지고, 그게 이익으로 둔갑한다.
  */
+/**
+ * 원본 생산입고 I 은 <b>격자</b>다 — 한 전표에 완제품 여러 줄을 입고한다.
+ * 우리는 한 줄씩만 받아서, 같은 날 같은 공장에서 셋을 넣으려면 머리(일자·공장·창고·
+ * 프로젝트)를 세 번 다시 골라야 했다.
+ *
+ * <p>한 줄이라도 막히면 <b>전부 되돌린다</b>. 자재가 모자라거나 지시수량을 넘겨
+ * 두 줄만 들어가면 재고와 실적이 서로 다른 말을 한다.
+ */
+async function scenarioProductionBatch(f) {
+  section('■ 생산입고 격자 — 한 번에 여러 줄')
+
+  const D = '2087-03-03'
+  const clear = async () => {
+    for (const pr of (await must('GET', '/productions')).filter((x) => x.productionDate === D)) {
+      await call('DELETE', `/productions/${pr.id}`)
+    }
+    for (const w of (await must('GET', '/work-orders')).filter((x) => x.orderDate === D)) {
+      await call('DELETE', `/work-orders/${w.id}`)
+    }
+  }
+  await clear()
+
+  // 자재를 넉넉히 넣어 둔다 — 소모가 막혀서 실패하면 재는 것이 달라진다.
+  const boms = await must('GET', '/boms')
+  const line = boms.find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 100,
+  })
+
+  const wo = async (qty) => must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: qty, orderDate: D,
+  })
+  const a = await wo(5)
+  const b = await wo(5)
+
+  const made = await must('POST', '/productions/batch', {
+    productionDate: D,
+    lines: [
+      { workOrderId: a.id, producedQty: 2, note: `${P}줄1` },
+      { workOrderId: b.id, producedQty: 3, note: `${P}줄2` },
+    ],
+  })
+  eq('한 번에 두 줄이 들어간다', made.length, 2)
+  eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  eq('줄마다 번호가 따로 매겨진다', new Set(made.map((x) => x.prodNo)).size, 2)
+  eq('작업지시 기생산이 줄만큼 는다',
+    Number((await must('GET', '/work-orders')).find((x) => x.id === a.id).producedQty), 2)
+
+  // 둘째 줄이 지시수량을 넘으면 첫 줄도 들어가면 안 된다.
+  const before = (await must('GET', '/productions')).filter((x) => x.productionDate === D).length
+  const partial = await call('POST', '/productions/batch', {
+    productionDate: D,
+    lines: [{ workOrderId: a.id, producedQty: 1 }, { workOrderId: b.id, producedQty: 99999 }],
+  })
+  eq('한 줄이 막히면 거부한다', partial.status, 400)
+  eq('막히면 앞 줄도 안 들어간다(전부 되돌림)',
+    (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, before)
+
+  await clear()
+  await must('POST', '/stock/transactions', {
+    itemId: line.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 100,
+  })
+  eq('시험용 생산은 남기지 않는다',
+    (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, 0)
+}
+
 async function scenarioProductionLaborMinutes(f) {
   section('■ 생산입고 노무시간 → 실제노무비')
 
@@ -7994,6 +8060,7 @@ async function main() {
   await scenarioSurveyAttachment()
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
+  await scenarioProductionBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()

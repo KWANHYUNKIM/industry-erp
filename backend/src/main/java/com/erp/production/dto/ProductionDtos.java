@@ -5,6 +5,7 @@ import com.erp.production.domain.ProductionMaterial;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.domain.WorkOrderStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -70,6 +71,33 @@ public final class ProductionDtos {
     }
 
     // ===== 생산실적 =====
+
+    /**
+     * 한 번에 <b>생산 여러 줄</b>을 넣는다. 원본 생산입고 II·III 이 격자인 이유다 —
+     * 같은 날 같은 공장에서 완제품 셋을 입고하면서 세 번 저장할 일이 아니다.
+     *
+     * <p>머리(일자·담당자·생산된공장·받는창고·프로젝트)는 한 번만 주고 줄마다
+     * 작업지시·수량·적요를 준다. 한 줄이라도 막히면(자재가 모자라 소모가 안 되는 등)
+     * <b>전부 되돌린다</b> — 반쪽 입고가 남으면 재고와 실적이 서로 다른 말을 한다.
+     */
+    public record CreateProductionBatchRequest(
+            LocalDate productionDate,
+            Long fromWarehouseId,
+            Long warehouseId,
+            Long projectId,
+            @NotEmpty(message = "생산 줄을 하나 이상 넣으세요.")
+            List<@Valid ProductionLine> lines
+    ) {}
+
+    /** 격자 한 줄. 소모자재는 줄마다 다르므로 여기 담는다. */
+    public record ProductionLine(
+            @NotNull(message = "작업지시를 선택하세요.") Long workOrderId,
+            @NotNull(message = "생산수량을 입력하세요.")
+            @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal producedQty,
+            String note,
+            Integer laborMinutes,
+            List<@Valid ManualConsumeLine> materials
+    ) {}
 
     public record CreateProductionRequest(
             @NotNull(message = "작업지시를 선택하세요.") Long workOrderId,

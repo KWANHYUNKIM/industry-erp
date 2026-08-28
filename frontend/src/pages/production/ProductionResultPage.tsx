@@ -32,6 +32,16 @@ export default function ProductionResultPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
 
+  /**
+   * 생산 줄. 원본 생산입고 I 은 <b>격자</b>라 한 번에 여러 완제품을 입고한다 —
+   * 같은 날 같은 공장에서 셋을 입고하면서 머리(일자·공장·창고·프로젝트)를
+   * 세 번 다시 고를 일이 아니다. BOM 이 자동으로 소모하므로 줄마다 자재가 없다.
+   */
+  const [prodLines, setProdLines] = useState<{ key: number; workOrderId: string; qty: string; note: string }[]>(
+    [{ key: 1, workOrderId: '', qty: '', note: '' }])
+  const setProdLine = (key: number, patch: Partial<{ workOrderId: string; qty: string; note: string }>) =>
+    setProdLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+
   const [workOrderId, setWorkOrderId] = useState('')
   const [qty, setQty] = useState('')
   const [date, setDate] = useState(today())
@@ -110,20 +120,29 @@ export default function ProductionResultPage() {
     e.preventDefault()
     setError('')
     setOk('')
-    if (!workOrderId) return setError('작업지시를 선택하세요.')
-    if (!(Number(qty) > 0)) return setError('생산수량을 입력하세요.')
+    const filled = prodLines.filter((l) => l.workOrderId && Number(l.qty) > 0)
+    if (filled.length === 0) return setError('작업지시와 생산수량을 한 줄 이상 넣으세요.')
     try {
-      const res = await api.post<Production>('/productions', {
-        workOrderId: Number(workOrderId),
-        producedQty: Number(qty),
+      /*
+       * 줄을 <b>한 번에</b> 보낸다. 서버가 한 트랜잭션으로 넣고, 한 줄이라도 막히면
+       * 전부 되돌린다 — 자재가 모자라 두 줄만 들어가면 재고와 실적이 서로 다른 말을 한다.
+       */
+      const res = await api.post<Production[]>('/productions/batch', {
         productionDate: date,
         fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
         warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
-        note: note || null,
-        laborMinutes: laborMinutes.trim() === '' ? null : Number(laborMinutes),
         projectId: projectId ? Number(projectId) : null,
+        lines: filled.map((l) => ({
+          workOrderId: Number(l.workOrderId),
+          producedQty: Number(l.qty),
+          note: l.note || null,
+          laborMinutes: laborMinutes.trim() === '' ? null : Number(laborMinutes),
+        })),
       })
-      setOk(`${res.data.prodNo} 생산 완료 · 완제품 ${won(res.data.producedQty)} 입고, 자재 ${res.data.materials.length}종 출고`)
+      const made = res.data
+      setOk(`${made.length}줄 생산 완료 · 완제품 ${won(made.reduce((n, m) => n + m.producedQty, 0))} 입고`
+        + ` (${made.map((m) => m.prodNo).join(', ')})`)
+      setProdLines([{ key: 1, workOrderId: '', qty: '', note: '' }])
       setQty('')
       setWorkOrderId('')
       setFromWarehouseId('')
@@ -165,21 +184,67 @@ export default function ProductionResultPage() {
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
-                <th style={th}>작업지시 *</th>
+                {/* 원본 생산입고 I 의 격자 — 한 전표에 완제품 여러 줄. */}
+                <th style={th}>생산 *</th>
                 <td>
-                  <select className="ec-input" value={workOrderId} onChange={(e) => setWorkOrderId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">선택하세요</option>
-                    {selectable.map((o) => (
-                      <option key={o.id} value={o.id}>{o.orderNo} · {o.productName} (잔여 {o.remainingQty})</option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>생산수량 *</th>
-                <td>
-                  <input type="number" step="any" className="ec-input" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 150, textAlign: 'right' }} />
-                  {selectedOrder && <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>잔여 {won(selectedOrder.remainingQty)} {selectedOrder.productUnit}</span>}
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 34 }}></th>
+                        <th>작업지시</th>
+                        <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+                        <th style={{ width: 180 }}>적요</th>
+                        <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prodLines.map((l, idx) => {
+                        const order = selectable.find((o) => String(o.id) === l.workOrderId)
+                        return (
+                          <tr key={l.key}>
+                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                            <td>
+                              <select className="ec-input" value={l.workOrderId} style={{ width: '100%' }}
+                                      onChange={(e) => setProdLine(l.key, { workOrderId: e.target.value })}>
+                                <option value="">선택하세요</option>
+                                {selectable.map((o) => (
+                                  <option key={o.id} value={o.id}>{o.orderNo} · {o.productName} (잔여 {o.remainingQty})</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <input type="number" step="any" className="ec-input" style={{ textAlign: 'right' }}
+                                     value={l.qty} onChange={(e) => setProdLine(l.key, { qty: e.target.value })} />
+                              {order && <div style={{ fontSize: 11, color: '#8a929c' }}>잔여 {won(order.remainingQty)} {order.productUnit}</div>}
+                            </td>
+                            <td>
+                              <input className="ec-input" value={l.note}
+                                     onChange={(e) => setProdLine(l.key, { note: e.target.value })} />
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button type="button" style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                                      onClick={() => setProdLines(prodLines.length > 1
+                                        ? prodLines.filter((x) => x.key !== l.key)
+                                        : [{ key: 1, workOrderId: '', qty: '', note: '' }])}>삭제</button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          {won(prodLines.reduce((n, l) => n + (Number(l.qty) || 0), 0))}
+                        </td>
+                        <td colSpan={2}></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                  <button type="button" className="ec-btn" style={{ marginTop: 4 }}
+                          onClick={() => setProdLines([...prodLines, { key: Math.max(0, ...prodLines.map((x) => x.key)) + 1, workOrderId: '', qty: '', note: '' }])}>
+                    줄 추가
+                  </button>
                 </td>
               </tr>
               <tr>

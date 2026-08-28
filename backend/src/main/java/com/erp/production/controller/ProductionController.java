@@ -1,5 +1,6 @@
 package com.erp.production.controller;
 
+import com.erp.production.dto.ProductionDtos.CreateProductionBatchRequest;
 import com.erp.production.dto.ProductionDtos.CreateProductionRequest;
 import com.erp.production.dto.ProductionDtos.ProductionMaterialResponse;
 import com.erp.production.dto.ProductionDtos.ProductionResponse;
@@ -40,6 +41,14 @@ public class ProductionController {
     public ResponseEntity<Void> delete(@PathVariable Long id, java.security.Principal principal) {
         productionService.delete(id, principal != null ? principal.getName() : null);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 생산입고 II·III 의 격자 — 한 번에 여러 줄. 한 줄이라도 막히면 전부 되돌린다. */
+    @PostMapping("/batch")
+    public ResponseEntity<java.util.List<ProductionResponse>> createBatch(
+            @Valid @RequestBody CreateProductionBatchRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(productionService.createBatch(req, principal.getUsername()));
     }
 
     @PostMapping
