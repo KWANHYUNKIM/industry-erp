@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useAuth } from '../../auth/AuthContext'
 import EcListShell from '../../components/EcListShell'
 import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
@@ -123,6 +124,11 @@ export default function KeyNoticePage() {
       </tr>
     ))
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '주요공지', [])
+
   return (
     <EcListShell title="주요전달사항" searchable={false}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -151,7 +157,7 @@ export default function KeyNoticePage() {
       </table>
 
       <SectionTitle>2. 결재할문서</SectionTitle>
-      <table className="w-full text-left" style={{ marginBottom: 12 }}>
+      <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 12 }}>
         <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>{docRows(pending)}</tbody>

@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
@@ -176,6 +177,11 @@ export default function StatementPrintPage() {
   const toggle = (id: number) =>
     setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '거래명세서인쇄', [])
+
   return (
     <EcListShell
       title="거래명세서인쇄"
@@ -263,7 +269,7 @@ export default function StatementPrintPage() {
         합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
       </div>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}>

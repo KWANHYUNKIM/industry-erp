@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 
@@ -107,6 +108,11 @@ export default function OrderStagePage() {
 
   const detail = detailId != null ? orders.find((o) => o.id === detailId) ?? null : null
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '오더관리진행단계', [])
+
   return (
     <EcListShell
       title="오더관리진행단계"
@@ -147,7 +153,7 @@ export default function OrderStagePage() {
       </ul>
 
       <div className="overflow-x-auto">
-        <table className="ec-grid w-full text-left">
+        <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>

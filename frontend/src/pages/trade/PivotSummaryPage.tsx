@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
@@ -94,6 +95,11 @@ export default function PivotSummaryPage() {
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const cell: React.CSSProperties = { textAlign: 'right', fontSize: 11.5, padding: '4px 6px', whiteSpace: 'nowrap' }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '집계표', [])
+
   return (
     <EcListShell
       title="집계표"
@@ -139,7 +145,7 @@ export default function PivotSummaryPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ overflowX: 'auto' }}>
-        <table className="w-full text-left" style={{ minWidth: 900 }}>
+        <table ref={tableRef} className="w-full text-left" style={{ minWidth: 900 }}>
           <thead>
             <tr>
               <th style={{ position: 'sticky', left: 0, background: '#f5f7fa', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>

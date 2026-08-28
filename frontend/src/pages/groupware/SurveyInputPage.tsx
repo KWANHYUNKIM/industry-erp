@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
@@ -137,6 +138,11 @@ export default function SurveyInputPage() {
     </label>
   )
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '설문조사입력', [])
+
   return (
     <EcListShell
       title="설문조사입력"
@@ -223,7 +229,7 @@ export default function SurveyInputPage() {
       </table>
 
       {/* 질문 그리드 — 원본 실측: (24) 질문유형·질문내용·보기항목1~5·필수항목 각 100 */}
-      <table className="w-full text-left ec-grid-input">
+      <table ref={tableRef} className="w-full text-left ec-grid-input">
         <colgroup>
           <col style={{ width: '2.9%' }} />
           <col style={{ width: '12.1%' }} />

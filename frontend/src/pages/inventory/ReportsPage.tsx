@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
@@ -141,6 +142,11 @@ export default function ReportsPage() {
     장표명: (r) => r.name,
   })
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '재고 보고서', [])
+
   return (
     <EcListShell title="출력물 (장표)" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -185,7 +191,7 @@ export default function ReportsPage() {
             </div>
           </div>
           <div style={{ maxHeight: 320, overflow: 'auto', padding: 8 }}>
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   {preview.data.header.map((h, ci) => (

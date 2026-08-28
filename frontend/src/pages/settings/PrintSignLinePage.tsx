@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SignLine, SignSlot } from '../../api/types'
 
@@ -97,8 +98,13 @@ export default function PrintSignLinePage() {
 
 /** 실제 인쇄되는 모양 그대로 보여준다 — 미리보기가 결과와 다르면 미리보기가 아니다. */
 function SlotPreview({ slots }: { slots: SignSlot[] }) {
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '인쇄 결재란', [])
+
   return (
-    <table style={{ borderCollapse: 'collapse', width: 'auto' }}>
+    <table ref={tableRef} style={{ borderCollapse: 'collapse', width: 'auto' }}>
       <thead>
         <tr>
           {slots.map((s) => (

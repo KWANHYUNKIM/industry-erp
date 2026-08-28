@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useAuth } from '../../auth/AuthContext'
 import { useTableSort } from '../../utils/useTableSort'
 import { exportTableToXlsx } from '../../utils/excel'
@@ -327,6 +328,11 @@ export default function ApprovalListPage({
 
   const tabCount = (t: Tab) => rows.filter((r) => inTab(r, t, user?.name)).filter(inPeriod).length
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '전자결재 목록', [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -424,7 +430,7 @@ export default function ApprovalListPage({
       </div>
 
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowX: 'auto' }}>
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               {/* 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}

@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../api/client'
+import { useTableColumnCheck } from '../utils/assertTableColumns'
 import CodePickerField from '../components/CodePickerField'
 import type { Role, User } from '../api/types'
 import EcListShell from '../components/EcListShell'
@@ -61,6 +62,11 @@ export default function UsersPage() {
     이름: (u) => u.name,
   })
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '사용자', [])
+
   return (
     <EcListShell
       title="사용자등록 리스트"
@@ -78,7 +84,7 @@ export default function UsersPage() {
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
@@ -79,6 +80,11 @@ export default function ApprovalSettingPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '결재선 설정', [])
+
   return (
     <EcListShell
       title={tab}
@@ -111,7 +117,7 @@ export default function ApprovalSettingPage() {
                 onSaved={(name) => { setEditing(null); flash(`${name} 양식을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   <th style={{ width: 34 }}></th>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
@@ -135,6 +136,11 @@ export default function AttendancePage() {
     }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '출퇴근', [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -207,7 +213,7 @@ export default function AttendancePage() {
       </div>
 
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <colgroup>{DOW.map((d) => <col key={d} style={{ width: '14.28%' }} />)}</colgroup>
           <thead>
             <tr>

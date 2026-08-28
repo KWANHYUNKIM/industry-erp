@@ -1,5 +1,6 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import type { Mail, SharedMailBox, User } from '../../api/types'
@@ -154,6 +155,11 @@ export default function MailPage() {
     else openMail(m)
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '메일', [])
+
   return (
     <EcListShell title="공용메일" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
 
@@ -199,7 +205,7 @@ export default function MailPage() {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>

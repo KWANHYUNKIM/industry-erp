@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   BankAccountRow, PayGroup, PayItem, Payslip, PayrollTransfer, PayslipLineKind,
@@ -59,6 +60,11 @@ export default function PaySettingPage() {
       await load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '급여설정', [])
 
   return (
     <EcListShell
@@ -135,7 +141,7 @@ export default function PaySettingPage() {
                 onSaved={(name) => { setEditingGroup(null); flash(`${name} 그룹을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   <th style={{ width: 34 }}></th>

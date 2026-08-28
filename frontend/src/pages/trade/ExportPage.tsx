@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
@@ -299,6 +300,11 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
     }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '수출관리', [])
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 760, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
@@ -349,7 +355,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
             </tbody>
           </table>
 
-          <table className="w-full text-left">
+          <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th><th>품목</th>

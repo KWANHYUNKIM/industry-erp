@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, useRef} from 'react'
 import CodePickerField from '../../components/CodePickerField'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse, WorkOrder } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -157,6 +158,11 @@ export default function WorkOrderPage() {
     지시번호: (o) => o.orderNo,
   })
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '작업지시서조회', [])
+
   return (
     <EcListShell
       title="작업지시서조회"
@@ -242,7 +248,7 @@ export default function WorkOrderPage() {
         </form>
       )}</Modal>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
