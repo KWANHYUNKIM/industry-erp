@@ -514,5 +514,37 @@
  [
   "수집데이터등록",
   "datacenter/CollectSourcePage.tsx"
+ ],
+ [
+  "관리항목등록",
+  "inventory/ManageItemsPage.tsx"
+ ],
+ [
+  "거래처특별단가그룹등록",
+  "inventory/SpecialPriceGroupPage.tsx"
+ ],
+ [
+  "거래처등록",
+  "trade/PartnersPage.tsx"
+ ],
+ [
+  "시리얼/로트No.등록",
+  "quality/SerialLotPage.tsx"
+ ],
+ [
+  "매출계획",
+  "trade/SalesPlanPage.tsx"
+ ],
+ [
+  "매출계획입력",
+  "trade/SalesPlanPage.tsx"
+ ],
+ [
+  "매출계획조회",
+  "trade/SalesPlanPage.tsx"
+ ],
+ [
+  "창고이동조회",
+  "inventory/TransferStatusPage.tsx"
  ]
 ]
