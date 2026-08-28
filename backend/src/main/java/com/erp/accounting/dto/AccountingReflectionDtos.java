@@ -51,7 +51,13 @@ public final class AccountingReflectionDtos {
             String partnerName,
             String warehouseName,
             String projectName,
+            /** 전표를 친 사람. 원본 조건 판의 [담당자]. */
             String employeeName,
+            /**
+             * 거래처에 붙은 관리담당자. 원본 조건 판의 [거래처관리담당자] — [담당자]와 다르다.
+             * 없으면 "이 담당자가 맡은 거래처의 미반영 전표" 를 뽑을 수가 없다.
+             */
+            String partnerManager,
             String itemSummary,
             BigDecimal supplyAmount,
             BigDecimal vatAmount,
@@ -85,7 +91,7 @@ public final class AccountingReflectionDtos {
         /** 반영된 줄에 분개를 붙인다. 목록을 만든 뒤 한 번에 채운다(N+1 방지). */
         public SlipResponse withJournal(Long entryId, String docNo) {
             return new SlipResponse(id, kind, this.docNo, slipDate, partnerId, partnerName,
-                    warehouseName, projectName, employeeName, itemSummary,
+                    warehouseName, projectName, employeeName, partnerManager, itemSummary,
                     supplyAmount, vatAmount, totalAmount, vatType, tradeKind, reflected,
                     entryId, docNo, createdBy, createdAt, note, lines);
         }
@@ -96,6 +102,7 @@ public final class AccountingReflectionDtos {
                     s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
+                    s.getPartner().getManager(),
                     summarize(s.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
                     s.isTaxable() ? "과세" : "면세",
@@ -115,6 +122,7 @@ public final class AccountingReflectionDtos {
                     p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
+                    p.getPartner().getManager(),
                     summarize(p.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
                     p.isTaxable() ? "과세" : "면세",
@@ -140,6 +148,7 @@ public final class AccountingReflectionDtos {
                     st.getPartner().getId(), st.getPartner().getName(),
                     null, st.getProject() != null ? st.getProject().getName() : null,
                     null,
+                    st.getPartner().getManager(),
                     st.getMethod() != null ? st.getMethod() : "",
                     java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, st.getAmount(),
                     st.getType().getDisplayName(),

@@ -65,7 +65,10 @@ interface Slip {
   partnerName: string
   warehouseName: string | null
   projectName: string | null
+  /** 전표를 친 사람. 원본 조건 판의 [담당자]. */
   employeeName: string | null
+  /** 거래처에 붙은 관리담당자. 원본 [거래처관리담당자] — 위와 다른 사람이다. */
+  partnerManager: string | null
   itemSummary: string
   /** 품목 줄. 원본 회계미반영현황의 결과 격자가 이 단위다. */
   lines: SlipLine[]
@@ -112,6 +115,7 @@ export default function AccountingReflectionPage() {
   const [cond, setCond] = useState({
     from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
     warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
+    partnerManager: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [onlyUnreflected, setOnlyUnreflected] = useState(true)
@@ -154,6 +158,7 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
     .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
+    .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
     .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
   const unreflectedCount = slips.filter((s) => !s.reflected).length
   const selectedTotal = useMemo(
@@ -176,6 +181,7 @@ export default function AccountingReflectionPage() {
     setCond({
       from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
       warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
+    partnerManager: '',
     })
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
@@ -400,6 +406,11 @@ export default function AccountingReflectionPage() {
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={pickers.employees} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
+                           value={cond.partnerManager} onChange={(v) => setC({ partnerManager: v })}
                            items={pickers.employees} />
         </EcCond>
         <EcCond label="금액">
