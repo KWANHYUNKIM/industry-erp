@@ -194,6 +194,12 @@ const OPTIONAL_COLS = [
   { id: 'stockWh', title: '창고수량', width: 70 },
   { id: 'unit', title: '단위', width: 50 },
   { id: 'priceVat', title: '단가(vat포함)', width: 95 },
+  /*
+   * 원본 <b>판매입력II</b> 격자에는 [부가세] 다음에 <b>[합계]</b> 열이 있다(사본 실측:
+   * 품목코드·품목명·규격·수량·단가·공급가액·부가세·<b>합계</b>·적요·금액조정항목명).
+   * 판매입력에는 없다 — 한 화면이 둘을 겸하므로 <b>켜고 끄는 열</b>로 둔다.
+   */
+  { id: 'lineTotal', title: '합계', width: 100 },
   { id: 'mgmtItem', title: '관리항목', width: 90 },
   { id: 'srcType', title: '불러온 전표', width: 80 },
   { id: 'srcDate', title: '불러온 전표일자', width: 100 },
@@ -256,6 +262,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [lines, setLines] = useState<LineInput[]>(emptyLines)
   const [cols, setCols] = useState<Record<OptionalColId, boolean>>({
     stockAll: false, stockWh: false, unit: false, priceVat: false,
+    lineTotal: false,
     mgmtItem: false, srcType: false, srcDate: false, srcNo: false, qcRequest: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
@@ -1521,6 +1528,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               <col style={{ width: 110 }} />
               <col style={{ width: 96 }} />
               <col style={{ width: 96 }} />
+              {cols.lineTotal && <col style={{ width: 100 }} />}
               {cols.mgmtItem && <col style={{ width: 90 }} />}
               <col style={{ width: 130 }} />
               {cols.srcType && <col style={{ width: 80 }} />}
@@ -1564,6 +1572,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 {cols.priceVat && <th>단가(vat포함)</th>}
                 <th style={{ textAlign: 'right' }}>공급가액</th>
                 <th style={{ textAlign: 'right' }}>부가세</th>
+                {cols.lineTotal && <th style={{ textAlign: 'right' }}>합계</th>}
                 <th style={{ textAlign: 'right' }}>부대비용</th>
                 {cols.mgmtItem && <th>관리항목</th>}
                 <th style={{ textAlign: 'left' }}>적요</th>
@@ -1665,6 +1674,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     )}
                     <td className="pad" style={{ textAlign: 'right', color: '#3a4453' }}>{l.itemId ? won(computed[idx].supply) : ''}</td>
                     <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>{l.itemId ? won(computed[idx].vat) : ''}</td>
+                    {cols.lineTotal && (
+                      <td className="pad" style={{ textAlign: 'right', fontWeight: 600, color: '#3a4453' }}>
+                        {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}
+                      </td>
+                    )}
                     <td>
                       <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
                              value={l.extraCost} onChange={(e) => updateLine(idx, 'extraCost', e.target.value)} />
