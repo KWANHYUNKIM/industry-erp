@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -32,6 +34,8 @@ export default function SalesPurchaseSummaryPage() {
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const partnerPick = useCondPickers(['partners'])
 
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -49,6 +53,13 @@ export default function SalesPurchaseSummaryPage() {
   useEffect(() => { load() }, [])
 
   const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
+  /*
+   * 원본 판매구매집계표의 조건에 <b>[거래처]</b> 가 있다(사본 실측).
+   * 집계 화면이라 <b>합치기 전</b>에 걸러야 한다 — 합쳐 놓은 줄을 이름으로 거르면
+   * [품목별] 로 볼 때 아무것도 안 걸린다(그 줄의 이름은 품목명이다).
+   */
+  const keepPartner = (name: string) => !partnerCond || name.includes(partnerCond)
+
 
   const rows = useMemo(() => {
     const m = new Map<string, Agg>()
@@ -60,12 +71,14 @@ export default function SalesPurchaseSummaryPage() {
     if (groupBy === 'partner') {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
+        if (!keepPartner(d.partnerName)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.saleCount += 1; a.saleSupply += d.supplyAmount
         a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
       }
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
+        if (!keepPartner(d.partnerName)) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.buyCount += 1; a.buySupply += d.supplyAmount
         a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -73,6 +86,7 @@ export default function SalesPurchaseSummaryPage() {
     } else {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
+        if (!keepPartner(d.partnerName)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
@@ -80,6 +94,7 @@ export default function SalesPurchaseSummaryPage() {
       }
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
+        if (!keepPartner(d.partnerName)) continue
         for (const l of d.lines) {
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
@@ -90,7 +105,7 @@ export default function SalesPurchaseSummaryPage() {
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
-  }, [sales, purchases, groupBy, from, to, keyword])
+  }, [sales, purchases, groupBy, from, to, keyword, partnerCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
@@ -114,6 +129,11 @@ export default function SalesPurchaseSummaryPage() {
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>거래처</span>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>집계기준</span>

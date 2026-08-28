@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -28,6 +30,14 @@ export default function PivotSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 집계표의 조건에 <b>[거래처]·[품목]</b> 이 있다(사본 실측).
+   * 집계 화면이라 <b>합치기 전</b>에 건다 — 합쳐 놓은 줄을 이름으로 거르면
+   * [거래처별]로 볼 때 품목 조건이 아무것도 안 걸린다(그 줄의 이름은 거래처명이다).
+   */
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const condPick = useCondPickers(['partners', 'items'])
 
   async function load() {
     setLoading(true); setError('')
@@ -51,6 +61,8 @@ export default function PivotSummaryPage() {
       return r
     }
     for (const d of docs) {
+      if (partnerCond && !d.partnerName.includes(partnerCond)) continue
+      if (itemCond && !d.lines.some((l) => l.itemName.includes(itemCond))) continue
       const m = Number(d.date.slice(5, 7)) - 1
       if (groupBy === 'partner') {
         const supply = d.lines.reduce((a, l) => a + l.supplyAmount, 0)
@@ -58,6 +70,7 @@ export default function PivotSummaryPage() {
         r.months[m] += supply; r.total += supply
       } else {
         for (const l of d.lines) {
+          if (itemCond && !l.itemName.includes(itemCond)) continue
           const r = bump(`I${l.itemId}`, l.itemName)
           r.months[m] += l.supplyAmount; r.total += l.supplyAmount
         }
@@ -65,7 +78,7 @@ export default function PivotSummaryPage() {
     }
     const kw = keyword.trim()
     return [...map.values()].filter((r) => !kw || r.name.includes(kw)).sort((a, b) => b.total - a.total)
-  }, [sales, purchases, mode, groupBy, year, keyword])
+  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond])
 
   const colTotals = useMemo(() => {
     const t = new Array(12).fill(0)
@@ -107,6 +120,11 @@ export default function PivotSummaryPage() {
             }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
           ))}
         </div>
+        {/* 원본 조건: … 거래처 · 품목 … */}
+        <CodePickerField label="거래처" width={150} emptyLabel="전체"
+                         value={partnerCond} onChange={setPartnerCond} items={condPick.partners} />
+        <CodePickerField label="품목" width={150} emptyLabel="전체"
+                         value={itemCond} onChange={setItemCond} items={condPick.items} />
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
       </div>
 
