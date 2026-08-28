@@ -1617,7 +1617,15 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
       }
       // 이름을 설정표나 변수로 넘기는 곳(whLabel: '출하창고' · dateLabel = '기준일자').
       for (const m of src2.matchAll(/\w*Label\s*[:=]\s*["']([^"']{1,24})["']/g)) addLabel(m[1])
-      for (const m of src2.matchAll(/>([^<>{}]{1,24})</g)) addLabel(m[1])
+      /*
+       * <b>목록 표의 머리</b>는 조건 이름이 아니다. 예전에는 <th>일자</th> 하나로
+       * 원본 조건 [일자]가 있는 것으로 쳤다 — 정작 조건 이름은 [작업일자] 였다.
+       *
+       * <p>다만 우리 등록 폼은 <b>표로 짠다</b>(거래처등록의 <th>대표자명</th><td>입력칸</td>).
+       * 거기 <th>는 진짜 이름표다. 그래서 <thead> 안의 것만 뺀다.
+       */
+      const noHead = src2.replace(/<thead[\s\S]*?<\/thead>/g, ' ')
+      for (const m of noHead.matchAll(/>([^<>{}]{1,24})</g)) addLabel(m[1])
     }
     for (const f of fields) {
       /*
@@ -1647,6 +1655,81 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     + ` (안 만든 ${NO_FIELD.size + NO_FIELD_ON.size}종은 이유를 적고 뺐다, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
     bad.join('\n') || '없음', '없음')
   eq(`조건 예외 ${NO_FIELD.size + NO_FIELD_ON.size}종이 아직 필요하다`, stale.join('\n') || '없음', '없음')
+}
+
+// ── 2-p) 조건 판의 차례 ───────────────────────────────────────────────────
+console.log('\n■ 화면 머리의 조건이 원본과 같은 차례로 서 있나')
+
+/*
+ * <b>조건이 있기만 하면 되는 게 아니다.</b> 원본을 쓰던 사람은 조건 판을 눈으로
+ * 훑어 내려간다 — 늘 [기준일자] 다음이 [거래처]인 자리에 엉뚱한 것이 있으면
+ * 매번 찾아 읽어야 한다. 열 차례(2-c)는 이미 보고 있었는데 조건 차례는 안 봤다.
+ *
+ * <p>사본에서 뽑은 <code>ecount-form-fields.json</code>은 <b>원본 차례 그대로</b>다.
+ * 우리 화면에 있는 것만 골라 서로의 앞뒤가 같은지 본다(없는 조건은 건너뛴다).
+ * 공용 패널(EcStatusPanel)이 그리는 [구분]·[기준일자]는 화면 파일에 글자가 없어
+ * 저절로 빠진다 — 그건 패널이 늘 같은 자리에 그린다.
+ */
+{
+  const ORDER_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  /** 차례를 아직 못 맞춘 화면 — 왜인지 적는다. */
+  const ORDER_SKIP = new Map([
+    ['거래처관리대장 II',
+      '거래처등록 폼 21칸의 차례가 원본과 다르다 — 아직 안 맞췄다. 칸을 옮기는 일이라'
+      + ' 묶음(주소1+우편번호 같은 짝)을 흐트러뜨리지 않게 따로 손봐야 한다'],
+    ['구매일괄회계반영',
+      '원본 두 화면이 서로 다른 차례다 — 구매일괄회계반영은 거래처관리담당자·거래유형,'
+      + ' 회계미반영현황(구매)는 거래유형·거래처관리담당자. 한 화면이 둘을 겸해서 둘 다 맞출 수 없다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const [screen, fields] of Object.entries(cap)) {
+    const rel = ORDER_MAP.get(screen)
+    if (!rel || PENDING.has(screen) || ORDER_SKIP.has(screen)) continue
+    const src = pageSource(rel)
+    // 목록 표의 머리는 조건 이름이 아니다 — 있는지 보는 검사(2-h)와 같은 규칙으로 뺀다.
+    /*
+     * <b>조건 판 안에서만</b> 자리를 잰다. 화면 파일에는 조건 판 말고 등록 폼도 있고,
+     * 그 폼의 이름표(<th>부서</th>)가 조건 판보다 <b>앞에</b> 나오면 차례가 뒤집힌 것처럼
+     * 보인다 — 업무일지가 실제로 그랬다. 조건 판이 없는 화면(등록 폼이 곧 머리인 곳)은
+     * 파일 전체를 본다. 목록 표의 머리는 어느 쪽이든 뺀다.
+     */
+    const panel = (() => {
+      for (const [open, close] of [['<EcStatusPanel', '</EcStatusPanel>'],
+        ['ec-cond', '</ul>'], ['ec-form', '</ul>']]) {
+        const i = src.indexOf(open)
+        if (i < 0) continue
+        const j = src.indexOf(close, i)
+        if (j > i) return src.slice(i, j)
+      }
+      return src
+    })()
+    const noHead = panel.replace(/<thead[\s\S]*?<\/thead>/g, ' ')
+    if (!src) continue
+    /** 그 이름이 <b>이름 자리</b>에 처음 나오는 곳. 없으면 -1. */
+    const posOf = (f) => {
+      let best = -1
+      for (const re of [new RegExp('label\\s*=\\s*["\'`]' + esc(f) + '["\'`]'),
+        new RegExp('>\\s*' + esc(f) + '\\s*<')]) {
+        const m = noHead.match(re)
+        if (m && (best < 0 || m.index < best)) best = m.index
+      }
+      return best
+    }
+    const ours = fields.map((f) => [f, posOf(f)]).filter(([, p]) => p >= 0)
+    if (ours.length < 3) continue   // 두 개로는 차례를 말할 것이 없다
+    checked += ours.length
+    const want = ours.map(([f]) => f)
+    const got = [...ours].sort((a, b) => a[1] - b[1]).map(([f]) => f)
+    if (want.join(' · ') !== got.join(' · ')) {
+      bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
+    }
+  }
+  eq(`원본과 견준 조건 ${checked}개가 같은 차례로 서 있다`
+    + ` (아직 못 맞춘 ${ORDER_SKIP.size}화면은 이유를 적고 뺐다)`, bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────

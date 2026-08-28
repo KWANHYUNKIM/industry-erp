@@ -249,15 +249,16 @@ export default function WorkProcessPage() {
           <input className="ec-input" placeholder="전체" value={orderNo}
                  onChange={(e) => setOrderNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
-        <EcCond label="생산품목" pick>
-          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
-                           value={item} onChange={(v) => setItem(v)}
-                           items={pickers.items} />
-        </EcCond>
         {/* 원본 조건의 [납기일자]·[생산공장]·[작업]. 처리할 줄이 많으면 이것 없이는 눈으로 훑게 된다. */}
         <EcCond label="납기일자" pick>
           <input type="date" className="ec-input" value={dueDate}
                  onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
+        </EcCond>
+        <EcCond label="잔량기준">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={prevBased} onChange={(e) => setPrevBased(e.target.checked)} />
+            직전작업
+          </label>
         </EcCond>
         <EcCond label="생산공장" pick>
           <input className="ec-input" placeholder="공장명 일부" value={plant}
@@ -267,16 +268,15 @@ export default function WorkProcessPage() {
           <input className="ec-input" placeholder="공정명·작업명 일부" value={work}
                  onChange={(e) => setWork(e.target.value)} style={{ width: 180 }} />
         </EcCond>
+        <EcCond label="생산품목" pick>
+          <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
+        </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
                            value={manager} onChange={(v) => setManager(v)}
                            items={pickers.employees} />
-        </EcCond>
-        <EcCond label="잔량기준">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={prevBased} onChange={(e) => setPrevBased(e.target.checked)} />
-            직전작업
-          </label>
         </EcCond>
         <EcCond label="미작업량">
           <input className="ec-input text-right" type="number" placeholder="이상" value={minRemain}

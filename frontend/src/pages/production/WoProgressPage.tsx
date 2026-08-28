@@ -309,14 +309,14 @@ export default function WoProgressPage() {
                            items={pickers.partners} />
         </EcCond>
         {/* 원본 [거래처관리담당자]. 그 거래처를 맡은 영업담당자다. */}
-        <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
-                           value={partnerManager} onChange={(v) => setPartnerManager(v)}
-                           items={pickers.employees} />
-        </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={emp} onChange={(v) => setEmp(v)}
+                           items={pickers.employees} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
+                           value={partnerManager} onChange={(v) => setPartnerManager(v)}
                            items={pickers.employees} />
         </EcCond>
         <EcCond label="창고" pick>

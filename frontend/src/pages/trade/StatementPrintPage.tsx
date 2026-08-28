@@ -240,6 +240,12 @@ export default function StatementPrintPage() {
                              .map((m) => ({ value: m as string, name: m as string }))} />
         </EcCond>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 앞줄이다(사본 실측). */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withReceivable} onChange={(e) => setWithReceivable(e.target.checked)} />
+            미수금집계
+          </label>
+        </EcCond>
         <EcCond label="정렬/소계기준">
           <div className="ec-pills">
             {SUBTOTALS.map((v) => (
@@ -247,12 +253,6 @@ export default function StatementPrintPage() {
                       onClick={() => setSubtotal(v)}>{v}</button>
             ))}
           </div>
-        </EcCond>
-        <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={withReceivable} onChange={(e) => setWithReceivable(e.target.checked)} />
-            미수금집계
-          </label>
         </EcCond>
       </EcStatusPanel>
 

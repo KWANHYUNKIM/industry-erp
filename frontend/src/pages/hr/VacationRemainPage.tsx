@@ -118,6 +118,12 @@ export default function VacationRemainPage() {
             ))}
           </select>
         </EcCond>
+        <EcCond label="휴가코드" pick>
+          <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
+                           value={leaveCode} onChange={(v) => setLeaveCode(v)}
+                           items={[...new Set(rows.map((r) => r.leaveName).filter(Boolean))]
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
@@ -130,12 +136,6 @@ export default function VacationRemainPage() {
           원본 조건 [휴가코드]. 줄에 '연차(2026년)' 처럼 코드가 찍히는데 그걸로 거를
           자리가 없었다 — 연차 말고 다른 휴가를 따로 볼 수가 없었다.
         */}
-        <EcCond label="휴가코드" pick>
-          <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
-                           value={leaveCode} onChange={(v) => setLeaveCode(v)}
-                           items={[...new Set(rows.map((r) => r.leaveName).filter(Boolean))]
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
         <EcCond label="재직구분">
           <div className="ec-pills">
             {EMPLOYMENTS.map(([v, label]) => (

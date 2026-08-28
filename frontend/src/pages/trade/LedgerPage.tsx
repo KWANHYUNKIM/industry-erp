@@ -279,6 +279,9 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단거래처포함
           </label>
+        </EcCond>
+        {/* 원본은 [잔액]을 따로 한 줄로 둔다 — [기타]에 섞여 있지 않다(사본 실측). */}
+        <EcCond label="잔액">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />
             잔액 있는 거래처만

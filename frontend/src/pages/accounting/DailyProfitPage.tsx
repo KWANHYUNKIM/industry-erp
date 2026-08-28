@@ -307,14 +307,6 @@ export default function DailyProfitPage() {
           </div>
         </EcCond>
         {/* 원본 조건의 [거래구분]. 반품 전표는 수량·금액이 음수라 이익에서 저절로 빠진다. */}
-        <EcCond label="거래구분">
-          <div className="ec-pills">
-            {(['전체', '반품만', '반품제외'] as const).map((k) => (
-              <button key={k} type="button" className={`ec-pill no-ec${tradeKind === k ? ' active' : ''}`}
-                      onClick={() => setTradeKind(k)}>{k}</button>
-            ))}
-          </div>
-        </EcCond>
         <EcCond label="원가">
           <div className="ec-pills">
             {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
@@ -322,6 +314,14 @@ export default function DailyProfitPage() {
                       onClick={() => setBasis(b)}>
                 {b}
               </button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="거래구분">
+          <div className="ec-pills">
+            {(['전체', '반품만', '반품제외'] as const).map((k) => (
+              <button key={k} type="button" className={`ec-pill no-ec${tradeKind === k ? ' active' : ''}`}
+                      onClick={() => setTradeKind(k)}>{k}</button>
             ))}
           </div>
         </EcCond>

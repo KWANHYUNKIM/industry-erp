@@ -178,10 +178,6 @@ export default function WorkOrderPage() {
               <label className="mb-1 block text-sm text-slate-600">일자</label>
               <input type="date" className={inputCls} value={form.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">납기일자</label>
-              <input type="date" className={inputCls} value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
-            </div>
             {/* 원본 작업지시서입력 머리: 작업지시No. · 일자 · 납품처 · 담당자 · 납기일자 */}
             <div>
               <label className="mb-1 block text-sm text-slate-600">납품처</label>
@@ -196,6 +192,10 @@ export default function WorkOrderPage() {
                 <option value="">선택 안 함</option>
                 {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">납기일자</label>
+              <input type="date" className={inputCls} value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">비고</label>

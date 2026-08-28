@@ -227,6 +227,11 @@ export default function IssuePage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
             <div>
+              {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
+              <label className="mb-1 block text-sm text-slate-600">일자</label>
+              <input type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">담당자</label>
               <select className={inputCls} value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
@@ -264,10 +269,6 @@ export default function IssuePage() {
               <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">불출일자</label>
-              <input type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
             </div>
           </div>
 

@@ -284,16 +284,16 @@ export default function WorkLogPage() {
           <div className="form"><input className="ec-input" value={cond.partnerName} onChange={(e) => setC('partnerName', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
         <li>
-          <div className="title">최초작성자</div>
-          <div className="form"><input className="ec-input" value={cond.author} onChange={(e) => setC('author', e.target.value)} style={{ width: '100%' }} /></div>
-        </li>
-        <li>
           <div className="title">제목</div>
           <div className="form"><input className="ec-input" value={cond.title} onChange={(e) => setC('title', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
         <li>
           <div className="title">내용</div>
           <div className="form"><input className="ec-input" value={cond.content} onChange={(e) => setC('content', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">최초작성자</div>
+          <div className="form"><input className="ec-input" value={cond.author} onChange={(e) => setC('author', e.target.value)} style={{ width: '100%' }} /></div>
         </li>
         {/* 원본 조건 판의 [기타] 칸. 원본도 기본은 꺼져 있다. */}
         <li>

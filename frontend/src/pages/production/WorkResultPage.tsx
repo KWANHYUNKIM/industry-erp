@@ -191,7 +191,8 @@ export default function WorkResultPage() {
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업일자</label>
+              {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
+              <label className="mb-1 block text-sm text-slate-600">일자</label>
               <input type="date" className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
             </div>
             <div>

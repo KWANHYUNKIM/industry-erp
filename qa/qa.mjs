@@ -2103,7 +2103,13 @@ async function scenarioPaySetting() {
   let month = null
   let payEmp = emp
   outer:
-  for (let y = 2027; y <= 2036; y++) {
+  /*
+   * <b>이 시나리오는 자리를 되돌려 놓지 못한다.</b> 확정한 급여명세는 지울 수 없어서다
+   * (제품 규칙이 그렇다 — 확정을 되돌리는 길을 시험 때문에 만들 수는 없다).
+   * 그래서 돌릴 때마다 귀속월 한 자리를 먹는다. 2036년까지로 두었더니 600자리를
+   * 다 써서 하네스가 멈췄다(사원 5명 × 120달). 넉넉히 늘려 둔다.
+   */
+  for (let y = 2027; y <= 2086; y++) {
     for (let m = 1; m <= 12; m++) {
       const candidate = `${y}-${String(m).padStart(2, '0')}`
       const taken = new Set((await must('GET', `/payslips?month=${candidate}`)).map((p) => p.employeeId))
@@ -2117,7 +2123,9 @@ async function scenarioPaySetting() {
   }
   if (month === null) {
     throw new Error(
-      `2027~2036년에 사원 ${employees.length}명 모두 빈 귀속월이 없습니다. DB를 초기화하고 다시 실행하세요.`)
+      `2027~2086년에 사원 ${employees.length}명 모두 빈 귀속월이 없습니다.`
+      + ' 확정된 급여명세는 API 로 지울 수 없으니 개발 DB 에서 직접 지우세요:'
+      + " delete from payslips where pay_month >= '2027-01' (딸린 payslip_lines·payroll_transfer_lines 먼저).")
   }
 
   const slip = await must('POST', '/payslips', {

@@ -245,6 +245,14 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               <input type="date" className={inputCls} value={form.productionDate} onChange={(e) => setForm({ ...form, productionDate: e.target.value })} />
             </div>
             <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <select className={inputCls} value={form.employeeId}
+                      onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-sm text-slate-600">생산된공장</label>
               <select className={inputCls} value={form.fromWarehouseId}
                       onChange={(e) => setForm({ ...form, fromWarehouseId: e.target.value })}>
@@ -261,14 +269,6 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.kind}] {w.name}</option>)}
               </select>
               <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              <select className={inputCls} value={form.employeeId}
-                      onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">프로젝트</label>

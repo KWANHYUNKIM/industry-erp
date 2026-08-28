@@ -336,14 +336,6 @@ export default function AccountingReflectionPage() {
         dateLabel="기준일(영업주기)"
       >
         {/* 원본 [정렬/소계기준]. */}
-        <EcCond label="정렬/소계기준">
-          <div className="ec-pills">
-            {SUBTOTALS.map((v) => (
-              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
-                      onClick={() => setSubtotal(v)}>{v}</button>
-            ))}
-          </div>
-        </EcCond>
         <EcCond label="구분">
           <div className="ec-pills">
             {MODES.map((m) => (
@@ -419,6 +411,14 @@ export default function AccountingReflectionPage() {
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input className="ec-input" type="number" value={cond.amtTo}
                  onChange={(e) => setC({ amtTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <div className="ec-pills">
+            {SUBTOTALS.map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                      onClick={() => setSubtotal(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
       </EcStatusPanel>
 

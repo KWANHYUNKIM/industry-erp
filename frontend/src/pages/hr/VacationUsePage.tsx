@@ -163,19 +163,19 @@ export default function VacationUsePage() {
           <input className="ec-input" placeholder="사유 일부" value={reason}
                  onChange={(e) => setReason(e.target.value)} style={{ width: 220 }} />
         </EcCond>
-        <EcCond label="재직구분">
-          <div className="ec-pills">
-            {EMPLOYMENTS.map(([v, label]) => (
-              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
-                      onClick={() => setEmployment(v)}>{label}</button>
-            ))}
-          </div>
-        </EcCond>
         <EcCond label="상태">
           <div className="ec-pills">
             {['전체', '결재중', '확인'].map((s) => (
               <button key={s} type="button" className={`ec-pill no-ec${status === s ? ' active' : ''}`}
                       onClick={() => setStatus(s)}>{s}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="재직구분">
+          <div className="ec-pills">
+            {EMPLOYMENTS.map(([v, label]) => (
+              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
+                      onClick={() => setEmployment(v)}>{label}</button>
             ))}
           </div>
         </EcCond>

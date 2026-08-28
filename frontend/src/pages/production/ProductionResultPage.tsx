@@ -261,8 +261,19 @@ export default function ProductionResultPage() {
                 </td>
               </tr>
               <tr>
-                <th style={th}>생산일자</th>
+                <th style={th}>일자</th>
                 <td><input type="date" className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
+              </tr>
+              <tr>
+                {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
+                <th style={th}>담당자</th>
+                <td>
+                  <select className="ec-input" value={employeeId}
+                          onChange={(e) => setEmployeeId(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">선택 안 함</option>
+                    {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
+                  </select>
+                </td>
               </tr>
               <tr>
                 <th style={th}>생산된공장</th>
@@ -288,17 +299,6 @@ export default function ProductionResultPage() {
                     ))}
                   </select>
                   <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
-                </td>
-              </tr>
-              <tr>
-                {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
-                <th style={th}>담당자</th>
-                <td>
-                  <select className="ec-input" value={employeeId}
-                          onChange={(e) => setEmployeeId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">선택 안 함</option>
-                    {employees.map((x) => <option key={x.id} value={x.id}>[{x.code}] {x.name}</option>)}
-                  </select>
                 </td>
               </tr>
               <tr>
