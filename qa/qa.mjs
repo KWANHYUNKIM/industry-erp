@@ -829,8 +829,13 @@ async function scenarioSalesPlanScope(f) {
 
   const rows = await must('GET', `/sales-plans/comparison?year=${year}`)
   const qtyOf = (id) => Number(rows.find((r) => r.id === id)?.actualQty ?? -1)
-  eq('창고를 안 고른 계획은 전부를 센다', qtyOf(planAll.id), 3)
-  eq('그 창고 계획은 그 창고 판매를 센다', qtyOf(planHere.id), 3)
+  /*
+   * <b>절대값으로 재면 안 된다</b> — 이 시나리오는 돌 때마다 판매를 하나씩 더 만들어서
+   * 두 번째 실행이면 3 이 아니라 6 이다(실제로 그렇게 깨졌다). 재야 할 것은 숫자가 아니라
+   * <b>축이 실적을 갈라 내는가</b> 이므로 관계로 잰다.
+   */
+  eq('그 창고 계획은 <b>안 고른 계획과 같은 만큼</b> 센다 — 그 창고 판매가 전부이므로',
+    qtyOf(planHere.id) === qtyOf(planAll.id) && qtyOf(planAll.id) > 0, true)
   eq('<b>다른 창고 계획은 0 이다</b> — 안 그러면 같은 판매가 두 줄에 중복으로 잡힌다',
     qtyOf(planThere.id), 0)
 

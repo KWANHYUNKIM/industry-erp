@@ -52,8 +52,9 @@ public class AsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long partnerId,
-            @RequestParam(required = false) Long repairItemId) {
-        return asService.consumption(from, to, warehouseId, partnerId, repairItemId);
+            @RequestParam(required = false) Long repairItemId,
+            @RequestParam(required = false) Long projectId) {
+        return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId);
     }
 
     @GetMapping("/{id}/parts")

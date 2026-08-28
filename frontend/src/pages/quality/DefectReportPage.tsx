@@ -25,7 +25,7 @@ const rateColor = (r: number) => (r >= 5 ? '#c60a2e' : r >= 1 ? '#c07a00' : '#1c
 
 export default function DefectReportPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'warehouses', 'projects'])
   const [inspections, setInspections] = useState<QualityInspection[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +42,13 @@ export default function DefectReportPage() {
    * 둘 다 원자료에는 있는데 <b>합친 뒤라 화면에서 거를 수가 없었다</b> —
    * 합치기 전에 건다. [창고]·[프로젝트]·[불량유형]은 품질검사에 그 값이 없다.
    */
+  /*
+   * [창고]·[프로젝트]는 <b>품질검사에 그 칸이 없어</b> 일부러 안 만들었던 조건이다
+   * (창고로 거르면 재고조정 쪽만 걸러져 반쪽짜리 보고서가 됐다).
+   * 이제 검사·조정 <b>양쪽 다</b> 창고·프로젝트를 무니 제대로 거를 수 있다.
+   */
+  const [whCond, setWhCond] = useState('')
+  const [projCond, setProjCond] = useState('')
   const [inspectorCond, setInspectorCond] = useState('')
   const [handleCond, setHandleCond] = useState<'전체' | '불량' | '폐기'>('전체')
 
@@ -69,6 +76,8 @@ export default function DefectReportPage() {
     for (const q of inspections) {
       if (!inPeriod(q.inspectionDate)) continue
       if (inspectorCond && (q.inspector ?? '') !== inspectorCond) continue
+      if (whCond && (q.warehouseName ?? '') !== whCond) continue
+      if (projCond && (q.projectName ?? '') !== projCond) continue
       const r = get(q.itemId, q.itemCode, q.itemName, q.unit)
       r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
     }
@@ -77,6 +86,8 @@ export default function DefectReportPage() {
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
       if (handleCond === '불량' && a.type !== 'DEFECT') continue
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
+      if (whCond && a.warehouseName !== whCond) continue
+      if (projCond && (a.projectName ?? '') !== projCond) continue
       const r = get(a.itemId, a.itemCode, a.itemName, a.unit)
       const qty = Math.abs(a.quantityChange)
       if (a.type === 'DEFECT') r.defectHandled += qty
@@ -88,7 +99,7 @@ export default function DefectReportPage() {
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
-  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond])
+  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
@@ -114,6 +125,15 @@ export default function DefectReportPage() {
         picks={INQUIRY_FULL_PICKS}
         dateLabel="기간"
       >
+        {/* 원본 차례: <b>창고 · 프로젝트</b> · 담당자 · 불량유형 · 처리방법 */}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond} items={pickers.projects} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={keyword} onChange={(v) => setKeyword(v)}

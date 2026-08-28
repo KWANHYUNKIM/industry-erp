@@ -67,9 +67,11 @@ export default function PriceRequestProgressPage() {
    * 이것은 <b>그 거래처를 맡은 사람</b>이다 — 거래처 마스터가 들고 있다.
    * "내가 맡은 거래처의 단가요청" 을 한 번에 보려면 이것으로 걸러야 한다.
    */
+  /* 발주서에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
+  const [projCond, setProjCond] = useState('')
   const [partnerMgrCond, setPartnerMgrCond] = useState('')
   const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
-  const pickers = useCondPickers(['partners', 'items', 'employees'])
+  const pickers = useCondPickers(['partners', 'items', 'employees', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -92,11 +94,12 @@ export default function PriceRequestProgressPage() {
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
     .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
-  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs])
+  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond])
 
   /*
    * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -137,6 +140,11 @@ export default function PriceRequestProgressPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        {/* 원본 차례: … 거래처 · 품목 · <b>프로젝트</b> · 담당자 · 거래처관리담당자 · 적요 */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond} items={pickers.projects} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"

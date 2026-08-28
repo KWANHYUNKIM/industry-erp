@@ -36,6 +36,8 @@ export default function QuotationPage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [itemCond, setItemCond] = useState('')
+  /* 원본 견적서 조건 차례의 둘째 <b>[견적No.]</b>. 번호를 알아도 눈으로 찾아야 했다. */
+  const [noCond, setNoCond] = useState('')
   /* 원본 견적서 조건 차례: … <b>창고</b> · <b>프로젝트</b> · 관리항목 · 거래처 · 품목 · 발송여부. */
   const [whCond, setWhCond] = useState('')
   const [projCond, setProjCond] = useState('')
@@ -78,12 +80,13 @@ export default function QuotationPage() {
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !noCond || r.quoteNo.includes(noCond))
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => sentCond === '전체'
       || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
-    [rows, tab, itemCond, sentCond, whCond, projCond])
+    [rows, tab, itemCond, sentCond, whCond, projCond, noCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -154,6 +157,10 @@ export default function QuotationPage() {
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="견적No.">
+          <input className="ec-input" value={noCond} placeholder="견적No."
+                 onChange={(e) => setNoCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}

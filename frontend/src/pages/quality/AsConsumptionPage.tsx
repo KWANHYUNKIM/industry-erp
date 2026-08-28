@@ -33,7 +33,9 @@ export default function AsConsumptionPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [partnerId, setPartnerId] = useState('')
   const [repairItemId, setRepairItemId] = useState('')
-  const pickers = useCondPickers(['warehouses', 'partners', 'items'])
+  /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
+  const [projectId, setProjectId] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners', 'items', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -41,7 +43,8 @@ export default function AsConsumptionPage() {
     setLoading(true); setError('')
     try {
       const params = { from, to, warehouseId: warehouseId || undefined,
-        partnerId: partnerId || undefined, repairItemId: repairItemId || undefined }
+        partnerId: partnerId || undefined, repairItemId: repairItemId || undefined,
+        projectId: projectId || undefined }
       setRows((await api.get<Row[]>('/as-requests/parts/consumption', { params })).data)
     }
     catch (err) { setError(extractErrorMessage(err)); setRows([]) }
@@ -60,6 +63,11 @@ export default function AsConsumptionPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseId} onChange={setWarehouseId} items={pickers.warehouses} />
+        </EcCond>
+        {/* 원본 A/S소모현황 차례: 접수일자 · 창고 · <b>프로젝트</b> · … · 거래처 · 수리품목 */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectId} onChange={setProjectId} items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"

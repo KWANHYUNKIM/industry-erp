@@ -158,7 +158,8 @@ public class AsService {
      */
     @Transactional(readOnly = true)
     public List<AsConsumptionRow> consumption(LocalDate from, LocalDate to,
-                                              Long warehouseId, Long partnerId, Long repairItemId) {
+                                              Long warehouseId, Long partnerId, Long repairItemId,
+                                              Long projectId) {
         Map<Long, Acc> byItem = new LinkedHashMap<>();
         for (AsPart p : asPartRepository.findAllWithRefs()) {
             AsRequest as = p.getAsRequest();
@@ -167,6 +168,9 @@ public class AsService {
             if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
             if (partnerId != null && !partnerId.equals(as.getPartner().getId())) continue;
             if (repairItemId != null && !repairItemId.equals(as.getItem().getId())) continue;
+            /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
+            if (projectId != null && (as.getProject() == null
+                    || !projectId.equals(as.getProject().getId()))) continue;
             Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
                     k -> new Acc(p.getItem().getName()));
             acc.totalQty = acc.totalQty.add(p.getQuantity());
