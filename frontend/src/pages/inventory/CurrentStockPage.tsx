@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
@@ -55,12 +56,20 @@ export default function CurrentStockPage() {
   const warehouses = useMemo(
     () => [...new Set(rows.map((r) => r.warehouseName))].sort(), [rows])
 
-  const shown = rows
+  const shownRows = rows
     .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
     .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
     .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
+
+  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(shownRows, {
+    품목코드: (r) => r.itemCode,
+    품목명: (r) => r.itemName,
+    창고: (r) => r.warehouseName,
+  })
+  const shown = sort.sorted
 
   const belowCount = rows.filter((r) => r.belowSafety).length
   const totalQty = shown.reduce((s, r) => s + r.quantity, 0)
@@ -141,10 +150,10 @@ export default function CurrentStockPage() {
           <thead>
             <tr>
               <th></th>
-              <th>품목코드 ▼</th>
-              <th>품목명 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
               <th>규격정보</th>
-              <th>창고 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고')}>창고 {sort.mark('창고')}</th>
               <th style={{ textAlign: 'right' }}>현재고</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
               <th style={{ textAlign: 'center' }}>상태</th>

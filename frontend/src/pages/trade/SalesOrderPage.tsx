@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -107,9 +108,17 @@ export default function SalesOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const shown = orders
+  const shownRows = orders
     .filter((o) => statusFilter === 'ALL' || o.status === statusFilter)
     .filter((o) => !keyword || o.partnerName.includes(keyword) || o.orderNo.includes(keyword))
+
+  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(shownRows, {
+    수주번호: (o) => o.orderNo,
+    수주일: (o) => o.orderDate,
+    거래처: (o) => o.partnerName,
+  })
+  const shown = sort.sorted
 
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
@@ -212,7 +221,7 @@ export default function SalesOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>수주번호 ▼</th><th>수주일 ▼</th><th>거래처 ▼</th><th>품목</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주번호')}>수주번호 {sort.mark('수주번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주일')}>수주일 {sort.mark('수주일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>합계금액</th><th>납기일</th>
             <th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>

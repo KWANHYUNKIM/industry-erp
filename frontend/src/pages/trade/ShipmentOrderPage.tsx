@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -144,7 +145,15 @@ export default function ShipmentOrderPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const shown = shipments.filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
+  const shownRows = shipments.filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
+
+  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(shownRows, {
+    출하번호: (s) => s.shipNo,
+    출하일: (s) => s.shipDate,
+    거래처: (s) => s.partnerName,
+  })
+  const shown = sort.sorted
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
@@ -275,8 +284,8 @@ export default function ShipmentOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>출하번호 ▼</th><th style={{ width: 130 }}>근거주문</th><th>출하일 ▼</th>
-            <th style={{ width: 100 }}>출하예정일</th><th>거래처 ▼</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th>
+            <th style={{ width: 100 }}>출하예정일</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ width: 110 }}>연락처</th><th style={{ width: 150 }}>적요</th>
             <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>

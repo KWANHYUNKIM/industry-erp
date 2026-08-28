@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 
 /**
@@ -48,12 +49,23 @@ export default function ShipmentInquiryPage() {
   }
   useEffect(() => { load() }, [])
 
-  const shown = useMemo(() => rows
+  const shownRows = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.shipNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !from || r.shipDate >= from)
     .filter((r) => !to || r.shipDate <= to)
     .sort((a, b) => b.shipDate.localeCompare(a.shipDate) || b.id - a.id), [rows, keyword, from, to, tab])
+
+  /*
+   * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
+   * (출하일 내림차순)를 그대로 쓴다 — 열지 마자 최신 건이 위에 서는 것이 이 화면의 기본이다.
+   */
+  const sort = useTableSort(shownRows, {
+    출하번호: (r) => r.shipNo,
+    출하일: (r) => r.shipDate,
+    거래처: (r) => r.partnerName,
+  })
+  const shown = sort.sorted
 
   const tabCount = (t: SendTab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
   const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQuantity, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
@@ -92,7 +104,7 @@ export default function ShipmentInquiryPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>출하번호 ▼</th><th>출하일 ▼</th><th style={{ width: 130 }}>근거주문</th><th>거래처 ▼</th><th>품목</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>출하수량</th><th style={{ textAlign: 'right' }}>출하금액</th>
             <th style={{ textAlign: 'center' }}>발송여부</th><th>담당</th>
           </tr>

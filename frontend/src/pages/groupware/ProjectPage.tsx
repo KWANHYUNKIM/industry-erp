@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -83,9 +84,17 @@ export default function ProjectPage() {
     catch (err) { alert(extractErrorMessage(err)) }  // 전표·계획 참조 시 서버가 막는다(400)
   }
 
-  const shown = rows
+  const shownRows = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword) || (r.manager ?? '').includes(keyword))
+
+  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [상태]는 화면에 찍히는 이름으로 세운다. */
+  const sort = useTableSort(shownRows, {
+    코드: (r) => r.code,
+    프로젝트명: (r) => r.name,
+    상태: (r) => r.statusName,
+  })
+  const shown = sort.sorted
 
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
@@ -150,13 +159,13 @@ export default function ProjectPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>코드 ▼</th>
-            <th>프로젝트명 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
             <th style={{ width: 90 }}>PM</th>
             <th style={{ width: 100 }}>시작일</th>
             <th style={{ width: 100 }}>종료(예정)</th>
             <th style={{ width: 170 }}>진척률</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 120, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>

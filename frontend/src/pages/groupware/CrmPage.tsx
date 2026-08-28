@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CrmActivity, CrmStage, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -83,7 +84,18 @@ export default function CrmPage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || (r.activity ?? '').includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || (r.activity ?? '').includes(keyword))
+
+  /*
+   * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [단계]는 칸 안이 고르는 자리(select)라
+   * 값 자체로 세운다 — 화면에 보이는 것이 곧 그 값이다.
+   */
+  const sort = useTableSort(shownRows, {
+    일자: (r) => r.activityDate,
+    고객사: (r) => r.partnerName,
+    단계: (r) => r.stage,
+  })
+  const shown = sort.sorted
 
   return (
     <EcListShell
@@ -136,12 +148,12 @@ export default function CrmPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>일자 ▼</th>
-            <th>고객사 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('고객사')}>고객사 {sort.mark('고객사')}</th>
             <th style={{ width: 90 }}>담당연락처</th>
             <th style={{ width: 80 }}>영업담당</th>
             <th>활동내용</th>
-            <th style={{ width: 100, textAlign: 'center' }}>단계 ▼</th>
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('단계')}>단계 {sort.mark('단계')}</th>
             <th>다음 액션</th>
           </tr>
         </thead>
