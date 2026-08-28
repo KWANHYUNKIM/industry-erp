@@ -6,7 +6,6 @@
  "MrpPage.tsx  원본 생산계획/MRP생성 의 [생성일자] 조건이 없다",
  "PriceMovementPage.tsx  원본 단가변동표 의 [단가기준] 조건이 없다",
  "QualityStatusPage.tsx  원본 품질검사현황 의 [출처(요청)구분] 조건이 없다",
- "SpecialPricePage.tsx  원본 특별단가등록 의 [수정일자순(정렬)] 조건이 없다",
  "LeaveListPage.tsx  원본 근태조회 의 [프로젝트] 조건이 없다",
  "AttendanceKindStatusPage.tsx  원본 근태현황 의 [프로젝트] 조건이 없다",
  "AttendanceKindStatusPage.tsx  원본 근태현황 의 [근태항목] 조건이 없다",

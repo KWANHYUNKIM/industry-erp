@@ -7,6 +7,8 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 
+import java.time.LocalDateTime;
+
 public final class SpecialPriceDtos {
 
     private SpecialPriceDtos() {}
@@ -32,7 +34,12 @@ public final class SpecialPriceDtos {
             String priceGroup,
             BigDecimal unitPrice,
             boolean active,
-            String remark, String createdBy
+            String remark, String createdBy,
+            /*
+             * 원본 특별단가등록의 <b>[수정일자순]</b> 정렬이 쓰는 값. BaseTimeEntity 가 이미
+             * 들고 있는데 응답에 안 실려서 <b>정렬 기준으로 쓸 수가 없었다.</b>
+             */
+            LocalDateTime updatedAt
     ) {
         public static SpecialPriceResponse from(SpecialPrice sp) {
             return new SpecialPriceResponse(
@@ -44,7 +51,7 @@ public final class SpecialPriceDtos {
                     sp.getPriceGroup(),
                     sp.getUnitPrice(),
                     sp.isActive(),
-                    sp.getRemark(), sp.getCreatedBy());
+                    sp.getRemark(), sp.getCreatedBy(), sp.getUpdatedAt());
         }
     }
 

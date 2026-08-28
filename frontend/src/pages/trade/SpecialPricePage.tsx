@@ -20,6 +20,7 @@ const typeLabel: Record<SpecialPriceType, string> = { SALES: '판매', PURCHASE:
 
 export default function SpecialPricePage() {
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
+  const [sortRecent, setSortRecent] = useState(false)
   const [rows, setRows] = useState<SpecialPrice[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -111,8 +112,17 @@ export default function SpecialPricePage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+  /*
+   * 원본 특별단가등록의 <b>[수정일자순]</b> 정렬. 최근에 고친 단가부터 보는 것이
+   * 실제 쓰임이다 — 어제 누가 무엇을 바꿨나를 맨 위에서 본다.
+   * 값은 BaseTimeEntity 가 이미 들고 있었는데 <b>응답에 안 실려</b> 쓸 수가 없었다.
+   */
   const visible = rows.filter((r) => tab === 'ALL' || r.tradeType === tab)
     .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
+    .slice()
+    .sort((a, b) => (sortRecent
+      ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')
+      : 0))
   const inputCls = 'ec-input'
 
   return (
@@ -203,6 +213,11 @@ export default function SpecialPricePage() {
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
         </select>
+        {/* 원본 조건 [수정일자순(정렬)] — 최근에 고친 단가부터 본다. */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={sortRecent} onChange={(e) => setSortRecent(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
       </div>
 
       <table className="w-full text-left">

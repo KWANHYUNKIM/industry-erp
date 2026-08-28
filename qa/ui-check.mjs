@@ -2547,7 +2547,13 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
        * 거기 <th>는 진짜 이름표다. 그래서 <thead> 안의 것만 뺀다.
        */
       const noHead = src2.replace(/<thead[\s\S]*?<\/thead>/g, ' ')
-      for (const m of noHead.matchAll(/>([^<>{}]{1,24})</g)) addLabel(m[1])
+      /*
+       * 24자 제한은 <b>이름이 그만큼 길다</b>는 뜻이지 <b>태그에서 그만큼 가깝다</b>는 뜻이 아니다.
+       * 앞뒤 공백을 셈에 넣고 있어서, 들여쓰기가 깊은 자리의 이름표를 놓쳤다 —
+       * 특별단가등록 [수정일자순(정렬)]을 만들어 놓고도 <b>없다고 나왔다</b>.
+       * 공백은 따로 빼고 글자만 센다.
+       */
+      for (const m of noHead.matchAll(/>\s*([^<>{}\s][^<>{}]{0,23})\s*</g)) addLabel(m[1])
     }
     for (const f of fields) {
       /*

@@ -744,6 +744,8 @@ export interface SpecialPrice {
   active: boolean
   remark: string | null
   createdBy: string | null
+  /** 원본 [수정일자순] 정렬이 쓰는 값. BaseTimeEntity 가 들고 있던 것이다. */
+  updatedAt: string | null
 }
 
 export interface SpecialPriceResolve {
