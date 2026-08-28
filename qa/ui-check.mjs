@@ -1918,6 +1918,39 @@ console.log('\n■ 회계기수가 있어야 나오는 기간을 ! 로 눌러 �
   eq('회계기수 기간을 ! 로 눌러 쓴 곳이 없다 (' + checked + '군데 살펴봄)', bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-t) 표 머리의 ▼ 가 거짓말을 하지 않나 ───────────────────────────────
+console.log('\n■ 표 머리에 ▼ 를 그려 놓고 정렬은 안 되는 화면이 늘지 않았나')
+
+/*
+ * <b>▼ 는 '눌러서 정렬한다' 는 뜻이다.</b> 원본은 목록 열의 78%에 정렬 표시를 달고
+ * 실제로 눌러 정렬한다(사본 실측 — 열 209개 중 162개).
+ *
+ * <p>우리는 <b>60개 화면이 ▼ 를 그려 놓고 정렬 코드가 한 줄도 없었다.</b> 눌러도 아무
+ * 일이 없으니 표시가 거짓말을 하고 있었다. 한 번에 다 고칠 수는 없어서, 아직 안 고친
+ * 화면을 <code>decorative-sort-marks.json</code> 에 적어 두고 <b>늘지 않는지</b>만 본다.
+ *
+ * <p>화면을 고치면(useTableSort 를 쓰면) 그 줄을 지워야 한다 — 안 지우면 여기서 걸린다.
+ */
+{
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'decorative-sort-marks.json'), 'utf8'))
+  const listed = new Set(TODO)
+  const grown = []
+  const stale = []
+  let fixed = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const src = readFileSync(f, 'utf8')
+    const hasMark = src.includes('▼')
+    const sorts = src.includes('useTableSort')
+    if (hasMark && !sorts && !listed.has(rel)) grown.push(rel + ' — ▼ 를 새로 그렸는데 정렬이 없다')
+    if (listed.has(rel) && (sorts || !hasMark)) { stale.push(rel + ' — 이제 정렬된다(목록에서 지우세요)'); fixed += 1 }
+    if (sorts) fixed += 0
+  }
+  eq('▼ 만 그린 화면이 늘지 않았다 (아직 ' + TODO.length + '개 남음)', grown.join('\n') || '없음', '없음')
+  eq('고친 화면이 목록에 남아 있지 않다', stale.join('\n') || '없음', '없음')
+}
+
 // ── 1-k) 일수는 화면마다 같은 모양으로 찍히나 ─────────────────────────────
 console.log('\n■ 근태·휴가 일수를 화면마다 같은 모양으로 찍나')
 

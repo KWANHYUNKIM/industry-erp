@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, GroupMaster, Partner } from '../../api/types'
 import { useSearchParams } from 'react-router-dom'
+import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
@@ -77,7 +78,7 @@ export default function PartnersPage() {
   const hit = (v: string | null, q: string) => !q || (v ?? '').includes(q.trim())
 
   /** 화면에 보이는 거래처. 사용중단은 체크를 켜야 나온다 — 원본도 그렇다. */
-  const shown = partners
+  const shownRows = partners
     .filter((p) => withStopped || p.active)
     .filter((p) => !keyword || `${p.code} ${p.name}`.includes(keyword.trim()))
     .filter((p) => hit(p.name, cond['상호(이름)']) && hit(p.ceoName, cond.대표자명)
@@ -85,6 +86,24 @@ export default function PartnersPage() {
       && hit(p.phone, cond.전화) && hit(p.email, cond.Email)
       && hit(p.address, cond.주소1) && hit(p.searchKeyword, cond.검색창내용)
       && hit(p.subBizNo, cond.종사업장번호))
+
+  /*
+   * 원본은 목록 머리를 눌러 정렬한다(사본 열의 78%에 정렬 표시가 붙어 있다).
+   * 우리는 <b>▼ 를 그려 놓고 정렬 코드가 한 줄도 없었다</b> — 눌러도 아무 일이 없었다.
+   */
+  const sort = useTableSort(shownRows, {
+    거래처코드: (p) => p.code,
+    거래처명: (p) => p.name,
+    구분: (p) => p.typeName,
+    사업자번호: (p) => p.bizRegNo,
+    대표자명: (p) => p.ceoName,
+    거래처그룹: (p) => p.partnerGroupName,
+    담당자: (p) => p.manager,
+    전화: (p) => p.phone,
+    모바일: (p) => p.mobile,
+    검색창내용: (p) => p.searchKeyword,
+  })
+  const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -567,20 +586,20 @@ export default function PartnersPage() {
                          shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                        )} />
               </th>
-              <th>거래처코드 ▼</th>
-              <th>거래처명 ▼</th>
-              <th>구분 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th>사업자번호</th>
-              <th>대표자명</th>
-              <th>거래처그룹 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처그룹')}>거래처그룹 {sort.mark('거래처그룹')}</th>
               <th>담당자</th>
-              <th>전화</th>
-              <th>모바일</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('전화')}>전화 {sort.mark('전화')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('모바일')}>모바일 {sort.mark('모바일')}</th>
               {/*
                 원본 거래처리스트의 [검색창내용] 열. 품목에는 넣었는데 거래처에는 빠져 있었다 —
                 별명을 적어 놓고도 목록에서는 그게 뭔지 볼 수가 없었다.
               */}
-              <th style={{ width: 140 }}>검색창내용</th>
+              <th style={{ cursor: 'pointer', width: 140 }}onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
               <th style={{ width: 90, textAlign: 'center' }}>사용구분</th>
               <th style={{ width: 90, textAlign: 'center' }}>이체정보</th>
               <th>관리</th>
