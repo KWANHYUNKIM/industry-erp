@@ -24,6 +24,7 @@ import com.erp.inventory.dto.StockTransferDtos;
 public class StockTransferService {
 
     private final StockTransferRepository transferRepository;
+    private final ProjectService projectService;
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
@@ -65,6 +66,8 @@ public class StockTransferService {
                 .fromWarehouse(from)
                 .toWarehouse(to)
                 .quantity(req.quantity())
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .employeeId(req.employeeId())
                 .reason(req.reason())
                 .createdBy(username)
                 .build();

@@ -80,6 +80,8 @@ public class StagedStockAdjustmentService {
                 null,
                 staged.getActualQty(),
                 LocalDate.now(),
+                /* 단계별조정은 프로젝트·담당자를 따로 받지 않는다 — 실사 결과를 그대로 맞추는 자리다. */
+                null, null,
                 "단계별조정 " + staged.getAdjustNo()
                         + (staged.getReason() != null && !staged.getReason().isBlank() ? " (" + staged.getReason() + ")" : "")
         ), username);

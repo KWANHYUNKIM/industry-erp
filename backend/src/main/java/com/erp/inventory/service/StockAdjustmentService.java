@@ -31,6 +31,7 @@ import com.erp.inventory.dto.StockAdjustmentDtos;
 public class StockAdjustmentService {
 
     private final StockAdjustmentRepository adjustmentRepository;
+    private final ProjectService projectService;
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
@@ -78,6 +79,8 @@ public class StockAdjustmentService {
                 .beforeQty(tx.getBalanceAfter().subtract(tx.getQuantityChange()))
                 .quantityChange(tx.getQuantityChange())
                 .afterQty(tx.getBalanceAfter())
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .employeeId(req.employeeId())
                 .reason(req.reason())
                 .createdBy(username)
                 .build();

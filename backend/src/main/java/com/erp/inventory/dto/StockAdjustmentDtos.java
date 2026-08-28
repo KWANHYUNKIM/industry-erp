@@ -23,6 +23,9 @@ public final class StockAdjustmentDtos {
             @PositiveOrZero(message = "수량은 0보다 작을 수 없습니다.") BigDecimal quantity,
             @PositiveOrZero(message = "실사수량은 0보다 작을 수 없습니다.") BigDecimal actualQty,
             LocalDate adjustDate,
+            /* 원본 조건의 [프로젝트]·[담당자]. 맞출 때 안 정했을 수 있어 필수가 아니다. */
+            Long projectId,
+            Long employeeId,
             String reason
     ) {}
 
@@ -32,6 +35,7 @@ public final class StockAdjustmentDtos {
             Long itemId, String itemCode, String itemName, String unit,
             Long warehouseId, String warehouseName,
             BigDecimal beforeQty, BigDecimal quantityChange, BigDecimal afterQty,
+            Long projectId, String projectName, Long employeeId,
             String reason, String createdBy
     ) {
         public static AdjustmentResponse from(StockAdjustment a) {
@@ -41,6 +45,9 @@ public final class StockAdjustmentDtos {
                     a.getItem().getId(), a.getItem().getCode(), a.getItem().getName(), a.getItem().getUnit(),
                     a.getWarehouse().getId(), a.getWarehouse().getName(),
                     a.getBeforeQty(), a.getQuantityChange(), a.getAfterQty(),
+                    a.getProject() != null ? a.getProject().getId() : null,
+                    a.getProject() != null ? a.getProject().getName() : null,
+                    a.getEmployeeId(),
                     a.getReason(), a.getCreatedBy());
         }
     }

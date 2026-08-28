@@ -22,6 +22,8 @@ const TAB_TYPE: Record<Exclude<Tab, '창고이동'>, StockAdjustmentType> = {
  * 재고 I > 기타이동 — 창고이동(출고+입고 원자처리)과
  * 자가사용·불량처리(차감), 재고조정(실사수량과의 차이만큼 증감).
  */
+interface CodeRow { id: number; code: string; name: string }
+
 export default function TransferPage() {
   const [tab, setTab] = useState<Tab>('창고이동')
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
@@ -31,9 +33,16 @@ export default function TransferPage() {
   const [stock, setStock] = useState<StockRow[]>([])
   const [keyword, setKeyword] = useState('')
   const [whCond, setWhCond] = useState('')
+  const [projects, setProjects] = useState<CodeRow[]>([])
+  const [employees, setEmployees] = useState<CodeRow[]>([])
+  /* 담당자는 id 만 저장한다(inventory 는 hr 을 참조할 수 없다) — 이름은 화면이 붙인다. */
+  const empName = (id: number | null) => employees.find((e) => e.id === id)?.name ?? ''
   /* 원본 조건 [적요]. 사유는 두 표에 다 찍히는데 검색상자로만 걸렀다 —
      그 상자는 품목명까지 훑어서 적요만으로 좁힐 수가 없었다. */
   const [reasonCond, setReasonCond] = useState('')
+  /* 원본 기타이동현황 조건 차례: 창고 · <b>프로젝트</b> · 품목 · <b>담당자</b> · 적요. */
+  const [projCond, setProjCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,18 +51,22 @@ export default function TransferPage() {
   async function load() {
     setLoading(true)
     try {
-      const [t, a, i, w, s] = await Promise.all([
+      const [t, a, i, w, s, pj, em] = await Promise.all([
         api.get<StockTransfer[]>('/stock-transfers'),
         api.get<StockAdjustment[]>('/stock-adjustments'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<StockRow[]>('/stock'),
+        api.get<CodeRow[]>('/projects'),
+        api.get<CodeRow[]>('/employees'),
       ])
       setTransfers(t.data)
       setAdjustments(a.data)
       setItems(i.data)
       setWarehouses(w.data)
       setStock(s.data)
+      setProjects(pj.data)
+      setEmployees(em.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -82,11 +95,15 @@ export default function TransferPage() {
    */
   const shownTransfers = transfers
     .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
+    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !empCond || empName(r.employeeId) === empCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!whCond || r.warehouseName === whCond) &&
+    (!projCond || r.projectName === projCond) &&
+    (!empCond || empName(r.employeeId) === empCond) &&
     (!reasonCond || (r.reason ?? '').includes(reasonCond)) &&
     (!keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword)))
 
@@ -131,6 +148,16 @@ export default function TransferPage() {
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={pickers.warehouses} />
         </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projCond} onChange={setProjCond}
+                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond} placeholder="적요"
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 170 }} />
@@ -140,8 +167,8 @@ export default function TransferPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
-        ? <TransferForm items={items} warehouses={warehouses} onError={setError} onSaved={saved} />
-        : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} onError={setError} onSaved={saved} />)}</Modal>
+        ? <TransferForm items={items} warehouses={warehouses} projects={projects} employees={employees} onError={setError} onSaved={saved} />
+        : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
 
       {tab === '창고이동' ? (
         <table className="w-full text-left">
@@ -218,11 +245,15 @@ export default function TransferPage() {
   )
 }
 
-function TransferForm({ items, warehouses, onError, onSaved }: {
-  items: Item[]; warehouses: Warehouse[]; onError: (m: string) => void; onSaved: () => void
+function TransferForm({ items, warehouses, projects, employees, onError, onSaved }: {
+  items: Item[]; warehouses: Warehouse[]
+  projects: CodeRow[]; employees: CodeRow[]
+  onError: (m: string) => void; onSaved: () => void
 }) {
   const [form, setForm] = useState({
     transferDate: today(), itemId: '', quantity: '', reason: '',
+    /* 원본 조건의 [프로젝트]·[담당자]. 여태 어디로·누가 옮겼는지를 [사유]에 손으로 적었다. */
+    projectId: '', employeeId: '',
     fromWarehouseId: warehouses[0] ? String(warehouses[0].id) : '',
     toWarehouseId: warehouses[1] ? String(warehouses[1].id) : warehouses[0] ? String(warehouses[0].id) : '',
   })
@@ -240,6 +271,8 @@ function TransferForm({ items, warehouses, onError, onSaved }: {
         toWarehouseId: Number(form.toWarehouseId),
         quantity: Number(form.quantity),
         transferDate: form.transferDate,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
+        employeeId: form.employeeId ? Number(form.employeeId) : undefined,
         reason: form.reason || undefined,
       })
       onSaved()
@@ -274,6 +307,16 @@ function TransferForm({ items, warehouses, onError, onSaved }: {
         <Field label="수량 *">
           <input className="ec-input" type="number" step="any" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 90 }} />
         </Field>
+        <Field label="프로젝트">
+          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="선택 안 함" emptyLabel="선택 해제"
+                           value={form.projectId} onChange={(v) => set('projectId', v)}
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </Field>
+        <Field label="담당자">
+          <CodePickerField label="담당자" hideLabel width={150} placeholder="선택 안 함" emptyLabel="선택 해제"
+                           value={form.employeeId} onChange={(v) => set('employeeId', v)}
+                           items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </Field>
         <Field label="사유">
           <input className="ec-input" value={form.reason} onChange={(e) => set('reason', e.target.value)} style={{ width: 200 }} />
         </Field>
@@ -284,13 +327,16 @@ function TransferForm({ items, warehouses, onError, onSaved }: {
   )
 }
 
-function AdjustmentForm({ type, label, items, warehouses, stock, onError, onSaved }: {
+function AdjustmentForm({ type, label, items, warehouses, stock, projects, employees, onError, onSaved }: {
   type: StockAdjustmentType; label: string
   items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
+  projects: CodeRow[]; employees: CodeRow[]
   onError: (m: string) => void; onSaved: () => void
 }) {
   const [form, setForm] = useState({
     adjustDate: today(), itemId: '', quantity: '', actualQty: '', reason: '',
+    /* 원본 조건의 [프로젝트]·[담당자]. 창고이동과 같은 까닭이다. */
+    projectId: '', employeeId: '',
     warehouseId: warehouses[0] ? String(warehouses[0].id) : '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -321,6 +367,8 @@ function AdjustmentForm({ type, label, items, warehouses, stock, onError, onSave
         quantity: isAdjust ? undefined : Number(form.quantity),
         actualQty: isAdjust ? Number(form.actualQty) : undefined,
         adjustDate: form.adjustDate,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
+        employeeId: form.employeeId ? Number(form.employeeId) : undefined,
         reason: form.reason || undefined,
       })
       onSaved()
@@ -365,6 +413,16 @@ function AdjustmentForm({ type, label, items, warehouses, stock, onError, onSave
             증감 {diff > 0 ? '+' : ''}{num(diff)}
           </div>
         )}
+        <Field label="프로젝트">
+          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="선택 안 함" emptyLabel="선택 해제"
+                           value={form.projectId} onChange={(v) => set('projectId', v)}
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </Field>
+        <Field label="담당자">
+          <CodePickerField label="담당자" hideLabel width={150} placeholder="선택 안 함" emptyLabel="선택 해제"
+                           value={form.employeeId} onChange={(v) => set('employeeId', v)}
+                           items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </Field>
         <Field label="사유">
           <input className="ec-input" value={form.reason} onChange={(e) => set('reason', e.target.value)} style={{ width: 200 }} />
         </Field>

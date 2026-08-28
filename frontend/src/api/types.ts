@@ -837,6 +837,10 @@ export interface StockTransfer {
   toWarehouseId: number
   toWarehouseName: string
   quantity: number
+  /** 원본 조건의 [프로젝트]·[담당자]. 옮길 때 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
   reason: string | null
   createdBy: string | null
 }
@@ -1208,6 +1212,10 @@ export interface StockAdjustment {
   beforeQty: number
   quantityChange: number
   afterQty: number
+  /** 원본 조건의 [프로젝트]·[담당자]. 옮길 때 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
   reason: string | null
   createdBy: string | null
 }

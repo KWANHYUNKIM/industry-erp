@@ -819,6 +819,31 @@ async function scenarioQuotationWarehouseProject(f) {
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
     `${again?.warehouseName}/${again?.projectName}`, `${f.warehouse.name}/${proj.name}`)
 
+  /*
+   * 창고이동·재고조정도 같은 칸을 물게 했다. 담당자는 <b>사원 테이블을 걸지 않고 id 만</b>
+   * 드는데(inventory 는 hr 을 참조할 수 없다), 그래서 <b>저장은 되는데 이름이 안 붙는</b>
+   * 실수를 내기 쉽다 — id 가 그대로 돌아오는지 잰다.
+   */
+  const wh2 = await ensure('/warehouses', 'code', `${P}WH2`, null, {
+    code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층',
+  })
+  const emp = (await must('GET', '/employees'))[0]
+  await must('POST', '/stock-adjustments', {
+    type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1,
+    adjustDate: '2026-03-02', projectId: proj.id, employeeId: emp?.id,
+  })
+  const adj = (await must('GET', '/stock-adjustments')).find((x) => x.projectName === proj.name)
+  eq('재고조정이 프로젝트를 문다', adj?.projectName, proj.name)
+  eq('재고조정이 담당자 id 를 그대로 돌려준다', adj?.employeeId, emp?.id ?? null)
+
+  await must('POST', '/stock-transfers', {
+    itemId: f.material.id, fromWarehouseId: f.warehouse.id, toWarehouseId: wh2.id,
+    quantity: 1, transferDate: '2026-03-02', projectId: proj.id, employeeId: emp?.id,
+  })
+  const mv = (await must('GET', '/stock-transfers')).find((x) => x.projectName === proj.name)
+  eq('창고이동이 프로젝트를 문다', mv?.projectName, proj.name)
+  eq('창고이동이 담당자 id 를 그대로 돌려준다', mv?.employeeId, emp?.id ?? null)
+
   /* 안 고르고도 만들 수 있어야 한다 — 견적 시점에는 아직 못 정하는 일이 흔하다. */
   const bare = await must('POST', '/quotations', {
     partnerId: f.customer.id, quoteDate: '2026-03-02', taxable: true,

@@ -24,6 +24,9 @@ interface Transfer {
   id: number
   transferNo: string
   transferDate: string
+  /** 원본 조건의 [프로젝트]·[담당자]. 담당자는 id 만 온다 — 이름은 화면이 붙인다. */
+  projectName: string | null
+  employeeId: number | null
   itemId: number
   itemCode: string
   itemName: string
@@ -41,7 +44,7 @@ const num = (n: number) => n.toLocaleString()
 
 export default function TransferStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'projects', 'employees'])
   const [rows, setRows] = useState<Transfer[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,7 +53,11 @@ export default function TransferStatusPage() {
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   // 원본 기본값이 금월(~오늘)이다.
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
+  /*
+   * 원본 창고이동조회 조건 차례: … 창고 · <b>프로젝트</b> · 품목 · <b>담당자</b> · 적요.
+   * 이동 전표에 그 칸이 없어 <b>[적요]에 손으로 적고</b> 있었다 — 칸을 만들고 조건을 세운다.
+   */
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -67,13 +74,18 @@ export default function TransferStatusPage() {
 
   useEffect(() => { load() }, [])
 
+  /* 담당자는 id 만 저장한다(inventory 는 hr 을 참조할 수 없다) — 이름은 코드도움 목록에서 붙인다. */
+  const empName = (id: number | null) => pickers.employees.find((e) => e.id === id)?.name ?? ''
+
   const shown = rows
     .filter((r) => !cond.from || r.transferDate >= cond.from)
     .filter((r) => !cond.to || r.transferDate <= cond.to)
     .filter((r) => !cond.warehouseId
       || String(r.fromWarehouseId) === cond.warehouseId
       || String(r.toWarehouseId) === cond.warehouseId)
+    .filter((r) => !cond.project || r.projectName === cond.project)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
 
   const summary = useMemo(() => {
@@ -92,7 +104,7 @@ export default function TransferStatusPage() {
   const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
   const reset = () => {
     setMode('내역')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '' })
   }
 
   return (
@@ -127,10 +139,20 @@ export default function TransferStatusPage() {
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setCond((c) => ({ ...c, project: v }))}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setCond((c) => ({ ...c, employee: v }))}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
