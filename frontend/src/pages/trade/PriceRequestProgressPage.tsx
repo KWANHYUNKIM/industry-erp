@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323)
@@ -66,6 +67,15 @@ export default function PriceRequestProgressPage() {
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
   [rows, statusFilter, keyword])
 
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
+   * (요청일 내림차순)를 그대로 쓴다.
+   */
+  const sort = useTableSort(shown, {
+    단가요청번호: (r) => r.orderNo,
+    요청일: (r) => r.orderDate,
+  })
+
   const count = (s: 'ALL' | PurchaseOrderStatus) => (s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length)
   const totalAmount = useMemo(() => shown.reduce((a, r) => a + r.totalAmount, 0), [shown])
 
@@ -90,7 +100,7 @@ export default function PriceRequestProgressPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>단가요청번호 ▼</th><th>요청일 ▼</th><th>거래처</th><th>품목</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th><th>거래처</th><th>품목</th>
             <th style={{ width: 320 }}>진행단계</th>
             <th style={{ textAlign: 'right' }}>확정금액</th><th>담당</th>
           </tr>
@@ -100,7 +110,7 @@ export default function PriceRequestProgressPage() {
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>

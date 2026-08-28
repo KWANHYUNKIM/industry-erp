@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 /** Self-Customizing > 보안관리 — 접속 정책(실제 연동) + 접속 이력(표본 데이터) */
@@ -97,6 +98,16 @@ export default function SecurityPage() {
 
   const visibleLogs = showAllLogs ? LOGS : LOGS.slice(0, PREVIEW_COUNT)
 
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다.
+   * 자르는 것이 먼저다 — <b>펼치기 전 목록을 정렬하면 '최근 N건' 이 최근이 아니게 된다.</b>
+   * 그래서 이미 잘라 낸 것만 세운다.
+   */
+  const sort = useTableSort(visibleLogs, {
+    접속일시: (l) => l.time,
+    결과: (l) => l.result,
+  })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -150,15 +161,15 @@ export default function SecurityPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 160 }}>접속일시 ▼</th>
+              <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('접속일시')}>접속일시 {sort.mark('접속일시')}</th>
               <th style={{ width: 120 }}>사용자</th>
               <th style={{ width: 140 }}>IP</th>
               <th>기기 / 브라우저</th>
-              <th style={{ width: 80, textAlign: 'center' }}>결과 ▼</th>
+              <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('결과')}>결과 {sort.mark('결과')}</th>
             </tr>
           </thead>
           <tbody>
-            {visibleLogs.map((l, i) => (
+            {sort.sorted.map((l, i) => (
               <tr key={l.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{l.time}</td>

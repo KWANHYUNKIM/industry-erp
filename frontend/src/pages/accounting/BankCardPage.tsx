@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -205,13 +206,15 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
 }
 
 function BankTxnTable({ rows }: { rows: BankTxn[] }) {
+  /* [일자] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 일자: (r) => r.txnDate })
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 130 }}>전표번호</th>
-          <th style={{ width: 100 }}>일자 ▼</th>
+          <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
           <th style={{ width: 170 }}>계좌</th>
           <th style={{ width: 60, textAlign: 'center' }}>구분</th>
           <th style={{ width: 110, textAlign: 'right' }}>금액</th>
@@ -225,7 +228,7 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
       <tbody>
         {rows.length === 0 ? (
           <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-        ) : rows.map((r, i) => (
+        ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.txnNo}</td>
@@ -246,13 +249,15 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
 }
 
 function CardUsageTable({ rows }: { rows: CardUsage[] }) {
+  /* [사용일] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 사용일: (r) => r.usageDate })
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 130 }}>전표번호</th>
-          <th style={{ width: 100 }}>사용일 ▼</th>
+          <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('사용일')}>사용일 {sort.mark('사용일')}</th>
           <th style={{ width: 140 }}>카드</th>
           <th>가맹점</th>
           <th style={{ width: 120 }}>비용계정</th>
@@ -265,7 +270,7 @@ function CardUsageTable({ rows }: { rows: CardUsage[] }) {
       <tbody>
         {rows.length === 0 ? (
           <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-        ) : rows.map((r, i) => (
+        ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.usageNo}</td>

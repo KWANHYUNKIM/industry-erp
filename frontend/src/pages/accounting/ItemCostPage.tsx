@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ItemProfit } from '../../api/types'
 
@@ -23,6 +24,13 @@ export default function ItemCostPage() {
       .finally(() => setLoading(false))
   }, [])
 
+
+  /* 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, {
+    품목코드: (r) => r.code,
+    품명: (r) => r.name,
+  })
+
   return (
     <EcListShell title="품목별 원가·이익" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <p style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c' }}>
@@ -35,8 +43,8 @@ export default function ItemCostPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>품목코드 ▼</th>
-            <th>품명 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품명')}>품명 {sort.mark('품명')}</th>
             <th style={{ textAlign: 'center' }}>원가기준</th>
             <th style={{ textAlign: 'right' }}>판매수량</th>
             <th style={{ textAlign: 'right' }}>매출액</th>
@@ -52,7 +60,7 @@ export default function ItemCostPage() {
           ) : rows.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
-            rows.map((r, idx) => (
+            sort.sorted.map((r, idx) => (
               <tr key={r.itemId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>

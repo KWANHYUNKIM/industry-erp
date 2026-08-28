@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../api/types'
@@ -119,6 +120,10 @@ function TransferTab({ banks, rows, onError, onDone }: {
     }
   }
 
+
+  /* [일자] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 표가 둘이라 정렬도 표마다 따로 든다. */
+  const sort = useTableSort(rows, { 일자: (t) => t.transferDate })
+
   return (
     <>
       <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
@@ -159,7 +164,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>이동번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 200 }}>출금 계좌</th>
             <th style={{ width: 200 }}>입금 계좌</th>
             <th style={{ width: 130, textAlign: 'right' }}>금액</th>
@@ -170,7 +175,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
         <tbody>
           {rows.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((t, i) => (
+          ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.transferNo}</td>
@@ -239,6 +244,10 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
       setSaving(false)
     }
   }
+
+
+  /* [결제일] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 결제일: (p) => p.paymentDate })
 
   return (
     <>
@@ -311,7 +320,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>결제번호</th>
-            <th style={{ width: 100 }}>결제일 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('결제일')}>결제일 {sort.mark('결제일')}</th>
             <th style={{ width: 180 }}>카드</th>
             <th style={{ width: 200 }}>결제계좌</th>
             <th style={{ width: 70, textAlign: 'center' }}>건수</th>
@@ -322,7 +331,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
         <tbody>
           {rows.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((p, i) => (
+          ) : sort.sorted.map((p, i) => (
             <Fragment key={p.id}>
               <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

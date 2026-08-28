@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { CommonCode, Project } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -97,6 +98,15 @@ export default function ExpensePage() {
   const shown = rows
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || (r.content ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 정렬은 <b>표에만</b> 건다 —
+   * 아래 합계는 <code>shown</code> 을 그대로 더하므로 차례와 무관하다.
+   */
+  const sort = useTableSort(shown, {
+    지출일: (r) => r.expenseDate,
+    계정과목: (r) => r.accountName,
+  })
+
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -157,8 +167,8 @@ export default function ExpensePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>지출일 ▼</th>
-            <th style={{ width: 120 }}>계정과목 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('지출일')}>지출일 {sort.mark('지출일')}</th>
+            <th style={{ width: 120, cursor: 'pointer' }} onClick={() => sort.toggle('계정과목')}>계정과목 {sort.mark('계정과목')}</th>
             <th>적요</th>
             <th style={{ width: 120 }}>거래처</th>
             <th style={{ width: 110, textAlign: 'right' }}>금액</th>
@@ -172,7 +182,7 @@ export default function ExpensePage() {
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td>{r.expenseDate}</td>

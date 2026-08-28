@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
@@ -202,6 +203,16 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
   const tableRef = useRef<HTMLTableElement>(null)
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 정렬은 <b>목록 표에만</b> 건다 —
+   * 아래 소계·그래프는 <code>shown</code> 을 묶어 만들므로 그쪽 입력까지 뒤집으면
+   * 소계 줄의 차례가 목록을 따라 흔들린다.
+   */
+  const sort = useTableSort(shown, {
+    거래처코드: (r) => r.code,
+    상호: (r) => r.name,
+  })
+
   useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shown.length, group])
   // 담당자별 표도 채권/채무 열이 조건부라 정적으로 셀 수 없다 — 같은 방식으로 못 박는다.
   const mgrTableRef = useRef<HTMLTableElement>(null)
@@ -411,8 +422,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>거래처코드 ▼</th>
-            <th>상호 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('상호')}>상호 {sort.mark('상호')}</th>
             <th style={{ textAlign: 'center' }}>구분</th>
             <th style={{ width: 140 }}>검색창내용</th>
             {showAr && <th style={{ textAlign: 'right' }}>채권 (외상매출금)</th>}
@@ -425,7 +436,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, idx) => (
+          ) : sort.sorted.map((r, idx) => (
             <tr key={r.partnerId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
               {/* 원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). */}

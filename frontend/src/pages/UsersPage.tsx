@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { Role, User } from '../api/types'
 import EcListShell from '../components/EcListShell'
+import { useTableSort } from '../utils/useTableSort'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -50,6 +51,15 @@ export default function UsersPage() {
   const roleLabel = (code: string) =>
     roles.find((r) => r.name === code)?.displayName ?? code
 
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다.
+   * [부서]·[권한]은 원본에도 표시가 없어 걸지 않았다.
+   */
+  const sort = useTableSort(users, {
+    아이디: (u) => u.username,
+    이름: (u) => u.name,
+  })
+
   return (
     <EcListShell
       title="사용자등록 리스트"
@@ -71,8 +81,8 @@ export default function UsersPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>아이디 ▼</th>
-            <th>이름 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('아이디')}>아이디 {sort.mark('아이디')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
             <th>부서</th>
             <th style={{ width: 110 }}>사원</th>
             <th>권한</th>
@@ -86,7 +96,7 @@ export default function UsersPage() {
           ) : users.length === 0 ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
-            users.map((u, idx) => (
+            sort.sorted.map((u, idx) => (
               <tr key={u.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{u.username}</td>
