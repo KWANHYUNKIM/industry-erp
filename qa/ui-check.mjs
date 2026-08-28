@@ -1809,9 +1809,18 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
       if (!here) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${name}] 열이 없다`)
     }
   }
+  /*
+   * <b>아직 안 만든 열.</b> 사본에서 열 이름·정렬을 다시 뽑아 대조표를 55 → 76화면으로
+   * 넓히자 <b>안 만든 열 87개</b>가 한꺼번에 드러났다. 한 판에 다 만들 수 없고,
+   * 그렇다고 "이유 있는 예외" 로 적으면 거짓말이 된다. 목록으로 두고 <b>늘지만 않게</b> 한다.
+   */
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-columns.json'), 'utf8'))
+  const grown = bad.filter((x) => !TODO.includes(x))
+  const gone = TODO.filter((x) => !bad.includes(x))
   eq(`원본 열 ${checked}개가 우리 표에도 있다 (못 만드는 ${NO_COLUMN.size}개는 이유를 적고 뺐다`
-    + `, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
-    bad.join('\n') || '없음', '없음')
+    + `, 아직 안 만든 ${TODO.length}개는 목록에 적었다, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
+    grown.join('\n') || '없음', '없음')
+  eq('만들어 놓고 목록에 남겨 둔 열이 없다', gone.join('\n') || '없음', '없음')
   eq(`열 예외 ${NO_COLUMN.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 

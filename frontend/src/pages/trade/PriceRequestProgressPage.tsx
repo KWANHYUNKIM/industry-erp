@@ -140,7 +140,8 @@ export default function PriceRequestProgressPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th><th>거래처</th><th>품목</th>
+            {/* 원본 실측: [단가요청번호]는 가운데다. */}
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th><th>거래처</th><th>품목</th>
             <th style={{ width: 320 }}>진행단계</th>
             <th style={{ textAlign: 'right' }}>확정금액</th><th>담당</th>
           </tr>
@@ -153,7 +154,7 @@ export default function PriceRequestProgressPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderDate}</td>
               <td>{r.partnerName}</td>
               <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
