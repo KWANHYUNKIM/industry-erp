@@ -331,6 +331,21 @@ const firstRow = (block) => block.match(/<tr\b[^>]*>([\s\S]*?)<\/tr>/)?.[1] ?? n
 // 조건부 열이 섞인 표는 셀 수가 상황마다 달라 정적으로 셀 수 없다.
 const hasConditionalCell = (block) => /\{[^{}]*(?:&&|\?)[^{}]*<t[hd]\b/s.test(block)
 
+  const mapsCells = (raw) => {
+    /*
+     * 속성을 지우려면 <b>태그의 &gt; 만</b> 남겨야 한다. 화살표(<code>=&gt;</code>) 말고
+     * <b>비교 연산자</b>도 태그를 끊는다 — <code>checked={rows.length &gt; 0 && …}</code>
+     * 가 그렇다. 그 둘을 지운 뒤에 속성을 걷어 낸다.
+     */
+    const x = noArrow(raw).replace(/ > /g, '   ').replace(/<([a-zA-Z]+)[^>]*>/g, '<$1>')
+    for (const m of x.matchAll(/\.map\(/g)) {
+      const after = x.slice(m.index)
+      const first = after.match(/<(tr|td|th)\b/)
+      if (first && first[1] !== "tr") return true
+    }
+    return false
+  }
+
 const mismatches = []
 let compared = 0
 let skipped = 0
@@ -400,20 +415,6 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
      * <b>그 표를 통째로 건너뛰고 있었다</b>(공정등록에서 실제로 그랬다 — 머리 한 칸을
      * 지워도 검사가 아무 말을 안 했다). 태그 속성을 지우고 본다.
      */
-    const mapsCells = (raw) => {
-      /*
-       * 속성을 지우려면 <b>태그의 &gt; 만</b> 남겨야 한다. 화살표(<code>=&gt;</code>) 말고
-       * <b>비교 연산자</b>도 태그를 끊는다 — <code>checked={rows.length &gt; 0 && …}</code>
-       * 가 그렇다. 그 둘을 지운 뒤에 속성을 걷어 낸다.
-       */
-      const x = noArrow(raw).replace(/ > /g, '   ').replace(/<([a-zA-Z]+)[^>]*>/g, '<$1>')
-      for (const m of x.matchAll(/\.map\(/g)) {
-        const after = x.slice(m.index)
-        const first = after.match(/<(tr|td|th)\b/)
-        if (first && first[1] !== "tr") return true
-      }
-      return false
-    }
     if (mapsCells(head) || mapsCells(body)) { bodySkipped++; continue }
     const hRow = firstRow(head)
     if (!hRow) { bodySkipped++; continue }
@@ -480,6 +481,38 @@ console.log('\n■ 조건부 열 표의 개발 모드 검사')
     }
   }
   eq(`훅 호출 ${hooked}개가 ref 를 요소에 달았다`, bad.join('\n') || '없음', '없음')
+
+  /*
+   * <b>훅을 부른 곳만 보고 있었다.</b> 정작 <b>달아야 할 표에 달렸는지</b>는 아무도 안 봤다 —
+   * 칸이 자료 따라 변하는 표가 든 파일이 41개인데 그중 <b>32개에 훅이 없다</b>.
+   * 그 표들은 정적 검사가 못 세고 런타임 검사도 없으니 <b>아무도 안 보는 표</b>다.
+   *
+   * <p>한 번에 서른둘을 달 수는 없어서, 지금 없는 것을 적어 두고 <b>늘지 않는지</b>만 본다
+   * (▼ 만 그린 화면을 걷을 때 쓴 방식과 같다). 달면 그 줄을 지워야 한다 — 안 지우면 걸린다.
+   */
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'unchecked-dynamic-tables.json'), 'utf8'))
+  const listed = new Set(TODO)
+  const grown = []
+  const stale = []
+  for (const f of pages) {
+    const src = readFileSync(f, 'utf8')
+    const parts = f.split(sep)
+    const rel = parts.slice(parts.indexOf('pages') + 1).join('/')
+    let dynamic = false
+    for (const tm of src.matchAll(/<table\b[\s\S]*?<\/table>/g)) {
+      const t = tm[0]
+      const head = t.match(/<thead\b[\s\S]*?<\/thead>/)?.[0]
+      const body = t.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0]
+      if (!head || !body) continue
+      if (hasConditionalCell(head) || mapsCells(head) || mapsCells(body)) { dynamic = true; break }
+    }
+    const has = src.includes('useTableColumnCheck')
+    if (dynamic && !has && !listed.has(rel)) grown.push(`${rel} — 칸이 변하는 표인데 아무도 안 본다`)
+    if (listed.has(rel) && (has || !dynamic)) stale.push(`${rel} — 이제 본다(목록에서 지우세요)`)
+  }
+  eq(`칸이 변하는 표에 런타임 검사가 없는 화면이 늘지 않았다 (아직 ${TODO.length}개 남음)`,
+    grown.join('\n') || '없음', '없음')
+  eq('달아 놓고 목록에 남겨 둔 화면이 없다', stale.join('\n') || '없음', '없음')
 }
 
 // ── 1-c) tbody 의 넓은 칸 ─────────────────────────────────────────────────

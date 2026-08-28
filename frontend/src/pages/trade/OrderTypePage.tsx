@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 영업 > 오더관리유형등록.
@@ -42,6 +43,12 @@ export default function OrderTypePage() {
   /** 원본 오더관리유형리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
+  /*
+   * 단계 열이 <b>자료 따라 늘어난다</b>(1~10단계). 그래서 정적 검사는 이 표를 못 세고,
+   * 그동안 <b>아무도 안 보는 표</b>였다 — 실제로 머리 8칸·본문 6칸으로 돌아간 적이 있다.
+   * 렌더된 표를 직접 재는 훅을 단다.
+   */
+  const tableRef = useRef<HTMLTableElement>(null)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -146,6 +153,9 @@ export default function OrderTypePage() {
 
   const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
 
+
+  useTableColumnCheck(tableRef, '오더관리유형등록', [rows.length, loading])
+
   return (
     <EcListShell
       title="오더관리유형리스트"
@@ -228,7 +238,7 @@ export default function OrderTypePage() {
 
       {/* 단계 열이 열 개라 표가 넓다 — 페이지가 가로로 밀리지 않게 표 안에서만 스크롤한다. */}
       <div className="overflow-x-auto">
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34, textAlign: 'center' }}>

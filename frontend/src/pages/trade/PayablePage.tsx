@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PartnerBalance, PurchaseDoc } from '../../api/types'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -50,6 +51,8 @@ export default function PayablePage() {
   const [balances, setBalances] = useState<PartnerBalance[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
+  /* 칸이 자료 따라 변하는 표라 정적으로 못 센다 — 렌더된 표를 직접 재는 훅을 단다. */
+  const tableRef = useRef<HTMLTableElement>(null)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [onlyOpen, setOnlyOpen] = useState(true)
@@ -133,6 +136,9 @@ export default function PayablePage() {
   const overdue = shown.reduce((a, r) => a + r.buckets[3], 0)
   const totalBuckets = BUCKETS.map((_, i) => shown.reduce((a, r) => a + r.buckets[i], 0))
 
+
+  useTableColumnCheck(tableRef, '지급현황', [loading])
+
   return (
     <EcListShell
       title="채무관리 (미지급 현황)"
@@ -166,7 +172,7 @@ export default function PayablePage() {
         <span style={{ fontSize: 12, color: '#9aa1ab' }}>행을 클릭하면 미지급 전표가 펼쳐집니다. 지급 처리는 「수금/지급(정산)」 화면에서 합니다.</span>
       </div>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>

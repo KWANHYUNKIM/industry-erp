@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -32,6 +33,11 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const [asOf, setAsOf] = useState(iso(new Date()))
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
+  /*
+   * 채권·채무 열이 <b>고른 구분에 따라 나타났다 사라진다</b> — 정적으로는 못 센다.
+   * 거래처별채권·채무(LedgerPage)와 같은 방식으로 렌더된 표를 직접 잰다.
+   */
+  const tableRef = useRef<HTMLTableElement>(null)
   const [error, setError] = useState('')
 
   const [group, setGroup] = useState('전체')
@@ -108,6 +114,9 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
   const cols = 4 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
+
+
+  useTableColumnCheck(tableRef, '채권·채무현황', [loading])
 
   return (
     <EcListShell
@@ -202,7 +211,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 110 }}>거래처코드</th>
