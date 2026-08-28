@@ -245,7 +245,9 @@ export default function AsManagePage() {
                placeholder="담당자명 일부" style={{ width: 150 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      {/* 원본 A/S접수의 조건 이름은 <b>[접수진행상태]</b> 다 — 이 알약이 그 일을 한다. */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>접수진행상태</span>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,

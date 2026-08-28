@@ -222,7 +222,10 @@ export default function ProcessPage() {
         원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
         마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
       */}
-      <div className="ec-pills" style={{ marginBottom: 8 }}>
+      {/* 원본 공정등록의 조건에 <b>[사용구분]</b> 이 있다 — 이 알약이 그 일을 하는데
+          이름표가 없어 무엇을 고르는 알약인지 화면만 보고는 알 수 없었다. */}
+      <div className="ec-pills" style={{ marginBottom: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>사용구분</span>
         {(['전체', '사용', '사용중단'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
                   onClick={() => setUseTab(t)}>{t}</button>
