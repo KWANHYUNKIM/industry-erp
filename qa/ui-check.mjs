@@ -508,6 +508,42 @@ console.log('\n■ tbody 의 넓은 칸이 표 너비와 맞나')
 }
 
 // ── 1-d) 훅이 콜백 안에 들어갔나 ──────────────────────────────────────────
+// ── 1-z) 검사 자신이 죽은 정규식을 들고 있지 않나 ────────────────────────
+console.log('\n■ 검사가 만드는 정규식이 죽어 있지 않나')
+
+/*
+ * <b>보통 따옴표 안의 한 겹 역슬래시는 정규식 문법이 아니다.</b>
+ *   <code>'\b'</code> → 백스페이스 글자 · <code>'\s'</code> → 그냥 s ·
+ *   <code>'\d'</code> → d · <code>'\w'</code> → w
+ *
+ * <p>그렇게 만든 <code>RegExp</code> 는 <b>조용히 아무것도 안 맞는다.</b> 실제로 두 군데
+ * 있었다 — 보기 이름을 모으는 <code>&lt;button&gt;</code> 수집기는
+ * <code>&lt;button␈[sS]…&gt;</code> 가 되어 <b>한 번도 돌지 않았고</b>(고치자 견주는 보기가
+ * 104 → 136 이 됐다), 열 폭 검사는 <code>s*이름s*</code> 를 찾고 있었다.
+ *
+ * <p>둘 다 <b>초록불인 채로</b> 아무 일도 안 하고 있었다. 그래서 검사가 자기 자신을 훑는다.
+ * 올바른 쓰기는 <code>String.raw`…`</code> 나 두 겹(<code>'\\s'</code>)이다.
+ * <code>\n</code>·<code>\r</code>·<code>\t</code> 는 그 글자가 되어 정규식에서도 뜻이 같으므로
+ * 걸지 않는다(<code>[^\n]</code> 은 올바른 관용구다).
+ */
+{
+  const RISKY = /\\[bsSdDwW.+*?^$|(){}[\]]/
+  const bad = []
+  for (const f of readdirSync('qa').filter((x) => x.endsWith('.mjs'))) {
+    readFileSync(join('qa', f), 'utf8').split('\n').forEach((line, i) => {
+      if (!/RegExp\(/.test(line) || /String\.raw|`/.test(line)) return
+      for (const m of line.matchAll(/'([^']*)'|"([^"]*)"/g)) {
+        const lit = m[1] ?? m[2]
+        if (lit && RISKY.test(lit.replace(/\\\\./g, ''))) {
+          bad.push(`${f}:${i + 1}  ${line.trim().slice(0, 90)}`)
+          break
+        }
+      }
+    })
+  }
+  eq('따옴표로 만든 정규식에 한 겹 역슬래시가 없다', bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
 
 /**
@@ -2208,7 +2244,13 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
-      hit: names.filter((n) => new RegExp('<th[^>]*>\s*' + esc(n) + '\s*' + MARK_TAIL + '\s*</th>').test(noArrow(h[0]))).length,
+      /*
+       * <b>여기도 죽어 있었다.</b> 보통 따옴표의 <code>'\s'</code> 는 그냥 <b>글자 s</b> 라
+       * 이 정규식은 <code>&lt;th…&gt;s*이름s*…&lt;/th&gt;</code> 를 찾고 있었다.
+       * <code>s*</code> 는 빈 것도 맞아 대부분 통했지만, <b>공백이 든 머리</b>는 못 짚어
+       * 그 화면의 표를 통째로 건너뛰었다. 보기 이름 쪽과 같은 함정이다.
+       */
+      hit: names.filter((n) => new RegExp(String.raw`<th[^>]*>\s*${esc(n)}\s*${MARK_TAIL}\s*</th>`).test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
 
