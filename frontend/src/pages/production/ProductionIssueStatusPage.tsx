@@ -76,6 +76,8 @@ interface Production {
   producedQty: number
   productionDate: string
   createdBy: string | null
+  /** 원본 조건 판의 [담당자]. 전표에는 사원 id 만 남는다 — 이름은 사원 목록에서 붙인다. */
+  employeeId: number | null
   materials: ProductionMaterial[]
 }
 
@@ -94,7 +96,7 @@ interface CostRow { itemId: number; period: string; standardTotal: number }
 
 export default function ProductionIssueStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'employees'])
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,6 +112,8 @@ export default function ProductionIssueStatusPage() {
      * 걸려서, "이 완제품을 만들 때 이 자재를 얼마나 썼나" 를 두 조건으로 좁힐 수가 없었다.
      */
     product: '', material: '',
+    /** 원본 [담당자]. 값은 사원명이고 전표에는 id 만 있어 사원 목록으로 잇는다. */
+    manager: '',
   })
   const [priceBasis, setPriceBasis] = useState<PriceBasis>('소모품목단가')
   const [boms, setBoms] = useState<BomRow[]>([])
@@ -147,11 +151,16 @@ export default function ProductionIssueStatusPage() {
     || p.productName.includes(cond.item) || p.productCode.includes(cond.item)
     || p.materials.some((m) => m.componentName.includes(cond.item) || m.componentCode.includes(cond.item))
 
+  /** 사원 id → 이름. */
+  const nameOfEmployee = new Map(
+    pickers.employees.filter((e) => e.id != null).map((e) => [e.id as number, e.name]))
+
   const shown = rows
     .filter((p) => !cond.from || p.productionDate >= cond.from)
     .filter((p) => !cond.to || p.productionDate <= cond.to)
     .filter((p) => !cond.warehouseId || String(p.warehouseId) === cond.warehouseId)
     .filter((p) => !cond.orderNo || p.workOrderNo.includes(cond.orderNo))
+    .filter((p) => !cond.manager || (nameOfEmployee.get(p.employeeId ?? -1) ?? '') === cond.manager)
     .filter(hitItem)
     // 원본 조건의 [생산품목]·[소모품목] — 둘을 함께 걸면 그 조합만 남는다.
     .filter((p) => !cond.product
@@ -318,7 +327,7 @@ export default function ProductionIssueStatusPage() {
 
   const reset = () => {
     setMode('거래별')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '', material: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '', material: '', manager: '' })
   }
 
   return (
@@ -359,6 +368,11 @@ export default function ProductionIssueStatusPage() {
             </div>
           </EcCond>
         )}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
+                           value={cond.manager} onChange={(v) => setCond({ ...cond, manager: v })}
+                           items={pickers.employees} />
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}

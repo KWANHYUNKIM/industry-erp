@@ -391,8 +391,14 @@ export default function AccountingReflectionPage() {
             ))}
           </div>
         </EcCond>
-        <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
+        {/*
+          원본은 [담당자](전표를 친 사람)와 [거래처관리담당자](거래처에 붙은 사람)를
+          <b>따로</b> 둔다. 이 칸은 전표의 담당 사원(Purchase.employee)을 걸러 왔는데
+          이름표만 [거래처관리담당자] 였다 — 고른 사람과 걸리는 값이 서로 달랐다.
+          이름을 사실에 맞춘다. 거래처의 관리담당자는 응답에 없어 아직 못 건다.
+        */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={cond.employee} onChange={(v) => setC({ employee: v })}
                            items={pickers.employees} />
         </EcCond>
