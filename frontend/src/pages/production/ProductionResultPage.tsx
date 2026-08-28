@@ -192,7 +192,12 @@ export default function ProductionResultPage() {
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* 등록 폼 */}
-        <div style={{ width: 420, border: '1px solid var(--ec-border)', background: '#fff', padding: 14, flexShrink: 0 }}>
+        {/*
+          격자로 바꾸면서 안쪽 표가 이 칸(420)보다 넓어져 <b>오른쪽 목록 위로 넘쳐</b> 있었다 —
+          브라우저로 열어 보고 알았다. 칸을 넓히고 넘치면 잘리지 말고 밀리게 둔다.
+        */}
+        <div style={{ width: 620, maxWidth: '100%', border: '1px solid var(--ec-border)',
+          background: '#fff', padding: 14, flexShrink: 0, overflowX: 'auto' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>생산입고 등록</div>
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
@@ -205,8 +210,8 @@ export default function ProductionResultPage() {
                       <tr>
                         <th style={{ width: 34 }}></th>
                         <th>작업지시</th>
-                        <th style={{ width: 130, textAlign: 'right' }}>수량</th>
-                        <th style={{ width: 180 }}>적요</th>
+                        <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+                        <th style={{ width: 150 }}>적요</th>
                         <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
                       </tr>
                     </thead>
