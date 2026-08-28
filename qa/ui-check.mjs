@@ -692,6 +692,44 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
     [...unused].join('\n') || '없음', '없음')
 }
 
+console.log('\n■ 대조표를 다 쓰고 있나')
+
+/*
+ * <b>대조표를 늘려도 검사가 안 커지는 일</b>이 이 저장소에서 여러 번 있었다.
+ *
+ * <p>대조표는 원본 <b>화면 이름</b>으로 적혀 있고, 검사는 그 이름을 우리 파일에 짝지어 주는
+ * <code>.ordermap.json</code> 을 거쳐야 화면을 찾는다. 그래서 대조표에 화면을 스무 개 더해도
+ * <b>지도에 없으면 한 개도 안 늘어난다.</b> 실제로 지도를 90 → 129 로 넓힌 판에는
+ * 대조표가 그대로여서 <b>검사가 하나도 안 커졌고</b>, 폭을 82화면 뽑아 둔 판에는
+ * 지도에 걸린 37화면만 쓰이고 있었다. 둘 다 초록불이라 아무도 몰랐다.
+ *
+ * <p>그래서 <b>대조표에 있는데 지도에 없는 화면</b>을 센다. 늘 0이어야 한다 —
+ * 못 거는 화면은 <code>unmapped-screens.json</code> 에 이유를 적고 뺀다.
+ */
+{
+  const MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const UNMAPPED = JSON.parse(readFileSync(join('qa', 'fixtures', 'unmapped-screens.json'), 'utf8'))
+  /** 화면 이름이 아니라 <b>메뉴 경로</b>로 적힌 대조표 — 지도를 거치지 않는다. */
+  const NOT_BY_SCREEN = new Set(['ecount-menu.json'])
+  const bad = []
+  let checked = 0
+  for (const f of readdirSync(join('qa', 'fixtures'))) {
+    if (!f.endsWith('.json') || f.startsWith('.') || NOT_BY_SCREEN.has(f)) continue
+    if (f.startsWith('pending-') || f === 'unmapped-screens.json'
+      || f === 'unchecked-dynamic-tables.json' || f === 'decorative-sort-marks.json'
+      || f === 'ecount-missing-columns.json') continue
+    let j
+    try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
+    if (Array.isArray(j)) continue
+    for (const k of Object.keys(j)) {
+      if (UNMAPPED[k] !== undefined) continue
+      checked += 1
+      if (!MAP.has(k)) bad.push(`${f}  [${k}] — 대조표에 있는데 지도에 없다(늘려도 안 쓰인다)`)
+    }
+  }
+  eq(`대조표 화면 ${checked}개가 다 지도에 걸려 있다`, bad.join('\n') || '없음', '없음')
+}
+
 console.log('\n■ 검사의 태그 정규식이 옆 태그까지 먹지 않나')
 
 /*
