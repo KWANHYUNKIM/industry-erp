@@ -69,13 +69,53 @@ const BTICK = String.fromCharCode(96)
  * <p>EcListShell·EcSlipShell 은 일부러 뺐다 — 거기 있는 [닫기]는 <b>도움말 팝업</b>을
  * 닫는 것이라 화면을 닫는 원본 [닫기]와 다르다. 넣으면 목록 화면 전부가 통과해 버린다.
  */
+/*
+ * 공용 껍데기가 그려 주는 것도 그 화면의 것이다.
+ * <b>EcStatusPanel</b> 은 현황 화면의 [구분]·[비교기간]·[정렬/소계기준]·[데이터 보기형식]을
+ * 그린다 — 화면 파일만 보면 그 보기들이 <b>없는 것으로</b> 세어진다(비교기간의 다섯 보기가
+ * 실제로 그랬다: 전년·전월·전주·전일 동일기간이 다 있는데 없다고 걸렸다).
+ */
+/**
+ * 껍데기 파일 하나와 <b>그것이 곁에서 끌어 쓰는 파일들</b>을 이어 붙인다.
+ *
+ * <p>보기 이름이 껍데기 안에 글자로 있는 것은 아니다 — EcStatusPanel 은
+ * <code>COMPARE_PERIODS</code>(periods.ts)를 펴서 그린다. 껍데기만 읽으면
+ * 그 다섯 보기가 <b>없는 것으로</b> 세어진다.
+ */
+const withLocalDeps = (file, depth = 2, seen = new Set()) => {
+  if (seen.has(file) || depth < 0) return ''
+  seen.add(file)
+  let text = readFileSync(file, 'utf8')
+  const dir = file.split(sep).slice(0, -1).join(sep)
+  for (const m of text.matchAll(/from\s+'\.\/([\w-]+)'/g)) {
+    for (const ext of ['.ts', '.tsx']) {
+      const dep = join(dir, m[1] + ext)
+      // 두 단계까지 따라간다 — 패널 → EcPeriodPicks → periods 가 실제 깊이다.
+      if (existsSync(dep)) { text += withLocalDeps(dep, depth - 1, seen); break }
+    }
+  }
+  return text
+}
+
 const SHELL_FILES = new Map(['Modal']
   .map((c) => [c, join('frontend', 'src', 'components', `${c}.tsx`)])
   .filter(([, f]) => existsSync(f))
-  .map(([c, f]) => [c, readFileSync(f, 'utf8')]))
+  .map(([c, f]) => [c, withLocalDeps(f)]))
 const shellSrcFor = (src) => [...SHELL_FILES]
   .filter(([c]) => new RegExp('import[^\n]{0,40}\\b' + c + '\\b').test(src))
   .map(([, text]) => text).join('')
+
+/**
+ * 비교기간의 보기 이름 — <code>components/periods.ts</code> 의
+ * <code>COMPARE_PERIODS</code> 를 그대로 읽는다. 여기 손으로 베껴 두면 저쪽이 바뀔 때
+ * 조용히 어긋난다.
+ */
+const COMPARE_PERIOD_NAMES = (() => {
+  const f = join('frontend', 'src', 'components', 'periods.ts')
+  if (!existsSync(f)) return []
+  const m = readFileSync(f, 'utf8').match(/COMPARE_PERIODS[^\n=]*=\s*\[([^\]]*)\]/)
+  return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : []
+})()
 
 const stripJsx = (s) => {
   let body = s
@@ -127,6 +167,18 @@ const choiceNames = (src) => {
    * 배열이 <code>.map(</code> 에서 멀리 떨어져 있어 뒤로 걸어가는 규칙에 안 걸린다.
    */
   for (const m of src.matchAll(/label:\s*'([^']{1,24})'[\s\S]{0,80}?\bto:\s*'/g)) add(m[1])
+
+  /*
+   * <b>비교기간은 공용 패널이 그린다.</b> 다섯 보기(사용안함·전년/전월/전주/전일 동일기간)는
+   * <code>periods.ts</code> 의 상수라 화면 파일 어디에도 글자가 없다 — 다 있는데
+   * '없다' 로 걸렸다.
+   *
+   * <p>그렇다고 패널 파일을 통째로 섞으면 <b>딴 화면의 낱말과 부딪힌다</b> —
+   * 실제로 설문조사조회의 [사용안함](머리말 사용여부)이 비교기간의 [사용안함] 으로
+   * 잘못 맞았다. 그래서 <b>그 자리를 켠 화면에만</b> 붙인다:
+   * 패널에 <code>onCompareChange</code> 를 넘겼는지로 안다.
+   */
+  if (/onCompareChange=/.test(src)) for (const c of COMPARE_PERIOD_NAMES) add(c)
 
   for (const m of src.matchAll(/\.map\(/g)) {
     const before = src.slice(Math.max(0, m.index - 400), m.index)
@@ -2465,6 +2517,9 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
      * 조건 검사에도 같은 이유가 이미 적혀 있다([내.외자구분]·[발송여부]·[삭제구분]).
      * 화면마다 예외를 적으면 수십 줄이 되므로 여기서 한 번에 뺀다.
      */
+    ['구매현황|전체',
+      '[내.외자구분] 한 벌의 첫 보기다(전체·내자·외자). 그 구분을 전표에 두지 않으니'
+      + ' 벌 자체가 없다 — 나머지 둘은 아래에서 통째로 뺐다'],
     ['내자', '국내/수입 구분을 전표에 두지 않는다'],
     ['외자', '위와 같음'],
     ['미발송', '전표를 보냈는지(메일·팩스)를 기록하지 않는다 — 보낼 자리가 없으니 보낸 표시도 없다'],
