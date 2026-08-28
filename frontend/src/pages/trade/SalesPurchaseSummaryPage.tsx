@@ -39,7 +39,15 @@ export default function SalesPurchaseSummaryPage() {
   const [warehouseCond, setWarehouseCond] = useState('')
   const [empCond, setEmpCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
-  const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees'])
+  /*
+   * 원본 판매구매집계표 조건의 <b>[품목코드]</b>·<b>[거래구분]</b>.
+   * 품목은 집계 줄의 이름으로만 찾을 수 있었는데, 이름은 겹칠 수 있고 <b>코드로 훑는</b>
+   * 일이 안 됐다. [거래구분]은 일반인가 반품인가 — 반품이 섞이면 금액이 상계돼서,
+   * 반품만 따로 보고 싶을 때가 실제로 있다. 둘 다 <b>합치기 전에</b> 건다.
+   */
+  const [itemCond, setItemCond] = useState('')
+  const [kindCond, setKindCond] = useState<'전체' | '일반' | '반품'>('전체')
+  const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees', 'items'])
 
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -84,6 +92,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.saleCount += 1; a.saleSupply += d.supplyAmount
         a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -95,6 +104,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.buyCount += 1; a.buySupply += d.supplyAmount
         a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
@@ -107,7 +117,9 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
+          if (itemCond && l.itemCode !== itemCond) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
         }
@@ -119,7 +131,9 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
+          if (itemCond && l.itemCode !== itemCond) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
         }
@@ -129,7 +143,7 @@ export default function SalesPurchaseSummaryPage() {
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
-  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond])
+  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
@@ -177,9 +191,22 @@ export default function SalesPurchaseSummaryPage() {
         </div>
         {/* 원본 차례: … 거래처 · 품목코드 · <b>적요</b> · 거래구분. 적요는 이미 응답에 온다. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>품목코드</span>
+          <CodePickerField label="품목코드" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={partnerPick.items.map((x) => ({ ...x, value: x.code ?? x.value }))} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>적요</span>
           <input className="ec-input" value={remarkCond}
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>거래구분</span>
+          <select className="ec-input" value={kindCond} style={{ width: 90 }}
+                  onChange={(e) => setKindCond(e.target.value as '전체' | '일반' | '반품')}>
+            <option>전체</option><option>일반</option><option>반품</option>
+          </select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>집계기준</span>

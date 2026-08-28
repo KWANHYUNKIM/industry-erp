@@ -40,6 +40,17 @@ export default function PivotSummaryPage() {
   const [itemCond, setItemCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
+  /*
+   * 원본 집계표 조건 차례: <b>메뉴구분</b> · <b>거래유형</b> · 내.외자구분 · 창고 ·
+   * 프로젝트 · 관리항목 · 거래처 · 품목 · <b>거래구분</b>.
+   *
+   * <p>[메뉴구분]은 매출/매입 알약이 이미 하는 일인데 <b>이름표가 없었다.</b>
+   * [거래유형]은 과세인가 면세인가, [거래구분]은 일반인가 반품이다 —
+   * 둘 다 전표가 들고 있는데 합친 뒤라 거를 수가 없었다. <b>합치기 전에</b> 건다.
+   * 반품이 섞여 있으면 금액이 상계돼서, 반품만 따로 보고 싶을 때가 실제로 있다.
+   */
+  const [taxCond, setTaxCond] = useState<'전체' | '과세' | '면세'>('전체')
+  const [kindCond, setKindCond] = useState<'전체' | '일반' | '반품'>('전체')
   const condPick = useCondPickers(['partners', 'items', 'projects', 'warehouses'])
 
   async function load() {
@@ -54,8 +65,8 @@ export default function PivotSummaryPage() {
 
   const rows = useMemo<PivotRow[]>(() => {
     const docs = mode === 'SALE'
-      ? sales.filter((d) => d.saleDate.slice(0, 4) === String(year)).map((d) => ({ date: d.saleDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, lines: d.lines }))
-      : purchases.filter((d) => d.purchaseDate.slice(0, 4) === String(year)).map((d) => ({ date: d.purchaseDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, lines: d.lines }))
+      ? sales.filter((d) => d.saleDate.slice(0, 4) === String(year)).map((d) => ({ date: d.saleDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName, lines: d.lines }))
+      : purchases.filter((d) => d.purchaseDate.slice(0, 4) === String(year)).map((d) => ({ date: d.purchaseDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName, lines: d.lines }))
 
     const map = new Map<string, PivotRow>()
     const bump = (key: string, name: string): PivotRow => {
@@ -64,6 +75,8 @@ export default function PivotSummaryPage() {
       return r
     }
     for (const d of docs) {
+      if (taxCond !== '전체' && (taxCond === '과세') !== d.taxable) continue
+      if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
       if (partnerCond && !d.partnerName.includes(partnerCond)) continue
       if (warehouseCond && !d.warehouseName.includes(warehouseCond)) continue
       if (projectCond && !(d.projectName ?? '').includes(projectCond)) continue
@@ -83,7 +96,7 @@ export default function PivotSummaryPage() {
     }
     const kw = keyword.trim()
     return [...map.values()].filter((r) => !kw || r.name.includes(kw)).sort((a, b) => b.total - a.total)
-  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond, projectCond, warehouseCond])
+  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond, projectCond, warehouseCond, taxCond, kindCond])
 
   const colTotals = useMemo(() => {
     const t = new Array(12).fill(0)
@@ -114,6 +127,7 @@ export default function PivotSummaryPage() {
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>메뉴구분</span>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['SALE', 'PURCHASE'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
@@ -130,6 +144,11 @@ export default function PivotSummaryPage() {
             }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
           ))}
         </div>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>거래유형</span>
+        <select className="ec-input" value={taxCond} style={{ width: 90 }}
+                onChange={(e) => setTaxCond(e.target.value as '전체' | '과세' | '면세')}>
+          <option>전체</option><option>과세</option><option>면세</option>
+        </select>
         {/* 원본 조건 차례: … 창고 · <b>프로젝트</b> · … · 거래처 · 품목 — 프로젝트가 거래처보다 앞이다. */}
         <CodePickerField label="창고" width={150} emptyLabel="전체"
                          value={warehouseCond} onChange={setWarehouseCond} items={condPick.warehouses} />
@@ -139,6 +158,12 @@ export default function PivotSummaryPage() {
                          value={partnerCond} onChange={setPartnerCond} items={condPick.partners} />
         <CodePickerField label="품목" width={150} emptyLabel="전체"
                          value={itemCond} onChange={setItemCond} items={condPick.items} />
+        {/* 원본 조건 차례의 맨 뒤 [거래구분] — 일반인가 반품인가. */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>거래구분</span>
+        <select className="ec-input" value={kindCond} style={{ width: 90 }}
+                onChange={(e) => setKindCond(e.target.value as '전체' | '일반' | '반품')}>
+          <option>전체</option><option>일반</option><option>반품</option>
+        </select>
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
       </div>
 
