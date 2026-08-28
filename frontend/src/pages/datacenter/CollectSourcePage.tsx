@@ -9,7 +9,7 @@ import type { CollectSource } from '../../api/types'
  * 데이터수집(DataCollectPage)이 실행하는 수집 소스를 등록·관리한다. 소스 = 우리 API 목록 GET 엔드포인트.
  * 코드 배포 없이 소스를 추가/비활성할 수 있다. 백엔드 신규: collect_sources + /api/collect-sources.
  */
-const empty = { name: '', category: '', endpoint: '', paged: false, sortOrder: '0' }
+const empty = { code: '', name: '', category: '', endpoint: '', paged: false, sortOrder: '0' }
 
 export default function CollectSourcePage() {
   const [rows, setRows] = useState<CollectSource[]>([])
@@ -23,7 +23,18 @@ export default function CollectSourcePage() {
    * 그 값으로 거를 수가 없었다. 데이터원이 늘수록 목록에서 찾기 어려워진다.
    */
   const [targetCond, setTargetCond] = useState('')
+  /*
+   * 원본 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · 최초작성자 · 최종수정자 ·
+   * <b>최초작성일자</b> · <b>최종작업일자</b>. 뒤 둘은 BaseTimeEntity 가 이미 들고 있던 값인데
+   * <b>응답에 안 실려서</b> 볼 수도 거를 수도 없었다.
+   */
+  const [codeCond, setCodeCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [workedFrom, setWorkedFrom] = useState('')
   const shown = rows
+    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
+    .filter((r) => !madeFrom || (r.createdAt ?? '') >= madeFrom)
+    .filter((r) => !workedFrom || (r.updatedAt ?? '') >= workedFrom)
     .filter((r) => !nameCond || r.name.includes(nameCond))
     .filter((r) => !targetCond || r.category === targetCond)
   const [showForm, setShowForm] = useState(false)
@@ -42,13 +53,13 @@ export default function CollectSourcePage() {
 
   function openNew() { setEditId(null); setForm({ ...empty, sortOrder: String(rows.length + 1) }); setShowForm(true) }
   function openEdit(s: CollectSource) {
-    setEditId(s.id); setForm({ name: s.name, category: s.category, endpoint: s.endpoint, paged: s.paged, sortOrder: String(s.sortOrder) }); setShowForm(true)
+    setEditId(s.id); setForm({ code: s.code ?? '', name: s.name, category: s.category, endpoint: s.endpoint, paged: s.paged, sortOrder: String(s.sortOrder) }); setShowForm(true)
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(''); setOk('')
     if (!form.name.trim() || !form.category.trim() || !form.endpoint.trim()) return setError('소스명·구분·엔드포인트를 입력하세요.')
-    const body = { name: form.name, category: form.category, endpoint: form.endpoint, paged: form.paged, sortOrder: Number(form.sortOrder) || 0 }
+    const body = { code: form.code || undefined, name: form.name, category: form.category, endpoint: form.endpoint, paged: form.paged, sortOrder: Number(form.sortOrder) || 0 }
     try {
       if (editId) { await api.put(`/collect-sources/${editId}`, body); setOk('소스를 수정했습니다.') }
       else { await api.post('/collect-sources', body); setOk('소스를 등록했습니다.') }
@@ -83,6 +94,8 @@ export default function CollectSourcePage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>소스명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 견적 전표" /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>데이터코드</div>
+              <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 120 }} placeholder="D001" /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
               <input className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)} style={{ width: 110 }} placeholder="예: 영업" /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>엔드포인트 *</div>
@@ -98,8 +111,11 @@ export default function CollectSourcePage() {
         </form>
       )}</Modal>
 
-      {/* 원본 조건 [데이터명] */}
+      {/* 원본 조건 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · … · <b>최초작성일자</b> · <b>최종작업일자</b> */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>데이터코드</span>
+        <input className="ec-input" value={codeCond} placeholder="데이터코드"
+               onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
         <span>데이터명</span>
         <input className="ec-input" value={nameCond} onChange={(e) => setNameCond(e.target.value)} style={{ width: 170 }} />
         <span>수집대상</span>
@@ -107,33 +123,46 @@ export default function CollectSourcePage() {
           <option value="">전체</option>
           {[...new Set(rows.map((r) => r.category))].map((c) => <option key={c}>{c}</option>)}
         </select>
+        <span>최초작성일자</span>
+        <input type="date" className="ec-input" value={madeFrom}
+               onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+        <span>최종작업일자</span>
+        <input type="date" className="ec-input" value={workedFrom}
+               onChange={(e) => setWorkedFrom(e.target.value)} style={{ width: 140 }} />
       </div>
 
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 60 }}>정렬</th>
+          <th style={{ width: 90 }}>데이터코드</th>
           {/* 원본 수집데이터등록의 이름은 [소스명]이 아니라 <b>[데이터명]</b> 이다(사본 실측). */}
             <th>데이터명</th>
           <th style={{ width: 100 }}>구분</th>
           <th style={{ width: 260 }}>엔드포인트</th>
           <th style={{ textAlign: 'center', width: 70 }}>페이지</th>
+          <th style={{ textAlign: 'center', width: 110 }}>최초작성일자</th>
+          <th style={{ textAlign: 'center', width: 110 }}>최종작업일자</th>
           <th style={{ textAlign: 'center', width: 80 }}>사용</th>
           <th style={{ textAlign: 'center', width: 90 }}>관리</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s) => (
             <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
               <td></td>
               <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{s.sortOrder}</td>
+              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{s.code ?? ''}</td>
               <td style={{ fontWeight: 600 }}>{s.name}</td>
               <td>{s.category}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>GET /api{s.endpoint}</td>
               <td style={{ textAlign: 'center' }}>{s.paged ? '●' : ''}</td>
+              {/* 원본 [최초작성일자]·[최종작업일자] — 날짜만 적는다(시각은 표에서 뜻이 없다). */}
+              <td style={{ textAlign: 'center', color: '#5a626e' }}>{s.createdAt?.slice(0, 10) ?? ''}</td>
+              <td style={{ textAlign: 'center', color: '#5a626e' }}>{s.updatedAt?.slice(0, 10) ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => toggleActive(s)} style={{ border: '1px solid var(--ec-border)', background: s.active ? '#eaf6ec' : '#f2f3f5', color: s.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{s.active ? '사용' : '중단'}</button>
               </td>

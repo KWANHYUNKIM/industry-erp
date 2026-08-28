@@ -28,6 +28,7 @@ public class CollectSourceService {
     @Transactional
     public CollectSourceResponse create(CreateCollectSourceRequest req) {
         CollectSource s = CollectSource.builder()
+                .code(req.code() == null || req.code().isBlank() ? null : req.code().trim())
                 .name(req.name().trim())
                 .category(req.category().trim())
                 .endpoint(req.endpoint().trim())
@@ -41,6 +42,7 @@ public class CollectSourceService {
     @Transactional
     public CollectSourceResponse update(Long id, UpdateCollectSourceRequest req) {
         CollectSource s = get(id);
+        s.setCode(req.code() == null || req.code().isBlank() ? null : req.code().trim());
         s.setName(req.name().trim());
         s.setCategory(req.category().trim());
         s.setEndpoint(req.endpoint().trim());
