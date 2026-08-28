@@ -393,7 +393,20 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
      * 거의 모든 표가 빠져 이 검사가 아무것도 안 보게 된다(실제로 301개 중 2개만 봤다).
      * 가르는 기준은 <b>map 뒤에 처음 나오는 표 태그</b>다 — tr 이면 줄, td/th 면 칸.
      */
-    const mapsCells = (x) => {
+    /*
+     * <b>속성 안의 map 은 칸을 만들지 않는다.</b> 머리의 전체선택 체크박스가
+     * <code>onChange={() => setChecked(new Set(rows.map((r) => r.id)))}</code> 처럼
+     * 핸들러 안에서 map 을 쓰는데, 그것을 '칸을 만드는 map' 으로 읽어
+     * <b>그 표를 통째로 건너뛰고 있었다</b>(공정등록에서 실제로 그랬다 — 머리 한 칸을
+     * 지워도 검사가 아무 말을 안 했다). 태그 속성을 지우고 본다.
+     */
+    const mapsCells = (raw) => {
+      /*
+       * 속성을 지우려면 <b>태그의 &gt; 만</b> 남겨야 한다. 화살표(<code>=&gt;</code>) 말고
+       * <b>비교 연산자</b>도 태그를 끊는다 — <code>checked={rows.length &gt; 0 && …}</code>
+       * 가 그렇다. 그 둘을 지운 뒤에 속성을 걷어 낸다.
+       */
+      const x = noArrow(raw).replace(/ > /g, '   ').replace(/<([a-zA-Z]+)[^>]*>/g, '<$1>')
       for (const m of x.matchAll(/\.map\(/g)) {
         const after = x.slice(m.index)
         const first = after.match(/<(tr|td|th)\b/)
@@ -419,9 +432,18 @@ for (const f of walk('frontend/src/pages').filter((x) => x.endsWith('.tsx'))) {
        * 둘 다 4열이라 실제로는 맞는데, 다 세면 11칸으로 읽혀 <b>거짓 경보</b>가 된다.
        */
       if (hasConditionalCell(rm[1])) { unknown = true; break }
+      /*
+       * <b>안내 줄을 자료 줄로 착각하지 않는다.</b> "등록된 데이터가 없습니다" 는
+       * <code>&lt;td colSpan={18}&gt;</code> 한 칸인데, colSpan 을 펴서 세면 18칸으로
+       * 읽혀 자료 줄 노릇을 한다 — 실제로 품목등록에서 그렇게 <b>엉뚱한 줄을 견주었다</b>.
+       * 자료 줄인지는 <b>td 태그 수</b>로 가린다.
+       */
+      const tags = (noArrow(rm[1]).match(/<td\b/g) || []).length
+      if (tags < 2) continue
       const c = countCells(rm[1], 'td')
       if (c === null) { unknown = true; break }
-      if (c >= 2) { picked = c; break }
+      picked = c
+      break
     }
     if (unknown || picked === null) { bodySkipped++; continue }
     bodyCompared++

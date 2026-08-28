@@ -496,9 +496,9 @@ export default function ItemsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={19} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={19} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
