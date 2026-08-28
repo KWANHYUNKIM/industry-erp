@@ -62,6 +62,13 @@ export default function PriceRequestProgressPage() {
   const [itemCond, setItemCond] = useState('')
   const [empCond, setEmpCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
+  /*
+   * 원본 단가요청진행단계 조건의 <b>[거래처관리담당자]</b>. [담당자]는 <b>우리 쪽 담당</b>이고
+   * 이것은 <b>그 거래처를 맡은 사람</b>이다 — 거래처 마스터가 들고 있다.
+   * "내가 맡은 거래처의 단가요청" 을 한 번에 보려면 이것으로 걸러야 한다.
+   */
+  const [partnerMgrCond, setPartnerMgrCond] = useState('')
+  const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const pickers = useCondPickers(['partners', 'items', 'employees'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -73,6 +80,12 @@ export default function PriceRequestProgressPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+  /* 거래처 마스터에서 [관리담당자]를 가져와 거래처명으로 잇는다 — 전표는 이름만 들고 온다. */
+  useEffect(() => {
+    api.get<{ name: string; manager: string | null }[]>('/partners')
+      .then((r) => setPartnerMgrs(new Map(r.data.map((p) => [p.name, p.manager ?? '']))))
+      .catch(() => {})
+  }, [])
 
   const shown = useMemo(() => rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
@@ -80,9 +93,10 @@ export default function PriceRequestProgressPage() {
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
+    .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
-  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond])
+  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs])
 
   /*
    * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -127,6 +141,13 @@ export default function PriceRequestProgressPage() {
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond} items={pickers.employees} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          {/* 마스터를 고르는 칸은 코드도움이다. 후보는 <b>실제로 거래처를 맡은 사람들</b>에서 뽑는다. */}
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={partnerMgrCond} onChange={setPartnerMgrCond}
+                           items={[...new Set(partnerMgrs.values())].filter(Boolean).sort()
+                             .map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={remarkCond}
