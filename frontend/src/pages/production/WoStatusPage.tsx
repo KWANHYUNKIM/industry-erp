@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -68,6 +69,20 @@ export default function WoStatusPage() {
    */
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
+  /*
+   * 원본 작업지시서현황의 <b>[구분]</b>은 [내역]·[집계] 다(사본 실측 — checked 는 내역).
+   * 우리는 내역만 있어 "이 품목을 이번 달 몇 개 지시했나" 를 눈으로 세야 했다.
+   *
+   * <p>집계 <b>축</b>은 사본에서 못 읽었다 — 그 선택상자를 스크립트가 그려서 담기지
+   * 않았다. 그래서 <b>이 화면의 줄이 실제로 가진 축</b>만 둔다(품목·창고·거래처·
+   * 담당자·월). 없는 축을 그려 두면 눌러도 늘 같은 표가 나온다.
+   *
+   * <p>판매·구매현황의 집계(utils/statusAggregate)는 <b>돈</b>을 더한다. 작업지시에는
+   * 금액이 없어 그 계산을 그대로 쓸 수 없다 — 여기서는 <b>수량 셋</b>(지시·생산·잔량)을 센다.
+   */
+  const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
+  const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   const [orderNoCond, setOrderNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -105,6 +120,32 @@ export default function WoStatusPage() {
     && (!itemCond || r.productName.includes(itemCond))
     && (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
 
+  /** 고른 축으로 묶어 수량 셋을 더한다. 줄이 없으면 빈 배열이라 표가 스스로 비운다. */
+  const grouped = useMemo(() => {
+      if (mode !== '집계') return []
+      const keyOf = (r: Row) => (
+        axis === '품목별' ? r.productName
+          : axis === '창고별' ? (r.warehouseName || '(없음)')
+            : axis === '거래처별' ? (r.partnerName || '(없음)')
+              : axis === '담당자별' ? empName(r.employeeId)
+                : r.orderDate.slice(0, 7).replace(/-/g, '/'))
+      const by = new Map<string, { key: string; count: number; planned: number; produced: number; remaining: number }>()
+      for (const r of shown) {
+        const k = keyOf(r)
+        const cur = by.get(k) ?? { key: k, count: 0, planned: 0, produced: 0, remaining: 0 }
+        cur.count += 1
+        cur.planned += r.plannedQty
+        cur.produced += r.producedQty
+        cur.remaining += r.remainingQty
+        by.set(k, cur)
+      }
+      return [...by.values()].sort((a, b) => a.key.localeCompare(b.key))
+    }, [shown, mode, axis])
+
+  /* 축을 바꿔도 열 수는 그대로지만, 표가 통째로 갈리므로 머리와 칸을 함께 본다. */
+  const aggRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, grouped.length])
+
   return (
     <EcListShell
       title="작업지시서현황"
@@ -115,6 +156,21 @@ export default function WoStatusPage() {
     >
       {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 판 첫째 <b>[구분]</b> — 내역·집계(사본 실측). */}
+        <EcCond label="구분">
+          <div className="ec-pills">
+            {(['내역', '집계'] as const).map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                      onClick={() => setMode(m)}>{m}</button>
+            ))}
+          </div>
+          {mode === '집계' && (
+            <select className="ec-input" value={axis} onChange={(e) => setAxis(e.target.value as typeof AXES[number])}
+                    style={{ width: 130, marginLeft: 6 }}>
+              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )}
+        </EcCond>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
@@ -147,6 +203,43 @@ export default function WoStatusPage() {
       </ul>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {mode === '집계' ? (
+        <table ref={aggRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>{axis}</th>
+              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>지시수량</th>
+              <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
+              <th style={{ width: 120, textAlign: 'right' }}>잔량</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : grouped.map((g, i) => (
+              <tr key={g.key}>
+                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td>{g.key}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.planned.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.produced.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: g.remaining > 0 ? '#c60a2e' : '#8a929c' }}>{g.remaining.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.planned, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.produced, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.remaining, 0).toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -190,6 +283,7 @@ export default function WoStatusPage() {
           ))}
         </tbody>
       </table>
+    )}
     </EcListShell>
   )
 }
