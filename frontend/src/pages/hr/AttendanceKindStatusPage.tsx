@@ -57,6 +57,12 @@ const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL',
 const days = formatDays
 
 export default function AttendanceKindStatusPage() {
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
+   * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [rows, setRows] = useState<Vacation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -125,6 +131,7 @@ export default function AttendanceKindStatusPage() {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       <EcStatusPanel
         from={from} to={to}
@@ -177,6 +184,12 @@ export default function AttendanceKindStatusPage() {
                       onClick={() => setEmployment(v)}>{label}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </EcStatusPanel>
 

@@ -74,6 +74,12 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 export default function ReceiptStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items', 'projects', 'employees'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
+   * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -197,6 +203,7 @@ export default function ReceiptStatusPage() {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       {/* 원본은 기간 줄을 [일자]라고 부른다(사본 실측) — 기본값 [기준일자]가 아니다. */}
       <EcStatusPanel
@@ -233,6 +240,12 @@ export default function ReceiptStatusPage() {
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={note}
                  onChange={(e) => setNote(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </EcStatusPanel>
 

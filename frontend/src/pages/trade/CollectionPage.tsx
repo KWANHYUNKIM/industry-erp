@@ -49,6 +49,12 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
 }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['partners', 'projects', 'employees'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
+   * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [rows, setRows] = useState<Settlement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -167,6 +173,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -199,6 +206,12 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
             <option value="">전체</option>
             {methods.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </EcStatusPanel>
 
