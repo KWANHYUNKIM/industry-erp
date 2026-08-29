@@ -11,7 +11,20 @@ import type { CustomFieldDef, CustomFieldType } from '../../api/types'
  */
 const TYPE_LABEL: Record<CustomFieldType, string> = { TEXT: '문자', NUMBER: '숫자', DATE: '일자', CODE: '코드' }
 // 대상 화면 목록(현재는 판매전표. 확장 시 추가)
-const ENTITY_TYPES = [{ key: 'SALES', label: '판매전표(판매입력 II)' }]
+/*
+ * 만들 수 있는 대상. <b>화면이 읽는 만큼 만들 수 있어야 한다.</b>
+ *
+ * <p>예전에는 [판매전표] 하나뿐이었다. 그런데 판매·구매 입력 화면은 이미 네 가지를 읽는다 —
+ * 전표 머리(SALES·PURCHASE)와 <b>격자 줄</b>(SALES_LINE·PURCHASE_LINE). 서버도 대상 이름을
+ * 가리지 않는다. 그래서 줄 추가항목은 <b>화면이 읽을 준비는 됐는데 만들 길이 없어</b>
+ * 아무도 못 쓰고 있었다. 읽는 만큼 열어 둔다.
+ */
+const ENTITY_TYPES = [
+  { key: 'SALES', label: '판매전표 머리(판매입력 II)' },
+  { key: 'SALES_LINE', label: '판매전표 줄(격자 열)' },
+  { key: 'PURCHASE', label: '구매전표 머리(구매입력 II)' },
+  { key: 'PURCHASE_LINE', label: '구매전표 줄(격자 열)' },
+]
 const emptyForm = { fieldKey: '', label: '', fieldType: 'TEXT' as CustomFieldType, options: '', required: false, sortOrder: '0' }
 
 export default function CustomFieldPage() {
