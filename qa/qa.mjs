@@ -4210,6 +4210,17 @@ async function scenarioProductionLaborMinutes(f) {
     workItemId: f.material.id, workQty: 3,
   })
   eq('작업기준품목이 붙는다', bor.workItemCode, f.material.code)
+  /*
+   * 공정명은 <b>자유입력</b>이라 마스터에 없는 이름도 들어온다. 그때 응답의 processId 가
+   * null 이 되고 표준시간이 빈다 — 화면은 그 둘을 보고 <b>왜 비었는지</b>를 말한다
+   * (이름을 고칠 일인지, BOR 을 세울 일인지). 서버가 그 표시를 실어 주는지 못 박는다.
+   */
+  const freeWr = await must('POST', '/work-results', {
+    workDate: D, process: `${P}없는공정`, goodQty: 1, defectQty: 0, worker: 'QA',
+  })
+  isNull('마스터에 없는 공정이면 연결이 없다', freeWr.processId)
+  isNull('연결이 없으면 표준시간도 없다 — 0 이 아니라 없음이다', freeWr.standardTimeMin)
+  await must('DELETE', `/work-results/${freeWr.id}`)
   eq('작업량도 함께 남는다', Number(bor.workQty), 3)
   /* 품목을 안 고르면 양도 없다 — 무엇을 얼마나 다루는지 <b>반쪽만</b> 남기지 않는다. */
   const halfway = await must('POST', '/bor', {

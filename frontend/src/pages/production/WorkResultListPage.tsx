@@ -337,7 +337,19 @@ export default function WorkResultListPage() {
                   {r.workDate}{r.workOrderNo ? ' ' + r.workOrderNo : ''}
                 </td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
-                <td>{r.process}</td>
+                {/*
+                  <b>마스터에 없는 공정</b>은 그렇다고 말해 준다. 공정명은 자유입력이라
+                  '조립 ' 처럼 한 글자만 달라도 마스터에 안 걸리는데, 그러면 아래
+                  [표준작업시간]이 조용히 빈다 — 왜 비었는지 화면 어디에도 없었다.
+                  응답은 진작 그 연결(processId)을 들고 왔는데 <b>아무도 안 보고</b> 있었다.
+                */}
+                <td>
+                  {r.process}
+                  {r.processId == null && (
+                    <span title="공정 마스터에 없는 이름이라 표준시간을 낼 수 없습니다"
+                          style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }}>· 마스터 없음</span>
+                  )}
+                </td>
                 <td>{r.productName ?? ''}</td>
                 {/* 작업품목. 안 적힌 옛 자료는 비워 둔다 — 생산품목으로 채우면 두 열이 늘 같아진다. */}
                 <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
@@ -348,7 +360,16 @@ export default function WorkResultListPage() {
                 <td>{r.resourceName ?? ''}</td>
                 <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(r.goodQty)}</td>
                 <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c' }}>{num(r.defectQty)}</td>
-                <td style={{ textAlign: 'right', color: r.standardTimeMin == null ? '#c9ced6' : undefined }}>
+                {/*
+                  표준이 빈 까닭은 둘이고 <b>고치는 방법이 다르다</b> —
+                  공정이 마스터에 안 걸렸으면 <b>이름을 고쳐야</b> 하고,
+                  걸렸는데 없으면 그 품목·공정의 <b>BOR 을 세워야</b> 한다.
+                  '-' 만 찍어 두면 어느 쪽인지 몰라 엉뚱한 데를 뒤진다.
+                */}
+                <td style={{ textAlign: 'right', color: r.standardTimeMin == null ? '#c9ced6' : undefined }}
+                    title={r.standardTimeMin != null ? undefined
+                      : r.processId == null ? '공정이 마스터에 없습니다 — 공정명을 고치세요'
+                        : '이 품목·공정의 BOR(작업소요시간)이 없습니다'}>
                   {r.standardTimeMin == null ? '-' : num(r.standardTimeMin)}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
