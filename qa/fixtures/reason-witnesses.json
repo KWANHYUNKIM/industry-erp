@@ -46,11 +46,12 @@
   "in": "backend"
  },
  "구매단가일괄변경|환율": {
-  "claim": "전표에 통화·환율이 없다",
+  "claim": "매입 전표에 통화 칸이 없다",
   "absent": [
-   "exchangeRate"
+   "currency",
+   "Currency"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain"
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
  },
  "내결재관리|My도장/서명": {
   "claim": "결재 도장 이미지를 만들지 않는다",
@@ -547,5 +548,13 @@
    "WorkOrderLine"
   ],
   "in": "backend"
+ },
+ "구매단가일괄변경|환율변경": {
+  "claim": "위와 같음",
+  "absent": [
+   "currency",
+   "Currency"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
  }
 }
