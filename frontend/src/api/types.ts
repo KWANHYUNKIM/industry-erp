@@ -811,6 +811,11 @@ export interface QualityInspection {
   projectName: string | null
   inspector: string | null
   remark: string | null
+  /**
+   * 원본 불량률파악보고서의 [불량유형] — 공통코드 DEFECT_TYPE 의 <b>코드</b>다.
+   * 불량이 없는 검사에는 없다. 이름은 화면이 공통코드에서 붙인다.
+   */
+  defectType: string | null
 }
 
 export type QualityRequestStatus = 'REQUESTED' | 'INSPECTED' | 'CANCELED'

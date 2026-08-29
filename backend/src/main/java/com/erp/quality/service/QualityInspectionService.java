@@ -73,6 +73,8 @@ public class QualityInspectionService {
                 .defectQty(defect)
                 .result(result)
                 .inspector(inspector)
+                /* 불량이 없으면 유형도 없다 — 전량 양품인데 '치수불량' 이 붙어 있으면 헷갈린다. */
+                .defectType(defect.signum() > 0 ? blankToNull(req.defectType()) : null)
                 .remark(req.remark())
                 .build();
 
@@ -96,5 +98,9 @@ public class QualityInspectionService {
 
     private String generateNo(LocalDate date) {
         return docNoGenerator.next("QC-", "quality_inspections", "inspection_no", "inspection_date", date);
+    }
+
+    private static String blankToNull(String v) {
+        return (v == null || v.isBlank()) ? null : v;
     }
 }

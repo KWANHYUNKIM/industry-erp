@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import type { CommonCode, Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
@@ -29,20 +29,24 @@ export default function QualityInspectionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
   const [form, setForm] = useState({
     inspectionDate: today(), type: 'INCOMING', itemId: '',
-    lotNo: '', inspectedQty: '', defectQty: '0', result: '', inspector: '',
+    lotNo: '', inspectedQty: '', defectQty: '0', defectType: '', result: '', inspector: '',
   })
 
   async function load() {
     setLoading(true)
     try {
-      const [q, i] = await Promise.all([
+      const [q, i, d] = await Promise.all([
         api.get<QualityInspection[]>('/quality-inspections'),
         api.get<Item[]>('/items'),
+        /* 원본 [불량유형]은 코드도움이다 — 공통코드 그룹 DEFECT_TYPE 에서 가져온다. */
+        api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
       ])
       setRows(q.data)
       setItems(i.data)
+      setDefectTypes(d.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -66,10 +70,11 @@ export default function QualityInspectionPage() {
         lotNo: form.lotNo || undefined,
         inspectedQty: Number(form.inspectedQty),
         defectQty: Number(form.defectQty || 0),
+        defectType: form.defectType || undefined,
         result: form.result || undefined,
         inspector: form.inspector || undefined,
       })
-      setForm((f) => ({ ...f, itemId: '', lotNo: '', inspectedQty: '', defectQty: '0', result: '', inspector: '' }))
+      setForm((f) => ({ ...f, itemId: '', lotNo: '', inspectedQty: '', defectQty: '0', defectType: '', result: '', inspector: '' }))
       setShowForm(false)
       load()
     } catch (err) {
@@ -123,6 +128,17 @@ export default function QualityInspectionPage() {
               <input className={inputCls} type="number" step="any" value={form.inspectedQty} onChange={(e) => set('inspectedQty', e.target.value)} style={{ width: 90 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>불량수</div>
               <input className={inputCls} type="number" step="any" value={form.defectQty} onChange={(e) => set('defectQty', e.target.value)} style={{ width: 80 }} /></label>
+            {/*
+              원본 불량률파악보고서의 [불량유형]. 여기서 안 받으면 <b>그 조건이 걸 값이
+              어디서도 안 생긴다.</b> 불량수가 0 이면 고를 것이 없다 — 전량 양품인데
+              '치수불량' 이 붙어 있으면 헷갈리므로 서버도 버린다.
+            */}
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>불량유형</div>
+              <select className={inputCls} value={form.defectType} disabled={Number(form.defectQty || 0) <= 0}
+                      onChange={(e) => set('defectType', e.target.value)} style={{ width: 120 }}>
+                <option value="">(미지정)</option>
+                {defectTypes.map((d) => <option key={d.id} value={d.code}>{d.name}</option>)}
+              </select></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판정(자동)</div>
               <select className={inputCls} value={form.result} onChange={(e) => set('result', e.target.value)} style={{ width: 120 }}>
                 <option value="">자동판정</option>

@@ -25,6 +25,8 @@ public final class QualityDtos {
             @NotNull(message = "검사수량을 입력하세요.") @PositiveOrZero(message = "검사수량은 0 이상이어야 합니다.") BigDecimal inspectedQty,
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             QualityResult result,
+            /** 원본 [불량유형] — 공통코드 DEFECT_TYPE 의 코드. 불량이 없으면 안 준다. */
+            String defectType,
             String inspector,
             String remark
     ) {}
@@ -40,6 +42,8 @@ public final class QualityDtos {
             QualityResult result, String resultName,
             Long warehouseId, String warehouseName,
             Long projectId, String projectName,
+            /** 원본 [불량유형]. 공통코드 DEFECT_TYPE 의 코드다 — 화면이 이름을 붙인다. */
+            String defectType,
             String inspector, String remark
     ) {
         public static InspectionResponse from(QualityInspection q) {
@@ -60,6 +64,7 @@ public final class QualityDtos {
                     q.getWarehouse() != null ? q.getWarehouse().getName() : null,
                     q.getProject() != null ? q.getProject().getId() : null,
                     q.getProject() != null ? q.getProject().getName() : null,
+                    q.getDefectType(),
                     q.getInspector(), q.getRemark());
         }
     }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { QualityInspection, StockAdjustment } from '../../api/types'
+import type { CommonCode, QualityInspection, StockAdjustment } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
@@ -50,16 +50,23 @@ export default function DefectReportPage() {
   const [whCond, setWhCond] = useState('')
   const [projCond, setProjCond] = useState('')
   const [inspectorCond, setInspectorCond] = useState('')
+  /*
+   * 원본 [불량유형] — 공통코드 DEFECT_TYPE 의 코드도움이다(사본 실측 ddlBadType).
+   * 예전에는 '품질검사에 그 값이 없다' 고 적어 두고 뺐다. 이제 검사에 유형을 적으므로 만든다.
+   */
+  const [defectTypeCond, setDefectTypeCond] = useState('')
+  const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
   const [handleCond, setHandleCond] = useState<'전체' | '불량' | '폐기'>('전체')
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [q, a] = await Promise.all([
+      const [q, a, d] = await Promise.all([
         api.get<QualityInspection[]>('/quality-inspections'),
         api.get<StockAdjustment[]>('/stock-adjustments'),
+        api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
       ])
-      setInspections(q.data); setAdjustments(a.data)
+      setInspections(q.data); setAdjustments(a.data); setDefectTypes(d.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -76,6 +83,14 @@ export default function DefectReportPage() {
     for (const q of inspections) {
       if (!inPeriod(q.inspectionDate)) continue
       if (inspectorCond && (q.inspector ?? '') !== inspectorCond) continue
+      /*
+       * <b>합치기 전에</b> 건다. 품목별로 합친 뒤에는 어느 유형이 얼마였는지가 사라져
+       * 화면에서는 더 이상 거를 수가 없다.
+       *
+       * <p>재고조정(불량처리·폐기)에는 유형이 없다. 유형으로 물었으면 <b>검사만</b> 답한다 —
+       * 유형 없는 것을 끼워 주면 무엇으로 걸린 표인지 알 수 없다.
+       */
+      if (defectTypeCond && q.defectType !== defectTypeCond) continue
       if (whCond && (q.warehouseName ?? '') !== whCond) continue
       if (projCond && (q.projectName ?? '') !== projCond) continue
       const r = get(q.itemId, q.itemCode, q.itemName, q.unit)
@@ -84,6 +99,7 @@ export default function DefectReportPage() {
     for (const a of adjustments) {
       if (!inPeriod(a.adjustDate)) continue
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
+      if (defectTypeCond) continue   // 조정에는 불량유형이 없다 — 위 주석 참고
       if (handleCond === '불량' && a.type !== 'DEFECT') continue
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
       if (whCond && a.warehouseName !== whCond) continue
@@ -99,7 +115,7 @@ export default function DefectReportPage() {
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
-  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond])
+  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
@@ -149,6 +165,12 @@ export default function DefectReportPage() {
                            value={inspectorCond} onChange={setInspectorCond}
                            items={[...new Set(inspections.map((q) => q.inspector).filter(Boolean))]
                              .map((n) => ({ value: n as string, name: n as string }))} />
+        </EcCond>
+        {/* 원본 차례: 창고 · 프로젝트 · 담당자 · <b>불량유형</b> · 처리방법. */}
+        <EcCond label="불량유형" pick>
+          <CodePickerField label="불량유형" hideLabel width={150} emptyLabel="전체"
+                           value={defectTypeCond} onChange={setDefectTypeCond}
+                           items={defectTypes.map((d) => ({ value: d.code, code: d.code, name: d.name }))} />
         </EcCond>
         <EcCond label="처리방법">
           <select className="ec-input" value={handleCond} style={{ width: 100 }}

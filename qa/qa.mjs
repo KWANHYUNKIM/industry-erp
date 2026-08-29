@@ -8154,6 +8154,41 @@ async function scenarioBankAccountCurrency() {
   }, '통화를 찾을 수 없습니다')
 }
 
+/**
+ * 품질검사의 <b>[불량유형]</b> — 원본 불량률파악보고서의 조건(코드도움).
+ *
+ * <p>우리 검사는 불량 <b>수량</b>만 적고 무엇이 잘못됐는지는 안 남겼다. 그래서
+ * "이 품목은 불량률 8%" 까지는 말해도 <b>"그중 대부분이 치수불량"</b> 은 말할 수 없었다.
+ * 불량률만 알면 고칠 데를 못 찾는다.
+ */
+async function scenarioDefectType(f) {
+  section('■ 품질검사의 불량유형')
+
+  const types = await must('GET', '/codes/DEFECT_TYPE')
+  eq('불량유형 공통코드가 서 있다', types.length > 0, true)
+  eq('치수불량이 들어 있다', types.some((t) => t.code === 'DIMENSION'), true)
+
+  const bad = await must('POST', '/quality-inspections', {
+    inspectionDate: '2026-08-25', type: 'INCOMING', itemId: f.material.id,
+    inspectedQty: 100, defectQty: 3, defectType: 'DIMENSION', inspector: 'QA',
+  })
+  eq('불량유형이 검사에 남는다', bad.defectType, 'DIMENSION')
+  eq('다시 읽어도 남아 있다',
+    (await must('GET', '/quality-inspections')).find((q) => q.id === bad.id).defectType, 'DIMENSION')
+
+  /*
+   * <b>전량 양품인 검사에는 유형이 붙지 않는다.</b> 불량이 0 인데 '치수불량' 이 달려 있으면
+   * 불량유형으로 뽑은 목록에 불량 없는 줄이 섞인다.
+   */
+  const good = await must('POST', '/quality-inspections', {
+    inspectionDate: '2026-08-25', type: 'INCOMING', itemId: f.material.id,
+    inspectedQty: 100, defectQty: 0, defectType: 'DIMENSION', inspector: 'QA',
+  })
+  eq('불량이 없으면 유형도 없다', good.defectType ?? null, null)
+
+  for (const q of [bad, good]) await must('DELETE', `/quality-inspections/${q.id}`)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -8529,6 +8564,7 @@ async function main() {
   await scenarioSalesPlanScope(fixtures)
   await scenarioUdiSupplyShape(fixtures)
   await scenarioBankAccountCurrency()
+  await scenarioDefectType(fixtures)
 
   checkDeadAssertions()
 
