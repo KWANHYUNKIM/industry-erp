@@ -20,7 +20,18 @@ async function defaultSignLine(): Promise<PrintSignLine | null> {
   }
 }
 
-export interface BottomAction { label: string; onClick?: () => void; primary?: boolean }
+export interface BottomAction {
+  label: string
+  onClick?: () => void
+  primary?: boolean
+  /**
+   * 지금은 누를 수 없는 버튼. 원본은 <b>고른 줄이 있어야 도는 버튼</b>
+   * ([선택삭제]·[진행상태변경]·[다른전표생성] 같은 것)을 아무것도 안 골랐을 때
+   * 회색으로 잠가 둔다(사본 실측). 우리는 누르게 두고 나서 "고르세요" 라고 되물었는데,
+   * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
+   */
+  disabled?: boolean
+}
 
 /** onClick이 없을 때 셸이 기본 동작을 붙여주는 액션 라벨 */
 const EXCEL_LABELS = ['Excel', '엑셀']
@@ -291,7 +302,9 @@ export default function EcListShell({
           </button>
         )}
         {resolved.map((a, i) => (
-          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`} onClick={a.onClick}>
+          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`}
+                  onClick={a.onClick} disabled={a.disabled}
+                  style={a.disabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
             {a.label}
           </button>
         ))}

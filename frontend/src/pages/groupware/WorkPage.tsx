@@ -418,13 +418,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           [웹자료올리기]도 이제 있다 — 등록 폼의 첨부 자리가 그것이다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
-        <button className="ec-btn" onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void changeStatusSelected()}>진행상태변경</button>
         <button className="ec-btn" onClick={() => setOpened(
           opened.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
         )}>
           {opened.size === shown.length && shown.length > 0 ? '모두접기' : '모두펼쳐보기'}
         </button>
-        <button className="ec-btn" onClick={() => void deleteSelected()}>선택삭제</button>
+        <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
       </div>
     </div>

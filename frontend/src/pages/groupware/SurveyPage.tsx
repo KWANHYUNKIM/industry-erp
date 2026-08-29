@@ -120,7 +120,7 @@ export default function SurveyPage() {
          * <p>원본 차례상 <b>[선택삭제] 앞</b>이다(신규(F2) · 대화방 · 선택삭제).
          */
         { label: '대화방', onClick: () => openAppBarPanel('messenger') },
-        { label: '선택삭제', onClick: removeSelected },
+        { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
         /*
          * 원본 [미리보기] — '설문 미리보기 화면이 없다' 고 적고 뺐는데, 셸이 이미
          * 인쇄용 종이를 만든다. 없던 것은 <b>대화상자를 안 띄우는 길</b>뿐이었다.

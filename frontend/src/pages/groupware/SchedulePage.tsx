@@ -173,7 +173,7 @@ export default function SchedulePage() {
        */
         { label: '미리보기' },
         { label: '인쇄' },
-        { label: '선택삭제', onClick: removeSelected },
+        { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
         { label: 'Excel' },
       ]}
     >

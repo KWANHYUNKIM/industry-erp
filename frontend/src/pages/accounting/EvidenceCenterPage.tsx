@@ -113,7 +113,7 @@ export default function EvidenceCenterPage() {
       actions={[
         { label: '검색(F8)', onClick: load, primary: true },
         { label: '다운로드', onClick: downloadChecked },
-        { label: '선택삭제', onClick: deleteChecked },
+        { label: '선택삭제', onClick: deleteChecked, disabled: checked.length === 0 },
         { label: 'Excel' },
       ]}
       help={
