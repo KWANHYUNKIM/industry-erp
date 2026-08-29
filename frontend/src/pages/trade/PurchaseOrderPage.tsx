@@ -202,8 +202,37 @@ export default function PurchaseOrderPage() {
   }
 
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다. 줄마다 [삭제]는
+   * 진작 있었지만, 잘못 올린 발주서 열 줄을 지우려면 열 번 묻고 열 번 눌러야 했다.
+   *
+   * <p>지우다 하나가 막히면 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 왜
+   * 남았는지 알려 준다. 중간에 멈추면 무엇이 지워졌는지 사람이 알 수 없다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 발주서를 고르세요.'); return }
+    /* 이 파일의 confirm 은 발주 확정이다 — 브라우저 것을 쓰려면 window 를 붙여야 한다. */
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 입고로 넘어간 발주서일 수 있습니다).` : '')
+    load()
+  }
+
   return (
-    <EcListShell title="발주서" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="발주서" actions={[
+      /* 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      { label: '인쇄' },
+      { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+      { label: 'Excel' },
+    ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 발주요청(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
@@ -267,6 +296,7 @@ export default function PurchaseOrderPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
             {/*
               원본 발주서의 열은 <b>일자-No. · 거래처명 · 담당자명 · 품목명[규격명] ·
@@ -291,10 +321,13 @@ export default function PurchaseOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
               <tr onClick={() => toggle(po.id)} style={{ cursor: 'pointer' }}>
+                <td style={{ textAlign: 'center' }}>
+                  <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
+                </td>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
@@ -331,7 +364,7 @@ export default function PurchaseOrderPage() {
               </tr>
               {openId === po.id && (
                 <tr className="no-ec">
-                  <td colSpan={12} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={13} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>

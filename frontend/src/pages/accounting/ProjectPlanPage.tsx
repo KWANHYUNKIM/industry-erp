@@ -110,11 +110,39 @@ export default function ProjectPlanPage() {
   const inputCls = 'ec-input'
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다. 줄마다 [삭제]는
+   * 진작 있었지만, 잘못 올린 프로젝트계획 열 줄을 지우려면 열 번 묻고 열 번 눌러야 했다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 프로젝트계획을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/project-plans/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 실적이 붙은 계획일 수 있습니다).` : '')
+    load()
+  }
+
   return (
     <EcListShell
       title="프로젝트계획"
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 선택삭제 · Excel (사본 실측) */
+        { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+        { label: 'Excel' },
+        { label: '인쇄' },
+      ]}
     >
       <p className="mb-2 text-xs text-slate-500">프로젝트별 연간 계획 매출·원가 등록 → 전표 집계 실적과 대조(달성률). 실적은 판매·구매·비용 전표에서 계산.</p>
 
@@ -167,6 +195,7 @@ export default function ProjectPlanPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
             <th>프로젝트</th>
             <th style={{ textAlign: 'right' }}>계획매출</th>
@@ -180,11 +209,14 @@ export default function ProjectPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.projectCode}</span>{r.projectName}</td>
               <td style={{ textAlign: 'right' }}>{won(r.planRevenue)}</td>
@@ -202,7 +234,7 @@ export default function ProjectPlanPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(totals.planRevenue)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.actualRevenue)}</td>
               <td style={{ textAlign: 'right', color: rateColor(totals.planRevenue > 0 ? totals.actualRevenue / totals.planRevenue * 100 : 0) }}>

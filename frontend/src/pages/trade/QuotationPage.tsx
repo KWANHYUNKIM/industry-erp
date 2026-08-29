@@ -161,8 +161,35 @@ export default function QuotationPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다. 줄마다 [삭제]는
+   * 진작 있었지만, 잘못 올린 견적서 열 줄을 지우려면 열 번 묻고 열 번 눌러야 했다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 견적서을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/quotations/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 수주로 넘어간 견적서일 수 있습니다).` : '')
+    load()
+  }
+
   return (
-    <EcListShell title="견적서" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="견적서" actions={[
+      /* 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      { label: '인쇄' },
+      { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+      { label: 'Excel' },
+    ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 신규 견적(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
@@ -232,6 +259,7 @@ export default function QuotationPage() {
               원본 견적서조회(E040202) 열과 순서 그대로다(실측 74·295·297·236·533·236·277·106·106·106).
               일자와 번호는 원본처럼 한 칸에 적는다('2026/08/03 -1').
             */}
+            <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
             <th>일자-No.</th>
             <th>거래처명</th>
@@ -249,10 +277,13 @@ export default function QuotationPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((q, i) => (
             <Fragment key={q.id}>
               <tr onClick={() => setOpenId(openId === q.id ? null : q.id)} style={{ cursor: 'pointer' }}>
+                <td style={{ textAlign: 'center' }}>
+                  <input type="checkbox" checked={picked.has(q.id)} onChange={() => pick(q.id)} />
+                </td>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === q.id ? '▾ ' : '▸ '}{dateNo(q)}
@@ -285,7 +316,7 @@ export default function QuotationPage() {
               </tr>
               {openId === q.id && (
                 <tr className="no-ec">
-                  <td colSpan={13} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={14} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>

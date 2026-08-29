@@ -159,12 +159,40 @@ export default function SalesPlanPage() {
     return { ...t, rate }
   }, [shown])
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다. 줄마다 [삭제]는
+   * 진작 있었지만, 잘못 올린 매출계획 열 줄을 지우려면 열 번 묻고 열 번 눌러야 했다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 매출계획을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/sales-plans/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 실적이 붙은 계획일 수 있습니다).` : '')
+    load()
+  }
+
   return (
     <EcListShell
       title="매출계획 / 비교표"
       newLabel={showForm ? '입력닫기' : '매출계획 등록(F2)'}
       onNew={() => setShowForm((v) => !v)}
-      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 선택삭제 · Excel (사본 실측) */
+        { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eafaef', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
@@ -239,6 +267,7 @@ export default function SalesPlanPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
             {/*
               원본 매출계획 격자의 <b>첫 열</b>은 [일자-No.] 다(사본 실측). 계획 한 줄을
@@ -272,11 +301,14 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={11 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.planNo}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
