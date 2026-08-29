@@ -15,8 +15,5 @@
  "SalesPlanPage.tsx  원본 매출계획비교표 의 [담당자] 조건이 없다",
  "SalesPlanPage.tsx  원본 매출계획비교표 의 [반품구분] 조건이 없다",
  "SalesPlanPage.tsx  원본 매출계획비교표 의 [설정] 조건이 없다",
- "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다",
- "UnshippedPage.tsx  원본 미출하현황 의 [기준일자(영업주기)] 조건이 없다",
- "UnshippedPage.tsx  원본 미출하현황 의 [출하지시No.] 조건이 없다",
- "UnshippedPage.tsx  원본 미출하현황 의 [정렬기준] 조건이 없다"
+ "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다"
 ]

@@ -88,10 +88,19 @@ public class SalesOrderService {
                 List.of(ShipmentStatus.READY, ShipmentStatus.SHIPPED))) {
             committed.put((Long) row[0], (BigDecimal) row[1]);
         }
+        /*
+         * 줄마다 이미 나가 있는 출하지시(READY) 전표번호. 원본 미출하현황의 [출하지시No.] 다.
+         * 여기서도 한 번에 모은다 — 줄마다 찾으면 열려 있는 주문 수만큼 쿼리가 나간다.
+         */
+        Map<Long, String> shipNos = new HashMap<>();
+        for (Object[] row : shipmentLineRepository.findShipNosByOrderLine(ShipmentStatus.READY)) {
+            shipNos.merge((Long) row[0], (String) row[1], (a, b) -> a + ", " + b);
+        }
         return salesOrderRepository.findByStatusesWithLines(open).stream()
                 .flatMap(o -> o.getLines().stream()
                         .map(l -> UnshippedLineResponse.of(o, l,
-                                committed.getOrDefault(l.getId(), BigDecimal.ZERO))))
+                                committed.getOrDefault(l.getId(), BigDecimal.ZERO),
+                                shipNos.get(l.getId()))))
                 // 미출하가 남은 줄만. 다 낸 줄이 목록에 남아 있으면 이름과 달리
                 // "아직 낼 게 있다" 고 읽히고, 출하지시 버튼도 0 짜리로 눌린다.
                 .filter(r -> r.unshippedQty().signum() > 0)

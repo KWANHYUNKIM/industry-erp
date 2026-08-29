@@ -69,7 +69,12 @@ public final class SalesOrderDtos {
              * <p>주문서에 적어 둔 말이 미출하현황에서 사라지면, 왜 아직 안 나갔는지
              * 적어 둬도 그 화면에서는 볼 수가 없다.
              */
-            String remark
+            String remark,
+            /**
+             * 이 줄에 <b>이미 나가 있는 출하지시 전표번호</b>(READY). 여럿이면 쉼표로 잇는다.
+             * 원본 미출하현황의 [출하지시No.] 조건이 가리키는 값이다.
+             */
+            String shipNos
     ) {
         /**
          * @param committed 이 라인에 <b>이미 잡힌</b> 출하수량 — 출하지시(READY)와 출하완료(SHIPPED)를 더한 값.
@@ -79,7 +84,8 @@ public final class SalesOrderDtos {
          * "출하수량이 잔량을 초과합니다" 로 거부당했다. 화면이 말하는 미출하수량과
          * 실제로 낼 수 있는 잔량이 서로 달랐던 것이다.
          */
-        public static UnshippedLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal committed) {
+        public static UnshippedLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal committed,
+                                               String shipNos) {
             BigDecimal orderQty = l.getQuantity();
             BigDecimal shipped = committed != null ? committed : BigDecimal.ZERO;
             return new UnshippedLineResponse(
@@ -95,7 +101,7 @@ public final class SalesOrderDtos {
                     o.getProject() != null ? o.getProject().getName() : null,
                     o.getEmployee() != null ? o.getEmployee().getId() : null,
                     o.getEmployee() != null ? o.getEmployee().getName() : null,
-                    o.getRemark());
+                    o.getRemark(), shipNos);
         }
     }
 

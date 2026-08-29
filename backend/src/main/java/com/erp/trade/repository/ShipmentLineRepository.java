@@ -37,4 +37,18 @@ public interface ShipmentLineRepository extends JpaRepository<ShipmentLine, Long
             "where sl.shipment.status in :statuses " +
             "group by sl.orderLine.id")
     List<Object[]> sumQuantityByOrderLineAll(@Param("statuses") Collection<ShipmentStatus> statuses);
+
+    /**
+     * 주문 라인별 <b>이미 나가 있는 출하지시 전표번호</b> — 미출하현황의 [출하지시No.] 조건.
+     *
+     * <p>우리 출하는 <b>출하지시(READY) → 출하완료(SHIPPED)</b> 두 단계다. 미출하로 남아 있는
+     * 줄이라도 지시는 이미 나가 있을 수 있다 — 그게 어느 지시인지 물을 수 있어야
+     * "이 지시에 걸린 것들만" 을 뽑는다. 완료된 출하는 안 센다. 그건 이미 나간 것이라
+     * 미출하 잔량과 이어지지 않는다.
+     *
+     * <p>반환: [orderLineId, shipNo]. 한 줄에 지시가 여럿일 수 있어 합치지 않고 그대로 준다.
+     */
+    @Query("select sl.orderLine.id, sl.shipment.shipNo from ShipmentLine sl " +
+            "where sl.shipment.status = :status order by sl.shipment.shipNo")
+    List<Object[]> findShipNosByOrderLine(@Param("status") ShipmentStatus status);
 }

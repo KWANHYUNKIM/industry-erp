@@ -17,9 +17,10 @@ import { useTableSort } from '../../utils/useTableSort'
  * 관리항목 · 거래처 · 품목 · 담당자 · 거래처관리담당자 · 미출하수량(범위).
  * 우리 화면은 조건이 검색어 한 칸뿐이었다 — 미출하가 쌓이면 못 쓴다.
  *
- * 창고·프로젝트·관리항목·담당자·거래처관리담당자·출하지시No. 는 UnshippedLine 에 없어
- * **의도적 제외**(값 없는 컨트롤을 흉내내지 않는다). 대신 우리 데이터로 실제 거를 수 있는
- * 납기일 구간·거래처·품목·주문번호·미출하수량 범위를 둔다.
+ * 창고·프로젝트·담당자·거래처관리담당자는 그 뒤로 만들었고, <b>[출하지시No.] 도 이번에 붙였다</b> —
+ * 우리 출하는 출하지시(READY) → 출하완료(SHIPPED) 두 단계라, 미출하로 남아 있는 줄에도
+ * 지시는 이미 나가 있을 수 있다. 그게 어느 지시인지 물을 수 있어야 "이 지시에 걸린 것들만"
+ * 을 뽑는다. [관리항목]만 아직 없다.
  *
  * <p>원본 결과 열 실측(사본): 일자-No. · 품목명(규격) · 수량 · 미출하수량 · <b>창고명</b> ·
  * 거래처명 · <b>적요</b> · 출하예정일. 적요는 이제 싣는다 — 주문서에 적어 둔 말이
@@ -33,6 +34,9 @@ import { useTableSort } from '../../utils/useTableSort'
  * 우리는 라인별 하나뿐이었다. 품목별은 같은 품목의 미출하수량을 주문서를 가로질러 모은다 —
  * "이 품목을 얼마나 더 내보내야 하나"를 보는 쪽이다.
  */
+/** 원본 [정렬기준] 의 후보. 표 머리로 정렬할 수 있는 열과 <b>같은 것들</b>이어야 한다. */
+const SORTS = ['없음', '일자-No.', '품목명(규격)', '거래처명', '출하예정일', '상태'] as const
+
 type Mode = '품목별' | '라인별'
 const MODES = ['품목별', '라인별'] as const
 
@@ -57,6 +61,11 @@ interface UnshippedLine {
   orderQty: number
   shippedQty: number
   unshippedQty: number
+  /**
+   * 이 줄에 <b>이미 나가 있는 출하지시 전표번호</b>(READY). 여럿이면 쉼표로 이어 온다.
+   * 미출하로 남아 있어도 지시는 나가 있을 수 있다 — 원본 [출하지시No.] 가 그것이다.
+   */
+  shipNos: string | null
   /** 적요. 원본 미출하현황의 열 — 주문서에 적어 둔 말이 여기서 사라지면 안 된다. */
   remark: string | null
 }
@@ -78,7 +87,7 @@ export default function UnshippedPage() {
    * "이번 주까지 나가야 할 미출하" 를 보려면 표를 눈으로 훑어야 했다.
    * [거래처관리담당자]는 거래처 마스터가 든다 — "내가 맡은 거래처의 미출하" 를 못 봤다.
    */
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '',
+  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
     dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
   const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
@@ -165,6 +174,8 @@ export default function UnshippedPage() {
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
     .filter((r) => !cond.item || r.itemName.includes(cond.item))
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
+    // 원본 [출하지시No.] — 그 지시에 걸린 줄만. 지시가 안 나간 줄은 값이 없어 걸리지 않는다.
+    .filter((r) => !cond.shipNo || (r.shipNos ?? '').includes(cond.shipNo))
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unshippedQty <= Number(cond.qtyTo))
 
@@ -217,7 +228,7 @@ export default function UnshippedPage() {
     [mode, byItem, shown])
 
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', item: '', orderNo: '',
+    setCond({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
       dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
     setKeyword('')
   }
@@ -241,9 +252,20 @@ export default function UnshippedPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
+        /* 원본 이 화면의 기준일자 이름은 <b>[기준일자(영업주기)]</b> 다(사본 실측). */
+        dateLabel="기준일자(영업주기)"
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
       >
+        {/*
+          원본 차례는 기준일자 <b>바로 다음</b>이 [출하지시No.] 다(사본 실측).
+          우리 [주문번호]와 다른 것이다 — 주문은 받은 것이고 출하지시는 내보내라고 낸 것이다.
+          코드도움이 아니라 번호 일부를 치는 text 칸이다(원본도 그렇다).
+        */}
+        <EcCond label="출하지시No.">
+          <input className="ec-input" placeholder="출하지시No. 일부" value={cond.shipNo}
+                 onChange={(e) => setC({ shipNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
         <EcCond label="출하예정일">
           <input type="date" className="ec-input" value={cond.dueFrom}
                  onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
@@ -294,6 +316,20 @@ export default function UnshippedPage() {
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        {/*
+          원본 [정렬기준] — 조건 판에서 무엇으로 세울지 고른다. 우리는 표 머리로만 정렬할 수
+          있었는데, <b>머리를 눌러 봐야 어느 열이 정렬 가능한지 미리 알 수가 없다.</b>
+          고르면 머리의 ▲▼ 도 같이 움직인다 — 둘이 따로 놀면 조건과 표가 어긋난다.
+        */}
+        <EcCond label="정렬기준">
+          <div className="ec-pills">
+            {SORTS.map((k) => (
+              <button key={k} type="button"
+                      className={`ec-pill no-ec${(sort.sortKey ?? '없음') === k ? ' active' : ''}`}
+                      onClick={() => sort.setSort(k === '없음' ? null : k)}>{k}</button>
+            ))}
+          </div>
         </EcCond>
       </EcStatusPanel>
 

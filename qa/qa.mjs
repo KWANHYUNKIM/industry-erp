@@ -528,6 +528,11 @@ async function scenarioShipment(f) {
    */
   eq('출하지시도 미출하에서 뺀다', (await un()).shippedQty, 30)
   eq('그래서 미출하는 70', (await un()).unshippedQty, 70)
+  /*
+   * 원본 미출하현황의 [출하지시No.] 조건. 미출하로 남아 있는 줄에도 <b>지시는 이미
+   * 나가 있을 수 있다</b> — 그게 어느 지시인지 목록이 들고 있어야 물어볼 수 있다.
+   */
+  eq('미출하 줄이 <b>나가 있는 출하지시 번호</b>를 든다', (await un()).shipNos, ship1.shipNo)
 
   await rejects('잔량(70) 초과 출하는 거부', 'POST', `/sales-orders/${order.id}/ship`,
     { lines: [{ orderLineId: lineId, qty: 80 }] }, '초과')
@@ -535,6 +540,11 @@ async function scenarioShipment(f) {
   await must('PATCH', `/shipments/${ship1.id}/status`, { status: 'SHIPPED' })
   const afterShip = await un()
   eq('출하완료 후 출하수량 = 30', afterShip.shippedQty, 30)
+  /*
+   * 완료된 출하는 [출하지시No.] 에 안 센다. 이미 나간 것이라 <b>남은 미출하와 이어지지
+   * 않는다</b> — 세면 "이 지시로 아직 나갈 게 있다" 로 잘못 읽힌다.
+   */
+  eq('출하완료로 넘어가면 그 번호는 빠진다', afterShip.shipNos ?? null, null)
   eq('출하완료 후 미출고 = 70', afterShip.unshippedQty, 70)
   eq('부분출하 중 주문은 진행중', afterShip.statusName, '진행중')
 

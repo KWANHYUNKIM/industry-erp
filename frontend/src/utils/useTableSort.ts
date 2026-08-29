@@ -84,9 +84,19 @@ export function useTableSort<T>(
     if (!d) setKey(null)
   }
 
+  /**
+   * 표 머리가 아니라 <b>조건 판에서</b> 정렬을 정할 때. 원본 현황 몇몇은 [정렬기준] 을
+   * 조건 한 줄로 두고 거기서 고르게 한다 — 그때도 머리의 ▲▼ 는 같이 움직여야 한다.
+   * 둘이 따로 놀면 조건에서 고른 것과 표가 말하는 것이 어긋난다.
+   */
+  const setSort = (k: string | null, d: 'asc' | 'desc' = 'asc') => {
+    setKey(k)
+    setDir(k ? d : null)
+  }
+
   /** 머리에 붙일 표시. 지금 정렬 중인 열만 진하게, 나머지는 '누를 수 있다' 는 뜻으로 흐리게. */
   const mark = (k: string) => (k === key && dir ? (dir === 'asc' ? '▲' : '▼') : '▼')
   const active = (k: string) => k === key && !!dir
 
-  return { sorted, sortKey: key, dir, toggle, mark, active }
+  return { sorted, sortKey: key, dir, toggle, setSort, mark, active }
 }
