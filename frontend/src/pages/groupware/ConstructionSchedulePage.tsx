@@ -23,6 +23,11 @@ const STATUS_COLOR: Record<Project['status'], string> = {
   PLANNING: '#5a626e', IN_PROGRESS: '#c07a00', ON_HOLD: '#c60a2e', DONE: '#1c7c3c',
 }
 
+/** 원본 [진행상태변경]이 고르게 하는 것들. 이름은 진척관리와 같아야 한다. */
+const STATUSES: [Project['status'], string][] = [
+  ['PLANNING', '계획'], ['IN_PROGRESS', '진행중'], ['ON_HOLD', '보류'], ['DONE', '완료'],
+]
+
 const today = () => ymd(new Date())
 
 /**
@@ -44,6 +49,21 @@ export default function ConstructionSchedulePage() {
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
+  /* 원본 [진행상태변경] — 고른 공정을 한 번에 바꾼다. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [newStatus, setNewStatus] = useState<Project['status']>('IN_PROGRESS')
+  async function applyStatus() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('상태를 바꿀 공정을 고르세요.'); return }
+    setError('')
+    try {
+      for (const t of targets) await api.patch(`/projects/${t.id}`, { status: newStatus })
+      setChecked(new Set())
+      setStatusOpen(false)
+      load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [endFrom, setEndFrom] = useState('')
@@ -127,6 +147,16 @@ export default function ConstructionSchedulePage() {
       onNew={() => setShowForm(true)}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        /*
+         * 원본 [진행상태변경] — <b>고른 공정을 한 번에</b> 바꾼다.
+         * '공정표는 줄마다 상태를 고친다' 고 적고 뺐는데 <b>이 화면에는 줄 버튼이 하나도
+         * 없었다</b> — 상태와 진척률을 보여 주면서 바꿀 데가 없어, 공정 하나 넘기려고
+         * 진척관리로 건너가야 했다. 바꾸는 길(PATCH /projects)은 진작 있었다.
+         */
+        { label: `진행상태변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
+          if (checked.size === 0) { setError('상태를 바꿀 공정을 고르세요.'); return }
+          setError(''); setStatusOpen(true)
+        } },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -207,12 +237,36 @@ export default function ConstructionSchedulePage() {
         </form>
       )}</Modal>
 
+      <Modal open={statusOpen} title={`진행상태변경 (${checked.size}건)`} onClose={() => setStatusOpen(false)}>{(
+        <div style={{ padding: 6, minWidth: 300 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {STATUSES.map(([v, l]) => (
+              <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>
+                <input type="radio" name="proj-status" checked={newStatus === v}
+                       onChange={() => setNewStatus(v)} />
+                <span style={{ color: STATUS_COLOR[v], fontWeight: 700 }}>{l}</span>
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <button className="ec-btn ec-btn-primary" onClick={applyStatus}>바꾸기</button>
+          </div>
+        </div>
+      )}</Modal>
+
       {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/* [진행상태변경]이 고를 자리. */}
+            <th style={{ width: 30, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)))} />
+            </th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('착수예정')}>착수예정 {sort.mark('착수예정')}</th>
             <th style={{ width: 100 }}>완료예정</th>
             <th>공정명</th>
@@ -225,9 +279,16 @@ export default function ConstructionSchedulePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.startDate ?? '-'}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.endDate ?? '-'}</td>
