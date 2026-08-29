@@ -4616,6 +4616,60 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
     Object.keys(예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
 }
 
+// ── 1-s12) 트랜잭션 애노테이션이 실제로 도는 자리에 붙어 있나 ─────────────
+console.log('\n■ 트랜잭션 애노테이션이 도는 자리에 붙어 있나')
+
+/*
+ * <code>@Transactional</code> 은 스프링이 프록시로 감싸는 <b>public 메서드</b>에만 듣는다.
+ * private·protected 에 붙이면 <b>아무 말 없이 무시된다</b> — 컴파일도 되고 기동도 되고
+ * 화면도 멀쩡하다. 그러다 그 메서드에 저장 한 줄이 들어가는 날, 트랜잭션 없이 돌면서
+ * 중간에 실패해도 앞의 것이 롤백되지 않는다.
+ *
+ * <p>익명게시판에 하나 있었다. Javadoc <b>위에</b> 얹혀 private 헬퍼에 붙어 있었는데,
+ * 그 헬퍼는 글자만 다루는 함수라 지금은 아무 일도 안 하지만 읽는 사람은 트랜잭션이
+ * 도는 줄 안다. 걷어냈다.
+ *
+ * <p>조회 메서드의 {@code readOnly} 도 같이 본다(CLAUDE.md 6). 이름이 find·get·list…
+ * 인데 readOnly 가 아니면 쓰기 트랜잭션이 열려 더티체킹·플러시가 헛돈다. 조회수를
+ * 올리는 자리 둘은 실제로 쓰기라 예외로 적는다.
+ */
+{
+  const 조회예외 = {
+    'BoardService.read': '상세를 열 때 조회수를 +1 한다 — 이름은 조회지만 실제로 쓴다',
+    'WorkPostService.read': '위와 같다',
+  }
+  const 붙은곳 = []
+  const 안읽기 = []
+  const 쓴예외 = new Set()
+  let 잰조회 = 0
+  const QUERY = /^(find|get|list|search|count|exists|summary|load|fetch|read)/
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('.java')) continue
+    const src = readFileSync(f, 'utf8')
+    if (!src.includes('@Transactional')) continue
+    const name = f.split(/[\\/]/).pop().replace('.java', '')
+
+    /* 애노테이션과 메서드 사이에 주석이 끼어 있어도 본다 — 실제로 그렇게 숨어 있었다. */
+    for (const m of src.matchAll(/@Transactional[^\n]*\n(?:\s*(?:\/\*\*(?:[^*]|\*(?!\/))*\*\/|\/\/[^\n]*)\s*\n)*\s*(private|protected)\s/g)) {
+      붙은곳.push(`${name}:${src.slice(0, m.index).split('\n').length}  ${m[1]} 메서드에 붙어 있다`)
+    }
+
+    if (!f.endsWith('Service.java')) continue
+    for (const m of src.matchAll(/((?:@[\w.]+(?:\([^()]*(?:\([^()]*\)[^()]*)*\))?\s*)*)public\s+(?!class|record)[\w.<>,[\]\s]+?\s(\w+)\s*\([^)]*\)\s*\{/g)) {
+      if (!m[1].includes('@Transactional')) continue
+      if (!QUERY.test(m[2])) continue
+      const key = `${name}.${m[2]}`
+      if (조회예외[key]) { 쓴예외.add(key); continue }
+      잰조회 += 1
+      if (!m[1].includes('readOnly')) 안읽기.push(key)
+    }
+  }
+  eq('트랜잭션 애노테이션이 무시되는 자리에 붙어 있지 않다', 붙은곳.join('\n') || '없음', '없음')
+  eq(`이름이 조회인 트랜잭션 ${잰조회}자리가 readOnly 다`, 안읽기.join(', ') || '없음', '없음')
+  eq('조회인데 쓴다고 적어 둔 자리가 전부 아직 있다',
+    Object.keys(조회예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

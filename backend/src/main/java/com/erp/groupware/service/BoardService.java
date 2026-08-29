@@ -36,7 +36,6 @@ public class BoardService {
         return PostDetail.from(p);
     }
 
-    @Transactional
     /**
      * 제목이 없으면 본문 첫 줄을 제목으로 쓴다. 원본 익명게시판은 제목 칸이 없는 글상자 하나라서
      * 그렇게 올라오는데, 목록에서 뭐라도 보여줄 것은 있어야 한다.
