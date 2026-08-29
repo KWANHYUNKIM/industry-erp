@@ -118,5 +118,43 @@
    "BarcodeLabel"
   ],
   "in": "both"
+ },
+ "공정등록|작업코드등록": {
+  "claim": "줄마다가 아니라 화면 위 버튼 하나로 연다",
+  "present": [
+   "작업코드등록"
+  ]
+ },
+ "거래처관리대장 I|사용중단포함": {
+  "claim": "조건 판의 체크박스로 둔다 — 버튼이 아니다",
+  "present": [
+   "사용중단거래처포함"
+  ]
+ },
+ "구매일괄회계반영|일부반영": {
+  "claim": "버튼이 아니라 열로 보여 준다",
+  "present": [
+   "일부반영"
+  ]
+ },
+ "출하조회|진행상태변경": {
+  "claim": "보기만 하는 화면이라 상태를 바꾸지 않는다",
+  "absent": [
+   "/status`"
+  ],
+  "in": "frontend/src/pages/trade/ShipmentInquiryPage.tsx"
+ },
+ "근태입력|출/퇴근": {
+  "claim": "출퇴근 시각은 [출/퇴근기록부(ID)]가 맡는다",
+  "present": [
+   "출근"
+  ],
+  "file": "hr/AttendanceInputPage.tsx"
+ },
+ "오더관리진행단계|전체단계완료": {
+  "claim": "고른 오더를 한 번에 끝낸다 — 단추줄이다",
+  "present": [
+   "completeAll"
+  ]
  }
 }

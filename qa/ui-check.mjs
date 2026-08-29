@@ -3929,6 +3929,8 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
     let all = ''
     for (const r of roots) {
       if (!existsSync(r)) continue
+      /* 파일 하나를 가리켜도 된다 — 그 화면에만 있으면 되는 이름이 있다. */
+      if (!statSync(r).isDirectory()) { all += readFileSync(r, 'utf8'); continue }
       for (const f of walk(r)) {
         if (!/[.](java|ts|tsx)$/.test(f)) continue
         all += readFileSync(f, 'utf8')
@@ -3938,14 +3940,35 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
     return all
   }
 
+  /*
+   * <b>이유는 두 가지를 주장한다.</b> "…가 없다"(없음)와 "우리는 이렇게 한다"(있음).
+   * 뒤엣것도 거짓일 수 있다 — '줄마다 상태를 고친다' 고 적힌 화면 <b>둘</b>에 실제로는
+   * 줄 버튼이 하나도 없었다(출하조회·건설예정공정표). 없음만 재면 그 거짓말을 못 잡는다.
+   *
+   * <p>그래서 <code>present</code> 로 <b>그 화면 파일에 있어야 할 것</b>도 적는다.
+   * 화면은 이름으로 지도(.ordermap)를 거쳐 찾는다 — 다른 파일을 가리켜야 하면 file 로 적는다.
+   */
+  const SCREEN_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+
   const stale = []
   let checked = 0
   for (const [key, w] of Object.entries(witnesses)) {
-    const text = treeText(w.in)
-    for (const name of w.absent) {
+    for (const name of w.absent ?? []) {
       checked++
-      if (text.includes(name)) {
+      if (treeText(w.in).includes(name)) {
         stale.push(`[${key}] — "${w.claim}" 라고 적어 뒀는데 코드에 <${name}> 가 생겼다. 다시 재 보세요`)
+      }
+    }
+    if (w.present) {
+      const rel = w.file ?? SCREEN_MAP.get(key.slice(0, key.indexOf('|')))
+      const src = rel ? pageSource(rel) : null
+      for (const name of w.present) {
+        checked++
+        if (!src) {
+          stale.push(`[${key}] — 그 화면 파일을 못 찾아 이유를 잴 수 없다(${rel ?? '지도에 없음'})`)
+        } else if (!src.includes(name)) {
+          stale.push(`[${key}] — "${w.claim}" 라고 적어 뒀는데 그 화면에 <${name}> 가 없다. 이유가 사실이 아니다`)
+        }
       }
     }
   }
