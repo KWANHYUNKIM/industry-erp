@@ -34,7 +34,8 @@ const PREVIEW_LABELS = ['미리보기']
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
-  renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true, children,
+  renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
+  signLine = true, children,
 }: {
   title: string
   search?: string
@@ -54,6 +55,12 @@ export default function EcListShell({
   searchable?: boolean
   /** 원본에 [Option] 도 없는 화면(예: 익명게시판)은 false. 도움말만 남는다. */
   option?: boolean
+  /**
+   * 출력물에 <b>결재란</b>을 찍을지. 원본 [결재방표시] 조건이 이것을 끈다
+   * (작업지시서효율현황). 끄면 결재란을 <b>가져오지도 않는다</b> — 안 찍을 것을
+   * 부르면 인쇄가 그만큼 늦어진다.
+   */
+  signLine?: boolean
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -89,13 +96,13 @@ export default function EcListShell({
   const doPrint = withTable(async (t) => {
     const win = openPrintWindow()
     if (!win) return true   // 차단 안내는 openPrintWindow 가 이미 띄웠다
-    return printTable(t, title, await defaultSignLine(), win)
+    return printTable(t, title, signLine ? await defaultSignLine() : null, win)
   })
 
   const doPreview = withTable(async (t) => {
     const win = openPrintWindow()
     if (!win) return true
-    return printTable(t, title, await defaultSignLine(), win, false)
+    return printTable(t, title, signLine ? await defaultSignLine() : null, win, false)
   })
 
   const filterRows = (q: string) => {

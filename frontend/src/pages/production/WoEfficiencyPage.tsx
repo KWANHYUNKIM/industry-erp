@@ -124,6 +124,13 @@ export default function WoEfficiencyPage() {
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [status, setStatus] = useState('전체')
+  /**
+   * 원본 [결재방표시] — 켜면 <b>출력물에 결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 우리는 그 결재란을 이미 그리고 있었는데 <b>끌 수가 없었다</b> — 늘 찍혔다.
+   * 원본 기본값은 <b>꺼짐</b>이다(사본 실측). 결재를 안 받을 자료까지 도장칸을 달고
+   * 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -286,6 +293,7 @@ export default function WoEfficiencyPage() {
     <EcListShell
       title="작업지시서효율현황"
       searchable={false}
+      signLine={signBox}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
@@ -350,6 +358,12 @@ export default function WoEfficiencyPage() {
                       onClick={() => setStatus(s2)}>{s2}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </EcStatusPanel>
 
