@@ -4013,6 +4013,57 @@ console.log('\n■ 서버가 열어 둔 자리를 화면이 부르나')
 }
 
 
+/*
+ * 그리고 <b>반대 방향</b>. 화면이 부르는데 서버에 없는 자리는 눌렀을 때 404 다 —
+ * 타입체크도 빌드도 통과하고, 그 버튼을 실제로 눌러 봐야만 안다. 경로를 조각으로
+ * 끊어 견준다(경로변수 자리는 서로 아무 값이나 맞는 것으로 친다).
+ */
+{
+  const METHOD = { get: 'GET', post: 'POST', put: 'PUT', delete: 'DELETE', patch: 'PATCH' }
+  const server = []
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?/g)) {
+      const full = (base + (m[2] ?? '')).replace('/api', '')
+      server.push({
+        method: m[1].toUpperCase(),
+        segs: full.split('/').filter(Boolean).map((x) => (x.startsWith('{') ? null : x)),
+      })
+    }
+  }
+  const bad = []
+  const seen = new Set()
+  let checked = 0
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!/[.](ts|tsx)$/.test(f)) continue
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/api[.](get|post|put|delete|patch)\s*(?:<[^>]*>)?\s*\(\s*([`'"])([^`'"]*)\2/g)) {
+      const raw = m[3].split('?')[0]
+      if (!raw.startsWith('/')) continue
+      const segs = raw.split('/').filter(Boolean).map((x) => (x.includes('${') ? null : x))
+      /*
+       * 한 조각 안에 <b>${} 가 둘 이상</b>이면 경로를 통째로 조립하는 것이다
+       * (`/corporate-tax/${id}${path}`). 몇 조각이 될지 정적으로 알 수 없어 건너뛴다.
+       */
+      const assembled = raw.split('/').some((x) => x.split('${').length > 2)
+      if (assembled) continue
+      checked += 1
+      const fits = server.some((s) => s.method === METHOD[m[1]]
+        && s.segs.length === segs.length
+        && s.segs.every((x, i) => x === null || segs[i] === null || x === segs[i]))
+      if (fits) continue
+      const key = METHOD[m[1]] + ' ' + raw
+      if (seen.has(key)) continue
+      seen.add(key)
+      bad.push(key + '  (' + f.split(/[\\/]/).pop() + ')')
+    }
+  }
+  eq(`화면이 부르는 ${checked}자리가 다 서버에 있다`, bad.join('\n') || '없음', '없음')
+}
+
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

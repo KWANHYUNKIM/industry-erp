@@ -13,8 +13,9 @@ import { useTableSort } from '../../utils/useTableSort'
  * 발주요청→발주계획→단가확정→발주확정→입고전환 스테퍼로 현재 단계를 표시.
  * 단가요청현황(PurchaseRequestStatusPage)이 '상태별로 묶어 라인 목록'을 보여주는 반면,
  * 이 화면은 '문서 하나가 파이프라인 어디까지 왔나'를 한 줄로 본다.
- * 백엔드 무변경(GET /api/purchase-orders). 원본의 수취금액·이력 컬럼은 별도 추적 테이블이
- * 없어 제외(확정금액=현재 전표금액만), 구매현황 선례와 동일한 의도적 제외.
+ * <p>원본의 <b>[이력]</b>은 그 뒤에 만들었다 — 발주가 단계를 넘을 때마다 서버가
+ * 남기고(purchase_order_histories) 이 화면이 그 자리에서 펀다. 남은 것은 <b>[수취금액]</b>
+ * 뿐이다 — 매입처가 회신한 금액을 따로 적는 칸이 없어 확정금액(발주 전표금액)만 든다.
  */
 const PIPELINE: PurchaseOrderStatus[] = ['REQUESTED', 'PLANNED', 'PRICED', 'ORDERED', 'RECEIVED']
 const LABEL: Record<PurchaseOrderStatus, string> = {
