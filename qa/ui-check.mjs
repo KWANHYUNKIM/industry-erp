@@ -748,7 +748,11 @@ console.log('\n■ 대조표를 다 쓰고 있나')
   const MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const UNMAPPED = JSON.parse(readFileSync(join('qa', 'fixtures', 'unmapped-screens.json'), 'utf8'))
   /** 화면 이름이 아니라 <b>메뉴 경로</b>로 적힌 대조표 — 지도를 거치지 않는다. */
-  const NOT_BY_SCREEN = new Set(['ecount-menu.json'])
+  /*
+   * 화면별 대조표가 아닌 것들. 메뉴는 나무 구조이고, 화면코드 지도는
+   * <b>코드 → 한글 이름</b> 을 찾아보는 표라 둘 다 화면 이름으로 걸 수 없다.
+   */
+  const NOT_BY_SCREEN = new Set(['ecount-menu.json', 'ecount-screen-codes.json'])
   const bad = []
   let checked = 0
   for (const f of readdirSync(join('qa', 'fixtures'))) {
@@ -1619,9 +1623,11 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    *   <li><b>생산불출조회·생산불출입력 [불러온 전표No.]</b> — 있다. 우리는 [작업지시서] 라고
    *       부른다. 우리가 불러오는 전표는 작업지시서뿐이라 그 이름이 더 또렷하다
    *       (IssuePage 의 그 열 주석에 같은 말이 적혀 있다).</li>
-   *   <li><b>판매입력II [금액조정항목명]</b> — 진짜로 없다. 다만 <b>다른 화면</b> 것이다 —
-   *       사본에서 이 낱말은 3건 모두 ESD066M 에 있고, 우리가 따르는 판매입력 II(ESD006M)
-   *       에는 없다. 합계는 그리드 하단 합계행이 진다.</li>
+   *   <li><b>판매입력II [금액조정항목명]</b> — 진짜로 없다. 앞서 "다른 화면 것" 이라고 적었는데
+   *       <b>그건 틀렸다.</b> 화면코드 지도(ecount-screen-codes.json)로 보니 ESD066M 이 바로
+   *       판매입력 II 다. 원본에는 판매입력(ESD006M)과 판매입력 II(ESD066M)가 따로 있고,
+   *       금액조정 표는 뒤엣것에 있다. 우리 화면은 이름만 [판매입력 II] 이고 구조는
+   *       앞엣것(ESD006M)을 따라서 그 표가 없다.</li>
    * </ul>
    */
   const knownMissing = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-missing-columns.json'), 'utf8'))
@@ -4733,6 +4739,42 @@ console.log('\n■ 고른 줄이 있어야 도는 버튼을 미리 잠갔나')
     }
   }
   eq(`고른 줄에 대고 하는 버튼 ${잰버튼}개가 안 골랐을 때 잠긴다`, bad.join('\n') || '없음', '없음')
+}
+
+// ── 1-s14) 화면코드 지도가 우리 화면 이름과 맞물리나 ──────────────────────
+console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
+
+/*
+ * 사본은 화면마다 <code>&lt;div class="prog"&gt;</code> 안에 <b>한글 이름</b>과
+ * <code>data-ecpageid="코드_…"</code> 를 함께 담고 있다. 그걸 뽑아
+ * <code>ecount-screen-codes.json</code> 에 코드 → 이름 155쌍으로 두었다.
+ *
+ * <p>이 지도가 없어서 두 번 헛짚었다. 사본의 열·버튼을 화면코드로만 뽑아 놓고 우리 화면에
+ * 짝지을 수가 없어 그냥 접었고(#219·#233), <b>ESD006M 과 ESD066M 을 뒤바꿔</b> 읽어
+ * "금액조정 표는 다른 화면 것" 이라는 틀린 이유를 적었다(#224). 실제로는 ESD006M 이 판매입력,
+ * ESD066M 이 판매입력 II 다.
+ *
+ * <p>지도에 적힌 이름이 <b>우리가 아는 화면 이름</b>인지 본다. 절반 넘게 걸리면 뽑는 방식이
+ * 어긋난 것이다 — 이름이 통째로 밀리거나 엉뚱한 h3 를 집은 경우가 그렇다.
+ * 원본에만 있고 우리에겐 없는 화면도 많으므로 <b>모두 맞을 필요는 없다.</b>
+ */
+{
+  const codes = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-screen-codes.json'), 'utf8'))
+  const 우리이름 = new Set([
+    ...new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8'))).keys(),
+    ...Object.values(JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-menu.json'), 'utf8'))).flat(),
+  ])
+  const 짝 = Object.entries(codes)
+  const 걸린것 = 짝.filter(([, name]) => 우리이름.has(name))
+  eq('화면코드 지도가 비어 있지 않다', 짝.length > 100, true)
+  /* 코드 모양이 성한지 — 영문 대문자·숫자로 된 프로그램 id 여야 한다. */
+  const 이상한코드 = 짝.filter(([c]) => !/^[A-Z][A-Z0-9_]{2,}$/.test(c)).map(([c]) => c)
+  eq('지도의 코드가 프로그램 id 모양이다', 이상한코드.join(', ') || '없음', '없음')
+  eq(`지도 ${짝.length}쌍 중 우리가 아는 이름이 절반은 넘는다 (지금 ${걸린것.length}쌍)`,
+    걸린것.length * 2 > 짝.length, true)
+  /* 뒤바꿔 읽었던 그 둘은 못 박아 둔다. */
+  eq('ESD006M 은 판매입력이다', codes.ESD006M, '판매입력')
+  eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
 }
 
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
