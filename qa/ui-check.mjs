@@ -32,6 +32,20 @@ const eq = (label, actual, expected) => {
  */
 const LINK_RE = /(?:to=\{?|to:\s*(?:\([^)]*\)\s*=>\s*)?|navigate\()\s*[`'"](\/[^`'"$\s)]*)/g
 const SEP = /[\\/]/
+/**
+ * <b>못 만든다고 적어 둔 것들이 모두 모이는 자리.</b>
+ *
+ * <p>이유마다 증거를 달기 시작하면서(1-t) 여덟 판에 일곱 개의 낡은 이유가 드러났다.
+ * 그런데 증거는 <b>손으로 달아야</b> 하고, 새로 적는 이유에는 아무도 안 단다 —
+ * 그러면 낡은 이유가 다시 쌓인다.
+ *
+ * <p>그래서 <b>증거 없는 이유의 수</b>를 세어 늘지 않게 한다. 예외를 새로 적으려면
+ * 증거를 같이 달거나, 못 재는 이유라면 그 수를 손으로 올리며 <b>왜 못 재는지</b>를
+ * 커밋에 적게 된다. 줄이는 것은 언제든 좋다.
+ */
+const ALL_REASON_KEYS = new Set()
+const collectReasons = (m) => { for (const k of m.keys()) ALL_REASON_KEYS.add(k) }
+
 const walk = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f)
   return statSync(p).isDirectory() ? walk(p) : [p]
@@ -750,6 +764,8 @@ console.log('\n■ 대조표를 다 쓰고 있나')
     if (!f.endsWith('.json') || f.startsWith('.') || NOT_BY_SCREEN.has(f)) continue
     if (f.startsWith('pending-') || f === 'unmapped-screens.json'
       || f === 'unchecked-dynamic-tables.json' || f === 'decorative-sort-marks.json'
+      /* 화면별 표가 아니라 <b>수 하나</b>를 담는 자리다. */
+      || f === 'unwitnessed-reasons.json'
       || f === 'ecount-missing-columns.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
@@ -1984,6 +2000,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['생산계획_MRP리스트|기타', '위와 같음'],
     ['생산계획_MRP리스트|적요', '위와 같음'],
   ])
+  collectReasons(NO_COLUMN)
   /*
    * 예전에는 여기서 [1단계]~[10단계] 열 개를 <b>예외로</b> 빼 두었다 —
    * "STEP_COLS.map 으로 그려 이름이 코드에 안 보인다" 는 이유였다.
@@ -2185,6 +2202,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
 
 
   ])
+  collectReasons(NO_BUTTON)
   /*
    * 원본은 <b>조회 화면에서 전표를 열어 그 자리에서 고친다</b> — 그래서 조회에도
    * 저장·전표불러오기·현금수금 같은 입력 버튼이 달려 있다. 우리는 입력을 따로 둔다
@@ -2485,6 +2503,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['최종수정자', '위와 같음'],
     ['결재방표시', '전자결재 도장을 전표 인쇄에 찍는 기능이 없다'],
   ])
+  collectReasons(NO_FIELD)
   /** 화면별로 안 만든 것 — 화면 사정이 있는 것만 여기에. */
   const NO_FIELD_ON = new Map([
     /*
@@ -2680,6 +2699,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['작업지시서효율현황|거래처관리담당자', '작업지시에는 거래처가 납품처로만 붙는다'],
     ['작업지시서효율현황|규격', '효율 화면은 품목이 아니라 지시 단위로 센다'],
   ])
+  collectReasons(NO_FIELD_ON)
 
   const bad = []
   const stale = []   // 이미 만들었는데 예외로 남아 있는 것
@@ -3546,6 +3566,7 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
     ['생산입고 III-소모품목 선택|생산', '위와 같음'],
     ['생산입고 III-소모품목 선택|소모', '위와 같음'],
   ])
+  collectReasons(NO_TAB)
 
   const bad = []
   const stale = []   // 이미 만들었는데 예외로 남아 있는 것
@@ -3975,6 +3996,20 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
   }
   eq(`이유의 근거 ${checked}개가 아직 사실이다 (예외 ${Object.keys(witnesses).length}종)`,
     stale.join('\n') || '없음', '없음')
+
+  /*
+   * <b>증거 없는 이유가 늘지 않게 한다.</b>
+   *
+   * <p>증거는 손으로 단다. 새로 적는 이유에 아무도 안 달면 낡은 이유가 다시 쌓인다 —
+   * 여덟 판에 일곱 개가 그렇게 쌓여 있었다. 그래서 <b>수</b>를 세어 못 박는다.
+   * 예외를 새로 적으려면 증거를 같이 달거나, 못 재는 이유라면 이 수를 손으로 올리며
+   * <b>왜 못 재는지</b>를 커밋에 적게 된다. 줄이는 것은 언제든 좋다.
+   */
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'unwitnessed-reasons.json'), 'utf8'))
+  const withoutWitness = [...ALL_REASON_KEYS].filter((k) => !witnesses[k])
+  eq(`증거 없는 이유가 ${cap.gap}개를 넘지 않는다 (지금 ${withoutWitness.length}개 · 예외 ${ALL_REASON_KEYS.size}종)`,
+    withoutWitness.length <= cap.gap ? '없음'
+      : `${withoutWitness.length - cap.gap}개 늘었다 — 증거를 달거나 그 수를 올리세요`, '없음')
 }
 
 console.log('\n' + '─'.repeat(50))
