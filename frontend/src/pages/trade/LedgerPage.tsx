@@ -302,8 +302,12 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             ))}
           </div>
         </EcCond>
-        {/* 원본 [집계구분] — 무엇 단위로 모아 볼지. */}
-        <EcCond label="집계구분">
+        {/*
+          <b>이 파일이 겸하는 화면들이 이 줄을 서로 다르게 부른다</b>(사본 실측) —
+          거래처별채권·채무는 <b>[구분]</b>(rbSumGubun 라디오, [거래처별]·[담당자별]),
+          거래처관리대장 I 은 <b>[집계구분]</b>이다. 한쪽 이름으로 눌러 두면 다른 쪽이 늘 틀린다.
+        */}
+        <EcCond label={oneSide ? '구분' : '집계구분'}>
           <div className="ec-pills">
             {(['거래처별', '담당자별'] as const).map((g) => (
               <button key={g} type="button" className={`ec-pill no-ec${group === g ? ' active' : ''}`}

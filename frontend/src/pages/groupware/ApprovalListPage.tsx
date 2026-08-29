@@ -85,6 +85,8 @@ export default function ApprovalListPage({
   const [attachCond, setAttachCond] = useState<'전체' | '있음' | '없음'>('전체')
   const [tab, setTab] = useState<Tab>('전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
+  /* 기간 줄의 이름은 화면마다 다르다 — 내결재관리 [기준일자] · 기안서통합관리 [일자](사본 실측). */
+  const dateLabel = scope === 'mine' ? '기준일자' : '일자'
   /**
    * 빈 줄이 걸칠 칸 수. [작업자]·[작업일시]가 scope 에 따라 붙었다 빠지므로
    * 숫자를 두 군데 적으면 한쪽만 고치게 된다 — 실제로 이 저장소에서 가장 자주 낸 실수다.
@@ -395,8 +397,12 @@ export default function ApprovalListPage({
 
       {/* 원본은 알약 아래에 기안일자 기간 + [출력양식]·[부서] 조건을 적어 둔다 */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-        {/* 원본은 이 기간을 [일자]라고 부른다. 이름표가 없으면 무슨 날짜인지 모른다. */}
-        <label style={{ fontSize: 12.5, color: '#5a626e' }}>일자</label>
+        {/*
+          <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
+          기안서통합관리는 [일자], 내결재관리는 [기준일자]다. 한 이름으로 눌러 두면
+          한쪽이 늘 틀린다(판매조회/구매조회에서 겪은 것과 같다).
+        */}
+        <label style={{ fontSize: 12.5, color: '#5a626e' }}>{dateLabel}</label>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />

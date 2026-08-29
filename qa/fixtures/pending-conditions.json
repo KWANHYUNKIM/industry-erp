@@ -1,13 +1,10 @@
 [
  "PartnersPage.tsx  원본 거래처관리대장 II 의 [기준일자] 조건이 없다",
- "LedgerPage.tsx  원본 거래처별채권 의 [구분] 조건이 없다",
- "LedgerPage.tsx  원본 거래처별채무 의 [구분] 조건이 없다",
  "ApprovalAllPage.tsx  원본 기안서통합관리 의 [구분] 조건이 없다",
  "PriceMovementPage.tsx  원본 단가변동표 의 [구분] 조건이 없다",
  "LotStockComparePage.tsx  원본 품목vs시리얼재고수량비교 의 [기준일자] 조건이 없다",
  "LeaveListPage.tsx  원본 근태조회 의 [기준일자] 조건이 없다",
  "SchedulePage.tsx  원본 일정관리 의 [기준일자] 조건이 없다",
- "MyApprovalPage.tsx  원본 내결재관리 의 [기준일자] 조건이 없다",
  "MyApprovalPage.tsx  원본 내결재관리 의 [구분] 조건이 없다",
  "SalesPlanPage.tsx  원본 매출계획비교표 의 [기준일자] 조건이 없다"
 ]
