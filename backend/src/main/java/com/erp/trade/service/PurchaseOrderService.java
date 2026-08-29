@@ -48,6 +48,7 @@ public class PurchaseOrderService {
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final PurchaseOrderRepository orderRepository;
+    private final com.erp.trade.repository.PurchaseOrderHistoryRepository historyRepository;
     /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
     private final ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
@@ -145,24 +146,29 @@ public class PurchaseOrderService {
         }
         recalculate(po);
 
-        return PurchaseOrderResponse.from(orderRepository.save(po));
+        PurchaseOrder saved = orderRepository.save(po);
+        /* 첫 줄은 <b>만들어진 것</b>이다. 넘어오기 전 상태가 없으니 from 은 비운다. */
+        trace(saved, null, saved.getStatus(), username, null);
+        return PurchaseOrderResponse.from(saved);
     }
 
     /** 발주계획 확정 (발주요청 → 발주계획). 납기일을 여기서 정한다. */
     @Transactional
-    public PurchaseOrderResponse plan(Long id, PlanRequest req) {
+    public PurchaseOrderResponse plan(Long id, PlanRequest req, String username) {
         PurchaseOrder po = get(id);
         expect(po, PurchaseOrderStatus.REQUESTED, "발주요청 상태의 발주서만 계획할 수 있습니다.");
         if (req != null && req.dueDate() != null) {
             po.setDueDate(req.dueDate());
         }
+        trace(po, po.getStatus(), PurchaseOrderStatus.PLANNED, username,
+                po.getDueDate() != null ? "납기일 " + po.getDueDate() : null);
         po.setStatus(PurchaseOrderStatus.PLANNED);
         return PurchaseOrderResponse.from(po);
     }
 
     /** 단가요청 회신 반영 (발주계획 → 단가확정). 확정된 단가로 금액·부가세를 다시 계산한다. */
     @Transactional
-    public PurchaseOrderResponse applyPrices(Long id, ApplyPricesRequest req) {
+    public PurchaseOrderResponse applyPrices(Long id, ApplyPricesRequest req, String username) {
         PurchaseOrder po = get(id);
         if (po.getStatus() != PurchaseOrderStatus.PLANNED && po.getStatus() != PurchaseOrderStatus.PRICED) {
             throw ApiException.badRequest("발주계획 상태의 발주서만 단가를 확정할 수 있습니다.");
@@ -180,13 +186,15 @@ public class PurchaseOrderService {
             po.setPriceValidUntil(req.priceValidUntil());
         }
         recalculate(po);
+        trace(po, po.getStatus(), PurchaseOrderStatus.PRICED, username,
+                po.getPriceValidUntil() != null ? "유효기간 " + po.getPriceValidUntil() : null);
         po.setStatus(PurchaseOrderStatus.PRICED);
         return PurchaseOrderResponse.from(po);
     }
 
     /** 발주 확정 (단가확정 → 발주확정). 이 시점의 발주서를 매입처에 보낸다. */
     @Transactional
-    public PurchaseOrderResponse confirm(Long id) {
+    public PurchaseOrderResponse confirm(Long id, String username) {
         PurchaseOrder po = get(id);
         expect(po, PurchaseOrderStatus.PRICED, "단가가 확정된 발주서만 발주할 수 있습니다.");
         /*
@@ -199,16 +207,18 @@ public class PurchaseOrderService {
                     "단가 유효기간이 지났습니다(" + po.getPriceValidUntil() + "). "
                     + "매입처에 다시 확인해 유효기간을 고친 뒤 발주하세요.");
         }
+        trace(po, po.getStatus(), PurchaseOrderStatus.ORDERED, username, null);
         po.setStatus(PurchaseOrderStatus.ORDERED);
         return PurchaseOrderResponse.from(po);
     }
 
     @Transactional
-    public PurchaseOrderResponse cancel(Long id) {
+    public PurchaseOrderResponse cancel(Long id, String username) {
         PurchaseOrder po = get(id);
         if (po.getStatus() == PurchaseOrderStatus.RECEIVED) {
             throw ApiException.badRequest("이미 입고된 발주서는 취소할 수 없습니다.");
         }
+        trace(po, po.getStatus(), PurchaseOrderStatus.CANCELLED, username, null);
         po.setStatus(PurchaseOrderStatus.CANCELLED);
         return PurchaseOrderResponse.from(po);
     }
@@ -243,6 +253,7 @@ public class PurchaseOrderService {
                 lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
+        trace(po, po.getStatus(), PurchaseOrderStatus.RECEIVED, username, "구매전표 " + purchase.docNo());
         po.setStatus(PurchaseOrderStatus.RECEIVED);
         po.setConvertedPurchaseId(purchase.id());
         return purchase;
@@ -291,5 +302,31 @@ public class PurchaseOrderService {
     private PurchaseOrder get(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("발주서를 찾을 수 없습니다. id=" + id));
+    }
+
+    /**
+     * 단계가 넘어간 자취를 남긴다. <b>상태를 바꾸는 자리마다</b> 부른다 —
+     * 한 군데라도 빠뜨리면 이력에 구멍이 나고, 구멍 난 이력은 없는 것보다 나쁘다
+     * (있는 줄 알고 믿게 된다).
+     */
+    private void trace(PurchaseOrder po, PurchaseOrderStatus from, PurchaseOrderStatus to,
+                       String username, String note) {
+        historyRepository.save(com.erp.trade.domain.PurchaseOrderHistory.builder()
+                .order(po)
+                .changedAt(java.time.LocalDateTime.now())
+                .fromStatus(from)
+                .toStatus(to)
+                .changedBy(username)
+                .note(note)
+                .build());
+    }
+
+    /** 한 발주가 밟아 온 자취. 화면이 [이력]을 펼칠 때 가져간다. */
+    @Transactional(readOnly = true)
+    public List<com.erp.trade.dto.PurchaseOrderDtos.HistoryRow> history(Long id) {
+        get(id);   // 없는 발주면 404
+        return historyRepository.findByOrderIdOrderByChangedAtAscIdAsc(id).stream()
+                .map(com.erp.trade.dto.PurchaseOrderDtos.HistoryRow::from)
+                .toList();
     }
 }

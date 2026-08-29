@@ -121,4 +121,26 @@ public final class PurchaseOrderDtos {
             PurchaseOrderStatus status, String statusName,
             long count, BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount
     ) {}
+
+    /**
+     * 원본 단가요청진행단계 격자의 <b>[이력]</b> 한 줄 — 언제 어느 단계로 넘어갔나.
+     *
+     * <p>목록 응답에 끼워 넣지 않는다. 줄마다 이력을 달면 <b>보지도 않을 자취까지</b>
+     * 전부 실어 나른다 — 펼칠 때 그 발주만 가져간다.
+     */
+    public record HistoryRow(
+            java.time.LocalDateTime changedAt,
+            String fromStatusName,
+            String toStatusName,
+            String changedBy,
+            String note
+    ) {
+        public static HistoryRow from(com.erp.trade.domain.PurchaseOrderHistory h) {
+            return new HistoryRow(
+                    h.getChangedAt(),
+                    h.getFromStatus() != null ? h.getFromStatus().getDisplayName() : null,
+                    h.getToStatus().getDisplayName(),
+                    h.getChangedBy(), h.getNote());
+        }
+    }
 }

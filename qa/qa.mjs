@@ -1145,6 +1145,30 @@ async function scenarioPurchaseOrder(f) {
   eq('발주확정 후 상태는 발주확정',
     (await must('POST', `/purchase-orders/${po.id}/confirm`)).statusName, '발주확정')
 
+  /*
+   * 원본 단가요청진행단계의 <b>[이력]</b> — 우리는 <b>지금 상태만</b> 들고 있어서
+   * "언제 단가확정으로 넘어갔나", "누가 취소했나" 를 물을 수가 없었다.
+   *
+   * <p>상태를 바꾸는 자리를 <b>하나라도 빠뜨리면 이력에 구멍이 난다</b> — 그리고 구멍 난
+   * 이력은 없는 것보다 나쁘다(있는 줄 알고 믿게 된다). 그래서 밟아 온 차례를 통째로 잰다.
+   */
+  const hist = await must('GET', `/purchase-orders/${po.id}/history`)
+  eq('만들 때부터 자취가 남는다 — 첫 줄은 넘어오기 전 상태가 없다',
+    hist[0].fromStatusName ?? null, null)
+  /*
+   * 단가확정이 <b>세 번</b> 찍힌다 — 이 시나리오가 단가를 세 번 냈기 때문이다(값 한 번,
+   * 지난 유효기간 한 번, 고쳐서 한 번). 같은 단계로 다시 넘어온 것도 <b>지운 자취가 아니다</b>:
+   * 단가를 다시 받았다는 사실 자체가 이력이고, 그때마다 유효기간이 비고에 남는다.
+   */
+  eq('밟아 온 차례가 그대로 남는다',
+    hist.map((h) => h.toStatusName).join(' → '),
+    '발주요청 → 발주계획 → 단가확정 → 단가확정 → 단가확정 → 발주확정')
+  eq('다시 받은 단가의 유효기간이 그 줄에 남는다',
+    hist.filter((h) => h.note === '유효기간 2099-12-31').length, 1)
+  eq('계획 단계에는 그때 정한 납기일이 함께 적힌다',
+    hist.find((h) => h.toStatusName === '발주계획').note, '납기일 2026-07-25')
+  eq('누가 바꿨는지도 남는다', hist.every((h) => !!h.changedBy), true)
+
   const purchase = await must('POST', `/purchase-orders/${po.id}/receive`, {
     warehouseId: f.warehouse.id, purchaseDate: '2026-07-14',
   })

@@ -30,6 +30,15 @@ const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
+/** 원본 [이력] 한 줄 — 언제 어느 단계로 넘어갔나. */
+interface HistoryRow {
+  changedAt: string
+  fromStatusName: string | null
+  toStatusName: string
+  changedBy: string | null
+  note: string | null
+}
+
 /** 문서의 파이프라인 진행 위치를 점으로 표시. 취소는 별도 표기. */
 function Stepper({ status }: { status: PurchaseOrderStatus }) {
   if (status === 'CANCELLED') return <span style={{ color: COLOR.CANCELLED, fontWeight: 700 }}>취소됨</span>
@@ -85,6 +94,22 @@ export default function PriceRequestProgressPage() {
   const pickers = useCondPickers(['partners', 'items', 'employees', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /*
+   * 원본 격자의 <b>[이력]</b> — 그 발주가 밟아 온 자취를 그 자리에서 편다.
+   * 우리는 <b>지금 상태만</b> 들고 있어서 "언제 단가확정으로 넘어갔나", "누가 취소했나" 를
+   * 물을 수가 없었다 — 늦어진 발주를 두고 어디서 멈춰 있었는지 아무도 답하지 못했다.
+   *
+   * <p>펼친 발주만 가져온다. 목록에 끼워 넣으면 <b>보지도 않을 자취까지</b> 실어 나른다.
+   */
+  const [openHistory, setOpenHistory] = useState<number | null>(null)
+  const [history, setHistory] = useState<HistoryRow[]>([])
+  async function toggleHistory(id: number) {
+    if (openHistory === id) { setOpenHistory(null); return }
+    setOpenHistory(id)
+    setHistory([])
+    try { setHistory((await api.get<HistoryRow[]>(`/purchase-orders/${id}/history`)).data) }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
 
   async function load() {
     setLoading(true); setError('')
@@ -217,14 +242,16 @@ export default function PriceRequestProgressPage() {
               지난 것은 붉게 적는다 — 목록에 날짜만 적어 두면 <b>지났는지를 사람이 세어야</b> 한다.
             */}
             <th style={{ width: 110, textAlign: 'center' }}>유효기간</th><th>담당</th>
+            {/* 원본 격자의 마지막 열 [이력]. */}
+            <th style={{ width: 60, textAlign: 'center' }}>이력</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : sort.sorted.map((r, i) => (
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((r, i) => [
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', textAlign: 'center', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
@@ -239,8 +266,44 @@ export default function PriceRequestProgressPage() {
                 {r.priceValidUntil ?? ''}
               </td>
               <td>{r.employeeName ?? ''}</td>
-            </tr>
-          ))}
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => toggleHistory(r.id)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                  {openHistory === r.id ? '접기' : '펼치기'}
+                </button>
+              </td>
+            </tr>,
+            openHistory === r.id ? (
+              <tr key={`${r.id}-history`}>
+                <td colSpan={10} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                  {history.length === 0 ? (
+                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>자취가 없습니다.</span>
+                  ) : (
+                    <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                      <thead><tr>
+                        <th style={{ width: 34 }}></th><th style={{ width: 150 }}>일시</th>
+                        <th style={{ width: 180 }}>단계</th><th style={{ width: 100 }}>바꾼 사람</th><th>비고</th>
+                      </tr></thead>
+                      <tbody>
+                        {history.map((h, k) => (
+                          <tr key={`${h.changedAt}-${k}`}>
+                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td style={{ fontFamily: 'monospace' }}>{h.changedAt.slice(0, 16).replace('T', ' ')}</td>
+                            <td>
+                              {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
+                              <b style={{ color: 'var(--ec-blue-dark)' }}>{h.toStatusName}</b>
+                            </td>
+                            <td style={{ color: '#5a626e' }}>{h.changedBy ?? ''}</td>
+                            <td style={{ color: '#8a929c' }}>{h.note ?? ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </td>
+              </tr>
+            ) : null,
+          ]).flat()}
         </tbody>
       </table>
     </EcListShell>
