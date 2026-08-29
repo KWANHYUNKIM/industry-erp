@@ -1463,6 +1463,26 @@ async function scenarioBankCard() {
   eq('계좌를 고칠 수 있다', edited.bankName, 'QA은행(수정)')
   eq('고쳐도 잔액은 그대로다 — 기초잔액으로 덮어쓰지 않는다',
     Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance), balBefore)
+  /*
+   * <b>사용중단이 다른 칸을 지우지 않는다.</b> 계좌·카드 화면의 [사용중단/재사용]은
+   * 그 줄을 <b>통째로 다시 보내서</b> active 만 뒤집는다 — 수정 요청이 통째로 덮기
+   * 때문이다. 품목·거래처에서 몇 칸만 보냈다가 검색창내용·단가그룹이 조용히 지워진
+   * 적이 있다. 여기서는 계좌코드·계좌명·적요가 살아남는지를 못 박는다.
+   */
+  const 통째 = await must('PUT', `/bank-cards/accounts/${bank.id}`, {
+    code: 'QAACC', name: 'QA계좌명', bankName: 'QA은행', accountNo,
+    holder: 'QA예금주', remark: 'QA적요', active: false,
+  })
+  eq('사용중단하면 중지로 바뀐다', 통째.active, false)
+  eq('사용중단해도 계좌코드가 남는다', 통째.code, 'QAACC')
+  eq('사용중단해도 계좌명이 남는다', 통째.name, 'QA계좌명')
+  eq('사용중단해도 적요가 남는다', 통째.remark, 'QA적요')
+  const 되살림 = await must('PUT', `/bank-cards/accounts/${bank.id}`, {
+    code: 'QAACC', name: 'QA계좌명', bankName: 'QA은행', accountNo,
+    holder: 'QA예금주', remark: 'QA적요', active: true,
+  })
+  eq('되살리면 다시 사용이다', 되살림.active, true)
+
   await must('PUT', `/bank-cards/accounts/${bank.id}`, {
     bankName: 'QA은행', accountNo, openingBalance: 0,
   })

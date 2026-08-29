@@ -48,12 +48,49 @@ export default function CurrencyPage() {
 
   useEffect(() => { load() }, [])
 
+  /*
+   * 원본 외화등록의 <b>[사용중단/재사용]</b> — 고른 통화를 한 번에 세운다.
+   * [사용구분] 칸은 진작 있었는데 바꾸는 자리가 <b>폼 안에만</b> 있었다.
+   *
+   * <p>고른 것이 모두 중지면 되살리고, 하나라도 살아 있으면 중단한다 — 품목·거래처와 같은 규칙이다.
+   * 통째로 다시 보낸다(수정은 통째로 덮는다).
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function toggleActive() {
+    const targets = currencies.filter((c) => picked.has(c.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 통화를 고르세요.'); return }
+    const reviving = targets.every((c) => !c.active)
+    setError('')
+    try {
+      for (const c of targets) {
+        await api.put(`/currencies/${c.id}`, {
+          code: c.code, name: c.name, symbol: c.symbol, unit: c.unit, active: reviving,
+        })
+      }
+      setPicked(new Set())
+      await load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   return (
     <EcListShell
       title="외화 (통화·고시환율)"
       newLabel={showForm ? '입력닫기' : `${tab === '통화등록' ? '통화 등록' : '환율 등록'}(F2)`}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
+        ...(tab === '통화등록'
+          ? [{ label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActive }]
+          : []),
+        { label: 'Excel' },
+      ]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => (
@@ -83,13 +120,15 @@ export default function CurrencyPage() {
       {tab === '고시환율' && <Converter currencies={currencies} onError={setError} />}
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        : tab === '통화등록' ? <CurrencyTable rows={currencies} />
+        : tab === '통화등록' ? <CurrencyTable rows={currencies} picked={picked} onPick={pick} />
         : <RateTable rows={rates} />}
     </EcListShell>
   )
 }
 
-function CurrencyTable({ rows }: { rows: Currency[] }) {
+function CurrencyTable({ rows, picked, onPick }: {
+  rows: Currency[]; picked: Set<number>; onPick: (id: number) => void
+}) {
   /*
    * 원본 외화등록의 조건은 <b>외화코드 · 외화명 · 환율 · 금액소수점 · 사용구분</b> 이다(사본 실측).
    * 우리 화면에는 <b>조건이 하나도 없었다</b> — 통화가 늘면 눈으로 찾는 수밖에 없었다.
@@ -128,6 +167,7 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
     <table className="w-full text-left">
       <thead>
         <tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
           {/*
             원본 외화등록의 열 이름은 <b>외화코드 · 외화명 · 환율 · 사용구분</b> 이다(사본 실측).
@@ -145,9 +185,12 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
       </thead>
       <tbody>
         {shown.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : shown.map((c, i) => (
           <tr key={c.id}>
+            <td style={{ textAlign: 'center' }}>
+              <input type="checkbox" checked={picked.has(c.id)} onChange={() => onPick(c.id)} />
+            </td>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{c.code}</td>
             <td>{c.name}</td>

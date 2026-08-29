@@ -157,12 +157,74 @@ export default function BankCardPage() {
       .some((v) => (v ?? '').includes(kw))),
     [cards, useCond, kw, codeCond])
 
+  /*
+   * 원본 계좌등록·카드등록의 <b>[사용중단/재사용]</b> — 고른 것을 한 번에 세운다.
+   * 표에 [사용]/[중지] 칸은 진작 있었는데 <b>바꾸는 자리가 폼 안에만</b> 있어서,
+   * 안 쓰는 계좌 열 개를 접으려면 열 번 열어야 했다.
+   *
+   * <p>고른 것이 <b>모두 중지면 되살리고</b>, 하나라도 살아 있으면 중단한다 —
+   * 품목·거래처와 같은 규칙이다.
+   *
+   * <p>그 계좌를 <b>통째로 다시 보낸다.</b> 수정은 통째로 덮으므로 몇 칸만 골라 보내면
+   * 안 보낸 칸(계좌코드·예금계정·외화통장환종·적요 …)이 사용중단 한 번에 조용히 지워진다.
+   * 거래처·품목에서 이미 겪은 함정이다. 기초잔액만은 응답에 없는데, 서버가 수정 때
+   * <b>일부러 안 받는다</b> — 잔액은 입출금으로만 움직인다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+  const pickedRows = tab === '계좌등록'
+    ? shownAccounts.filter((r) => picked.has(r.id))
+    : shownCards.filter((r) => picked.has(r.id))
+
+  async function toggleActive() {
+    if (pickedRows.length === 0) { setError(`사용중단하거나 되살릴 ${tab === '계좌등록' ? '계좌' : '카드'}를 고르세요.`); return }
+    const reviving = pickedRows.every((r) => !r.active)
+    setError('')
+    try {
+      for (const r of pickedRows) {
+        if (tab === '계좌등록') {
+          const a = r as BankAccountRow
+          await api.put(`/bank-cards/accounts/${a.id}`, {
+            code: a.code, name: a.name, bankName: a.bankName, accountNo: a.accountNo,
+            holder: a.holder, glAccountId: a.glAccountId, currencyId: a.currencyId,
+            active: reviving, remark: a.remark,
+          })
+        } else {
+          const c = r as CreditCardRow
+          await api.put(`/bank-cards/cards/${c.id}`, {
+            code: c.code, cardName: c.cardName, cardCompany: c.cardCompany, cardNo: c.cardNo,
+            type: c.type, ownerName: c.ownerName, settlementAccountId: c.settlementAccountId,
+            settlementDay: c.settlementDay, active: reviving, remark: c.remark,
+          })
+        }
+      }
+      setPicked(new Set())
+      await load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /* 탭을 옮기면 고른 것을 놓는다 — 계좌에서 고른 id 가 카드 id 와 겹친다. */
+  useEffect(() => { setPicked(new Set()) }, [tab])
+
+  const bulkable = tab === '계좌등록' || tab === '카드등록'
+
   return (
     <EcListShell
       title="계좌/카드"
       newLabel={showForm ? '입력닫기' : `${tab}(F2)`}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
+        ...(bulkable
+          ? [{ label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActive }]
+          : []),
+        { label: 'Excel' },
+      ]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => (
@@ -244,8 +306,8 @@ export default function BankCardPage() {
       )}
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} />
-        : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} />
+        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} picked={picked} onPick={pick} />
+        : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} picked={picked} onPick={pick} />
         : tab === '계좌입출금' ? (
           <>
             {/*
@@ -269,11 +331,15 @@ export default function BankCardPage() {
 
 // ── 목록 ────────────────────────────────────────────────────────────────
 
-function BankAccountTable({ rows, onEdit }: { rows: BankAccountRow[]; onEdit: (r: BankAccountRow) => void }) {
+function BankAccountTable({ rows, onEdit, picked, onPick }: {
+  rows: BankAccountRow[]; onEdit: (r: BankAccountRow) => void
+  picked: Set<number>; onPick: (id: number) => void
+}) {
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 90 }}>계좌코드</th>
           <th style={{ width: 130 }}>계좌명</th>
@@ -292,9 +358,12 @@ function BankAccountTable({ rows, onEdit }: { rows: BankAccountRow[]; onEdit: (r
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
+            <td style={{ textAlign: 'center' }}>
+              <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
+            </td>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
             <td>{r.name ?? ''}</td>
@@ -316,11 +385,15 @@ function BankAccountTable({ rows, onEdit }: { rows: BankAccountRow[]; onEdit: (r
   )
 }
 
-function CardTable({ rows, onEdit }: { rows: CreditCardRow[]; onEdit: (r: CreditCardRow) => void }) {
+function CardTable({ rows, onEdit, picked, onPick }: {
+  rows: CreditCardRow[]; onEdit: (r: CreditCardRow) => void
+  picked: Set<number>; onPick: (id: number) => void
+}) {
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 90 }}>카드코드</th>
           <th style={{ width: 120 }}>카드명</th>
@@ -339,9 +412,12 @@ function CardTable({ rows, onEdit }: { rows: CreditCardRow[]; onEdit: (r: Credit
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
+            <td style={{ textAlign: 'center' }}>
+              <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
+            </td>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
             <td style={{ fontWeight: 600 }}>{r.cardName}</td>
