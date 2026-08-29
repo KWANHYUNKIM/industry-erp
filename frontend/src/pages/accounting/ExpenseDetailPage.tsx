@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 회계 > 비용내역현황.
@@ -33,6 +34,12 @@ interface Expense {
   createdBy: string | null
 }
 
+/*
+ * 원본 비용내역현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간 칸이 <b>아예 없어서</b> 비용이 쌓이면 몇 해치가 한 표에 쏟아졌다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 export default function ExpenseDetailPage() {
   const [rows, setRows] = useState<Expense[]>([])
   const [keyword, setKeyword] = useState('')
@@ -42,6 +49,8 @@ export default function ExpenseDetailPage() {
    * 다(사본 실측). [거래처]가 없었는데 <b>거래처명은 이미 목록에 찍히고 있었다</b> —
    * 어느 거래처에 쓴 비용인지 보이면서도 그것으로 모아 볼 수는 없었다.
    */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [groupCond, setGroupCond] = useState('전체')
   const [empCond, setEmpCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -76,6 +85,7 @@ export default function ExpenseDetailPage() {
     [rows],
   )
   const shown = rows
+    .filter((r) => (!from || r.expenseDate >= from) && (!to || r.expenseDate <= to))
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || r.accountName.includes(keyword) || (r.content ?? '').includes(keyword) || (r.department ?? '').includes(keyword))
     .filter((r) => groupCond === '전체' || r.accountGroupName === groupCond)
@@ -96,6 +106,15 @@ export default function ExpenseDetailPage() {
           주석에는 다섯을 적어 놓고 <b>뒤 둘만</b> 만들어 두었다 — 앞 셋도 목록에 이미
           찍히는 값이다(비용그룹명 · 비용명 · 사용자명). 우리 [계정]은 원본 이름이 <b>[비용]</b> 이다.
         */}
+        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>기준일자</span>
+        <input type="date" className="ec-input" value={from}
+               onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ margin: '0 2px', color: '#9aa1ab' }}>~</span>
+        <input type="date" className="ec-input" value={to}
+               onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>비용그룹</span>
         <select className="ec-input" value={groupCond} onChange={(e) => setGroupCond(e.target.value)} style={{ width: 150 }}>
           <option>전체</option>

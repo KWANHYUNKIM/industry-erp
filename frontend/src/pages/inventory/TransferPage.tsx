@@ -9,6 +9,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -25,8 +26,16 @@ const TAB_TYPE: Record<Exclude<Tab, '창고이동'>, StockAdjustmentType> = {
  */
 interface CodeRow { id: number; code: string; name: string }
 
+/*
+ * 원본 기타이동현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간 칸이 <b>아예 없어서</b> 이동·조정이 쌓이면 몇 해치가 한 표에 쏟아졌다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 export default function TransferPage() {
   const [tab, setTab] = useState<Tab>('창고이동')
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -95,6 +104,7 @@ export default function TransferPage() {
    * <b>어느 쪽이든</b> 걸리게 한다(그 창고가 낀 이동을 보려는 것이므로).
    */
   const shownTransfers = transfers
+    .filter((r) => (!from || r.transferDate >= from) && (!to || r.transferDate <= to))
     .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !empCond || empName(r.employeeId) === empCond)
@@ -102,6 +112,7 @@ export default function TransferPage() {
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
+    (!from || r.adjustDate >= from) && (!to || r.adjustDate <= to) &&
     (!whCond || r.warehouseName === whCond) &&
     (!projCond || r.projectName === projCond) &&
     (!empCond || empName(r.employeeId) === empCond) &&
@@ -145,6 +156,18 @@ export default function TransferPage() {
 
       {/* 원본 조건 차례: <b>창고</b> · 프로젝트 · 품목 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={pickers.warehouses} />
