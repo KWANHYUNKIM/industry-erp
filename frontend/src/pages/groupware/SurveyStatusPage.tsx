@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { STATUS_PICKS, ymd } from '../../components/EcPeriodPicks'
 import type { SurveyDoc } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
 
@@ -119,6 +119,16 @@ export default function SurveyStatusPage() {
               <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
               <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
               <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              {/*
+                원본 설문조사현황의 버튼줄에 <b>[전월+금월]</b> 이 있다(사본 실측).
+                예전에는 '기간 빠른선택에 그 조합을 두지 않았다' 고 적고 뺐는데,
+                <b>그 조합은 진작 만들어져 있었다</b>(STATUS_PICKS) — 이 화면만 날짜를
+                손으로 찍게 두고 있었다. 다른 조회 화면과 같은 줄을 쓴다.
+              */}
+              <span style={{ marginLeft: 8, display: 'inline-flex', gap: 3, verticalAlign: 'middle' }}>
+                <EcPeriodPicks labels={STATUS_PICKS} currentFrom={from}
+                               onPick={(r) => { if (r.from) setFrom(r.from); setTo(r.to) }} />
+              </span>
             </td>
             <th style={th}>설문대상구분</th>
             <td>

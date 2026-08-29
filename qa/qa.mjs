@@ -8324,6 +8324,33 @@ async function scenarioIssueNoAndRequestProject(f) {
   })).samplePercent)
 }
 
+/**
+ * 거래처의 <b>대표거래처</b>(원본 거래처리스트의 [관계설정]) — 지점·사업장을 한 회사로 묶는다.
+ *
+ * <p>화면은 고른 거래처의 그 칸만 한 번에 바꾼다. 여기서 재는 것은 <b>서버가 그 값을
+ * 제대로 지고 있는가</b> 다 — 화면이 여러 건을 돌릴 뿐 저장은 결국 한 건씩이다.
+ */
+async function scenarioPartnerParent(f) {
+  section('■ 거래처 관계설정(대표거래처)')
+
+  const before = (await must('GET', '/partners')).find((x) => x.id === f.customer.id)
+  const head = (await must('GET', '/partners')).find((x) => x.id !== f.customer.id && x.active)
+  if (!head) return
+
+  const save = (parentId) => must('PUT', `/partners/${f.customer.id}`, {
+    name: before.name, type: before.type, bizRegNo: before.bizRegNo,
+    regNoKind: before.regNoKind, industryKind: before.industryKind,
+    parentId, active: true,
+  })
+
+  const tied = await save(head.id)
+  eq('대표거래처가 붙는다', tied.parentId, head.id)
+  eq('대표거래처 이름도 함께 온다', tied.parentName, head.name)
+  eq('다시 읽어도 남아 있다',
+    (await must('GET', '/partners')).find((x) => x.id === f.customer.id).parentId, head.id)
+  isNull('풀 수도 있다 — 지점이 독립하면 대표가 없다', (await save(null)).parentId)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -8701,6 +8728,7 @@ async function main() {
   await scenarioBankAccountCurrency()
   await scenarioDefectType(fixtures)
   await scenarioIssueNoAndRequestProject(fixtures)
+  await scenarioPartnerParent(fixtures)
 
   checkDeadAssertions()
 

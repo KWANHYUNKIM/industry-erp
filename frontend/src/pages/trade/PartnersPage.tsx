@@ -241,7 +241,13 @@ export default function PartnersPage() {
    * 고쳐야 했다. 300곳이면 300번이다.
    */
   const [bulkOpen, setBulkOpen] = useState(false)
-  const [bulkField, setBulkField] = useState<'manager' | 'partnerGroupId'>('manager')
+  /*
+   * 원본 거래처리스트의 <b>[관계설정]</b> — 고른 거래처의 <b>대표거래처</b>를 정한다.
+   * 예전에는 '거래처 관계 마스터가 없다' 고 적고 버튼을 뺐는데, <b>그 사이 대표거래처가
+   * 생겼다</b>(BusinessPartner.parent). 지점·사업장을 한 회사로 묶어 채권을 합산하는 그 값이다.
+   * 하나씩 열어 고칠 수는 있었지만, 지점이 스물이면 스무 번이었다.
+   */
+  const [bulkField, setBulkField] = useState<'manager' | 'partnerGroupId' | 'parentId'>('manager')
   const [bulkValue, setBulkValue] = useState('')
 
   async function bulkChange() {
@@ -250,7 +256,13 @@ export default function PartnersPage() {
     setError('')
     const patch = bulkField === 'manager'
       ? { manager: bulkValue || null }
-      : { partnerGroupId: bulkValue ? Number(bulkValue) : null }
+      : bulkField === 'parentId'
+        ? { parentId: bulkValue ? Number(bulkValue) : null }
+        : { partnerGroupId: bulkValue ? Number(bulkValue) : null }
+    /* 자기를 자기의 대표로 삼을 수는 없다 — 합산이 자기를 다시 세게 된다. */
+    if (bulkField === 'parentId' && bulkValue && targets.some((x) => String(x.id) === bulkValue)) {
+      return setError('대표거래처로 고른 거래처는 대상에서 빼세요 — 자기가 자기의 대표가 됩니다.')
+    }
     const results = await Promise.allSettled(
       targets.map((x) => api.put(`/partners/${x.id}`, wholePartner(x, patch))))
     const failed = results.filter((r) => r.status === 'rejected').length
@@ -309,6 +321,11 @@ export default function PartnersPage() {
         { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
           if (checked.size === 0) { setError('바꿀 거래처를 고르세요.'); return }
           setError(''); setBulkValue(''); setBulkOpen(true)
+        } },
+        /* 원본 [관계설정] — 고른 거래처의 대표거래처를 한 번에 정한다. */
+        { label: `관계설정${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
+          if (checked.size === 0) { setError('대표거래처를 정할 거래처를 고르세요.'); return }
+          setError(''); setBulkField('parentId'); setBulkValue(''); setBulkOpen(true)
         } },
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
         { label: 'Excel' },
@@ -685,9 +702,10 @@ export default function PartnersPage() {
             <div>
               <label className="mb-1 block text-sm text-slate-600">바꿀 항목</label>
               <select className={inputCls} value={bulkField} style={{ width: 180 }}
-                      onChange={(e) => { setBulkField(e.target.value as 'manager' | 'partnerGroupId'); setBulkValue('') }}>
+                      onChange={(e) => { setBulkField(e.target.value as typeof bulkField); setBulkValue('') }}>
                 <option value="manager">거래처관리담당자</option>
                 <option value="partnerGroupId">거래처그룹1</option>
+                <option value="parentId">대표거래처</option>
               </select>
             </div>
             <div>
@@ -696,6 +714,12 @@ export default function PartnersPage() {
                 <input className={inputCls} value={bulkValue} style={{ width: 220 }}
                        placeholder="거래처관리담당자"
                        onChange={(e) => setBulkValue(e.target.value)} />
+              ) : bulkField === 'parentId' ? (
+                /* 후보는 <b>지금 보이는 거래처</b>다 — 사용중단한 곳을 대표로 삼지 않게. */
+                <CodePickerField label="대표거래처" hideLabel width={220} emptyLabel="(미지정)"
+                                 value={bulkValue} onChange={setBulkValue}
+                                 items={partners.filter((x) => x.active)
+                                   .map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               ) : (
                 <select className={inputCls} value={bulkValue} style={{ width: 220 }}
                         onChange={(e) => setBulkValue(e.target.value)}>
