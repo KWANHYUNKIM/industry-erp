@@ -318,6 +318,22 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
     }
   }
 
+  /**
+   * 대화방 <b>이름 바꾸기</b>. 서버는 진작 받고 있었는데(PUT /chat/rooms/{id}/name)
+   * 부르는 데가 없어서, 여럿이 있는 방을 만들 때 이름을 잘못 적으면 <b>새 방을 파는</b>
+   * 수밖에 없었다. 일대일 방은 상대 이름이 곧 제목이라 바꿀 것이 없다.
+   */
+  async function rename() {
+    const next = window.prompt('대화방 이름을 입력하세요.', room.title)
+    if (next == null || !next.trim() || next.trim() === room.title) return
+    try {
+      const { data } = await api.put<ChatRoom>(`/chat/rooms/${room.id}/name`, { name: next.trim() })
+      setRoom(data)
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
   async function invite() {
     const who = window.prompt('초대할 사람의 이름을 입력하세요.')
     if (!who?.trim()) return
@@ -347,6 +363,7 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
             참여자 {room.memberCount}명 {showMembers ? '▲' : '▼'}
           </div>
         </div>
+        {!room.direct && <button className="ec-btn" onClick={rename}>이름변경</button>}
         {!room.direct && <button className="ec-btn" onClick={invite}>초대</button>}
         <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={leave}>나가기</button>
       </div>

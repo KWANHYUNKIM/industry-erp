@@ -766,6 +766,8 @@ console.log('\n■ 대조표를 다 쓰고 있나')
       || f === 'unchecked-dynamic-tables.json' || f === 'decorative-sort-marks.json'
       /* 화면별 표가 아니라 <b>수 하나</b>를 담는 자리다. */
       || f === 'unwitnessed-reasons.json'
+      /* 화면이 아니라 <b>서버 자리</b>를 키로 쓴다. */
+      || f === 'server-only-endpoints.json'
       || f === 'ecount-missing-columns.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
@@ -3960,6 +3962,54 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
   eq(`원본이 조건으로도 두는 열 ${checked}개 가운데 새로 못 거르게 된 것이 없다`,
     grown.join('\n') || '없음', '없음')
   eq('만들어 놓고 목록에 남겨 둔 것이 없다', gone.join('\n') || '없음', '없음')
+}
+
+
+// ── 1-s2) 서버가 열어 둔 자리를 화면이 부르나 ───────────────────────────
+console.log('\n■ 서버가 열어 둔 자리를 화면이 부르나')
+
+/*
+ * <b>서버만 있고 화면이 안 부르는 자리는 없는 기능과 같다.</b> 그런데 코드는 멀쩡히
+ * 있으니 <b>만들어 둔 줄 알고</b> 넘어간다. 실제로 그랬다 — 계좌·카드 수정(PUT)은
+ * 진작 있었는데 화면에는 등록만 있어서, 계좌번호를 잘못 치면 그 계좌를 영영 두거나
+ * 새로 만들어야 했다. 발주 진행이력도, 쪽지 안읽음수도, 대화방 이름변경도 같았다.
+ *
+ * <p>경로를 <b>조각내 조립하는</b> 호출(punch('clock-in') 같은)까지 알아보게 맞췄다 —
+ * 그렇게 안 하면 멀쩡한 자리가 수십 개 걸려 목록을 아무도 안 보게 된다.
+ * 일부러 남기는 자리는 fixture 에 <b>이유와 함께</b> 적는다.
+ */
+{
+  const OK = JSON.parse(readFileSync(join('qa', 'fixtures', 'server-only-endpoints.json'), 'utf8'))
+  let front = ''
+  for (const f of walk(join('frontend', 'src'))) if (/[.](ts|tsx)$/.test(f)) front += readFileSync(f, 'utf8')
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  const bad = []
+  const gone = []
+  let checked = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@(Get|Post|Put|Delete|Patch)Mapping\((?:value\s*=\s*)?"([^"]*)"/g)) {
+      const sub = m[2]
+      /* 순수 CRUD(/{id} 만 있는 자리)는 목록·폼이 당연히 부른다 — 가려낸다. */
+      if (!/[a-zA-Z]/.test(sub.replace(/\{[^}]*\}/g, ''))) continue
+      const full = (base + sub).replace('/api', '')
+      const key = m[1].toUpperCase() + ' ' + full
+      checked += 1
+      const whole = new RegExp(full.split(/\{[^}]+\}/).map(esc).join('[^\'`"]*'))
+      const segs = full.split('/').filter((x) => x && !x.startsWith('{'))
+      const tails = segs.slice(1)
+      const composed = front.includes('/' + segs[0]) && tails.length > 0
+        && tails.every((t) => new RegExp('[\'"`]/?' + esc(t) + '[\'"`]').test(front))
+      const called = whole.test(front) || composed
+      if (!called && OK[key] === undefined) bad.push(key + '  (' + f.split(/[\\/]/).pop() + ')')
+      if (called && OK[key] !== undefined) gone.push(key)
+    }
+  }
+  eq(`자리 ${checked}개 가운데 화면이 안 부르는 새 자리가 없다 (서버전용 ${Object.keys(OK).length}개는 이유를 적었다)`,
+    bad.join('\n') || '없음', '없음')
+  eq('이제 부르는데 서버전용으로 남겨 둔 것이 없다', gone.join('\n') || '없음', '없음')
 }
 
 

@@ -718,7 +718,11 @@ const APPS: AppIcon[] = [
   { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
   { icon: '🔔', title: '알림', panel: 'notifications' },
   { icon: '💬', title: '메신저', panel: 'messenger' },
-  { icon: '📨', title: '쪽지' },
+  /*
+   * 원본 앱바의 [쪽지]. 우리는 아이콘만 두고 <b>아무 데도 안 갔다</b> — 눌러도 아무 일이
+   * 없는 아이콘은 고장으로 읽힌다. 쪽지 화면은 진작 있다(그룹웨어 > 쪽지(수발신내역)).
+   */
+  { icon: '📨', title: '쪽지', to: '/groupware/messages' },
   { icon: '📝', title: 'E Note', panel: 'notes' },
   { icon: '🖨️', title: '화면 인쇄', print: true },
   { icon: '🗗', title: '새창열기', newWindow: true },
@@ -788,6 +792,7 @@ export default function EcountLayout() {
   const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
+  const [noteCount, setNoteCount] = useState(0)                 // 쪽지 안 읽은 수
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
@@ -808,6 +813,19 @@ export default function EcountLayout() {
     const t = window.setInterval(count, 30000)
     return () => window.clearInterval(t)
   }, [panel])
+
+  /*
+   * 쪽지 안 읽은 수. 서버가 세어 주는데(/short-messages/unread-count) 아무도 안 물어봐서
+   * <b>새 쪽지가 와도 아이콘이 그대로였다.</b> 메신저와 같은 주기로 센다.
+   */
+  useEffect(() => {
+    const count = () => api.get<{ unread: number }>('/short-messages/unread-count')
+      .then((r) => setNoteCount(r.data.unread))
+      .catch(() => setNoteCount(0))
+    count()
+    const t = window.setInterval(count, 30000)
+    return () => window.clearInterval(t)
+  }, [location.pathname])
 
   /* 화면 안의 버튼(근태조회 [메신저]·설문조사조회 [대화방])이 <b>같은 창을</b> 열어 달라고 알린다. */
   useEffect(() => {
@@ -1126,12 +1144,16 @@ export default function EcountLayout() {
           {APPS.map((a, i) => (
             <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer', position: 'relative' }}>
               {a.icon}
-              {((a.panel === 'notifications' && alertCount > 0) || (a.panel === 'messenger' && chatCount > 0)) && (
+              {((a.panel === 'notifications' && alertCount > 0)
+                || (a.panel === 'messenger' && chatCount > 0)
+                || (a.title === '쪽지' && noteCount > 0)) && (
                 <span style={{
                   position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, padding: '0 3px',
                   borderRadius: 7, background: '#c60a2e', color: '#fff', fontSize: 9, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount) : alertCount}</span>
+                }}>{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
+                  : a.title === '쪽지' ? (noteCount > 99 ? '99+' : noteCount)
+                    : alertCount}</span>
               )}
             </span>
           ))}
