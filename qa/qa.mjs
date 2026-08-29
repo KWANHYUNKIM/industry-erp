@@ -8202,6 +8202,57 @@ async function scenarioDefectType(f) {
   for (const q of [bad, good]) await must('DELETE', `/quality-inspections/${q.id}`)
 }
 
+/**
+ * 생산불출의 <b>전표번호</b>와 품질검사요청의 <b>프로젝트</b>.
+ *
+ * <p>둘 다 원본 격자에 있는데 우리에겐 없던 값이다. 불출은 날짜만 있어 같은 날 여러 건을
+ * <b>가리킬 말이 없었고</b>, 검사요청은 프로젝트를 걸 데가 없어 요청이 검사로 넘어갈 때
+ * 사람이 다시 골라야 했다.
+ */
+async function scenarioIssueNoAndRequestProject(f) {
+  section('■ 생산불출 전표번호 · 검사요청 프로젝트')
+
+  const mi = await must('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, qty: 1, issueDate: '2026-08-26',
+  })
+  eq('불출에 전표번호가 붙는다', /^MI-\d{8}-\d{4}$/.test(mi.issueNo), true)
+  const mi2 = await must('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, qty: 1, issueDate: '2026-08-26',
+  })
+  /*
+   * 같은 날 두 건이면 번호가 <b>달라야</b> 한다 — 이게 안 되면 날짜만 있던 때와 똑같다.
+   */
+  eq('같은 날 두 건은 번호가 다르다', mi.issueNo !== mi2.issueNo, true)
+  /*
+   * <b>가운데를 지워도 번호가 겹치지 않는다.</b> count()+1 로 세면 여기서 무너진다 —
+   * 셋 중 하나를 지우면 개수가 둘이 되어 다음 번호가 <b>이미 있는 번호</b>와 같아진다.
+   * (맨 뒤를 지우면 그 번호는 다시 쓰인다. 막는 것은 중복이지 재사용이 아니다.)
+   */
+  const mi3 = await must('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, qty: 1, issueDate: '2026-08-26',
+  })
+  await must('DELETE', `/material-issues/${mi2.id}`)
+  const mi4 = await must('POST', '/material-issues', {
+    itemId: f.material.id, warehouseId: f.warehouse.id, qty: 1, issueDate: '2026-08-26',
+  })
+  eq('가운데를 지워도 살아 있는 번호와 안 겹친다',
+    mi4.issueNo !== mi.issueNo && mi4.issueNo !== mi3.issueNo, true)
+  for (const x of [mi, mi3, mi4]) await must('DELETE', `/material-issues/${x.id}`)
+
+  const pj = (await must('GET', '/projects'))[0]
+  const req = await must('POST', '/quality-inspection-requests', {
+    requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 10,
+    projectId: pj ? pj.id : undefined, requester: 'QA',
+  })
+  if (pj) {
+    eq('검사요청에 프로젝트가 붙는다', req.projectId, pj.id)
+    eq('프로젝트 이름도 함께 온다', req.projectName, pj.name)
+  }
+  isNull('안 걸 수도 있다', (await must('POST', '/quality-inspection-requests', {
+    requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 1, requester: 'QA',
+  })).projectId)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -8578,6 +8629,7 @@ async function main() {
   await scenarioUdiSupplyShape(fixtures)
   await scenarioBankAccountCurrency()
   await scenarioDefectType(fixtures)
+  await scenarioIssueNoAndRequestProject(fixtures)
 
   checkDeadAssertions()
 

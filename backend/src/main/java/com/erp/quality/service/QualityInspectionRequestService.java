@@ -22,6 +22,7 @@ public class QualityInspectionRequestService {
 
     private final QualityInspectionRequestRepository requestRepository;
     private final ItemRepository itemRepository;
+    private final com.erp.inventory.service.ProjectService projectService;
     private final DocumentNoGenerator docNoGenerator;
 
     /** status가 null이면 전체, 아니면 해당 상태만(미검사현황=REQUESTED). */
@@ -49,6 +50,8 @@ public class QualityInspectionRequestService {
                 .lotNo(req.lotNo())
                 .requestQty(req.requestQty())
                 .dueDate(req.dueDate())
+                /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .status(QualityRequestStatus.REQUESTED)
                 .requester(requester)
                 .remark(req.remark())

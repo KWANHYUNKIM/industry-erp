@@ -20,6 +20,8 @@ public final class QualityRequestDtos {
             String lotNo,
             @NotNull(message = "요청수량을 입력하세요.") @Positive(message = "요청수량은 0보다 커야 합니다.") BigDecimal requestQty,
             LocalDate dueDate,
+            /** 원본 격자의 [프로젝트]. 안 걸 수도 있다. */
+            Long projectId,
             String requester,
             String remark
     ) {}
@@ -38,6 +40,8 @@ public final class QualityRequestDtos {
             String lotNo,
             BigDecimal requestQty, LocalDate dueDate,
             QualityRequestStatus status, String statusName,
+            /** 원본 격자의 [프로젝트]. 안 걸었으면 null. */
+            Long projectId, String projectName,
             String requester, String remark
     ) {
         public static RequestResponse from(QualityInspectionRequest r) {
@@ -49,6 +53,8 @@ public final class QualityRequestDtos {
                     r.getLotNo(),
                     r.getRequestQty(), r.getDueDate(),
                     r.getStatus(), r.getStatus().getDisplayName(),
+                    r.getProject() != null ? r.getProject().getId() : null,
+                    r.getProject() != null ? r.getProject().getName() : null,
                     r.getRequester(), r.getRemark());
         }
     }

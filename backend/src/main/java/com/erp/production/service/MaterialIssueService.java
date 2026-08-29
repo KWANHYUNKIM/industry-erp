@@ -39,6 +39,7 @@ public class MaterialIssueService {
     private final WorkOrderRepository workOrderRepository;
     private final StockService stockService;
     private final ProjectService projectService;
+    private final com.erp.common.DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to) {
@@ -71,6 +72,8 @@ public class MaterialIssueService {
 
         LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
         MaterialIssue mi = MaterialIssue.builder()
+                /* 다른 전표와 같은 방식으로 센다 — count()+1 은 지운 번호를 다시 쓴다. */
+                .issueNo(docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date))
                 .item(item)
                 .warehouse(warehouse)
                 .toWarehouse(toWarehouse)

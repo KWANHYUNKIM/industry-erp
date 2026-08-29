@@ -58,6 +58,8 @@ public final class MaterialIssueDtos {
 
     public record MaterialIssueResponse(
             Long id,
+            /** 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다. */
+            String issueNo,
             Long itemId, String itemCode, String itemName, String unit,
             /** 규격. 원본 생산불출조회의 열 이름이 [품목명[규격명]] 이다. */
             String itemSpec,
@@ -78,7 +80,7 @@ public final class MaterialIssueDtos {
     ) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
             return new MaterialIssueResponse(
-                    mi.getId(),
+                    mi.getId(), mi.getIssueNo(),
                     mi.getItem().getId(), mi.getItem().getCode(), mi.getItem().getName(), mi.getItem().getUnit(),
                     mi.getItem().getSpec(),
                     mi.getWarehouse() != null ? mi.getWarehouse().getId() : null,

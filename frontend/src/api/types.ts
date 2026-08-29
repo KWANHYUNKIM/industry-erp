@@ -837,6 +837,9 @@ export interface QualityInspectionRequest {
   dueDate: string | null
   status: QualityRequestStatus
   statusName: string
+  /** 원본 품질검사요청입력 격자의 [프로젝트]. 안 걸었으면 null. */
+  projectId: number | null
+  projectName: string | null
   requester: string | null
   remark: string | null
 }

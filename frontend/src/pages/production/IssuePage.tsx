@@ -12,6 +12,8 @@ import { ymd } from '../../components/EcPeriodPicks'
 interface MaterialIssue {
   id: number
   itemId: number
+  /** 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다. */
+  issueNo: string
   itemCode: string
   itemName: string
   itemSpec: string | null
@@ -74,6 +76,11 @@ export default function IssuePage() {
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  /** 원본은 일자와 번호를 '2026/08/29 -1' 로 한 칸에 적는다(판매조회·견적서와 같은 규칙). */
+  const dateNo = (r: { issueDate: string; issueNo: string }) => {
+    const seq = r.issueNo.split('-').pop() ?? ''
+    return `${r.issueDate.replace(/-/g, '/')} -${Number(seq) || seq}`
+  }
   /** 담당자 이름은 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -171,7 +178,12 @@ export default function IssuePage() {
   async function printOne(r: MaterialIssue) {
     await printDocuments([{
       title: '생산불출증',
-      docNo: r.workOrderNo ? `${r.issueDate} / ${r.workOrderNo}` : r.issueDate,
+      /*
+       * 이제 불출에도 전표번호가 있다. 예전에는 <b>작업지시번호를 대신 찍었다</b> —
+       * 종이만 보면 어느 불출을 찍은 것인지 알 수 없었고, 지시 하나에 불출이 여럿이면
+       * 같은 번호의 종이가 여러 장 나왔다.
+       */
+      docNo: r.issueNo,
       docDate: r.issueDate,
       hideAmounts: true,
       hideParties: true,
@@ -381,7 +393,12 @@ export default function IssuePage() {
                        shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
                      )} />
             </th>
-            <th>일자</th>
+            {/*
+              원본 첫 열은 [일자]가 아니라 <b>[일자-No.]</b> 다(사본 실측). 날짜만 있으면
+              같은 날 여러 건을 가리킬 말이 없다 — 이번에 불출에도 전표번호를 달았다.
+              적는 규칙은 판매조회·견적서와 같다('2026/08/29 -1').
+            */}
+            <th>일자-No.</th>
             <th style={{ width: 90 }}>담당자</th>
             {/*
               원본 차례: 일자-No. · <b>보내는창고명 · 받는공장명</b> · 품목명[규격명] ·
@@ -427,7 +444,7 @@ export default function IssuePage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.issueDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName ?? '-'}</td>
               <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>

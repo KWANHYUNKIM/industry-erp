@@ -34,6 +34,7 @@ const statusColor = (s: QualityRequestStatus) => (s === 'REQUESTED' ? '#c07a00' 
 export default function QualityRequestPage() {
   const [rows, setRows] = useState<QualityInspectionRequest[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 품질검사요청입력 조건: <b>일자-No.</b> · <b>담당자</b>.
@@ -48,17 +49,18 @@ export default function QualityRequestPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     requestDate: today(), type: 'INCOMING', itemId: '',
-    lotNo: '', requestQty: '', dueDate: '', requester: '', remark: '',
+    lotNo: '', requestQty: '', dueDate: '', projectId: '', requester: '', remark: '',
   })
 
   async function load() {
     setLoading(true)
     try {
-      const [q, i] = await Promise.all([
+      const [q, i, pj] = await Promise.all([
         api.get<QualityInspectionRequest[]>('/quality-inspection-requests'),
         api.get<Item[]>('/items'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
-      setRows(q.data); setItems(i.data)
+      setRows(q.data); setItems(i.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -78,10 +80,11 @@ export default function QualityRequestPage() {
         lotNo: form.lotNo || undefined,
         requestQty: Number(form.requestQty),
         dueDate: form.dueDate || undefined,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
         requester: form.requester || undefined,
         remark: form.remark || undefined,
       })
-      setForm((f) => ({ ...f, itemId: '', lotNo: '', requestQty: '', dueDate: '', requester: '', remark: '' }))
+      setForm((f) => ({ ...f, itemId: '', lotNo: '', requestQty: '', dueDate: '', projectId: '', requester: '', remark: '' }))
       setShowForm(false)
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -143,6 +146,12 @@ export default function QualityRequestPage() {
               <input className={inputCls} value={form.requester} onChange={(e) => set('requester', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
             <label style={{ fontSize: 12.5, flex: 1, minWidth: 180 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
+            {/* 원본 격자의 마지막이 [프로젝트] 다. 여기서 안 받으면 그 열이 늘 빈칸이다. */}
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
+              <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 150 }}>
+                <option value="">(없음)</option>
+                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.name}</option>)}
+              </select></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
@@ -188,15 +197,20 @@ export default function QualityRequestPage() {
             <th style={{ width: 100 }}>검사기한</th>
             <th>적요</th>
             <th style={{ width: 80, textAlign: 'center' }}>상태</th>
+            {/*
+              원본 격자의 [프로젝트]. 검사에는 진작 있던 값인데 <b>요청에는 없어</b>
+              프로젝트를 걸어 요청해도 그 값이 어디에도 안 남았다.
+            */}
+            <th style={{ width: 100 }}>프로젝트</th>
             <th style={{ width: 80 }}>요청자</th>
             <th style={{ width: 150, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -211,6 +225,7 @@ export default function QualityRequestPage() {
               <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
               <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
+              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? '-'}</td>
               <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {r.status === 'REQUESTED' ? (
