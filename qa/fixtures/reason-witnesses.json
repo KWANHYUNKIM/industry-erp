@@ -658,5 +658,46 @@
    "SourceType"
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "거래처관리대장 II|거래처계층그룹": {
+  "claim": "거래처그룹이 평면이다 — 그룹 위에 그룹이 없다",
+  "absent": [
+   "parent",
+   "Parent"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PartnerGroup.java"
+ },
+ "출하현황|시리얼/로트No.": {
+  "claim": "출하 라인에 로트를 달지 않는다",
+  "absent": [
+   "lot",
+   "Lot"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/ShipmentLine.java"
+ },
+ "작업지시서입력|첨부": {
+  "claim": "작업지시에 붙임 파일을 달지 않는다",
+  "absent": [
+   "attachment",
+   "Attachment",
+   "StoredFile"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+ },
+ "구매단가일괄변경|프로젝트": {
+  "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PriceBulkDtos.java"
+ },
+ "창고등록|추가사업장": {
+  "claim": "한 회사 안에 사업장이 여럿일 수 없다",
+  "absent": [
+   "businessPlace",
+   "BusinessPlace"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Warehouse.java"
  }
 }
