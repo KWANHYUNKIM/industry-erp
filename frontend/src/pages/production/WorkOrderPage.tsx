@@ -8,10 +8,10 @@ import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { Link } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 
 const inputCls = 'ec-input'
 
@@ -74,6 +74,15 @@ const dateNo = (o: { orderDate: string; orderNo: string }) => {
   return `${o.orderDate.replace(/-/g, '/')} -${Number(seq) || seq}`
 }
 
+/*
+ * 원본 작업지시서조회는 <b>기준일자</b>를 들고 [최근30일(+1개월)] 로 열린다(사본 실측 —
+ * 달 스핀박스가 06·08 셋이라 앞으로 한 달까지 본다). 작업지시는 <b>앞으로 할 일</b>이라
+ * 오늘까지만 보면 아직 안 온 납기의 지시가 빠진다.
+ * 
+ * <p>우리는 기간 칸이 <b>아예 없어서</b> 지시가 쌓이면 목록만 길어졌다.
+ */
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function WorkOrderPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -97,6 +106,8 @@ export default function WorkOrderPage() {
      창고는 목록에 찍히는데 그것으로 거를 수가 없었다. */
   const [whCond, setWhCond] = useState('')
   /* 원본 조건 차례의 맨 앞 <b>[작업지시No.]</b>. 번호를 알아도 눈으로 찾아야 했다. */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
   /** 납품처·담당자. 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
   const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
@@ -134,6 +145,7 @@ export default function WorkOrderPage() {
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
   const shown = orders.filter((o) => (tab === '전체' || o.status === TAB_STATUS[tab])
+    && (!from || o.orderDate >= from) && (!to || o.orderDate <= to)
     && (!orderNoCond || o.orderNo.includes(orderNoCond))
     && (!whCond || o.warehouseName === whCond)
     && (!partnerCond || (o.partnerName ?? '').includes(partnerCond))
@@ -194,6 +206,18 @@ export default function WorkOrderPage() {
 
       {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추는 조회 묶음(…·종료일)이다(사본 실측). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="작업지시No.">
           <input className="ec-input" value={orderNoCond} placeholder="작업지시No."
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />

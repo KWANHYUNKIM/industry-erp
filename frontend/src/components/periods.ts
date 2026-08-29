@@ -214,6 +214,13 @@ export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
  * A/S접수현황·A/S수리현황(E040610·E040611) — 조회 묶음에 <b>직전분기·직전반기</b>가 붙는다
  * (사본 실측). A/S 는 분기·반기로 접수량을 견주는 일이 흔하다.
  */
+/**
+ * 재고실사현황(E040612 계열) — 조회 묶음에 <b>전년</b>이 붙고 기본은 <b>금년</b>이다
+ * (사본 실측 — 달 스핀박스가 01·12 라 한 해를 통째로 본다). 실사는 한 해에 몇 번이라
+ * 달로 자르면 아무것도 안 보인다.
+ */
+export const STOCKTAKE_PICKS = [...BASE_PICKS, '전년', '종료일'] as const
+
 export const AS_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일'] as const
 
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const

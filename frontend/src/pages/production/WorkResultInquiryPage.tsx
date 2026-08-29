@@ -85,7 +85,12 @@ export default function WorkResultInquiryPage() {
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
-  const init = periodOf('금월(~오늘)')!
+  /*
+   * 원본 작업내역조회는 <b>[최근30일(+1개월)]</b> 로 열린다(사본 실측 — 달 스핀박스가
+   * 06·08 셋이다). 전표를 <b>고치러</b> 오는 화면이라 앞으로 잡아 둔 것까지 봐야 한다.
+   * 같은 자료를 보는 [작업내역현황]은 금월이다 — 조회와 현황이 다르다.
+   */
+  const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [process, setProcess] = useState('')

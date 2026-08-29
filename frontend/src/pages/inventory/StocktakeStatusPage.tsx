@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { STOCKTAKE_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -58,7 +58,11 @@ export default function StocktakeStatusPage() {
   const [error, setError] = useState('')
 
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
-  const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
+  /*
+   * 원본은 <b>금년</b>으로 연다(사본 실측 — 달 스핀박스가 01·12 다). 실사는 한 해에
+   * 몇 번뿐이라 금월로 자르면 열자마자 <b>빈 표</b>가 뜬다.
+   */
+  const init = periodOf('금년', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({
     from: init.from, to: init.to, warehouseId: '', item: '', reason: '',
     status: '' as Status, diffOnly: false, handler: '',})
@@ -128,7 +132,7 @@ export default function StocktakeStatusPage() {
       <EcStatusPanel
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
-        picks={INQUIRY_PICKS}
+        picks={STOCKTAKE_PICKS}
         dateLabel="일자"
       >
         <EcCond label="구분">
