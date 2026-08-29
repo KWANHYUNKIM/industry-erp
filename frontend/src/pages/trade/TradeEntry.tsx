@@ -1696,9 +1696,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     </td>
                     {lineDefs.map((d) => (
                       <td key={d.fieldKey}>
-                        {/* 우리 필드 유형은 문자·숫자·일자·코드 넷이다. 코드도 아직 고를 마스터가
-                            없어 문자처럼 받는다 — 없는 선택지를 만들어 두지 않는다. */}
-                        {(d.options ?? '').trim() ? (
+                        {/*
+                          머리의 추가항목과 <b>같은 잣대로</b> 그린다. 예전에는 줄만 선택지가
+                          채워졌는지를 봤는데, 정의 화면은 [코드] 형식일 때만 선택지를 받으므로
+                          선택지를 안 채운 코드 필드가 <b>머리에선 드롭다운, 줄에선 글자 칸</b>이
+                          됐다 — 같은 화면의 같은 필드가 위아래에서 다르게 굴었다.
+                          원본도 사용자정의 칸은 치는 칸이 아니라 고르는 칸이다(사본 실측: 잠김 20/20).
+                        */}
+                        {d.fieldType === 'CODE' ? (
                           <select className="cell" value={l.custom[d.fieldKey] ?? ''} disabled={!l.itemId}
                                   onChange={(e) => setLineCustom(idx, d.fieldKey, e.target.value)}>
                             <option value=""></option>

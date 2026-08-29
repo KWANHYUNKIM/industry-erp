@@ -1,5 +1,7 @@
 package com.erp.settings.service;
 
+import org.springframework.util.StringUtils;
+import com.erp.settings.domain.enums.CustomFieldType;
 import com.erp.common.ApiException;
 import com.erp.settings.domain.CustomFieldDef;
 import com.erp.settings.domain.CustomFieldValue;
@@ -35,8 +37,23 @@ public class CustomFieldService {
                 .stream().map(FieldDefResponse::from).toList();
     }
 
+    /**
+     * [코드] 형식인데 <b>고를 것이 하나도 없으면</b> 만들지 못하게 한다.
+     *
+     * <p>그런 필드는 화면에서 빈 드롭다운이 된다 — 열어 봐야 [선택] 하나뿐이라
+     * 아무 값도 넣을 수 없다. 만든 사람은 필드를 만들었다고 생각하는데 쓰는 사람은
+     * 그 칸을 영영 못 채운다. 정의 화면도 [코드]일 때만 선택지 칸을 보여 주므로,
+     * 여기서 막아야 그 상태가 아예 생기지 않는다.
+     */
+    private static void requireOptionsForCode(CustomFieldType type, String options) {
+        if (type == CustomFieldType.CODE && !StringUtils.hasText(options)) {
+            throw ApiException.badRequest("코드 형식은 고를 선택지를 하나 이상 넣으세요. 예: 급함,보통,낮음");
+        }
+    }
+
     @Transactional
     public FieldDefResponse createDef(CreateFieldDefRequest req) {
+        requireOptionsForCode(req.fieldType(), req.options());
         String entityType = req.entityType().trim();
         String key = req.fieldKey().trim();
         if (defRepository.existsByEntityTypeAndFieldKey(entityType, key)) {
@@ -56,6 +73,7 @@ public class CustomFieldService {
     public FieldDefResponse updateDef(Long id, UpdateFieldDefRequest req) {
         CustomFieldDef d = defRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사용자정의 필드를 찾을 수 없습니다. id=" + id));
+        requireOptionsForCode(req.fieldType(), req.options());
         d.setLabel(req.label().trim());
         d.setFieldType(req.fieldType());
         d.setOptions(req.options());

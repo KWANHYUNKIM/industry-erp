@@ -4015,6 +4015,15 @@ async function scenarioValidationMessages(f) {
     ['자원 시간당비용', '/resources', { code: 'ZZNEG5', name: 'ZZNEG자원2', costPerHr: -10000 }, ['시간당비용', '0 이상']],
     ['카드사 수수료율', '/card-issuers', { code: 'ZZNEG6', name: 'ZZNEG카드사', feeRate: -5 }, ['수수료율', '0~100']],
     /*
+     * [코드] 형식인데 <b>고를 것이 하나도 없는</b> 사용자정의 필드. 만들어 두면 화면에서
+     * 빈 드롭다운이 되어 아무 값도 못 넣는다 — 만든 사람은 만들었다고 생각하는데
+     * 쓰는 사람은 그 칸을 영영 못 채운다. 정의 화면도 [코드]일 때만 선택지 칸을
+     * 보여 주므로, 서버가 막아야 그 상태가 아예 안 생긴다.
+     */
+    ['선택지 없는 코드 필드', '/custom-fields/defs',
+      { entityType: 'SALES', fieldKey: 'zzcodeqa', label: 'QA선택지없음', fieldType: 'CODE' },
+      ['코드 형식', '선택지']],
+    /*
      * <b>줄(line) 요청도 본다.</b> 검사가 오래 {@code Create…Request} 라는 이름만 보고 있어서
      * 전표 줄 요청 79종을 통째로 못 봤다 — 판매 줄의 비고·부대비용, WMS 피킹 수량 같은 것들이다.
      * 줄의 비고는 머리의 비고(500자)보다 짧다(255자). 여기서 그 차이까지 지킨다.
