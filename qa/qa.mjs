@@ -3871,6 +3871,13 @@ async function scenarioHttpProtocol() {
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 
+  // 없는 파일을 지우라 하면 204(지웠다)가 아니라 404(그런 것 없다)다.
+  // deleteById 는 대상이 없어도 조용히 돌아오므로, 화면은 "삭제되었습니다" 를 띄우고
+  // 목록에서 줄을 지운다 — 아무것도 안 지웠는데 지운 것처럼 보인다.
+  const ghostFile = await call('DELETE', '/files/99999999')
+  eq('없는 파일 삭제는 404', ghostFile.status, 404)
+  eq('없다고 말해 준다', /찾을 수 없습니다/.test(String(ghostFile.data?.message ?? '')), true)
+
   for (const [label, r] of [['405', put], ['415', text], ['406', xml], ['400', notMultipart]]) {
     eq(`${label}: 내부 문구가 새어 나가지 않는다`,
       /Exception|not supported|Current request|org\.|com\.erp/.test(String(r.data?.message ?? '')), false)

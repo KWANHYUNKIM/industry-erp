@@ -265,7 +265,13 @@ public class ChatService {
         room.setLastMessageAt(now);
     }
 
-    /** 내가 참여한 방인지 확인. 아니면 남의 대화를 읽는 것이므로 막는다. */
+    /**
+     * 내가 참여한 방인지 확인. 아니면 남의 대화를 읽는 것이므로 막는다.
+     *
+     * <p>없는 방 번호도 여기서 똑같이 403 이 된다. 일부러 그렇다 — 404 로 갈라 주면
+     * 번호를 하나씩 올려 가며 <b>어느 방이 있는지</b>를 알아낼 수 있다. 방이 있는지 없는지는
+     * 그 방 사람만 알 일이다.
+     */
     private ChatRoomMember mine(Long roomId, User me) {
         return memberRepository.findByRoomIdAndUserId(roomId, me.getId())
                 .orElseThrow(() -> ApiException.forbidden("참여 중인 대화방이 아닙니다."));

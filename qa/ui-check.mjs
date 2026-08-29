@@ -4383,6 +4383,40 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 탭이 원본과 같나
   eq(`탭 기본값을 잰 화면 ${checked}개가 원본과 같다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-s8) 없는 것을 지우라 했는데 지웠다고 하지 않나 ─────────────────────
+console.log('\n■ 없는 것을 지우라 했는데 지웠다고 하지 않나')
+
+/*
+ * <code>deleteById</code> 는 대상이 <b>없어도 아무 말 없이 돌아온다.</b> 그대로 두면
+ * 화면은 204 를 받고 "삭제되었습니다" 를 띄운 뒤 목록에서 줄을 지운다 — 실제로는
+ * 아무것도 안 지웠는데 지운 것처럼 보인다. 같은 자료를 두 사람이 열어 두고 한쪽이
+ * 먼저 지운 뒤 다른 쪽이 [삭제]를 누르면 바로 이 모양이 된다.
+ *
+ * <p>실제로 <b>파일 지우기</b> 한 자리가 그랬다(나머지 다섯 자리는 이미 막고 있었다).
+ * 없는 id 로 두드리니 404 가 아니라 <b>204</b> 가 돌아왔다. 집이 이미 쓰고 있던
+ * <code>existsById</code> + <code>notFound</code> 를 그 자리에도 붙이고, 여기서 못 박는다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('.java')) continue
+    const src = readFileSync(f, 'utf8')
+    if (!src.includes('.deleteById(')) continue
+    const lines = src.split(/\r?\n/)
+    lines.forEach((line, i) => {
+      if (!line.includes('.deleteById(')) return
+      checked += 1
+      /* 같은 메서드 안(위로 최대 12줄)에 '있는지 본' 자리가 있어야 한다. */
+      const before = lines.slice(Math.max(0, i - 12), i).join('\n')
+      if (!/existsById|findById|orElseThrow/.test(before)) {
+        bad.push(`${f.split(/[\\/]/).pop()}:${i + 1}  ${line.trim()}`)
+      }
+    })
+  }
+  eq(`지우는 자리 ${checked}곳이 없는 id 를 그냥 넘기지 않는다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

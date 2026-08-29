@@ -73,8 +73,19 @@ public class FileStorageService {
                 .orElseThrow(() -> ApiException.notFound("파일 내용을 찾을 수 없습니다. id=" + id));
     }
 
+    /**
+     * <p>없는 id 를 지우라 해도 <b>조용히 성공</b>하던 자리였다. {@code deleteById} 는 대상이 없으면
+     * 아무 일도 하지 않고 돌아오므로, 화면은 "삭제되었습니다" 를 띄우고 목록에서 줄을 지운다 —
+     * 실제로는 아무것도 안 지웠는데 지운 것처럼 보인다. 같은 파일을 두 사람이 동시에 열어
+     * 한쪽이 먼저 지운 뒤 다른 쪽이 [삭제]를 누르면 정확히 이 모양이 된다.
+     *
+     * <p>바로 위 {@link #meta}·{@link #load} 와 똑같이 <b>없으면 없다고 말한다.</b>
+     */
     @Transactional
     public void delete(Long id) {
+        if (!fileRepository.existsById(id)) {
+            throw ApiException.notFound("파일을 찾을 수 없습니다. id=" + id);
+        }
         dataRepository.deleteById(id);
         fileRepository.deleteById(id);
     }
