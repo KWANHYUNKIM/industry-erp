@@ -25,6 +25,9 @@ const COLOR: Record<PurchaseOrderStatus, string> = {
   REQUESTED: '#c07a00', PLANNED: '#8a929c', PRICED: '#7a5bb5',
   ORDERED: 'var(--ec-blue)', RECEIVED: '#1c7c3c', CANCELLED: '#c60a2e',
 }
+/** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
+const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
+
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 /** 문서의 파이프라인 진행 위치를 점으로 표시. 취소는 별도 표기. */
@@ -58,6 +61,14 @@ export default function PriceRequestProgressPage() {
    * 프로젝트 · 담당자 · 거래처관리담당자 · 적요</b> 다(사본 실측).
    * 넷을 만든다 — 값은 이미 응답에 다 있었다. 눈에는 보이는데 그것으로 좁힐 수가 없었다.
    */
+  /*
+   * 원본 [유효기간] — 셀렉트가 <b>[사용안함]</b> 으로 서 있고, 켜면 기간 두 칸이 나온다
+   * (사본 실측: ddlTSYear 셀렉트 + 숨어 있는 datepicker-range). 기본이 '안 거른다' 이므로
+   * 처음 연 사람에게는 아무것도 안 사라진다.
+   */
+  const [validUse, setValidUse] = useState<'사용안함' | '기간지정'>('사용안함')
+  const [validFrom, setValidFrom] = useState('')
+  const [validTo, setValidTo] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [empCond, setEmpCond] = useState('')
@@ -98,8 +109,17 @@ export default function PriceRequestProgressPage() {
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
     .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    /*
+     * 원본 [유효기간] — [사용안함]이면 안 거른다. 켰을 때 <b>유효기간이 없는 요청은 빠진다</b>:
+     * 기간으로 물었는데 기간이 없는 것을 끼워 주면 무엇으로 걸린 목록인지 알 수 없다.
+     */
+    .filter((r) => validUse === '사용안함'
+      || (r.priceValidUntil != null
+        && (!validFrom || r.priceValidUntil >= validFrom)
+        && (!validTo || r.priceValidUntil <= validTo)))
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
-  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond])
+  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond,
+    validUse, validFrom, validTo])
 
   /*
    * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -133,6 +153,22 @@ export default function PriceRequestProgressPage() {
 
       {/* 원본 조건 차례: 진행상태 · 거래처 · 품목 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 차례는 <b>[유효기간]이 맨 앞</b>이다(사본 실측). */}
+        <EcCond label="유효기간">
+          <select className="ec-input" value={validUse} style={{ width: 100 }}
+                  onChange={(e) => setValidUse(e.target.value as '사용안함' | '기간지정')}>
+            <option>사용안함</option><option>기간지정</option>
+          </select>
+          {validUse === '기간지정' && (
+            <>
+              <input type="date" className="ec-input" value={validFrom}
+                     onChange={(e) => setValidFrom(e.target.value)} style={{ width: 145 }} />
+              <span style={{ margin: '0 4px' }}>~</span>
+              <input type="date" className="ec-input" value={validTo}
+                     onChange={(e) => setValidTo(e.target.value)} style={{ width: 145 }} />
+            </>
+          )}
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
@@ -175,14 +211,19 @@ export default function PriceRequestProgressPage() {
             <th>품목</th>
             <th style={{ width: 320 }}>진행단계</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>확정금액</th><th>담당</th>
+            <th style={{ textAlign: 'right' }}>확정금액</th>
+            {/*
+              원본 격자에도 [유효기간] 열이 있다(stby_price_req.expire_date, 사본 실측).
+              지난 것은 붉게 적는다 — 목록에 날짜만 적어 두면 <b>지났는지를 사람이 세어야</b> 한다.
+            */}
+            <th style={{ width: 110, textAlign: 'center' }}>유효기간</th><th>담당</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -192,6 +233,11 @@ export default function PriceRequestProgressPage() {
               <td><Stepper status={r.status} /></td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace',
+                           color: expired(r.priceValidUntil) ? '#c60a2e' : '#5a626e',
+                           fontWeight: expired(r.priceValidUntil) ? 700 : 400 }}>
+                {r.priceValidUntil ?? ''}
+              </td>
               <td>{r.employeeName ?? ''}</td>
             </tr>
           ))}

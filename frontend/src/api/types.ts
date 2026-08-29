@@ -1671,6 +1671,11 @@ export interface PurchaseOrder {
   orderNo: string
   orderDate: string
   dueDate: string | null
+  /**
+   * 회신받은 단가의 [유효기간]. 납기일과 <b>다른 것</b>이다 —
+   * 납기는 물건이 언제 오느냐이고 이것은 그 값이 언제까지 유효하냐다.
+   */
+  priceValidUntil: string | null
   partnerId: number
   partnerName: string
   employeeId: number | null

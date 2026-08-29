@@ -120,6 +120,7 @@ public class PurchaseOrderService {
                 .orderNo(docNoGenerator.next("PR-", "purchase_orders", "order_no", "order_date", orderDate))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
+                .priceValidUntil(req.priceValidUntil())
                 .partner(partner)
                 .employee(employee)
                 .warehouse(warehouse)
@@ -174,6 +175,10 @@ public class PurchaseOrderService {
                             "발주서 " + po.getOrderNo() + " 에 없는 라인입니다. lineId=" + lp.lineId()));
             line.setUnitPrice(lp.unitPrice());
         }
+        /* 매입처는 단가와 함께 <b>언제까지 유효한지</b>를 준다. 안 주면 그대로 둔다. */
+        if (req.priceValidUntil() != null) {
+            po.setPriceValidUntil(req.priceValidUntil());
+        }
         recalculate(po);
         po.setStatus(PurchaseOrderStatus.PRICED);
         return PurchaseOrderResponse.from(po);
@@ -184,6 +189,16 @@ public class PurchaseOrderService {
     public PurchaseOrderResponse confirm(Long id) {
         PurchaseOrder po = get(id);
         expect(po, PurchaseOrderStatus.PRICED, "단가가 확정된 발주서만 발주할 수 있습니다.");
+        /*
+         * <b>지난 단가로는 발주하지 않는다.</b> 유효기간을 적어 두고도 그냥 통과시키면
+         * 그 칸은 아무 일도 안 하는 장식이 된다 — 물건이 들어오고 청구서가 와서야
+         * 값이 다른 것을 안다. 늦었으면 매입처에 다시 물어 기간을 고치고 발주한다.
+         */
+        if (po.getPriceValidUntil() != null && po.getPriceValidUntil().isBefore(LocalDate.now())) {
+            throw ApiException.badRequest(
+                    "단가 유효기간이 지났습니다(" + po.getPriceValidUntil() + "). "
+                    + "매입처에 다시 확인해 유효기간을 고친 뒤 발주하세요.");
+        }
         po.setStatus(PurchaseOrderStatus.ORDERED);
         return PurchaseOrderResponse.from(po);
     }

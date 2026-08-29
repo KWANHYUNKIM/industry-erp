@@ -41,6 +41,18 @@ public class PurchaseOrder extends BaseTimeEntity {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    /**
+     * 회신받은 <b>단가의 유효기간</b>. 원본 단가요청진행단계의 [유효기간] 이다.
+     *
+     * <p>납기일(dueDate)과 <b>다른 것</b>이다. 납기는 물건이 언제 오느냐이고 이것은
+     * 그 값이 언제까지 유효하냐다. 안 적어 두면 지난 단가로 발주를 확정해도 아무 말이
+     * 없어, 물건이 들어오고 청구서가 와서야 값이 다른 것을 안다.
+     *
+     * <p>안 정할 수도 있다 — 유효기간을 안 다는 거래처도 있고, 단가를 아직 안 받은 요청도 있다.
+     */
+    @Column(name = "price_valid_until")
+    private LocalDate priceValidUntil;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner partner;

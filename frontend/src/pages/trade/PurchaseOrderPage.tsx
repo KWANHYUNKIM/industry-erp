@@ -103,6 +103,8 @@ export default function PurchaseOrderPage() {
       customer: company ? { ...company, label: '발주자' } : { label: '발주자', name: '(회사정보 미등록)' },
       extra: [
         { label: '납기일', value: po.dueDate },
+        /* 납기일과 다른 값이다 — 이건 그 단가가 언제까지 유효하냐다. */
+        { label: '단가 유효기간', value: po.priceValidUntil },
         { label: '입고창고', value: po.warehouseName },
         { label: '담당', value: po.employeeName ?? po.createdBy },
         { label: '진행상태', value: po.statusName },
@@ -312,6 +314,12 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   const [prices, setPrices] = useState<Record<number, string>>(
     Object.fromEntries(order.lines.map((l) => [l.id, String(l.unitPrice)])),
   )
+  /*
+   * 매입처는 단가와 함께 <b>언제까지 유효한지</b>를 준다. 여기서 안 받으면 그 값은
+   * 어디서도 들어올 데가 없다 — 원본 단가요청진행단계의 [유효기간] 이 늘 빈칸이 된다.
+   * 안 적어도 된다(유효기간을 안 다는 거래처도 있다).
+   */
+  const [validUntil, setValidUntil] = useState(order.priceValidUntil ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -324,7 +332,8 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
     if (lines.some((l) => l.unitPrice <= 0)) return setError('모든 라인의 단가를 0보다 크게 입력하세요.')
     setSaving(true)
     try {
-      await api.post(`/purchase-orders/${order.id}/prices`, { lines })
+      await api.post(`/purchase-orders/${order.id}/prices`,
+        { lines, priceValidUntil: validUntil || undefined })
       onSaved()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -366,7 +375,12 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
             </tfoot>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)', alignItems: 'center' }}>
+          <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 5 }}>
+            유효기간
+            <input type="date" className="ec-input" value={validUntil}
+                   onChange={(e) => setValidUntil(e.target.value)} style={{ width: 145 }} />
+          </label>
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '단가확정(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

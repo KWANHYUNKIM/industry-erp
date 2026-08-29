@@ -1124,6 +1124,24 @@ async function scenarioPurchaseOrder(f) {
   eq('부가세 10% 재계산', Number(priced.vatAmount), 3600)
   eq('합계 = 공급가액 + 부가세', Number(priced.totalAmount), 39600)
 
+  /*
+   * 원본 단가요청진행단계의 <b>[유효기간]</b> — 매입처가 준 단가가 언제까지 유효한가.
+   * 납기일과 <b>다른 값</b>이다(납기는 물건이 언제 오느냐다).
+   *
+   * <p>적어 두기만 하고 그냥 통과시키면 그 칸은 <b>아무 일도 안 하는 장식</b>이 된다 —
+   * 지난 단가로 발주가 나가고, 물건이 들어오고 청구서가 와서야 값이 다른 것을 안다.
+   */
+  const stale = await must('POST', `/purchase-orders/${po.id}/prices`, {
+    lines: [{ lineId: po.lines[0].id, unitPrice: 1200 }], priceValidUntil: '2020-01-01',
+  })
+  eq('단가확정에서 유효기간을 함께 받는다', stale.priceValidUntil, '2020-01-01')
+  await rejects('<b>지난 단가로는 발주확정 불가</b>', 'POST', `/purchase-orders/${po.id}/confirm`,
+    undefined, '단가 유효기간이 지났습니다')
+  /* 늦었으면 매입처에 다시 물어 기간을 고친다. 고치면 그대로 나간다. */
+  await must('POST', `/purchase-orders/${po.id}/prices`, {
+    lines: [{ lineId: po.lines[0].id, unitPrice: 1200 }], priceValidUntil: '2099-12-31',
+  })
+
   eq('발주확정 후 상태는 발주확정',
     (await must('POST', `/purchase-orders/${po.id}/confirm`)).statusName, '발주확정')
 

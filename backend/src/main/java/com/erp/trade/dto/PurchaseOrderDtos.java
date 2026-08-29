@@ -31,6 +31,8 @@ public final class PurchaseOrderDtos {
             @NotNull(message = "매입처를 선택하세요.") Long partnerId,
             LocalDate orderDate,
             LocalDate dueDate,
+            /** 원본 단가요청진행단계의 [유효기간] — 회신받은 단가가 언제까지 유효한가. */
+            LocalDate priceValidUntil,
             Boolean taxable,
             String remark,
             Long employeeId,
@@ -51,7 +53,12 @@ public final class PurchaseOrderDtos {
     ) {}
 
     public record ApplyPricesRequest(
-            @NotEmpty(message = "단가를 1개 이상 입력하세요.") @Valid List<LinePriceRequest> lines
+            @NotEmpty(message = "단가를 1개 이상 입력하세요.") @Valid List<LinePriceRequest> lines,
+            /**
+             * 회신받은 단가의 [유효기간]. 매입처는 값과 함께 <b>언제까지 유효한지</b>를 준다.
+             * 안 주면 그대로 둔다(등록할 때 적어 뒀을 수 있다).
+             */
+            LocalDate priceValidUntil
     ) {}
 
     /** 입고 전환: 어느 창고로 받을지 지정해야 구매전표를 만들 수 있다. */
@@ -79,6 +86,8 @@ public final class PurchaseOrderDtos {
 
     public record PurchaseOrderResponse(
             Long id, String orderNo, LocalDate orderDate, LocalDate dueDate,
+            /** 원본 [유효기간]. 안 정했으면 null. 납기일과 다른 값이다. */
+            LocalDate priceValidUntil,
             Long partnerId, String partnerName,
             Long employeeId, String employeeName,
             Long warehouseId, String warehouseName,
@@ -91,6 +100,7 @@ public final class PurchaseOrderDtos {
         public static PurchaseOrderResponse from(PurchaseOrder po) {
             return new PurchaseOrderResponse(
                     po.getId(), po.getOrderNo(), po.getOrderDate(), po.getDueDate(),
+                    po.getPriceValidUntil(),
                     po.getPartner().getId(), po.getPartner().getName(),
                     po.getEmployee() != null ? po.getEmployee().getId() : null,
                     po.getEmployee() != null ? po.getEmployee().getName() : null,
