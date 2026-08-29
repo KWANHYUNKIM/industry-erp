@@ -1270,6 +1270,7 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
     ['발주서현황', 'trade/PurchaseOrderStatusPage.tsx'],
     ['작업지시서현황', 'production/WoStatusPage.tsx'],
+    ['미구매현황', 'trade/UnpurchasedStatusPage.tsx'],
   ])
 
   const bad = []

@@ -88,6 +88,12 @@ export default function PurchaseRequestStatusPage({
    * 원본을 보던 사람이 <b>다른 기능인 줄</b> 안다.
    */
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  /*
+   * <b>단가요청현황만 [구분]이 다르다</b> — 원본은 [요청단가]·[수취단가]·[확정단가]
+   * 셋으로 <b>어느 단가를 볼지</b>를 고른다(사본 실측). 우리 발주 전표는 <b>확정단가</b>
+   * 하나만 든다 — 매입처가 회신한 금액을 따로 적는 칸이 없다(단가요청진행단계의
+   * [수취금액]을 못 만드는 것과 같은 까닭이다). 고를 것이 하나뿐이라 그 셋은 안 그린다.
+   */
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',

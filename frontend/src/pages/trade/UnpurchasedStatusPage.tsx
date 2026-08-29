@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { dateText } from '../../utils/dateText'
@@ -73,6 +74,15 @@ export default function UnpurchasedStatusPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /*
+   * 원본 미구매현황의 <b>[구분]</b>은 [품목별]·[라인별] 이고 열 때는 <b>라인별</b>이다
+   * (사본 실측). 라인별은 발주 줄을 그대로 펴는 것이고, 품목별은 <b>같은 품목을 한 줄로</b>
+   * 모아 "이 품목이 아직 몇 개 안 들어왔나" 를 바로 보여 준다.
+   *
+   * <p>우리는 라인별만 있어서, 같은 품목을 여러 발주로 나눠 넣으면 그 품목의 미입고
+   * 수량을 <b>눈으로 더해야</b> 했다.
+   */
+  const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
   const [keyword, setKeyword] = useState('')
 
   const [panelOpen, setPanelOpen] = useState(false)
@@ -134,6 +144,20 @@ export default function UnpurchasedStatusPage() {
     return out
   }, [rows, keyword, filters])
 
+  /** 품목별 — 같은 품목을 한 줄로 모아 수량·금액을 더한다. */
+  const byItem = useMemo(() => {
+    if (mode !== '품목별') return []
+    const m = new Map<string, { itemName: string; count: number; qty: number; supply: number; vat: number }>()
+    for (const r of shown) {
+      const cur = m.get(r.itemName) ?? { itemName: r.itemName, count: 0, qty: 0, supply: 0, vat: 0 }
+      cur.count += 1; cur.qty += r.qty; cur.supply += r.supply; cur.vat += r.vat
+      m.set(r.itemName, cur)
+    }
+    return [...m.values()].sort((a, b) => b.qty - a.qty)
+  }, [shown, mode])
+  const itemRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(itemRef, '미구매현황 품목별', [byItem.length])
+
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.qty, supply: s.supply + r.supply, vat: s.vat + r.vat }),
     { qty: 0, supply: 0, vat: 0 },
@@ -173,6 +197,14 @@ export default function UnpurchasedStatusPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        {/* 원본 조건 판 첫째 <b>[구분]</b> — 품목별·라인별(사본 실측, 기본 라인별). */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
+        <div className="ec-pills">
+          {(['품목별', '라인별'] as const).map((m) => (
+            <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                    onClick={() => setMode(m)}>{m}</button>
+          ))}
+        </div>
         <button className="ec-btn" onClick={openPanel}>
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
@@ -204,6 +236,43 @@ export default function UnpurchasedStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+      {mode === '품목별' ? (
+        <table ref={itemRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>품목명</th>
+              <th style={{ width: 90, textAlign: 'right' }}>발주건수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>미입고수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byItem.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : byItem.map((g, i) => (
+              <tr key={g.itemName}>
+                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td>{g.itemName}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{g.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byItem.length}개 품목)</td>
+              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -250,6 +319,7 @@ export default function UnpurchasedStatusPage() {
           ))}
         </tbody>
       </table>
+    )}
     </EcListShell>
   )
 }
