@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { formatDays } from '../../utils/dayCount'
 
@@ -143,9 +144,18 @@ export default function AttendanceKindStatusPage() {
           <input className="ec-input" placeholder="부서명 일부" value={dept}
                  onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
         </EcCond>
-        <EcCond label="근태종류" pick>
-          <input className="ec-input" placeholder="연차·반차·병가 …" value={kind}
-                 onChange={(e) => setKind(e.target.value)} style={{ width: 180 }} />
+        {/*
+          원본 근태현황의 이름은 [근태종류]가 아니라 <b>[근태항목]</b> 이다(사본 실측).
+          근태조회는 진작 그 이름인데 이 화면만 달랐다 — 같은 값을 두 이름으로 부르고 있었다.
+
+          후보는 <b>실제로 올라온 근태</b>에서 뽑는다. 근태항목 마스터가 없어 고를 목록을
+          지어낼 수 없고, 지어내면 골라도 아무것도 안 나오는 보기가 생긴다.
+        */}
+        <EcCond label="근태항목" pick>
+          <CodePickerField label="근태항목" hideLabel width={180} emptyLabel="전체"
+                           value={kind} onChange={setKind}
+                           items={[...new Set(rows.map((r) => r.type))].filter(Boolean).sort()
+                             .map((t) => ({ value: t, name: t }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={reason}

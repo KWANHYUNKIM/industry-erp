@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -13,6 +14,17 @@ import { useCondPickers } from '../../utils/useCondPickers'
  */
 
 type Mode = 'SALE' | 'PURCHASE'
+
+/**
+ * 원본 단가변동표(ESP021R)의 <b>[단가기준]</b> — 체크박스 넷이고 처음엔
+ * <b>단순평균단가만</b> 켜져 있다(사본 실측: 전체(0) · 단순평균단가(1, checked) ·
+ * 최고단가(2) · 최저단가(3)).
+ *
+ * <p>[단가구분](판매·매입)과 <b>다른 것</b>이다. 그쪽은 어느 전표의 단가를 볼지이고,
+ * 이쪽은 그 단가를 <b>무엇으로 요약해 보여 줄지</b>다. 우리는 셋을 늘 한꺼번에 냈다 —
+ * 평균만 보고 싶어도 최고·최저가 늘 따라와 표가 넓었다.
+ */
+const PRICE_BASES = ['단순평균단가', '최고단가', '최저단가'] as const
 
 interface PriceRow {
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
@@ -38,6 +50,11 @@ export default function PriceMovementPage() {
   const pickers = useCondPickers(['warehouses', 'partners'])
 
   const [mode, setMode] = useState<Mode>('SALE')
+  /* 원본 기본값 그대로 — 단순평균단가만 켠다. */
+  const [bases, setBases] = useState<string[]>(['단순평균단가'])
+  const withAvg = bases.includes('단순평균단가')
+  const withMax = bases.includes('최고단가')
+  const withMin = bases.includes('최저단가')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -118,6 +135,13 @@ export default function PriceMovementPage() {
 
   const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
+  /*
+   * [단가기준]으로 요약 칸이 켜지고 꺼지니 <b>정적으로는 못 세는 표</b>가 됐다.
+   * 렌더된 표를 직접 재는 검사를 단다.
+   */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '단가변동표', [withMin, withMax, withAvg, rows.length])
+
   return (
     <EcListShell
       title="단가변동표"
@@ -165,11 +189,30 @@ export default function PriceMovementPage() {
             }}>{m === 'SALE' ? '판매단가' : '매입단가'}</button>
           ))}
         </div>
+        {/*
+          원본 [단가기준] — 어느 요약을 낼지. [단가구분](판매·매입)과 다른 줄이다.
+          전부 끄면 <b>요약 칸이 하나도 없는 표</b>가 되므로 [전체]로 한 번에 켠다.
+        */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가기준</span>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={bases.length === PRICE_BASES.length}
+                   onChange={(e) => setBases(e.target.checked ? [...PRICE_BASES] : [])} />전체
+          </label>
+          {PRICE_BASES.map((k) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+              <input type="checkbox" checked={bases.includes(k)}
+                     onChange={(e) => setBases((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
+              {k}
+            </label>
+          ))}
+        </div>
         <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목수 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      <div ref={tableRef}>
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -180,9 +223,10 @@ export default function PriceMovementPage() {
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
             <th style={{ textAlign: 'right' }}>표준단가</th>
             <th style={{ textAlign: 'right' }}>거래수</th>
-            <th style={{ textAlign: 'right' }}>최저</th>
-            <th style={{ textAlign: 'right' }}>최고</th>
-            <th style={{ textAlign: 'right' }}>평균</th>
+            {/* 원본 [단가기준]으로 켜고 끈다 — 처음엔 평균만 보인다. */}
+            {withMin && <th style={{ textAlign: 'right' }}>최저</th>}
+            {withMax && <th style={{ textAlign: 'right' }}>최고</th>}
+            {withAvg && <th style={{ textAlign: 'right' }}>평균</th>}
             <th style={{ textAlign: 'right' }}>최근</th>
             <th style={{ textAlign: 'right' }}>변동폭</th>
             <th style={{ textAlign: 'right' }}>최근vs표준</th>
@@ -190,9 +234,9 @@ export default function PriceMovementPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {(mode === 'SALE' ? sales.length : purchases.length) === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
@@ -207,9 +251,9 @@ export default function PriceMovementPage() {
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.standard)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.count}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.min)}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.max)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>
+                {withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
+                {withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
+                {withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
                 <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : '-'}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
@@ -220,6 +264,7 @@ export default function PriceMovementPage() {
           })}
         </tbody>
       </table>
+      </div>
     </EcListShell>
   )
 }
