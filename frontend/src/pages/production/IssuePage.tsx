@@ -24,6 +24,8 @@ interface MaterialIssue {
   toWarehouseName: string | null
   workOrderId: number | null
   workOrderNo: string | null
+  /** 그 작업지시를 낸 날. 원본 [불러온 전표일자] — 우리가 불러오는 전표는 작업지시서뿐이다. */
+  workOrderDate: string | null
   /**
    * 작업지시가 가리키는 생산품목. 원본 생산불출입력 머리의 [생산품목] 이고
    * 그리드의 [작업지시품목코드] 이기도 하다. 작업지시 없이 낸 불출이면 null.
@@ -417,6 +419,13 @@ export default function IssuePage() {
               불출의 주인공은 빠져 나가는 자재(품목코드)고, 작업지시 품목은 어디에 쓰였는지
               가리키는 곁가지라서다. 우리는 130 vs 120 으로 <b>반대</b>였다.
             */}
+            {/*
+              원본 [불러온 전표일자] — 언제 낸 지시를 보고 불출했는지는 번호만으로는 모른다.
+              [작업지시서]가 원본의 [불러온 전표No.] 자리이기도 하다(우리가
+              불러오는 전표는 작업지시서뿐이다).
+              원본 차례상 <b>[작업지시품목코드]보다 앞</b>이다.
+            */}
+            <th style={{ width: 100 }}>불러온 전표일자</th>
             <th style={{ width: 70 }}>작업지시품목코드</th>
             <th style={{ width: 125 }}>품목코드</th>
             {/* 원본 열 이름은 [품목명[규격명]] — 이름만으로는 같은 이름의 다른 규격을 못 가린다. */}
@@ -432,9 +441,9 @@ export default function IssuePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -448,6 +457,7 @@ export default function IssuePage() {
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName ?? '-'}</td>
               <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{r.workOrderDate ?? '-'}</td>
               <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}
@@ -474,7 +484,7 @@ export default function IssuePage() {
               <td style={{ textAlign: 'right', fontWeight: 700 }}>
                 {shown.reduce((a, r) => a + r.qty, 0).toLocaleString()}
               </td>
-              <td colSpan={6}></td>
+              <td colSpan={7}></td>
             </tr>
           </tfoot>
         )}

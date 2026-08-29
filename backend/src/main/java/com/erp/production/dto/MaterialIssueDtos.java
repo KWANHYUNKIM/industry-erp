@@ -68,6 +68,12 @@ public final class MaterialIssueDtos {
             Long toWarehouseId, String toWarehouseName,
             Long workOrderId, String workOrderNo,
             /**
+             * 그 작업지시를 <b>낸 날</b>. 원본 생산불출조회의 [불러온 전표일자] 다 —
+             * 우리가 불출을 불러오는 전표는 작업지시서뿐이다.
+             * 언제 낸 지시를 보고 불출했는지는 번호만으로는 알 수 없다.
+             */
+            java.time.LocalDate workOrderDate,
+            /**
              * 작업지시가 가리키는 <b>생산품목</b>. 원본 생산불출입력 머리의 [생산품목] 이고
              * 그리드의 [작업지시품목코드] 이기도 하다. 작업지시 없이 낸 불출이면 null.
              */
@@ -89,6 +95,7 @@ public final class MaterialIssueDtos {
                     mi.getToWarehouse() != null ? mi.getToWarehouse().getName() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getId() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getOrderNo() : null,
+                    mi.getWorkOrder() != null ? mi.getWorkOrder().getOrderDate() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getProduct().getCode() : null,
                     mi.getWorkOrder() != null ? mi.getWorkOrder().getProduct().getName() : null,
                     mi.getEmployeeId(),

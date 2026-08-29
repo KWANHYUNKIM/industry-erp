@@ -14,7 +14,13 @@ import type { Item, MallItemMapping } from '../../api/types'
 export default function MallItemMappingPage() {
   const [rows, setRows] = useState<MallItemMapping[]>([])
   const [items, setItems] = useState<Item[]>([])
-  const [mallNames, setMallNames] = useState<string[]>([])
+  /*
+   * 몰 마스터(쇼핑몰계정등록)를 그대로 쓴다. 예전에는 '코드를 가진 몰 마스터가 없다' 고
+   * 적고 [쇼핑몰코드] 열을 뺐는데, <b>그 사이 마스터가 생겼다</b> — 코드도 들고 있다.
+   * 연결은 몰 <b>이름</b>으로 맺으므로(키를 바꾸지 않는다) 코드는 이름으로 찾아 붙인다.
+   */
+  const [malls, setMalls] = useState<{ code: string; name: string }[]>([])
+  const mallCodeOf = (name: string) => malls.find((m) => m.name === name)?.code ?? ''
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -36,10 +42,10 @@ export default function MallItemMappingPage() {
       const [m, it, ma] = await Promise.all([
         api.get<MallItemMapping[]>('/mall-item-mappings'),
         api.get<Item[]>('/items'),
-        api.get<{ name: string; active: boolean }[]>('/mall-accounts'),
+        api.get<{ code: string; name: string; active: boolean }[]>('/mall-accounts'),
       ])
       setRows(m.data); setItems(it.data)
-      setMallNames(ma.data.filter((x) => x.active).map((x) => x.name))
+      setMalls(ma.data.filter((x) => x.active).map((x) => ({ code: x.code, name: x.name })))
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -108,7 +114,7 @@ export default function MallItemMappingPage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰 *</div>
               <input className={inputCls} value={form.mall} disabled={!!editId} onChange={(e) => set('mall', e.target.value)} style={{ width: 150 }} placeholder="예: 스마트스토어" list="mapping-mall-list" />
-              <datalist id="mapping-mall-list">{mallNames.map((n) => <option key={n} value={n} />)}</datalist></label>
+              <datalist id="mapping-mall-list">{malls.map((m) => <option key={m.code} value={m.name} />)}</datalist></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰품목코드 *</div>
               <input className={inputCls} value={form.mallProductCode} disabled={!!editId} onChange={(e) => set('mallProductCode', e.target.value)} style={{ width: 160 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰상품명</div>
@@ -134,7 +140,7 @@ export default function MallItemMappingPage() {
         <EcCond label="쇼핑몰">
           <select className="ec-input" value={mallCond} onChange={(e) => setMallCond(e.target.value)} style={{ width: 150 }}>
             <option value="">전체</option>
-            {mallNames.map((m) => <option key={m}>{m}</option>)}
+            {malls.map((m) => <option key={m.code}>{m.name}</option>)}
           </select>
         </EcCond>
         <EcCond label="쇼핑몰품목key">
@@ -151,6 +157,12 @@ export default function MallItemMappingPage() {
             다(사본 실측). 우리는 넷 다 다르게 부르고, 품목은 코드와 이름을 <b>한 칸</b>에
             몰아 두어 코드로 훑을 수가 없었다.
           */}
+          {/*
+            원본 첫 열은 <b>[쇼핑몰코드]</b> 이고 그다음이 [쇼핑몰명] 이다(사본 실측).
+            연결은 몰 이름으로 맺으므로 코드는 몰 마스터에서 찾아 붙인다 —
+            마스터에 없는 이름으로 맺힌 옛 연결은 빈칸이다(지어내지 않는다).
+          */}
+          <th style={{ width: 90 }}>쇼핑몰코드</th>
           <th style={{ width: 140 }}>쇼핑몰명</th>
           <th style={{ width: 120 }}>품목코드</th>
           <th>품목명</th>
@@ -161,12 +173,13 @@ export default function MallItemMappingPage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? '#5a626e' : '#c9ced6' }}>{mallCodeOf(m.mall) || '-'}</td>
               <td>{m.mall}</td>
               <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{m.itemCode}</td>
               <td>{m.itemName}</td>
