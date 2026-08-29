@@ -78,7 +78,7 @@ export default function TransferPage() {
     try {
       const [t, a, i, w, s, pj, em] = await Promise.all([
         api.get<StockTransfer[]>('/stock-transfers'),
-        api.get<StockAdjustment[]>('/stock-adjustments'),
+        api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<StockRow[]>('/stock'),
@@ -86,7 +86,7 @@ export default function TransferPage() {
         api.get<CodeRow[]>('/employees'),
       ])
       setTransfers(t.data)
-      setAdjustments(a.data)
+      setAdjustments(a.data.rows)
       setItems(i.data)
       setWarehouses(w.data)
       setStock(s.data)
@@ -99,7 +99,8 @@ export default function TransferPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간이 바뀌면 다시 물어본다 — 예전에는 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [from, to])
 
   function switchTab(t: Tab) {
     setTab(t)

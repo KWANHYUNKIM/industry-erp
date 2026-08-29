@@ -8,6 +8,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class StockAdjustmentDtos {
 
@@ -53,4 +54,21 @@ public final class StockAdjustmentDtos {
                     a.getReason(), a.getCreatedBy());
         }
     }
+
+    /**
+     * 기타이동 목록 응답 — <b>줄이 너무 많으면 앞부분만</b> 준다.
+     *
+     * <p>예전에는 알몸 배열이었고 기간 조건도 없어서, 다섯 화면이 열릴 때마다
+     * <b>4,797줄·1.7MB</b> 를 통째로 받아 브라우저에서 걸렀다. 원본도 큰 결과를 그냥 주지
+     * 않는다 — 조회 화면에 <b>[오천건이상조회]</b> 를 두고 그 위로는 눌러야 가게 한다
+     * (사본 실측). 재고수불부·전표조회와 같은 방식이다.
+     *
+     * @param totalRows 조건에 걸린 <b>전체</b> 줄 수 — 화면이 "몇 건 중 몇 건" 이라 말하려면 필요하다.
+     * @param truncated 잘라서 준 것인가. 화면은 이때만 [오천건이상조회] 를 띄운다.
+     */
+    public record AdjustmentListResponse(
+            List<AdjustmentResponse> rows,
+            long totalRows,
+            boolean truncated
+    ) {}
 }

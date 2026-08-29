@@ -69,14 +69,15 @@ export default function DefectReportPage() {
     try {
       const [q, a, d] = await Promise.all([
         api.get<QualityInspection[]>('/quality-inspections'),
-        api.get<StockAdjustment[]>('/stock-adjustments'),
+        api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
       ])
-      setInspections(q.data); setAdjustments(a.data); setDefectTypes(d.data)
+      setInspections(q.data); setAdjustments(a.data.rows); setDefectTypes(d.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간이 바뀌면 다시 물어본다 — 예전에는 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [from, to])
 
   const rows = useMemo<Row[]>(() => {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)

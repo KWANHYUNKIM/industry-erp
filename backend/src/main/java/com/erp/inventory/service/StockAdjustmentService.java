@@ -8,6 +8,7 @@ import com.erp.inventory.domain.StockTransaction;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
 import com.erp.inventory.domain.enums.StockAdjustmentType;
+import com.erp.inventory.dto.StockAdjustmentDtos;
 import com.erp.inventory.dto.StockAdjustmentDtos.AdjustmentResponse;
 import com.erp.inventory.dto.StockAdjustmentDtos.CreateAdjustmentRequest;
 import com.erp.inventory.repository.ItemRepository;
@@ -37,11 +38,34 @@ public class StockAdjustmentService {
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
 
+    /**
+     * 원본 [오천건이상조회] 와 같은 문턱. 이 위로는 눌러야 간다.
+     *
+     * <p>재고수불부(5천)·전표조회와 같은 수로 맞춘다 — 화면마다 다른 문턱을 두면
+     * 사람이 어디서 잘리는지 외워야 한다.
+     */
+    public static final int LIST_PAGE_ROWS = 5000;
+
+    /**
+     * 기타이동 목록. 기간을 안 주면 전 기간이다.
+     *
+     * <p>기간 조건이 <b>아예 없었다.</b> 다섯 화면이 [금월] 을 물어 놓고 전체를 받아
+     * 브라우저에서 걸렀다 — 열 때마다 4,797줄·1.7MB 를 내려보내고 그중 몇십 줄만 그렸다.
+     *
+     * @param all 참이면 문턱을 무시하고 전부 준다(화면의 [오천건이상조회]).
+     */
     @Transactional(readOnly = true)
-    public List<AdjustmentResponse> findAll() {
-        return adjustmentRepository.findAllWithRefs().stream()
-                .map(AdjustmentResponse::from)
-                .toList();
+    public StockAdjustmentDtos.AdjustmentListResponse list(LocalDate from, LocalDate to, boolean all) {
+        /* 안 준 쪽은 열어 둔다 — 널을 쿼리에 넘기면 PostgreSQL 이 형을 못 정한다. */
+        LocalDate f = from != null ? from : LocalDate.of(1, 1, 1);
+        LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
+        long totalRows = adjustmentRepository.countByPeriod(f, t);
+        boolean truncated = !all && totalRows > LIST_PAGE_ROWS;
+        List<StockAdjustment> found = adjustmentRepository.findByPeriod(f, t,
+                truncated ? org.springframework.data.domain.PageRequest.of(0, LIST_PAGE_ROWS)
+                        : org.springframework.data.domain.Pageable.unpaged());
+        return new StockAdjustmentDtos.AdjustmentListResponse(
+                found.stream().map(AdjustmentResponse::from).toList(), totalRows, truncated);
     }
 
     @Transactional

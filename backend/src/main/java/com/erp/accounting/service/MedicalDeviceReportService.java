@@ -96,9 +96,13 @@ public class MedicalDeviceReportService {
 
         // 폐기 — 재고조정(폐기)의 UDI 품목. 거래처 개념이 없어 거래처 조건을 주면 대상이 아니다.
         if ((supplyType == null || DISPOSAL.equals(supplyType)) && partnerId == null) {
-            for (AdjustmentResponse a : stockAdjustmentService.findAll()) {
+            /*
+             * 기간을 <b>서버에 내려서</b> 거른다. 예전에는 전체를 받아 여기서 날짜를 따졌는데,
+             * 보고서 한 장에 4,797줄을 만들어 놓고 몇 줄만 쓰고 버렸다.
+             * <code>all=true</code> — 보고서는 잘리면 안 된다(빠진 줄이 그대로 미보고가 된다).
+             */
+            for (AdjustmentResponse a : stockAdjustmentService.list(from, to, true).rows()) {
                 if (a.type() != StockAdjustmentType.DISPOSAL) continue;
-                if (a.adjustDate().isBefore(from) || a.adjustDate().isAfter(to)) continue;
                 if (!udiByItem.containsKey(a.itemId())) continue;
                 rows.add(new SupplyLine(
                         a.adjustDate(), DISPOSAL, "폐기", a.adjustNo(),

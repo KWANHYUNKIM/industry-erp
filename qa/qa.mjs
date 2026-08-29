@@ -969,7 +969,7 @@ async function scenarioQuotationWarehouseProject(f) {
     type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1,
     adjustDate: '2026-03-02', projectId: proj.id, employeeId: emp?.id,
   })
-  const adj = (await must('GET', '/stock-adjustments')).find((x) => x.projectName === proj.name)
+  const adj = (await must('GET', '/stock-adjustments')).rows.find((x) => x.projectName === proj.name)
   eq('재고조정이 프로젝트를 문다', adj?.projectName, proj.name)
   eq('재고조정이 담당자 id 를 그대로 돌려준다', adj?.employeeId, emp?.id ?? null)
 
@@ -1300,7 +1300,7 @@ async function scenarioAdjustment(f) {
   }, '차이가 없습니다')
 
   eq('기타이동 목록에 3건이 남음',
-    (await must('GET', '/stock-adjustments')).filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
+    (await must('GET', '/stock-adjustments')).rows.filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
 }
 
 async function scenarioWithholding() {
@@ -3509,10 +3509,26 @@ async function scenarioStatusScreenContracts(f) {
   has('BOM 라인: 구성품목·소요량', boms[0]?.lines?.[0], ['componentId', 'componentCode', 'quantity', 'unit'])
 
   // 기타이동현황 5종 — type 으로 화면이 갈린다. 이전/증감/이후가 다 있어야 이력이 뜻이 있다
-  const adj = await must('GET', '/stock-adjustments')
+  const adj = (await must('GET', '/stock-adjustments')).rows
   has('기타이동: 유형·증감 필드', adj[0], ['type', 'typeName', 'adjustDate', 'beforeQty', 'quantityChange', 'afterQty', 'warehouseId'])
   eq('기타이동 유형이 다섯 중 하나',
     ['SELF_USE', 'DEFECT', 'SUBSTITUTE', 'DISPOSAL', 'ADJUST'].includes(adj[0]?.type), true)
+
+  /*
+   * 기타이동도 <b>기간으로 걸러 오고 문턱을 둔다.</b> 예전에는 조건이 하나도 없어서
+   * 다섯 화면이 열릴 때마다 4,797줄·1.7MB 를 통째로 받아 브라우저에서 걸렀다.
+   * 재고수불부·전표조회와 같은 자다 — 자른 것과 전체 수가 앞뒤가 맞는지로 잰다
+   * (날짜로 못 박으면 자료가 늘 때 걸린다. 재고수불부에서 그렇게 걸렸다).
+   */
+  const 기타넓게 = await must('GET', '/stock-adjustments?from=2000-01-01&to=2099-12-31')
+  eq('기타이동도 자른 것과 전체 수가 앞뒤가 맞는다', 기타넓게.truncated, 기타넓게.totalRows > 5000)
+  eq('기타이동도 안 잘랐으면 줄 수와 전체가 같다',
+    기타넓게.truncated || 기타넓게.rows.length === 기타넓게.totalRows, true)
+  const 기타하루 = await must('GET', '/stock-adjustments?from=2026-03-02&to=2026-03-02')
+  eq('기타이동이 기간 밖을 안 준다',
+    기타하루.rows.every((r) => r.adjustDate === '2026-03-02'), true)
+  eq('기타이동 기간을 좁히면 전체 수도 함께 줄어든다',
+    기타하루.totalRows <= 기타넓게.totalRows, true)
 
   // 생산입고/소모현황 — 생산실적이 소모자재를 같이 들고 와야 한 화면에서 맞댈 수 있다
   const prods = await must('GET', '/productions')

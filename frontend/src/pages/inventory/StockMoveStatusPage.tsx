@@ -52,12 +52,23 @@ interface Adjustment {
   createdBy: string | null
 }
 
+/** 서버가 잘라서 줄 수 있다 — 전체 줄 수와 잘랐는지를 함께 준다. */
+interface AdjustmentList {
+  rows: Adjustment[]
+  totalRows: number
+  truncated: boolean
+}
+
 const num = (n: number) => n.toLocaleString()
 
 export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items'])
   const [rows, setRows] = useState<Adjustment[]>([])
+  /** 조건에 걸린 <b>전체</b> 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 와 같은 문턱이다. */
+  const [totalRows, setTotalRows] = useState(0)
+  const [truncated, setTruncated] = useState(false)
+  const [all, setAll] = useState(false)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -80,15 +91,25 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     setLoading(true)
     setError('')
     Promise.all([
-      api.get<Adjustment[]>('/stock-adjustments'),
+      api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all } }),
       api.get<Warehouse[]>('/warehouses'),
     ])
-      .then(([a, w]) => { setRows(a.data); setWarehouses(w.data) })
+      .then(([a, w]) => {
+        setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
+        setWarehouses(w.data)
+      })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간이 바뀌면 다시 물어본다.</b> 예전에는 한 번 받아 놓고 브라우저에서 걸렀는데,
+   * 조건 칸에 [금월] 을 물어 놓고 서버에는 <b>아무 조건도 안 보내</b> 4,797줄·1.7MB 를
+   * 열 때마다 받아 그중 몇십 줄만 그렸다. 다섯 화면이 이 파일을 쓴다.
+   */
+  useEffect(() => { load() }, [cond.from, cond.to, all])
+  /* 기간을 바꾸면 문턱을 다시 세운다 — 좁혀 놓고도 전부 받아 오면 안 자른 것과 같다. */
+  useEffect(() => { setAll(false) }, [cond.from, cond.to])
   // 같은 컴포넌트를 다섯 메뉴가 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 유형이 바뀌면 조건만 되돌린다.
   useEffect(() => { setMode('내역') }, [kind])
 
@@ -165,6 +186,19 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+
+      {/*
+        잘랐으면 <b>잘랐다고 말한다.</b> 말이 없으면 아래 합계와 집계가 전체인 줄 알고 읽는다 —
+        "1만 2천 건" 이라 써 놓고 5천 줄만 그리는 꼴이 된다. 아래 [집계] 탭과 합계행도
+        <b>받은 줄만</b> 센다는 뜻이라 같이 적는다.
+      */}
+      {truncated && (
+        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+          기간에 걸린 {num(totalRows)}건 중 앞 {num(rows.length)}건만 보고 있습니다 — 아래 집계와 합계도 이 {num(rows.length)}건만 셉니다.
+          {' '}
+          <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => setAll(true)}>오천건이상조회</button>
+        </p>
+      )}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         {mode === '내역' ? '건수' : '품목×창고'}{' '}
