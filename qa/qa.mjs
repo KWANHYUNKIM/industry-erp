@@ -8847,6 +8847,7 @@ async function main() {
   await scenarioGhostId()
   await scenarioReversedPeriod()
   await scenarioSeedRows()
+  await scenarioRollback(fixtures)
 
   checkDeadAssertions()
 
@@ -9015,6 +9016,103 @@ async function scenarioGhostId() {
  * <p>기간을 받는 자리를 컨트롤러에서 <b>실행할 때 뽑아</b> 전부 두드린다. 넓게 물어
  * 자료가 나오는 자리만 견준다 — 원래 빈 자리는 견줄 것이 없다.
  */
+/**
+ * <b>도중에 터지면 앞의 것도 함께 되돌아가나.</b>
+ *
+ * <p>CLAUDE.md 6 이 이렇게 약속한다 — "모듈 간 호출은 같은 트랜잭션에 참여한다.
+ * trade 에서 stockService.decrease 가 실패하면 판매 전표도 함께 롤백된다.
+ * <b>이 동작에 의존해도 된다.</b>" 화면과 코드가 이 약속 위에 서 있는데
+ * 그동안 아무도 실제로 터뜨려 보지 않았다. 여기서 일부러 터뜨려 잰다.
+ *
+ * <p>생산입고가 가장 위험하다. 자재를 <b>여러 번 나눠 깎은 뒤</b> 완제품을 넣기 때문에,
+ * 세 번째 자재에서 모자라 멈추면 앞의 두 자재는 이미 창고에서 빠져 있다. 되돌아가지
+ * 않으면 그 자재는 <b>아무 전표도 없이 사라진다</b> — 실사를 하기 전까지 아무도 모른다.
+ *
+ * <p>자재 둘 중 하나만 모자라게 만들어 둔다. 앞 자재가 먼저 깎이고 뒤 자재에서
+ * 멈추는 것이 이 시험의 뜻인데, 소모 차례는 BOM 줄 차례를 따른다. 차례가 반대로
+ * 바뀌면 단언은 그대로 통과하되 재는 것이 얕아진다 — 그때는 이 주석을 고칠 것.
+ */
+async function scenarioRollback(f) {
+  section('■ 시나리오 37. 도중에 터지면 앞의 것도 함께 되돌아가나')
+
+  // ── 판매: 둘째 줄이 재고 부족으로 터진다
+  await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 500,
+    adjustDate: '2026-08-29',
+  })
+  const 판매전 = (await must('GET', '/stock')).find(
+    (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity
+  const 전표수 = (await must('GET', '/sales')).length
+  const 터진판매 = await call('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-29', taxable: true,
+    lines: [
+      { itemId: f.product.id, quantity: 1, unitPrice: 10000 },
+      { itemId: f.product.id, quantity: 99999999, unitPrice: 10000 },
+    ],
+  })
+  eq('재고보다 많이 팔면 거절한다', 터진판매.status, 400)
+  const 판매후 = (await must('GET', '/stock')).find(
+    (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity
+  eq('첫 줄이 깎은 재고가 되돌아간다', Number(판매후), Number(판매전))
+  eq('판매전표도 안 남는다', (await must('GET', '/sales')).length, 전표수)
+
+  // ── 생산입고: 자재 둘 중 뒤엣것이 모자라다
+  const 완제품 = await ensure('/items', 'code', `${P}RB`, null, {
+    code: `${P}RB`, name: 'QA롤백완제품', unit: 'EA', category: 'FINISHED',
+    unitPrice: 10000, safetyStock: 0,
+  })
+  const 넉넉자재 = await ensure('/items', 'code', `${P}RBM1`, null, {
+    code: `${P}RBM1`, name: 'QA롤백자재넉넉', unit: 'EA', category: 'RAW_MATERIAL',
+    unitPrice: 1000, safetyStock: 0,
+  })
+  const 모자란자재 = await ensure('/items', 'code', `${P}RBM2`, null, {
+    code: `${P}RBM2`, name: 'QA롤백자재부족', unit: 'EA', category: 'RAW_MATERIAL',
+    unitPrice: 1000, safetyStock: 0,
+  })
+  const boms = await must('GET', '/boms')
+  if (!boms.some((b) => b.productId === 완제품.id)) {
+    await must('POST', '/boms', {
+      productId: 완제품.id, remark: 'QA 롤백 BOM',
+      lines: [{ componentId: 넉넉자재.id, quantity: 1 }, { componentId: 모자란자재.id, quantity: 1 }],
+    })
+  }
+  for (const [item, qty] of [[넉넉자재, 50], [모자란자재, 3]]) {
+    await call('POST', '/stock-adjustments', {
+      type: 'ADJUST', itemId: item.id, warehouseId: f.warehouse.id, actualQty: qty,
+      adjustDate: '2026-08-29',
+    })
+  }
+  const 재고of = async (id) => Number((await must('GET', '/stock')).find(
+    (s) => s.itemId === id && s.warehouseName === f.warehouse.name)?.quantity ?? 0)
+  eq('넉넉한 자재를 50 으로 맞췄다', await 재고of(넉넉자재.id), 50)
+  eq('모자란 자재를 3 으로 맞췄다', await 재고of(모자란자재.id), 3)
+
+  const wo = await must('POST', '/work-orders', {
+    productId: 완제품.id, warehouseId: f.warehouse.id, plannedQty: 20,
+    orderDate: '2026-08-29', dueDate: '2026-09-30',
+  })
+  const 생산전표수 = (await must('GET', '/productions')).length
+  /* 10개를 만들라 한다 — 넉넉한 자재는 50 이라 되고, 모자란 자재는 3 뿐이라 거기서 멈춘다. */
+  const 터진생산 = await call('POST', '/productions', {
+    workOrderId: wo.id, producedQty: 10, productionDate: '2026-08-29',
+  })
+  eq('자재가 모자라면 생산입고를 거절한다', 터진생산.status, 400)
+  const 생산문구 = String(터진생산.data?.message ?? '')
+  eq('무엇이 모자란지 말해 준다', /재고가 부족합니다/.test(생산문구), true)
+  /*
+   * <b>이 단언이 이 시나리오를 살아 있게 한다.</b> 문구가 <b>뒤</b> 자재를 가리켜야
+   * 앞 자재를 이미 깎고 지나왔다는 뜻이고, 그래야 '되돌아왔다'는 단언이 뜻을 갖는다.
+   * 앞 자재에서 멈췄다면 되돌릴 것이 없으니 아래 단언들은 통과해도 아무것도 안 잰다.
+   */
+  eq('앞 자재를 지나 뒤 자재에서 멈췄다', 생산문구.includes(모자란자재.name), true)
+  eq('앞 자재가 깎인 채로 남지 않는다', await 재고of(넉넉자재.id), 50)
+  eq('뒤 자재도 그대로다', await 재고of(모자란자재.id), 3)
+  eq('생산전표도 안 남는다', (await must('GET', '/productions')).length, 생산전표수)
+  /* 작업지시의 기생산수량도 안 올라가야 한다 — 만든 적이 없다. */
+  const 그작업지시 = (await must('GET', '/work-orders')).find((w) => w.id === wo.id)
+  eq('작업지시의 기생산수량도 그대로다', Number(그작업지시?.producedQty ?? 0), 0)
+}
+
 /**
  * <b>응답에 실려 있는데 값은 늘 없는 칸.</b>
  *
