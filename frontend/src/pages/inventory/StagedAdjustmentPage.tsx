@@ -38,6 +38,16 @@ export default function StagedAdjustmentPage() {
   const [reasonCond, setReasonCond] = useState('')
   /* 원본 조건 [창고]. 창고는 목록에 찍히는데 그것으로 거를 수가 없었다. */
   const [whCond, setWhCond] = useState('')
+  /*
+   * 원본 단계별재고조정 조건 첫째는 <b>[기준일자]</b> 다(사본 실측). 우리 화면에는
+   * 기간 칸이 아예 없어서 전 기간을 통째로 받아 왔다 — 757줄·235KB.
+   *
+   * <p><b>기본값은 비워 둔다.</b> 사본에 이 화면의 기본 기간이 안 찍혀 있어서, 금월 같은
+   * 값을 골라 두면 <b>지금 보이던 줄이 소리 없이 사라진다.</b> 비워 두면 예전 그대로 전
+   * 기간이고, 좁히는 것은 사람이 정한다.
+   */
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,7 +67,7 @@ export default function StagedAdjustmentPage() {
     setLoading(true)
     try {
       const [s, i, w] = await Promise.all([
-        api.get<StagedAdjustment[]>('/staged-adjustments'),
+        api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
       ])
@@ -65,7 +75,8 @@ export default function StagedAdjustmentPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기준일자를 바꾸면 서버에 다시 물어본다 — 브라우저에서 거르지 않는다. */
+  useEffect(() => { load() }, [from, to])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -146,6 +157,13 @@ export default function StagedAdjustmentPage() {
 
       {/* 원본 단계별재고조정 조건의 <b>[적요]</b>. 사유는 목록에 이미 찍히는데 그것으로 거를 수가 없었다. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="창고">
           {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"

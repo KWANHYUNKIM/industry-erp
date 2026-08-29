@@ -46,6 +46,8 @@ const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'pur
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const cfg = CFG[mode]
   const isSales = mode === 'sales'
+  /* 이 줄의 이름은 화면마다 다르다 — 판매조회는 [기준일자], 구매조회는 [일자](사본 실측). */
+  const dateLabel = isSales ? '기준일자' : '일자'
   const navigate = useNavigate()
   const [docs, setDocs] = useState<NormalDoc[]>([])
   const [error, setError] = useState('')
@@ -351,8 +353,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
-          {/* 원본은 이 조건을 [일자]라고 부른다(사본 실측). 이름표가 없으면 무슨 날짜인지 모른다. */}
-          <span>일자</span>
+          {/*
+            <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
+            판매조회는 [기준일자], 구매조회는 [일자]다. 한 이름으로 눌러 두면 한쪽이 늘 틀린다.
+            예전 주석에는 "원본은 [일자]라고 부른다" 고만 적혀 있었는데, 판매 쪽은 아니었다.
+          */}
+          <span>{dateLabel}</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />

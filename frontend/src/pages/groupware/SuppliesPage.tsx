@@ -349,6 +349,8 @@ export default function SuppliesPage() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            {/* 원본 공용품관리는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측). 이름이 없으면 무슨 날짜인지 모른다. */}
+            <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
             <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 130 }} />
             <span style={{ color: 'var(--ec-label)' }}>~</span>
             <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 130 }} />

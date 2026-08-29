@@ -2970,6 +2970,15 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
       // 이름을 설정표나 변수로 넘기는 곳(whLabel: '출하창고' · dateLabel = '기준일자').
       for (const m of src2.matchAll(/\w*Label\s*[:=]\s*["']([^"']{1,24})["']/g)) addLabel(m[1])
       /*
+       * <b>갈래로 정해 두는 이름</b>도 읽는다 — <code>label={a ? 'x' : 'y'}</code> 는
+       * 진작 둘 다 읽으면서, 그것을 변수로 뽑은 <code>const dateLabel = a ? 'x' : 'y'</code>
+       * 는 못 읽었다. 한 파일이 두 화면을 겸하면서 원본이 그 줄을 서로 다르게 부르는 자리가
+       * 있다(판매조회 [기준일자] · 구매조회 [일자]) — 한 이름으로 눌러 두면 한쪽이 늘 틀린다.
+       */
+      for (const m of src2.matchAll(/\w*Label\s*=\s*[^\n]{0,80}\?[^\n]{0,80}/g)) {
+        for (const q of m[0].matchAll(/['"]([^'"]{1,24})['"]/g)) addLabel(q[1])
+      }
+      /*
        * <b>이름표를 함수로 그리는 화면.</b> 증빙센터는
        * <code>&lt;label&gt;{label('전표일자')}…&lt;/label&gt;</code> 로 적는다 —
        * label= 만 찾다가 <b>이미 만든 조건 넷</b>을 없다고 세고 있었다
