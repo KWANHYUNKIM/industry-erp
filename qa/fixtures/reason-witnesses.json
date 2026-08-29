@@ -515,5 +515,69 @@
    "production-plans"
   ],
   "file": "production/MrpPage.tsx"
+ },
+ "거래처관리대장 II|외화거래처": {
+  "claim": "BusinessPartner 에 통화 칸이 없다",
+  "absent": [
+   "currency",
+   "Currency"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/BusinessPartner.java"
+ },
+ "품목등록|부가정보": {
+  "claim": "우리 품목에 숫자형추가항목 칸이 없다",
+  "absent": [
+   "extraNum",
+   "attrNum",
+   "userNum"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "입고단가(VAT포함)": {
+  "claim": "생산실적에 단가 칸이 없다",
+  "absent": [
+   "unitPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "입고단가": {
+  "claim": "위와 같음",
+  "absent": [
+   "unitPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "선입선출(판매)": {
+  "claim": "입고 레이어를 남기지 않아 선입선출로 못 센다",
+  "absent": [
+   "StockLayer",
+   "CostLayer",
+   "InboundLayer"
+  ],
+  "in": "backend"
+ },
+ "원가생성_수정|공정명": {
+  "claim": "원가를 공정 단위로 쌓지 않는다",
+  "absent": [
+   "process",
+   "Process"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "원가생성_수정|창고코드": {
+  "claim": "원가를 창고 단위로 쌓지 않는다",
+  "absent": [
+   "warehouse",
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "원가생성_수정|창고명": {
+  "claim": "위와 같음",
+  "absent": [
+   "warehouse",
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
  }
 }
