@@ -77,14 +77,20 @@ public class PriceBulkService {
         List<SlipLineRow> rows = new ArrayList<>();
 
         if (sale) {
-            for (Sales s : salesRepository.findWithLinesBySaleDateBetween(from, to)) {
+            /*
+             * 잠금 사유를 <b>한 번에</b> 받는다. 전표마다 editLockReason 을 부르면 그 안에서
+             * 세금계산서·쇼핑몰주문을 전표당 두 번씩 물어, 700여 전표에 질의가 1,400번 붙었다.
+             */
+            List<Sales> slips = salesRepository.findWithLinesBySaleDateBetween(from, to);
+            java.util.Map<Long, String> locks = salesService.editLockReasons(slips);
+            for (Sales s : slips) {
                 if (partnerId != null && !partnerId.equals(s.getPartner().getId())) continue;
                 if (warehouseId != null && !warehouseId.equals(s.getWarehouse().getId())) continue;
                 boolean confirmed = s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED;
                 if (!statusMatches(status, confirmed)) continue;
                 if (!taxTypeMatches(taxType, s.isTaxable())) continue;
                 if (!tradeKindMatches(tradeKind, s.isReturnSlip())) continue;
-                String lock = salesService.editLockReason(s);
+                String lock = locks.get(s.getId());
                 for (SalesLine l : s.getLines()) {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
                     rows.add(new SlipLineRow(
@@ -99,13 +105,15 @@ public class PriceBulkService {
                 }
             }
         } else {
-            for (Purchase p : purchaseRepository.findWithLinesByPurchaseDateBetween(from, to)) {
+            List<Purchase> slips = purchaseRepository.findWithLinesByPurchaseDateBetween(from, to);
+            java.util.Map<Long, String> locks = purchaseService.editLockReasons(slips);
+            for (Purchase p : slips) {
                 if (partnerId != null && !partnerId.equals(p.getPartner().getId())) continue;
                 if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
                 if (!taxTypeMatches(taxType, p.isTaxable())) continue;
                 if (!tradeKindMatches(tradeKind, p.isReturnSlip())) continue;
                 // 구매전표에는 확인(진행상태) 개념이 없다 — 그래서 화면 조건에도 두지 않는다.
-                String lock = purchaseService.editLockReason(p);
+                String lock = locks.get(p.getId());
                 for (PurchaseLine l : p.getLines()) {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
                     rows.add(new SlipLineRow(

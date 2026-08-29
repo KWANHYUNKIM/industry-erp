@@ -282,8 +282,46 @@ public class SalesService {
         }
     }
 
+    /**
+     * 여러 전표의 잠금 사유를 <b>한 번에</b> 알아낸다.
+     *
+     * <p>{@link #editLockReason} 을 전표마다 부르면 그 안에서 세금계산서·쇼핑몰주문을
+     * <b>전표당 두 번씩</b> 묻는다. 단가일괄변경이 그렇게 부르고 있었는데, 1,460줄을 무는
+     * 700여 전표에 질의가 1,400번 더 붙어 그 화면이 2초 걸렸다.
+     *
+     * <p>규칙은 {@link #ensureEditable} 한 곳에만 둔다 — 여기서 규칙을 베끼면 나중에 한쪽만
+     * 고쳐져 갈라진다. 대신 <b>붙어 있는지</b>만 미리 한 번에 받아 두고 그것을 넘긴다.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, String> editLockReasons(java.util.List<Sales> list) {
+        java.util.List<Long> ids = list.stream().map(Sales::getId).toList();
+        java.util.Set<Long> withTaxInvoice = ids.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(taxInvoiceRepository.findSalesIdsIn(ids));
+        java.util.Set<Long> fromMall = ids.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(mallOrderRepository.findSalesIdsIn(ids));
+        java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
+        for (Sales s : list) {
+            try {
+                ensureEditable(s, "수정", withTaxInvoice.contains(s.getId()), fromMall.contains(s.getId()));
+                out.put(s.getId(), null);
+            } catch (ApiException e) {
+                out.put(s.getId(), e.getMessage());
+            }
+        }
+        return out;
+    }
+
     /** 수정·삭제해도 되는 전표인지. 되돌릴 수 없는 후속 처리가 붙었으면 막는다. */
     private void ensureEditable(Sales s, String action) {
+        ensureEditable(s, action, taxInvoiceRepository.existsBySales_Id(s.getId()),
+                mallOrderRepository.existsBySales_Id(s.getId()));
+    }
+
+    /**
+     * 규칙 본체. 붙어 있는지 여부를 <b>밖에서 받는다</b> — 하나씩 볼 때는 위에서 그때그때 묻고,
+     * 여럿을 볼 때는 {@link #editLockReasons} 가 한 번에 받아 넘긴다. 규칙은 여기 하나뿐이다.
+     */
+    private void ensureEditable(Sales s, String action, boolean hasTaxInvoice, boolean fromMall) {
         if (s.isAccountingReflected()) {
             throw ApiException.badRequest("회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
         }
@@ -293,10 +331,10 @@ public class SalesService {
         if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
             throw ApiException.badRequest("확인된 전표는 " + action + "할 수 없습니다. 확인취소를 먼저 하세요: " + s.getDocNo());
         }
-        if (taxInvoiceRepository.existsBySales_Id(s.getId())) {
+        if (hasTaxInvoice) {
             throw ApiException.badRequest("세금계산서가 발행된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
         }
-        if (mallOrderRepository.existsBySales_Id(s.getId())) {
+        if (fromMall) {
             throw ApiException.badRequest("쇼핑몰 주문에서 전환된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
         }
     }

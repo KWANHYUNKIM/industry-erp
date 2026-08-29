@@ -248,11 +248,38 @@ public class PurchaseService {
         }
     }
 
+    /**
+     * 여러 전표의 잠금 사유를 <b>한 번에</b> 알아낸다. 판매 쪽과 같은 까닭이다 —
+     * 전표마다 부르면 세금계산서를 전표당 한 번씩 묻는다(단가일괄변경이 그렇게 불렀다).
+     * 규칙은 아래 {@code ensureEditable} 한 곳에만 둔다.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, String> editLockReasons(java.util.List<Purchase> list) {
+        java.util.List<Long> ids = list.stream().map(Purchase::getId).toList();
+        java.util.Set<Long> withTaxInvoice = ids.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(taxInvoiceRepository.findPurchaseIdsIn(ids));
+        java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
+        for (Purchase p : list) {
+            try {
+                ensureEditable(p, "수정", withTaxInvoice.contains(p.getId()));
+                out.put(p.getId(), null);
+            } catch (ApiException e) {
+                out.put(p.getId(), e.getMessage());
+            }
+        }
+        return out;
+    }
+
     private void ensureEditable(Purchase p, String action) {
+        ensureEditable(p, action, taxInvoiceRepository.existsByPurchase_Id(p.getId()));
+    }
+
+    /** 규칙 본체 — 붙어 있는지는 밖에서 받는다(하나씩 볼 때와 여럿을 볼 때가 같은 규칙을 쓰게). */
+    private void ensureEditable(Purchase p, String action, boolean hasTaxInvoice) {
         if (p.isAccountingReflected()) {
             throw ApiException.badRequest("회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + p.getDocNo());
         }
-        if (taxInvoiceRepository.existsByPurchase_Id(p.getId())) {
+        if (hasTaxInvoice) {
             throw ApiException.badRequest("세금계산서가 발행된 전표는 " + action + "할 수 없습니다: " + p.getDocNo());
         }
     }

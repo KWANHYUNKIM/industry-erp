@@ -4066,6 +4066,20 @@ async function scenarioStockRecalc() {
   await must('GET', `/stock/recalc?${ALL}`)
   const 걸린시간 = Date.now() - t0
   eq(`전 기간 재집계 점검이 5초 안에 끝난다 (지금 ${걸린시간}ms)`, 걸린시간 < 5000, true)
+
+  /*
+   * <b>단가일괄변경도 같은 함정에 빠져 있었다.</b> 줄마다가 아니라 <b>전표마다</b>
+   * 잠금 사유를 물었고, 그 안에서 세금계산서·쇼핑몰주문을 전표당 두 번씩 되물었다 —
+   * 700여 전표에 질의가 1,400번 붙어 1,460줄 뽑는 데 2초가 걸렸다. 묶어 받아 83ms 가 됐다.
+   */
+  await must('GET', '/price-bulk/lines?tradeType=SALES&from=2000-01-01&to=2099-12-31')
+  const t1 = Date.now()
+  const 단가줄 = await must('GET', '/price-bulk/lines?tradeType=SALES&from=2000-01-01&to=2099-12-31')
+  const 단가시간 = Date.now() - t1
+  eq('단가일괄변경이 줄을 준다', 단가줄.length > 0, true)
+  eq(`단가일괄변경 전 기간 조회가 1초 안에 끝난다 (지금 ${단가시간}ms)`, 단가시간 < 1000, true)
+  /* 잠금 사유를 묶어 받아도 <b>값이 그대로</b>여야 한다 — 빠르기만 하고 틀리면 안 된다. */
+  eq('줄마다 수정 가능 여부가 실려 있다', 단가줄.every((r) => typeof r.editable === 'boolean'), true)
 }
 
 /**
