@@ -27,7 +27,14 @@ const TYPE_COLOR: Record<TxType, { bg: string; fg: string }> = {
   ADJUST: { bg: '#f3eefb', fg: '#6b3fb0' },
 }
 
-interface LedgerResponse { opening: number | null; rows: StockTransaction[] }
+interface LedgerResponse {
+  opening: number | null
+  rows: StockTransaction[]
+  /** 조건에 걸린 전체 줄 수. 잘렸을 때 "몇 줄 중 몇 줄" 을 말하려고 받는다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 
@@ -44,6 +51,9 @@ export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<StockTransaction[]>([])
+  /** 조건에 걸린 전체 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
+  const [totalRows, setTotalRows] = useState(0)
+  const [truncated, setTruncated] = useState(false)
   const [opening, setOpening] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -72,7 +82,13 @@ export default function StockLedgerPage() {
     setItems(i.data); setWarehouses(w.data)
   }
 
-  async function loadLedger() {
+  /*
+   * <b>넓게 물으면 앞 5천 줄만 받는다.</b> 이 화면은 기본 기간(전월+금월)만으로도 6만 4천 줄이
+   * 나와서, 열 때마다 그만큼을 받아 그리다 멈췄다(전 기간이면 12만 줄·34MB).
+   * 원본도 큰 결과를 그냥 주지 않는다 — 조회 화면 139곳에 [오천건이상조회] 버튼을 두고
+   * 그 위로는 눌러야 가게 한다(사본 실측). 같은 방식으로 자르고, 자른 것을 숨기지 않는다.
+   */
+  async function loadLedger(all = false) {
     setLoading(true); setError('')
     try {
       const params: Record<string, string> = {}
@@ -80,11 +96,16 @@ export default function StockLedgerPage() {
       if (filters.to) params.to = filters.to
       if (filters.itemId) params.itemId = filters.itemId
       if (filters.warehouseId) params.warehouseId = filters.warehouseId
+      if (all) params.all = 'true'
       const res = await api.get<LedgerResponse>('/stock/ledger', { params })
       setRows(res.data.rows)
       setOpening(res.data.opening)
-    } catch (err) { setError(extractErrorMessage(err)); setRows([]); setOpening(null) }
-    finally { setLoading(false) }
+      setTotalRows(res.data.totalRows)
+      setTruncated(res.data.truncated)
+    } catch (err) {
+      setError(extractErrorMessage(err)); setRows([]); setOpening(null)
+      setTotalRows(0); setTruncated(false)
+    } finally { setLoading(false) }
   }
 
   useEffect(() => { loadRefs(); loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
@@ -132,10 +153,13 @@ export default function StockLedgerPage() {
       title="재고수불부"
       search={keyword}
       onSearchChange={setKeyword}
-      onSearch={loadLedger}
+      /* 인자 없이 부른다 — onSearch 가 무엇을 넘기든 all 로 새면 안 된다. */
+      onSearch={() => void loadLedger()}
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: loadLedger },
+        { label: '검색(F8)', primary: true, onClick: () => void loadLedger() },
+        /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
+        { label: '오천건이상조회', onClick: () => void loadLedger(true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -172,6 +196,16 @@ export default function StockLedgerPage() {
       </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {/*
+        잘라서 받았으면 <b>반드시 말한다.</b> 말 없이 앞부분만 보여 주면 사람은 그것이 전부인 줄
+        알고 합계를 읽는다 — 틀린 숫자를 맞다고 믿게 하는 것이 안 보여 주는 것보다 나쁘다.
+      */}
+      {truncated && (
+        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+          모두 {num(totalRows)}줄 중 앞 {num(rows.length)}줄만 보고 있습니다.
+          기간을 좁히거나 품목·창고를 고르면 전부 볼 수 있고, 그대로 다 보려면 [오천건이상조회]를 누르세요.
+        </p>
+      )}
 
       {/* 유형 탭 + 요약 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>

@@ -74,8 +74,10 @@ public class StockController {
             @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return stockService.ledger(itemId, warehouseId, from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            /* 원본 [오천건이상조회] — 문턱 위로는 눌러야 간다. 안 주면 앞 5천 줄만 준다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        return stockService.ledger(itemId, warehouseId, from, to, all);
     }
 
     /** 재고변동표 — 품목별 기초·입고·출고·기말. warehouseId 생략 시 전 창고 합산. */

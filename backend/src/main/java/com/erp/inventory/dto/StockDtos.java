@@ -21,9 +21,23 @@ public final class StockDtos {
      * 그 외에는 null)이며, 화면은 이 값에 각 행의 변동량을 누적해 잔량을 <b>표시순서대로 재계산</b>한다.
      * 저장된 balanceAfter는 입력(id)순 기준이라 일자정렬 화면에서 그대로 쓰면 어긋나기 때문이다.
      */
+    /**
+     * 재고수불부 응답.
+     *
+     * <p><b>줄이 너무 많으면 앞부분만 준다.</b> 이 화면은 기본 기간(전월+금월)만으로도
+     * 6만 4천 줄이 나와서, 열 때마다 그만큼을 만들어 내려보내고 있었다(전 기간이면 12만 줄·34MB).
+     * 원본도 큰 결과를 그냥 주지 않는다 — 조회 화면 139곳에 <b>[오천건이상조회]</b> 버튼을 두고
+     * 그 위로는 눌러야 가게 한다(사본 실측). 같은 방식으로 자른다.
+     *
+     * @param totalRows 조건에 걸린 <b>전체</b> 줄 수. 잘렸는지와 얼마나 잘렸는지를 화면이 알아야
+     *                  "5천 줄만 보여 주는 중" 이라고 말할 수 있다.
+     * @param truncated 잘라서 준 것인가. 화면은 이때만 [오천건이상조회] 를 띄운다.
+     */
     public record StockLedgerResponse(
             BigDecimal opening,
-            List<StockTransactionResponse> rows
+            List<StockTransactionResponse> rows,
+            long totalRows,
+            boolean truncated
     ) {}
 
     /** 재고변동표 한 행 — 품목별 기초·입고·출고·기말(기말 = 기초 + 입고 − 출고). */

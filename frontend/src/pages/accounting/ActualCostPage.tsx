@@ -113,7 +113,13 @@ export default function ActualCostPage() {
     try {
       const [mv, lg, it, pu] = await Promise.all([
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
-        api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to } }),
+        /*
+         * <b>여기서는 자르면 안 된다.</b> 이 화면은 수불부 줄을 <b>합산해서</b> 실제원가를 낸다
+         * (아래 detail.reduce). 앞부분만 받으면 합계가 조용히 틀린다 — 느린 것보다 나쁘다.
+         * 재고수불부 화면은 사람이 눈으로 읽는 자리라 앞 5천 줄만 받고 [오천건이상조회] 로
+         * 그 위를 가지만, 더하는 자리는 처음부터 전부 받는다.
+         */
+        api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } }),
         api.get<Item[]>('/items'),
         api.get<PurchaseDoc[]>('/purchases'),
       ])

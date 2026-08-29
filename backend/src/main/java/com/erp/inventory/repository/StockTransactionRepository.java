@@ -37,6 +37,32 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
                                       @Param("from") LocalDate from,
                                       @Param("to") LocalDate to);
 
+    /**
+     * 위와 <b>같은 조건으로 줄 수만</b> 센다. 다 꺼내 놓고 세면 이미 늦다 —
+     * 너무 넓게 물었는지 먼저 알아야 앞부분만 꺼낼 수 있다.
+     */
+    @Query("select count(t) from StockTransaction t " +
+            "where (:itemId is null or t.item.id = :itemId) " +
+            "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
+            "and t.transactionDate >= :from and t.transactionDate <= :to")
+    long countLedger(@Param("itemId") Long itemId,
+                     @Param("warehouseId") Long warehouseId,
+                     @Param("from") LocalDate from,
+                     @Param("to") LocalDate to);
+
+    /** 위와 같은 조건·차례로 <b>앞에서 몇 줄만</b> 꺼낸다. 문턱을 넘었을 때 쓴다. */
+    @Query("select t from StockTransaction t " +
+            "join fetch t.item join fetch t.warehouse " +
+            "where (:itemId is null or t.item.id = :itemId) " +
+            "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
+            "and t.transactionDate >= :from and t.transactionDate <= :to " +
+            "order by t.transactionDate asc, t.id asc")
+    List<StockTransaction> findLedgerPage(@Param("itemId") Long itemId,
+                                          @Param("warehouseId") Long warehouseId,
+                                          @Param("from") LocalDate from,
+                                          @Param("to") LocalDate to,
+                                          org.springframework.data.domain.Pageable pageable);
+
     /** 기간 시작 직전의 기초재고 = 해당 (품목,창고)에서 {@code from} 이전 변동량의 합(순증감). */
     @Query("select coalesce(sum(t.quantityChange), 0) from StockTransaction t " +
             "where t.item.id = :itemId and t.warehouse.id = :warehouseId " +

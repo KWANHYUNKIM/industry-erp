@@ -3921,9 +3921,20 @@ async function scenarioHttpProtocol() {
    * <p>그동안 <b>더 나빠지지만 않게</b> 잰다. 지금 수를 적어 두고 넘으면 걸리게 한다.
    */
   const 수불부 = await must('GET', '/stock/ledger?from=2026-07-01&to=2026-08-31')
-  eq('재고수불부 기본 기간이 지금보다 더 커지지 않았다', 수불부.rows.length <= 70000, true)
-  eq('재고수불부가 기간을 실제로 거른다',
-    (await must('GET', '/stock/ledger?from=2026-08-30&to=2026-08-30')).rows.length < 수불부.rows.length, true)
+  eq('넓게 물으면 앞 5천 줄만 준다', 수불부.rows.length, 5000)
+  eq('잘랐다고 말해 준다', 수불부.truncated, true)
+  eq('전체가 몇 줄인지도 알려 준다', 수불부.totalRows > 5000, true)
+  /*
+   * <b>[오천건이상조회] 를 누르면 전부 온다.</b> 자르기만 하고 갈 길을 막으면
+   * 원본에 있는 기능을 없앤 것이 된다 — 자른 것과 그 위로 가는 길은 <b>한 쌍</b>이다.
+   */
+  const 다보기 = await must('GET', '/stock/ledger?from=2026-07-01&to=2026-08-31&all=true')
+  eq('다 보기를 누르면 전체가 온다', 다보기.rows.length, 수불부.totalRows)
+  eq('다 보기는 잘렸다고 하지 않는다', 다보기.truncated, false)
+  /* 문턱 아래는 그냥 다 준다 — 늘 자르면 좁혀도 소용이 없다. */
+  const 하루 = await must('GET', '/stock/ledger?from=2026-08-30&to=2026-08-30')
+  eq('문턱 아래면 자르지 않는다', 하루.truncated, false)
+  eq('문턱 아래면 줄 수와 전체가 같다', 하루.rows.length, 하루.totalRows)
 
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
@@ -7578,7 +7589,13 @@ async function scenarioCostRollForward() {
     (r) => Math.abs((Number(r.opening) + Number(r.inQty) - Number(r.outQty)) - Number(r.closing)) > 1e-6)
   eq('기초 + 증가 − 감소 = 기말 (어긋난 품목 수)', broken.length, 0)
 
-  const ledger = await must('GET', `/stock/ledger?from=${from}&to=${to}`)
+  /*
+   * <b>합산하는 자리는 잘리면 안 된다.</b> 수불부는 넓게 물으면 앞 5천 줄만 주므로
+   * (원본 [오천건이상조회] 와 같은 문턱), 여기처럼 더해서 변동표와 견주는 자리는
+   * all=true 로 전부 받아야 한다. 안 그러면 합이 조용히 어긋난다 —
+   * 실제로 문턱을 넣자마자 이 단언 둘이 걸려서 알았다.
+   */
+  const ledger = await must('GET', `/stock/ledger?from=${from}&to=${to}&all=true`)
   const inc = ledger.rows.filter((r) => Number(r.quantityChange) > 0)
   const dec = ledger.rows.filter((r) => Number(r.quantityChange) < 0)
   eq('증가내역 + 감소내역 = 수불부 전체', inc.length + dec.length, ledger.rows.length)

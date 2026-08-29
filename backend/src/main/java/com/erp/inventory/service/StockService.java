@@ -99,12 +99,33 @@ public class StockService {
      * 품목·창고를 모두 특정하면 기초재고(opening)를 함께 산출한다. 저장된 balanceAfter는 입력(id)순
      * 기준이라 일자정렬 화면에서 어긋날 수 있으므로, 화면은 opening에 변동량을 누적해 잔량을 재계산한다.
      */
+    /**
+     * 한 번에 내려보낼 줄 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다.
+     * 이 위로는 화면이 그 버튼을 눌러 <b>일부러</b> 가져가야 한다.
+     */
+    public static final int LEDGER_PAGE_ROWS = 5000;
+
     @Transactional(readOnly = true)
     public StockDtos.StockLedgerResponse ledger(Long itemId, Long warehouseId, LocalDate from, LocalDate to) {
+        return ledger(itemId, warehouseId, from, to, false);
+    }
+
+    @Transactional(readOnly = true)
+    public StockDtos.StockLedgerResponse ledger(Long itemId, Long warehouseId,
+                                                LocalDate from, LocalDate to, boolean all) {
         // 날짜는 항상 non-null로 (PostgreSQL 42P18 회피). 미지정이면 넓은 경계로 채운다.
         LocalDate effFrom = from != null ? from : LocalDate.of(1900, 1, 1);
         LocalDate effTo = to != null ? to : LocalDate.of(9999, 12, 31);
-        List<StockTransactionResponse> rows = transactionRepository.findLedger(itemId, warehouseId, effFrom, effTo).stream()
+        /*
+         * 다 꺼내 놓고 자르면 이미 늦다 — 서버가 그 자료를 전부 메모리에 든 뒤다.
+         * 몇 줄인지 <b>먼저 세고</b>, 넘치면 앞부분만 꺼낸다.
+         */
+        long totalRows = transactionRepository.countLedger(itemId, warehouseId, effFrom, effTo);
+        boolean truncated = !all && totalRows > LEDGER_PAGE_ROWS;
+        List<StockTransactionResponse> rows = (truncated
+                ? transactionRepository.findLedgerPage(itemId, warehouseId, effFrom, effTo,
+                        org.springframework.data.domain.PageRequest.of(0, LEDGER_PAGE_ROWS))
+                : transactionRepository.findLedger(itemId, warehouseId, effFrom, effTo)).stream()
                 .map(StockTransactionResponse::from)
                 .toList();
         BigDecimal opening = null;
@@ -113,7 +134,7 @@ public class StockService {
                     ? transactionRepository.sumChangeBefore(itemId, warehouseId, from)
                     : BigDecimal.ZERO;   // from 미지정 → 전기간, 첫 거래 이전 재고는 0
         }
-        return new StockDtos.StockLedgerResponse(opening, rows);
+        return new StockDtos.StockLedgerResponse(opening, rows, totalRows, truncated);
     }
 
     /**
