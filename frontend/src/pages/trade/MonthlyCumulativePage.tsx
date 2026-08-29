@@ -133,11 +133,11 @@ export default function MonthlyCumulativePage() {
           ) : rows.map((r) => (
             <tr key={r.month}>
               <td style={{ fontWeight: 600 }}>{r.month}월</td>
-              <td style={{ textAlign: 'right', color: r.sale ? undefined : '#c5cbd3' }}>{r.sale ? won(r.sale) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.sale ? undefined : '#c5cbd3' }}>{r.sale ? won(r.sale) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.saleCum)}</td>
-              <td style={{ textAlign: 'right', color: r.buy ? undefined : '#c5cbd3' }}>{r.buy ? won(r.buy) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.buy ? undefined : '#c5cbd3' }}>{r.buy ? won(r.buy) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buyCum)}</td>
-              <td style={{ textAlign: 'right', color: r.profit === 0 ? '#c5cbd3' : r.profit > 0 ? '#1c7c3c' : '#c60a2e' }}>{r.profit ? won(r.profit) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.profit === 0 ? '#c5cbd3' : r.profit > 0 ? '#1c7c3c' : '#c60a2e' }}>{r.profit ? won(r.profit) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.profitCum >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(r.profitCum)}</td>
             </tr>
           ))}

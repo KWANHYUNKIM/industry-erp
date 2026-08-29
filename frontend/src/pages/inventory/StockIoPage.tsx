@@ -203,7 +203,7 @@ export default function StockIoPage() {
                     {t.quantityChange > 0 ? '+' : ''}{t.quantityChange.toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right' }}>{t.balanceAfter.toLocaleString()}</td>
-                  <td style={{ color: '#8a929c' }}>{t.note ?? '-'}</td>
+                  <td style={{ color: '#8a929c' }}>{t.note ?? ''}</td>
                 </tr>
               ))}
             </tbody>

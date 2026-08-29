@@ -381,7 +381,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               <td>{r.productName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.receiptQty.toLocaleString()}</td>
               <td>{r.materialName}</td>
-              <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : '-'}</td>
+              <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : ''}</td>
               <td>{r.fromWarehouseName}</td>
               <td>{r.warehouseName}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>

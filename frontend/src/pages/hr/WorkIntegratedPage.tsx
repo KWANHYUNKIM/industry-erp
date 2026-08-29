@@ -147,9 +147,9 @@ export default function WorkIntegratedPage() {
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.name}</td>
               <td style={{ color: '#5a626e' }}>{r.department ?? ''}</td>
-              <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? '-'}</td>
-              <td style={{ ...mono, textAlign: 'center' }}>{r.clockOut ?? '-'}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status ?? '-'}</td>
+              <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? ''}</td>
+              <td style={{ ...mono, textAlign: 'center' }}>{r.clockOut ?? ''}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status ?? ''}</td>
               <td>
                 {r.events.length === 0 ? <span style={{ color: '#c5cbd3' }}>-</span> : (
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

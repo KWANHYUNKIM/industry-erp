@@ -1943,7 +1943,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               return (
                 <tr key={i}>
                   <td>{itemById.get(l.itemId)?.name}</td>
-                  <td>{warehouses.find((w) => String(w.id) === warehouseId)?.name ?? '-'}</td>
+                  <td>{warehouses.find((w) => String(w.id) === warehouseId)?.name ?? ''}</td>
                   <td style={{ textAlign: 'right', color: mode === 'sales' && have < need ? '#c60a2e' : undefined }}>{won(have)}</td>
                   <td style={{ textAlign: 'right' }}>{won(need)}</td>
                 </tr>

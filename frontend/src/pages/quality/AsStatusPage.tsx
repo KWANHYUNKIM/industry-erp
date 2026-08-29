@@ -180,14 +180,14 @@ export default function AsStatusPage() {
                 <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || '-'}</td>
-                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || '-'}</td>
+                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
+                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || ''}</td>
                 <td style={{ textAlign: 'right', color: days === null ? '#c5cbd3' : '#3c4553' }}>{days === null ? '-' : `${days}일`}</td>
-                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || '-'}</td>
+                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
               </tr>
             )
           })}

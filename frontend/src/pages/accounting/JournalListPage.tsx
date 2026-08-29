@@ -126,8 +126,8 @@ export default function JournalListPage() {
                             <td style={{ fontFamily: 'monospace' }}>{l.accountCode}</td>
                             <td>{l.accountName}</td>
                             <td style={{ color: '#8a929c' }}>{l.description ?? ''}</td>
-                            <td style={{ textAlign: 'right', color: l.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{l.debit > 0 ? won(l.debit) : '-'}</td>
-                            <td style={{ textAlign: 'right', color: l.credit > 0 ? '#a5561b' : '#c9ced6' }}>{l.credit > 0 ? won(l.credit) : '-'}</td>
+                            <td style={{ textAlign: 'right', color: l.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{l.debit > 0 ? won(l.debit) : ''}</td>
+                            <td style={{ textAlign: 'right', color: l.credit > 0 ? '#a5561b' : '#c9ced6' }}>{l.credit > 0 ? won(l.credit) : ''}</td>
                           </tr>
                         ))}
                       </tbody>

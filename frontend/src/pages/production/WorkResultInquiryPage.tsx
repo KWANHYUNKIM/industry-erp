@@ -251,15 +251,15 @@ export default function WorkResultInquiryPage() {
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? '-'}</td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
                 <td>{r.process}</td>
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
-                <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
+                <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>

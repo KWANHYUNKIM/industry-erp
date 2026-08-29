@@ -186,7 +186,7 @@ export default function PivotSummaryPage() {
             ) : rows.map((r) => (
               <tr key={r.key}>
                 <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{r.name}</td>
-                {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? '#3c4553' : '#d0d5db' }}>{v ? won(v) : '-'}</td>)}
+                {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? '#3c4553' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
                 <td style={{ ...cell, fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
               </tr>
             ))}
@@ -195,7 +195,7 @@ export default function PivotSummaryPage() {
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
                 <td style={{ position: 'sticky', left: 0, background: '#f7f9fb' }}>합계</td>
-                {colTotals.months.map((v, i) => <td key={i} style={cell}>{v ? won(v) : '-'}</td>)}
+                {colTotals.months.map((v, i) => <td key={i} style={cell}>{v ? won(v) : ''}</td>)}
                 <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.grand)}</td>
               </tr>
             </tfoot>

@@ -159,10 +159,10 @@ export default function WoStatusPage() {
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.remainingQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.remainingQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty ? Math.round((r.producedQty / r.plannedQty) * 100) : 0}</td>
-              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
+              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? ''}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
             </tr>
           ))}

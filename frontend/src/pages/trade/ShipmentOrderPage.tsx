@@ -437,13 +437,13 @@ export default function ShipmentOrderPage() {
                 {s.salesOrderNo ?? '직접등록'}
               </td>
               <td>{dateText(s.shipDate)}</td>
-              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || '-'}</td>
+              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || ''}</td>
               <td>{s.partnerName}</td>
-              <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? '-'}</td>
+              <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? ''}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(s.totalQuantity)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
-              <td style={{ color: s.contact ? undefined : '#c9ced6' }}>{s.contact || '-'}</td>
+              <td style={{ color: s.contact ? undefined : '#c9ced6' }}>{s.contact || ''}</td>
               <td style={{ color: '#8a929c' }}>{s.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[s.status], fontWeight: 700 }}>{s.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>

@@ -175,7 +175,7 @@ export default function StocktakePage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: r.spec ? undefined : '#c5cbd3' }}>{r.spec || '-'}</td>
+                <td style={{ color: r.spec ? undefined : '#c5cbd3' }}>{r.spec || ''}</td>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.quantity)}</td>
                 <td style={{ textAlign: 'right' }}>

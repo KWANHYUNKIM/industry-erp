@@ -108,10 +108,10 @@ export default function ExportPage() {
         <tr><td style="width:120px"><b>Invoice No.</b></td><td>${esc(e.invoiceNo)}</td>
             <td style="width:120px"><b>Date</b></td><td>${esc(e.invoiceDate)}</td></tr>
         <tr><td><b>Buyer</b></td><td>${esc(e.buyerName)}</td>
-            <td><b>Destination</b></td><td>${esc(e.destination ?? '-')}</td></tr>
-        <tr><td><b>Terms</b></td><td>${esc(e.incoterms ?? '-')}</td>
-            <td><b>B/L No.</b></td><td>${esc(e.blNo ?? '-')}</td></tr>
-        <tr><td><b>수출신고번호</b></td><td colspan="3">${esc(e.declarationNo ?? '-')}</td></tr>
+            <td><b>Destination</b></td><td>${esc(e.destination ?? '')}</td></tr>
+        <tr><td><b>Terms</b></td><td>${esc(e.incoterms ?? '')}</td>
+            <td><b>B/L No.</b></td><td>${esc(e.blNo ?? '')}</td></tr>
+        <tr><td><b>수출신고번호</b></td><td colspan="3">${esc(e.declarationNo ?? '')}</td></tr>
       </table>
       <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
       ${money ? `<div class="foot"><b>Total: ${esc(e.currencyCode)} ${fx(e.foreignAmount, e.currencySymbol)}</b>

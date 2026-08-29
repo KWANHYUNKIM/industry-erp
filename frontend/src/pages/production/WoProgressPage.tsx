@@ -372,7 +372,7 @@ export default function WoProgressPage() {
                   <td style={{ textAlign: 'right' }}>{num(o.plannedQty)}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g?.count ?? 0)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : '#c9ced6' }}>{num(g?.qty ?? 0)}</td>
-                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? '-'}</td>
+                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? ''}</td>
                 </tr>
               )
             })}
@@ -455,7 +455,7 @@ export default function WoProgressPage() {
                   <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(g?.good ?? 0)}</td>
                   <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? '#c60a2e' : '#8a929c' }}>{num(g?.defect ?? 0)}</td>
                   <td style={{ textAlign: 'right' }}>{num(g?.time ?? 0)}</td>
-                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? '-'}</td>
+                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? ''}</td>
                 </tr>
               )
             })}

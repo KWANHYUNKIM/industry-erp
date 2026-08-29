@@ -437,7 +437,7 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : '-'}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
                 <td style={{ textAlign: 'right', color: cur > 0 ? undefined : '#c9ced6' }}>{cur.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: checked ? 600 : 400 }}>{newPrice.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', color: diff > 0 ? '#c60a2e' : diff < 0 ? '#1c7c3c' : '#9aa1ab' }}>{diff.toLocaleString('ko-KR')}</td>

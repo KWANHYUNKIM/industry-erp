@@ -344,8 +344,8 @@ export default function AsManagePage() {
                   <td>{p.itemName}</td>
                   <td>{p.warehouseName}</td>
                   <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
-                  <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : '-'}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : '-'}</td>
+                  <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : ''}</td>
                   <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
                 </tr>
               ))}
@@ -467,8 +467,8 @@ export default function AsManagePage() {
                             <td>{pt.itemName}</td>
                             <td style={{ color: '#5a626e' }}>{pt.warehouseName}</td>
                             <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
-                            <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : '-'}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : '-'}</td>
+                            <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : ''}</td>
                           </tr>
                         ))}
                       </tbody>

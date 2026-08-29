@@ -164,7 +164,7 @@ export default function FastVoucherPage() {
                 </td>
                 <td>{dateText(v.voucherDate)}</td>
                 <td style={{ textAlign: 'center' }}>{v.methodName}</td>
-                <td style={{ color: '#5a626e' }}>{v.bankAccountName ?? '-'}</td>
+                <td style={{ color: '#5a626e' }}>{v.bankAccountName ?? ''}</td>
                 <td>{v.partnerName ?? ''}</td>
                 {type === 'ADVANCE_SETTLEMENT' && (
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(v.advanceAmount ?? 0)}</td>

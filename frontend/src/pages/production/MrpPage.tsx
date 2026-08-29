@@ -267,7 +267,7 @@ export default function MrpPage() {
               <td style={{ textAlign: 'right' }}>{r.currentStock.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.shortage > 0 ? 700 : 400, color: r.shortage > 0 ? '#c60a2e' : '#8a929c' }}>{r.shortage.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.planQty.toLocaleString()}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
               <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center' }}>

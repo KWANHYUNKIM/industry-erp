@@ -308,8 +308,8 @@ export default function BorPage() {
                   <td style={{ textAlign: 'right' }}>{r.seq}</td>
                   <td>{r.workName}</td>
                   <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? '-'}</td>
-                  <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>{r.workItemName ?? '-'}</td>
+                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? ''}</td>
+                  <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>{r.workItemName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : '#c9ced6' }}>
                     {r.workQty != null ? r.workQty.toLocaleString('ko-KR') : '-'}
                   </td>

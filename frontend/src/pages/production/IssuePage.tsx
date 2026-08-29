@@ -456,9 +456,9 @@ export default function IssuePage() {
               </td>
               <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
-              <td>{r.warehouseName ?? '-'}</td>
-              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
-              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.workOrderDate) || '-'}</td>
+              <td>{r.warehouseName ?? ''}</td>
+              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.workOrderDate) || ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}
@@ -467,7 +467,7 @@ export default function IssuePage() {
               <td>{r.itemName}{r.itemSpec ? `[${r.itemSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
               <td>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>

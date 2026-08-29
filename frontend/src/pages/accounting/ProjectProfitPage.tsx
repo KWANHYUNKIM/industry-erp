@@ -115,7 +115,7 @@ export default function ProjectProfitPage() {
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.projectCode}</td>
               <td style={{ fontWeight: 600 }}>{r.projectName}</td>
-              <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.status ?? '-'}</td>
+              <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.status ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.revenue)}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.purchaseCost)}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.expense)}</td>

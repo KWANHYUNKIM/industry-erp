@@ -130,10 +130,10 @@ export default function LotLedgerPage() {
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : '-'}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : '-'}</td>
+                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
+                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.balanceAfter)}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? '-'}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>
             )
           })}

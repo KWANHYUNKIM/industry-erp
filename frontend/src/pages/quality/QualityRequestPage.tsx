@@ -252,10 +252,10 @@ export default function QualityRequestPage() {
               <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.requestQty.toLocaleString()}</td>
-              <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
+              <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? '-'}</td>
+              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? ''}</td>
               <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {r.status === 'REQUESTED' ? (

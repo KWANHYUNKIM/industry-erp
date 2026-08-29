@@ -139,7 +139,7 @@ export default function OtherWithholdingPage() {
               <td>{dateText(r.payDate)}</td>
               <td>{r.incomeTypeName}</td>
               <td style={{ fontWeight: 600 }}>{r.payeeName}</td>
-              <td style={{ color: '#8a929c' }}>{r.payeeRegNo ?? '-'}</td>
+              <td style={{ color: '#8a929c' }}>{r.payeeRegNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.grossAmount)}</td>
               <td style={{ textAlign: 'right', color: r.expenseAmount > 0 ? '#5a626e' : '#c3c8cf' }}>{won(r.expenseAmount)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.taxableAmount)}</td>

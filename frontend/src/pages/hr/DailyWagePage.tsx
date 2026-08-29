@@ -127,7 +127,7 @@ export default function DailyWagePage() {
               <td>{dateText(r.workDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.employeeCode}</td>
               <td style={{ fontWeight: 600 }}>{r.employeeName}</td>
-              <td>{r.department || '-'}</td>
+              <td>{r.department || ''}</td>
               <td style={{ textAlign: 'center' }}>{r.workHours}h</td>
               <td style={{ textAlign: 'right' }}>{won(r.dailyWage)}</td>
               <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? '#c60a2e' : '#c3c8cf' }}>{won(r.incomeTax)}</td>

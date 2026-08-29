@@ -261,7 +261,7 @@ export default function LeaveListPage() {
                 <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
                   {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? ''}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td style={{ textAlign: 'right' }}>{days(r.days)}</td>

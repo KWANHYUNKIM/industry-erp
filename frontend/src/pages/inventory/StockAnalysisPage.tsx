@@ -197,7 +197,7 @@ export default function StockAnalysisPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? '-'}</td>
+                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.quantity)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.safetyStock)}</td>

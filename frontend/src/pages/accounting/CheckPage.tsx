@@ -161,7 +161,7 @@ export default function CheckPage() {
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? '-'}</td>
+              <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
               <td>{dateText(c.settledDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>

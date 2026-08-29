@@ -107,8 +107,8 @@ export default function AccountLedgerPage() {
                   <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
                   <td>{r.description}</td>
                   <td>{r.partnerName ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: r.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{r.debit > 0 ? won(r.debit) : '-'}</td>
-                  <td style={{ textAlign: 'right', color: r.credit > 0 ? '#a5561b' : '#c9ced6' }}>{r.credit > 0 ? won(r.credit) : '-'}</td>
+                  <td style={{ textAlign: 'right', color: r.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{r.debit > 0 ? won(r.debit) : ''}</td>
+                  <td style={{ textAlign: 'right', color: r.credit > 0 ? '#a5561b' : '#c9ced6' }}>{r.credit > 0 ? won(r.credit) : ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.balance)}</td>
                 </tr>
               ))}

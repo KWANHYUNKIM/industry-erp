@@ -106,7 +106,7 @@ export default function RolesPage() {
                     {r.system && <span style={{ marginLeft: 6, fontSize: 10.5, color: '#9aa1ab' }}>기본</span>}
                   </td>
                   <td>{r.displayName}</td>
-                  <td style={{ color: '#6b7280' }}>{r.description ?? '-'}</td>
+                  <td style={{ color: '#6b7280' }}>{r.description ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>{r.userCount ?? 0}</td>
                   <td style={{ textAlign: 'center' }}>
                     {isAdmin

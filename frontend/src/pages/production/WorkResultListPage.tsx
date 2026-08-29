@@ -337,7 +337,7 @@ export default function WorkResultListPage() {
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
                   {r.workDate}{r.workOrderNo ? ' ' + r.workOrderNo : ''}
                 </td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
+                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
                 {/*
                   <b>마스터에 없는 공정</b>은 그렇다고 말해 준다. 공정명은 자유입력이라
                   '조립 ' 처럼 한 글자만 달라도 마스터에 안 걸리는데, 그러면 아래

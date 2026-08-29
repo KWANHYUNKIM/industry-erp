@@ -221,11 +221,11 @@ export default function PurchaseOrderStatusPage() {
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
-              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || '-'}</td>
-              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || '-'}</td>
+              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
+              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>
                   {r.statusName || STATUS_LABEL[r.status]}

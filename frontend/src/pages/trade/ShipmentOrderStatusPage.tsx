@@ -279,7 +279,7 @@ export default function ShipmentOrderStatusPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(l.quantity)} {l.unit}</td>
                 <td>{r.warehouseName ?? ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? '—'}</td>
+                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? ''}</td>
                 <td style={{ color: '#8a929c' }}>{l.remark ?? r.remark ?? ''}</td>
               </tr>
             ))}
@@ -327,7 +327,7 @@ export default function ShipmentOrderStatusPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{num(r.totalQuantity)}</td>
                 <td>{r.warehouseName ?? ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? '—'}</td>
+                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? ''}</td>
               </tr>
             ))}
           </tbody>

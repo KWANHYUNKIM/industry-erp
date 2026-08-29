@@ -275,7 +275,7 @@ export default function PurchaseOrderPage() {
                   {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
                 </td>
                 <td>{po.partnerName}</td>
-                <td style={{ color: po.employeeName ? undefined : '#c9ced6' }}>{po.employeeName ?? '-'}</td>
+                <td style={{ color: po.employeeName ? undefined : '#c9ced6' }}>{po.employeeName ?? ''}</td>
                 {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
                 <td>
                   {po.lines[0]
@@ -346,8 +346,8 @@ export default function PurchaseOrderPage() {
                                   {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
                                   <b>{h.toStatusName}</b>
                                 </td>
-                                <td>{h.changedBy ?? '-'}</td>
-                                <td style={{ color: h.note ? undefined : '#c9ced6' }}>{h.note ?? '-'}</td>
+                                <td>{h.changedBy ?? ''}</td>
+                                <td style={{ color: h.note ? undefined : '#c9ced6' }}>{h.note ?? ''}</td>
                               </tr>
                             ))}
                           </tbody>

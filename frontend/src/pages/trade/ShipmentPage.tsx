@@ -300,7 +300,7 @@ export default function ShipmentPage() {
                 <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(x.l.amount)}</td>
-                <td style={{ color: x.r.warehouseName ? undefined : '#c9ced6' }}>{x.r.warehouseName ?? '-'}</td>
+                <td style={{ color: x.r.warehouseName ? undefined : '#c9ced6' }}>{x.r.warehouseName ?? ''}</td>
                 <td>{x.r.partnerName}</td>
                 {/* 줄 적요가 없으면 전표 적요를 보여 준다 — 원본도 한 칸이다. */}
                 <td style={{ color: '#8a929c' }}>{x.l.remark || x.r.remark || ''}</td>

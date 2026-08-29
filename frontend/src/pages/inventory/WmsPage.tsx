@@ -190,10 +190,10 @@ export default function WmsPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{l.warehouseName}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{l.code}</td>
-                <td>{l.zone ?? '-'}</td>
-                <td>{l.rack ?? '-'}</td>
-                <td>{l.level ?? '-'}</td>
-                <td style={{ color: '#5a626e' }}>{l.description ?? '-'}</td>
+                <td>{l.zone ?? ''}</td>
+                <td>{l.rack ?? ''}</td>
+                <td>{l.level ?? ''}</td>
+                <td style={{ color: '#5a626e' }}>{l.description ?? ''}</td>
                 <td style={{ textAlign: 'center', color: l.active ? '#1c7c3c' : '#8a929c' }}>{l.active ? '사용' : '미사용'}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => removeLocation(l)}>×</button>

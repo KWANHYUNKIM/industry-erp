@@ -135,8 +135,8 @@ export default function ContractPage() {
               <td>{c.employeeName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{c.employeeCode}</span></td>
               <td>{c.typeName}</td>
               <td>{dateText(c.startDate)} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
-              <td>{c.department || '-'}</td>
-              <td>{c.jobTitle || '-'}</td>
+              <td>{c.department || ''}</td>
+              <td>{c.jobTitle || ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(c.monthlySalary)}</td>
               <td style={{ textAlign: 'center' }}>{c.weeklyHours}h</td>
               <td style={{ textAlign: 'center' }}>

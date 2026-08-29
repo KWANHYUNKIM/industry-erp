@@ -423,7 +423,7 @@ export default function UnshippedPage() {
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.partnerName}</td>
               <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <input

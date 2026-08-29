@@ -231,12 +231,12 @@ export default function StockLedgerPage() {
                 </td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : '-'}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : '-'}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? '-'}</td>
+                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
+                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>
             )
           })}

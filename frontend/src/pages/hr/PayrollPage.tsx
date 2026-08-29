@@ -111,10 +111,10 @@ export default function PayrollPage() {
                 <td>{p ? <a onClick={() => setDetail(p)} style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}>{e.name}</a> : e.name}</td>
                 <td>{e.department}</td>
                 <td style={{ textAlign: 'right' }}>{won(p ? p.baseSalary : e.baseSalary)}</td>
-                <td style={{ textAlign: 'right' }}>{p ? won(p.allowanceTotal) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{p ? won(p.grossPay) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{p ? won(p.netPay) : '-'}</td>
+                <td style={{ textAlign: 'right' }}>{p ? won(p.allowanceTotal) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{p ? won(p.grossPay) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{p ? won(p.netPay) : ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   {p ? <span style={{ color: p.status === 'CONFIRMED' ? '#1c7c3c' : '#8a929c' }}>{p.statusName}</span> : <span style={{ color: '#c9ced6' }}>미작성</span>}
                 </td>

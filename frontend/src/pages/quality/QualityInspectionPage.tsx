@@ -200,7 +200,7 @@ export default function QualityInspectionPage() {
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate >= 3 ? '#c60a2e' : undefined }}>{r.defectRate.toFixed(1)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName}</td>
-              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? '-'}</td>
+              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? ''}</td>
               <td>{r.inspector ?? ''}</td>
             </tr>
           ))}

@@ -353,7 +353,7 @@ export default function WorkProcessPage() {
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
                 <td style={{ textAlign: 'right' }}>{r.seq}</td>
                 <td>{r.workName} <span style={{ color: '#8a929c', fontSize: 11.5 }}>({r.processName})</span></td>
-                <td style={{ color: r.workItemLabel ? undefined : '#9aa1ab' }}>{r.workItemLabel || '—'}</td>
+                <td style={{ color: r.workItemLabel ? undefined : '#9aa1ab' }}>{r.workItemLabel || ''}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.wo.plannedQty)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}

@@ -242,10 +242,10 @@ export default function SerialLotPage() {
               <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''}</td>
               <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
               <td>{dateText(r.inboundDate)}</td>
-              <td>{dateText(r.expireDate) || '-'}</td>
+              <td>{dateText(r.expireDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? '#9aa1ab' : undefined }}>{r.stockQty.toLocaleString()}</td>
-              <td>{r.warehouseName ?? '-'}</td>
+              <td>{r.warehouseName ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => toggleDetail(r)}

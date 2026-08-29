@@ -179,7 +179,7 @@ export default function MallItemMappingPage() {
           ) : shown.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? '#5a626e' : '#c9ced6' }}>{mallCodeOf(m.mall) || '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? '#5a626e' : '#c9ced6' }}>{mallCodeOf(m.mall) || ''}</td>
               <td>{m.mall}</td>
               <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{m.itemCode}</td>
               <td>{m.itemName}</td>

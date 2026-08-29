@@ -453,8 +453,8 @@ export default function WoEfficiencyPage() {
                     <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.stdQty.toLocaleString('ko-KR')}</td>
                     <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.actualQty.toLocaleString('ko-KR')}</td>
                     <td style={{ textAlign: 'right', color: '#8a929c' }}>{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right' }}>{d.stdAmount != null ? won(d.stdAmount) : '-'}</td>
-                    <td style={{ textAlign: 'right' }}>{d.actualAmount != null ? won(d.actualAmount) : '-'}</td>
+                    <td style={{ textAlign: 'right' }}>{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
+                    <td style={{ textAlign: 'right' }}>{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
                     <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? '#c60a2e' : '#5a626e' }}>
                       {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
                     </td>

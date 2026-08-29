@@ -214,7 +214,7 @@ export default function TradeHistoryPage() {
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vat)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: c.fg }}>{won(r.total)}</td>
                 <td style={{ color: '#5a626e' }}>{r.warehouseName}</td>
-                <td style={{ color: '#5a626e' }}>{r.employeeName ?? '-'}</td>
+                <td style={{ color: '#5a626e' }}>{r.employeeName ?? ''}</td>
               </tr>
             )
           })}

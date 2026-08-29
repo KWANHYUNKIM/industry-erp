@@ -306,7 +306,7 @@ export default function IssueStatusPage() {
                 <td>{r.itemName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '—'}</td>
+                <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
                 <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
               </tr>
             ))}
@@ -345,7 +345,7 @@ export default function IssueStatusPage() {
                 <td>{g.itemName}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
                 <td>{g.warehouseName}</td>
-                <td style={{ color: g.toWarehouseName ? undefined : '#c9ced6' }}>{g.toWarehouseName ?? '—'}</td>
+                <td style={{ color: g.toWarehouseName ? undefined : '#c9ced6' }}>{g.toWarehouseName ?? ''}</td>
               </tr>
             ))}
           </tbody>

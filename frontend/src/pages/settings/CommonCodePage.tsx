@@ -144,8 +144,8 @@ export default function CommonCodePage() {
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{c.code}</td>
                   <td style={{ fontWeight: 600, color: c.active ? undefined : '#b0b6bd' }}>{c.name}</td>
-                  <td style={{ color: '#5a626e' }}>{c.value1 ?? '-'}</td>
-                  <td style={{ color: '#5a626e' }}>{c.value2 ?? '-'}</td>
+                  <td style={{ color: '#5a626e' }}>{c.value1 ?? ''}</td>
+                  <td style={{ color: '#5a626e' }}>{c.value2 ?? ''}</td>
                   <td style={{ textAlign: 'right' }}>{c.sortOrder}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span

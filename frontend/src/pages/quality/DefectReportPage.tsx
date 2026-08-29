@@ -216,10 +216,10 @@ export default function DefectReportPage() {
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>
-              <td style={{ textAlign: 'right', color: r.inspectDefect ? '#c60a2e' : '#c5cbd3' }}>{r.inspectDefect ? won(r.inspectDefect) : '-'}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : '-'}</td>
-              <td style={{ textAlign: 'right', color: r.defectHandled ? '#a5561b' : '#c5cbd3' }}>{r.defectHandled ? won(r.defectHandled) : '-'}</td>
-              <td style={{ textAlign: 'right', color: r.disposed ? '#6b3fb0' : '#c5cbd3' }}>{r.disposed ? won(r.disposed) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.inspectDefect ? '#c60a2e' : '#c5cbd3' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : ''}</td>
+              <td style={{ textAlign: 'right', color: r.defectHandled ? '#a5561b' : '#c5cbd3' }}>{r.defectHandled ? won(r.defectHandled) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.disposed ? '#6b3fb0' : '#c5cbd3' }}>{r.disposed ? won(r.disposed) : ''}</td>
             </tr>
           ))}
         </tbody>

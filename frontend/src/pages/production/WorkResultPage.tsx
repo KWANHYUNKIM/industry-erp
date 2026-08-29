@@ -389,11 +389,11 @@ export default function WorkResultPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
               <td>{r.process}</td>
-              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
+              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
               <td>{r.productName ?? ''}</td>
-              <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? '-'}</td>
+              <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? ''}</td>
               <td>{r.worker ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>

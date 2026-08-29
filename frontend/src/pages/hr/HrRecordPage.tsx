@@ -152,8 +152,8 @@ export default function HrRecordPage() {
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td>{dateText(a.assignDate)}</td>
                   <td style={{ color: a.type === 'RESIGN' ? '#c60a2e' : a.type === 'PROMOTION' ? '#1c7c3c' : 'var(--ec-blue)' }}>{a.typeName}</td>
-                  <td>{a.department || '-'}</td>
-                  <td>{a.jobTitle || '-'}</td>
+                  <td>{a.department || ''}</td>
+                  <td>{a.jobTitle || ''}</td>
                   <td style={{ color: '#5a626e' }}>{a.remark ?? ''}</td>
                   <td style={{ color: '#8a929c' }}>{a.createdBy ?? ''}</td>
                 </tr>

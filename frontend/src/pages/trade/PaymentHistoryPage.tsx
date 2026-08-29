@@ -258,7 +258,7 @@ export default function PaymentHistoryPage() {
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.vatType}</td>
               <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
-              <td>{r.methodText || '-'}</td>
+              <td>{r.methodText || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
                            color: r.reflected ? '#1c7c3c' : '#c07a00' }}>
                 {r.reflected ? '반영' : '미반영'}

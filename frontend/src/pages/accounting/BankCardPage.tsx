@@ -309,7 +309,7 @@ function CardTable({ rows, onEdit }: { rows: CreditCardRow[]; onEdit: (r: Credit
             <td style={{ fontFamily: 'monospace' }}>{r.cardNo}</td>
             <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : '#5a626e' }}>{r.typeName}</td>
             <td>{r.ownerName ?? ''}</td>
-            <td style={{ color: '#5a626e' }}>{r.settlementAccountName ?? '-'}</td>
+            <td style={{ color: '#5a626e' }}>{r.settlementAccountName ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.glAccountName ?? ''}</td>
             <td style={{ textAlign: 'center' }}>{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>

@@ -349,7 +349,7 @@ export default function OrderTypePage() {
               <td style={{ color: r.procMenu ? undefined : '#9aa1ab', fontSize: 11.5 }}>
                 {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
               </td>
-              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? '-'}</td>
+              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? ''}</td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

@@ -204,10 +204,10 @@ export default function SwSchedulePage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.code ?? ''}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || ''}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>

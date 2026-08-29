@@ -227,8 +227,8 @@ export default function AttendanceKindStatusPage() {
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>
-              <td style={{ color: r.jobTitle ? undefined : '#c9ced6' }}>{r.jobTitle ?? '-'}</td>
-              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? '-'}</td>
+              <td style={{ color: r.jobTitle ? undefined : '#c9ced6' }}>{r.jobTitle ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? ''}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{days(r.days)}</td>

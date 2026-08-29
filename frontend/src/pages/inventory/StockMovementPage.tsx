@@ -267,8 +267,8 @@ export default function StockMovementPage() {
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : '-'}</td>
-              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : '#c5cbd3', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : '#c5cbd3', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(r.closing)}</td>
             </tr>
           ))}

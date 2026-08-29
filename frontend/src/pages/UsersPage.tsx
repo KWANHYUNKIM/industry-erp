@@ -108,7 +108,7 @@ export default function UsersPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{u.username}</td>
                 <td>{u.name}</td>
-                <td>{u.department ?? '-'}</td>
+                <td>{u.department ?? ''}</td>
                 <td style={{ color: u.employeeId ? undefined : '#c9ced6' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
                 <td>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

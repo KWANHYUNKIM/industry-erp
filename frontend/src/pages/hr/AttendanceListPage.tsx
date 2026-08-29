@@ -79,8 +79,8 @@ export default function AttendanceListPage() {
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={mono}>{r.clockIn ?? '-'}</td>
-              <td style={mono}>{r.clockOut ?? '-'}</td>
+              <td style={mono}>{r.clockIn ?? ''}</td>
+              <td style={mono}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
               <td>{r.note ?? ''}</td>
             </tr>

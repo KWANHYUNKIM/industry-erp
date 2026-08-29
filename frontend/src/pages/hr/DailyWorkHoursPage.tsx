@@ -126,7 +126,7 @@ export default function DailyWorkHoursPage() {
                 {days.map((d) => {
                   const r = e.byDay.get(d)
                   return (
-                    <td key={d} title={r ? `${r.clockIn ?? '-'}~${r.clockOut ?? '-'} (${r.status})` : ''}
+                    <td key={d} title={r ? `${r.clockIn ?? ''}~${r.clockOut ?? ''} (${r.status})` : ''}
                       style={{ textAlign: 'center', color: r ? cellColor(r.status) : '#dfe3e8', fontWeight: r && cellColor(r.status) ? 700 : 400 }}>
                       {r ? (r.status === '결근' ? '결' : hh(r.workHours)) : '·'}
                     </td>

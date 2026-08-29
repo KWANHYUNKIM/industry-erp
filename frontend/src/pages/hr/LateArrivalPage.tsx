@@ -160,7 +160,7 @@ export default function LateArrivalPage() {
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={{ ...mono, textAlign: 'center', color: '#c07a00', fontWeight: 600 }}>{r.clockIn ?? '-'}</td>
+              <td style={{ ...mono, textAlign: 'center', color: '#c07a00', fontWeight: 600 }}>{r.clockIn ?? ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{r.lateMin.toLocaleString()}분</td>
               <td>{r.note ?? ''}</td>
             </tr>

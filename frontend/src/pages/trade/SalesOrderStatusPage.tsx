@@ -343,7 +343,7 @@ export default function SalesOrderStatusPage() {
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
               <td style={{ textAlign: 'center' }}>

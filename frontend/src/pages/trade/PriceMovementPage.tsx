@@ -247,7 +247,7 @@ export default function PriceMovementPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? '-'}</td>
+                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.standard)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.count}</td>
@@ -255,7 +255,7 @@ export default function PriceMovementPage() {
                 {withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
                 {withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
-                <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : '-'}</td>
+                <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
                   {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}
                 </td>

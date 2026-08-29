@@ -136,8 +136,8 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             <tr key={r.month}>
               <td style={{ fontWeight: 600 }}>{r.month}월</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.increase ? incColor : '#c5cbd3', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : '-'}</td>
-              <td style={{ textAlign: 'right', color: r.decrease ? decColor : '#c5cbd3', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.increase ? incColor : '#c5cbd3', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.decrease ? decColor : '#c5cbd3', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
             </tr>
           ))}

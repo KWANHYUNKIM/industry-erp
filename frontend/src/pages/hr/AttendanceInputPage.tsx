@@ -156,8 +156,8 @@ export default function AttendanceInputPage() {
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
-              <td style={mono}>{r.clockIn ?? '-'}</td>
-              <td style={mono}>{r.clockOut ?? '-'}</td>
+              <td style={mono}>{r.clockIn ?? ''}</td>
+              <td style={mono}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString()}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
             </tr>

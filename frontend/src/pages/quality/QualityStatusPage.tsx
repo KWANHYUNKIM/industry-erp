@@ -178,13 +178,13 @@ export default function QualityStatusPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
               <td>{r.itemName}</td>
-              <td style={{ fontFamily: 'monospace', color: r.lotNo ? '#5a626e' : '#c5cbd3' }}>{r.lotNo ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.lotNo ? '#5a626e' : '#c5cbd3' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate > 0 ? '#c60a2e' : '#8a929c' }}>{pct(r.defectRate)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName || '미판정'}</td>
-              <td style={{ color: r.inspector ? undefined : '#c5cbd3' }}>{r.inspector || '-'}</td>
+              <td style={{ color: r.inspector ? undefined : '#c5cbd3' }}>{r.inspector || ''}</td>
             </tr>
           ))}
         </tbody>

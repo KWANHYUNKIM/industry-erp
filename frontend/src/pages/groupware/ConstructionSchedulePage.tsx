@@ -291,8 +291,8 @@ export default function ConstructionSchedulePage() {
                 })} />
               </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.startDate) || '-'}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.startDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || ''}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>

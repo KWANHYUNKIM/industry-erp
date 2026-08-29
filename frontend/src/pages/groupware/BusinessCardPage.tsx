@@ -128,15 +128,15 @@ export default function BusinessCardPage() {
               <td style={{ color: '#5a626e' }}>
                 {[c.department, c.jobTitle].filter(Boolean).join(' / ') || '-'}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? '-'}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? '-'}</td>
-              <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? ''}</td>
+              <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : ''}</td>
               <td>
                 {c.tags.map((t) => (
                   <span key={t} style={{ marginRight: 3, fontSize: 11, padding: '1px 5px', background: '#eef5ff', border: '1px solid #cfe0f5', borderRadius: 8, color: '#2b5b91' }}>#{t}</span>
                 ))}
               </td>
-              <td style={{ color: '#8a929c' }}>{c.ownerName ?? '-'}</td>
+              <td style={{ color: '#8a929c' }}>{c.ownerName ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(c)}>수정</button>
