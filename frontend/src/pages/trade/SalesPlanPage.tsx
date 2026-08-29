@@ -163,6 +163,14 @@ export default function SalesPlanPage() {
             <th style={{ width: 34 }}></th>
             <th style={{ textAlign: 'center' }}>연월</th>
             <th>품목</th>
+            {/*
+              원본 매출계획입력의 열 [거래처]. 계획에 축을 만들었는데 <b>표에는 안 보여</b>
+              같은 품목·같은 달 계획이 여럿일 때 <b>어느 것이 어느 축인지</b> 알 수 없었다.
+              창고·프로젝트도 같은 까닭으로 같이 보인다 — 안 나눈 계획은 빈칸이다.
+            */}
+            <th style={{ width: 110 }}>거래처</th>
+            <th style={{ width: 100 }}>창고</th>
+            <th style={{ width: 110 }}>프로젝트</th>
             <th style={{ textAlign: 'right' }}>계획수량</th>
             <th style={{ textAlign: 'right' }}>계획금액</th>
             <th style={{ textAlign: 'right' }}>실적수량</th>
@@ -173,14 +181,17 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
               <td>{r.itemName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
+              <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.warehouseName ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.planAmount)}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.actualQty)}</td>
