@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
@@ -63,6 +64,38 @@ export default function LeaveInputPage() {
     setLines((prev) => prev.map((l) => (l.userId ? l : { ...l, startDate: v, endDate: v })))
   }
 
+  /*
+   * 원본 상단의 <b>[근태일괄입력]</b>. 예전에는 '여러 사원의 근태를 한 번에 넣는 화면이 없다'
+   * 고 적고 뺐는데, <b>이 화면이 이미 여러 줄을 한 번에 넣는다</b> — 없던 것은
+   * <b>같은 근태를 여러 사람에게 한꺼번에 까는</b> 길이었다. 열 명 연차를 넣으려면
+   * 줄마다 사원을 고르고 항목·기간·일수를 열 번 똑같이 찍어야 했다.
+   *
+   * <p>저장하지 않고 <b>줄만 채운다.</b> 저장은 기존 [저장]이 한다 — 넣기 전에 눈으로
+   * 확인하고 한 줄쯤 고칠 수 있어야 하고, 검사도 한 자리에만 두는 편이 낫다.
+   */
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkUsers, setBulkUsers] = useState<Set<number>>(new Set())
+  const [bulkForm, setBulkForm] = useState({ type: '연차', startDate: '', endDate: '', days: '1', reason: '' })
+
+  function fillBulk() {
+    if (bulkUsers.size === 0) { setError('사원을 고르세요.'); return }
+    const from = bulkForm.startDate || baseDate
+    const to = bulkForm.endDate || from
+    setError('')
+    setLines((prev) => {
+      /* 아직 사원을 안 고른 빈 줄은 <b>덮어 쓴다</b> — 처음 세 줄이 빈 채로 남지 않게. */
+      const blanks = prev.filter((l) => !l.userId)
+      const kept = prev.filter((l) => l.userId)
+      const made = [...bulkUsers].map((id) => ({
+        ...emptyLine(from), userId: String(id), type: bulkForm.type,
+        startDate: from, endDate: to, days: bulkForm.days || '1', reason: bulkForm.reason,
+      }))
+      return [...kept, ...made, ...blanks.slice(0, Math.max(0, 3 - kept.length - made.length))]
+    })
+    setBulkUsers(new Set())
+    setBulkOpen(false)
+  }
+
   async function save() {
     setError(''); setOk('')
     const valid = lines.filter((l) => l.userId && Number(l.days) > 0)
@@ -101,6 +134,11 @@ export default function LeaveInputPage() {
       title="근태입력"
       searchable={false}
       actions={[
+        /* 원본 상단의 [근태일괄입력] — 같은 근태를 여러 사람에게 한꺼번에 깐다.
+           원본 차례상 <b>맨 앞</b>이다(근태일괄입력 · 저장(F8) · 리스트). */
+        { label: '근태일괄입력', onClick: () => {
+          setError(''); setBulkForm((f) => ({ ...f, startDate: baseDate, endDate: baseDate })); setBulkOpen(true)
+        } },
         { label: saving ? '저장 중…' : '저장(F8)', primary: true, onClick: save },
         /*
          * 원본 [리스트] — 넣은 것을 보러 근태조회로 간다. 저장해도 이 화면에
@@ -111,6 +149,50 @@ export default function LeaveInputPage() {
         { label: '다시 작성', onClick: () => setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)]) },
       ]}
     >
+      <Modal open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
+        <div style={{ padding: 4, minWidth: 460 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>근태항목</div>
+              <select className="ec-input" value={bulkForm.type} style={{ width: 110 }}
+                      onChange={(e) => setBulkForm((f) => ({ ...f, type: e.target.value }))}>
+                {TYPES.map((t) => <option key={t}>{t}</option>)}
+              </select></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기간</div>
+              <input type="date" className="ec-input" value={bulkForm.startDate} style={{ width: 140 }}
+                     onChange={(e) => setBulkForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>~</div>
+              <input type="date" className="ec-input" value={bulkForm.endDate} style={{ width: 140 }}
+                     onChange={(e) => setBulkForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>근태(일)</div>
+              <input type="number" step="any" className="ec-input" value={bulkForm.days} style={{ width: 80, textAlign: 'right' }}
+                     onChange={(e) => setBulkForm((f) => ({ ...f, days: e.target.value }))} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적요</div>
+              <input className="ec-input" value={bulkForm.reason} style={{ width: 160 }}
+                     onChange={(e) => setBulkForm((f) => ({ ...f, reason: e.target.value }))} /></label>
+          </div>
+          {/* 사원은 여럿 고른다 — 그게 이 창의 전부다. */}
+          <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ec-border)', padding: 8 }}>
+            {users.map((u) => (
+              <label key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, width: 150, fontSize: 12.5 }}>
+                <input type="checkbox" checked={bulkUsers.has(u.id)}
+                       onChange={() => setBulkUsers((prev) => {
+                         const next = new Set(prev)
+                         if (next.has(u.id)) next.delete(u.id); else next.add(u.id)
+                         return next
+                       })} />
+                {u.name}{u.department ? ` (${u.department})` : ''}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
+            <span style={{ marginRight: 'auto', fontSize: 11.5, color: '#8a929c' }}>
+              고른 {bulkUsers.size}명만큼 줄을 깝니다. <b>저장은 아직 아닙니다</b> — 확인하고 [저장(F8)] 하세요.
+            </span>
+            <button className="ec-btn ec-btn-primary" onClick={fillBulk}>줄 깔기</button>
+          </div>
+        </div>
+      )}</Modal>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 

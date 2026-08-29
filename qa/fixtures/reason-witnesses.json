@@ -59,5 +59,64 @@
    "signatureImage"
   ],
   "in": "backend"
+ },
+ "거래처리스트|H": {
+  "claim": "그 화면의 변경이력을 남기지 않는다",
+  "absent": [
+   "PartnerHistory"
+  ],
+  "in": "backend"
+ },
+ "단가적용순서설정|H": {
+  "claim": "그 화면의 변경이력을 남기지 않는다",
+  "absent": [
+   "PriceOrderHistory"
+  ],
+  "in": "backend"
+ },
+ "공용품관리|라벨변경": {
+  "claim": "여러 건의 라벨을 한꺼번에 바꾸는 기능이 없다",
+  "absent": [
+   "bulkLabel"
+  ],
+  "in": "both"
+ },
+ "SW개발일정관리|공용메일설정": {
+  "claim": "사내 공용메일 설정 화면이 없다",
+  "absent": [
+   "SharedMailSetting",
+   "shared-mail"
+  ],
+  "in": "both"
+ },
+ "공지사항|업무지원AI": {
+  "claim": "업무지원 AI 를 붙이지 않았다",
+  "absent": [
+   "AssistantService",
+   "/api/assistant"
+  ],
+  "in": "backend"
+ },
+ "설문조사조회|미리보기": {
+  "claim": "설문 미리보기 화면이 없다",
+  "absent": [
+   "SurveyPreview"
+  ],
+  "in": "frontend"
+ },
+ "공용품관리|미리보기": {
+  "claim": "인쇄 미리보기 화면이 없다",
+  "absent": [
+   "PrintPreviewPage"
+  ],
+  "in": "frontend"
+ },
+ "작업내역조회|바코드(품목)": {
+  "claim": "바코드를 찍지 않는다",
+  "absent": [
+   "printBarcode",
+   "BarcodeLabel"
+  ],
+  "in": "both"
  }
 }
