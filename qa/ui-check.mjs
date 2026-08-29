@@ -4173,6 +4173,50 @@ console.log('\n■ 표 머리와 그 아래 칸이 같은 쪽으로 붙나')
 }
 
 
+// ── 1-s6) QA 가 한 번도 안 부르는 컨트롤러가 있나 ───────────────────────
+console.log('\n■ QA 가 한 번도 안 부르는 컨트롤러가 있나')
+
+/*
+ * <b>컨트롤러 하나가 통째로 안 재어지면 그 기능은 아무도 안 본 것이다.</b> 화면에서만
+ * 쓰는 자리(메신저 같은)는 손으로 눌러 보는 것 말고 확인할 길이 없는데, 그마저 안 하면
+ * 깨진 채로 오래 간다. 실제로 메신저 열 자리·부가세 요약 셋·내 권한 하나가 그랬다.
+ *
+ * <p>자리마다 다 재라는 뜻은 아니다(지금 75%). <b>한 자리도 안 걸린 컨트롤러</b>만 막는다 —
+ * 그 선을 넘으면 '이 기능은 QA 밖' 이라는 뜻이 되기 때문이다.
+ */
+{
+  const qa = readFileSync(join('qa', 'qa.mjs'), 'utf8')
+  const called = [...qa.matchAll(/'(GET|POST|PUT|DELETE|PATCH)',\s*[`'"]([^`'"]*)/g)]
+    .map((m) => ({
+      method: m[1],
+      segs: m[2].split('?')[0].split('/').filter(Boolean).map((x) => (x.includes('${') ? null : x)),
+    }))
+  const naked = []
+  let total = 0
+  let hit = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    let t = 0
+    let h = 0
+    for (const m of src.matchAll(/@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?/g)) {
+      const full = (base + (m[2] ?? '')).replace('/api', '')
+      const segs = full.split('/').filter(Boolean).map((x) => (x.startsWith('{') ? null : x))
+      t += 1
+      const ok = called.some((c) => c.method === m[1].toUpperCase() && c.segs.length === segs.length
+        && segs.every((x, i) => x === null || c.segs[i] === null || x === c.segs[i]))
+      if (ok) h += 1
+    }
+    total += t
+    hit += h
+    if (t > 0 && h === 0) naked.push(`${f.split(/[\\/]/).pop()}  (${t}자리)`)
+  }
+  eq(`QA 가 부르는 자리 ${hit}/${total} — 한 자리도 안 걸린 컨트롤러가 없다`,
+    naked.join('\n') || '없음', '없음')
+}
+
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

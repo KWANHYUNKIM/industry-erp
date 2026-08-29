@@ -2956,10 +2956,22 @@ async function scenarioCreatedByFk() {
   eq('신규 사용자로 로그인됨', asUser.ok, true)
   token = asUser.data.token
 
+  /*
+   * <b>내 권한</b>(GET /me/permissions). 메뉴가 이 값으로 접히고 펴진다 — 관리자면
+   * 통째로 열고, 아니면 역할에 붙은 코드만 연다. 여기가 비면 <b>화면이 전부 잠긴 것처럼</b>
+   * 보이고, admin 이 잘못 켜지면 남의 메뉴가 다 보인다.
+   */
+  const mineP = await must('GET', '/me/permissions')
+  eq('관리자가 아닌 사용자는 admin 이 아니다', mineP.admin, false)
+  eq('역할에 붙은 권한 코드가 온다', Array.isArray(mineP.codes) && mineP.codes.length > 0, true)
+
   const budget = await must('POST', '/budgets', {
     period: PERIOD, accountId: welfare.id, amount: 500_000, remark: 'QA created_by FK',
   })
   token = adminToken
+
+  const adminP = await must('GET', '/me/permissions')
+  eq('관리자는 admin 으로 온다', adminP.admin, true)
 
   const rows = (await must('GET', `/budgets?period=${PERIOD}`)).rows
   eq('예산의 작성자가 그 사용자로 남음', rows.find((b) => b.id === budget.id) !== undefined, true)
@@ -8783,6 +8795,7 @@ async function main() {
   await scenarioIssueNoAndRequestProject(fixtures)
   await scenarioPartnerParent(fixtures)
   await scenarioChat()
+  await scenarioAccountingSummary()
 
   checkDeadAssertions()
 
@@ -8875,6 +8888,52 @@ async function scenarioChat() {
     await must('DELETE', `/chat/rooms/${room.id}/me`)   // 뒷정리 — 마지막 사람이 나가면 방이 사라진다
     token = saved
   }
+}
+
+/**
+ * 부가세·이익 요약 — 세 자리가 <b>같은 자료를 다르게 더하고 있지 않나</b>.
+ *
+ * <p>합계는 조용히 갈라진다. 화면 셋이 각각 제 방식으로 더하면 같은 달을 보는데
+ * 숫자가 서로 다르고, 어느 쪽이 맞는지 알 방법이 없다. 그래서 값이 얼마인지가 아니라
+ * <b>서로 맞아떨어지는지</b>를 잰다 — 자료가 늘어도 성립해야 하는 관계다.
+ */
+async function scenarioAccountingSummary() {
+  section('■ 시나리오 33. 부가세·이익 요약 (셋이 서로 맞나)')
+
+  const vat = await must('GET', '/accounting/vat-summary')
+  const near = (a, b, tol = 1) => Math.abs(Number(a) - Number(b)) <= tol
+  eq('매출 합계 = 공급가액 + 부가세', near(vat.salesTotal, Number(vat.salesSupply) + Number(vat.salesVat)), true)
+  eq('매입 합계 = 공급가액 + 부가세', near(vat.purchaseTotal, Number(vat.purchaseSupply) + Number(vat.purchaseVat)), true)
+  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
+  eq('납부세액 = 매출세액 − 매입세액',
+    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat)), true)
+
+  const items = await must('GET', '/accounting/item-profit')
+  eq('품목별 이익이 한 줄 이상 나온다', items.length > 0, true)
+  const bad = items.filter((r) => !near(r.profit, Number(r.salesAmount) - Number(r.costAmount)))
+  eq('줄마다 이익 = 매출액 − 매출원가', bad.map((r) => r.code).join(', ') || '없음', '없음')
+  /*
+   * 원가단가 × 판매수량 = 매출원가. 원가단가는 소수로 떨어지므로 줄당 몇 원은 어긋난다 —
+   * 그 줄의 수량만큼 벌어질 수 있어 수량을 곱해 허용치를 잡는다.
+   */
+  const offCost = items.filter((r) => !near(r.costAmount, Number(r.unitCost) * Number(r.soldQty), Number(r.soldQty) + 1))
+  eq('줄마다 매출원가 = 원가단가 × 판매수량', offCost.map((r) => r.code).join(', ') || '없음', '없음')
+  const noBasis = items.filter((r) => !r.costBasis)
+  eq('원가를 어디서 가져왔는지가 줄마다 적혀 있다', noBasis.map((r) => r.code).join(', ') || '없음', '없음')
+
+  /*
+   * <b>요약과 줄의 합이 같아야 한다.</b> 화면 둘이 같은 달을 보면서 다른 총액을 내면
+   * 사람이 어느 쪽을 믿을지 고를 수가 없다.
+   */
+  const sum = await must('GET', '/accounting/profit-summary')
+  const sumSales = items.reduce((n, r) => n + Number(r.salesAmount), 0)
+  const sumCost = items.reduce((n, r) => n + Number(r.costAmount), 0)
+  eq('총매출액 = 품목별 매출액의 합', near(sum.totalSales, sumSales, items.length + 1), true)
+  eq('총매출원가 = 품목별 매출원가의 합', near(sum.totalCost, sumCost, items.length + 1), true)
+  eq('매출총이익 = 총매출액 − 총매출원가',
+    near(sum.grossProfit, Number(sum.totalSales) - Number(sum.totalCost)), true)
+  eq('이익률 = 매출총이익 ÷ 총매출액',
+    near(sum.marginRate, (Number(sum.grossProfit) / Number(sum.totalSales)) * 100, 0.1), true)
 }
 
 /**
