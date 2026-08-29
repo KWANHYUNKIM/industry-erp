@@ -1137,6 +1137,17 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['거래처별채권', 'trade/LedgerPage.tsx'],
     ['거래처별채무', 'trade/LedgerPage.tsx'],
     ['설문조사현황', 'groupware/SurveyStatusPage.tsx'],
+    /*
+     * 기타이동 다섯은 <b>한 파일</b>이 화면마다 kind 로 갈라 그린다. 파일이 하나라
+     * 이 검사는 '그 파일이 그 기본값을 <b>쓰기는 하나</b>' 까지만 본다 — 어느 갈래가
+     * 어느 화면인지는 정적으로 가릴 수 없다. 그래도 값이 통째로 빠지면 잡힌다:
+     * 실제로 다섯이 다 [금월(~오늘)] 한 값으로 묶여 있어 <b>자가사용현황만 늘 틀렸다</b>.
+     */
+    ['자가사용현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['불량처리현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['대체사용현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
   ])
 
   /**

@@ -63,8 +63,16 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const [error, setError] = useState('')
 
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
-  // 원본 기본값이 금월(~오늘)이다.
-  const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
+  /*
+   * 원본 기간 기본값은 <b>화면마다 다르다</b>(사본 실측): 불량처리·대체사용·폐기·재고조정은
+   * [금월(~오늘)] 인데 <b>자가사용현황만 [전월+금월]</b> 이다. 사본의 달 스핀박스도 그 화면만
+   * 06·07 둘이고 나머지는 07 하나라 서로 맞는다.
+   *
+   * <p>다섯 화면이 한 파일이라 <b>한 값으로 묶어 두면 한 화면이 늘 틀린다</b> —
+   * 자가사용을 열면 지난달에 쓴 것이 안 보였다.
+   */
+  const init = (kind === 'SELF_USE' ? periodOf('전월+금월') : periodOf('금월(~오늘)'))
+    ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 

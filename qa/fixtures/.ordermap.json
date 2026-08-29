@@ -606,5 +606,25 @@
  [
   "오더관리유형등록",
   "trade/OrderTypePage.tsx"
+ ],
+ [
+  "자가사용현황",
+  "inventory/StockMoveStatusPage.tsx"
+ ],
+ [
+  "불량처리현황",
+  "inventory/StockMoveStatusPage.tsx"
+ ],
+ [
+  "대체사용현황",
+  "inventory/StockMoveStatusPage.tsx"
+ ],
+ [
+  "폐기현황",
+  "inventory/StockMoveStatusPage.tsx"
+ ],
+ [
+  "재고조정현황",
+  "inventory/StockMoveStatusPage.tsx"
  ]
 ]
