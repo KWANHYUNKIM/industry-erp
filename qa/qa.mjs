@@ -837,6 +837,24 @@ async function scenarioSalesPlanScope(f) {
     warehouseId: wh2.id,
   })
 
+  /*
+   * 원본 매출계획 격자의 첫 열은 <b>[일자-No.]</b> 다(사본 실측) — 계획 한 줄에도 전표번호가
+   * 붙는다. 예상매출일자를 안 주면 <b>계획연월 1일</b>이 전표일자다(번호는 늘 있어야 하는데
+   * 예상일은 비어 있을 수 있다). 셋 다 같은 달·같은 날짜라 번호가 이어져야 하고,
+   * 겹치면 unique 제약이 터진다.
+   */
+  eq('매출계획에 전표번호가 붙는다',
+    /^SP-\d{8}-\d{4}$/.test(planAll.planNo ?? ''), true)
+  eq('예상매출일자를 안 주면 계획연월 1일이 전표일자다',
+    planAll.planDate, `${year}-05-01`)
+  eq('같은 날짜의 계획 셋이 서로 다른 번호를 받는다',
+    new Set([planAll.planNo, planHere.planNo, planThere.planNo]).size, 3)
+  const 예상일 = await must('POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 1, planAmount: 1000,
+    expectedDate: `${year}-05-20`,
+  })
+  eq('예상매출일자를 주면 그 날짜로 채번한다', 예상일.planNo.startsWith(`SP-${year}0520-`), true)
+
   const rows = await must('GET', `/sales-plans/comparison?year=${year}`)
   const qtyOf = (id) => Number(rows.find((r) => r.id === id)?.actualQty ?? -1)
   /*

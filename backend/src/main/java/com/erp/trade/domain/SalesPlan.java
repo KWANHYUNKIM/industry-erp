@@ -69,6 +69,20 @@ public class SalesPlan extends BaseTimeEntity {
     @Column(name = "expected_date")
     private java.time.LocalDate expectedDate;
 
+    /**
+     * 전표일자. 예상매출일자가 있으면 그것, 없으면 계획연월 1일이다.
+     *
+     * <p>원본 매출계획 격자의 첫 열이 <b>[일자-No.]</b> 라서 번호에 날짜가 붙는다.
+     * 예상매출일자는 비어 있을 수 있는데 번호는 늘 있어야 하므로, 채번에 쓸 날짜를
+     * 따로 둔다. 예상매출일자가 계획연월과 어긋나는 것은 서비스가 막으므로 둘이 갈라지지 않는다.
+     */
+    @Column(name = "plan_date", nullable = false)
+    private java.time.LocalDate planDate;
+
+    /** 전표번호 SP-yyyyMMdd-NNNN. 계획 한 줄을 가리킬 이름이다. */
+    @Column(name = "plan_no", nullable = false, length = 30, unique = true)
+    private String planNo;
+
     @Column(name = "plan_year", nullable = false)
     private int planYear;
 

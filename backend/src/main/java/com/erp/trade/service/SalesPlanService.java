@@ -41,6 +41,7 @@ public class SalesPlanService {
     private final SalesRepository salesRepository;   // 같은 모듈(trade)
     private final ItemService itemService;           // inventory 의 공개 API
     private final com.erp.hr.service.EmployeeService employeeService;
+    private final com.erp.common.DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<SalesPlanResponse> findAll(Integer year) {
@@ -65,8 +66,18 @@ public class SalesPlanService {
                     "예상매출일자가 계획연월과 다릅니다: " + req.expectedDate()
                     + " ≠ " + req.planYear() + "-" + String.format("%02d", req.planMonth()));
         }
+        /*
+         * 원본 매출계획 격자의 첫 열은 <b>[일자-No.]</b> 다(사본 실측) — 계획 한 줄에도
+         * 전표번호가 붙는다. 예상매출일자는 비어 있을 수 있으므로, 없으면 계획연월 1일을
+         * 전표일자로 삼는다(둘은 어긋날 수 없다 — 바로 위에서 막았다).
+         */
+        java.time.LocalDate planDate = req.expectedDate() != null
+                ? req.expectedDate()
+                : java.time.LocalDate.of(req.planYear(), req.planMonth(), 1);
         SalesPlan plan = SalesPlan.builder()
                 .item(item)
+                .planDate(planDate)
+                .planNo(docNoGenerator.next("SP-", "sales_plans", "plan_no", "plan_date", planDate))
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .partner(req.partnerId() == null ? null : partnerService.get(req.partnerId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))

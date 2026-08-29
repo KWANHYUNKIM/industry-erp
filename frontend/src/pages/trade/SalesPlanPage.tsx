@@ -38,6 +38,8 @@ interface ComparisonRow {
   unit: string
   planQty: number
   planAmount: number
+  /** 원본 [일자-No.] — 계획 한 줄을 가리키는 전표번호다. */
+  planNo: string
   actualQty: number
   actualAmount: number
   achieveRate: number
@@ -238,6 +240,11 @@ export default function SalesPlanPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/*
+              원본 매출계획 격자의 <b>첫 열</b>은 [일자-No.] 다(사본 실측). 계획 한 줄을
+              가리킬 이름이 없어서, 어느 계획을 고쳤다거나 지웠다고 말할 방법이 없었다.
+            */}
+            <th style={{ width: 150 }}>일자-No.</th>
             <th style={{ textAlign: 'center' }}>연월</th>
             {/* 원본 매출계획입력의 [예상매출일자]. 안 정한 계획은 빈칸이다. */}
             <th style={{ width: 110, textAlign: 'center' }}>예상매출일자</th>
@@ -265,12 +272,13 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={9 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.planNo}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{dateText(r.expectedDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{named(r.partnerName, r.partnerCode)}</td>

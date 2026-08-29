@@ -32,7 +32,10 @@ public final class SalesPlanDtos {
     ) {}
 
     public record SalesPlanResponse(
-            Long id, int planYear, int planMonth,
+            Long id,
+            /** 원본 격자 첫 열 <b>[일자-No.]</b> — 계획 한 줄을 가리키는 이름이다. */
+            String planNo, java.time.LocalDate planDate,
+            int planYear, int planMonth,
             Long itemId, String itemCode, String itemName, String unit,
             Long employeeId, String employeeName,
             java.time.LocalDate expectedDate,
@@ -40,7 +43,7 @@ public final class SalesPlanDtos {
     ) {
         public static SalesPlanResponse from(SalesPlan p) {
             return new SalesPlanResponse(
-                    p.getId(), p.getPlanYear(), p.getPlanMonth(),
+                    p.getId(), p.getPlanNo(), p.getPlanDate(), p.getPlanYear(), p.getPlanMonth(),
                     p.getItem().getId(), p.getItem().getCode(), p.getItem().getName(), p.getItem().getUnit(),
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,

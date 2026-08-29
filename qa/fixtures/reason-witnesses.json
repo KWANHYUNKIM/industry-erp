@@ -38,13 +38,6 @@
   ],
   "in": "backend"
  },
- "매출계획|일자-No.": {
-  "claim": "계획에는 번호가 없다",
-  "absent": [
-   "planNo"
-  ],
-  "in": "backend"
- },
  "구매단가일괄변경|환율": {
   "claim": "매입 전표에 통화 칸이 없다",
   "absent": [
