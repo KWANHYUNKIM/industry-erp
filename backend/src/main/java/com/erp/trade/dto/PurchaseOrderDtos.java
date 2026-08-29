@@ -25,6 +25,7 @@ public final class PurchaseOrderDtos {
             @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 라인 거래처(선택). 미지정 시 헤더 매입처 기준. */
             Long partnerId,
+            @Size(max = 200, message = "비고는 200자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

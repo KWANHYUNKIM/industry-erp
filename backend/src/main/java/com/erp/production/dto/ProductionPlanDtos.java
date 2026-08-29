@@ -36,6 +36,7 @@ public final class ProductionPlanDtos {
      * 미구매·미생산/미소모는 소요량 전개(BOM 역산) 엔진이 있어야 한다.
      */
     public record GeneratePlanRequest(
+            @Size(max = 20, message = "계획주차는 20자까지 넣을 수 있습니다.")
             @NotBlank(message = "계획주차를 입력하세요.") String planWeek,
             /** 재고를 빼고 볼 것인가. 안 주면 뺀다 — 창고에 있는 것을 또 만들 이유가 없다. */
             Boolean deductStock

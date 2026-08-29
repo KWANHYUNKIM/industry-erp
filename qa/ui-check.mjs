@@ -4483,7 +4483,7 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
   for (const f of walk(join('backend', 'src', 'main', 'java'))) {
     if (!f.endsWith('.java') || !f.includes('dto')) continue
     const src = readFileSync(f, 'utf8')
-    for (const m of src.matchAll(/record\s+(\w*(?:Create|Update|Input|Apply|Save)\w*Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
+    for (const m of src.matchAll(/record\s+(\w+Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
       const 요청 = m[1]
       /* 괄호 깊이로 끊는다 — 애노테이션 안의 쉼표에 걸리지 않게. */
       const parts = []
@@ -4585,7 +4585,7 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
     const src = readFileSync(f, 'utf8')
     const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*domain\.(\w+);/g)]
       .map((m) => m[1]).filter((c) => ent.has(c))
-    for (const m of src.matchAll(/record\s+(\w*(?:Create|Update|Input|Apply|Save)\w*Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
+    for (const m of src.matchAll(/record\s+(\w+Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
       const parts = []
       let depth = 0
       let cur = ''

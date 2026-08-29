@@ -32,7 +32,9 @@ public final class BusinessContractDtos {
 
     /** 전자서명: 서명자 이름과 동의문구를 남긴다 */
     public record SignRequest(
+            @Size(max = 50, message = "서명자 이름은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "서명자 이름을 입력하세요.") String signerName,
+            @Size(max = 300, message = "동의문구는 300자까지 넣을 수 있습니다.")
             @NotBlank(message = "동의문구를 입력하세요.") String agreement
     ) {}
 

@@ -41,7 +41,8 @@ public final class FixedAssetDtos {
 
     /** 특정 월(yyyy-MM)의 감가상각을 일괄 처리 */
     public record DepreciateRequest(
-            @NotBlank(message = "귀속월(yyyy-MM)을 입력하세요.") String period
+            @NotBlank(message = "귀속월(yyyy-MM)을 입력하세요.")
+            @Size(max = 7, message = "귀속월은 7자까지 넣을 수 있습니다.") String period
     ) {}
 
     public record AssetResponse(

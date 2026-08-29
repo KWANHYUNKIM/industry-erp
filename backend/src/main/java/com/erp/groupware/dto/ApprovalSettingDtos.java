@@ -2,6 +2,7 @@ package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.ApprovalFormTemplate;
 import com.erp.groupware.domain.ApprovalLinePreset;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +18,9 @@ public final class ApprovalSettingDtos {
     // ── 공통양식 ──────────────────────────────────────────────────────
 
     public record FormTemplateRequest(
+            @Size(max = 50, message = "양식코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "양식코드를 입력하세요.") String code,
+            @Size(max = 100, message = "양식명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "양식명을 입력하세요.") String name,
             Integer sortOrder,
             Boolean active,
@@ -41,6 +44,7 @@ public final class ApprovalSettingDtos {
     // ── 결재선 프리셋 ──────────────────────────────────────────────────
 
     public record PresetRequest(
+            @Size(max = 100, message = "결재선 이름은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "결재선 이름을 입력하세요.") String name,
             /** 특정 양식 전용이면 지정, 비우면 공통 */
             Long formTemplateId,

@@ -4014,6 +4014,12 @@ async function scenarioValidationMessages(f) {
     ['자원 능력', '/resources', { code: 'ZZNEG4', name: 'ZZNEG자원', capacity: -100 }, ['능력', '0 이상']],
     ['자원 시간당비용', '/resources', { code: 'ZZNEG5', name: 'ZZNEG자원2', costPerHr: -10000 }, ['시간당비용', '0 이상']],
     ['카드사 수수료율', '/card-issuers', { code: 'ZZNEG6', name: 'ZZNEG카드사', feeRate: -5 }, ['수수료율', '0~100']],
+    /*
+     * <b>줄(line) 요청도 본다.</b> 검사가 오래 {@code Create…Request} 라는 이름만 보고 있어서
+     * 전표 줄 요청 79종을 통째로 못 봤다 — 판매 줄의 비고·부대비용, WMS 피킹 수량 같은 것들이다.
+     * 줄의 비고는 머리의 비고(500자)보다 짧다(255자). 여기서 그 차이까지 지킨다.
+     */
+    ['WMS 피킹 수량', '/wms/pick', { quantity: -5 }, ['수량', '0보다']],
   ]
 
   for (const [label, path, body, expected] of cases) {

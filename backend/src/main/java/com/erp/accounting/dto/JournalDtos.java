@@ -4,6 +4,7 @@ import com.erp.accounting.domain.AccountDivision;
 import com.erp.accounting.domain.JournalEntry;
 import com.erp.accounting.domain.JournalLine;
 import com.erp.accounting.domain.JournalSourceType;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,8 +40,10 @@ public final class JournalDtos {
             LocalDate entryDate,
             @NotNull(message = "입출금 구분을 지정하세요.") Boolean deposit,
             @NotNull(message = "상대 계정을 선택하세요.") Long counterAccountId,
+            @Positive(message = "금액은 0보다 커야 합니다.")
             @NotNull(message = "금액을 입력하세요.") BigDecimal amount,
             Long partnerId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String description
     ) {}
 

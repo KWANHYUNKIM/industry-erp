@@ -63,10 +63,12 @@ public final class ApprovalDtos {
 
     /** 라벨 변경 — 원본 내결재관리 하단의 [라벨변경]. 여러 문서를 골라 한 번에 바꾼다. */
     public record ChangeLabelRequest(
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String labelText
     ) {}
 
     public record ApprovalActionRequest(
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String comment
     ) {}
 

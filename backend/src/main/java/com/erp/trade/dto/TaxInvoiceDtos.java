@@ -3,6 +3,7 @@ package com.erp.trade.dto;
 import com.erp.trade.domain.TaxInvoice;
 import com.erp.trade.domain.TaxInvoiceStatus;
 import com.erp.trade.domain.TaxInvoiceType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public final class TaxInvoiceDtos {
             @NotNull(message = "전표 종류를 지정하세요.") TaxInvoiceType type,
             @NotNull(message = "근거 전표 id를 지정하세요.") Long sourceId,
             LocalDate issueDate,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

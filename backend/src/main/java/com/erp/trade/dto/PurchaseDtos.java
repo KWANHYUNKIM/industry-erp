@@ -4,6 +4,7 @@ import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.PurchaseLine;
 import com.erp.trade.domain.PurchaseOrder;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,10 +22,13 @@ public final class PurchaseDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
             /** 시리얼/로트 번호 (선택) */
+            @Size(max = 60, message = "입력한 글자가 너무 깁니다. 60자까지 넣을 수 있습니다.")
             String lotNo,
             /** 부대비용 (선택). 합계에는 더하지 않는다. */
+            @PositiveOrZero(message = "부대비용은 0 이상이어야 합니다.")
             BigDecimal extraCost,
             /** 이 줄을 담아 온 근거전표(발주서) id. 직접 입력한 줄은 null. */
             Long sourceOrderId

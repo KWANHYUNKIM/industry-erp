@@ -5,6 +5,7 @@ import com.erp.accounting.domain.BankTransaction;
 import com.erp.accounting.domain.CardUsage;
 import com.erp.accounting.domain.CreditCard;
 import com.erp.accounting.domain.enums.CardType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -21,10 +22,15 @@ public final class BankCardDtos {
 
     public record BankAccountRequest(
             /* 원본 [계좌코드]·[계좌명]. 이미 있는 계좌에는 없으므로 필수가 아니다. */
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String code,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String name,
+            @Size(max = 50, message = "은행명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "은행명을 입력하세요.") String bankName,
+            @Size(max = 50, message = "계좌번호는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "계좌번호를 입력하세요.") String accountNo,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String holder,
             /** 분개에 쓸 예금계정. 없으면 보통예금(103) */
             Long glAccountId,
@@ -32,6 +38,7 @@ public final class BankCardDtos {
             Long currencyId,
             @PositiveOrZero(message = "기초잔액은 0보다 작을 수 없습니다.") BigDecimal openingBalance,
             Boolean active,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -59,15 +66,21 @@ public final class BankCardDtos {
 
     public record CreditCardRequest(
             /* 원본 [카드코드]. 이미 있는 카드에는 없으므로 필수가 아니다. */
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String code,
+            @Size(max = 50, message = "카드명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "카드명을 입력하세요.") String cardName,
+            @Size(max = 50, message = "카드사는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "카드사를 입력하세요.") String cardCompany,
+            @Size(max = 30, message = "카드번호는 30자까지 넣을 수 있습니다.")
             @NotBlank(message = "카드번호를 입력하세요.") String cardNo,
             @NotNull(message = "카드 종류를 선택하세요.") CardType type,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String ownerName,
             Long settlementAccountId,
             Integer settlementDay,
             Boolean active,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -103,6 +116,7 @@ public final class BankCardDtos {
             @NotNull(message = "상대계정을 선택하세요.") Long counterAccountId,
             Long partnerId,
             LocalDate txnDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 
@@ -135,12 +149,14 @@ public final class BankCardDtos {
 
     public record CardUsageRequest(
             @NotNull(message = "카드를 선택하세요.") Long cardId,
+            @Size(max = 100, message = "가맹점은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "가맹점을 입력하세요.") String merchant,
             @NotNull(message = "비용계정을 선택하세요.") Long expenseAccountId,
             @NotNull(message = "공급가액을 입력하세요.") @Positive(message = "공급가액은 0보다 커야 합니다.") BigDecimal supplyAmount,
             /** 미입력 시 공급가액의 10% */
             @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vatAmount,
             LocalDate usageDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 

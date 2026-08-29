@@ -39,11 +39,13 @@ public final class ExportDtos {
 
     /** 통관진행: 수출신고번호를 받는다. */
     public record CustomsRequest(
+            @Size(max = 50, message = "수출신고번호는 50자까지 넣을 수 있습니다.")
             @NotNull(message = "수출신고번호를 입력하세요.") String declarationNo
     ) {}
 
     /** 선적완료: B/L 번호와 선적일. */
     public record ShipRequest(
+            @Size(max = 50, message = "B/L 번호는 50자까지 넣을 수 있습니다.")
             @NotNull(message = "B/L 번호를 입력하세요.") String blNo,
             LocalDate shippedDate
     ) {}

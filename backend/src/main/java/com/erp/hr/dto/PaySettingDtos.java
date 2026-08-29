@@ -5,6 +5,7 @@ import com.erp.hr.domain.PayItem;
 import com.erp.hr.domain.PayrollTransfer;
 import com.erp.hr.domain.PayslipLineKind;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,7 +23,9 @@ public final class PaySettingDtos {
     // ── 수당·공제 항목 ────────────────────────────────────────────────
 
     public record PayItemRequest(
+            @Size(max = 30, message = "항목코드는 30자까지 넣을 수 있습니다.")
             @NotBlank(message = "항목코드를 입력하세요.") String code,
+            @Size(max = 50, message = "항목명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "항목명을 입력하세요.") String name,
             @NotNull(message = "수당/공제를 선택하세요.") PayslipLineKind kind,
             /** 비과세 수당(식대 등)이면 false. 공제 항목에서는 쓰지 않는다. */
@@ -53,7 +56,9 @@ public final class PaySettingDtos {
     ) {}
 
     public record PayGroupRequest(
+            @Size(max = 50, message = "그룹명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "그룹명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark,
             Boolean active,
             @NotEmpty(message = "항목을 1개 이상 넣으세요.") @Valid List<GroupLineInput> lines
@@ -90,7 +95,8 @@ public final class PaySettingDtos {
     // ── 급여이체 ──────────────────────────────────────────────────────
 
     public record TransferRequest(
-            @NotBlank(message = "귀속월(yyyy-MM)을 입력하세요.") String payMonth,
+            @NotBlank(message = "귀속월(yyyy-MM)을 입력하세요.")
+            @Size(max = 7, message = "귀속월은 7자까지 넣을 수 있습니다.") String payMonth,
             @NotNull(message = "출금할 회사 계좌를 선택하세요.") Long bankAccountId,
             LocalDate transferDate,
             /** 비우면 해당 월의 확정·미이체 급여명세 전체 */

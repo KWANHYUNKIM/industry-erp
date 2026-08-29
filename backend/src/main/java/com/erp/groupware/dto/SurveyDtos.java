@@ -24,8 +24,13 @@ public final class SurveyDtos {
     public record QuestionRequest(
             int seq,
             @NotNull(message = "문항 유형을 선택하세요.") SurveyQuestionType type,
+            @Size(max = 500, message = "문항 내용은 500자까지 넣을 수 있습니다.")
             @NotBlank(message = "문항 내용을 입력하세요.") String content,
-            String option1, String option2, String option3, String option4, String option5,
+            @Size(max = 200, message = "보기는 200자까지 넣을 수 있습니다.") String option1,
+            @Size(max = 200, message = "보기는 200자까지 넣을 수 있습니다.") String option2,
+            @Size(max = 200, message = "보기는 200자까지 넣을 수 있습니다.") String option3,
+            @Size(max = 200, message = "보기는 200자까지 넣을 수 있습니다.") String option4,
+            @Size(max = 200, message = "보기는 200자까지 넣을 수 있습니다.") String option5,
             boolean required
     ) {}
 

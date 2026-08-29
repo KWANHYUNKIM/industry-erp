@@ -2,6 +2,9 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.MallOrder;
 import com.erp.trade.domain.enums.MallOrderStatus;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -13,17 +16,27 @@ public class MallOrderDtos {
 
     /** 외부몰 주문 수집. 실제 몰 API 연동이 붙기 전까지 이 엔드포인트가 그 자리다. */
     public record CollectOrderRequest(
+            @Size(max = 50, message = "몰 이름은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "몰 이름을 입력하세요.") String mall,
+            @Size(max = 50, message = "몰 주문번호는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "몰 주문번호를 입력하세요.") String mallOrderNo,
             @NotNull(message = "주문일을 입력하세요.") LocalDate orderDate,
+            @Size(max = 100, message = "구매자명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "구매자명을 입력하세요.") String buyerName,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String buyerPhone,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String address,
+            @Size(max = 200, message = "상품명은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "상품명을 입력하세요.") String productName,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String mallProductCode,
             Long itemId,
+            @Positive(message = "수량은 0보다 커야 합니다.")
             @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.")
             @NotNull(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -41,7 +54,9 @@ public class MallOrderDtos {
 
     /** 배송처리: 택배사·송장번호 입력. 배송일 미입력 시 오늘. */
     public record ShipRequest(
+            @Size(max = 50, message = "택배사는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "택배사를 입력하세요.") String courier,
+            @Size(max = 50, message = "송장번호는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "송장번호를 입력하세요.") String trackingNo,
             LocalDate shippedAt
     ) {}
@@ -49,7 +64,9 @@ public class MallOrderDtos {
     /** 반품/교환 처리: 사유. 교환은 재발송 택배정보(선택). */
     public record CloseRequest(
             @NotBlank(message = "사유를 입력하세요.") String reason,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String courier,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String trackingNo,
             LocalDate closedAt
     ) {}

@@ -5,6 +5,7 @@ import com.erp.trade.domain.Shipment;
 import com.erp.trade.domain.ShipmentLine;
 import com.erp.trade.domain.ShipmentStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,8 +22,10 @@ public final class ShipmentDtos {
     public record ShipLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.")
             BigDecimal unitPrice,
             /** 줄 적요. 원본 출하지시서입력 그리드의 마지막 열. */
+            @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

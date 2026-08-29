@@ -3,6 +3,8 @@ package com.erp.inventory.dto;
 import com.erp.inventory.domain.Stock;
 import com.erp.inventory.domain.StockTransaction;
 import com.erp.inventory.domain.StockTransactionType;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -62,8 +64,10 @@ public final class StockDtos {
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             /** ADJUST 시 증가(true)/감소(false). INBOUND/OUTBOUND 에서는 무시 */
             Boolean increase,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.")
             BigDecimal unitPrice,
             LocalDate transactionDate,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String note
     ) {}
 

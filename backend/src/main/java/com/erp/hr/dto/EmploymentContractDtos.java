@@ -35,6 +35,7 @@ public class EmploymentContractDtos {
 
     /** 서명. 사원 본인 확인용 서명자명을 남긴다. */
     public record SignContractRequest(
+            @Size(max = 100, message = "서명자명은 100자까지 넣을 수 있습니다.")
             @NotNull(message = "서명자명을 입력하세요.") String signedBy
     ) {}
 

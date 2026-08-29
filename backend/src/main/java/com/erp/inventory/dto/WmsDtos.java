@@ -2,6 +2,7 @@ package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.LocationStock;
 import com.erp.inventory.domain.WarehouseLocation;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -41,6 +42,7 @@ public class WmsDtos {
     public record PutawayRequest(
             @NotNull(message = "로케이션을 선택하세요.") Long locationId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @Positive(message = "수량은 0보다 커야 합니다.")
             @NotNull(message = "수량을 입력하세요.") BigDecimal quantity
     ) {}
 
@@ -49,6 +51,7 @@ public class WmsDtos {
             @NotNull(message = "출발 로케이션을 선택하세요.") Long fromLocationId,
             @NotNull(message = "도착 로케이션을 선택하세요.") Long toLocationId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @Positive(message = "수량은 0보다 커야 합니다.")
             @NotNull(message = "수량을 입력하세요.") BigDecimal quantity
     ) {}
 
@@ -56,6 +59,7 @@ public class WmsDtos {
     public record PickRequest(
             @NotNull(message = "로케이션을 선택하세요.") Long locationId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @Positive(message = "수량은 0보다 커야 합니다.")
             @NotNull(message = "수량을 입력하세요.") BigDecimal quantity
     ) {}
 
