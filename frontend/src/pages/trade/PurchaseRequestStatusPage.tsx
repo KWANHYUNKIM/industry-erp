@@ -82,7 +82,12 @@ export default function PurchaseRequestStatusPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  /*
+   * 원본 [구분]의 이름은 <b>[내역]</b> 이다(사본 실측 — 발주요청현황·발주계획현황).
+   * 우리는 [현황] 이라 적어 두었는데, 같은 자리에 다른 낱말이 서 있으면
+   * 원본을 보던 사람이 <b>다른 기능인 줄</b> 안다.
+   */
+  const [mode, setMode] = useState<'내역' | '집계'>('내역')
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',
@@ -179,7 +184,7 @@ export default function PurchaseRequestStatusPage({
 
   const reset = () => {
     setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '' })
-    setMode('현황'); setCompare('사용안함'); setKeyword('')
+    setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
 
   const totals = useMemo(() => shown.reduce(
@@ -245,7 +250,7 @@ export default function PurchaseRequestStatusPage({
         더 붙는다. 한 파일이 셋(발주요청·발주계획·단가요청 현황)을 겸한다.
       */}
       <EcStatusPanel
-        modes={['현황', '집계']} mode={mode} onModeChange={(m) => setMode(m as '현황' | '집계')}
+        modes={['내역', '집계']} mode={mode} onModeChange={(m) => setMode(m as '내역' | '집계')}
         compare={compare} onCompareChange={setCompare}
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}

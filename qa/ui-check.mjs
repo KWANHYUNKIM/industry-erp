@@ -1245,6 +1245,29 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['출하지시서현황', 'trade/ShipmentOrderStatusPage.tsx'],
     ['미출하현황', 'trade/UnshippedPage.tsx'],
     ['판매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+    ['구매현황', 'trade/PurchaseStatusPage.tsx'],
+    ['거래처별채무', 'trade/LedgerPage.tsx'],
+    ['구매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+    ['창고이동현황', 'inventory/TransferStatusPage.tsx'],
+    ['자가사용현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['불량처리현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['대체사용현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['재고실사현황', 'inventory/StocktakeStatusPage.tsx'],
+    ['생산불출현황', 'production/IssueStatusPage.tsx'],
+    ['생산입고현황', 'production/ReceiptStatusPage.tsx'],
+    ['작업지시서별진행현황', 'production/WoProgressPage.tsx'],
+    ['생산입고/소모현황 I', 'production/ProductionIssueStatusPage.tsx'],
+    ['작업내역현황', 'production/WorkResultListPage.tsx'],
+    ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
+    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
+    ['실제원가현황', 'accounting/ActualCostPage.tsx'],
+    ['월별이익현황', 'accounting/MonthlyProfitPage.tsx'],
+    ['차이분석', 'accounting/VariancePage.tsx'],
+    ['발주요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
+    ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
   ])
 
   const bad = []
@@ -1257,12 +1280,22 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     const src = readFileSync(file, 'utf8')
     const want = conds['구분']
     if (!want) continue
-    // 기본 모드는 useState<...>('…') 로 잡는다. 못 찾으면 셀 수 없어 알린다.
-    const got = src.match(/useState<(?:Mode|Tab)[^>]*>\('([^']+)'\)/)
-    if (!got) { bad.push(fam + '  (기본 모드를 useState 에서 못 찾았다)'); continue }
+    /*
+     * 기본 모드는 useState 로 잡는다. 타입을 Mode·Tab 으로 <b>이름 붙이지 않고</b>
+     * useState<'내역' | '집계'>('내역') 처럼 그 자리에 적는 화면도 많다 — 이름만 찾으면
+     * 스무 화면이 '못 찾았다' 로 빠진다. <b>원본이 주는 보기 가운데 하나</b>를 처음
+     * 담는 useState 를 그 화면의 [구분]으로 본다.
+     */
+    const values = want['값'] ?? []
+    let got = null
+    for (const m2 of src.matchAll(/useState<[^>]*>\('([^']+)'\)/g)) {
+      if (values.includes(m2[1])) { got = m2[1]; break }
+    }
+    /* 보기 가운데 아무것도 안 담았으면 그 화면은 <b>그 구분 자체가 없다</b>. */
+    if (!got) { bad.push(fam + '  (기본 모드를 useState 에서 못 찾았다 — 보기: ' + values.join('|') + ')'); continue }
     checked++
-    if (got[1] !== want['기본']) {
-      bad.push(fam + '  원본 [' + want['기본'] + '] · 우리 [' + got[1] + ']')
+    if (got !== want['기본']) {
+      bad.push(fam + '  원본 [' + want['기본'] + '] · 우리 [' + got + ']')
     }
   }
   eq('[구분] 기본값을 잰 화면 ' + checked + '개가 원본과 같다', bad.join('\n') || '없음', '없음')
