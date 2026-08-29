@@ -109,9 +109,27 @@ public class SalesService {
 
     @Transactional(readOnly = true)
     public List<SalesResponse> findAll() {
-        return salesRepository.findAllWithRefs().stream()
-                .map(SalesResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 판매 목록. 기간을 주면 그만큼만 준다.
+     *
+     * <p>예전에는 기간을 <b>아무도 못 넘겼다.</b> 화면 스무 곳이 이 자리를 부르는데
+     * 판매현황·판매할인현황·판매구매집계표는 조건 판에 [기간]을 물어 놓고 전체를 받아
+     * 브라우저에서 걸렀다 — 1,490줄·1.2MB 를 열 때마다 내려보냈다.
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 스무 군데가 알몸 배열을 기대하고 있어서,
+     * 자르는 껍데기를 씌우면 안 고친 열일곱이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findAll(LocalDate from, LocalDate to) {
+        List<Sales> found = (from == null && to == null)
+                ? salesRepository.findAllWithRefs()
+                : salesRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(SalesResponse::from).toList();
     }
 
     /**

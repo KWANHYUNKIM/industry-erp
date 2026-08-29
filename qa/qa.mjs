@@ -4121,6 +4121,39 @@ async function scenarioNoUnboundedList() {
   }
   eq('잴 목록 자리를 찾았다', 잰자리 > 100, true)
   eq(`목록 ${잰자리}자리가 한 번에 5천 줄을 넘겨 주지 않는다`, 넘친것.join(' / ') || '없음', '없음')
+
+  /*
+   * <b>기간을 좁히면 목록도 줄어드나.</b> 위 검사는 5천 줄을 넘는 것만 봤는데,
+   * 실제로 무거운 것은 그 아래에 널려 있었다 — 화면은 조건 판에 [기간]을 물어 놓고
+   * 서버에는 <b>아무것도 안 보내</b>, 전 기간을 받아 브라우저에서 걸렀다.
+   * 기타이동이 4,811줄·1.7MB, 판매가 1,490줄·1.2MB 였다.
+   *
+   * <p>그래서 <b>좁은 기간을 주고도 같은 수가 오면</b> 그 자리는 기간을 안 받는 것이다.
+   * 200줄이 넘는 자리만 본다 — 작은 마스터(창고·계정)는 기간이 있을 까닭이 없다.
+   * 한 판에 다 고칠 수 없으니 목록에 적어 <b>늘지만 않게</b> 한다.
+   */
+  const 안받는것 = []
+  for (const p of [...paths].sort()) {
+    const a = await call('GET', p)
+    if (a.status !== 200) continue
+    const la = Array.isArray(a.data) ? a.data
+      : (a.data && typeof a.data === 'object' ? Object.values(a.data).find((v) => Array.isArray(v)) : null)
+    if (!Array.isArray(la) || la.length <= 200) continue
+    const b = await call('GET', `${p}?from=2026-08-01&to=2026-08-05`)
+    if (b.status !== 200) continue
+    const lb = Array.isArray(b.data) ? b.data
+      : (b.data && typeof b.data === 'object' ? Object.values(b.data).find((v) => Array.isArray(v)) : null)
+    /*
+     * 목록에는 <b>자리 이름만</b> 적는다. 줄 수까지 박으면 자료가 늘 때마다 글자가 달라져
+     * 고친 것도 없이 걸린다 — 재고수불부 단언에서 똑같이 데었다.
+     */
+    if (Array.isArray(lb) && lb.length === la.length) 안받는것.push(p)
+  }
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8'))
+  const 늘었다 = 안받는것.filter((x) => !TODO.includes(x))
+  const 고쳤다 = TODO.filter((x) => !안받는것.includes(x))
+  eq(`기간을 안 받는 목록이 늘지 않았다 (아직 ${TODO.length}자리 남음)`, 늘었다.join(' / ') || '없음', '없음')
+  eq('고쳐 놓고 목록에 남겨 둔 자리가 없다', 고쳤다.join(' / ') || '없음', '없음')
 }
 
 async function scenarioStockRecalc(f) {

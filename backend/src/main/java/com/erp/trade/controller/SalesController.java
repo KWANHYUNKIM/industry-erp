@@ -23,9 +23,12 @@ public class SalesController {
 
     private final SalesService salesService;
 
+    /** 판매 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<SalesResponse> list() {
-        return salesService.findAll();
+    public List<SalesResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return salesService.findAll(from, to);
     }
 
     /**

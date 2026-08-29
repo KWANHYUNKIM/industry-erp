@@ -92,7 +92,7 @@ export default function PurchaseStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<PurchaseDoc[]>('/purchases')
+      const res = await api.get<PurchaseDoc[]>('/purchases', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => flat.push({
@@ -122,7 +122,11 @@ export default function PurchaseStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
+   * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
 
   /** 상단 키워드 + 상세검색 조건을 모두 통과한 행 */
   const shown = useMemo(() => {
@@ -504,7 +508,8 @@ export default function PurchaseStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          /* 그리는 것(lineRows)을 보고 판단한다 — 판매현황과 같은 자리였다. */
+          ) : lineRows.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '구매 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>

@@ -16,6 +16,15 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findAllWithRefs();
 
+    /**
+     * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
+     * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
+     */
+    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "where p.purchaseDate between :from and :to " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     /** 전표 + 라인 + 품목까지 한 번에(회계미반영현황의 품목 줄). N+1 방지. */
     @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
             "left join fetch p.lines l left join fetch l.item " +

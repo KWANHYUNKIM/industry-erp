@@ -36,9 +36,23 @@ public class QualityInspectionService {
 
     @Transactional(readOnly = true)
     public List<InspectionResponse> findAll() {
-        return inspectionRepository.findAllWithRefs().stream()
-                .map(InspectionResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다.
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어서,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다. 기간만 받는다.
+     */
+    @Transactional(readOnly = true)
+    public List<InspectionResponse> findAll(LocalDate from, LocalDate to) {
+        List<QualityInspection> found = (from == null && to == null)
+                ? inspectionRepository.findAllWithRefs()
+                : inspectionRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(InspectionResponse::from).toList();
     }
 
     @Transactional

@@ -4040,7 +4040,13 @@ console.log('\n■ 자료 없음 문구가 화면에 그려지는 그 목록을 
   const bad = []
   let checked = 0
   for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
-    const src = readFileSync(f, 'utf8')
+    /*
+     * <b>줄바꿈을 먼저 고른다.</b> 윈도우에서 체크아웃한 파일은 CRLF 라 평평하게 편 글에
+     * <code>\r</code> 이 남는다 — 사이 글자 수가 줄마다 하나씩 늘어 <code>.{0,300}</code>
+     * 창을 넘겨 버린다. 같은 코드인데 <b>체크아웃 설정에 따라 걸리기도 하고 안 걸리기도</b>
+     * 했다(실제로 겪었다 — LF 로 쓴 파일은 걸리고, git 이 CRLF 로 내려준 같은 파일은 통과했다).
+     */
+    const src = readFileSync(f, 'utf8').replace(/\r\n/g, '\n')
     const flat = src.replace(/[ \t]*\n[ \t]*/g, ' ')
     for (const m of flat.matchAll(/(\w+)\.length === 0 \? \(.{0,300}?\) : (\w+)\.map\(/g)) {
       const [, empty, drawn] = m

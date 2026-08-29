@@ -17,6 +17,15 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
     List<Sales> findAllWithRefs();
 
     /**
+     * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
+     * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
+     */
+    @Query("select s from Sales s join fetch s.partner join fetch s.warehouse " +
+            "where s.saleDate between :from and :to " +
+            "order by s.saleDate desc, s.id desc")
+    List<Sales> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
      * 전표 + 라인 + 품목까지 한 번에. 회계미반영현황이 <b>품목 줄</b>을 보여 주기 때문에
      * 라인을 건드리는데, fetch 없이 하면 전표 수만큼 쿼리가 더 나간다(N+1).
      */

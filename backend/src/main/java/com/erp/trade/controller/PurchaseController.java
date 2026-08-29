@@ -24,8 +24,10 @@ public class PurchaseController {
     private final PurchaseService purchaseService;
 
     @GetMapping
-    public List<PurchaseResponse> list() {
-        return purchaseService.findAll();
+    public List<PurchaseResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return purchaseService.findAll(from, to);
     }
 
     /**
