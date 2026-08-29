@@ -8851,6 +8851,7 @@ async function main() {
   await scenarioRoundTrip(fixtures)
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
+  await scenarioNewCompany()
 
   checkDeadAssertions()
 
@@ -9084,6 +9085,75 @@ async function scenarioGhostId() {
  * 내려받기는 아직 열려 있다 — 증빙은 올린 사람과 보는 사람이 다른 것이 정상이라
  * 화면별 권한을 알아야 제대로 막을 수 있고, 그건 이 자리에서 지어낼 수 없다.
  */
+/**
+ * <b>회사를 새로 만들 수 있나, 그리고 회사끼리 자료가 섞이지 않나.</b>
+ *
+ * <p>회사 만들기가 <b>500 으로 죽어 있었다.</b> 회사별 스키마를 만들 때 테넌트
+ * 마이그레이션을 V1 → V2 로 돌리는데, V1 baseline 이 그 뒤로 갱신되어 지금은 V2 가
+ * 만들려는 표 열다섯 개를 이미 다 가지고 있다. 그래서 새 회사만 42P07
+ * (relation "chat_messages" already exists) 로 터졌다 — 이미 있던 회사는 V2 가
+ * 예전에 돌아서 멀쩡했으므로, 기동해서는 아무 티가 안 났다.
+ *
+ * <p>이 시나리오가 없었으면 다음에도 몰랐을 것이다. 회사를 실제로 만들어 보는 것 말고는
+ * 알 방법이 없다 — 기동도 되고 화면도 멀쩡하고 기존 회사도 잘 돈다.
+ *
+ * <p>{@code ensure} 로 감싸 첫 실행에만 만든다. 스키마를 만드는 일은 무겁고,
+ * 두 번째 실행부터는 있는 회사로 격리만 다시 잰다.
+ */
+async function scenarioNewCompany() {
+  section('■ 시나리오 41. 회사를 새로 만들고 자료가 섞이지 않나')
+
+  /*
+   * 단언을 조건문 안에 넣지 않는다 — 두 번째 실행부터 조용히 안 돌아서, 통과 수만 보면
+   * 죽은 줄을 모른다(하네스의 「한 번도 재 보지 않은 단언」이 실제로 이걸 잡아 줬다).
+   * 그래서 만들기는 조건부로 하되, <b>결과에 대한 단언은 늘 돈다.</b>
+   * 회사 이름이 겹쳐도 서버가 막지 않아 부를 때마다 스키마가 새로 생기므로,
+   * 있으면 다시 만들지는 않는다.
+   */
+  const 이름 = 'QA격리시험사'
+  let 회사 = (await must('GET', '/companies')).find((c) => c.name === 이름)
+  let 실패사유 = '없음'
+  if (!회사) {
+    const r = await call('POST', '/companies', {
+      name: 이름, adminUsername: 'qaisolate',
+      adminPassword: 'qaisolate1234', adminName: 'QA격리관리자',
+    })
+    회사 = r.status === 200 ? r.data : null
+    if (r.status !== 200) 실패사유 = `${r.status} ${String(r.data?.message ?? '').slice(0, 110)}`
+  }
+  eq('회사 만들기가 터지지 않았다', 실패사유, '없음')
+  eq('회사에 제 스키마가 있다', /^co_\d+$/.test(String(회사?.schemaName)), true)
+  if (!회사) return
+
+  const 그회사 = await must('POST', '/auth/login',
+    { username: 'qaisolate', password: 'qaisolate1234', companyCode: 회사.code })
+  eq('그 회사 관리자로 로그인된다', 그회사.token != null, true)
+
+  const 그쪽 = async (p) => {
+    const r = await fetch(`${BASE}${p}`, { headers: { Authorization: `Bearer ${그회사.token}` } })
+    return r.status === 200 ? await r.json() : null
+  }
+
+  /* 본사 자료가 새 회사에 비쳐 보이면 안 된다. 본사에는 자료가 많아야 이 비교가 뜻이 있다. */
+  for (const [이름표, path] of [['품목', '/items'], ['거래처', '/partners'], ['판매', '/sales']]) {
+    const 본사 = await must('GET', path)
+    eq(`본사에 ${이름표} 자료가 있다`, 본사.length > 0, true)
+    eq(`새 회사에는 본사 ${이름표} 자료가 안 보인다`, (await 그쪽(path)).length, 0)
+  }
+
+  /* 파일도 스키마마다 따로다 — 번호를 넘겨줘도 남의 회사 것은 안 나온다. */
+  const fd = new FormData()
+  fd.append('file', new Blob(['본사 파일'], { type: 'text/plain' }), 'qa-hq.txt')
+  const up = await fetch(`${BASE}/files`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+  })
+  const 본사파일 = await up.json()
+  const r2 = await fetch(`${BASE}/files/${본사파일.id}/meta`,
+    { headers: { Authorization: `Bearer ${그회사.token}` } })
+  eq('본사 파일 번호를 새 회사에서 부르면 없다고 한다', r2.status, 404)
+  await call('DELETE', `/files/${본사파일.id}`)
+}
+
 async function scenarioNoPermission() {
   section('■ 시나리오 40. 권한 없는 계정이 쓰는 자리를 두드리면')
 
