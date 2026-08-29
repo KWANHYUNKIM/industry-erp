@@ -1517,7 +1517,7 @@ async function scenarioFixedAsset() {
   })
   eq('처분 후 상태는 처분', disposed.statusName, '처분')
 
-  const journals = await must('GET', '/journals?from=2026-07-01&to=2026-07-31')
+  const journals = (await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows
   const disposal = journals.find((j) => j.sourceType === 'DISPOSAL' && j.sourceId === asset.id)
   const gain = disposal.lines.find((l) => l.accountCode === '914')
   eq('처분이익 = 처분가액 - 장부가액', Number(gain.credit), 200_000)
@@ -1539,7 +1539,7 @@ async function scenarioNote(f) {
   const balanceOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance)
   // 어음 전표는 수취분만 sourceId 로 연결되고, 할인료·부도 전표는 적요의 어음번호로 찾는다.
   const journalsOf = async (noteNo) =>
-    (await must('GET', '/journals?from=2026-01-01&to=2026-12-31'))
+    ((await must('GET', '/journals?from=2026-01-01&to=2026-12-31&all=true')).rows)
       .filter((j) => j.sourceType === 'NOTE' && String(j.description).includes(noteNo))
 
   // ── 받을어음: 수취 → 만기결제
@@ -1933,7 +1933,7 @@ async function scenarioCheck(f) {
   })
   eq('신규 수표 상태는 보유', received.statusName, '보유')
 
-  const journals = await must('GET', '/journals?from=2026-07-01&to=2026-07-31')
+  const journals = (await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows
   const receiptEntry = journals.find((j) => j.sourceType === 'CHECK' && j.sourceId === received.id)
   eq('수취 분개 차변은 받을수표(104)',
     Number(receiptEntry.lines.find((l) => l.accountCode === '104').debit), 500_000)
@@ -1969,7 +1969,7 @@ async function scenarioCheck(f) {
   eq('발행하면 계좌 잔액이 수표 금액만큼 감소', await balanceOf(), before + 500_000 - 300_000)
 
   const issueLines = await linesOf(
-    (await must('GET', '/journals?from=2026-07-01&to=2026-07-31'))
+    ((await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows)
       .find((j) => j.sourceType === 'CHECK' && j.sourceId === issued.id).id)
   eq('발행 분개 차변은 외상매입금(251)',
     Number(issueLines.find((l) => l.accountCode === '251').debit), 300_000)
@@ -3936,6 +3936,20 @@ async function scenarioHttpProtocol() {
   eq('문턱 아래면 자르지 않는다', 하루.truncated, false)
   eq('문턱 아래면 줄 수와 전체가 같다', 하루.rows.length, 하루.totalRows)
 
+  /*
+   * <b>회계전표조회도 같은 문턱을 쓴다.</b> 이 화면은 연초부터를 기본으로 열어서
+   * 2만 9천 장·16MB 를 받고 있었다. 화면 아래에 차변·대변 합계를 찍는데 그 합계는
+   * <b>지금 보고 있는 줄</b>을 더한 값이라, 잘렸다는 말이 없으면 기간 전체의 합으로 읽힌다.
+   */
+  const 전표 = await must('GET', '/journals?from=2026-01-01&to=2026-08-30')
+  eq('전표조회도 넓게 물으면 앞 5천 장만 준다', 전표.rows.length, 5000)
+  eq('전표조회도 잘랐다고 말해 준다', 전표.truncated, true)
+  const 전표다 = await must('GET', '/journals?from=2026-01-01&to=2026-08-30&all=true')
+  eq('전표조회도 다 보기를 누르면 전체가 온다', 전표다.rows.length, 전표.totalRows)
+  eq('전표조회 다 보기는 잘렸다고 하지 않는다', 전표다.truncated, false)
+  const 전표금월 = await must('GET', '/journals?from=2026-08-01&to=2026-08-31')
+  eq('전표조회도 문턱 아래면 자르지 않는다', 전표금월.truncated, false)
+
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 
@@ -4799,7 +4813,7 @@ async function scenarioInactiveMasterGuards(f) {
   }
 
   eq('시험용 분개는 남기지 않는다',
-    (await must('GET', '/journals?from=2095-01-01&to=2095-12-31')).length, 0)
+    ((await must('GET', '/journals?from=2095-01-01&to=2095-12-31&all=true')).rows).length, 0)
 }
 
 /**

@@ -60,6 +60,19 @@ public final class JournalDtos {
         }
     }
 
+    /**
+     * 회계전표조회 응답 — <b>줄이 너무 많으면 앞부분만</b> 준다.
+     *
+     * <p>이 화면은 연초부터를 기본으로 열어서, 재 보니 <b>2만 9천 줄·16MB</b> 를 받고 있었다.
+     * 원본도 큰 결과를 그냥 주지 않는다 — 조회 화면 139곳에 [오천건이상조회] 버튼을 두고
+     * 그 위로는 눌러야 가게 한다(사본 실측). 재고수불부와 같은 방식이다.
+     */
+    public record JournalListResponse(
+            List<JournalEntryResponse> rows,
+            long totalRows,
+            boolean truncated
+    ) {}
+
     public record JournalEntryResponse(
             Long id, String docNo, LocalDate entryDate, String description,
             Long partnerId, String partnerName,

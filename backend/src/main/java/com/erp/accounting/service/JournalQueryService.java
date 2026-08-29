@@ -1,5 +1,6 @@
 package com.erp.accounting.service;
 
+import com.erp.accounting.domain.JournalEntry;
 import com.erp.common.ApiException;
 import com.erp.accounting.domain.Account;
 import com.erp.accounting.domain.AccountDivision;
@@ -37,11 +38,24 @@ public class JournalQueryService {
     private final JournalLineRepository lineRepository;
     private final AccountRepository accountRepository;
 
+    /** 한 번에 내려보낼 전표 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    public static final int LIST_PAGE_ROWS = 5000;
+
     @Transactional(readOnly = true)
-    public List<JournalEntryResponse> entries(LocalDate from, LocalDate to) {
-        return entryRepository.findByPeriod(from, to).stream()
-                .map(JournalEntryResponse::from)
-                .toList();
+    public JournalDtos.JournalListResponse entries(LocalDate from, LocalDate to, boolean all) {
+        long totalRows = entryRepository.countByPeriod(from, to);
+        boolean truncated = !all && totalRows > LIST_PAGE_ROWS;
+        List<JournalEntry> found;
+        if (truncated) {
+            /* id 를 먼저 자르고 그것만 실어 온다 — join fetch 를 그대로 페이징하면 못 자른다. */
+            List<Long> ids = entryRepository.findIdsByPeriod(from, to,
+                    org.springframework.data.domain.PageRequest.of(0, LIST_PAGE_ROWS));
+            found = entryRepository.findByIdsWithLines(ids);
+        } else {
+            found = entryRepository.findByPeriod(from, to);
+        }
+        return new JournalDtos.JournalListResponse(
+                found.stream().map(JournalEntryResponse::from).toList(), totalRows, truncated);
     }
 
     @Transactional(readOnly = true)

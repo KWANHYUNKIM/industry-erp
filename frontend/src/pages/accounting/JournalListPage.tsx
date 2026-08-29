@@ -3,6 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../api/types'
+
+interface JournalListResponse {
+  rows: JournalEntry[]
+  /** 조건에 걸린 전체 전표 수. 잘렸을 때 "몇 장 중 몇 장" 을 말하려고 받는다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { dateText } from '../../utils/dateText'
@@ -32,11 +40,27 @@ export default function JournalListPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
 
-  function load(range?: { from: string; to: string }) {
+  /** 조건에 걸린 전체 전표 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
+  const [totalRows, setTotalRows] = useState(0)
+  const [truncated, setTruncated] = useState(false)
+
+  /*
+   * <b>넓게 물으면 앞 5천 장만 받는다.</b> 이 화면은 연초부터를 기본으로 열어서, 재 보니
+   * 2만 9천 줄·16MB 를 받고 있었다(1.1초). 원본도 큰 결과를 그냥 주지 않는다 —
+   * 조회 화면 139곳에 [오천건이상조회] 버튼을 두고 그 위로는 눌러야 가게 한다(사본 실측).
+   * 재고수불부와 같은 방식이고, 자른 것은 숨기지 않는다.
+   *
+   * <p><b>검색창도 잘린 안에서만 찾는다.</b> 이 화면의 검색은 받아 온 줄에서 거르는 것이라,
+   * 잘렸으면 그 밖의 전표는 쳐도 안 나온다. 그래서 안내 문구에 합계뿐 아니라 검색도
+   * 함께 적는다 — 못 찾은 것을 '없다' 로 읽으면 안 된다.
+   */
+  function load(range?: { from: string; to: string }, all = false) {
     setError('')
-    api.get<JournalEntry[]>('/journals', { params: range ?? { from, to } })
-      .then((r) => setRows(r.data))
-      .catch((err) => setError(extractErrorMessage(err)))
+    const params: Record<string, string | boolean> = { ...(range ?? { from, to }) }
+    if (all) params.all = true
+    api.get<JournalListResponse>('/journals', { params })
+      .then((r) => { setRows(r.data.rows); setTotalRows(r.data.totalRows); setTruncated(r.data.truncated) })
+      .catch((err) => { setError(extractErrorMessage(err)); setRows([]); setTotalRows(0); setTruncated(false) })
   }
 
   useEffect(() => {
@@ -62,7 +86,10 @@ export default function JournalListPage() {
       title="회계전표조회"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        /* 인자 없이 부른다 — onClick 이 무엇을 넘기든 range 로 새면 안 된다. */
+        { label: '검색(F8)', primary: true, onClick: () => load() },
+        /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
+        { label: '오천건이상조회', onClick: () => load(undefined, true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -86,6 +113,18 @@ export default function JournalListPage() {
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {/*
+        잘라서 받았으면 <b>반드시 말한다.</b> 이 화면은 아래에 차변·대변 합계를 찍는데,
+        그 합계는 <b>지금 보고 있는 줄</b>을 더한 값이다. 잘린 줄 알려 주지 않으면
+        사람은 그 숫자를 기간 전체의 합으로 읽는다 — 틀린 숫자를 맞다고 믿게 된다.
+      */}
+      {truncated && (
+        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+          모두 {totalRows.toLocaleString('ko-KR')}장 중 앞 {rows.length.toLocaleString('ko-KR')}장만 보고 있습니다 —
+          아래 합계도, 위 검색창도 이 {rows.length.toLocaleString('ko-KR')}장 안에서만 셉니다.
+          기간을 좁히거나, 그대로 다 보려면 [오천건이상조회]를 누르세요.
+        </p>
+      )}
 
       <table className="w-full text-left">
         <thead>
