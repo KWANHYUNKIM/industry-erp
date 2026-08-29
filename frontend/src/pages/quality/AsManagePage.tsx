@@ -160,6 +160,12 @@ export default function AsManagePage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  /** 원본은 일자와 번호를 '2026/08/03 -1' 로 한 칸에 적는다(판매조회와 같은 규칙). */
+  const dateNo = (r: AsRow) => {
+    const seq = r.asNo.split('-').pop() ?? ''
+    return `${r.receiptDate.replace(/-/g, '/')} -${Number(seq) || seq}`
+  }
+
   const shownRows = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.itemName.includes(keyword) || r.asNo.includes(keyword))
@@ -172,8 +178,7 @@ export default function AsManagePage() {
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
-    접수번호: (r) => r.asNo,
-    접수일: (r) => r.receiptDate,
+    '일자-No.': (r) => `${r.receiptDate} ${r.asNo}`,
     거래처: (r) => r.partnerName,
   })
   const shown = sort.sorted
@@ -328,19 +333,23 @@ export default function AsManagePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수번호')}>접수번호 {sort.mark('접수번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
+            {/*
+              원본 A/S접수의 첫 열은 <b>[일자-No.]</b> 한 칸이다 — 접수번호와 접수일을
+              따로 두지 않는다(판매조회·견적서와 같은 관용구). 우리는 두 칸으로 갈라 두어
+              <b>같은 값을 두 번</b> 보여 주고 있었다.
+            */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
             {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
             <th>담당자명</th><th>수리예정일자</th><th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
-              <td>{r.receiptDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.itemName}</td>
