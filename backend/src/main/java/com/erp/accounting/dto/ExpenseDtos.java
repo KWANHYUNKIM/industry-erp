@@ -1,6 +1,7 @@
 package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.Expense;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -14,10 +15,14 @@ public final class ExpenseDtos {
     public record CreateExpenseRequest(
             @NotNull(message = "계정과목을 선택하세요.") Long accountId,
             LocalDate expenseDate,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String content,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String partnerName,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String paymentMethod,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String department,
             /** 귀속 프로젝트 (선택) */
             Long projectId

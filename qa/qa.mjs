@@ -3875,11 +3875,16 @@ async function scenarioHttpProtocol() {
    * 등록·수정 요청의 글자 칸 382개 중 @Size 로 막아 둔 것은 둘뿐이라 나머지가 다 여기로 온다.
    */
   const tooLong = await call('POST', '/processes', { code: `${P}LONG`, name: '가'.repeat(300) })
+  const longMsg = String(tooLong.data?.message ?? '')
   eq('칸보다 긴 글자는 400', tooLong.status, 400)
-  eq('몇 자까지인지 말해 준다',
-    /너무 깁니다.*\d+자까지/.test(String(tooLong.data?.message ?? '')), true)
-  eq('길이 문제를 자료 충돌이라고 하지 않는다',
-    /자료가 서로 맞지 않습니다/.test(String(tooLong.data?.message ?? '')), false)
+  eq('몇 자까지인지 말해 준다', /\d+자까지 넣을 수 있습니다/.test(longMsg), true)
+  /*
+   * <b>어느 칸이 긴지</b>까지 말해야 한다. @Size 를 달기 전에는 DB 까지 갔다가
+   * 22001 로 터져서 "100자까지" 라고만 했다 — 글자 칸이 열 개인 화면에서는
+   * 열 개를 다 세어 봐야 했다.
+   */
+  eq('어느 칸이 긴지도 말해 준다', longMsg.startsWith('공정명'), true)
+  eq('길이 문제를 자료 충돌이라고 하지 않는다', /자료가 서로 맞지 않습니다/.test(longMsg), false)
 
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)

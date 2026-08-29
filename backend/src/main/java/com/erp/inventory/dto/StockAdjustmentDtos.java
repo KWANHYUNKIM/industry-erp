@@ -2,6 +2,7 @@ package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.StockAdjustment;
 import com.erp.inventory.domain.enums.StockAdjustmentType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -26,6 +27,7 @@ public final class StockAdjustmentDtos {
             /* 원본 조건의 [프로젝트]·[담당자]. 맞출 때 안 정했을 수 있어 필수가 아니다. */
             Long projectId,
             Long employeeId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String reason
     ) {}
 

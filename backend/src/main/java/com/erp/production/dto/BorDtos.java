@@ -1,6 +1,7 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.BorOperation;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -17,6 +18,7 @@ public final class BorDtos {
             @NotNull(message = "생산품목을 선택하세요.") Long productId,
             @NotNull(message = "생산공정을 선택하세요.") Long processId,
             @NotNull(message = "작업순서를 입력하세요.") Integer seq,
+            @Size(max = 100, message = "작업명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "작업명을 입력하세요.") String workName,
             /** 이 작업시간이 몇 개 기준인가. 안 주면 1개 기준. */
             @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal baseQty,
@@ -26,6 +28,7 @@ public final class BorDtos {
             Long workItemId,
             /** 원본 [작업량] — 그 품목을 얼마만큼 다루는가. */
             @PositiveOrZero(message = "작업량은 0 이상이어야 합니다.") BigDecimal workQty,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String remark,
             Boolean active
     ) {}

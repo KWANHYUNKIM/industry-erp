@@ -2,6 +2,7 @@ package com.erp.production.dto;
 
 import com.erp.production.domain.MaterialIssue;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -27,6 +28,7 @@ public final class MaterialIssueDtos {
             Long employeeId,
             /** 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String note
     ) {}
 

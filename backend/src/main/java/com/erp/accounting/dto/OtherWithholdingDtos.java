@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.OtherWithholding;
 import com.erp.accounting.domain.enums.IncomeType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotNull;
 
@@ -15,10 +16,13 @@ public class OtherWithholdingDtos {
             @NotNull(message = "지급일을 입력하세요.") LocalDate payDate,
             @NotNull(message = "소득구분을 선택하세요.") IncomeType incomeType,
             Long partnerId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String payeeName,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String payeeRegNo,
             @NotNull(message = "지급액을 입력하세요.")
             @Positive(message = "지급액은 0보다 커야 합니다.") BigDecimal grossAmount,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 

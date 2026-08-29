@@ -4,6 +4,7 @@ import com.erp.accounting.domain.AccountDivision;
 import com.erp.accounting.domain.JournalEntry;
 import com.erp.accounting.domain.JournalLine;
 import com.erp.accounting.domain.JournalSourceType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -26,6 +27,7 @@ public final class JournalDtos {
     /** 일반전표 직접입력. 차변합=대변합이어야 저장된다. */
     public record CreateJournalRequest(
             LocalDate entryDate,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.")
             @NotBlank(message = "적요를 입력하세요.") String description,
             Long partnerId,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */

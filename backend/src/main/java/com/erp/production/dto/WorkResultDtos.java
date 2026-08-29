@@ -2,6 +2,7 @@ package com.erp.production.dto;
 
 import com.erp.production.domain.WorkResult;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
@@ -45,6 +46,7 @@ public final class WorkResultDtos {
 
     public record CreateWorkResultRequest(
             Long workOrderId,
+            @Size(max = 100, message = "공정은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "공정을 입력하세요.") String process,
             /**
              * 원본 그리드의 [작업품목] id — 이 작업이 다루는 품목. 생산품목과 다르다.
@@ -55,6 +57,7 @@ public final class WorkResultDtos {
             Long resourceId,
             /** 생산공장 id. 원본 작업내역입력 머리의 [생산공장]. */
             Long warehouseId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String worker,
             @PositiveOrZero(message = "양품수량은 0 이상이어야 합니다.") BigDecimal goodQty,
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
@@ -62,6 +65,7 @@ public final class WorkResultDtos {
             LocalDate workDate,
             /** 귀속 프로젝트. 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String note
     ) {}
 

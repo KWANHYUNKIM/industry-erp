@@ -3,6 +3,7 @@ package com.erp.accounting.dto;
 import com.erp.accounting.domain.PromissoryNote;
 import com.erp.groupware.domain.enums.NoteStatus;
 import com.erp.groupware.domain.enums.NoteType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -22,7 +23,9 @@ public final class PromissoryNoteDtos {
             LocalDate issueDate,
             @NotNull(message = "만기일을 입력하세요.") LocalDate dueDate,
             @NotNull(message = "어음 금액을 입력하세요.") @Positive(message = "어음 금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String bankName,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

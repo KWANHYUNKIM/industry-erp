@@ -5,6 +5,7 @@ import com.erp.trade.domain.Shipment;
 import com.erp.trade.domain.ShipmentLine;
 import com.erp.trade.domain.ShipmentStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -33,11 +34,15 @@ public final class ShipmentDtos {
             Long warehouseId,
             Long employeeId,
             /** 배송지 — 거래처 주소와 다른 곳으로 보낼 수 있다. */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String contact,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
             String postalCode,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String address,
             /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
+            @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines
     ) {}

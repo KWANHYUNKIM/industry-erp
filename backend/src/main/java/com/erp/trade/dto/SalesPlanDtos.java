@@ -1,6 +1,7 @@
 package com.erp.trade.dto;
 
 import com.erp.trade.domain.SalesPlan;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -26,6 +27,7 @@ public final class SalesPlanDtos {
             @NotNull(message = "계획월을 입력하세요.") @Min(value = 1, message = "월은 1~12 입니다.") @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
             @NotNull(message = "계획수량을 입력하세요.") @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
             @NotNull(message = "계획금액을 입력하세요.") @PositiveOrZero(message = "계획금액은 0 이상이어야 합니다.") BigDecimal planAmount,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

@@ -1,5 +1,6 @@
 package com.erp.groupware.dto;
 
+import jakarta.validation.constraints.Size;
 import com.erp.groupware.domain.BoardPost;
 
 import java.time.LocalDateTime;
@@ -25,8 +26,10 @@ public final class BoardDtos {
      * 을 누르는 화면이라, 제목을 강제하면 그 화면을 만들 수가 없다. 비우면 본문 첫 줄을 제목으로 쓴다.
      */
     public record CreatePostRequest(
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String title,
             String content,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String category,
             /** 익명으로 올릴지. 작성자는 서버에 남지만 응답에서는 가려진다. */
             Boolean anonymous

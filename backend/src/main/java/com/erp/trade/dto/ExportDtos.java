@@ -4,6 +4,7 @@ import com.erp.trade.domain.ExportOrder;
 import com.erp.trade.domain.ExportOrderLine;
 import com.erp.trade.domain.enums.ExportStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -27,8 +28,11 @@ public final class ExportDtos {
             @NotNull(message = "수입자를 선택하세요.") Long partnerId,
             @NotNull(message = "통화를 선택하세요.") Long currencyId,
             LocalDate invoiceDate,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String incoterms,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String destination,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ExportLineRequest> lines
     ) {}

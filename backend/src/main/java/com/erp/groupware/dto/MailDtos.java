@@ -3,6 +3,7 @@ package com.erp.groupware.dto;
 import com.erp.groupware.domain.Mail;
 import com.erp.groupware.domain.enums.MailStatus;
 import com.erp.groupware.domain.enums.MailType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -39,6 +40,7 @@ public final class MailDtos {
     /** 임시보관(초안) 저장/수정. 초안은 받는사람·제목 없이도 저장할 수 있다(발송 시 검증). */
     public record SaveDraftRequest(
             Long recipientId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String subject,
             String body
     ) {}

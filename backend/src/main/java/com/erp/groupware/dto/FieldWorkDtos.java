@@ -2,6 +2,7 @@ package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.FieldWork;
 import com.erp.groupware.domain.enums.FieldWorkStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -17,7 +18,9 @@ public final class FieldWorkDtos {
             @NotNull(message = "외근일을 입력하세요.") LocalDate workDate,
             LocalTime startTime,
             LocalTime endTime,
+            @Size(max = 200, message = "외근지는 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "외근지를 입력하세요.") String destination,
+            @Size(max = 300, message = "외근 사유는 300자까지 넣을 수 있습니다.")
             @NotBlank(message = "외근 사유를 입력하세요.") String purpose
     ) {}
 

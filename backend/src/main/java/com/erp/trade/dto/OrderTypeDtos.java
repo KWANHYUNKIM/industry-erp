@@ -2,6 +2,7 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.OrderType;
 import com.erp.trade.domain.OrderTypeStep;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -11,8 +12,11 @@ public final class OrderTypeDtos {
     private OrderTypeDtos() {}
 
     public record CreateOrderTypeRequest(
+            @Size(max = 50, message = "유형코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "유형코드를 입력하세요.") String code,
+            @Size(max = 100, message = "유형명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "유형명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description,
             /**
              * 이 유형이 밟아 갈 단계의 <b>순서</b>(단계 id 목록). 원본의 [1단계]~[10단계] 열이다.
@@ -21,18 +25,24 @@ public final class OrderTypeDtos {
             List<Long> stageIds,
             Boolean useInInput,
             /** 원본 [처리메뉴] — 이 유형을 고를 수 있는 입력 화면의 경로. 안 주면 어디서나. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String procMenu,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String manager
     ) {}
 
     public record UpdateOrderTypeRequest(
+            @Size(max = 100, message = "유형명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "유형명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description,
             /** 순서대로 준다. 통째로 갈아 끼운다 — 부분 수정은 순서가 어긋나기 쉽다. */
             List<Long> stageIds,
             Boolean useInInput,
             /** 원본 [처리메뉴]. 안 주면 어디서나 쓴다는 뜻이다. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String procMenu,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String manager,
             Boolean active
     ) {}

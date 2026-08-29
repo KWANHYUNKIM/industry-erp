@@ -2,6 +2,7 @@ package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.SpamRule;
 import com.erp.groupware.domain.enums.SpamRuleKind;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -11,8 +12,10 @@ public final class SpamRuleDtos {
 
     public record SaveSpamRuleRequest(
             @NotNull(message = "판단 기준을 선택하세요.") SpamRuleKind kind,
+            @Size(max = 200, message = "걸러낼 문자열은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "걸러낼 문자열을 입력하세요.") String pattern,
             Boolean active,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String note
     ) {}
 

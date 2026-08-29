@@ -1,6 +1,7 @@
 package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.ItemCost;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,7 @@ public final class CostDtos {
 
     public record CreateCostRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @Size(max = 10, message = "적용기간은 10자까지 넣을 수 있습니다.")
             @NotBlank(message = "적용기간을 입력하세요.") String period,
             @PositiveOrZero(message = "재료비는 0 이상이어야 합니다.") BigDecimal materialCost,
             @PositiveOrZero(message = "노무비는 0 이상이어야 합니다.") BigDecimal laborCost,

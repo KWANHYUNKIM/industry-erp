@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.NonCashTransaction;
 import com.erp.accounting.domain.enums.NonCashType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -26,6 +27,7 @@ public final class NonCashDtos {
             Long creditAccountId,
             Long partnerId,
             LocalDate txnDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 

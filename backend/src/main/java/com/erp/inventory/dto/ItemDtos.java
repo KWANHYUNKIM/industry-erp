@@ -2,6 +2,7 @@ package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.Item;
 import com.erp.inventory.domain.ItemCategory;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -13,9 +14,13 @@ public final class ItemDtos {
     private ItemDtos() {}
 
     public record CreateItemRequest(
+            @Size(max = 50, message = "품목코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "품목코드를 입력하세요.") String code,
+            @Size(max = 200, message = "품명은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "품명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String spec,
+            @Size(max = 20, message = "단위는 20자까지 넣을 수 있습니다.")
             @NotBlank(message = "단위를 입력하세요.") String unit,
             @NotNull(message = "품목분류를 선택하세요.") ItemCategory category,
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
@@ -32,8 +37,10 @@ public final class ItemDtos {
              * 파일은 POST /api/files 로 먼저 올린다(기안서 첨부와 같은 흐름).
              */
             Long imageFileId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String searchKeyword,
             /**
              * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
@@ -42,6 +49,7 @@ public final class ItemDtos {
              */
             Boolean stockTracked,
             /** 의료기기 표준코드(UDI-DI). 있으면 의료기기공급내역보고 대상. */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String udiDi,
             /** 관리항목 (선택). 전표 라인에는 이 값이 읽기전용으로 따라 붙는다. */
             Long managementItemId,
@@ -54,8 +62,11 @@ public final class ItemDtos {
     ) {}
 
     public record UpdateItemRequest(
+            @Size(max = 200, message = "품명은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "품명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String spec,
+            @Size(max = 20, message = "단위는 20자까지 넣을 수 있습니다.")
             @NotBlank(message = "단위를 입력하세요.") String unit,
             @NotNull(message = "품목분류를 선택하세요.") ItemCategory category,
             @NotNull(message = "단가를 입력하세요.")
@@ -74,8 +85,10 @@ public final class ItemDtos {
              * 파일은 POST /api/files 로 먼저 올린다(기안서 첨부와 같은 흐름).
              */
             Long imageFileId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String barcode,
             /** 원본 품목등록 리스트의 [검색창내용]. 부르는 이름으로 찾게 한다. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String searchKeyword,
             /**
              * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
@@ -83,6 +96,7 @@ public final class ItemDtos {
              * 켜 두고 필요할 때 끄는 쪽이 안전하다.
              */
             Boolean stockTracked,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String udiDi,
             Long managementItemId,
             Long itemGroupId,

@@ -4,6 +4,7 @@ import com.erp.inventory.domain.Lot;
 import com.erp.inventory.domain.LotTransaction;
 import com.erp.inventory.domain.enums.LotStatus;
 import com.erp.inventory.domain.enums.LotTxType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -41,6 +42,7 @@ public final class LotDtos {
     }
 
     public record CreateLotRequest(
+            @Size(max = 50, message = "로트No.은(는) 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "로트No.를 입력하세요.") String lotNo,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             Long warehouseId,

@@ -1,6 +1,7 @@
 package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.ProjectPlan;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -17,6 +18,7 @@ public final class ProjectPlanDtos {
             @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
             @NotNull(message = "계획매출을 입력하세요.") @PositiveOrZero(message = "계획매출은 0 이상이어야 합니다.") BigDecimal planRevenue,
             @NotNull(message = "계획원가를 입력하세요.") @PositiveOrZero(message = "계획원가는 0 이상이어야 합니다.") BigDecimal planCost,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

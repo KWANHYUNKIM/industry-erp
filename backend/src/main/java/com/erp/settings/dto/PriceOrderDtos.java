@@ -1,6 +1,7 @@
 package com.erp.settings.dto;
 
 import com.erp.settings.domain.PriceOrderSetting;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -21,7 +22,8 @@ public final class PriceOrderDtos {
     }
 
     public record SavePriceOrderRequest(
-            @NotBlank(message = "구분(category)을 지정하세요.") String category,
+            @NotBlank(message = "영업관리·구매관리 중 어느 쪽인지 고르세요.")
+            @Size(max = 20, message = "구분은 20자까지 넣을 수 있습니다.") String category,
             @NotNull(message = "단가 순서를 넣으세요.")
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
             List<@jakarta.validation.Valid PriceOrderLine> settings

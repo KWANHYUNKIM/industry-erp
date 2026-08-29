@@ -5,6 +5,7 @@ import com.erp.production.domain.ProductionMaterial;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.domain.WorkOrderStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,6 +30,7 @@ public final class ProductionDtos {
             Long partnerId,
             /** 담당자(사원) id. 이름은 화면이 붙인다 — production 은 hr 을 참조할 수 없다. */
             Long employeeId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {
         /**
@@ -118,6 +120,7 @@ public final class ProductionDtos {
             /** 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
             /** 적요. 원본 생산입고현황·생산입고 III 그리드의 마지막 열. */
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String note,
             /** 원본 [노무시간](분). 안 주면 null 이다 — 0 과 다르다. */
             Integer laborMinutes,

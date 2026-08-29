@@ -4,6 +4,7 @@ import com.erp.accounting.domain.CorporateTaxAdjustment;
 import com.erp.accounting.domain.CorporateTaxReturn;
 import com.erp.accounting.domain.enums.TaxAdjustmentType;
 import com.erp.accounting.domain.enums.TaxReturnStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -22,6 +23,7 @@ public class CorporateTaxDtos {
             BigDecimal taxCredit,
             BigDecimal penaltyTax,
             BigDecimal prepaidTax,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -30,6 +32,7 @@ public class CorporateTaxDtos {
             BigDecimal taxCredit,
             BigDecimal penaltyTax,
             BigDecimal prepaidTax,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

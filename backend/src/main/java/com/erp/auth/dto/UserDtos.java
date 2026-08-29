@@ -31,11 +31,17 @@ public final class UserDtos {
             @Size(min = 4, max = 100, message = "비밀번호는 최소 4자 이상이어야 합니다.")
             String password,
 
+            @Size(max = 50, message = "이름은 50자까지 넣을 수 있습니다.")
+
             @NotBlank(message = "이름을 입력하세요.")
             String name,
 
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+
             @Email(message = "올바른 이메일 형식이 아닙니다.")
             String email,
+
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
 
             String department,
 
@@ -63,8 +69,11 @@ public final class UserDtos {
 
     /** 사용자 수정 요청 (비밀번호는 값이 있을 때만 변경) */
     public record UpdateUserRequest(
+            @Size(max = 50, message = "이름은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "이름을 입력하세요.") String name,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             @Email(message = "올바른 이메일 형식이 아닙니다.") String email,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String department,
             /**
              * 이을 사원(hr.Employee) id. 안 이으면 null.
@@ -84,6 +93,7 @@ public final class UserDtos {
             @PositiveOrZero(message = "휴가일수는 0 이상이어야 합니다.") BigDecimal annualLeaveDays,
             Boolean enabled,
             Set<String> roleNames,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String password
     ) {}
 

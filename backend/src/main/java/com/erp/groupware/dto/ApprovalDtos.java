@@ -7,6 +7,7 @@ import com.erp.groupware.domain.ApprovalLineStatus;
 import com.erp.groupware.domain.ApprovalParticipant;
 import com.erp.groupware.domain.ApprovalParticipantRole;
 import com.erp.groupware.domain.ApprovalStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
@@ -25,18 +26,24 @@ public final class ApprovalDtos {
     public record CreateApprovalRequest(
             Long formTemplateId,
             String formType,
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
             String content,
             Map<String, Object> formData,
             LocalDate draftDate,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String department,
             Long projectId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String reference,
             /** 구분 — 원본 폼의 [구분] 코드도움 */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String category,
             /** 출력양식 — 인쇄 서식 이름 */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String printFormat,
             /** 라벨 — 문서를 묶어 보는 꼬리표 */
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String labelText,
             /** 첨부 파일 id (공용 stored_files). 업로드는 별도 엔드포인트로 먼저 한다. */
             Long attachmentId,

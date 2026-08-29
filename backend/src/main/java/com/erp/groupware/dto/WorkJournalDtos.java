@@ -1,6 +1,7 @@
 package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.WorkJournal;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
@@ -11,9 +12,12 @@ public final class WorkJournalDtos {
 
     public record CreateWorkJournalRequest(
             LocalDate reportDate,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String department,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String partnerName,
             Long projectId,
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content
     ) {}

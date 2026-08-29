@@ -1,6 +1,7 @@
 package com.erp.hr.dto;
 
 import com.erp.hr.domain.DailyWorkRecord;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ public class DailyWorkDtos {
             @NotNull(message = "일당을 입력하세요.") BigDecimal dailyWage,
             @PositiveOrZero(message = "근무시간은 0~24 입니다.")
             @Max(value = 24, message = "근무시간은 0~24 입니다.") Integer workHours,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

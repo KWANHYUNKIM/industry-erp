@@ -7,6 +7,7 @@ import com.erp.groupware.domain.SurveyStatus;
 import com.erp.groupware.domain.enums.SurveyQuestionType;
 import com.erp.groupware.domain.enums.SurveyResultVisibility;
 import com.erp.groupware.domain.enums.SurveyTargetScope;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -29,11 +30,13 @@ public final class SurveyDtos {
     ) {}
 
     public record CreateSurveyRequest(
+            @Size(max = 200, message = "설문 제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "설문 제목을 입력하세요.") String title,
             LocalDateTime endAt,
             SurveyTargetScope targetScope,
             boolean anonymous,
             SurveyResultVisibility resultVisibility,
+            @Size(max = 1000, message = "입력한 글자가 너무 깁니다. 1000자까지 넣을 수 있습니다.")
             String headerText,
             List<Long> targetUserIds,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
@@ -46,11 +49,13 @@ public final class SurveyDtos {
 
     /** null 필드는 변경하지 않는다. questions/targetUserIds 는 주면 통째로 교체한다. */
     public record UpdateSurveyRequest(
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String title,
             LocalDateTime endAt,
             SurveyTargetScope targetScope,
             Boolean anonymous,
             SurveyResultVisibility resultVisibility,
+            @Size(max = 1000, message = "입력한 글자가 너무 깁니다. 1000자까지 넣을 수 있습니다.")
             String headerText,
             List<Long> targetUserIds,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */

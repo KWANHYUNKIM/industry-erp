@@ -3,6 +3,7 @@ package com.erp.hr.dto;
 import com.erp.hr.domain.Employee;
 import com.erp.hr.domain.EmployeeAssignment;
 import com.erp.hr.domain.enums.AssignmentType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -24,7 +25,9 @@ public class EmployeeDtos {
             @NotNull(message = "발령일을 입력하세요.") LocalDate assignDate,
             @NotNull(message = "발령 유형을 선택하세요.") AssignmentType type,
             Long departmentId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -65,9 +68,12 @@ public class EmployeeDtos {
      * 우리가 지어내면 그 규칙과 어긋난 번호가 섞인다.
      */
     public record CreateEmployeeRequest(
+            @Size(max = 50, message = "사번은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "사번을 입력하세요.") String code,
+            @Size(max = 100, message = "성명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "성명을 입력하세요.") String name,
             Long departmentId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
             LocalDate hireDate,
             @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary
@@ -80,8 +86,10 @@ public class EmployeeDtos {
      * 지우면 지난 전표가 누구 것인지 잃는다. 퇴사하면 사용중단으로 내린다.
      */
     public record UpdateEmployeeRequest(
+            @Size(max = 100, message = "성명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "성명을 입력하세요.") String name,
             Long departmentId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
             LocalDate hireDate,
             LocalDate resignDate,

@@ -4,6 +4,7 @@ import com.erp.trade.domain.PurchaseOrder;
 import com.erp.trade.domain.PurchaseOrderLine;
 import com.erp.trade.domain.PurchaseOrderStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -34,6 +35,7 @@ public final class PurchaseOrderDtos {
             /** 원본 단가요청진행단계의 [유효기간] — 회신받은 단가가 언제까지 유효한가. */
             LocalDate priceValidUntil,
             Boolean taxable,
+            @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             Long employeeId,
             Long warehouseId,

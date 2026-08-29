@@ -2,6 +2,7 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.Settlement;
 import com.erp.trade.domain.SettlementType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -16,10 +17,12 @@ public final class SettlementDtos {
             @NotNull(message = "유형을 선택하세요.") SettlementType type,
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String method,
             LocalDate settleDate,
             /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String note
     ) {}
 

@@ -4,6 +4,7 @@ import com.erp.hr.domain.Attendance;
 import com.erp.auth.domain.User;
 import com.erp.hr.domain.VacationRequest;
 import com.erp.hr.domain.enums.VacationStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -113,10 +114,12 @@ public final class HrDtos {
 
     public record AttendanceInputRequest(
             Long userId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String username,
             @NotNull(message = "일자를 입력하세요.") LocalDate date,
             String clockIn,
             String clockOut,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String note
     ) {}
 
@@ -187,11 +190,14 @@ public final class HrDtos {
 
     public record CreateVacationRequest(
             Long userId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String username,
+            @Size(max = 20, message = "휴가 종류는 20자까지 넣을 수 있습니다.")
             @NotBlank(message = "휴가 종류를 입력하세요.") String type,
             @NotNull(message = "시작일을 입력하세요.") LocalDate startDate,
             @NotNull(message = "종료일을 입력하세요.") LocalDate endDate,
             @NotNull(message = "사용일수를 입력하세요.") BigDecimal days,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String reason
     ) {}
 

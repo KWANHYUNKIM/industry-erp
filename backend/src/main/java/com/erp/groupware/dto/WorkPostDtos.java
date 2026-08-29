@@ -3,6 +3,7 @@ package com.erp.groupware.dto;
 import com.erp.groupware.domain.WorkPost;
 import com.erp.groupware.domain.WorkPostStatus;
 import com.erp.groupware.domain.enums.PostBoard;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
@@ -15,10 +16,13 @@ public final class WorkPostDtos {
     public record CreateWorkPostRequest(
             /** 안 주면 WORK 게시판. 공지사항은 NOTICE 로 보낸다. */
             PostBoard board,
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String forwardTo,
             /** 원본 WORK입력 폼의 [참조자]. 전달자와 같은 자유입력. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String ccTo,
             /** 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. 안 주면 꺼짐. */
             Boolean notice,
@@ -34,9 +38,12 @@ public final class WorkPostDtos {
      * 나중에 고칠 수 있으면 기록이 아니게 된다.
      */
     public record UpdateWorkPostRequest(
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
             @NotBlank(message = "내용을 입력하세요.") String content,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String forwardTo,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String ccTo,
             /** 원본 [공지사항여부]. 안 주면 끈다 — 수정은 통째로 덮는다. */
             Boolean notice,

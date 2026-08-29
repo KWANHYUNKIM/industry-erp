@@ -1,6 +1,7 @@
 package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.Warehouse;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 public final class WarehouseDtos {
@@ -8,8 +9,11 @@ public final class WarehouseDtos {
     private WarehouseDtos() {}
 
     public record CreateWarehouseRequest(
+            @Size(max = 50, message = "창고코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "창고코드를 입력하세요.") String code,
+            @Size(max = 100, message = "창고명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "창고명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String location,
             /** 구분 — 창고 · 공장 · 외주. 원본 창고등록리스트의 [구분] 열. 안 주면 창고. */
             String kind,
@@ -20,7 +24,9 @@ public final class WarehouseDtos {
     ) {}
 
     public record UpdateWarehouseRequest(
+            @Size(max = 100, message = "창고명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "창고명을 입력하세요.") String name,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String location,
             /** 구분 — 창고 · 공장 · 외주. 원본 창고등록리스트의 [구분] 열. 안 주면 창고. */
             String kind,

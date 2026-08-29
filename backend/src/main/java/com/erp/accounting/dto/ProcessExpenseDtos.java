@@ -1,6 +1,7 @@
 package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.ProcessExpense;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -14,6 +15,7 @@ public final class ProcessExpenseDtos {
     private ProcessExpenseDtos() {}
 
     public record SaveProcessExpenseRequest(
+            @Size(max = 7, message = "기준년월은 7자까지 넣을 수 있습니다.")
             @NotBlank(message = "기준년월을 입력하세요.")
             @Pattern(regexp = "\\d{4}-\\d{2}", message = "기준년월은 yyyy-MM 형식이어야 합니다.")
             String period,
@@ -24,6 +26,7 @@ public final class ProcessExpenseDtos {
             @PositiveOrZero(message = "노무비는 0 이상이어야 합니다.") BigDecimal laborCost,
             @NotNull(message = "경비를 입력하세요.")
             @PositiveOrZero(message = "경비는 0 이상이어야 합니다.") BigDecimal overheadCost,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

@@ -4,6 +4,7 @@ import com.erp.accounting.domain.FastVoucher;
 import com.erp.accounting.domain.enums.FastVoucherType;
 import com.erp.accounting.domain.enums.PaymentMethod;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -33,6 +34,7 @@ public final class FastVoucherDtos {
             /** 가지급금정산서에서만: 먼저 지급했던 가지급금 총액 */
             @PositiveOrZero(message = "가지급금은 0보다 작을 수 없습니다.") BigDecimal advanceAmount,
             @NotEmpty(message = "내역을 1줄 이상 입력하세요.") @Valid List<LineInput> lines,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 

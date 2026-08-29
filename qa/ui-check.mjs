@@ -4515,6 +4515,107 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
     Object.keys(예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
 }
 
+// ── 1-s11) 표 길이만큼만 받게 막았나 ──────────────────────────────────────
+console.log('\n■ 글자 칸이 표 길이만큼만 받나')
+
+/*
+ * 표의 칸이 varchar(100) 인데 요청에 <code>@Size</code> 가 없으면, 101자를 넣었을 때
+ * DB 까지 갔다가 22001 로 터진다. 처리기가 "100자까지" 라고는 말해 주지만
+ * <b>어느 칸이 긴지</b>는 모른다 — 한 화면에 글자 칸이 열 개면 열 개를 다 세어 봐야 한다.
+ * {@code @Size} 를 달면 DB 까지 가기 전에 <b>"공정명은 100자까지"</b> 라고 말할 수 있다.
+ *
+ * <p>재어 보니 글자 칸 382개 중 막아 둔 것은 <b>둘</b>뿐이었다. 나머지가 전부 DB 까지 갔다.
+ *
+ * <p>길이는 <b>그 DTO 파일이 import 한 엔티티</b>에서만 찾는다. 칸 이름만으로 뭉뚱그리면
+ * 위험하다 — {@code code} 는 3자인 표(계정과목)도 20자인 표도 있어서, 이름으로 맞추면
+ * 멀쩡한 값을 막는다. 후보가 둘 이상으로 갈리는 자리(전표 머리의 비고 500 vs 줄의 비고 255)는
+ * 손으로 골라 달았다.
+ */
+{
+  /* 표에 길이가 없는 칸 — 막을 근거가 없다. 까닭을 적어 둔다. */
+  const 예외 = {
+    'CreateApprovalRequest.content': '결재 본문은 TEXT 라 길이가 없다',
+    'CreatePostRequest.content': '게시글 본문은 TEXT 라 길이가 없다',
+    'CreateContractRequest.content': '계약 본문은 TEXT 라 길이가 없다',
+    'CreateWorkJournalRequest.content': '업무일지 본문은 TEXT 라 길이가 없다',
+    'CreateWorkPostRequest.content': '업무게시글 본문은 TEXT 라 길이가 없다',
+    'UpdateWorkPostRequest.content': '위와 같다',
+    'SaveDraftRequest.body': '메일 본문은 TEXT 라 길이가 없다',
+    'UpdateBudgetRequest.remark': '예산 비고는 TEXT 라 길이가 없다',
+    'CreateApprovalRequest.formType': '엔티티에서는 enum 이라 글자 길이가 없다',
+    'CreateWarehouseRequest.kind': '위와 같다 — 창고 구분 enum',
+    'UpdateWarehouseRequest.kind': '위와 같다',
+    'CreateResourceRequest.type': '위와 같다 — 자원 구분 enum',
+    'UpdateResourceRequest.type': '위와 같다',
+    'CreatePartnerRequest.regNoKind': '위와 같다 — 등록번호 구분 enum',
+    'UpdatePartnerRequest.regNoKind': '위와 같다',
+    'CreatePartnerRequest.industryKind': '위와 같다 — 업태 구분 enum',
+    'UpdatePartnerRequest.industryKind': '위와 같다',
+    'CreatePurchaseOrderRequest.currency': '위와 같다 — 통화 enum',
+    'CreateDocumentRequest.drive': '위와 같다 — 드라이브 구분 enum',
+    'PriceBulkApplyRequest.field': '고르는 값이라 표에 안 들어간다(판매단가·구매단가)',
+    'PriceBulkApplyRequest.mode': '위와 같다(증감율·증감액)',
+    'SlipPriceApplyRequest.tradeType': '위와 같다(판매·구매)',
+    'AttendanceInputRequest.clockIn': '시각 글자를 LocalTime 으로 바꿔 넣는다 — 표에는 time 이다',
+    'AttendanceInputRequest.clockOut': '위와 같다',
+    'CreateRoomRequest.name': '대화방 이름은 표에 길이를 안 걸었다',
+    'CreateCompanyRequest.adminName': '회사가 아니라 함께 만드는 관리자 계정의 이름이다',
+  }
+
+  /* 1) 엔티티마다 글자 칸 길이 */
+  const ent = new Map()
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('.java') || !f.includes('domain')) continue
+    const src = readFileSync(f, 'utf8')
+    if (!/@Entity\b/.test(src)) continue
+    const m2 = new Map()
+    for (const m of src.matchAll(/@Column\(([^)]*)\)\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*private\s+String\s+(\w+)\s*;/g)) {
+      const n = /length\s*=\s*(\d+)/.exec(m[1])
+      if (n) m2.set(m[2], Number(n[1]))
+    }
+    if (m2.size) ent.set(f.split(/[\\/]/).pop().replace('.java', ''), m2)
+  }
+
+  /* 2) 요청 record 의 글자 칸 */
+  const bad = []
+  const 쓴예외 = new Set()
+  let 잰칸 = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('.java') || !f.includes('dto')) continue
+    const src = readFileSync(f, 'utf8')
+    const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*domain\.(\w+);/g)]
+      .map((m) => m[1]).filter((c) => ent.has(c))
+    for (const m of src.matchAll(/record\s+(\w*(?:Create|Update|Input|Apply|Save)\w*Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
+      const parts = []
+      let depth = 0
+      let cur = ''
+      for (const ch of m[2]) {
+        if (ch === '(') depth += 1
+        if (ch === ')') depth -= 1
+        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; continue }
+        cur += ch
+      }
+      parts.push(cur)
+      for (const p of parts) {
+        const t = p.replace(/\s+/g, ' ').trim()
+        const fm = t.match(/String\s+(\w+)$/)
+        if (!fm) continue
+        const key = `${m[1]}.${fm[1]}`
+        if (예외[key]) { 쓴예외.add(key); continue }
+        const 길이 = [...new Set(cands.filter((c) => ent.get(c).has(fm[1])).map((c) => ent.get(c).get(fm[1])))]
+        if (길이.length === 0) continue      // 표에 길이가 없으면 막을 근거가 없다
+        잰칸 += 1
+        const size = /@Size\([^)]*max\s*=\s*(\d+)/.exec(t)
+        if (!size) bad.push(`${key}  표는 ${길이.join('|')}자인데 @Size 가 없다`)
+        else if (!길이.includes(Number(size[1]))) bad.push(`${key}  표는 ${길이.join('|')}자인데 @Size 는 ${size[1]}자다`)
+      }
+    }
+  }
+  eq(`표 길이를 아는 글자 칸 ${잰칸}개가 그만큼만 받는다`, bad.join('\n') || '없음', '없음')
+  eq('길이를 못 거는 까닭으로 적어 둔 칸이 전부 아직 있다',
+    Object.keys(예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

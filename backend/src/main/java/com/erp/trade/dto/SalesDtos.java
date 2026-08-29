@@ -5,6 +5,7 @@ import com.erp.trade.domain.SalesConfirmStatus;
 import com.erp.trade.domain.SalesLine;
 import com.erp.trade.domain.SalesOrder;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -42,6 +43,7 @@ public final class SalesDtos {
              * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
              */
             Boolean returnSlip,
+            @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             /** 귀속 프로젝트 (선택). 프로젝트별 손익 집계의 재료가 된다. */
             Long projectId,

@@ -2,6 +2,7 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.SpecialPrice;
 import com.erp.trade.domain.enums.SpecialPriceType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -21,8 +22,10 @@ public final class SpecialPriceDtos {
             @NotNull(message = "판매/구매 구분을 선택하세요.") SpecialPriceType tradeType,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             Long partnerId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String priceGroup,
             @NotNull(message = "특별단가를 입력하세요.") @PositiveOrZero(message = "특별단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

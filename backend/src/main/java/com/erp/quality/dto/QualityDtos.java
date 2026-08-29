@@ -3,6 +3,7 @@ package com.erp.quality.dto;
 import com.erp.quality.domain.QualityInspection;
 import com.erp.quality.domain.QualityInspectionType;
 import com.erp.quality.domain.QualityResult;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -18,6 +19,7 @@ public final class QualityDtos {
             LocalDate inspectionDate,
             @NotNull(message = "검사구분을 선택하세요.") QualityInspectionType type,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String lotNo,
             /* 원본 조건의 [창고]·[프로젝트]. 검사 시점에 안 정했을 수 있어 필수가 아니다. */
             Long warehouseId,
@@ -26,8 +28,11 @@ public final class QualityDtos {
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             QualityResult result,
             /** 원본 [불량유형] — 공통코드 DEFECT_TYPE 의 코드. 불량이 없으면 안 준다. */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String defectType,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String inspector,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

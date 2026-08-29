@@ -2,6 +2,7 @@ package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.LocationStock;
 import com.erp.inventory.domain.WarehouseLocation;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -12,17 +13,26 @@ public class WmsDtos {
 
     public record CreateLocationRequest(
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
+            @Size(max = 50, message = "로케이션 코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "로케이션 코드를 입력하세요.") String code,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String zone,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String rack,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String level,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
     ) {}
 
     public record UpdateLocationRequest(
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String zone,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String rack,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String level,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description,
             Boolean active
     ) {}

@@ -4,6 +4,7 @@ import com.erp.trade.domain.SalesOrder;
 import com.erp.trade.domain.SalesOrderLine;
 import com.erp.trade.domain.SalesOrderStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -31,6 +32,7 @@ public final class SalesOrderDtos {
             Long projectId,
             Long employeeId,
             Boolean taxable,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
     ) {}

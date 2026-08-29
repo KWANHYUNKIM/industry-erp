@@ -4,6 +4,7 @@ import com.erp.accounting.domain.Depreciation;
 import com.erp.accounting.domain.FixedAsset;
 import com.erp.accounting.domain.enums.AssetStatus;
 import com.erp.accounting.domain.enums.DepreciationMethod;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,6 +19,7 @@ public final class FixedAssetDtos {
     private FixedAssetDtos() {}
 
     public record CreateAssetRequest(
+            @Size(max = 100, message = "자산명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "자산명을 입력하세요.") String name,
             @NotNull(message = "자산계정을 선택하세요.") Long assetAccountId,
             @NotNull(message = "취득일을 입력하세요.") LocalDate acquisitionDate,
@@ -27,6 +29,7 @@ public final class FixedAssetDtos {
             @NotNull(message = "상각방법을 선택하세요.") DepreciationMethod method,
             /** 정률법일 때만. 연 상각률(%) */
             BigDecimal declineRate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

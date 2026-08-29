@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.Income;
 import com.erp.accounting.domain.enums.ReceiptMethod;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,11 +19,14 @@ public final class IncomeDtos {
     public record CreateIncomeRequest(
             LocalDate incomeDate,
             @NotNull(message = "수익 계정을 선택하세요.") Long accountId,
+            @Size(max = 200, message = "내용은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "내용을 입력하세요.") String content,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String partnerName,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             @NotNull(message = "회수 수단을 선택하세요.") ReceiptMethod receiptMethod,
             Long bankAccountId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String department
     ) {}
 
