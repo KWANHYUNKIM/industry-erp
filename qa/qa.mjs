@@ -4025,7 +4025,7 @@ async function scenarioDeleteInUse(f) {
  * <p>재집계가 그걸 고치는 기능인데, 고치고 나면 다시 점검했을 때 0 이어야 한다.
  * 그 <b>멱등성</b>을 여기서 못 박는다 — 재집계가 반쪽만 고치면 여기서 걸린다.
  */
-async function scenarioStockRecalc() {
+async function scenarioStockRecalc(f) {
   section('■ 잔량재집계')
 
   const ALL = 'from=1900-01-01&to=2999-12-31'
@@ -4080,6 +4080,29 @@ async function scenarioStockRecalc() {
   eq(`단가일괄변경 전 기간 조회가 1초 안에 끝난다 (지금 ${단가시간}ms)`, 단가시간 < 1000, true)
   /* 잠금 사유를 묶어 받아도 <b>값이 그대로</b>여야 한다 — 빠르기만 하고 틀리면 안 된다. */
   eq('줄마다 수정 가능 여부가 실려 있다', 단가줄.every((r) => typeof r.editable === 'boolean'), true)
+
+  /*
+   * <b>줄이 많은 전표가 줄 수에 비례해서만 느려지나.</b>
+   *
+   * <p>판매는 줄마다 재고를 깎는다. 그 안에 질의가 하나라도 더 끼면 줄 수만큼 곱해져,
+   * 줄이 적을 때는 안 보이다가 200줄짜리 전표에서 갑자기 몇 초가 된다.
+   * 재 보니 1줄 24ms · 10줄 45ms · 200줄 762ms 로 <b>줄당 3.5ms</b> 언저리에서 평평했다.
+   * 그 성질을 못 박는다 — 곱해지기 시작하면 여기서 걸린다.
+   */
+  await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,
+    adjustDate: '2026-08-30',
+  })
+  const 긴전표 = {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+    lines: Array.from({ length: 200 }, () => ({ itemId: f.product.id, quantity: 1, unitPrice: 1000 })),
+  }
+  const t2 = Date.now()
+  const 만든것 = await must('POST', '/sales', 긴전표)
+  const 긴시간 = Date.now() - t2
+  eq('줄 200개짜리 전표가 만들어진다', 만든것.lines.length, 200)
+  eq(`줄 200개 전표 저장이 3초 안에 끝난다 (지금 ${긴시간}ms)`, 긴시간 < 3000, true)
+  await call('DELETE', `/sales/${만든것.id}`)
 }
 
 /**
@@ -8897,7 +8920,7 @@ async function main() {
   await scenarioInactiveMaster(fixtures)
   await scenarioSlipDelete(fixtures)
   await scenarioValidationMessages(fixtures)
-  await scenarioStockRecalc()
+  await scenarioStockRecalc(fixtures)
   await scenarioGroups(fixtures)
   await scenarioSlipPriceBulk(fixtures)
   await scenarioNestedValidation(fixtures)
