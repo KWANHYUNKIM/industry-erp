@@ -1733,6 +1733,20 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
         m = [...near.matchAll(/checked=\{(!?)(\w+)\}/g)].pop()
         if (m) break
       }
+      /*
+       * <b>체크박스가 아니라 알약으로 그린 조건</b>도 있다 — [그래프로 보기]가 그렇다
+       * (원본은 체크박스, 우리는 [표]/[그래프] 알약). 뜻이 같으므로 그 상태의 <b>초기값</b>으로
+       * 잰다. 열일곱 화면이 이 모양이라, 체크박스만 찾으면 그 열일곱을 <b>한 번도 안 보게</b> 된다.
+       */
+      if (!m && label === '그래프로 보기') {
+        const g = src.match(/useState<'표' \| '그래프'>\('([^']+)'\)/)
+        if (g) {
+          checked += 1
+          const got2 = g[1] === '그래프' ? '켜짐' : '꺼짐'
+          if (got2 !== want) bad.push(`${rel.split('/').pop()}  [${label}] 원본 ${want} · 우리 ${got2}`)
+          continue
+        }
+      }
       if (!m) continue
       const init = src.match(new RegExp('\\[' + m[2] + ',[^\\]]*\\] = useState(?:<[^>]*>)?\\((true|false)\\)'))
       if (!init) continue

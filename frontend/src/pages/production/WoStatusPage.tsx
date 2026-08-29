@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcBarChart from '../../components/EcBarChart'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
@@ -88,6 +89,12 @@ export default function WoStatusPage() {
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
+  /*
+   * 원본 [데이터 보기형식]의 <b>[그래프로 보기]</b> — 기본은 꺼짐이라 표로 연다(사본 실측).
+   * 그리는 값은 <b>잔량</b>이다. 이 화면을 보는 까닭이 "무엇이 아직 안 끝났나" 라서,
+   * 막대가 긴 품목이 곧 밀린 일이다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const [orderNoCond, setOrderNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -148,6 +155,11 @@ export default function WoStatusPage() {
     }, [shown, mode, axis])
 
   /* 축을 바꿔도 열 수는 그대로지만, 표가 통째로 갈리므로 머리와 칸을 함께 본다. */
+  const chartRows = useMemo(() => (
+    mode === '집계'
+      ? grouped.map((g) => ({ label: g.key, value: g.remaining }))
+      : shown.map((r) => ({ label: r.productName, value: r.remainingQty }))
+  ), [mode, grouped, shown])
   const aggRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, grouped.length])
 
@@ -212,10 +224,20 @@ export default function WoStatusPage() {
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
+        <EcCond label="데이터 보기형식">
+          <div className="ec-pills">
+            {(['표', '그래프'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                      onClick={() => setView(v)}>{v === '그래프' ? '그래프로 보기' : '표'}</button>
+            ))}
+          </div>
+        </EcCond>
       </ul>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업지시가 없습니다." />
+      ) : mode === '집계' ? (
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
