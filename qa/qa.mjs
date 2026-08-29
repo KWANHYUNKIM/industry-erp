@@ -3931,10 +3931,17 @@ async function scenarioHttpProtocol() {
   const 다보기 = await must('GET', '/stock/ledger?from=2026-07-01&to=2026-08-31&all=true')
   eq('다 보기를 누르면 전체가 온다', 다보기.rows.length, 수불부.totalRows)
   eq('다 보기는 잘렸다고 하지 않는다', 다보기.truncated, false)
-  /* 문턱 아래는 그냥 다 준다 — 늘 자르면 좁혀도 소용이 없다. */
-  const 하루 = await must('GET', '/stock/ledger?from=2026-08-30&to=2026-08-30')
-  eq('문턱 아래면 자르지 않는다', 하루.truncated, false)
-  eq('문턱 아래면 줄 수와 전체가 같다', 하루.rows.length, 하루.totalRows)
+  /*
+   * 문턱 아래는 그냥 다 준다 — 늘 자르면 좁혀도 소용이 없다.
+   *
+   * <p>처음에는 "하루치는 안 잘린다" 로 적었는데, 그 하루의 줄 수가 5천을 넘으면서 걸렸다
+   * (이 하네스가 스스로 넣은 자료 때문이다). 날짜에 기대지 말고 <b>앞뒤가 맞는지</b>를 잰다 —
+   * 자른 것과 전체 수가 서로 맞으면 자료가 늘든 줄든 성립한다.
+   */
+  const 좁게 = await must('GET', '/stock/ledger?from=2026-08-30&to=2026-08-30')
+  eq('자른 것과 전체 수가 앞뒤가 맞는다', 좁게.truncated, 좁게.totalRows > 5000)
+  eq('안 잘랐으면 줄 수와 전체가 같다',
+    좁게.truncated || 좁게.rows.length === 좁게.totalRows, true)
 
   /*
    * <b>회계전표조회도 같은 문턱을 쓴다.</b> 이 화면은 연초부터를 기본으로 열어서
@@ -3948,7 +3955,7 @@ async function scenarioHttpProtocol() {
   eq('전표조회도 다 보기를 누르면 전체가 온다', 전표다.rows.length, 전표.totalRows)
   eq('전표조회 다 보기는 잘렸다고 하지 않는다', 전표다.truncated, false)
   const 전표금월 = await must('GET', '/journals?from=2026-08-01&to=2026-08-31')
-  eq('전표조회도 문턱 아래면 자르지 않는다', 전표금월.truncated, false)
+  eq('전표조회도 자른 것과 전체 수가 앞뒤가 맞는다', 전표금월.truncated, 전표금월.totalRows > 5000)
 
   /*
    * <b>계좌 입출금도 같은 문턱을 쓴다.</b> 이 자리는 조건이 하나도 없어서 늘 전부 줬고
