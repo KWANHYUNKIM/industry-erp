@@ -168,6 +168,63 @@ if (!tenants.length) {
     eq(`${t}: CHECK 제약 허용값 일치`, bad.join(', ') || '없음', '없음')
 
     /*
+     * <b>있는 것만 세지 말고 같은 모양인지도 본다.</b> 여태 빠진 표·컬럼·CHECK 만 봤는데,
+     * 그것만으로는 조용히 갈라지는 것을 못 잡는다.
+     *
+     * <ul>
+     *   <li>같은 이름인데 <b>자리 수가 다르면</b>(varchar(50) vs varchar(20)) 회사에서만
+     *       글자가 잘리거나 22001 로 터진다.</li>
+     *   <li><b>NOT NULL 이 한쪽에만</b> 있으면 회사에는 빈 값이 들어가고, 그 줄을 읽는
+     *       화면이 나중에 터진다.</li>
+     *   <li><b>외래키가 빠지면</b> 지운 자료를 가리키는 줄이 남고, <b>인덱스가 빠지면</b>
+     *       같은 화면이 그 회사에서만 느려진다. 둘 다 기동해서는 아무 티가 안 난다.</li>
+     * </ul>
+     *
+     * <p>{@code companies} 는 회사 레지스트리라 본사에만 있는 것이 정상이다 — 그 표에
+     *  딸린 인덱스·제약도 같이 뺀다.
+     */
+    const 모양다름 = psql(`
+      select p.table_name || '.' || p.column_name || ': 본사 ' ||
+             p.data_type || coalesce('(' || p.character_maximum_length || ')', '') ||
+             case when p.is_nullable='NO' then ' NOT NULL' else '' end ||
+             ' · 회사 ' ||
+             t.data_type || coalesce('(' || t.character_maximum_length || ')', '') ||
+             case when t.is_nullable='NO' then ' NOT NULL' else '' end
+      from information_schema.columns p
+      join information_schema.columns t
+        on t.table_schema='${t}' and t.table_name=p.table_name and t.column_name=p.column_name
+      where p.table_schema='public'
+        and (p.data_type is distinct from t.data_type
+          or p.character_maximum_length is distinct from t.character_maximum_length
+          or p.numeric_precision is distinct from t.numeric_precision
+          or p.numeric_scale is distinct from t.numeric_scale
+          or p.is_nullable is distinct from t.is_nullable)`).map((r) => r[0])
+    eq(`${t}: 컬럼 자료형·NOT NULL 이 본사와 같다`, 모양다름.join(' / ') || '없음', '없음')
+
+    const 없는제약 = psql(`
+      select c.conrelid::regclass::text || '.' || c.conname
+      from pg_constraint c
+      where c.connamespace='public'::regnamespace
+        and c.conrelid::regclass::text <> 'companies'
+        and c.conrelid::regclass::text in (
+              select table_name from information_schema.tables where table_schema='${t}')
+        and not exists (select 1 from pg_constraint x
+                        where x.connamespace='${t}'::regnamespace and x.conname=c.conname)`)
+      .map((r) => r[0])
+    eq(`${t}: 제약(외래키·유일·기본키)이 본사와 같다`, 없는제약.join(' / ') || '없음', '없음')
+
+    const 없는인덱스 = psql(`
+      select p.tablename || '.' || p.indexname
+      from pg_indexes p
+      where p.schemaname='public' and p.tablename <> 'companies'
+        and p.tablename in (select table_name from information_schema.tables where table_schema='${t}')
+        and not exists (select 1 from pg_indexes x
+                        where x.schemaname='${t}' and x.tablename=p.tablename and x.indexname=p.indexname)`)
+      .map((r) => r[0])
+    eq(`${t}: 인덱스가 본사와 같다`, 없는인덱스.join(' / ') || '없음', '없음')
+
+
+    /*
      * 표만 만들고 <b>기준자료를 안 넣은</b> 경우.
      *
      * 결재 양식 22종은 V13 이 심는데 그 INSERT 가 `INSERT INTO public.…` 로 스키마를
