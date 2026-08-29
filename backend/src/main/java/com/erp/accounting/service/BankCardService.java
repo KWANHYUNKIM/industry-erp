@@ -52,6 +52,7 @@ public class BankCardService {
     private final BusinessPartnerRepository partnerRepository;
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.accounting.repository.CurrencyRepository currencyRepository;
 
     // ── 계좌 마스터 ────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ public class BankCardService {
                 .accountNo(req.accountNo())
                 .holder(req.holder())
                 .glAccount(glAccount(req.glAccountId()))
+                .currency(currency(req.currencyId()))
                 .balance(nz(req.openingBalance()))
                 .active(req.active() == null || req.active())
                 .remark(req.remark())
@@ -91,6 +93,7 @@ public class BankCardService {
         b.setAccountNo(req.accountNo());
         b.setHolder(req.holder());
         b.setGlAccount(glAccount(req.glAccountId()));
+        b.setCurrency(currency(req.currencyId()));
         b.setActive(req.active() == null || req.active());
         b.setRemark(req.remark());
         // 잔액은 입출금으로만 움직인다. 여기서 openingBalance 로 덮어쓰면 수불과 어긋난다.
@@ -291,5 +294,12 @@ public class BankCardService {
 
     private static BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
+    }
+
+    /** 원본 [외화통장환종]. 안 주면 null — 원화 통장이다. */
+    private com.erp.accounting.domain.Currency currency(Long id) {
+        if (id == null) return null;
+        return currencyRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("통화를 찾을 수 없습니다. id=" + id));
     }
 }

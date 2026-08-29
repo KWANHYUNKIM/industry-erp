@@ -1126,6 +1126,10 @@ export interface BankAccountRow {
   glAccountId: number
   glAccountCode: string
   glAccountName: string
+  /** 원본 계좌등록의 [외화통장환종]. 안 정한 통장은 null — 원화다. */
+  currencyId: number | null
+  currencyCode: string | null
+  currencyName: string | null
   balance: number
   active: boolean
   remark: string | null

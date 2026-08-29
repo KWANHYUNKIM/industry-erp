@@ -28,6 +28,8 @@ public final class BankCardDtos {
             String holder,
             /** 분개에 쓸 예금계정. 없으면 보통예금(103) */
             Long glAccountId,
+            /** 원본 [외화통장환종]. 안 주면 원화 통장이다. */
+            Long currencyId,
             @PositiveOrZero(message = "기초잔액은 0보다 작을 수 없습니다.") BigDecimal openingBalance,
             Boolean active,
             String remark
@@ -37,6 +39,8 @@ public final class BankCardDtos {
             Long id, String code, String name,
             String bankName, String accountNo, String holder,
             Long glAccountId, String glAccountCode, String glAccountName,
+            /** 원본 [외화통장환종]. 안 정한 통장은 null — 원화다. */
+            Long currencyId, String currencyCode, String currencyName,
             BigDecimal balance, boolean active, String remark
     ) {
         public static BankAccountResponse from(BankAccount b) {
@@ -44,6 +48,9 @@ public final class BankCardDtos {
                     b.getId(), b.getCode(), b.getName(),
                     b.getBankName(), b.getAccountNo(), b.getHolder(),
                     b.getGlAccount().getId(), b.getGlAccount().getCode(), b.getGlAccount().getName(),
+                    b.getCurrency() != null ? b.getCurrency().getId() : null,
+                    b.getCurrency() != null ? b.getCurrency().getCode() : null,
+                    b.getCurrency() != null ? b.getCurrency().getName() : null,
                     b.getBalance(), b.isActive(), b.getRemark());
         }
     }

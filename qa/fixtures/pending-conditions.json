@@ -1,7 +1,5 @@
 [
  "PriceRequestProgressPage.tsx  원본 단가요청진행단계 의 [유효기간] 조건이 없다",
- "BankCardPage.tsx  원본 계좌등록 의 [외화통장환종] 조건이 없다",
  "DefectReportPage.tsx  원본 불량률파악보고서 의 [불량유형] 조건이 없다",
- "MrpPage.tsx  원본 생산계획/MRP생성 의 [생성일자] 조건이 없다",
  "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다"
 ]

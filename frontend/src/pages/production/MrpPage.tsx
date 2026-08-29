@@ -55,6 +55,11 @@ interface Row {
   statusName: string
   workOrderNo: string | null
   remark: string | null
+  /**
+   * 이 계획을 <b>만든 때</b>. 계획주차와 다르다 — 주차는 '언제 만들 것인가' 이고
+   * 이것은 '언제 만들었나' 다. 원본 [생성일자] 조건이 보는 값이다.
+   */
+  createdAt: string | null
 }
 
 export default function MrpPage() {
@@ -70,6 +75,9 @@ export default function MrpPage() {
   const [item, setItem] = useState('')
   /* 원본 생산계획/MRP생성 조건에 <b>[적요]</b> 가 있다(사본 실측). 적요는 이미 목록에 온다. */
   const [remarkCond, setRemarkCond] = useState('')
+  /* 원본 [생성일자] — 계획을 만든 날. 비워 두면 그쪽 끝은 안 자른다. */
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
   const [ok, setOk] = useState('')
   const [genWeek, setGenWeek] = useState('')
   const [deductStock, setDeductStock] = useState(true)
@@ -140,8 +148,14 @@ export default function MrpPage() {
     if (weekTo && r.planWeek > weekTo) return false
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
+    /*
+     * 원본 [생성일자] — 지난주에 뽑아 둔 계획과 오늘 새로 뽑은 계획이 <b>같은 주차로</b>
+     * 섞여 있으면 어느 것이 새것인지 알 수가 없다. 만든 날로 자를 수 있어야 한다.
+     */
+    if (madeFrom && (r.createdAt ?? '').slice(0, 10) < madeFrom) return false
+    if (madeTo && (r.createdAt ?? '9999').slice(0, 10) > madeTo) return false
     return !keyword || r.productName.includes(keyword) || r.planWeek.includes(keyword)
-  }), [rows, tab, weekFrom, weekTo, item, keyword, remarkCond])
+  }), [rows, tab, weekFrom, weekTo, item, keyword, remarkCond, madeFrom, madeTo])
 
   return (
     <EcListShell
@@ -197,6 +211,14 @@ export default function MrpPage() {
       </div>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 차례는 <b>[생성일자]가 먼저</b>고 그다음이 [생산계획기간] 이다(사본 실측). */}
+        <EcCond label="생성일자">
+          <input type="date" className="ec-input" value={madeFrom}
+                 onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 145 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo}
+                 onChange={(e) => setMadeTo(e.target.value)} style={{ width: 145 }} />
+        </EcCond>
         <EcCond label="생산계획기간">
           {/* 계획주차는 2026-W28 같은 문자열이라 주차 입력으로 받는다 — 날짜로 받으면 되레 어긋난다. */}
           <input type="week" className="ec-input" value={weekFrom}

@@ -5,7 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
-import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Partner } from '../../api/types'
+import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const today = () => ymd(new Date())
@@ -30,6 +30,8 @@ type Tab = (typeof TABS)[number]
 export default function BankCardPage() {
   const [tab, setTab] = useState<Tab>('계좌등록')
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [curCond, setCurCond] = useState('')
   const [cards, setCards] = useState<CreditCardRow[]>([])
   const [txns, setTxns] = useState<BankTxn[]>([])
   const [usages, setUsages] = useState<CardUsage[]>([])
@@ -51,8 +53,9 @@ export default function BankCardPage() {
   async function load() {
     setLoading(true)
     try {
-      const [a, c, t, u, gl, p] = await Promise.all([
+      const [a, cur, c, t, u, gl, p] = await Promise.all([
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
+        api.get<Currency[]>('/currencies'),
         api.get<CreditCardRow[]>('/bank-cards/cards'),
         api.get<BankTxn[]>('/bank-cards/transactions'),
         api.get<CardUsage[]>('/bank-cards/usages'),
@@ -60,6 +63,7 @@ export default function BankCardPage() {
         api.get<Partner[]>('/partners'),
       ])
       setAccounts(a.data)
+      setCurrencies(cur.data)
       setCards(c.data)
       setTxns(t.data)
       setUsages(u.data)
@@ -97,8 +101,11 @@ export default function BankCardPage() {
    * 원본 카드등록 조건: 카드코드 · <b>검색창내용</b> · <b>사용구분</b>
    *
    * <p>두 탭 다 표만 있고 조건이 하나도 없어서, 쓰지 않는 계좌까지 늘 같이 보였다.
-   * 굵게 표시한 다섯을 만든다 — [계좌코드]·[계좌명]·[카드코드]·[외화통장환종]은
-   * 우리 엔티티에 그 값이 없다(코드 없이 은행+계좌번호로 식별하고, 통장은 원화만 둔다).
+   *
+   * <p>[외화통장환종]도 이제 만든다. 예전에는 '통장은 원화만 둔다' 고 적어 뒀는데,
+   * <b>외화등록 마스터는 진작 있었다</b> — 없던 것은 통장이 어느 돈으로 담기는지를
+   * 적을 칸뿐이었다. 그것 없이는 원화통장과 외화통장이 <b>잔액 숫자만으로 나란히 서서</b>,
+   * 1,000,000 이 원인지 달러인지 알 수가 없다.
    */
   const onOff = (active: boolean) => (active ? '사용' : '중지')
   const shownAccounts = useMemo(() => accounts
@@ -106,9 +113,11 @@ export default function BankCardPage() {
     .filter((r) => !nameCond || (r.name ?? '').includes(nameCond))
     .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
     .filter((r) => !glCond || r.glAccountName === glCond)
+    // 원본 [외화통장환종]. 안 정한 통장(원화)은 어떤 환종을 골라도 안 걸린다.
+    .filter((r) => !curCond || r.currencyName === curCond)
     .filter((r) => !kw || [r.bankName, r.accountNo, r.holder, r.glAccountName, r.remark]
       .some((v) => (v ?? '').includes(kw))),
-    [accounts, useCond, glCond, kw, codeCond, nameCond])
+    [accounts, useCond, glCond, kw, codeCond, nameCond, curCond])
   const shownCards = useMemo(() => cards
     .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
     .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
@@ -140,7 +149,7 @@ export default function BankCardPage() {
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       <Modal open={showForm && tab === '계좌등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
-        <BankAccountForm glAccounts={glAccounts} onError={setError} onSaved={() => saved('계좌를 등록했습니다.')} />
+        <BankAccountForm glAccounts={glAccounts} currencies={currencies} onError={setError} onSaved={() => saved('계좌를 등록했습니다.')} />
       )}</Modal>
       <Modal open={showForm && tab === '카드등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <CardForm accounts={accounts} onError={setError} onSaved={() => saved('카드를 등록했습니다.')} />
@@ -178,6 +187,13 @@ export default function BankCardPage() {
             <input className="ec-input" value={kw} placeholder="검색창내용"
                    onChange={(e) => setKw(e.target.value)} style={{ width: 190 }} />
           </EcCond>
+          {tab === '계좌등록' && (
+            <EcCond label="외화통장환종" pick>
+              <CodePickerField label="외화통장환종" hideLabel width={150} emptyLabel="전체"
+                               value={curCond} onChange={setCurCond}
+                               items={currencies.map((c) => ({ value: c.name, code: c.code, name: c.name }))} />
+            </EcCond>
+          )}
           <EcCond label="사용구분">
             <select className="ec-input" value={useCond} style={{ width: 90 }}
                     onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중지')}>
@@ -210,6 +226,8 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
           <th style={{ width: 180 }}>계좌번호</th>
           <th style={{ width: 100 }}>예금주</th>
           <th style={{ width: 130 }}>예금계정</th>
+          {/* 원본 [외화통장환종]. 안 정한 통장은 원화라 빈칸이다 — 지어내지 않는다. */}
+          <th style={{ width: 100 }}>외화통장환종</th>
           <th style={{ width: 130, textAlign: 'right' }}>잔액</th>
           {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
           <th>적요</th>
@@ -218,7 +236,7 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -228,6 +246,7 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
             <td style={{ fontFamily: 'monospace' }}>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.glAccountCode} {r.glAccountName}</td>
+            <td style={{ color: r.currencyName ? '#5a626e' : '#c9ced6' }}>{r.currencyName ?? '원화'}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
             <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
@@ -391,13 +410,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function BankAccountForm({ glAccounts, onError, onSaved }: {
-  glAccounts: AccountOption[]; onError: (m: string) => void; onSaved: () => void
+function BankAccountForm({ glAccounts, currencies, onError, onSaved }: {
+  glAccounts: AccountOption[]; currencies: Currency[]
+  onError: (m: string) => void; onSaved: () => void
 }) {
   const deposits = useMemo(() => glAccounts.filter((a) => a.division === 'ASSET'), [glAccounts])
   const [form, setForm] = useState({
     code: '', name: '',
-    bankName: '', accountNo: '', holder: '', glAccountId: '', openingBalance: '', remark: '',
+    bankName: '', accountNo: '', holder: '', glAccountId: '', currencyId: '', openingBalance: '', remark: '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -413,6 +433,7 @@ function BankAccountForm({ glAccounts, onError, onSaved }: {
         accountNo: form.accountNo,
         holder: form.holder || undefined,
         glAccountId: form.glAccountId ? Number(form.glAccountId) : undefined,
+        currencyId: form.currencyId ? Number(form.currencyId) : undefined,
         openingBalance: form.openingBalance ? Number(form.openingBalance) : 0,
         remark: form.remark || undefined,
       })
@@ -445,6 +466,13 @@ function BankAccountForm({ glAccounts, onError, onSaved }: {
         <select className="ec-input" value={form.glAccountId} onChange={(e) => set('glAccountId', e.target.value)} style={{ width: 160 }}>
           <option value="">보통예금(103) 기본</option>
           {deposits.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+        </select>
+      </Field>
+      {/* 안 고르면 원화 통장이다 — 대부분이 그렇다. */}
+      <Field label="외화통장환종">
+        <select className="ec-input" value={form.currencyId} onChange={(e) => set('currencyId', e.target.value)} style={{ width: 140 }}>
+          <option value="">원화</option>
+          {currencies.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
         </select>
       </Field>
       <Field label="기초잔액">

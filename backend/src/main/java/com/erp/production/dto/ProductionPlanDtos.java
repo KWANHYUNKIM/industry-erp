@@ -53,7 +53,14 @@ public final class ProductionPlanDtos {
             String planWeek,
             BigDecimal demandQty, BigDecimal currentStock, BigDecimal planQty, BigDecimal shortage,
             ProductionPlanStatus status, String statusName,
-            Long workOrderId, String workOrderNo, String remark
+            Long workOrderId, String workOrderNo, String remark,
+            /**
+             * 원본 생산계획/MRP생성의 <b>[생성일자]</b> 조건이 보는 값 — 이 계획을 만든 때다.
+             * 계획주차(planWeek)와 <b>다르다</b>: 주차는 '언제 만들 것인가' 이고
+             * 이것은 '언제 만들었나' 다. 지난주에 뽑아 둔 계획과 오늘 새로 뽑은 계획이
+             * 같은 주차로 섞여 있으면 어느 것이 새것인지 알 수가 없다.
+             */
+            java.time.LocalDateTime createdAt
     ) {
         public static PlanResponse from(ProductionPlan p, BigDecimal currentStock) {
             BigDecimal shortage = p.getDemandQty().subtract(currentStock);
@@ -67,7 +74,7 @@ public final class ProductionPlanDtos {
                     p.getStatus(), p.getStatus().getDisplayName(),
                     wo != null ? wo.getId() : null,
                     wo != null ? wo.getOrderNo() : null,
-                    p.getRemark());
+                    p.getRemark(), p.getCreatedAt());
         }
     }
 }

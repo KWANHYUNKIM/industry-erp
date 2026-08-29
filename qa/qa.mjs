@@ -8092,6 +8092,50 @@ async function scenarioUdiSupplyShape(f) {
     cleared.udiSupplyShape ?? null, null)
 }
 
+/**
+ * 계좌의 <b>[외화통장환종]</b> — 원본 계좌등록의 조건이자 칸.
+ *
+ * <p>없으면 원화통장과 외화통장이 <b>잔액 숫자만으로 나란히 서서</b>, 1,000,000 이
+ * 원인지 달러인지 알 수가 없다. 외화등록 마스터는 진작 있었고, 없던 것은
+ * <b>통장이 어느 돈으로 담기는지를 적을 칸</b>뿐이었다.
+ */
+async function scenarioBankAccountCurrency() {
+  section('■ 계좌의 외화통장환종')
+
+  /* 계좌에는 삭제가 없다(잔액·입출금이 매달린다). 같은 계좌번호를 다시 쓰면 고쳐 쓴다. */
+  const save = async (accountNo, body) => {
+    const found = (await must('GET', '/bank-cards/accounts')).find((a) => a.accountNo === accountNo)
+    return found
+      ? must('PUT', `/bank-cards/accounts/${found.id}`, { accountNo, ...body })
+      : must('POST', '/bank-cards/accounts', { accountNo, ...body })
+  }
+
+  const usd = (await must('GET', '/currencies')).find((c) => c.code === 'USD')
+  const acc = await save(`${P}-FX-001`, {
+    code: `${P}FX`, name: 'QA외화통장', bankName: 'QA은행', holder: 'QA',
+    currencyId: usd ? usd.id : undefined,
+  })
+  if (usd) {
+    eq('통장에 환종을 정할 수 있다', acc.currencyCode, 'USD')
+    eq('환종 이름도 함께 온다', acc.currencyName, usd.name)
+    eq('다시 읽어도 남아 있다',
+      (await must('GET', '/bank-cards/accounts')).find((a) => a.id === acc.id).currencyCode, 'USD')
+    /* 원화로 되돌릴 수 있어야 한다 — 잘못 고른 것을 못 지우면 칸이 함정이 된다. */
+    const back = await save(`${P}-FX-001`, {
+      code: `${P}FX`, name: 'QA외화통장', bankName: 'QA은행', holder: 'QA',
+    })
+    eq('환종은 다시 비울 수 있다', back.currencyId ?? null, null)
+  }
+
+  /* 안 정하면 원화다 — 대부분의 통장이 그렇다. 억지로 하나 고르게 하지 않는다. */
+  const won = await save(`${P}-KRW-001`, { bankName: 'QA은행', holder: 'QA' })
+  eq('안 정한 통장은 환종이 없다 — 원화다', won.currencyId ?? null, null)
+
+  await rejects('없는 환종은 거부', 'POST', '/bank-cards/accounts', {
+    bankName: 'QA은행', accountNo: `${P}-FX-999`, currencyId: 999999,
+  }, '통화를 찾을 수 없습니다')
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -8466,6 +8510,7 @@ async function main() {
   await scenarioQuotationWarehouseProject(fixtures)
   await scenarioSalesPlanScope(fixtures)
   await scenarioUdiSupplyShape(fixtures)
+  await scenarioBankAccountCurrency()
 
   checkDeadAssertions()
 
