@@ -866,6 +866,15 @@ async function scenarioQuotationWarehouseProject(f) {
   const poAgain = (await must('GET', '/purchase-orders')).find((x) => x.id === po.id)
   eq('다시 조회해도 발주의 프로젝트가 남아 있다', poAgain?.projectName, proj.name)
 
+  /*
+   * <b>견적 → 수주로 창고·프로젝트가 넘어가는가.</b> 이 두 칸을 만든 까닭이 이것이다 —
+   * 넘기지 않으면 맨 앞에서 정한 것이 <b>가운데에서 끊겨</b> 같은 것을 다시 골라야 한다.
+   */
+  const conv = await must('POST', `/quotations/${q.id}/convert`)
+  const ord = (await must('GET', '/sales-orders')).find((x) => x.id === conv.id)
+  eq('견적을 수주로 바꾸면 <b>창고가 따라간다</b>', ord?.warehouseName, f.warehouse.name)
+  eq('견적을 수주로 바꾸면 <b>프로젝트가 따라간다</b>', ord?.projectName, proj.name)
+
   const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
     `${again?.warehouseName}/${again?.projectName}`, `${f.warehouse.name}/${proj.name}`)

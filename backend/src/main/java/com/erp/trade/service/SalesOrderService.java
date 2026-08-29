@@ -1,6 +1,9 @@
 package com.erp.trade.service;
 
 import com.erp.common.ApiException;
+import com.erp.hr.service.EmployeeService;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.inventory.domain.Item;
@@ -47,6 +50,10 @@ public class SalesOrderService {
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final SalesOrderRepository salesOrderRepository;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
+    private final EmployeeService employeeService;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final SalesLineRepository salesLineRepository;
@@ -125,6 +132,9 @@ public class SalesOrderService {
                 .partner(partner)
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
                 .status(SalesOrderStatus.RECEIVED)
                 .remark(req.remark())
                 .createdBy(username)

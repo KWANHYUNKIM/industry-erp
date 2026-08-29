@@ -50,6 +50,10 @@ interface UnshippedLine {
   itemCode: string
   itemName: string
   unit: string
+  /** 원본 조건의 [창고]·[프로젝트]·[담당자]. 수주에 이번에 만든 칸이다. */
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
   orderQty: number
   shippedQty: number
   unshippedQty: number
@@ -62,7 +66,7 @@ const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b67
 export default function UnshippedPage() {
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects', 'employees'])
   const [rows, setRows] = useState<UnshippedLine[]>([])
   const [keyword, setKeyword] = useState('')
   /** 원본 조건 판에 해당하는 값들. 고치면 바로 반영된다(원본도 그렇다). */
@@ -75,7 +79,7 @@ export default function UnshippedPage() {
    * [거래처관리담당자]는 거래처 마스터가 든다 — "내가 맡은 거래처의 미출하" 를 못 봤다.
    */
   const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '',
-    dueFrom: '', dueTo: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
+    dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
   const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [loading, setLoading] = useState(true)
@@ -154,6 +158,9 @@ export default function UnshippedPage() {
     .filter((r) => !cond.to || r.orderDate <= cond.to)
     .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
     .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
+    .filter((r) => !cond.warehouse || (r.warehouseName ?? '') === cond.warehouse)
+    .filter((r) => !cond.project || (r.projectName ?? '') === cond.project)
+    .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
     .filter((r) => !cond.partnerMgr || partnerMgrs.get(r.partnerName) === cond.partnerMgr)
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
     .filter((r) => !cond.item || r.itemName.includes(cond.item))
@@ -211,7 +218,7 @@ export default function UnshippedPage() {
 
   const reset = () => {
     setCond({ from: '', to: '', partner: '', item: '', orderNo: '',
-      dueFrom: '', dueTo: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
+      dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
     setKeyword('')
   }
 
@@ -244,6 +251,16 @@ export default function UnshippedPage() {
           <input type="date" className="ec-input" value={cond.dueTo}
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
@@ -257,6 +274,11 @@ export default function UnshippedPage() {
         <EcCond label="주문번호" pick>
           <input className="ec-input" placeholder="주문번호 일부" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           {/* 후보는 <b>실제로 거래처를 맡은 사람들</b>에서 뽑는다 — 아무 거래처도 안 맡은

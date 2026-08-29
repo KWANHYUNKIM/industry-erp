@@ -127,9 +127,17 @@ public class QuotationService {
         List<OrderLineRequest> orderLines = q.getLines().stream()
                 .map(l -> new OrderLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice()))
                 .toList();
+        /*
+         * <b>견적에서 정한 창고·프로젝트를 수주로 넘긴다.</b> 이것이 이 두 칸을 만든 까닭이다 —
+         * 견적 → 수주 → 판매로 이어질 때 맨 앞에서 정한 것이 <b>중간에 끊기면</b>
+         * 같은 것을 다시 골라야 하고, 프로젝트별 손익에서도 수주 단계가 빠진다.
+         */
         CreateSalesOrderRequest orderReq = new CreateSalesOrderRequest(
-                q.getPartner().getId(), q.getQuoteDate(), q.getValidUntil(), taxable,
-                "견적 " + q.getQuoteNo() + " 전환", orderLines);
+                q.getPartner().getId(), q.getQuoteDate(), q.getValidUntil(),
+                q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                q.getProject() != null ? q.getProject().getId() : null,
+                null,
+                taxable, "견적 " + q.getQuoteNo() + " 전환", orderLines);
 
         SalesOrderResponse order = salesOrderService.create(orderReq, username);
         q.setStatus(QuotationStatus.CONVERTED);

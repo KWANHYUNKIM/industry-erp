@@ -26,6 +26,10 @@ public final class SalesOrderDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             LocalDate orderDate,
             LocalDate dueDate,
+            /* 원본 수주의 [창고]·[프로젝트]·[담당자]. 수주 시점에 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
+            Long employeeId,
             Boolean taxable,
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
@@ -54,6 +58,10 @@ public final class SalesOrderDtos {
             SalesOrderStatus status, String statusName,
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal orderQty, BigDecimal shippedQty, BigDecimal unshippedQty,
+            /* 원본 미출하현황 조건의 [창고]·[프로젝트]·[담당자]. 수주에 이번에 만든 칸이다. */
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            Long employeeId, String employeeName,
             /**
              * 적요 — 원본 미출하현황의 열이다(일자-No. · 품목명(규격) · 수량 · 미출하수량 ·
              * 창고명 · 거래처명 · <b>적요</b> · 출하예정일).
@@ -80,7 +88,14 @@ public final class SalesOrderDtos {
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    orderQty, shipped, orderQty.subtract(shipped), o.getRemark());
+                    orderQty, shipped, orderQty.subtract(shipped),
+                    o.getWarehouse() != null ? o.getWarehouse().getId() : null,
+                    o.getWarehouse() != null ? o.getWarehouse().getName() : null,
+                    o.getProject() != null ? o.getProject().getId() : null,
+                    o.getProject() != null ? o.getProject().getName() : null,
+                    o.getEmployee() != null ? o.getEmployee().getId() : null,
+                    o.getEmployee() != null ? o.getEmployee().getName() : null,
+                    o.getRemark());
         }
     }
 
@@ -128,6 +143,10 @@ public final class SalesOrderDtos {
             Long id, String orderNo,
             Long partnerId, String partnerName,
             LocalDate orderDate, LocalDate dueDate,
+            /* 원본 수주의 [창고]·[프로젝트]·[담당자]. 견적에서 정한 것이 여기로 넘어온다. */
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            Long employeeId, String employeeName,
             SalesOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
@@ -147,6 +166,12 @@ public final class SalesOrderDtos {
                     o.getId(), o.getOrderNo(),
                     o.getPartner().getId(), o.getPartner().getName(),
                     o.getOrderDate(), o.getDueDate(),
+                    o.getWarehouse() != null ? o.getWarehouse().getId() : null,
+                    o.getWarehouse() != null ? o.getWarehouse().getName() : null,
+                    o.getProject() != null ? o.getProject().getId() : null,
+                    o.getProject() != null ? o.getProject().getName() : null,
+                    o.getEmployee() != null ? o.getEmployee().getId() : null,
+                    o.getEmployee() != null ? o.getEmployee().getName() : null,
                     o.getStatus(), o.getStatus().getDisplayName(),
                     o.getSupplyAmount(), o.getVatAmount(), o.getTotalAmount(),
                     o.getRemark(), o.getCreatedBy(),
