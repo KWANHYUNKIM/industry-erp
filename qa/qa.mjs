@@ -3886,6 +3886,26 @@ async function scenarioHttpProtocol() {
   eq('어느 칸이 긴지도 말해 준다', longMsg.startsWith('공정명'), true)
   eq('길이 문제를 자료 충돌이라고 하지 않는다', /자료가 서로 맞지 않습니다/.test(longMsg), false)
 
+  /*
+   * <b>쪽 나누기의 한계.</b> 예전에는 그대로 넘겨서 두 가지가 났다 —
+   * page=-1·size=0 이 <b>500</b> 으로 터지며 스프링의 영문 문구가 화면까지 새어 나왔고,
+   * size=999999 를 주면 <b>11만 9천 줄</b>을 한 번에 만들어 내려보냈다(1.8초).
+   * 주소만 고쳐 쓰면 누구나 표 전체를 뽑을 수 있었다.
+   */
+  for (const [label, q, want] of [
+    ['쪽 번호가 음수', 'page=-1&size=50', '쪽 번호'],
+    ['한 쪽 크기가 0', 'page=0&size=0', '1~1000'],
+    ['한 쪽 크기가 너무 큼', 'page=0&size=999999', '1~1000'],
+  ]) {
+    const r = await call('GET', `/stock/transactions?${q}`)
+    eq(`${label}: 400 으로 거절한다`, r.status, 400)
+    const m = String(r.data?.message ?? '')
+    eq(`${label}: 한글로 무엇이 잘못됐는지 말한다`, m.includes(want), true)
+    eq(`${label}: 스프링 영문 문구가 새어 나오지 않는다`, /Page (index|size) must/.test(m), false)
+  }
+  eq('한계 안의 크기는 그대로 준다',
+    (await must('GET', '/stock/transactions?page=0&size=1000')).content.length, 1000)
+
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 

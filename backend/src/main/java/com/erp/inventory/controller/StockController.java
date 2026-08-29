@@ -1,5 +1,6 @@
 package com.erp.inventory.controller;
 
+import com.erp.common.ApiException;
 import com.erp.inventory.dto.StockDtos.StockResponse;
 import com.erp.inventory.dto.StockDtos.StockTransactionRequest;
 import com.erp.inventory.dto.StockDtos.StockTransactionResponse;
@@ -38,13 +39,34 @@ public class StockController {
         return asOf != null ? stockService.stockAsOf(asOf) : stockService.currentStock();
     }
 
-    /** 입출고 이력 */
+    /**
+     * 입출고 이력.
+     *
+     * <p><b>쪽 번호·크기를 여기서 막는다.</b> 예전에는 그대로 넘겨서 두 가지가 났다.
+     * <ul>
+     *   <li>{@code page=-1}·{@code size=0} 이 <b>500</b> 으로 터지고 스프링의 영문 문구
+     *       ("Page index must not be less than zero")가 화면까지 새어 나왔다.
+     *       값이 잘못된 것이므로 400 이고, 무엇을 고쳐야 하는지 한글로 말해야 한다.</li>
+     *   <li>{@code size=999999} 를 주면 <b>11만 9천 줄</b>을 한 번에 만들어 내려보냈다(1.8초).
+     *       누구든 주소만 고쳐 쓰면 표 전체를 통째로 뽑을 수 있고, 그동안 서버는 그 자료를
+     *       모두 메모리에 든다. 화면이 실제로 쓰는 크기는 50이라 1000이면 넉넉하다.</li>
+     * </ul>
+     */
     @GetMapping("/transactions")
     public Page<StockTransactionResponse> transactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        if (page < 0) {
+            throw ApiException.badRequest("쪽 번호는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw ApiException.badRequest("한 쪽에 담을 줄 수는 1~" + MAX_PAGE_SIZE + " 입니다.");
+        }
         return stockService.transactions(page, size);
     }
+
+    /** 한 번에 내려보낼 수 있는 줄 수의 한계. */
+    private static final int MAX_PAGE_SIZE = 1000;
 
     /** 재고수불부 — 기간·창고·품목으로 거른 입출고 원장(일자순) + 기초재고. 파라미터 생략 시 미필터. */
     @GetMapping("/ledger")
