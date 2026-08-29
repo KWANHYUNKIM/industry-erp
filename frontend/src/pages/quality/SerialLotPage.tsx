@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Lot, LotStatus, Warehouse } from '../../api/types'
+import type { Item, Lot, LotStatus, LotTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
@@ -26,6 +26,22 @@ export default function SerialLotPage() {
   const [lotCond, setLotCond] = useState('')
   const [useCond, setUseCond] = useState('')
   const [loading, setLoading] = useState(true)
+  /*
+   * 원본 [상세내역] — 펼친 로트의 입출고. <b>펼칠 때 한 번만</b> 가져와 들고 있는다:
+   * 목록을 열 때 미리 부르면 안 볼 것까지 부르고, 펼칠 때마다 부르면 같은 것을 또 부른다.
+   */
+  const [openLot, setOpenLot] = useState<string | null>(null)
+  const [lotTx, setLotTx] = useState<LotTransaction[]>([])
+  const [lotTxLoaded, setLotTxLoaded] = useState(false)
+  async function toggleDetail(r: Lot) {
+    if (openLot === r.lotNo) { setOpenLot(null); return }
+    setOpenLot(r.lotNo)
+    if (lotTxLoaded) return
+    try {
+      setLotTx((await api.get<LotTransaction[]>('/lots/transactions')).data)
+      setLotTxLoaded(true)
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ lotNo: '', itemId: '', warehouseId: '', inboundDate: today(), expireDate: '', inboundQty: '' })
@@ -204,15 +220,21 @@ export default function SerialLotPage() {
             <th style={{ width: 80, textAlign: 'right' }}>현재고</th>
             <th style={{ width: 100 }}>창고</th>
             <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            {/*
+              원본 시리얼/로트No.등록의 마지막 열 <b>[상세내역]</b> — 그 로트가 <b>어디로 오갔는지</b>를
+              그 자리에서 편다. 로트원장이 따로 있긴 하지만 화면을 옮겨 로트를 다시 골라야 했다 —
+              "이 로트 어디 갔나" 를 묻는 자리는 여기다.
+            */}
+            <th style={{ width: 66, textAlign: 'center' }}>상세내역</th>
             <th style={{ width: 130, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r, i) => [
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
@@ -225,12 +247,52 @@ export default function SerialLotPage() {
               <td>{r.warehouseName ?? '-'}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
+                <button onClick={() => toggleDetail(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                  {openLot === r.lotNo ? '접기' : '펼치기'}
+                </button>
+              </td>
+              <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={r.held || r.stockQty <= 0} onClick={() => consume(r)}>출고</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} onClick={() => adjust(r)}>실사</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? '#1c7c3c' : '#c07a00' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>
               </td>
-            </tr>
-          ))}
+            </tr>,
+            openLot === r.lotNo ? (
+              /* 펼친 줄 — 그 로트의 입출고. 움직인 적이 없으면 그렇게 적는다(빈 표를 그리지 않는다). */
+              <tr key={`${r.id}-detail`}>
+                <td colSpan={12} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                  {lotTx.filter((t) => t.lotNo === r.lotNo).length === 0 ? (
+                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>움직인 내역이 없습니다.</span>
+                  ) : (
+                    <table className="w-full text-left" style={{ maxWidth: 760 }}>
+                      <thead><tr>
+                        <th style={{ width: 34 }}></th><th style={{ width: 110 }}>일자</th>
+                        <th style={{ width: 90 }}>구분</th>
+                        <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+                        <th style={{ width: 90, textAlign: 'right' }}>잔량</th>
+                        <th>적요</th>
+                      </tr></thead>
+                      <tbody>
+                        {lotTx.filter((t) => t.lotNo === r.lotNo).map((t, k) => (
+                          <tr key={t.id}>
+                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td style={{ fontFamily: 'monospace' }}>{t.txDate}</td>
+                            <td>{t.typeName}</td>
+                            <td style={{ textAlign: 'right', color: t.quantityChange < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                              {t.quantityChange.toLocaleString()}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{t.balanceAfter.toLocaleString()}</td>
+                            <td style={{ color: '#8a929c' }}>{t.note ?? ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </td>
+              </tr>
+            ) : null,
+          ]).flat()}
         </tbody>
       </table>
     </EcListShell>
