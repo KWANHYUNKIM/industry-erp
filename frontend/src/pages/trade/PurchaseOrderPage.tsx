@@ -22,6 +22,15 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, PurchaseOrderStatus> = {
 const statusColor = (s: PurchaseOrderStatus) =>
   s === 'RECEIVED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'ORDERED' ? 'var(--ec-blue)' : '#5a626e'
 
+/** GET /purchase-orders/{id}/history 한 줄 — 단계가 언제 누구 손에 바뀌었나. */
+interface HistoryRow {
+  changedAt: string
+  fromStatusName: string | null
+  toStatusName: string
+  changedBy: string | null
+  note: string | null
+}
+
 interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string }
 const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '' })
 
@@ -37,6 +46,24 @@ export default function PurchaseOrderPage() {
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [tab, setTab] = useState<Tab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
+  /**
+   * 발주 <b>진행이력</b> — 서버가 단계가 바뀔 때마다 누가 언제 무엇으로 옮겼는지 남긴다
+   * (/purchase-orders/{id}/history). <b>남기기만 하고 보여 주는 자리가 없었다.</b>
+   * '이 발주는 왜 아직 입고가 안 됐나' 를 물으면 아무도 답을 못 했다.
+   *
+   * <p>펼칠 때 한 번만 부르고 그대로 둔다 — 줄을 여닫을 때마다 다시 부르면 목록이 무거워진다.
+   */
+  const [hist, setHist] = useState<Record<number, HistoryRow[]>>({})
+
+  function toggle(id: number) {
+    const next = openId === id ? null : id
+    setOpenId(next)
+    if (next != null && hist[next] === undefined) {
+      api.get<HistoryRow[]>(`/purchase-orders/${next}/history`)
+        .then((r) => setHist((p) => ({ ...p, [next]: r.data })))
+        .catch(() => setHist((p) => ({ ...p, [next]: [] })))
+    }
+  }
   const [error, setError] = useState('')
   const [orderNoCond, setOrderNoCond] = useState('')
   const [whCond, setWhCond] = useState('')
@@ -241,7 +268,7 @@ export default function PurchaseOrderPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
-              <tr onClick={() => setOpenId(openId === po.id ? null : po.id)} style={{ cursor: 'pointer' }}>
+              <tr onClick={() => toggle(po.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
@@ -295,6 +322,37 @@ export default function PurchaseOrderPage() {
                         ))}
                       </tbody>
                     </table>
+                    {/* 진행이력 — 단계가 바뀐 자취. 아직 안 왔거나 하나도 없으면 그 사실을 적는다. */}
+                    <div style={{ padding: '2px 6px 8px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#5a626e', margin: '2px 0 4px' }}>진행이력</div>
+                      {hist[po.id] === undefined ? (
+                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>불러오는 중…</span>
+                      ) : hist[po.id].length === 0 ? (
+                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>기록된 단계 변경이 없습니다.</span>
+                      ) : (
+                        <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                          <thead><tr>
+                            <th style={{ width: 150 }}>일시</th>
+                            <th style={{ width: 180 }}>단계</th>
+                            <th style={{ width: 120 }}>처리자</th>
+                            <th>메모</th>
+                          </tr></thead>
+                          <tbody>
+                            {hist[po.id].map((h, k) => (
+                              <tr key={k}>
+                                <td style={{ fontFamily: 'monospace' }}>{h.changedAt.replace('T', ' ').slice(0, 16)}</td>
+                                <td>
+                                  {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
+                                  <b>{h.toStatusName}</b>
+                                </td>
+                                <td>{h.changedBy ?? '-'}</td>
+                                <td style={{ color: h.note ? undefined : '#c9ced6' }}>{h.note ?? '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

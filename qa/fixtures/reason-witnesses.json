@@ -62,9 +62,10 @@
   "in": "backend"
  },
  "거래처리스트|H": {
-  "claim": "그 화면의 변경이력을 남기지 않는다",
+  "claim": "거래처 마스터의 변경이력을 남기지 않는다",
   "absent": [
-   "PartnerHistory"
+   "PartnerHistory",
+   "BusinessPartnerHistory"
   ],
   "in": "backend"
  },
