@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 이익관리 > 월별이익현황
@@ -54,6 +55,12 @@ export default function MonthlyProfitPage() {
    * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
    * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
    */
+  /*
+   * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 재고수량을 안 세는 품목(용역·수수료 …)까지
+   * 같이 볼지다. 기본은 <b>켜짐</b>이다(사본 실측). 이 화면만 켜져 있다 — 달 단위 이익은 <b>판 것을 다</b> 봐야 맞기 때문이다.
+   */
+  const [withUntracked, setWithUntracked] = useState(true)
+  const { untracked } = useItemFlags()
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
@@ -138,6 +145,7 @@ export default function MonthlyProfitPage() {
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
+      .filter((l) => withUntracked || !untracked.has(l.itemId))
       .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
       const price = costPrice(l.itemId, d.saleDate)
@@ -296,6 +304,13 @@ export default function MonthlyProfitPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
+        <EcCond label="수량관리제외품목포함">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            재고수량을 안 세는 품목도
+          </label>
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

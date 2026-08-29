@@ -1731,6 +1731,12 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
         const near = src.slice(Math.max(0, at - 400), at)
         if (!/type="checkbox"/.test(near)) continue     // 주석에 적힌 이름은 건너뛴다
         m = [...near.matchAll(/checked=\{(!?)(\w+)\}/g)].pop()
+        /*
+         * <b>옆 조건의 체크박스를 집으면 안 된다.</b> 이름 앞 400자에 다른 조건이 통째로
+         * 들어올 수 있다 — 그 사이에 </label> 이 있으면 그 체크박스는 <b>남의 것</b>이다.
+         * (월별이익현황에서 [수량관리제외품목포함]을 [결재방표시]의 값으로 읽었다.)
+         */
+        if (m && near.slice(m.index).includes('</label>')) m = null
         if (m) break
       }
       /*

@@ -9,6 +9,7 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 이익관리 > 일별이익현황 (이카운트 C000140)
@@ -81,6 +82,12 @@ export default function DailyProfitPage() {
    * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
    * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
    */
+  /*
+   * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 재고수량을 안 세는 품목(용역·수수료 …)까지
+   * 같이 볼지다. 기본은 <b>꺼짐</b>이다(사본 실측). 월별이익현황만 켜져 있고 나머지는 꺼져 있다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const { untracked } = useItemFlags()
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -158,6 +165,7 @@ export default function DailyProfitPage() {
       || (tradeKind === '반품만' ? d.returnSlip : !d.returnSlip))
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
+      .filter((l) => withUntracked || !untracked.has(l.itemId))
       .map((l) => {
         const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
         const price = costPrice(l.itemId, d.saleDate)
@@ -340,6 +348,13 @@ export default function DailyProfitPage() {
                       onClick={() => setTradeKind(k)}>{k}</button>
             ))}
           </div>
+        </EcCond>
+        {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
+        <EcCond label="수량관리제외품목포함">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            재고수량을 안 세는 품목도
+          </label>
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
