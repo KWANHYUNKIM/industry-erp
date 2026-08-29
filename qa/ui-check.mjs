@@ -1734,6 +1734,25 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
         if (m) break
       }
       /*
+       * <b>이름이 칸 앞에 붙는 모양</b>도 있다 — &lt;EcCond label="결재방표시"&gt; 처럼
+       * 조건 이름을 <b>속성</b>으로 적고 체크박스를 그 안에 두는 자리다. 뒤로 400자를 봐서
+       * 그 안의 checked={…} 를 그 조건의 값으로 친다. 이 모양이 열일곱 화면이라,
+       * 앞만 보면 방금 만든 [결재방표시]를 <b>하나도 안 재게</b> 된다.
+       */
+      if (!m) {
+        for (let at = src.indexOf(label); at >= 0; at = src.indexOf(label, at + 1)) {
+          const before = src.slice(Math.max(0, at - 20), at)
+          if (!/EcCond label="$/.test(before)) continue
+          /* 이름은 낱말째로 — [전체]가 <b>[전체시간표시]</b> 의 앞부분에 걸리면 안 된다. */
+          const nextCh = src[at + label.length]
+          if (nextCh && /[가-힣]/.test(nextCh)) continue
+          const after = src.slice(at, at + 400)
+          if (!/type="checkbox"/.test(after)) continue
+          m = [...after.matchAll(/checked=\{(!?)(\w+)\}/g)].shift()
+          if (m) break
+        }
+      }
+      /*
        * <b>체크박스가 아니라 알약으로 그린 조건</b>도 있다 — [그래프로 보기]가 그렇다
        * (원본은 체크박스, 우리는 [표]/[그래프] 알약). 뜻이 같으므로 그 상태의 <b>초기값</b>으로
        * 잰다. 열일곱 화면이 이 모양이라, 체크박스만 찾으면 그 열일곱을 <b>한 번도 안 보게</b> 된다.

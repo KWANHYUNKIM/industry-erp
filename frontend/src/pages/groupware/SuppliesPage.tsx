@@ -78,7 +78,12 @@ export default function SuppliesPage() {
    */
   const [timeCond, setTimeCond] = useState('')
   const [itemCond, setItemCond] = useState('')
-  const [allDayCond, setAllDayCond] = useState(true)
+  /*
+   * 원본 [전체시간표시]는 <b>꺼진 채</b>로 열린다(사본 실측). 우리는 켜 두어서,
+   * 회의실을 <b>종일 잡아 둔 줄</b>이 시간대로 거른 결과에까지 늘 끼어 있었다 —
+   * "이 시간에 비었나" 를 물으러 온 사람에게 종일 예약이 답으로 나오는 셈이다.
+   */
+  const [allDayCond, setAllDayCond] = useState(false)
   const [titleCond, setTitleCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [returnCond, setReturnCond] = useState('')
