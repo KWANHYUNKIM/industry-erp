@@ -2314,6 +2314,13 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
  * 목록을 뽑아 놓고 <b>내보낼 자리가 없으면</b> 사람은 화면을 긁어 옮긴다.
  *
  * <p>[신규(F2)]는 EcListShell 이 <code>onNew</code>/<code>renderForm</code> 으로 달아 준다.
+ *
+ * <p><b>사본에서 다시 뽑을 때 — 선택상자는 버튼이 아니다.</b> 원본은 선택상자도
+ * <code>&lt;button data-service="layer.selectbox"&gt;&lt;div class="selectbox-label"&gt;라인별&lt;/div&gt;</code>
+ * 로 그린다. 그래서 <b>고른 값</b>이 버튼 이름으로 딸려 들어왔다 — 74화면을 한꺼번에 걸었을 때
+ * <b>110개</b>가 그랬다([기본(수정불가)] 51 · [라인별] 18 · [사용안함] 17 · [현황] 6 …).
+ * 없는 버튼 목록이 365였는데 그중 114가 애초에 버튼이 아니었다.
+ * <code>layer.selectbox</code> 나 <code>selectbox-label</code> 이 든 button 은 건너뛴다.
  */
 {
   const BTN_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
