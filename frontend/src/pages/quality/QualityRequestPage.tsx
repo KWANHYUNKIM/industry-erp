@@ -179,10 +179,14 @@ export default function QualityRequestPage() {
             <th style={{ width: 130 }}>요청번호</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일자')}>요청일자 {sort.mark('요청일자')}</th>
             <th style={{ width: 90 }}>검사구분</th>
+            {/* 원본 격자 차례: 검사방법 · <b>품목 · 품목명 · 규격</b> · <b>수량</b> · <b>적요</b> · 프로젝트 */}
+            <th style={{ width: 110 }}>품목</th>
             <th>품목명</th>
+            <th style={{ width: 100 }}>규격</th>
             <th style={{ width: 120 }}>로트No.</th>
-            <th style={{ width: 80, textAlign: 'right' }}>요청수량</th>
+            <th style={{ width: 80, textAlign: 'right' }}>수량</th>
             <th style={{ width: 100 }}>검사기한</th>
+            <th>적요</th>
             <th style={{ width: 80, textAlign: 'center' }}>상태</th>
             <th style={{ width: 80 }}>요청자</th>
             <th style={{ width: 150, textAlign: 'center' }}>처리</th>
@@ -190,19 +194,22 @@ export default function QualityRequestPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.requestNo}</td>
               <td>{r.requestDate}</td>
               <td>{r.typeName}</td>
+              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
+              <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.requestQty.toLocaleString()}</td>
               <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>

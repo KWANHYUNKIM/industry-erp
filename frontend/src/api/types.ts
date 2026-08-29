@@ -819,6 +819,8 @@ export interface QualityInspectionRequest {
   itemId: number
   itemCode: string
   itemName: string
+  /** 원본 격자의 [규격]. 품목이 들고 있는 값이다. */
+  spec: string | null
   unit: string
   lotNo: string | null
   requestQty: number

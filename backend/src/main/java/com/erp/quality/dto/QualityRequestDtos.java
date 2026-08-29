@@ -31,7 +31,10 @@ public final class QualityRequestDtos {
     public record RequestResponse(
             Long id, String requestNo, LocalDate requestDate,
             QualityInspectionType type, String typeName,
-            Long itemId, String itemCode, String itemName, String unit,
+            Long itemId, String itemCode, String itemName,
+            /* 원본 품질검사요청 격자의 [규격]. 품목이 들고 있는데 응답에 안 실려 열로 못 냈다. */
+            String spec,
+            String unit,
             String lotNo,
             BigDecimal requestQty, LocalDate dueDate,
             QualityRequestStatus status, String statusName,
@@ -41,7 +44,8 @@ public final class QualityRequestDtos {
             return new RequestResponse(
                     r.getId(), r.getRequestNo(), r.getRequestDate(),
                     r.getType(), r.getType().getDisplayName(),
-                    r.getItem().getId(), r.getItem().getCode(), r.getItem().getName(), r.getItem().getUnit(),
+                    r.getItem().getId(), r.getItem().getCode(), r.getItem().getName(),
+                    r.getItem().getSpec(), r.getItem().getUnit(),
                     r.getLotNo(),
                     r.getRequestQty(), r.getDueDate(),
                     r.getStatus(), r.getStatus().getDisplayName(),
