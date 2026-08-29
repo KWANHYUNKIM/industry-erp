@@ -157,7 +157,7 @@ export default function TransferPage() {
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : `${tab} 등록(F2)`}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => (

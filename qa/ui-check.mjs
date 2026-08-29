@@ -2486,9 +2486,22 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
       if (!has) bad.push(`${rel.split('/').pop()}  원본 ${screen} 의 [${b}] 버튼이 없다`)
     }
   }
+  /*
+   * <b>한 판에 다 못 맞춘다.</b> 화면코드 지도(ecount-screen-codes.json)가 생기면서
+   * 사본의 버튼을 우리 화면에 짝지을 수 있게 됐고, 그 자리에서 <b>74화면 1,263버튼</b>이
+   * 한꺼번에 들어왔다. 안 맞는 자리가 374군데다.
+   *
+   * <p>374개를 하루에 만들 수도, "이유 있는 예외" 로 적을 수도 없다 — 뒤엣것은 거짓말이 된다.
+   * 조건 검사와 같은 방식으로 목록에 적어 <b>늘지만 않게</b> 한다. 만든 버튼은 목록에서
+   * 지워야 통과하므로, 이 목록은 줄어들기만 한다.
+   */
+  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-buttons.json'), 'utf8'))
+  const grown = bad.filter((x) => !TODO.includes(x))
+  const gone = TODO.filter((x) => !bad.includes(x))
   eq(`원본 버튼 ${checked}개가 우리 화면에도 있다 (안 만든 ${NO_BUTTON.size}개는 이유를 적고 뺐다`
-    + `, 아직 못 맞춘 화면 ${pending}개는 건너뜀)`,
-    bad.join('\n') || '없음', '없음')
+    + `, 아직 못 맞춘 ${TODO.length}개는 목록에 남겼다, 화면 ${pending}개는 건너뜀)`,
+    grown.join('\n') || '없음', '없음')
+  eq('만들어 놓고 목록에 남겨 둔 버튼이 없다', gone.join('\n') || '없음', '없음')
   eq(`버튼 예외 ${NO_BUTTON.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
 }
 
@@ -2536,6 +2549,21 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
       + ' 한 컴포넌트(TradeEntry)가 두 화면을 겸해서 둘 다 맞출 수 없다 — 버튼이 더 많은'
       + ' 판매입력에 맞췄다. 모드로 갈라 그리면 화면은 맞지만, 파일에는 두 자리가 다 남아'
       + ' <b>이 검사가 어느 쪽인지 알 수 없게</b> 된다(그렇게 해 보고 되돌렸다)'],
+    ['거래처등록',
+      '거래처리스트와 <b>같은 파일</b>인데 원본 차례가 서로 다르다 — 리스트는'
+      + ' [계층그룹]이 [관계설정]보다 앞이고 등록은 그 반대다. 이 표의 주인인'
+      + ' 리스트 쪽 차례를 따른다(시리얼/로트No. 에서 이미 같은 판단을 했다)'],
+  ])
+
+  /*
+   * <b>차례를 잴 수 없는 버튼.</b> 있는지는 보되(그건 위 검사가 한다) 자리는 안 본다 —
+   * 원본과 <b>다른 판</b>에 있어서 앞뒤를 견줄 것이 없기 때문이다.
+   * SHELL_BUTTONS 에 넣으면 <b>있는지도</b> 안 보게 되어 39곳의 빠진 [검색(F8)]이
+   * 통째로 묻힌다. 그래서 차례 검사에서만 뺀다.
+   */
+  const ORDER_BLIND = new Map([
+    ['검색(F8)', '원본은 <b>조건 판</b>의 실행 버튼이라 늘 맨 앞이다 — 우리는 아래 단추줄에 둔다'],
+    ['오천건이상조회', '우리 것은 단추줄이 아니라 <b>잘렸다는 안내 안</b>에 있다 — 잘렸을 때만 뜬다'],
   ])
 
   const bad = []
@@ -2623,7 +2651,7 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
      */
     if (/onNew=|renderForm=/.test(src)) pos.set('신규(F2)', -1)
 
-    const ours = btns.filter((b) => !SHELL_BUTTONS.has(b))
+    const ours = btns.filter((b) => !SHELL_BUTTONS.has(b) && !ORDER_BLIND.has(b))
       // '없는 버튼'과 '맨 앞에 붙는 버튼'을 같은 -1 로 적으면 안 된다 — 없는 것까지 끼어든다.
       .map((b) => [b, barPos.has(b) ? barPos.get(b) : (pos.has(b) ? pos.get(b) : null)])
       .filter(([, p]) => p !== null)
@@ -2636,7 +2664,8 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
     }
   }
   eq(`원본과 견준 버튼 ${checked}개가 같은 차례로 서 있다`
-    + ` (아직 못 맞춘 ${ORDER_SKIP.size}화면은 이유를 적고 뺐다)`, bad.join('\n') || '없음', '없음')
+    + ` (아직 못 맞춘 ${ORDER_SKIP.size}화면과 자리를 잴 수 없는 ${ORDER_BLIND.size}버튼은 이유를 적고 뺐다)`,
+    bad.join('\n') || '없음', '없음')
 }
 
 // ── 2-j) 원본 조건·머리 항목 ↔ 우리 항목 ─────────────────────────────────
