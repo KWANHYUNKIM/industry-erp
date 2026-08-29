@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 구매관리 > 미구매현황 (이카운트 E040307)
@@ -55,8 +56,17 @@ interface Filters {
   sortByDoc: boolean
 }
 
+/*
+ * 원본 미구매현황은 기간 단추가 <b>금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·
+ * 종료일</b>이고 열면 <b>금월</b>을 보고 있다(사본 실측 — 달 스핀박스가 2026·07 하나다).
+ *
+ * <p>우리는 <b>기간 단추가 아예 없고 기준일자도 비어</b> 있었다. 그래서 열면 몇 해치 발주가
+ * 통째로 쏟아졌다 — 판매현황·구매현황에서 이미 한 번 고친 그 문제다.
+ */
+const initPeriod = periodOf('금월(~오늘)')!
+
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', employee: '', orderNo: '', warehouse: '', item: '', status: '', sortByDoc: false,
+  dateFrom: initPeriod.from, dateTo: initPeriod.to, partner: '', employee: '', orderNo: '', warehouse: '', item: '', status: '', sortByDoc: false,
 }
 
 export default function UnpurchasedStatusPage() {
@@ -275,6 +285,11 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        {/* 원본 기간 단추(사본 실측): 금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일 */}
+        <span style={{ marginLeft: 8 }}>
+          <EcPeriodPicks labels={INQUIRY_FULL_PICKS} currentFrom={draft.dateFrom}
+            onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+        </span>
       </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>

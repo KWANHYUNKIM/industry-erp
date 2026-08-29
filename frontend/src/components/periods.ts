@@ -176,6 +176,13 @@ export const STATUS_PICKS = [...BASE_PICKS, '전월+금월'] as const
 export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
 
 /**
+ * 단가요청현황(E040325) — 조회 묶음에 <b>금년·전년</b>이 더 붙는다(사본 실측).
+ * 단가는 한 해 단위로 다시 받는 일이 흔해서 해 단위 버튼이 있다.
+ * 같은 파일이 그리는 발주요청현황·발주계획현황에는 그 둘이 없다 — 화면마다 다르다.
+ */
+export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
+
+/**
  * 재고현황(E040701) — <b>금일·전일 둘뿐</b>이다.
  * 재고는 구간이 아니라 시점을 보는 것이라 '금주'·'금월' 같은 구간 버튼이 뜻이 없다.
  */

@@ -1148,6 +1148,10 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['대체사용현황', 'inventory/StockMoveStatusPage.tsx'],
     ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
+    ['미구매현황', 'trade/UnpurchasedStatusPage.tsx'],
+    ['발주요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
+    ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
+    ['단가요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
   ])
 
   /**
@@ -3261,6 +3265,14 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
     ['회계미반영현황 (구매)', '위와 같음'],
     ['기안서작성', '기안서통합관리에서 [신규]로 연다'],
     ['작업지시서입력', '작업지시서조회 한 화면이 입력(팝업)과 목록을 겸한다'],
+    /*
+     * 발주 진행단계 셋은 <b>한 파일</b>이 그린다(PurchaseRequestStatusPage) — 제목을
+     * 속성으로 받아 화면마다 갈아 끼우므로 파일에서 글자로 읽을 수가 없다.
+     * 기간 기본값·기간 단추는 그 파일에서 재고 있다.
+     */
+    ['발주요청현황', '한 파일이 셋을 겸해 제목을 속성으로 받는다'],
+    ['발주계획현황', '위와 같음'],
+    ['단가요청현황', '위와 같음'],
   ])
   const norm = (s) => s.replace(/[\s_()\-·]/g, '').replace(/\//g, '')
 

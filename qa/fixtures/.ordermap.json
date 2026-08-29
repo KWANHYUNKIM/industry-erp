@@ -626,5 +626,21 @@
  [
   "재고조정현황",
   "inventory/StockMoveStatusPage.tsx"
+ ],
+ [
+  "미구매현황",
+  "trade/UnpurchasedStatusPage.tsx"
+ ],
+ [
+  "발주요청현황",
+  "trade/PurchaseRequestStatusPage.tsx"
+ ],
+ [
+  "발주계획현황",
+  "trade/PurchaseRequestStatusPage.tsx"
+ ],
+ [
+  "단가요청현황",
+  "trade/PurchaseRequestStatusPage.tsx"
  ]
 ]

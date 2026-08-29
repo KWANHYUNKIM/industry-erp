@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { INQUIRY_PICKS, PRICE_REQUEST_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -62,6 +62,12 @@ interface Row {
   vat: number
 }
 
+/*
+ * 원본은 세 화면 다 <b>금월(~오늘)</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간을 <b>비워</b> 두어서, 열면 몇 해치 발주가 통째로 쏟아졌다.
+ */
+const init = periodOf('금월(~오늘)')!
+
 export default function PurchaseRequestStatusPage({
   defaultStatus = 'REQUESTED', title = '발주요청현황',
 }: {
@@ -79,7 +85,7 @@ export default function PurchaseRequestStatusPage({
   const [mode, setMode] = useState<'현황' | '집계'>('현황')
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
-    from: '', to: '', dueFrom: '', dueTo: '',
+    from: init.from, to: init.to, dueFrom: '', dueTo: '',
     orderNo: '', partner: '', item: '', warehouse: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
@@ -172,7 +178,7 @@ export default function PurchaseRequestStatusPage({
   }, [mode, shown])
 
   const reset = () => {
-    setCond({ from: '', to: '', dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '' })
+    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '' })
     setMode('현황'); setCompare('사용안함'); setKeyword('')
   }
 
@@ -234,12 +240,16 @@ export default function PurchaseRequestStatusPage({
         })}
       </div>
 
+      {/*
+        기간 단추가 <b>화면마다 다르다</b>(사본 실측) — 단가요청현황만 [금년]·[전년]이
+        더 붙는다. 한 파일이 셋(발주요청·발주계획·단가요청 현황)을 겸한다.
+      */}
       <EcStatusPanel
         modes={['현황', '집계']} mode={mode} onModeChange={(m) => setMode(m as '현황' | '집계')}
         compare={compare} onCompareChange={setCompare}
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
-        picks={INQUIRY_PICKS}
+        picks={title === '단가요청현황' ? PRICE_REQUEST_PICKS : INQUIRY_PICKS}
       >
         <EcCond label="발주No." pick>
           <input className="ec-input" placeholder="발주번호 일부" value={cond.orderNo}
