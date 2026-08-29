@@ -18,13 +18,5 @@
  "OrderTypePage.tsx  원본 오더관리유형등록 의 [처리메뉴] 조건이 없다",
  "UnshippedPage.tsx  원본 미출하현황 의 [기준일자(영업주기)] 조건이 없다",
  "UnshippedPage.tsx  원본 미출하현황 의 [출하지시No.] 조건이 없다",
- "UnshippedPage.tsx  원본 미출하현황 의 [정렬기준] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [전표일자] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [결제상태] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [거래처명] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [창고명] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [승인번호] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [카드/식별번호] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [결제금액] 조건이 없다",
- "PaymentHistoryPage.tsx  원본 결제내역조회 의 [품목명] 조건이 없다"
+ "UnshippedPage.tsx  원본 미출하현황 의 [정렬기준] 조건이 없다"
 ]

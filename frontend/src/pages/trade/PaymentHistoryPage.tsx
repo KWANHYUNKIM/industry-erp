@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
@@ -19,6 +20,19 @@ import { useNavigate } from 'react-router-dom'
  *
  * <p>승인번호·재고전표·상태별처리기능은 만들지 않았다. 원본의 결제내역은 PG(카드결제)
  * 연동에서 들어오는 자료인데 우리에겐 그 연동이 없다 — 칸만 만들면 늘 비어 있다.
+ *
+ * <p>조건 판이 <b>통째로 없었다.</b> 원본 조건 실측(사본): 전표일자(기간) · 결제상태 ·
+ * 거래처명 · 창고명 · 승인번호 · 카드/식별번호 · <b>결제금액(범위)</b> · 기타 · 품목명.
+ * 우리에겐 위쪽 검색 한 칸뿐이라 <b>기간을 못 잘랐다</b> — 결제가 쌓일수록 화면이
+ * 전부를 받아 와 첫 화면에서부터 몇 해 치가 한꺼번에 떴다.
+ *
+ * <p>[결제금액]은 열로 찍으면서 거를 수는 없었다. 금액으로 못 거는 결제 목록은
+ * "백만원 넘는 수금만" 같은 가장 흔한 물음에 답을 못 한다.
+ *
+ * <p>못 만든 것과 이유 — <b>결제상태</b>는 원본에서 PG 결제 상태(승인·취소)를 고르는
+ * 코드도움이다. 우리 전표에는 그 상태가 없다(회계반영 여부는 다른 것이라 위 탭이 맡는다).
+ * <b>창고명</b>은 결제가 돈이라 창고를 안 탄다. <b>승인번호·카드/식별번호·품목명</b>은
+ * 위와 같은 이유로 값이 아예 생기지 않는다.
  */
 /*
  * 목록은 /accounting-reflection?kind=SETTLEMENT 에서 받는다. /settlements 가 아니다.
@@ -92,6 +106,9 @@ export default function PaymentHistoryPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [keyword, setKeyword] = useState('')
+  /** 원본 조건 판. 기간은 비워 두면 전체다 — 기본값으로 과거를 숨기지 않는다. */
+  const [cond, setCond] = useState({ from: '', to: '', partnerName: '', amtFrom: '', amtTo: '' })
+  const setC = (p: Partial<typeof cond>) => setCond((c) => ({ ...c, ...p }))
   const [tab, setTab] = useState<Tab>('전체')
   const [picked, setPicked] = useState<number[]>([])
 
@@ -115,6 +132,13 @@ export default function PaymentHistoryPage() {
   const shown = rows
     .filter((r) => tab === '전체' || (tab === '미반영' ? !r.reflected : r.reflected))
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
+    // 원본 [전표일자] — 비워 두면 그쪽 끝은 안 자른다.
+    .filter((r) => (!cond.from || r.slipDate >= cond.from) && (!cond.to || r.slipDate <= cond.to))
+    // 원본 [거래처명]. 코드도움이 아니라 <b>이름 일부</b>다(사본 실측 — 그냥 text 칸이다).
+    .filter((r) => !cond.partnerName || r.partnerName.includes(cond.partnerName))
+    // 원본 [결제금액] 은 칸이 둘에 사이가 '~' 인 <b>범위</b>다(사본 실측).
+    .filter((r) => (!cond.amtFrom || r.totalAmount >= Number(cond.amtFrom))
+      && (!cond.amtTo || r.totalAmount <= Number(cond.amtTo)))
   const total = useMemo(() => shown.reduce((s, r) => s + r.totalAmount, 0), [shown])
   const unreflected = rows.filter((r) => !r.reflected).length
 
@@ -146,6 +170,21 @@ export default function PaymentHistoryPage() {
                            { label: 'Excel' }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf5ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+
+      <EcStatusPanel from={cond.from} to={cond.to} dateLabel="전표일자"
+                     onPeriod={(r) => setC({ from: r.from, to: r.to })}>
+        <EcCond label="거래처명">
+          <input className="ec-input" style={{ width: 200 }} placeholder="거래처명"
+                 value={cond.partnerName} onChange={(e) => setC({ partnerName: e.target.value })} />
+        </EcCond>
+        <EcCond label="결제금액">
+          <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
+                 value={cond.amtFrom} onChange={(e) => setC({ amtFrom: e.target.value })} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
+                 value={cond.amtTo} onChange={(e) => setC({ amtTo: e.target.value })} />
+        </EcCond>
+      </EcStatusPanel>
 
       {/* 원본 위쪽 탭. 미반영이 몇 건인지 붙여 둔다 — 안 보이면 끝난 줄 안다. */}
       <ul className="ec-tabs" style={{ marginBottom: 8 }}>
