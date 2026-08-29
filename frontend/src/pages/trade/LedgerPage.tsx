@@ -484,6 +484,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             {showAr && <th style={{ textAlign: 'right' }}>채권 (외상매출금)</th>}
             {showAp && <th style={{ textAlign: 'right' }}>채무 (외상매입금)</th>}
             {/* 원본 실측: 왼쪽. */}
+            {/* 원본 실측: 왼쪽. */}
             <th style={{ width: 80 }}>상세내역</th>
           </tr>
         </thead>
@@ -506,7 +507,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               <td style={{ color: '#6b7280' }}>{aliasOf.get(r.partnerId) ?? ''}</td>
               {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
               {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{won(r.payable)}{balanceNote(r.payable, '채무')}</td>}
-              <td style={{ textAlign: 'center' }}>
+              <td>
                 {/* 그 거래처만 남기면 아래 움직임 표가 그 거래처 것만 된다 */}
                 <button type="button" onClick={() => setPartner(r.name)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>

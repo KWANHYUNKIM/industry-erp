@@ -485,7 +485,7 @@ export default function AccountingReflectionPage() {
             ) : (
               <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{r.no}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
                 <td>{r.slip.partnerName}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.line.itemCode}</td>
                 <td>{r.line.itemName}</td>

@@ -151,7 +151,7 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
         <thead>
           <tr>
             <th style={{ width: 34 }}></th><th>계정</th>
-            <th style={{ textAlign: 'right' }}>금액</th><th style={{ width: 130 }}>구성비</th>
+            <th style={{ textAlign: 'right' }}>금액</th><th style={{ textAlign: 'right', width: 130 }}>구성비</th>
           </tr>
         </thead>
         <tbody>

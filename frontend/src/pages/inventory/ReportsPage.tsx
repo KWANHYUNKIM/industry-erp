@@ -225,7 +225,7 @@ export default function ReportsPage() {
             <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
               <p style={{ margin: '0 0 8px', color: '#5a626e' }}>이 화면에서 제공하는 장표(출력 양식) <b>{reports.length}</b>종입니다. 분류별로 어떤 양식이 있고 현재 출력 가능한 대상 건수가 얼마인지 확인할 수 있습니다.</p>
               <table className="w-full text-left">
-                <thead><tr><th style={{ width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
+                <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
                 <tbody>
                   {reports.map((r, i) => (
                     <tr key={r.id}>

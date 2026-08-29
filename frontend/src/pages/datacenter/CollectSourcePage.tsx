@@ -134,7 +134,7 @@ export default function CollectSourcePage() {
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 60 }}>정렬</th>
+          <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
           <th style={{ width: 90 }}>데이터코드</th>
           {/* 원본 수집데이터등록의 이름은 [소스명]이 아니라 <b>[데이터명]</b> 이다(사본 실측). */}
             <th>데이터명</th>

@@ -309,6 +309,7 @@ export default function ApprovalDraftPage() {
               {/* 원본 실측: 가운데. */}
               <th style={{ width: 90, textAlign: 'center' }}>정렬순서</th>
               <th>양식명</th>
+              {/* 원본 실측: 왼쪽. */}
               <th style={{ width: 200 }}>구분</th>
               {/* 원본은 [구분] 200 · [결재문서] 150 이다 — 우리는 거꾸로였다. */}
               <th style={{ width: 150 }}>결재문서</th>
@@ -319,7 +320,7 @@ export default function ApprovalDraftPage() {
               <tr key={t.id} onClick={() => selectForm(t)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{String(t.sortOrder).padStart(2, '0')}</td>
                 <td>{t.name}</td>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>기본</td>
+                <td style={{ color: '#8a929c' }}>기본</td>
                 <td />
               </tr>
             ))}

@@ -305,7 +305,8 @@ export default function BorPage() {
                   <td style={{ color: '#5a626e' }}>{first ? (r.categoryName ? `[${r.categoryName}]` : '') : ''}</td>
                   <td>{r.processName}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.baseQty.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right' }}>{r.seq}</td>
+                  {/* 원본 실측: 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이라 자릿수를 맞출 일이 없다. */}
+                  <td>{r.seq}</td>
                   <td>{r.workName}</td>
                   <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString('ko-KR')}</td>
                   <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? ''}</td>

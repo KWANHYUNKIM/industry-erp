@@ -140,7 +140,7 @@ export default function DataCollectPage() {
               <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
                 <p style={{ margin: '0 0 8px', color: '#5a626e' }}>현재 세션에서 실행된 수집 결과입니다. 실행 <b>{executed.length}</b>건 · 실패 <b style={{ color: failCount > 0 ? '#c60a2e' : '#1c7c3c' }}>{failCount}</b>건.</p>
                 <table className="w-full text-left">
-                  <thead><tr><th style={{ width: 34 }}>No</th><th>수집소스</th><th style={{ width: 130 }}>실행시각</th><th style={{ width: 90, textAlign: 'right' }}>건수</th><th style={{ width: 70, textAlign: 'center' }}>결과</th></tr></thead>
+                  <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th>수집소스</th><th style={{ width: 130 }}>실행시각</th><th style={{ width: 90, textAlign: 'right' }}>건수</th><th style={{ width: 70, textAlign: 'center' }}>결과</th></tr></thead>
                   <tbody>
                     {executed.length === 0 ? (
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>아직 실행된 수집이 없습니다. [전체 수집 실행]을 눌러주세요.</td></tr>

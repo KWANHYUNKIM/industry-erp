@@ -59,7 +59,7 @@ export default function EmployeePerformancePage() {
             <th style={{ width: 90 }}>사번</th><th style={{ width: 110 }}>담당자</th><th style={{ width: 110 }}>부서</th>
             <th style={{ width: 70, textAlign: 'right' }}>판매건</th>
             <th style={{ textAlign: 'right' }}>매출액</th>
-            <th style={{ width: 160 }}>비중</th>
+            <th style={{ textAlign: 'right', width: 160 }}>비중</th>
             <th style={{ width: 70, textAlign: 'right' }}>구매건</th>
             <th style={{ textAlign: 'right' }}>매입액</th>
           </tr>

@@ -216,7 +216,7 @@ const choiceNames = (src) => {
    * <code>label</code> 과 <code>to</code> 가 같은 객체에 있으면 그건 눌러서 가는 자리다.
    * (판매입력의 관련 탭 셋이 그렇게 적혀 있어 '없는 탭' 으로 세어졌다.)
    */
-  for (const m of src.matchAll(/label:\s*'([^']{1,24})'[\s\S]{0,80}?to:\s*'/g)) add(m[1])
+  for (const m of src.matchAll(/label:\s*'([^']{1,24})'[\s\S]{0,80}?\bto:\s*'/g)) add(m[1])
 
   /*
    * 화면 설정에 적어 두고 <b>저 아래에서 그리는</b> 탭·바로가기도 이름이다 —
@@ -3891,7 +3891,7 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
 {
   /** 그 자리가 등록 창(Modal) 안인가 — 창 안의 이름표는 조건이 아니라 채워 넣는 칸이다. */
   const inModal = (flat, at) => {
-    for (const m of flat.matchAll(/<Modal/g)) {
+    for (const m of flat.matchAll(/<Modal\b/g)) {
       if (m.index > at) break
       // 그 <Modal 이 아직 안 닫혔으면 안쪽이다
       const close = flat.indexOf('</Modal>', m.index)
@@ -4124,6 +4124,61 @@ console.log('\n■ 빈 칸에 줄표를 그리지 않나')
     })
   }
   eq('없음을 줄표로 그리는 칸이 없다', bad.join('\n') || '없음', '없음')
+}
+
+
+// ── 1-s5) 머리와 칸이 같은 쪽으로 붙나 ──────────────────────────────────
+console.log('\n■ 표 머리와 그 아래 칸이 같은 쪽으로 붙나')
+
+/*
+ * 1-g 는 <b>원본과 우리 머리</b>를 견준다. 그런데 머리를 오른쪽으로 붙여 놓고
+ * <b>칸은 왼쪽</b>인 표가 있으면 1-g 는 통과하는데 화면은 어긋나 보인다 —
+ * 숫자가 머리 아래에서 비뚤어진다. 실측으로 그런 자리가 <b>52군데</b> 있었다
+ * (대부분 머리에만 정렬을 안 준 경우다: 근무일수·지각·조퇴·응답률·진행률…).
+ *
+ * <p>고칠 때 <b>어느 쪽에 맞출지는 1-g 가 정한다</b> — 사본이 그 열을 잰 화면이면
+ * 원본 쪽이 이긴다. 실제로 다섯 열이 그랬다([작업순서]·[더보기]·[상세내역]·
+ * [전표일자]·[구분]은 원본이 왼쪽이라 칸을 왼쪽으로 폈고, [근태일자]·[일자-No.]는
+ * 원본이 가운데라 칸을 가운데로 모았다).
+ *
+ * <p>style={numStyle(...)} 처럼 함수로 감춰 둔 정렬은 그 파일 안에서 펴서 본다.
+ */
+{
+  const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
+    : /textAlign:\s*'center'/.test(attrs) ? '중'
+      : /text-right/.test(attrs) ? '우'
+        : /text-center/.test(attrs) ? '중' : '좌')
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const src = readFileSync(f, 'utf8')
+    const helper = {}
+    for (const h of src.matchAll(/const (\w+) = \([^)]*\) => \(\{([\s\S]*?)\}\)/g)) helper[h[1]] = h[2]
+    const expand = (attrs) => attrs.replace(/(\w+)\(/g, (w, n) => (helper[n] ? helper[n] + ' (' : w))
+
+    for (const t of src.matchAll(/<thead>([\s\S]*?)<\/thead>([\s\S]*?)<\/tbody>/g)) {
+      const ths = [...t[1].matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
+      if (ths.length < 3) continue
+      for (const tr of t[2].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+        /* 여러 칸을 합친 줄(불러오는 중·자료 없음·합계)은 열과 짝이 안 맞는다. */
+        if (/colSpan/.test(tr[1])) continue
+        const tds = [...tr[1].matchAll(/<td([^>]*)>([\s\S]*?)(?=<td|$)/g)].map((m) => m[1] + ' ' + m[2])
+        if (tds.length !== ths.length) continue
+        ths.forEach((th, i) => {
+          const name = th[2].replace(/<[^>]*>/g, '').replace(/\{[^}]*\}/g, '').trim()
+          /* 이름을 못 읽는 머리(체크박스·아이콘)는 건너뛴다. */
+          if (!name || name.length > 20 || /[{}<>=]/.test(name)) return
+          checked += 1
+          const a = alignOf(expand(th[1]))
+          const b = alignOf(expand(tds[i]))
+          if (a !== b) bad.push(`${f.split(/[\\/]/).slice(-2).join('/')}  [${name}] 머리 ${a} · 칸 ${b}`)
+        })
+        break
+      }
+    }
+  }
+  eq(`머리와 칸의 정렬이 같은 열 ${checked}개`, bad.join('\n') || '없음', '없음')
 }
 
 

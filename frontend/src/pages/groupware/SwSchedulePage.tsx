@@ -193,7 +193,7 @@ export default function SwSchedulePage() {
             <th>작업/기능명</th>
             <th style={{ width: 100 }}>담당</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('목표일')}>목표일 {sort.mark('목표일')}</th>
-            <th style={{ width: 170 }}>진행률(%)</th>
+            <th style={{ textAlign: 'right', width: 170 }}>진행률(%)</th>
             <th style={{ width: 70, textAlign: 'center' }}>상태</th>
             <th style={{ width: 80, textAlign: 'center' }}>처리</th>
           </tr>

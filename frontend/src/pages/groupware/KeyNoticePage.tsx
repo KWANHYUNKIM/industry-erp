@@ -137,7 +137,7 @@ export default function KeyNoticePage() {
       <table className="w-full text-left" style={{ marginBottom: 12 }}>
         <colgroup>{NOTE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
-          <tr><th>보낸사람</th><th>내용</th><th>발송일자</th><th>연결전표</th></tr>
+          <tr><th style={{ textAlign: 'center' }}>보낸사람</th><th>내용</th><th style={{ textAlign: 'center' }}>발송일자</th><th style={{ textAlign: 'center' }}>연결전표</th></tr>
         </thead>
         <tbody>
           {notes.length === 0 ? (

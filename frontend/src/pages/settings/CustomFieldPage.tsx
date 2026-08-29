@@ -119,7 +119,7 @@ export default function CustomFieldPage() {
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 60 }}>정렬</th>
+          <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
           <th style={{ width: 140 }}>필드 키</th>
           <th>라벨</th>
           <th style={{ width: 70 }}>형식</th>

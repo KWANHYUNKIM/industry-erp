@@ -113,11 +113,14 @@ export default function AsManagePage() {
    *
    * <p>제목·수리예정일자를 <b>찍기만 하고 거를 수는 없으면</b> 값이 있으나 마나다 —
    * 이 저장소에서 되풀이한 실수라 만들 때 조건까지 같이 단다.
-   * [창고]·[프로젝트]·[발송여부]·[최종수정자]는 A/S 전표에 그 값이 없다.
+   * <p>[창고]도 같은 실수였다 — A/S 전표는 창고를 <b>들고 있고</b> 목록에 찍기까지 하는데
+   * 그것으로 거를 수가 없었다(검사가 잡았다). [발송여부]·[최종수정자]는 그 값이 없다.
    */
   const [schedFrom, setSchedFrom] = useState('')
   const [schedTo, setSchedTo] = useState('')
   const [titleCond, setTitleCond] = useState('')
+  /** 원본 A/S접수조회 조건의 [창고]. 전표가 든 값이라 그대로 거른다. */
+  const [whCond, setWhCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [projCond, setProjCond] = useState('')
 
@@ -229,6 +232,7 @@ export default function AsManagePage() {
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
+    .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
 
@@ -359,6 +363,11 @@ export default function AsManagePage() {
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: '#9aa1ab' }}>~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
+        {/* 원본 차례: 수리예정일자 · <b>창고</b> · 거래처 · 품목 · 프로젝트 · 담당자 · 제목. */}
+        <span style={{ marginLeft: 8 }}>창고</span>
+        <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
+                         value={whCond} onChange={setWhCond}
+                         items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         <span style={{ marginLeft: 8 }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                          value={projCond} onChange={setProjCond}

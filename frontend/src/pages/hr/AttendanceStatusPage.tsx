@@ -146,7 +146,7 @@ export default function AttendanceStatusPage() {
         <thead>
           <tr>
             <th></th><th>사원명</th><th>부서</th>
-            <th>근무일수</th><th>지각</th><th>조퇴</th><th>결근</th><th>총근무시간</th>
+            <th style={{ textAlign: 'right' }}>근무일수</th><th style={{ textAlign: 'right' }}>지각</th><th style={{ textAlign: 'right' }}>조퇴</th><th style={{ textAlign: 'right' }}>결근</th><th style={{ textAlign: 'right' }}>총근무시간</th>
           </tr>
         </thead>
         <tbody>

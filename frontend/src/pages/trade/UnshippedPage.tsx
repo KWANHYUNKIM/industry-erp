@@ -406,7 +406,7 @@ export default function UnshippedPage() {
             <th style={{ width: 150 }}>적요</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
             <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
-            <th style={{ width: 150, textAlign: 'center' }}>출하지시</th>
+            <th style={{ width: 150, textAlign: 'right' }}>출하지시</th>
           </tr>
         </thead>
         <tbody>

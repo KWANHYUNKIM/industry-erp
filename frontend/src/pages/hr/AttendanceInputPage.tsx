@@ -143,7 +143,7 @@ export default function AttendanceInputPage() {
             <th>출근</th>
             <th>퇴근</th>
             <th style={{ textAlign: 'right' }}>근무시간</th>
-            <th>상태</th>
+            <th style={{ textAlign: 'center' }}>상태</th>
           </tr>
         </thead>
         <tbody>

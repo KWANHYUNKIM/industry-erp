@@ -197,7 +197,7 @@ export default function VacationUsePage() {
             <th style={{ width: 150 }}>전표번호</th>
             <th>사원명</th>
             <th>부서</th>
-            <th>휴가종류</th>
+            <th style={{ textAlign: 'center' }}>휴가종류</th>
             <th>시작일</th>
             <th>종료일</th>
             <th>적요</th>

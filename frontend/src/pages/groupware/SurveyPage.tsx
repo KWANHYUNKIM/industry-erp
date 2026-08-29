@@ -185,8 +185,8 @@ export default function SurveyPage() {
         <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr>
-            <th></th><th>게시글번호</th><th>작성일</th><th>설문종료일</th><th>제목</th>
-            <th>작성자</th><th>진행상태</th><th>설문조사결과</th><th>설문조사 참여여부</th>
+            <th></th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
+            <th style={{ textAlign: 'center' }}>작성자</th><th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>설문조사결과</th><th style={{ textAlign: 'center' }}>설문조사 참여여부</th>
           </tr>
         </thead>
         <tbody>

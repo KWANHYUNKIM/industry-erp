@@ -303,9 +303,9 @@ export default function SchedulePage() {
             <thead>
               <tr>
                 <th></th>
-                <th>일자(요일)</th>
-                <th>시작시간</th>
-                <th>종료시간</th>
+                <th style={{ textAlign: 'center' }}>일자(요일)</th>
+                <th style={{ textAlign: 'center' }}>시작시간</th>
+                <th style={{ textAlign: 'center' }}>종료시간</th>
                 <th>참석자성명</th>
                 <th>제목</th>
                 <th>장소</th>

@@ -84,7 +84,7 @@ export default function BudgetPage() {
             <th style={{ textAlign: 'right' }}>편성액</th>
             <th style={{ textAlign: 'right' }}>집행액</th>
             <th style={{ textAlign: 'right' }}>잔여</th>
-            <th style={{ width: 160 }}>집행률</th>
+            <th style={{ textAlign: 'right', width: 160 }}>집행률</th>
             <th>비고</th>
             <th style={{ textAlign: 'center' }}>처리</th>
           </tr>

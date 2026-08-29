@@ -221,8 +221,8 @@ export default function SurveyStatusPage() {
         </colgroup>
         <thead>
           <tr>
-            <th></th><th>게시글번호</th><th>작성일</th><th>설문종료일</th><th>제목</th>
-            <th>작성자</th><th>대상구분</th><th>대상수</th><th>응답수</th><th>응답률</th>
+            <th></th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
+            <th style={{ textAlign: 'center' }}>작성자</th><th style={{ textAlign: 'center' }}>대상구분</th><th style={{ textAlign: 'right' }}>대상수</th><th style={{ textAlign: 'right' }}>응답수</th><th style={{ textAlign: 'right' }}>응답률</th>
           </tr>
         </thead>
         <tbody>

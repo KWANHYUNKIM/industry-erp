@@ -197,6 +197,7 @@ export default function AttendanceKindStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/* 원본 실측: 왼쪽. */}
             <th style={{ width: 110 }}>전표일자</th>
             <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
             <th style={{ width: 150 }}>부서명</th>
@@ -219,11 +220,11 @@ export default function AttendanceKindStatusPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              <td style={{ fontFamily: 'monospace' }}>
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
                       style={{ color: 'var(--ec-blue)' }}>{r.docDate}</Link>
               </td>
-              <td style={{ fontFamily: 'monospace' }}>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>

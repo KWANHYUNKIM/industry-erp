@@ -64,7 +64,7 @@ export default function AttendanceListPage() {
             <th>부서</th>
             <th>출근</th>
             <th>퇴근</th>
-            <th>상태</th>
+            <th style={{ textAlign: 'center' }}>상태</th>
             <th>비고</th>
           </tr>
         </thead>

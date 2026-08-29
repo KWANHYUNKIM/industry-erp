@@ -171,7 +171,7 @@ export default function ProjectPage() {
             <th style={{ width: 90 }}>PM</th>
             <th style={{ width: 100 }}>시작일</th>
             <th style={{ width: 100 }}>종료(예정)</th>
-            <th style={{ width: 170 }}>진척률</th>
+            <th style={{ textAlign: 'right', width: 170 }}>진척률</th>
             <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 120, textAlign: 'center' }}>처리</th>
           </tr>

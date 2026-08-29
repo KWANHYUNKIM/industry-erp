@@ -231,6 +231,7 @@ export default function EcDrivePage() {
                 <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('최종수정일자')}>최종수정일자 {sort.mark('최종수정일자')}</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('크기')}>크기 {sort.mark('크기')}</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('중요')}>중요 {sort.mark('중요')}</th>
+                {/* 원본 실측: 왼쪽. */}
                 <th>더보기</th>
               </tr>
             </thead>
@@ -259,7 +260,7 @@ export default function EcDrivePage() {
                       title={d.important ? '중요 해제' : '중요 표시'}>
                     {d.important ? '★' : '☆'}
                   </td>
-                  <td style={{ textAlign: 'center', position: 'relative' }}>
+                  <td style={{ position: 'relative' }}>
                     <button className="ec-btn ec-btn-sm" onClick={() => setMenuFor(menuFor === d.id ? null : d.id)}>⋮</button>
                     {menuFor === d.id && (
                       <>

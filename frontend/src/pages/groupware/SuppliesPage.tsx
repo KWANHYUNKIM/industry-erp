@@ -308,7 +308,7 @@ export default function SuppliesPage() {
             <button type="submit" className="ec-btn ec-btn-primary">추가</button>
           </form>
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 110 }}>품목코드</th><th>공용품명</th><th style={{ width: 100 }}>분류</th><th style={{ width: 60 }}>단위</th><th style={{ width: 60 }}></th></tr></thead>
+            <thead><tr><th style={{ width: 110 }}>품목코드</th><th>공용품명</th><th style={{ width: 100 }}>분류</th><th style={{ textAlign: 'center', width: 60 }}>단위</th><th style={{ width: 60 }}></th></tr></thead>
             <tbody>
               {supplies.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
@@ -387,8 +387,8 @@ export default function SuppliesPage() {
             <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr>
-                <th></th><th>일자</th><th>시작시간</th><th>종료시간</th><th>물품명</th>
-                <th>제목</th><th>적요</th><th>사용자명</th><th>반납여부</th>
+                <th></th><th style={{ textAlign: 'center' }}>일자</th><th style={{ textAlign: 'center' }}>시작시간</th><th style={{ textAlign: 'center' }}>종료시간</th><th>물품명</th>
+                <th>제목</th><th>적요</th><th style={{ textAlign: 'center' }}>사용자명</th><th style={{ textAlign: 'center' }}>반납여부</th>
               </tr>
             </thead>
             <tbody>
