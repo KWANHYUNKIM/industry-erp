@@ -394,6 +394,8 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const specOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.spec ?? ''
+  /* 원본 격자의 [단위] — 품목이 들고 있는 값이라 고르면 바로 따라 붙는다. */
+  const unitOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.unit ?? ''
 
   function setLine(i: number, patch: Partial<LineForm>) {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -522,7 +524,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
           </table>
 
           <table ref={tableRef} className="w-full text-left">
-            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 34 }}></th></tr></thead>
+            {/*
+              원본 발주서입력 격자에는 <b>[No.]·[단위]·[단가(vat포함)]</b> 도 있다(사본 실측).
+              줄 번호는 <b>첫 칸에 찍고도 이름이 없어</b> 무엇인지 몰랐고, 단위는 품목이 들고 있는데
+              안 보여 "3" 이 세 개인지 세 박스인지 알 수 없었다. 부가세 포함 단가는 <b>매입처가 부르는 값</b>이라
+              머릿속으로 곱해 보고 있었다.
+            */}
+            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -543,6 +551,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
                   <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
+                  <td style={{ color: '#6b7280' }}>{i + 1}</td>
+                  <td style={{ color: '#6b7280' }}>{unitOf(l.itemId)}</td>
+                  <td style={{ textAlign: 'right', color: '#6b7280' }}>{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
                   <td style={{ textAlign: 'center' }}>{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>
               ))}
@@ -550,7 +561,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
                 <td colSpan={6} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
-                <td style={{ textAlign: 'right' }} colSpan={3}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
+                <td style={{ textAlign: 'right' }} colSpan={6}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>
