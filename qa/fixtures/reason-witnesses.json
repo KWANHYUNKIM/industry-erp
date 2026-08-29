@@ -699,5 +699,34 @@
    "BusinessPlace"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/Warehouse.java"
+ },
+ "거래이력조회|작업자": {
+  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 기록이 없다",
+  "absent": [
+   "AuditLog",
+   "audit_log"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|실제완료일": {
+  "claim": "실제로 끝난 날을 적는 칸이 없다",
+  "absent": [
+   "actualEndDate"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|태스크구분": {
+  "claim": "일을 갈래로 나누지 않는다",
+  "absent": [
+   "taskType"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|게시일": {
+  "claim": "프로젝트는 게시글이 아니라 올린 날이 없다",
+  "absent": [
+   "postedAt"
+  ],
+  "in": "backend"
  }
 }
