@@ -180,6 +180,13 @@ export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
  * 단가는 한 해 단위로 다시 받는 일이 흔해서 해 단위 버튼이 있다.
  * 같은 파일이 그리는 발주요청현황·발주계획현황에는 그 둘이 없다 — 화면마다 다르다.
  */
+/**
+ * 견적서조회(E040202) — 조회 묶음에 <b>최근30일(+1개월)</b>이 뒤에 붙는다(사본 실측).
+ * 견적은 <b>앞으로</b>의 일이라 아직 안 온 날짜까지 봐야 한다 — 작업지시서조회와 같은 까닭이다.
+ * 차례도 원본대로 [종료일] 다음이다.
+ */
+export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
+
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
 /**

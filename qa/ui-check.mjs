@@ -1152,6 +1152,10 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['발주요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
     ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
     ['단가요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
+    ['견적서조회', 'trade/QuotationPage.tsx'],
+    ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
+    ['미주문현황', 'trade/UnorderedStatusPage.tsx'],
+    ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
   ])
 
   /**
@@ -3270,6 +3274,7 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
      * 속성으로 받아 화면마다 갈아 끼우므로 파일에서 글자로 읽을 수가 없다.
      * 기간 기본값·기간 단추는 그 파일에서 재고 있다.
      */
+    ['견적서조회', '견적서 한 화면이 입력(팝업)과 조회를 겸한다 — 제목은 [견적서] 다'],
     ['발주요청현황', '한 파일이 셋을 겸해 제목을 속성으로 받는다'],
     ['발주계획현황', '위와 같음'],
     ['단가요청현황', '위와 같음'],

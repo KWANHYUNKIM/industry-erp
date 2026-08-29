@@ -8,6 +8,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -36,6 +37,16 @@ export default function QuotationPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
+  /*
+   * 원본 견적서조회는 <b>기준일자</b>를 들고 [최근30일(+1개월)] 로 열린다(사본 실측 —
+   * 달 스핀박스가 06·08 셋이라 한 달 뒤까지 본다). 견적은 <b>앞으로</b>의 일이라
+   * 아직 안 온 날짜까지 봐야 한다.
+   *
+   * <p>우리는 기간 칸이 <b>아예 없어서</b> 견적이 쌓이면 목록이 통째로 길어졌고,
+   * "이번 달에 낸 견적" 을 볼 방법이 없었다.
+   */
+  const [from, setFrom] = useState(periodOf('최근30일(+1개월)')!.from)
+  const [to, setTo] = useState(periodOf('최근30일(+1개월)')!.to)
   const [itemCond, setItemCond] = useState('')
   /* 원본 견적서 조건 차례의 둘째 <b>[견적No.]</b>. 번호를 알아도 눈으로 찾아야 했다. */
   const [noCond, setNoCond] = useState('')
@@ -81,13 +92,14 @@ export default function QuotationPage() {
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
     .filter((r) => !noCond || r.quoteNo.includes(noCond))
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => sentCond === '전체'
       || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
-    [rows, tab, itemCond, sentCond, whCond, projCond, noCond])
+    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -158,6 +170,18 @@ export default function QuotationPage() {
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 차례의 첫째 <b>[기준일자]</b>. 단추는 원본대로 종료일 다음에 최근30일(+1개월). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="견적No.">
           <input className="ec-input" value={noCond} placeholder="견적No."
                  onChange={(e) => setNoCond(e.target.value)} style={{ width: 160 }} />

@@ -642,5 +642,21 @@
  [
   "단가요청현황",
   "trade/PurchaseRequestStatusPage.tsx"
+ ],
+ [
+  "견적서조회",
+  "trade/QuotationPage.tsx"
+ ],
+ [
+  "주문서현황",
+  "trade/SalesOrderStatusPage.tsx"
+ ],
+ [
+  "미주문현황",
+  "trade/UnorderedStatusPage.tsx"
+ ],
+ [
+  "미판매현황",
+  "trade/UnsoldStatusPage.tsx"
  ]
 ]

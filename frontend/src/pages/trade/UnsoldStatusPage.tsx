@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -44,6 +44,12 @@ interface UnsoldLine {
 
 const num = (n: number) => n.toLocaleString()
 
+/*
+ * 원본 미판매현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간을 비워 두어 주문이 쌓일수록 열자마자 몇 해치가 쏟아졌다.
+ */
+const init = periodOf('금월(~오늘)')!
+
 export default function UnsoldStatusPage() {
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -54,7 +60,7 @@ export default function UnsoldStatusPage() {
 
   /** 원본 [구분] — 품목별(품목으로 합침) / 라인별(주문 라인 그대로). */
   const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
+  const [cond, setCond] = useState({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -101,7 +107,7 @@ export default function UnsoldStatusPage() {
     (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount }),
     { qty: 0, amount: 0 },
   )
-  const reset = () => { setMode('라인별'); setCond({ from: '', to: '', partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' }) }
+  const reset = () => { setMode('라인별'); setCond({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' }) }
 
   return (
     <EcListShell

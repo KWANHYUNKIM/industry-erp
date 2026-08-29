@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Quotation, QuotationStatus } from '../../api/types'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -58,8 +59,14 @@ interface Filters {
   sortByDoc: boolean
 }
 
+/*
+ * 원본 미주문현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간을 비워 두어 견적이 쌓일수록 열자마자 몇 해치가 쏟아졌다.
+ */
+const init = periodOf('금월(~오늘)')!
+
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', quoteNo: '', item: '', expiredOnly: false, sortByDoc: false,
+  dateFrom: init.from, dateTo: init.to, partner: '', quoteNo: '', item: '', expiredOnly: false, sortByDoc: false,
 }
 
 const todayStr = () => ymd(new Date())

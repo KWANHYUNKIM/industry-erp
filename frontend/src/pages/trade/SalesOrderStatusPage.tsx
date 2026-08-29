@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
@@ -87,8 +88,15 @@ interface Filters {
   sortByDoc: boolean
 }
 
+/*
+ * 원본 주문서현황은 <b>금월</b>을 보고 열리고, 기간 단추는 금일·전일·금주(~오늘)·전주·
+ * 금월(~오늘)·전월·<b>종료일</b> 일곱이다(사본 실측). 우리는 기간을 <b>비워</b> 두고
+ * 단추도 업무일지 묶음(금년·전년·최근3일+7일)을 쓰고 있었다 — 원본에 없는 단추다.
+ */
+const init = periodOf('금월(~오늘)')!
+
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', item: '', status: '', unshippedOnly: false, sortByDoc: false,
+  dateFrom: init.from, dateTo: init.to, partner: '', item: '', status: '', unshippedOnly: false, sortByDoc: false,
 }
 
 export default function SalesOrderStatusPage() {
@@ -226,6 +234,7 @@ export default function SalesOrderStatusPage() {
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
+        picks={INQUIRY_PICKS}
       >
         <EcCond label="진행상태">
           <select className="ec-input" value={filters.status} style={{ width: 130 }}
