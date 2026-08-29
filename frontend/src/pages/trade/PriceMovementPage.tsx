@@ -154,7 +154,8 @@ export default function PriceMovementPage() {
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
+          {/* 원본 단가변동표는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측) — [기간]이 아니다. */}
+          <span style={label}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />

@@ -597,9 +597,11 @@ console.log('\n■ 검사가 만드는 정규식이 죽어 있지 않나')
   const bad = []
   for (const f of readdirSync('qa').filter((x) => x.endsWith('.mjs'))) {
     readFileSync(join('qa', f), 'utf8').split('\n').forEach((line, i) => {
-      if (!/RegExp\(/.test(line) || /String\.raw|`/.test(line)) return
-      for (const m of line.matchAll(/'([^']*)'|"([^"]*)"/g)) {
-        const lit = m[1] ?? m[2]
+      if (!/RegExp\(/.test(line)) return
+      /* String.raw 로 묶은 자리는 역슬래시가 그대로 간다 — 그 백틱만 지우고 본다. */
+      const line2 = line.replace(/String\.raw`[^`]*`/g, '')
+      for (const m of line2.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)) {
+        const lit = m[1] ?? m[2] ?? m[3]
         if (lit && RISKY.test(lit.replace(/\\\\./g, ''))) {
           bad.push(`${f}:${i + 1}  ${line.trim().slice(0, 90)}`)
           break
@@ -2688,9 +2690,28 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
 {
   const FORM_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
-  const SHARED = ['EcStatusPanel', 'EcListShell', 'EcPeriodPicks', 'CodePickerField']
-    .map((c) => join('frontend', 'src', 'components', `${c}.tsx`))
-    .filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('')
+  /*
+   * <b>공용 부품은 그 화면이 실제로 들여왔을 때만 센다.</b> 예전에는 넷을 통째로 이어 붙여
+   * <b>모든 화면</b>에 얹었다 — EcStatusPanel 안에 [기준일자]가 있으니 그 낱말을 조건으로
+   * 두는 원본 화면은 <b>우리가 뭘 만들었든 전부 통과</b>했다. 단계별재고조정이 그랬다:
+   * 화면에 기간 칸이 없는데 [기준일자] 조건이 있는 것으로 세어졌다.
+   *
+   * <p><b>기본 내보내기를 들여왔을 때만</b> 센다. 이름표를 그리는 것은 그 부품 자체이지
+   * 곁딸린 helper 가 아니다 — 단계별재고조정은 <code>{ EcCond }</code> 하나만 들여오는데,
+   * 파일만 보고 세면 패널이 그리는 [기준일자]까지 이 화면 것이 된다.
+   */
+  const SHARED_FILES = ['EcStatusPanel', 'EcListShell', 'EcPeriodPicks', 'CodePickerField']
+    .map((c) => [c, join('frontend', 'src', 'components', `${c}.tsx`)])
+    .filter(([, f]) => existsSync(f))
+    .map(([c, f]) => [c, readFileSync(f, 'utf8')])
+  const sharedFor = (src) => SHARED_FILES
+    /*
+     * 템플릿 문자열에 정규식을 그대로 넣지 말 것 — <code>\s</code>·<code>\w</code> 가
+     * 문자열 단계에서 s·w 로, <code>\n</code> 이 진짜 줄바꿈으로 <b>먼저</b> 풀려
+     * 아무것도 안 걸리는 정규식이 된다(그렇게 써 놓고 한 판을 헛짚었다). String.raw 로 묶는다.
+     */
+    .filter(([c]) => new RegExp(String.raw`import\s+\w[^\n]{0,80}from ['"][^'"]*` + c + String.raw`['"]`).test(src))
+    .map(([, t]) => t).join('')
 
   /** 원본에 있지만 우리에게 없는 조건 — 왜 없는지 적는다. */
   const NO_FIELD = new Map([
@@ -2940,7 +2961,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     const labelSet = new Set()
     // 필수 표시(*)와 앞뒤 공백은 이름이 아니다 — label="생산품목 *" 도 [생산품목]이다.
     const addLabel = (x) => labelSet.add(String(x).replace(/[\s*]+$/, '').trim())
-    for (const src2 of [own, SHARED]) {
+    for (const src2 of [own, sharedFor(own)]) {
       for (const m of src2.matchAll(/(?:label|placeholder)=["']([^"']{1,24})["']/g)) addLabel(m[1])
       // 구분에 따라 갈리는 이름표: label={isSales ? '출하창고' : '입고창고'}
       for (const m of src2.matchAll(/label=\{[^}]{0,90}\}/g)) {
@@ -3564,7 +3585,7 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
        */
       const field = /코드$/.test(name) ? 'code' : /명$|이름$/.test(name) ? 'name' : null
       if (!field) { if (!exempt) checked--; continue }
-      const re = new RegExp(`<td[^>]*>[\\s\\S]{0,400}?\\{\\w+\.${field}\\}`, 'g')
+      const re = new RegExp(String.raw`<td[^>]*>[\s\S]{0,400}?\{\w+\.` + field + String.raw`\}`, 'g')
       const cells = [...src.matchAll(re)].map((m) => m[0])
       const clickable = cells.some((c) => /onClick=|<Link\b/.test(c))
       if (exempt) { if (cells.length > 0 && clickable) stale.push(`링크 [${screen}|${name}] — 이제 누를 수 있다`); continue }
@@ -3924,7 +3945,7 @@ console.log('\n■ 코드도움이 주는 값으로 화면이 실제로 거르�
    */
   for (const [name, want] of [['warehouses', 'w.name'], ['items', 'x.name'],
     ['projects', 'p.name'], ['employees', 'e.name']]) {
-    const m = src.match(new RegExp(`${name}:[\s\S]{0,400}?value: ([\w.]+)`))
+    const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.]+)`))
     if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — 이름이어야 한다`)
   }
   // 거래처는 partnerCodeItems(값이 id) 를 쓰므로 이름으로 바꿔 담는지 본다
