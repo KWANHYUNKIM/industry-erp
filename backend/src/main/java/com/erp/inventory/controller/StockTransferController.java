@@ -31,4 +31,11 @@ public class StockTransferController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(stockTransferService.create(req, principal.getUsername()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id,
+                                       @AuthenticationPrincipal UserPrincipal principal) {
+        stockTransferService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

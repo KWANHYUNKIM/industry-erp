@@ -58,6 +58,21 @@ export default function TransferPage() {
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
 
+  /*
+   * 창고이동은 <b>지울 자리가 아예 없었다.</b> 판매·구매·자재불출은 줄마다 [삭제]가 있는데
+   * 이 화면만 없어서, 창고를 잘못 골라 옮기면 반대로 한 번 더 옮기는 수밖에 없었다.
+   * 그러면 창고이동조회에 있지도 않은 이동이 두 줄 남는다. 서버가 옮겼던 재고를 되돌린다.
+   */
+  async function removeTransfer(r: StockTransfer) {
+    if (!confirm(`창고이동 '${r.transferNo}' 을(를) 삭제할까요? 옮겼던 재고도 되돌아갑니다.`)) return
+    try {
+      await api.delete(`/stock-transfers/${r.id}`)
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   async function load() {
     setLoading(true)
     try {
@@ -206,13 +221,14 @@ export default function TransferPage() {
               <th style={{ width: 120 }}>입고창고</th>
               <th style={{ width: 90, textAlign: 'right' }}>수량</th>
               <th>사유</th>
+              <th style={{ width: 54 }}></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownTransfers.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -223,6 +239,9 @@ export default function TransferPage() {
                 <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.quantity)} {r.unit}</td>
                 <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => removeTransfer(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                </td>
               </tr>
             ))}
           </tbody>

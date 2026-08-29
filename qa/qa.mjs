@@ -8848,6 +8848,7 @@ async function main() {
   await scenarioReversedPeriod()
   await scenarioSeedRows()
   await scenarioRollback(fixtures)
+  await scenarioRoundTrip(fixtures)
 
   checkDeadAssertions()
 
@@ -9032,6 +9033,74 @@ async function scenarioGhostId() {
  * 멈추는 것이 이 시험의 뜻인데, 소모 차례는 BOM 줄 차례를 따른다. 차례가 반대로
  * 바뀌면 단언은 그대로 통과하되 재는 것이 얕아진다 — 그때는 이 주석을 고칠 것.
  */
+/**
+ * <b>만들었다 지우면 정확히 원래대로 돌아오나.</b>
+ *
+ * <p>롤백(시나리오 37)은 <b>실패했을 때</b> 되돌아오는지였고, 이건 <b>성공한 뒤 사람이
+ * 지웠을 때</b> 되돌아오는지다. 창고별·품목별 재고를 통째로 찍어 두고 견준다 —
+ * 한 창고만 보면 옮겨 간 쪽에 남은 것을 못 본다.
+ *
+ * <p>이렇게 재다가 <b>창고이동에는 지우는 자리가 아예 없다</b>는 것을 알았다.
+ * 판매·구매·자재불출은 다 지울 수 있는데 창고이동만 없어서, 창고를 잘못 골라 옮기면
+ * 반대로 한 번 더 옮기는 수밖에 없었다 — 그러면 창고이동조회에 있지도 않은 이동이
+ * 두 줄 남는다. 자리를 만들고 여기서 못 박는다.
+ *
+ * <p>수불이력은 견주지 않는다. 지울 때 <b>반대 거래를 남기는 것이 맞아서</b>
+ * 줄 수가 늘어나는 것이 정상이다(자재불출이 이미 그렇게 하고 있다).
+ */
+async function scenarioRoundTrip(f) {
+  section('■ 시나리오 38. 만들었다 지우면 원래대로 돌아오나')
+
+  const 재고표 = async () => {
+    const m = new Map()
+    for (const s of await must('GET', '/stock')) m.set(`${s.itemId}@${s.warehouseName}`, Number(s.quantity))
+    return m
+  }
+  const 재고차 = (a, b) => [...new Set([...a.keys(), ...b.keys()])]
+    .filter((k) => (a.get(k) ?? 0) !== (b.get(k) ?? 0))
+    .map((k) => `${k}: ${a.get(k) ?? 0}→${b.get(k) ?? 0}`)
+
+  const wh2 = await ensure('/warehouses', 'code', `${P}WH2`, null, {
+    code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층',
+  })
+  await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 300,
+    adjustDate: '2026-08-30',
+  })
+
+  const 시험 = [
+    ['판매', '/sales', {
+      partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+      lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 10000 }],
+    }],
+    ['구매', '/purchases', {
+      partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-08-30', taxable: true,
+      lines: [{ itemId: f.material.id, quantity: 5, unitPrice: 1000 }],
+    }],
+    ['자재불출', '/material-issues', {
+      issueDate: '2026-08-30', warehouseId: f.warehouse.id, itemId: f.product.id, qty: 1,
+    }],
+    ['창고이동', '/stock-transfers', {
+      transferDate: '2026-08-30', fromWarehouseId: f.warehouse.id, toWarehouseId: wh2.id,
+      itemId: f.product.id, quantity: 1,
+    }],
+  ]
+
+  for (const [이름, path, body] of 시험) {
+    const 전 = await 재고표()
+    const 전개수 = (await must('GET', path)).length
+    const made = await must('POST', path, body)
+    const 중 = await 재고표()
+    /* 만들 때 재고가 안 움직였으면 지운 뒤 같은 것은 당연해서 아무것도 안 잰 셈이다. */
+    eq(`${이름}: 만들면 재고가 움직인다`, 재고차(전, 중).length > 0, true)
+
+    const del = await call('DELETE', `${path}/${made.id}`)
+    eq(`${이름}: 지울 수 있다`, del.status, 204)
+    eq(`${이름}: 재고가 창고별로 정확히 돌아온다`, 재고차(전, await 재고표()).join(' | ') || '없음', '없음')
+    eq(`${이름}: 전표도 안 남는다`, (await must('GET', path)).length, 전개수)
+  }
+}
+
 async function scenarioRollback(f) {
   section('■ 시나리오 37. 도중에 터지면 앞의 것도 함께 되돌아가나')
 
