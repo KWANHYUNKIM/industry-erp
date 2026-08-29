@@ -6,8 +6,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -30,10 +30,15 @@ const TYPE_COLOR: Record<TxType, { bg: string; fg: string }> = {
 interface LedgerResponse { opening: number | null; rows: StockTransaction[] }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => ymd(new Date())
 
 interface ServerFilters { from: string; to: string; itemId: string; warehouseId: string }
+
+/*
+ * 원본 재고수불부는 <b>[전월+금월]</b> 로 열린다(사본 실측). 수불은 <b>지난달에서
+ * 넘어온 잔량</b>을 봐야 이번 달 움직임이 읽힌다 — 금월만 보면 기초가 어디서
+ * 왔는지 알 수 없다. 우리는 금월 1일~오늘이었다.
+ */
+const initP = periodOf('전월+금월')!
 
 export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
@@ -44,7 +49,7 @@ export default function StockLedgerPage() {
   const [error, setError] = useState('')
 
   // 서버 필터(조회 버튼으로 반영)
-  const [filters, setFilters] = useState<ServerFilters>({ from: firstOfMonth(), to: today(), itemId: '', warehouseId: '' })
+  const [filters, setFilters] = useState<ServerFilters>({ from: initP.from, to: initP.to, itemId: '', warehouseId: '' })
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
   /*
@@ -58,7 +63,7 @@ export default function StockLedgerPage() {
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
   const reset = () => {
-    setFilters({ from: firstOfMonth(), to: today(), itemId: '', warehouseId: '' })
+    setFilters({ from: initP.from, to: initP.to, itemId: '', warehouseId: '' })
     setTypeFilter('ALL'); setKeyword(''); setExcludeNoTx(false)
   }
 

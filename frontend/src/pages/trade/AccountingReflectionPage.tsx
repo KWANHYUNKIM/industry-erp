@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -90,6 +91,12 @@ interface Slip {
   journalDocNo: string | null
 }
 
+/*
+ * 원본 회계미반영현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 비워 두어, 반영 안 된 전표가 몇 해치 쌓여 보였다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 export default function AccountingReflectionPage() {
   /** 원본 [매입전표 I]·[매출전표 I] — 일반전표입력으로 넘긴다. */
   const navigate = useNavigate()
@@ -115,7 +122,7 @@ export default function AccountingReflectionPage() {
    * 조건을 안 만들면 열은 보이는데 그걸로 걸러낼 수가 없다.
    */
   const [cond, setCond] = useState({
-    from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
+    from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
     warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
   })
@@ -193,7 +200,7 @@ export default function AccountingReflectionPage() {
 
   const reset = () => {
     setCond({
-      from: '', to: '', partner: '', docNo: '', amtFrom: '', amtTo: '',
+      from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
       warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
     })

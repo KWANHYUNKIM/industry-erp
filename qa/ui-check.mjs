@@ -1168,6 +1168,9 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['발주서현황', 'trade/PurchaseOrderStatusPage.tsx'],
     ['결제내역조회', 'trade/PaymentHistoryPage.tsx'],
     ['재고현황', 'inventory/CurrentStockPage.tsx'],
+    ['회계미반영현황 (구매)', 'trade/AccountingReflectionPage.tsx'],
+    ['단가요청진행단계', 'trade/PriceRequestProgressPage.tsx'],
+    ['재고수불부', 'inventory/StockLedgerPage.tsx'],
     /* 할인현황 셋은 얇은 껍데기가 DiscountStatusPage 를 부른다 — 기간은 그 안에서 정한다. */
     ['판매할인현황', 'trade/DiscountStatusPage.tsx'],
     ['외주비할인현황', 'trade/DiscountStatusPage.tsx'],

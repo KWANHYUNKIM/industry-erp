@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323)
@@ -63,6 +64,12 @@ function Stepper({ status }: { status: PurchaseOrderStatus }) {
   )
 }
 
+/*
+ * 원본 단가요청진행단계는 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간 칸이 <b>아예 없어서</b> 단가요청이 쌓이면 목록만 길어졌다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 export default function PriceRequestProgressPage() {
   const [rows, setRows] = useState<PurchaseOrder[]>([])
   const [statusFilter, setStatusFilter] = useState<'ALL' | PurchaseOrderStatus>('ALL')
@@ -78,6 +85,8 @@ export default function PriceRequestProgressPage() {
    * 처음 연 사람에게는 아무것도 안 사라진다.
    */
   const [validUse, setValidUse] = useState<'사용안함' | '기간지정'>('사용안함')
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [validFrom, setValidFrom] = useState('')
   const [validTo, setValidTo] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -144,6 +153,7 @@ export default function PriceRequestProgressPage() {
       || (r.priceValidUntil != null
         && (!validFrom || r.priceValidUntil >= validFrom)
         && (!validTo || r.priceValidUntil <= validTo)))
+    .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
   [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond,
     validUse, validFrom, validTo])
@@ -181,6 +191,18 @@ export default function PriceRequestProgressPage() {
       {/* 원본 조건 차례: 진행상태 · 거래처 · 품목 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 차례는 <b>[유효기간]이 맨 앞</b>이다(사본 실측). */}
+        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). 유효기간과 다른 값이다 — 이건 요청한 날이다. */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="유효기간">
           <select className="ec-input" value={validUse} style={{ width: 100 }}
                   onChange={(e) => setValidUse(e.target.value as '사용안함' | '기간지정')}>
