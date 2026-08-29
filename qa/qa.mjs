@@ -4052,6 +4052,20 @@ async function scenarioStockRecalc() {
   eq('재집계가 그만큼 고친다', fixed.balanceMismatch, dirty.balanceMismatch)
   eq('고친 뒤에는 다시 0',
     (await must('GET', `/stock/recalc?${ALL}`)).balanceMismatch, 0)
+
+  /*
+   * <b>얼마나 걸리는지도 잰다.</b> 이 자리는 (품목,창고) 무리마다, 그리고 재고 줄마다
+   * 기초재고를 <b>한 번씩 따로</b> 물어서 전 기간이면 8.5초가 걸렸다(화면 기본인 한 달도 1.3초).
+   * 묶어 묻도록 고쳐 1.8초가 됐다. 다시 그 모양으로 돌아가면 여기서 걸린다.
+   *
+   * <p>기계마다 빠르기가 다르니 넉넉히 잡는다 — 되돌아가면 네 배쯤 느려지므로
+   * 이 선이면 충분히 갈린다. 재는 것은 <b>두 번째 부름</b>이다(첫 부름은 예열).
+   */
+  await must('GET', `/stock/recalc?${ALL}`)
+  const t0 = Date.now()
+  await must('GET', `/stock/recalc?${ALL}`)
+  const 걸린시간 = Date.now() - t0
+  eq(`전 기간 재집계 점검이 5초 안에 끝난다 (지금 ${걸린시간}ms)`, 걸린시간 < 5000, true)
 }
 
 /**

@@ -320,11 +320,19 @@ public class StockService {
         Map<String, BigDecimal> openingByKey = new LinkedHashMap<>();
         int balanceMismatch = 0;
 
+        /*
+         * 기초재고는 <b>한 번에 묶어</b> 묻는다. 예전에는 (품목,창고) 무리마다
+         * {@code sumChangeBefore} 를 한 번씩 불러서, 이번 달만 재집계해도 1.3초,
+         * 석 달이면 5.6초가 걸렸다 — 무리가 늘수록 질의도 그만큼 늘었다.
+         */
+        Map<String, BigDecimal> openingAll = new LinkedHashMap<>();
+        for (Object[] r : transactionRepository.aggregateOpeningByItemWarehouse(from)) {
+            openingAll.put(((Number) r[0]).longValue() + ":" + ((Number) r[1]).longValue(), toBig(r[2]));
+        }
+
         for (Map.Entry<String, List<StockTransaction>> e : grouped.entrySet()) {
             List<StockTransaction> list = e.getValue();
-            StockTransaction first = list.get(0);
-            BigDecimal running = transactionRepository.sumChangeBefore(
-                    first.getItem().getId(), first.getWarehouse().getId(), from);
+            BigDecimal running = openingAll.getOrDefault(e.getKey(), BigDecimal.ZERO);
             openingByKey.put(e.getKey(), running);
 
             int fixed = 0;
@@ -341,13 +349,22 @@ public class StockService {
             mismatchByKey.put(e.getKey(), new int[] { list.size(), fixed });
         }
 
-        // 잔량 테이블 대조 — 이력 전체 합계와 맞는지
+        /*
+         * 잔량 테이블 대조 — 이력 전체 합계와 맞는지.
+         *
+         * <p>여기에도 같은 함정이 있었다. 재고 줄마다 {@code sumChangeBefore} 를 불러
+         * <b>그 (품목,창고)의 전 기간 이력을 매번 훑었다.</b> 위와 같은 묶음 질의로 한 번에 받는다.
+         */
+        Map<String, BigDecimal> computedAll = new LinkedHashMap<>();
+        for (Object[] r : transactionRepository.aggregateOpeningByItemWarehouse(LocalDate.of(2999, 12, 31))) {
+            computedAll.put(((Number) r[0]).longValue() + ":" + ((Number) r[1]).longValue(), toBig(r[2]));
+        }
+
         List<StockDtos.StockRecalcRow> rows = new java.util.ArrayList<>();
         int quantityMismatch = 0;
         for (Stock s : stockRepository.findAllWithItemAndWarehouse()) {
             String key = s.getItem().getId() + ":" + s.getWarehouse().getId();
-            BigDecimal computed = transactionRepository.sumChangeBefore(
-                    s.getItem().getId(), s.getWarehouse().getId(), LocalDate.of(2999, 12, 31));
+            BigDecimal computed = computedAll.getOrDefault(key, BigDecimal.ZERO);
             BigDecimal stored = s.getQuantity();
             BigDecimal diff = computed.subtract(stored);
             int[] m = mismatchByKey.getOrDefault(key, new int[] { 0, 0 });

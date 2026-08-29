@@ -86,6 +86,22 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
                                      @Param("to") LocalDate to,
                                      @Param("warehouseId") Long warehouseId);
 
+    /**
+     * 잔량재집계 기초 — <b>(품목,창고)별</b> {@code from} 이전 순증감 합. 반환: [itemId, warehouseId, opening].
+     *
+     * <p>재집계는 (품목,창고) 무리마다 기초재고가 필요한데, 예전에는 무리 하나당
+     * {@code sumChangeBefore} 를 <b>한 번씩</b> 불렀다. 이번 달만 재집계해도 1.3초,
+     * 석 달이면 5.6초가 걸렸다. 한 번에 묶어 묻는다.
+     *
+     * <p>바로 아래 {@code aggregateOpening} 은 <b>품목별</b>이라 재고변동표 것이다 —
+     * 창고를 가르지 않으므로 여기서는 못 쓴다.
+     */
+    @Query("select t.item.id, t.warehouse.id, coalesce(sum(t.quantityChange), 0) " +
+            "from StockTransaction t " +
+            "where t.transactionDate < :from " +
+            "group by t.item.id, t.warehouse.id")
+    List<Object[]> aggregateOpeningByItemWarehouse(@Param("from") LocalDate from);
+
     /** 재고변동표 기초 — 품목별 {@code from} 이전 순증감 합. 반환: [itemId, opening]. */
     @Query("select t.item.id, coalesce(sum(t.quantityChange), 0) " +
             "from StockTransaction t " +
