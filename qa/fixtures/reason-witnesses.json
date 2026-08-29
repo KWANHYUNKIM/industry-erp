@@ -432,53 +432,8 @@
   ],
   "in": "frontend/src/pages/groupware/ConstructionSchedulePage.tsx"
  },
- "생산계획/MRP생성|생성일자": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획/MRP생성|생산계획계산": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
  "생산계획/MRP생성|MRP계산": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획/MRP생성|생산계획/MRP현황": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획/MRP생성|기타": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획_MRP리스트|생성일자": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "claim": "소요량 전개(BOM 역산) 엔진이 없다",
   "absent": [
    "MrpService",
    "explodeBom",
@@ -487,25 +442,7 @@
   "in": "backend"
  },
  "생산계획_MRP리스트|MRP계산": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획_MRP리스트|H": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "직접입력": {
-  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "claim": "위와 같음",
   "absent": [
    "MrpService",
    "explodeBom",
@@ -556,5 +493,26 @@
    "Currency"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "생산계획/MRP생성|생성일자": {
+  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
+  "present": [
+   "생성일자"
+  ],
+  "file": "production/MrpPage.tsx"
+ },
+ "생산계획_MRP리스트|생성일자": {
+  "claim": "위와 같음",
+  "present": [
+   "생성일자"
+  ],
+  "file": "production/MrpPage.tsx"
+ },
+ "생산계획/MRP생성|생산계획계산": {
+  "claim": "우리는 미판매 잔량으로 계획을 만든다",
+  "present": [
+   "production-plans"
+  ],
+  "file": "production/MrpPage.tsx"
  }
 }
