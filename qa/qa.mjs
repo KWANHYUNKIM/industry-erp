@@ -4025,6 +4025,61 @@ async function scenarioDeleteInUse(f) {
  * <p>재집계가 그걸 고치는 기능인데, 고치고 나면 다시 점검했을 때 0 이어야 한다.
  * 그 <b>멱등성</b>을 여기서 못 박는다 — 재집계가 반쪽만 고치면 여기서 걸린다.
  */
+/**
+ * <b>5천 줄을 넘겨 주는 목록이 하나도 없어야 한다.</b>
+ *
+ * <p>세 자리를 고쳐 목록 응답 합계가 75MB → 25MB 가 됐다(재고수불부 34MB, 회계전표조회 16MB,
+ * 계좌 입출금 5MB). 고칠 때마다 <b>한 자리씩</b> 찾아 고쳤는데, 새 목록이 하나 생기면
+ * 그 자리는 또 아무도 안 본다. 자리를 세지 말고 <b>성질</b>을 지킨다.
+ *
+ * <p>원본도 같은 성질을 지킨다 — 조회 화면 85곳에 [오천건이상조회] 버튼을 두고
+ * 그 위로는 눌러야 가게 한다(사본 실측: 그 낱말 139번, 화면코드 85종).
+ * 우리는 그 문턱을 넘길 목록이 지금 셋뿐이라 셋에만 버튼을 뒀다. 안 넘기는 목록에
+ * 안 눌리는 버튼을 붙이는 것은 흉내일 뿐이다.
+ *
+ * <p>컨트롤러에서 목록 자리를 <b>실행할 때 뽑아</b> 전부 불러 본다. 5천 줄이 넘는데
+ * '잘랐다' 고 말하지 않으면 걸린다.
+ */
+async function scenarioNoUnboundedList() {
+  section('■ 시나리오 42. 5천 줄을 넘겨 주는 목록이 없나')
+
+  const SRC = 'backend/src/main/java/com/erp'
+  const walk = (dir) => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+
+  const paths = new Set()
+  for (const f of walk(SRC)) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?/g)) {
+      const sub = m[1] ?? ''
+      if (sub.includes('{')) continue
+      paths.add((base + sub).replace('/api', ''))
+    }
+  }
+
+  const 넘친것 = []
+  let 잰자리 = 0
+  for (const p of [...paths].sort()) {
+    const r = await call('GET', `${p}?from=2000-01-01&to=2099-12-31`)
+    if (r.status !== 200) continue
+    const d = r.data
+    const list = Array.isArray(d) ? d
+      : (d && typeof d === 'object' ? Object.values(d).find((v) => Array.isArray(v)) : null)
+    if (!Array.isArray(list)) continue
+    잰자리 += 1
+    /* 잘랐다고 말하는 자리는 옳다 — 사람이 [오천건이상조회] 로 그 위를 간다. */
+    if (list.length > 5000 && !(d && d.truncated === true)) {
+      넘친것.push(`${p} ${list.length}줄`)
+    }
+  }
+  eq('잴 목록 자리를 찾았다', 잰자리 > 100, true)
+  eq(`목록 ${잰자리}자리가 한 번에 5천 줄을 넘겨 주지 않는다`, 넘친것.join(' / ') || '없음', '없음')
+}
+
 async function scenarioStockRecalc(f) {
   section('■ 잔량재집계')
 
@@ -8921,6 +8976,7 @@ async function main() {
   await scenarioSlipDelete(fixtures)
   await scenarioValidationMessages(fixtures)
   await scenarioStockRecalc(fixtures)
+  await scenarioNoUnboundedList()
   await scenarioGroups(fixtures)
   await scenarioSlipPriceBulk(fixtures)
   await scenarioNestedValidation(fixtures)
