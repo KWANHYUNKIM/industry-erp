@@ -11,10 +11,12 @@ import com.erp.security.UserPrincipal;
 import com.erp.trade.service.PurchaseOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.trade.dto.PurchaseDtos;
 import com.erp.trade.dto.PurchaseOrderDtos;
@@ -27,9 +29,13 @@ public class PurchaseOrderController {
     private final PurchaseOrderService service;
 
     /** 전체 발주서 목록. status 지정 시 해당 진행상태만(발주요청조회/현황 등에서 사용). */
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<PurchaseOrderResponse> list(@RequestParam(required = false) PurchaseOrderStatus status) {
-        return status != null ? service.findByStatus(status) : service.findAll();
+    public List<PurchaseOrderResponse> list(
+            @RequestParam(required = false) PurchaseOrderStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return status != null ? service.findByStatus(status) : service.findAll(from, to);
     }
 
     /** 발주 파이프라인 상태별 집계(건수·금액). 발주요청현황 상단 요약에 사용. */

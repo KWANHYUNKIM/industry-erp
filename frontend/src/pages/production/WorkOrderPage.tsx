@@ -117,7 +117,7 @@ export default function WorkOrderPage() {
     setLoading(true)
     try {
       const [o, i, w, pt, emp] = await Promise.all([
-        api.get<WorkOrder[]>('/work-orders'),
+        api.get<WorkOrder[]>('/work-orders', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<{ id: number; code: string; name: string }[]>('/partners'),
@@ -136,9 +136,10 @@ export default function WorkOrderPage() {
     }
   }
 
+  /* 기간이 바뀌면 다시 물어본다 — 예전에는 전 기간을 받아 브라우저에서 걸렀다. */
   useEffect(() => {
     load()
-  }, [])
+  }, [from, to])
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다 — 지워진 사원이면 빈칸이다. */
   const empName = (id: number | null) =>

@@ -61,7 +61,23 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderResponse> findAll() {
-        return orderRepository.findAllWithRefs().stream()
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? orderRepository.findAllWithRefs()
+                : orderRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream()
                 .map(PurchaseOrderResponse::from)
                 .toList();
     }

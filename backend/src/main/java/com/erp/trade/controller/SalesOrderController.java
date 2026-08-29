@@ -12,10 +12,12 @@ import com.erp.trade.service.SalesOrderService;
 import com.erp.trade.service.ShipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.trade.dto.SalesOrderDtos;
 import com.erp.trade.dto.ShipmentDtos;
@@ -28,9 +30,12 @@ public class SalesOrderController {
     private final SalesOrderService salesOrderService;
     private final ShipmentService shipmentService;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<SalesOrderResponse> list() {
-        return salesOrderService.findAll();
+    public List<SalesOrderResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return salesOrderService.findAll(from, to);
     }
 
     /** 미출하현황 (접수·진행중 주문의 라인별 미출하 잔량) */

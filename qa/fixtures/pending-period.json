@@ -1,5 +1,4 @@
 [
- "/as-requests",
  "/bank-cards/transactions",
  "/bank-cards/usages",
  "/cash-details/account-transfers",
@@ -17,15 +16,11 @@
  "/pay-settings/transfers/transferred-payslips",
  "/production-plans",
  "/productions",
- "/purchase-orders",
  "/quality-inspection-requests",
- "/quotations",
- "/sales-orders",
  "/sales-orders/unshipped",
  "/sales-orders/unsold",
  "/shipments",
  "/staged-adjustments",
  "/vouchers",
- "/work-journals",
- "/work-orders"
+ "/work-journals"
 ]

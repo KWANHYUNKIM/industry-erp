@@ -115,7 +115,7 @@ export default function SalesOrderStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<SalesOrderResponse[]>('/sales-orders')
+      const res = await api.get<SalesOrderResponse[]>('/sales-orders', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => {
@@ -147,7 +147,11 @@ export default function SalesOrderStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()

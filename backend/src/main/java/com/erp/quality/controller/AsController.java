@@ -26,9 +26,12 @@ public class AsController {
 
     private final AsService asService;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<AsResponse> list() {
-        return asService.findAll();
+    public List<AsResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return asService.findAll(from, to);
     }
 
     @PostMapping

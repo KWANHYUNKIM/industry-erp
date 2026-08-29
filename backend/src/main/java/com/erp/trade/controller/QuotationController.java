@@ -7,10 +7,12 @@ import com.erp.security.UserPrincipal;
 import com.erp.trade.service.QuotationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.trade.dto.QuotationDtos;
 import com.erp.trade.dto.SalesOrderDtos;
@@ -22,9 +24,12 @@ public class QuotationController {
 
     private final QuotationService service;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<QuotationResponse> list() {
-        return service.findAll();
+    public List<QuotationResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findAll(from, to);
     }
 
     @PostMapping
