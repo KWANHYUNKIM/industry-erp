@@ -144,6 +144,22 @@ export default function ShipmentOrderPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+  /*
+   * 고른 출하지시를 한 번에 넘긴다. <b>출하지시(READY)인 것만</b> 넘어간다 —
+   * 이미 나갔거나 취소된 건을 다시 건드리면 서버가 막고, 막힌 줄 때문에 나머지도 멈춘다.
+   */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  async function bulkStatus() {
+    const targets = shown.filter((s) => checked.has(s.id) && s.status === 'READY')
+    if (targets.length === 0) { setError('출하지시 상태인 줄을 고르세요.'); return }
+    setError('')
+    try {
+      for (const t of targets) await api.patch(`/shipments/${t.id}/status`, { status: 'SHIPPED' })
+      setChecked(new Set())
+      load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
   async function advance(s: Shipment) {
     try { await api.patch(`/shipments/${s.id}/status`, { status: 'SHIPPED' }); load() }
     catch (err) { alert(extractErrorMessage(err)) }
@@ -201,7 +217,17 @@ export default function ShipmentOrderPage() {
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '출하지시등록(F2)'}
       onNew={() => setShowForm(true)}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        /*
+         * 원본 [진행상태변경] — <b>고른 줄을 한 번에</b> 바꾼다.
+         * '출하지시서는 줄마다 상태를 고친다' 고 적고 뺐는데, 줄마다만 되면 열 건을
+         * 출하완료로 넘길 때 <b>열 번 눌러야</b> 한다. 줄 버튼은 그대로 두고 단추줄을 더한다
+         * (오더관리진행단계의 [전체단계완료]와 같은 자리·같은 뜻이다).
+         */
+        { label: `진행상태변경${checked.size ? ` (${checked.size})` : ''}`, onClick: bulkStatus },
+        { label: 'Excel' },
+        { label: '인쇄' },
+      ]}
     >
       <p className="mb-2 text-xs text-slate-500">매출처로 반출할 물품의 출하지시 · 출하지시 → 출하완료. 미출하현황에서 대기건 확인.</p>
 
@@ -377,6 +403,13 @@ export default function ShipmentOrderPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/* [진행상태변경]이 고를 자리. */}
+            <th style={{ width: 30, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((s) => checked.has(s.id))}
+                     onChange={() => setChecked(
+                       shown.every((s) => checked.has(s.id)) ? new Set() : new Set(shown.map((s) => s.id)))} />
+            </th>
             <th style={{ width: 34 }}></th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th>
             <th style={{ width: 100 }}>출하예정일</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
@@ -387,9 +420,16 @@ export default function ShipmentOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(s.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
+                  return next
+                })} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{s.shipNo}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
