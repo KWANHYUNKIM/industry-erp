@@ -23,6 +23,8 @@ interface ComparisonRow {
   warehouseName: string | null
   partnerName: string | null
   projectName: string | null
+  /** 원본 매출계획비교표의 [담당자]. 위 셋과 같은 성질의 축이다. */
+  employeeName: string | null
   unit: string
   planQty: number
   planAmount: number
@@ -35,6 +37,16 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
+
+/**
+ * 원본 매출계획비교표의 [반품구분] — 체크박스 셋이고 <b>셋 다 켜져 있는 것이 기본</b>이다
+ * (사본 실측: 전체(0) · 일반(2) · 반품(1), 모두 checked).
+ *
+ * <p>여기서 고른 것이 <b>실적을 무엇으로 세느냐</b>를 바꾼다 — 반품을 넣으면 순매출,
+ * 빼면 총매출이다. 서버가 골라 낸 뒤 합치므로 화면에서 뒤늦게 거를 수 없다.
+ */
+const SALE_FLAGS = ['전체', '일반', '반품'] as const
+type SaleFlag = typeof SALE_FLAGS[number]
 
 interface CodeRow { id: number; code: string; name: string }
 
@@ -50,6 +62,9 @@ export default function SalesPlanPage() {
   const [whCond, setWhCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [projCond, setProjCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [saleFlag, setSaleFlag] = useState<SaleFlag>('전체')
+  const [employees, setEmployees] = useState<CodeRow[]>([])
   const [warehouses, setWarehouses] = useState<CodeRow[]>([])
   const [partners, setPartners] = useState<CodeRow[]>([])
   const [projects, setProjects] = useState<CodeRow[]>([])
@@ -62,23 +77,26 @@ export default function SalesPlanPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [c, i, w, pt, pj] = await Promise.all([
-        api.get<ComparisonRow[]>('/sales-plans/comparison', { params: { year } }),
+      const [c, i, w, pt, pj, em] = await Promise.all([
+        // [반품구분]은 <b>서버가 실적을 세기 전에</b> 걸러야 한다 — 합친 뒤에는 못 뺀다.
+        api.get<ComparisonRow[]>('/sales-plans/comparison', { params: { year, saleFlag } }),
         api.get<Item[]>('/items'),
         api.get<CodeRow[]>('/warehouses'),
         api.get<CodeRow[]>('/partners'),
         api.get<CodeRow[]>('/projects'),
+        api.get<CodeRow[]>('/employees'),
       ])
       setRows(c.data)
       setItems(i.data)
-      setWarehouses(w.data); setPartners(pt.data); setProjects(pj.data)
+      setWarehouses(w.data); setPartners(pt.data); setProjects(pj.data); setEmployees(em.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [year])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year, saleFlag])
 
   async function remove(id: number) {
     setError(''); setOk('')
@@ -95,8 +113,9 @@ export default function SalesPlanPage() {
     .filter((r) => !itemCond || r.itemName === itemCond)
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !partnerCond || r.partnerName === partnerCond)
-    .filter((r) => !projCond || r.projectName === projCond),
-    [rows, itemCond, whCond, partnerCond, projCond])
+    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !empCond || r.employeeName === empCond),
+    [rows, itemCond, whCond, partnerCond, projCond, empCond])
 
   /* 합계도 걸러진 것으로 낸다 — 한 품목만 보면서 합계는 전체이면 숫자가 거짓말을 한다. */
   const totals = useMemo(() => {
@@ -130,7 +149,7 @@ export default function SalesPlanPage() {
       </div>
 
       <Modal open={showForm} title="매출계획 등록" onClose={() => setShowForm(false)}>
-        <PlanForm year={year} items={items} warehouses={warehouses} partners={partners} projects={projects} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
+        <PlanForm year={year} items={items} warehouses={warehouses} partners={partners} projects={projects} employees={employees} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
       </Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -150,10 +169,23 @@ export default function SalesPlanPage() {
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
                            items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="반품구분">
+          <div className="ec-pills">
+            {SALE_FLAGS.map((k) => (
+              <button key={k} type="button" className={`ec-pill no-ec${saleFlag === k ? ' active' : ''}`}
+                      onClick={() => setSaleFlag(k)}>{k}</button>
+            ))}
+          </div>
         </EcCond>
       </ul>
 
@@ -168,6 +200,8 @@ export default function SalesPlanPage() {
               창고·프로젝트도 같은 까닭으로 같이 보인다 — 안 나눈 계획은 빈칸이다.
             */}
             <th style={{ width: 110 }}>거래처명</th>
+            {/* 원본 차례는 거래처명 <b>바로 다음</b>이 담당자다(사본 실측). */}
+            <th style={{ width: 90 }}>담당자</th>
             <th style={{ width: 100 }}>창고명</th>
             <th style={{ width: 110 }}>프로젝트명</th>
             {/* 원본 차례: 거래처명 · 창고명 · 프로젝트명 · <b>품목명</b> · 금액 */}
@@ -182,14 +216,15 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
               <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.employeeName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{r.warehouseName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
               <td>{r.itemName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
@@ -210,13 +245,14 @@ export default function SalesPlanPage() {
 }
 
 function PlanForm({
-  year, items, warehouses, partners, projects, onError, onSaved,
+  year, items, warehouses, partners, projects, employees, onError, onSaved,
 }: {
   year: number
   items: Item[]
   warehouses: CodeRow[]
   partners: CodeRow[]
   projects: CodeRow[]
+  employees: CodeRow[]
   onError: (m: string) => void
   onSaved: () => void
 }) {
@@ -232,6 +268,7 @@ function PlanForm({
   const [fWarehouse, setFWarehouse] = useState('')
   const [fPartner, setFPartner] = useState('')
   const [fProject, setFProject] = useState('')
+  const [fEmployee, setFEmployee] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
@@ -248,6 +285,7 @@ function PlanForm({
         warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
         partnerId: fPartner ? Number(fPartner) : undefined,
         projectId: fProject ? Number(fProject) : undefined,
+        employeeId: fEmployee ? Number(fEmployee) : undefined,
         remark: remark || undefined,
       })
       onSaved()
@@ -295,10 +333,19 @@ function PlanForm({
                            items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </label>
       </div>
-      <label><span style={lbl}>프로젝트</span>
-        <CodePickerField label="프로젝트" hideLabel fill emptyLabel="안 나눔"
-                         value={fProject} onChange={setFProject}
-                         items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} /></label>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <label style={{ flex: 1 }}><span style={lbl}>프로젝트</span>
+          <CodePickerField label="프로젝트" hideLabel fill emptyLabel="안 나눔"
+                           value={fProject} onChange={setFProject}
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </label>
+        {/* 담당자를 고르면 <b>그 사람이 친 판매만</b> 실적으로 잡힌다 — 서버가 그렇게 맞춘다. */}
+        <label style={{ flex: 1 }}><span style={lbl}>담당자</span>
+          <CodePickerField label="담당자" hideLabel fill emptyLabel="안 나눔"
+                           value={fEmployee} onChange={setFEmployee}
+                           items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </label>
+      </div>
       <label><span style={lbl}>적요</span>
         <input className={cls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} placeholder="선택" /></label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>

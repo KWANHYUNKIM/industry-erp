@@ -40,6 +40,7 @@ public class SalesPlanService {
     private final PartnerService partnerService;
     private final SalesRepository salesRepository;   // 같은 모듈(trade)
     private final ItemService itemService;           // inventory 의 공개 API
+    private final com.erp.hr.service.EmployeeService employeeService;
 
     @Transactional(readOnly = true)
     public List<SalesPlanResponse> findAll(Integer year) {
@@ -57,6 +58,7 @@ public class SalesPlanService {
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .partner(req.partnerId() == null ? null : partnerService.get(req.partnerId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
                 .planYear(req.planYear())
                 .planMonth(req.planMonth())
                 .planQty(req.planQty())
@@ -80,7 +82,22 @@ public class SalesPlanService {
      * 실적 = 그 (품목, 월)의 판매 라인 supplyAmount/quantity 합.
      */
     @Transactional(readOnly = true)
-    public List<ComparisonRow> comparison(int year) {
+    public List<ComparisonRow> comparison(int year, String saleFlag) {
+        /*
+         * 원본 [반품구분] — 전체 · 일반 · 반품. 체크박스라 셋 다 켜져 있는 것이 기본이다.
+         *
+         * <p><b>실적에 반품을 넣느냐 빼느냐로 달성률이 통째로 달라진다.</b> 반품 전표는 금액이
+         * 음수라, 넣으면 판 것에서 되돌아온 것을 뺀 <b>순매출</b>이 되고 빼면 <b>총매출</b>이 된다.
+         * 어느 쪽인지 고를 수 없으면, 그 달에 반품이 많았을 때 화면이 말하는 달성률이
+         * 무엇을 뜻하는지 알 수가 없다.
+         */
+        boolean withNormal = saleFlag == null || saleFlag.isBlank()
+                || "전체".equals(saleFlag) || "일반".equals(saleFlag);
+        boolean withReturn = saleFlag == null || saleFlag.isBlank()
+                || "전체".equals(saleFlag) || "반품".equals(saleFlag);
+        if (!withNormal && !withReturn) {
+            throw ApiException.badRequest("반품구분은 전체 · 일반 · 반품 중 하나여야 합니다: " + saleFlag);
+        }
         List<SalesPlan> plans = planRepository.findByPlanYearWithItem(year);
 
         /*
@@ -100,9 +117,11 @@ public class SalesPlanService {
             BigDecimal actualAmount = BigDecimal.ZERO;
             for (Sales s : sales) {
                 if (s.getSaleDate().getMonthValue() != p.getPlanMonth()) continue;
+                if (s.isReturnSlip() ? !withReturn : !withNormal) continue;
                 if (!matches(p.getWarehouse(), s.getWarehouse())) continue;
                 if (!matches(p.getPartner(), s.getPartner())) continue;
                 if (!matches(p.getProject(), s.getProject())) continue;
+                if (!matches(p.getEmployee(), s.getEmployee())) continue;
                 for (SalesLine l : s.getLines()) {
                     if (!l.getItem().getId().equals(p.getItem().getId())) continue;
                     actualQty = actualQty.add(nz(l.getQuantity()));
@@ -122,6 +141,8 @@ public class SalesPlanService {
                     p.getPartner() != null ? p.getPartner().getName() : null,
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
+                    p.getEmployee() != null ? p.getEmployee().getId() : null,
+                    p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate));
         }
         return out;
@@ -141,6 +162,7 @@ public class SalesPlanService {
         if (o instanceof com.erp.inventory.domain.Warehouse w) return w.getId();
         if (o instanceof com.erp.inventory.domain.Project pr) return pr.getId();
         if (o instanceof com.erp.trade.domain.BusinessPartner bp) return bp.getId();
+        if (o instanceof com.erp.hr.domain.Employee e) return e.getId();
         throw new IllegalStateException("맞출 수 없는 축: " + o.getClass());
     }
 

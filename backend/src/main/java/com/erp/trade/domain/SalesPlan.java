@@ -51,6 +51,14 @@ public class SalesPlan extends BaseTimeEntity {
     private Project project;
 
     /** 계획 연도 (예: 2026) */
+    /**
+     * 담당자. 원본 매출계획비교표의 조건이다 — 창고·거래처·프로젝트와 <b>같은 성질의 축</b>이다.
+     * 안 고르면 그 축을 안 나눈다(전부를 합친다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private com.erp.hr.domain.Employee employee;
+
     @Column(name = "plan_year", nullable = false)
     private int planYear;
 

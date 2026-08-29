@@ -18,6 +18,8 @@ public final class SalesPlanDtos {
             Long warehouseId,
             Long partnerId,
             Long projectId,
+            /** 원본 매출계획비교표의 [담당자]. 위 셋과 같은 성질의 축이다. */
+            Long employeeId,
             @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
             @NotNull(message = "계획월을 입력하세요.") @Min(value = 1, message = "월은 1~12 입니다.") @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
             @NotNull(message = "계획수량을 입력하세요.") @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
@@ -28,12 +30,15 @@ public final class SalesPlanDtos {
     public record SalesPlanResponse(
             Long id, int planYear, int planMonth,
             Long itemId, String itemCode, String itemName, String unit,
+            Long employeeId, String employeeName,
             BigDecimal planQty, BigDecimal planAmount, String remark, String createdBy
     ) {
         public static SalesPlanResponse from(SalesPlan p) {
             return new SalesPlanResponse(
                     p.getId(), p.getPlanYear(), p.getPlanMonth(),
                     p.getItem().getId(), p.getItem().getCode(), p.getItem().getName(), p.getItem().getUnit(),
+                    p.getEmployee() != null ? p.getEmployee().getId() : null,
+                    p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getPlanQty(), p.getPlanAmount(), p.getRemark(), p.getCreatedBy());
         }
     }
@@ -45,6 +50,7 @@ public final class SalesPlanDtos {
             Long warehouseId, String warehouseName,
             Long partnerId, String partnerName,
             Long projectId, String projectName,
+            Long employeeId, String employeeName,
             BigDecimal planQty, BigDecimal planAmount,
             BigDecimal actualQty, BigDecimal actualAmount,
             BigDecimal achieveRate

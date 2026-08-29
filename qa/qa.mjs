@@ -849,6 +849,47 @@ async function scenarioSalesPlanScope(f) {
   eq('<b>다른 창고 계획은 0 이다</b> — 안 그러면 같은 판매가 두 줄에 중복으로 잡힌다',
     qtyOf(planThere.id), 0)
 
+  /*
+   * 원본 [담당자] — 창고·거래처·프로젝트와 <b>같은 성질의 축</b>이다. 담당자를 고른 계획은
+   * 그 사람이 친 판매만 실적이다. 축을 하나 더 만들면서 <b>실적을 맞추는 규칙</b>도 같이
+   * 따라가는지가 요점이다 — 안 따라가면 담당자별로 쪼갠 순간 같은 판매가 모든 줄에 중복으로
+   * 잡혀 달성률이 다 같이 부풀어 오른다(창고 때 실제로 그랬다).
+   */
+  const emp = (await must('GET', '/employees'))[0]
+  if (emp) {
+    const planEmp = await must('POST', '/sales-plans', {
+      itemId: f.product.id, planYear: year, planMonth: 5, planQty: 10, planAmount: 100000,
+      employeeId: emp.id,
+    })
+    const r2 = await must('GET', `/sales-plans/comparison?year=${year}`)
+    const row = r2.find((r) => r.id === planEmp.id)
+    eq('담당자 축이 응답에 실린다', row.employeeName, emp.name)
+    /* 위 판매는 담당자를 안 걸고 만들었다 — 담당자를 고른 계획에는 안 잡혀야 한다. */
+    eq('<b>담당자를 고른 계획은 그 사람 판매만 센다</b>', Number(row.actualQty), 0)
+    await must('DELETE', `/sales-plans/${planEmp.id}`)
+  }
+
+  /*
+   * 원본 [반품구분] — 실적에 반품을 넣느냐 빼느냐로 <b>달성률이 통째로 달라진다</b>.
+   * 반품 전표는 금액이 음수라, 넣으면 순매출이고 빼면 총매출이다.
+   * 서버가 <b>합치기 전에</b> 걸러야 한다 — 합친 뒤에는 화면이 뺄 수가 없다.
+   */
+  await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: `${year}-05-11`,
+    returnSlip: true, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  const amtOf = (list, id) => Number(list.find((r) => r.id === id)?.actualAmount ?? 0)
+  const all = await must('GET', `/sales-plans/comparison?year=${year}&saleFlag=전체`)
+  const normal = await must('GET', `/sales-plans/comparison?year=${year}&saleFlag=일반`)
+  const returns = await must('GET', `/sales-plans/comparison?year=${year}&saleFlag=반품`)
+  eq('반품만 보면 <b>음수</b>다 — 되돌아온 것이므로', amtOf(returns, planAll.id) < 0, true)
+  eq('일반만 보면 <b>양수</b>다', amtOf(normal, planAll.id) > 0, true)
+  eq('전체는 둘의 합이다 — 이것이 순매출이다',
+    amtOf(all, planAll.id), amtOf(normal, planAll.id) + amtOf(returns, planAll.id))
+  eq('안 주면 전체와 같다 — 기본은 셋 다 켠 것이다',
+    amtOf(await must('GET', `/sales-plans/comparison?year=${year}`), planAll.id),
+    amtOf(all, planAll.id))
+
   for (const p of [planAll, planHere, planThere]) await must('DELETE', `/sales-plans/${p.id}`)
 }
 
