@@ -3972,6 +3972,12 @@ async function scenarioValidationMessages(f) {
       { saleDate: '2026-08-26', partnerId: f.customer.id, warehouseId: f.warehouse.id,
         lines: [{ itemId: f.product.id }] }, ['수량', '단가']],
     ['판매계획', '/sales-plans', { itemId: f.product.id }, ['계획연도', '계획월', '계획수량']],
+    /*
+     * 단가일괄변경은 <b>영문 필드 이름이 그대로</b> 새어 나오고 있었다 —
+     * "field(sale|purchase)를 지정하세요." 화면에서 이 말을 보는 사람은 field 가
+     * 무엇인지 모른다. 만드는 자리 123곳을 빈 몸통으로 두드려 찾은 <b>하나</b>다.
+     */
+    ['단가일괄변경', '/price-bulk/apply', {}, ['판매단가', '증감율', '변경값', '품목']],
   ]
 
   for (const [label, path, body, expected] of cases) {

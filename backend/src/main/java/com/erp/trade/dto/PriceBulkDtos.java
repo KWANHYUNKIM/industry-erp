@@ -47,8 +47,12 @@ public final class PriceBulkDtos {
      */
     public record PriceBulkApplyRequest(
             @NotEmpty(message = "변경할 품목을 선택하세요.") List<Long> itemIds,
-            @NotBlank(message = "field(sale|purchase)를 지정하세요.") String field,
-            @NotBlank(message = "mode(rate|amount)를 지정하세요.") String mode,
+            /*
+             * 문구에 <b>필드 이름을 그대로 쓰지 않는다.</b> 화면에서 이 말을 보는 사람은
+             * field·mode 가 무엇인지 모른다 — 무엇을 고르라는 것인지 말한다.
+             */
+            @NotBlank(message = "판매단가·구매단가 중 무엇을 바꿀지 고르세요.") String field,
+            @NotBlank(message = "증감율·증감액 중 어느 쪽으로 바꿀지 고르세요.") String mode,
             @NotNull(message = "변경값을 입력하세요.") BigDecimal value
     ) {}
 
