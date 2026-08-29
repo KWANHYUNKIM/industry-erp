@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { STATUS_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { STATUS_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import type { SurveyDoc } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
 
@@ -28,8 +28,14 @@ export default function SurveyStatusPage() {
   const [searched, setSearched] = useState(false)
 
   const today = new Date()
-  const [from, setFrom] = useState(ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
-  const [to, setTo] = useState(ymd(today))
+  /*
+   * 원본 설문조사현황의 기간 기본값은 <b>[전월+금월]</b>(실측)이다. 손으로 전월 1일~오늘 을
+   * 잡아 두었더니 <b>이달 안에 시작하는 설문</b>이 열자마자 빠졌다 — 아직 안 온 날짜라서다.
+   * periodOf 로 잡아 금월 말일까지 본다.
+   */
+  const initPeriod = periodOf('전월+금월')!
+  const [from, setFrom] = useState(initPeriod.from)
+  const [to, setTo] = useState(initPeriod.to)
   const [scope, setScope] = useState<'' | 'INTERNAL' | 'EXTERNAL'>('')
   /*
    * 원본 [진행] — <b>전체 · 진행중 · 완료</b>(사본 실측). 우리는 없었다.

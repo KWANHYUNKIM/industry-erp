@@ -109,7 +109,8 @@
   "claim": "줄마다가 아니라 화면 위 버튼 하나로 연다",
   "present": [
    "작업코드등록"
-  ]
+  ],
+  "file": "production/ProcessPage.tsx"
  },
  "거래처관리대장 I|사용중단포함": {
   "claim": "조건 판의 체크박스로 둔다 — 버튼이 아니다",
@@ -539,5 +540,12 @@
    "byParent"
   ],
   "file": "trade/LedgerPage.tsx"
+ },
+ "작업지시서입력": {
+  "claim": "우리 작업지시서는 품목 하나짜리 폼이라 더할 줄이 없다",
+  "absent": [
+   "WorkOrderLine"
+  ],
+  "in": "backend"
  }
 }

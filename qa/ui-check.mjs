@@ -1141,14 +1141,20 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['지급현황', 'trade/CollectionPage.tsx'],
     ['업무일지', 'groupware/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
+    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['거래처별채무', 'trade/LedgerPage.tsx'],
+    ['설문조사현황', 'groupware/SurveyStatusPage.tsx'],
   ])
 
-  /** 아직 못 맞춘 것. 왜 못 맞추는지를 적는다. */
-  const NOT_YET = new Map([
-    ['거래처별채권', '기간이 아니라 기준일자 한 점으로 보는 화면이라 그 버튼을 걸 자리가 없다'],
-    ['거래처별채무', '위와 같다'],
-    ['설문조사현황', '기간을 periodOf 로 정하지 않는다 — 설문 목록을 통째로 받아 거른다'],
-  ])
+  /**
+   * 아직 못 맞춘 것. 왜 못 맞추는지를 적는다.
+   *
+   * <p><b>지금은 비어 있다.</b> 셋이 적혀 있었는데 둘은 사실이 아니었다 —
+   * 거래처별채권/채무는 '기준일자 한 점' 이라고 적어 뒀지만 실제로는 구간을 받고 있었고
+   * (periodOf('전월+금월')), 설문조사현황은 손으로 전월 1일~오늘 을 잡아
+   * <b>이달에 시작하는 설문을 빠뜨리고</b> 있었다. 예외로 가려 두면 검사가 안 본다.
+   */
+  const NOT_YET = new Map([])
   collectReasons(NOT_YET)
 
   const bad = []
