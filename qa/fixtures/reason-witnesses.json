@@ -579,5 +579,84 @@
    "Warehouse"
   ],
   "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "발주서|결재중": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서|미확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서|확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|결재중": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|미확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "A/S접수|전체": {
+  "claim": "A/S 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "A/S접수|확인": {
+  "claim": "A/S 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "창고이동조회|전체": {
+  "claim": "창고이동 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "발주서입력|관리항목": {
+  "claim": "발주 줄에 관리항목을 달지 않는다",
+  "absent": [
+   "managementItem",
+   "ManagementItem"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "품질검사현황|출처(요청)구분": {
+  "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
+  "absent": [
+   "sourceType",
+   "SourceType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
  }
 }

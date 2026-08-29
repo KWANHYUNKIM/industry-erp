@@ -219,15 +219,6 @@ const choiceNames = (src) => {
   for (const m of src.matchAll(/label:\s*'([^']{1,24})'[\s\S]{0,80}?\bto:\s*'/g)) add(m[1])
 
   /*
-   * 화면 설정에 적어 두고 <b>저 아래에서 그리는</b> 탭·바로가기도 이름이다 —
-   * <code>{ label: '생산입고 I', to: '/production/receipt-manual' }</code> 처럼
-   * <code>label</code> 과 <code>to</code> 가 한 객체에 있으면 눌러서 가는 자리다.
-   * 판매입력의 관련 탭 셋이 그렇게 적혀 있어 <b>'없는 탭' 으로 세어졌다</b> —
-   * 배열이 <code>.map(</code> 에서 멀리 떨어져 있어 뒤로 걸어가는 규칙에 안 걸린다.
-   */
-  for (const m of src.matchAll(/label:\s*'([^']{1,24})'[\s\S]{0,80}?\bto:\s*'/g)) add(m[1])
-
-  /*
    * <b>비교기간은 공용 패널이 그린다.</b> 다섯 보기(사용안함·전년/전월/전주/전일 동일기간)는
    * <code>periods.ts</code> 의 상수라 화면 파일 어디에도 글자가 없다 — 다 있는데
    * '없다' 로 걸렸다.
