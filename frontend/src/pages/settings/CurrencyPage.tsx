@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import type { Currency, CurrencyConversion, ExchangeRate } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -155,7 +156,7 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
             <td style={{ textAlign: 'right', fontWeight: 700 }}>
               {c.latestRate === null ? <span style={{ color: '#c60a2e', fontWeight: 400 }}>미등록</span> : `${rateText(c.latestRate)}원`}
             </td>
-            <td style={{ color: '#5a626e' }}>{c.latestRateDate ?? ''}</td>
+            <td style={{ color: '#5a626e' }}>{dateText(c.latestRateDate) || ''}</td>
             <td style={{ textAlign: 'center', color: c.active ? '#1c7c3c' : '#8a929c' }}>{c.active ? '사용' : '중지'}</td>
           </tr>
         ))}
@@ -194,7 +195,7 @@ function RateTable({ rows }: { rows: ExchangeRate[] }) {
         ) : shown.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td>{r.rateDate}</td>
+            <td>{dateText(r.rateDate)}</td>
             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{r.currencyCode}</td>
             <td>{r.currencyName}</td>
             <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.unit}</td>

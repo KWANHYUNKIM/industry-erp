@@ -6,6 +6,7 @@ import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -179,7 +180,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.transferNo}</td>
-              <td>{t.transferDate}</td>
+              <td>{dateText(t.transferDate)}</td>
               <td style={{ color: '#c60a2e' }}>{t.fromAccountName}</td>
               <td style={{ color: '#1c7c3c' }}>{t.toAccountName}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
@@ -298,7 +299,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
               <tr key={u.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{u.usageNo}</td>
-                <td>{u.usageDate}</td>
+                <td>{dateText(u.usageDate)}</td>
                 <td style={{ fontWeight: 600 }}>{u.merchant}</td>
                 <td style={{ color: '#5a626e' }}>{u.expenseAccountName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(u.totalAmount)}</td>
@@ -338,7 +339,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === p.id ? '▾ ' : '▸ '}{p.paymentNo}
                 </td>
-                <td>{p.paymentDate}</td>
+                <td>{dateText(p.paymentDate)}</td>
                 <td>{p.cardCompany} {p.cardName}</td>
                 <td style={{ color: '#5a626e' }}>{p.bankAccountName}</td>
                 <td style={{ textAlign: 'center' }}>{p.lines.length}건</td>
@@ -364,7 +365,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                           <tr key={l.cardUsageId}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.usageNo}</td>
-                            <td>{l.usageDate}</td>
+                            <td>{dateText(l.usageDate)}</td>
                             <td>{l.merchant}</td>
                             <td style={{ color: '#5a626e' }}>{l.expenseAccountName}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.amount)}</td>

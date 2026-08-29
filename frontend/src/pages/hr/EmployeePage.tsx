@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const inputCls = 'ec-input w-full'
@@ -241,8 +242,8 @@ export default function EmployeePage() {
               <td>{e.name}</td>
               <td>{e.department}</td>
               <td>{e.jobTitle}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{e.hireDate ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{e.resignDate ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{dateText(e.hireDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{dateText(e.resignDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>
                 {editing === e.id
                   ? <input className="ec-input" type="number" value={value} onChange={(ev) => setValue(ev.target.value)} style={{ width: 120, textAlign: 'right' }} autoFocus />

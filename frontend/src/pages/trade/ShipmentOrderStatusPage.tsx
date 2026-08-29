@@ -6,6 +6,7 @@ import { INQUIRY_PICKS, periodOf, type ComparePeriod } from '../../components/Ec
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 출력물 > <b>출하지시서현황</b>.
@@ -273,7 +274,7 @@ export default function ShipmentOrderStatusPage() {
               <tr key={key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.dueDate ?? ''}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
                 <td>{itemLabel(l)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(l.quantity)} {l.unit}</td>
                 <td>{r.warehouseName ?? ''}</td>
@@ -317,8 +318,8 @@ export default function ShipmentOrderStatusPage() {
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.shipDate}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.dueDate ?? ''}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.shipDate)}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
                 <td>
                   {r.lines.length === 0 ? '' : itemLabel(r.lines[0])}
                   {r.lines.length > 1 ? ' 외 ' + (r.lines.length - 1) + '건' : ''}

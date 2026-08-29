@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -153,7 +154,7 @@ export default function AttendanceInputPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={mono}>{r.date}</td>
+              <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td style={mono}>{r.clockIn ?? '-'}</td>
               <td style={mono}>{r.clockOut ?? '-'}</td>

@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -182,7 +183,7 @@ export default function ReceiptInquiryPage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.productionDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.prodNo}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>
               <td>[{r.productCode}] {r.productName}</td>

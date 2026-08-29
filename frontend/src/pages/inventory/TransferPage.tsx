@@ -8,6 +8,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -193,7 +194,7 @@ export default function TransferPage() {
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.transferNo}</td>
-                <td>{r.transferDate}</td>
+                <td>{dateText(r.transferDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.fromWarehouseName}</td>
                 <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
@@ -227,7 +228,7 @@ export default function TransferPage() {
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
-                <td>{r.adjustDate}</td>
+                <td>{dateText(r.adjustDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>

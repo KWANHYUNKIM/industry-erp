@@ -7,6 +7,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
@@ -328,7 +329,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                   {i + 1}
                 </td>
                 {/* 원본은 '일자-No.' 한 칸에 「2026/07/06 -1」처럼 일자와 순번을 함께 쓴다 */}
-                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{r.postDate} -1</td>
+                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{dateText(r.postDate)} -1</td>
                 <td style={{ textAlign: 'center' }}>{r.postNo}</td>
                 <td>
                   <button type="button" className="no-ec" onClick={() => toggleOpen(r.id)}

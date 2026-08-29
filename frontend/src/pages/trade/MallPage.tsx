@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -176,7 +177,7 @@ export default function MallPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{o.mall}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{o.mallOrderNo}</td>
-                <td>{o.orderDate}</td>
+                <td>{dateText(o.orderDate)}</td>
                 <td>{o.buyerName}</td>
                 <td style={{ color: '#5a626e' }}>{o.productName}</td>
                 <td>
@@ -321,7 +322,7 @@ function FulfillForm({ order, action, onClose, onSaved }: {
             )}
             <tr>
               <th style={{ background: '#f5f7fa' }}>{isShip ? '배송일' : '처리일'}</th>
-              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+              <td><input className="ec-input" type="date" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
             </tr>
           </tbody></table>
         </div>
@@ -406,7 +407,7 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
           </tr>
           <tr>
             <th style={{ background: '#f5f7fa' }}>주문일</th>
-            <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
+            <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
             <th style={{ background: '#f5f7fa' }}>구매자<span style={{ color: '#c60a2e' }}>*</span></th>
             <td><input className="ec-input" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} style={{ width: 160 }} /></td>
           </tr>

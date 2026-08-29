@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -374,7 +375,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 <Fragment key={r.entry.key}>
                   <tr>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.entry.date}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{dateText(r.entry.date)}</td>
                     {/* 회계전표별로 묶으면 이 칸에 회계전표번호가 온다. 미반영 묶음은 눈에 띄게. */}
                     <td style={{
                       fontFamily: 'monospace',

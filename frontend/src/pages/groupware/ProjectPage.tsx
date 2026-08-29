@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -128,9 +129,9 @@ export default function ProjectPage() {
               </tr>
               <tr>
                 <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>종료(예정)</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>상태</th>
@@ -184,8 +185,8 @@ export default function ProjectPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
-              <td>{r.startDate}</td>
-              <td>{r.endDate ?? ''}</td>
+              <td>{dateText(r.startDate)}</td>
+              <td>{dateText(r.endDate) || ''}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
                   <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>

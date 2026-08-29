@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -192,7 +193,7 @@ export default function SettlementPage() {
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-                <td>{r.settleDate}</td>
+                <td>{dateText(r.settleDate)}</td>
                 <td><span style={{ color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401', fontWeight: 700 }}>{r.typeName}</span></td>
                 <td>{r.partnerName}</td>
                 <td>{r.method ?? ''}</td>

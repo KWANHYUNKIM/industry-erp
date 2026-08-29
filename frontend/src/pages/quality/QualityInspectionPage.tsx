@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
@@ -191,7 +192,7 @@ export default function QualityInspectionPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
-              <td>{r.inspectionDate}</td>
+              <td>{dateText(r.inspectionDate)}</td>
               <td>{r.typeName}</td>
               <td>{r.itemName}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>

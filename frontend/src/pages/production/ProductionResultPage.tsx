@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Production, ProductionMaterial, Warehouse, WorkOrder } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -274,7 +275,7 @@ export default function ProductionResultPage() {
               </tr>
               <tr>
                 <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
@@ -385,7 +386,7 @@ export default function ProductionResultPage() {
               ) : productions.map((p) => (
                 <tr key={p.id}>
                   <td style={{ fontFamily: 'monospace' }}>{p.prodNo}</td>
-                  <td>{p.productionDate}</td>
+                  <td>{dateText(p.productionDate)}</td>
                   <td>{p.productName}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c7c3c' }}>+{won(p.producedQty)} {p.productUnit}</td>
                   <td style={{ fontSize: 11.5, color: '#8a929c' }}>{p.materials.map((m) => `${m.componentName} ${won(m.quantity)}`).join(', ')}</td>

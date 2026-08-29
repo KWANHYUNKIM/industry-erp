@@ -4064,6 +4064,41 @@ console.log('\n■ 서버가 열어 둔 자리를 화면이 부르나')
 }
 
 
+// ── 1-s3) 표에 찍는 날짜가 원본 모양인가 ────────────────────────────────
+console.log('\n■ 표에 찍는 날짜가 원본 모양인가')
+
+/*
+ * 원본은 눈에 보이는 날짜를 <b>어디서나 2026/07/16</b> 으로 찍는다(사본 실측 —
+ * 보이는 날짜 413군데가 전부 이 모양이고, 2026-07-16 은 JSON 안에서만 나온다).
+ *
+ * <p>우리는 서버가 주는 ISO 문자열을 표 칸에 <b>그대로</b> 찍는 자리가 158군데였다.
+ * 한 화면 안에서도 [일자]는 슬래시인데 [납기일자]는 하이픈이라, 같은 날짜가 두 모양으로
+ * 보였다. dateText() 로 한 번에 맞췄고, 다시 늘지 않게 여기서 잰다.
+ *
+ * <p><input type="date"> 의 value 는 <b>ISO 라야</b> 브라우저가 알아들으므로 표 칸(td)만 본다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const lines = readFileSync(f, 'utf8').split(/\r?\n/)
+    lines.forEach((L, i) => {
+      if (!/<td/.test(L)) return
+      /* 이미 손질해 찍는 줄(dateText·replace·slice·toLocale…)은 넘어간다. */
+      if (/dateText|replace|dateNo|slice|format|toLocale/.test(L)) return
+      for (const m of L.matchAll(/\{([A-Za-z0-9_.?\s]*[Dd]ate[A-Za-z0-9_]*)\s*(?:(?:\?\?|\|\|)\s*'[^']*')?\}/g)) {
+        if (!/(date|Date)$/.test(m[1].trim())) continue
+        checked += 1
+        bad.push(`${f.split(/[\\/]/).slice(-2).join('/')}:${i + 1}  ${m[0]}`)
+      }
+    })
+  }
+  eq(`표 칸에 ISO 날짜를 그대로 찍는 자리가 없다 (걸린 ${checked}곳)`,
+    bad.join('\n') || '없음', '없음')
+}
+
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

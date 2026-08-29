@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -161,7 +162,7 @@ export default function FastVoucherPage() {
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === v.id ? '▾ ' : '▸ '}{v.voucherNo}
                 </td>
-                <td>{v.voucherDate}</td>
+                <td>{dateText(v.voucherDate)}</td>
                 <td style={{ textAlign: 'center' }}>{v.methodName}</td>
                 <td style={{ color: '#5a626e' }}>{v.bankAccountName ?? '-'}</td>
                 <td>{v.partnerName ?? ''}</td>

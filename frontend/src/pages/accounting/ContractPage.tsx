@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -159,7 +160,7 @@ export default function ContractPage() {
                   <td style={{ fontWeight: 600 }}>{c.title}</td>
                   <td style={{ textAlign: 'center', color: '#5a626e' }}>{c.typeName}</td>
                   <td>{c.partnerName}</td>
-                  <td>{c.startDate} ~ {c.endDate}</td>
+                  <td>{dateText(c.startDate)} ~ {dateText(c.endDate)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
                   <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
                   <td style={{ textAlign: 'center', color: expired ? '#8a929c' : warn ? '#c60a2e' : '#5a626e', fontWeight: warn ? 700 : 400 }}>

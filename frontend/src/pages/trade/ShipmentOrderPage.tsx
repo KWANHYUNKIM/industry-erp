@@ -9,6 +9,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
@@ -435,8 +436,8 @@ export default function ShipmentOrderPage() {
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
                 {s.salesOrderNo ?? '직접등록'}
               </td>
-              <td>{s.shipDate}</td>
-              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{s.dueDate ?? '-'}</td>
+              <td>{dateText(s.shipDate)}</td>
+              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || '-'}</td>
               <td>{s.partnerName}</td>
               <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? '-'}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>

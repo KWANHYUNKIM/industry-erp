@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -173,7 +174,7 @@ export default function QualityStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.inspectionDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.inspectionDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
               <td>{r.itemName}</td>

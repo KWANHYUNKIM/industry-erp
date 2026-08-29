@@ -11,6 +11,7 @@ import { stockCostMap } from '../../utils/stockValue'
 import type { Item, PurchaseDoc } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업지시서효율현황 — 계획(지시수량) 대비 실적 효율
@@ -411,7 +412,7 @@ export default function WoEfficiencyPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
                 <td>[{r.productCode}] {r.productName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.dueDate ?? ''}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right' }}>{r.producedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', color: qtyDiff < 0 ? '#c60a2e' : qtyDiff > 0 ? '#1c7c3c' : '#8a929c' }}>

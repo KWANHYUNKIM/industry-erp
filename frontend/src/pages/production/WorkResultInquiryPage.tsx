@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -249,7 +250,7 @@ export default function WorkResultInquiryPage() {
                 <td style={{ textAlign: 'center' }}>
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
                 <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? '-'}</td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}

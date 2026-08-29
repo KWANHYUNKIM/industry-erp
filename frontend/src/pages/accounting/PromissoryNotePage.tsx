@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -139,8 +140,8 @@ export default function PromissoryNotePage() {
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{n.noteNo}</td>
               <td>{n.typeName}</td>
               <td>{n.partnerName}</td>
-              <td>{n.issueDate}</td>
-              <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? '#c60a2e' : undefined }}>{n.dueDate}</td>
+              <td>{dateText(n.issueDate)}</td>
+              <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? '#c60a2e' : undefined }}>{dateText(n.dueDate)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(n.amount)}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{n.discountFee ? won(n.discountFee) : ''}</td>
               <td>{n.bankName ?? ''}</td>
@@ -241,9 +242,9 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(issueDate)} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>만기일<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>금액<span style={{ color: '#c60a2e' }}>*</span></th>

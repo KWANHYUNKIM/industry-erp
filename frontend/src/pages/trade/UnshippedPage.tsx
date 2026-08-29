@@ -8,6 +8,7 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 미출하현황 (이카운트 E040228)
@@ -416,13 +417,13 @@ export default function UnshippedPage() {
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderDate} {r.orderNo}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
               <td>[{r.itemCode}] {r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.partnerName}</td>
               <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <input

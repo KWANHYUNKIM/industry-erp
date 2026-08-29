@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const fx = (n: number, symbol?: string | null) =>
@@ -175,7 +176,7 @@ export default function ExportPage() {
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === e.id ? '▾ ' : '▸ '}{e.invoiceNo}
                 </td>
-                <td>{e.invoiceDate}</td>
+                <td>{dateText(e.invoiceDate)}</td>
                 <td>{e.buyerName}</td>
                 <td>{e.destination ?? ''}</td>
                 <td>{e.incoterms ?? ''}</td>
@@ -325,7 +326,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
                   </select>
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(invoiceDate)} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>통화<span style={{ color: '#c60a2e' }}>*</span></th>

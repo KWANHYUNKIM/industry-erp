@@ -10,6 +10,7 @@ import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregat
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 type Mode = '내역' | '집계' | '라인별'
@@ -457,7 +458,7 @@ export default function PurchaseStatusPage() {
             ) : slips.map((sl, i) => (
               <tr key={sl.docNo}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{sl.date} {sl.docNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(sl.date)} {sl.docNo}</td>
                 <td>{sl.partner}</td>
                 <td>{sl.itemName}{sl.lineCount > 1 ? ` 외 ${sl.lineCount - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right' }}>{sl.qty.toLocaleString()}</td>
@@ -519,7 +520,7 @@ export default function PurchaseStatusPage() {
           ) : (
             <tr key={x.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
-              <td style={{ fontFamily: 'monospace' }}>{x.r.date}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(x.r.date)}</td>
               <td style={{ fontFamily: 'monospace' }}>{x.r.docNo}</td>
               <td>{x.r.warehouse}</td>
               <td>{x.r.partner}</td>

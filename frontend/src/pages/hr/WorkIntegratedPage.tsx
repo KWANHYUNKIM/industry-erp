@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { useAuth } from '../../auth/AuthContext'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -143,7 +144,7 @@ export default function WorkIntegratedPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={mono}>{r.date}</td>
+              <td style={mono}>{dateText(r.date)}</td>
               <td>{r.name}</td>
               <td style={{ color: '#5a626e' }}>{r.department ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? '-'}</td>

@@ -6,6 +6,7 @@ import type {
   BankAccountRow, PayGroup, PayItem, Payslip, PayrollTransfer, PayslipLineKind,
 } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -533,7 +534,7 @@ function TransferTab({ transfers, onError, onDone }: {
                   {openId === t.id ? '▾ ' : '▸ '}{t.transferNo}
                 </td>
                 <td>{t.payMonth}</td>
-                <td>{t.transferDate}</td>
+                <td>{dateText(t.transferDate)}</td>
                 <td style={{ color: '#5a626e' }}>{t.bankAccountName}</td>
                 <td style={{ textAlign: 'center' }}>{t.lines.length}명</td>
                 <td style={{ textAlign: 'right' }}>{won(t.totalPay)}</td>

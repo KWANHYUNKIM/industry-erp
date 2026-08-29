@@ -8,6 +8,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { Link } from 'react-router-dom'
+import { dateText } from '../../utils/dateText'
 
 interface AsPart {
   id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
@@ -268,7 +269,7 @@ export default function AsManagePage() {
                 </td>
                 {/* 원본 A/S접수입력의 이름은 [접수일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th style={th}>일자</th>
-                <td><input type="date" className={inputCls} value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(receiptDate)} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>품목 *</th>
@@ -299,7 +300,7 @@ export default function AsManagePage() {
                 <th style={th}>제목</th>
                 <td><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} placeholder="무슨 건인지 한 줄로" /></td>
                 <th style={th}>수리예정일자</th>
-                <td><input type="date" className={inputCls} value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(scheduledDate)} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>증상</th>
@@ -422,7 +423,7 @@ export default function AsManagePage() {
               <td>{r.itemName}</td>
               <td>{r.symptom ?? ''}</td>
               <td>{r.charge ?? ''}</td>
-              <td>{r.scheduledDate ?? ''}</td>
+              <td>{dateText(r.scheduledDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printAsReceipt(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
@@ -438,7 +439,7 @@ export default function AsManagePage() {
                 <Link to={`/inventory/ledger?keyword=${encodeURIComponent(r.asNo)}`}
                       style={{ color: 'var(--ec-blue)', fontSize: 12 }}>재고수불</Link>
               </td>
-              <td>{r.doneDate ?? ''}</td>
+              <td>{dateText(r.doneDate) || ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
                 <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: '#5a626e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>

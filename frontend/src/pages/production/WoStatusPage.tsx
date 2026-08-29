@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -152,7 +153,7 @@ export default function WoStatusPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.orderDate} {r.orderNo}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
               <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
@@ -161,7 +162,7 @@ export default function WoStatusPage() {
               <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? '-'}</td>
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
             </tr>
           ))}

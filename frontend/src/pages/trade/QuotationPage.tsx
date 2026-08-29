@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -354,7 +355,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                   </select>
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>견적일</th>
-                <td><input type="date" className="ec-input" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(quoteDate)} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>유효기한</th>

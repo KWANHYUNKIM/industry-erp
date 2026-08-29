@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 II > 품질관리 — 품질검사요청 (이카운트 C000692·E040628~E040631)
@@ -238,7 +239,7 @@ export default function QualityRequestPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.requestNo}</td>
-              <td>{r.requestDate}</td>
+              <td>{dateText(r.requestDate)}</td>
               <td>{r.typeName}</td>
               <td style={{ color: r.inspectMethod ? '#5a626e' : '#c9ced6' }}>
                 {r.inspectMethod
@@ -251,7 +252,7 @@ export default function QualityRequestPage() {
               <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.requestQty.toLocaleString()}</td>
-              <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? '-'}</td>

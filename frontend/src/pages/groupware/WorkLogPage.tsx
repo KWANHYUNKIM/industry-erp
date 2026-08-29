@@ -10,6 +10,7 @@ import { findDataTable } from '../../utils/tableExport'
 import type { Project, WorkJournal } from '../../api/types'
 import { useShortcut } from '../../utils/useShortcut'
 import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
+import { dateText } from '../../utils/dateText'
 
 const TITLE = '업무일지'
 
@@ -208,7 +209,7 @@ export default function WorkLogPage() {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>업무보고일</th>
-                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
+                <td><input className="ec-input" type="date" value={dateText(form.reportDate)} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
                 <th style={{ width: 90, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>
@@ -352,7 +353,7 @@ export default function WorkLogPage() {
             ) : sort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.reportDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.reportDate)}</td>
                 <td style={{ textAlign: 'center' }}>{dow(r.reportDate)}</td>
                 <td>{r.department ?? ''}</td>
                 <td>{r.projectName ?? ''}</td>

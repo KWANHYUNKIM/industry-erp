@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../api/types'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
@@ -103,7 +104,7 @@ export default function JournalListPage() {
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{r.docNo}</td>
-                <td>{r.entryDate}</td>
+                <td>{dateText(r.entryDate)}</td>
                 <td>{r.description}</td>
                 <td>{r.partnerName ?? ''}</td>
                 <td><span style={{ color: SRC_COLOR[r.sourceType], fontSize: 11.5 }}>{r.sourceTypeName}</span></td>

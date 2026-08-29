@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323)
@@ -256,7 +257,7 @@ export default function PriceRequestProgressPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', textAlign: 'center', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)}</td>
               <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
               <td><Stepper status={r.status} /></td>
               <td>{r.partnerName}</td>

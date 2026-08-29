@@ -7,6 +7,7 @@ import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -224,7 +225,7 @@ export default function StockLedgerPage() {
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.transactionDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.transactionDate)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>

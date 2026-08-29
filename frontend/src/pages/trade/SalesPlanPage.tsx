@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -271,7 +272,7 @@ export default function SalesPlanPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{r.expectedDate ?? ''}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{dateText(r.expectedDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{named(r.partnerName, r.partnerCode)}</td>
               <td style={{ color: '#5a626e' }}>{named(r.employeeName, r.employeeCode)}</td>
               <td style={{ color: '#5a626e' }}>{named(r.warehouseName, r.warehouseCode)}</td>

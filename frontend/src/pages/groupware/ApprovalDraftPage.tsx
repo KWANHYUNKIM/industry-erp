@@ -11,6 +11,7 @@ import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
+import { dateText } from '../../utils/dateText'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -349,7 +350,7 @@ export default function ApprovalDraftPage() {
                 <tbody>
                   <tr>
                     <th style={{ width: 130, background: '#f5f7fa' }}>일자</th>
-                    <td><input className="ec-input" type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
+                    <td><input className="ec-input" type="date" value={dateText(draftDate)} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
                   </tr>
                   <tr>
                     <th style={{ background: '#f5f7fa' }}>제목<span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span></th>

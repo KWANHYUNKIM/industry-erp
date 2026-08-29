@@ -9,6 +9,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -189,7 +190,7 @@ export default function StagedAdjustmentPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
-              <td>{r.requestDate}</td>
+              <td>{dateText(r.requestDate)}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.bookQty)}</td>

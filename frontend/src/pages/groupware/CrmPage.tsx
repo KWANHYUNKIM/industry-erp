@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
@@ -171,7 +172,7 @@ export default function CrmPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.activityDate}</td>
+              <td>{dateText(r.activityDate)}</td>
               <td>{r.partnerName}</td>
               <td>{r.contactName ?? ''}</td>
               <td>{r.charge ?? ''}</td>

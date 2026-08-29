@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -156,13 +157,13 @@ export default function CheckPage() {
             <tr key={c.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.checkNo}</td>
-              <td>{c.issueDate}</td>
+              <td>{dateText(c.issueDate)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? '-'}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
-              <td>{c.settledDate ?? ''}</td>
+              <td>{dateText(c.settledDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 {c.status === 'HELD' && (
                   <div style={{ display: 'inline-flex', gap: 3 }}>

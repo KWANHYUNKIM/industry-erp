@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 관리 > 지각현황 (이카운트 E070307 지각현황(ID))
@@ -156,7 +157,7 @@ export default function LateArrivalPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={mono}>{r.date}</td>
+              <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center', color: '#c07a00', fontWeight: 600 }}>{r.clockIn ?? '-'}</td>

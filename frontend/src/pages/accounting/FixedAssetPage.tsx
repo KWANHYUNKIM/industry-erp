@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -169,7 +170,7 @@ function AssetTable({ rows, onDispose }: { rows: FixedAsset[]; onDispose: (a: Fi
             <td style={{ fontFamily: 'monospace' }}>{a.assetNo}</td>
             <td style={{ fontWeight: 600 }}>{a.name}</td>
             <td style={{ color: '#5a626e' }}>{a.assetAccountName}</td>
-            <td>{a.acquisitionDate}</td>
+            <td>{dateText(a.acquisitionDate)}</td>
             <td style={{ textAlign: 'right' }}>{won(a.acquisitionCost)}</td>
             <td style={{ textAlign: 'center', color: '#5a626e' }}>
               {a.methodName}{a.declineRate ? ` ${a.declineRate}%` : ''}
@@ -218,7 +219,7 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
             <td>{r.period}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.assetNo}</td>
             <td>{r.assetName}</td>
-            <td>{r.depreciationDate}</td>
+            <td>{dateText(r.depreciationDate)}</td>
             <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{won(r.amount)}</td>
             <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.accumulatedAfter)}</td>
             <td style={{ textAlign: 'right' }}>{won(r.bookValueAfter)}</td>

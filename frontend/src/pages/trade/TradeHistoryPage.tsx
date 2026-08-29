@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 거래이력조회 (이카운트 E040716)
@@ -201,7 +202,7 @@ export default function TradeHistoryPage() {
             return (
               <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{c.label}</span>
                 </td>

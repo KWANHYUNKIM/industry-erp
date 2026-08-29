@@ -8,6 +8,7 @@ import type { Warehouse } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -263,7 +264,7 @@ export default function IssueStatusPage() {
                 <td>{g.unit}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.totalQty)}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.lastDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(g.lastDate)}</td>
               </tr>
             ))}
           </tbody>
@@ -299,7 +300,7 @@ export default function IssueStatusPage() {
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.issueDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.issueDate)}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
@@ -339,7 +340,7 @@ export default function IssueStatusPage() {
             ) : byOrder.map((g, i) => (
               <tr key={g.workOrderId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.date}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(g.date)}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{g.workOrderNo}</td>
                 <td>{g.itemName}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
 /** Self-Customizing > 다운로드 — 프로그램/양식/매뉴얼 자료실 */
 // 실제 내려받을 파일/저장소가 아직 없어 목록은 표본 데이터다. (백엔드 미연동)
@@ -76,7 +77,7 @@ export default function DownloadPage() {
                 <td>{f.name}</td>
                 <td style={{ fontFamily: 'monospace' }}>{f.version}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{f.size}</td>
-                <td>{f.date}</td>
+                <td>{dateText(f.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => openGuide(f)}>⬇ 받기</button>
                 </td>

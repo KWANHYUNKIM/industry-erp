@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
+import { dateText } from '../../utils/dateText'
 
 const inputCls = 'ec-input w-full'
 
@@ -154,7 +155,7 @@ export default function StockIoPage() {
               </tr>
               <tr>
                 <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={form.transactionDate} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(form.transactionDate)} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>비고</th>
@@ -192,7 +193,7 @@ export default function StockIoPage() {
                 <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : history.map((t) => (
                 <tr key={t.id}>
-                  <td>{t.transactionDate}</td>
+                  <td>{dateText(t.transactionDate)}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span style={{ background: typeColor(t).bg, color: typeColor(t).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{t.typeName}</span>
                   </td>

@@ -7,6 +7,7 @@ import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -222,7 +223,7 @@ export default function UnorderedStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
               <td style={{ fontFamily: 'monospace', color: r.expired ? '#c60a2e' : r.validUntil ? '#5a626e' : '#c5cbd3' }}>
                 {r.validUntil ?? '-'}{r.expired ? ' (경과)' : ''}
               </td>

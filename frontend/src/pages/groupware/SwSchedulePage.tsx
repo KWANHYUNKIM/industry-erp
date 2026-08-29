@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 interface Project {
   id: number
@@ -160,9 +161,9 @@ export default function SwSchedulePage() {
             <tbody>
               <tr>
                 <th style={th}>착수일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>목표일</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>작업/기능명 *</th>
@@ -206,7 +207,7 @@ export default function SwSchedulePage() {
               <td style={{ fontFamily: 'monospace' }}>{r.code ?? '-'}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.endDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || '-'}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>

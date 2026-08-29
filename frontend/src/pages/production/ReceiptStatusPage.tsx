@@ -9,6 +9,7 @@ import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
 import { stockCostMap, sumStockValue } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 생산입고현황 — 생산입고 전표(/api/productions)를 기간·조건으로 본다.
@@ -307,7 +308,7 @@ export default function ReceiptStatusPage() {
             ) : lines.map((l, i) => (
               <tr key={l.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{l.r.productionDate} {l.r.prodNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(l.r.productionDate)} {l.r.prodNo}</td>
                 <td>[{l.r.productCode}] {l.r.productName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(l.r.producedQty)}
@@ -346,7 +347,7 @@ export default function ReceiptStatusPage() {
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.productionDate} {r.prodNo}</td>
+                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.productionDate)} {r.prodNo}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
                 <td style={{ color: r.fromWarehouseName ? undefined : '#c9ced6' }}>
                   {r.fromWarehouseName ?? r.warehouseName}

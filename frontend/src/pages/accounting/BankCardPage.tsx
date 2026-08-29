@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -349,7 +350,7 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.txnNo}</td>
-            <td>{r.txnDate}</td>
+            <td>{dateText(r.txnDate)}</td>
             <td>{r.bankName} {r.accountNo}</td>
             <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? '#1c7c3c' : '#c60a2e' }}>{r.directionName}</td>
             <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.amount)}</td>
@@ -391,7 +392,7 @@ function CardUsageTable({ rows }: { rows: CardUsage[] }) {
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.usageNo}</td>
-            <td>{r.usageDate}</td>
+            <td>{dateText(r.usageDate)}</td>
             <td>{r.cardCompany} {r.cardName}</td>
             <td style={{ fontWeight: 600 }}>{r.merchant}</td>
             <td style={{ color: '#5a626e' }}>{r.expenseAccountName}</td>

@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 구매관리 > 발주서현황 (이카운트 E040306)
@@ -219,8 +220,8 @@ export default function PurchaseOrderStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
               <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || '-'}</td>

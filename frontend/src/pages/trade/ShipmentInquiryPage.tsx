@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -188,7 +189,7 @@ export default function ShipmentInquiryPage() {
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{r.shipNo}</td>
-                <td>{r.shipDate}</td>
+                <td>{dateText(r.shipDate)}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: r.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>{r.salesOrderNo ?? '직접등록'}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>

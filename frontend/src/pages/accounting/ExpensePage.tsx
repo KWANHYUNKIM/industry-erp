@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { CommonCode, Project } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 // 결제수단은 공통코드(PAYMENT_METHOD)에서 가져온다. 화면에 하드코딩하면 항목 하나 늘릴 때마다 배포해야 한다.
@@ -185,7 +186,7 @@ export default function ExpensePage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.expenseDate}</td>
+              <td>{dateText(r.expenseDate)}</td>
               <td>{r.accountName}</td>
               <td>{r.content ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>

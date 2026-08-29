@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
@@ -111,8 +112,8 @@ export default function HrRecordPage() {
                 <td style={{ fontWeight: 600 }}>{e.name}</td>
                 <td>{e.department || <span style={{ color: '#c60a2e' }}>미배치</span>}</td>
                 <td>{e.jobTitle || <span style={{ color: '#c3c8cf' }}>-</span>}</td>
-                <td>{e.hireDate ?? ''}</td>
-                <td style={{ color: e.resignDate ? '#c60a2e' : undefined }}>{e.resignDate ?? ''}</td>
+                <td>{dateText(e.hireDate) || ''}</td>
+                <td style={{ color: e.resignDate ? '#c60a2e' : undefined }}>{dateText(e.resignDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{days == null ? '-' : `${days.toLocaleString('ko-KR')}일`}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: e.active ? '#1c7c3c' : '#8a929c' }}>{e.active ? '재직' : '퇴사'}</span>
@@ -149,7 +150,7 @@ export default function HrRecordPage() {
               ) : assignments.map((a, i) => (
                 <tr key={a.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td>{a.assignDate}</td>
+                  <td>{dateText(a.assignDate)}</td>
                   <td style={{ color: a.type === 'RESIGN' ? '#c60a2e' : a.type === 'PROMOTION' ? '#1c7c3c' : 'var(--ec-blue)' }}>{a.typeName}</td>
                   <td>{a.department || '-'}</td>
                   <td>{a.jobTitle || '-'}</td>
@@ -231,7 +232,7 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>발령일</th>
-                <td><input type="date" className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(assignDate)} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>부서</th>

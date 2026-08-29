@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import type { PartnerBalance, ProfitSummary, PurchaseDoc, SalesDoc, StockRow, VatSummary } from '../api/types'
+import { dateText } from '../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const STORAGE_KEY = 'mypage-widgets-v1'
@@ -173,7 +174,7 @@ const REGISTRY: WidgetDef[] = [
           ) : d.sales.slice(0, 6).map((s) => (
             <tr key={s.id}>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
-              <td>{s.saleDate}</td>
+              <td>{dateText(s.saleDate)}</td>
               <td>{s.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
             </tr>
@@ -193,7 +194,7 @@ const REGISTRY: WidgetDef[] = [
           ) : d.purchases.slice(0, 6).map((p) => (
             <tr key={p.id}>
               <td style={{ fontFamily: 'monospace' }}>{p.docNo}</td>
-              <td>{p.purchaseDate}</td>
+              <td>{dateText(p.purchaseDate)}</td>
               <td>{p.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#2f8401' }}>{won(p.totalAmount)}</td>
             </tr>

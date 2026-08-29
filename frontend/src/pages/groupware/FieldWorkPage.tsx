@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const monthStart = () => today().slice(0, 8) + '01'
@@ -112,7 +113,7 @@ export default function FieldWorkPage() {
             return (
               <tr key={f.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td>{f.workDate}</td>
+                <td>{dateText(f.workDate)}</td>
                 <td>{f.userName}{mine && <span style={{ fontSize: 11, color: 'var(--ec-blue)' }}> (나)</span>}</td>
                 <td>{f.department ?? ''}</td>
                 <td style={{ color: '#8a929c' }}>
@@ -200,7 +201,7 @@ function FieldWorkForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>외근일<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(workDate)} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>시간</th>
                 <td>
                   <input type="time" className="ec-input" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: 100 }} />

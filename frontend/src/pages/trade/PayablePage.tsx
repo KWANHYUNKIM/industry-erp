@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PartnerBalance, PurchaseDoc } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -231,7 +232,7 @@ export default function PayablePage() {
                             <tr key={d.id}>
                               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{di + 1}</td>
                               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{d.docNo}</td>
-                              <td>{d.purchaseDate}</td>
+                              <td>{dateText(d.purchaseDate)}</td>
                               <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.totalAmount)}</td>
                               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.balance)}</td>
                               <td style={{ textAlign: 'center', color: d.days > 90 ? '#c60a2e' : '#5a626e' }}>{d.days}일</td>

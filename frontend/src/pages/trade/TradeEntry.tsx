@@ -15,6 +15,7 @@ import Modal from '../../components/Modal'
 import { findDataTable } from '../../utils/tableExport'
 import { useShortcut } from '../../utils/useShortcut'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -1718,7 +1719,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       <td className="pad" style={{ textAlign: 'center', color: '#8a929c' }}>{l.sourceDocType}</td>
                     )}
                     {cols.srcDate && (
-                      <td className="pad" style={{ textAlign: 'center', color: '#8a929c' }}>{l.sourceDocDate}</td>
+                      <td className="pad" style={{ textAlign: 'center', color: '#8a929c' }}>{dateText(l.sourceDocDate)}</td>
                     )}
                     {cols.srcNo && (
                       <td className="pad" style={{ color: '#8a929c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1901,7 +1902,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                         <input type="checkbox" readOnly checked={!!loadPicked[r.key]} />
                       </td>
                       <td style={{ fontFamily: 'ui-monospace, monospace' }}>{r.docNo}</td>
-                      <td>{r.date}</td>
+                      <td>{dateText(r.date)}</td>
                       <td>{r.partnerName}</td>
                       <td>{r.itemName}</td>
                       <td style={{ textAlign: 'right' }}>{won(r.orderedQty)}</td>

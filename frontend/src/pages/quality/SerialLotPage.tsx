@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
@@ -240,8 +241,8 @@ export default function SerialLotPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
               <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''}</td>
               <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
-              <td>{r.inboundDate}</td>
-              <td>{r.expireDate ?? '-'}</td>
+              <td>{dateText(r.inboundDate)}</td>
+              <td>{dateText(r.expireDate) || '-'}</td>
               <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? '#9aa1ab' : undefined }}>{r.stockQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? '-'}</td>
@@ -277,7 +278,7 @@ export default function SerialLotPage() {
                         {lotTx.filter((t) => t.lotNo === r.lotNo).map((t, k) => (
                           <tr key={t.id}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{t.txDate}</td>
+                            <td style={{ fontFamily: 'monospace' }}>{dateText(t.txDate)}</td>
                             <td>{t.typeName}</td>
                             <td style={{ textAlign: 'right', color: t.quantityChange < 0 ? '#c60a2e' : '#1c7c3c' }}>
                               {t.quantityChange.toLocaleString()}

@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { AccountLedger } from '../../api/types'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { dateText } from '../../utils/dateText'
 
 interface AccountOpt { id: number; code: string; name: string }
 
@@ -102,7 +103,7 @@ export default function AccountLedgerPage() {
                 <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : data.rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.entryDate}</td>
+                  <td>{dateText(r.entryDate)}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
                   <td>{r.description}</td>
                   <td>{r.partnerName ?? ''}</td>

@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeType, OtherWithholding, OtherWithholdingSummary, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -135,7 +136,7 @@ export default function OtherWithholdingPage() {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.docNo}</td>
-              <td>{r.payDate}</td>
+              <td>{dateText(r.payDate)}</td>
               <td>{r.incomeTypeName}</td>
               <td style={{ fontWeight: 600 }}>{r.payeeName}</td>
               <td style={{ color: '#8a929c' }}>{r.payeeRegNo ?? '-'}</td>
@@ -250,7 +251,7 @@ function WithholdingForm({ partners, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>지급일</th>
-                <td><input type="date" className="ec-input" value={payDate} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(payDate)} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>지급액<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td><input className="ec-input" type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} /></td>
               </tr>

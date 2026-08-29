@@ -6,6 +6,7 @@ import { INQUIRY_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '..
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 출하현황 — 출하 전표를 기간·조건으로 본다 (/api/shipments).
@@ -294,7 +295,7 @@ export default function ShipmentPage() {
             ) : lines.map((x, i) => (
               <tr key={x.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{x.r.shipDate} {x.r.shipNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(x.r.shipDate)} {x.r.shipNo}</td>
                 <td>[{x.l.itemCode}] {x.l.itemName}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
@@ -330,7 +331,7 @@ export default function ShipmentPage() {
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.shipDate} {r.shipNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.shipDate)} {r.shipNo}</td>
                 <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>

@@ -10,6 +10,7 @@ import { loadSupplierParty, printDocuments, type DocParty, type PrintDocumentOpt
 import { partnerCodeItems } from '../../utils/codeItems'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업 > 거래명세서인쇄 (이카운트 E040210)
@@ -299,7 +300,7 @@ export default function StatementPrintPage() {
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={checked.includes(d.id)} onChange={() => toggle(d.id)} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{d.saleDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(d.saleDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
               <td>{d.partnerName}</td>
               {/* 원본은 품목명[규격명] 을 이 자리에 적는다. 여러 줄이면 첫 품목 외 n. */}

@@ -8,6 +8,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -416,7 +417,7 @@ export default function WorkResultListPage() {
             ) : byOrder.map((g, i) => (
               <tr key={g.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.date}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(g.date)}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{g.orderNo}</td>
                 <td>{g.process}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.lineCount)}</td>

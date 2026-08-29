@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction, LotTxType } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 II > 시리얼/로트No. — 로트 수불부 / 내역조회 (이카운트 E040618·E040620·E040639)
@@ -125,7 +126,7 @@ export default function LotLedgerPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
                 <td>{r.itemName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.txDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.txDate)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>

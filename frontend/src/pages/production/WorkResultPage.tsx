@@ -6,6 +6,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import type { Item } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -387,7 +388,7 @@ export default function WorkResultPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? '-'}</td>
               <td>{r.process}</td>
               <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '-'}</td>

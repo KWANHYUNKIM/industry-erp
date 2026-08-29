@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동)
@@ -383,7 +384,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
               <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : '-'}</td>
               <td>{r.fromWarehouseName}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.productionDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>
             </tr>
           ))}
         </tbody>

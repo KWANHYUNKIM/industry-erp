@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 증빙센터 (이카운트 E040730)
@@ -195,8 +196,8 @@ export default function EvidenceCenterPage() {
               </td>
               <td>{r.menuLabel}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo ?? `#${r.entityId}`}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docDate ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.evidenceDate ?? ''}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.docDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.evidenceDate) || ''}</td>
               <td>{r.methodName}</td>
               <td>
                 {r.fileId ? (

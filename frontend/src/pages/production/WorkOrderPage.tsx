@@ -11,6 +11,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { Link } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
+import { dateText } from '../../utils/dateText'
 
 const inputCls = 'ec-input'
 
@@ -323,7 +324,7 @@ export default function WorkOrderPage() {
                 <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? '-'}</td>
                 <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
-                <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{o.dueDate ?? '-'}</td>
+                <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{dateText(o.dueDate) || '-'}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)' }}>{o.orderNo}</td>
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>

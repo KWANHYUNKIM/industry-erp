@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -282,7 +283,7 @@ export default function PurchaseOrderPage() {
                       + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
                     : ''}
                 </td>
-                <td style={{ textAlign: 'center' }}>{po.dueDate ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>{dateText(po.dueDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(po.supplyAmount)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(po.vatAmount)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(po.totalAmount)}</td>
@@ -539,13 +540,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
-                <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
                     목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
                 <th style={{ background: '#f5f7fa' }}>납기일자</th>
-                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}

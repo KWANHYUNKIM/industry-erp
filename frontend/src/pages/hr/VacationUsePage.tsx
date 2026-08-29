@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { formatDays } from '../../utils/dayCount'
+import { dateText } from '../../utils/dateText'
 
 /** 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동) */
 interface Row {
@@ -219,8 +220,8 @@ export default function VacationUsePage() {
               <td>{first ? r.empName : ''}</td>
               <td>{first ? (r.department ?? '') : ''}</td>
               <td style={{ textAlign: 'center' }}>{r.type}</td>
-              <td style={mono}>{r.startDate}</td>
-              <td style={mono}>{r.endDate}</td>
+              <td style={mono}>{dateText(r.startDate)}</td>
+              <td style={mono}>{dateText(r.endDate)}</td>
               <td>{r.reason ?? ''}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{grant != null ? days(grant) : ''}</td>
               <td style={{ textAlign: 'right' }}>{days(r.days)}</td>

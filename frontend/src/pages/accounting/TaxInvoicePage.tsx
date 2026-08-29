@@ -5,6 +5,7 @@ import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
@@ -126,7 +127,7 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{r.invoiceNo}</td>
-              <td>{r.issueDate}</td>
+              <td>{dateText(r.issueDate)}</td>
               <td>{r.partnerName}</td>
               <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{r.sourceDocNo}</td>
               <td style={{ textAlign: 'right' }}>{won(r.supplyAmount)}</td>

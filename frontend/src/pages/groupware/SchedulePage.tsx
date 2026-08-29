@@ -7,6 +7,7 @@ import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../auth/AuthContext'
 import { isMyEvent } from '../../utils/myCalendar'
+import { dateText } from '../../utils/dateText'
 
 interface ScheduleEvent {
   id: number
@@ -206,7 +207,7 @@ export default function SchedulePage() {
             <tbody>
               <tr>
                 <th style={th}>일자 *</th>
-                <td><input type="date" className={inputCls} value={eventDate} onChange={(e) => setEventDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(eventDate)} onChange={(e) => setEventDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>시간</th>
                 <td>
                   <input type="time" className={inputCls} value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: 110 }} />

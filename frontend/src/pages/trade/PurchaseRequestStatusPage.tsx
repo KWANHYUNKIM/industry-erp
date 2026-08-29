@@ -7,6 +7,7 @@ import { INQUIRY_PICKS, comparePeriodOf, type ComparePeriod } from '../../compon
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 구매관리 > 발주 파이프라인 현황 — 한 컴포넌트를 진입 상태만 바꿔 재사용한다.
@@ -352,8 +353,8 @@ export default function PurchaseRequestStatusPage({
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
               <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || '-'}</td>

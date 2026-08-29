@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -484,7 +485,7 @@ export default function AccountingReflectionPage() {
             ) : (
               <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{r.no}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.slip.slipDate} {r.slip.docNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
                 <td>{r.slip.partnerName}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.line.itemCode}</td>
                 <td>{r.line.itemName}</td>
@@ -606,7 +607,7 @@ export default function AccountingReflectionPage() {
               <td style={{ textAlign: 'center' }}>
                 {s.reflected ? <span style={{ color: '#9aa1ab' }}>{i + 1}</span> : <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{s.slipDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(s.slipDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
               <td>{s.partnerName}</td>
               <td>{s.itemSummary}</td>

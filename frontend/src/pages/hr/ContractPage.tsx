@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -133,7 +134,7 @@ export default function ContractPage() {
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{c.contractNo}</td>
               <td>{c.employeeName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{c.employeeCode}</span></td>
               <td>{c.typeName}</td>
-              <td>{c.startDate} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
+              <td>{dateText(c.startDate)} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
               <td>{c.department || '-'}</td>
               <td>{c.jobTitle || '-'}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(c.monthlySalary)}</td>
@@ -305,7 +306,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>계약 시작일</th>
-                <td><input type="date" className="ec-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ background: '#f5f7fa' }}>종료일</th>
                 <td>
                   <input type="date" className="ec-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} disabled={type === 'PERMANENT'} />

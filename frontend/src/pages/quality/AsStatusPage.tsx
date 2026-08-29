@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -175,7 +176,7 @@ export default function AsStatusPage() {
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.receiptDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.receiptDate)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.itemName}</td>
@@ -184,7 +185,7 @@ export default function AsStatusPage() {
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{r.doneDate ?? '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || '-'}</td>
                 <td style={{ textAlign: 'right', color: days === null ? '#c5cbd3' : '#3c4553' }}>{days === null ? '-' : `${days}일`}</td>
                 <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || '-'}</td>
               </tr>

@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -132,7 +133,7 @@ export default function NonCashPage() {
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.txnNo}</td>
-              <td>{t.txnDate}</td>
+              <td>{dateText(t.txnDate)}</td>
               <td style={{ color: 'var(--ec-blue)' }}>{t.typeName}</td>
               <td>{t.debitAccountCode} {t.debitAccountName}</td>
               <td style={{ color: '#5a626e' }}>{t.creditAccountCode} {t.creditAccountName}</td>

@@ -7,6 +7,7 @@ import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 interface MaterialIssue {
@@ -457,7 +458,7 @@ export default function IssuePage() {
               <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName ?? '-'}</td>
               <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? '-'}</td>
-              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{r.workOrderDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.workOrderDate) || '-'}</td>
               <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}

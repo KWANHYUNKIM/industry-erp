@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -91,7 +92,7 @@ export default function IncomePage() {
             ) : rows.map((i, idx) => (
               <tr key={i.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td>{i.incomeDate}</td>
+                <td>{dateText(i.incomeDate)}</td>
                 <td>{i.accountCode} {i.accountName}</td>
                 <td>{i.content}</td>
                 <td>{i.partnerName ?? ''}</td>
@@ -233,7 +234,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>수입일</th>
-                <td><input type="date" className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(incomeDate)} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 130 }} /></td>
               </tr>

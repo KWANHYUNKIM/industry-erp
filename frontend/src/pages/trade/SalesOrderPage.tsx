@@ -8,6 +8,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
@@ -205,9 +206,9 @@ export default function SalesOrderPage() {
               </tr>
               <tr>
                 <th style={th}>수주일자</th>
-                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>납기일자</th>
-                <td><input type="date" className={inputCls} value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
             </tbody>
           </table>
@@ -285,11 +286,11 @@ export default function SalesOrderPage() {
             <tr key={o.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
-              <td>{o.orderDate}</td>
+              <td>{dateText(o.orderDate)}</td>
               <td>{o.partnerName}</td>
               <td>{o.lines[0]?.itemName}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(o.totalAmount)}</td>
-              <td>{o.dueDate ?? ''}</td>
+              <td>{dateText(o.dueDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{o.warehouseName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{o.projectName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{o.employeeName ?? ''}</td>

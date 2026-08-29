@@ -6,6 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 주문서현황 (이카운트 E040209)
@@ -341,8 +342,8 @@ export default function SalesOrderStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || '-'}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
               <td style={{ textAlign: 'center' }}>

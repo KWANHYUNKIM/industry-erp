@@ -6,6 +6,7 @@ import type { Partner } from '../../api/types'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 데이터센터 > 데이터내보내기 > 의료기기공급내역보고 (이카운트 E040231)
@@ -292,7 +293,7 @@ export default function MedicalDeviceReportPage() {
           ) : byDoc.map((d, i) => (
             <tr key={d.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{d.supplyDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(d.supplyDate)}</td>
               <td style={{ color: d.supplyType === 'DISPOSAL' ? '#c60a2e' : 'var(--ec-blue)', fontWeight: 700 }}>{d.supplyTypeName}</td>
               <td style={{ fontFamily: 'monospace' }}>{d.docNo ?? ''}</td>
               <td>{d.partnerName ?? <span style={{ color: '#9aa1ab' }}>-</span>}</td>
@@ -330,7 +331,7 @@ export default function MedicalDeviceReportPage() {
           ) : shownLines.map((l, i) => (
             <tr key={`${l.supplyType}-${l.docNo}-${l.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{l.supplyDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(l.supplyDate)}</td>
               <td style={{ color: l.supplyType === 'DISPOSAL' ? '#c60a2e' : 'var(--ec-blue)', fontWeight: 700 }}>{l.supplyTypeName}</td>
               <td style={{ fontFamily: 'monospace' }}>{l.docNo ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{l.udiDi}</td>
