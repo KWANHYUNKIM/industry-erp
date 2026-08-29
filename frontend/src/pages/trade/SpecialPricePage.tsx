@@ -226,7 +226,13 @@ export default function SpecialPricePage() {
             <th style={{ width: 34 }}></th>
             <th style={{ width: 60 }}>구분</th>
             <th>품목</th>
-            <th>적용범위</th>
+            {/*
+              원본은 <b>[적용범위] 한 칸에 뭉치지 않고</b> 무엇으로 좁혔는지를 열로 나눈다
+              (특별단가그룹코드 · 특별단가그룹명 · 거래처설정 · 창고설정 · 품목설정 · 품목그룹설정).
+              우리가 가진 둘(그룹·거래처)을 갈라 낸다 — 뭉쳐 두면 그룹만 훑을 수가 없다.
+            */}
+            <th style={{ width: 130 }}>특별단가그룹명</th>
+            <th style={{ width: 130 }}>거래처설정</th>
             <th style={{ textAlign: 'right' }}>특별단가</th>
             <th>비고</th>
             <th style={{ textAlign: 'center', width: 90 }}>사용여부</th>
@@ -235,15 +241,16 @@ export default function SpecialPricePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : visible.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : visible.map((r, i) => (
             <tr key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td>{typeLabel[r.tradeType]}</td>
               <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.itemCode}</span>{r.itemName}</td>
-              <td>{r.partnerName ? `거래처·${r.partnerName}` : `그룹·${r.priceGroup}`}</td>
+              <td style={{ color: '#5a626e' }}>{r.priceGroup ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.unitPrice)}</td>
               <td style={{ color: '#6b7280' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
