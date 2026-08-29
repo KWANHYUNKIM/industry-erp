@@ -4,6 +4,7 @@ import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -29,6 +30,8 @@ interface Agg {
 const won = (n: number) => n.toLocaleString('ko-KR')
 const emptyAgg = (key: string, name: string): Agg => ({ key, name, saleCount: 0, saleQty: 0, saleSupply: 0, buyCount: 0, buyQty: 0, buySupply: 0 })
 
+const initP = periodOf('금월(~오늘)')!
+
 export default function SalesPurchaseSummaryPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
@@ -49,8 +52,10 @@ export default function SalesPurchaseSummaryPage() {
   const [kindCond, setKindCond] = useState<'전체' | '일반' | '반품'>('전체')
   const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees', 'items'])
 
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /* 원본 판매구매집계표는 <b>금월</b>을 보고 열린다(사본 실측). 우리는 비워 두어 */
+  /* 열자마자 몇 해치를 한 표로 더했다 — 이번 달 장사가 어땠는지 알 수 없는 숫자다. */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [groupBy, setGroupBy] = useState<GroupBy>('partner')
   const [keyword, setKeyword] = useState('')
 

@@ -7,6 +7,7 @@ import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 데이터센터 > 데이터내보내기 > 의료기기공급내역보고 (이카운트 E040231)
@@ -48,7 +49,6 @@ interface ReportHistory {
   createdAt: string | null
 }
 
-const iso = (d: Date) => ymd(d)
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /**
@@ -67,10 +67,13 @@ const SUPPLY_SHAPES = ['제조, 수입, 판매', '의료기관', '약국개설�
 const SEARCH_TYPES = ['건별', '전표별'] as const
 type SearchType = typeof SEARCH_TYPES[number]
 
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function MedicalDeviceReportPage() {
-  const today = iso(new Date())
-  const [from, setFrom] = useState(today.slice(0, 8) + '01')
-  const [to, setTo] = useState(today)
+  /* 원본 의료기기공급내역보고는 <b>[최근30일(+1개월)]</b> 로 연다(사본 실측 — 달 스핀박스가 */
+  /* 06·08 셋). 공급은 <b>앞으로 나갈 것</b>까지 잡아 두고 보고를 준비하는 자리라서다. */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [supplyType, setSupplyType] = useState('')
   const [partnerId, setPartnerId] = useState('')
   /*

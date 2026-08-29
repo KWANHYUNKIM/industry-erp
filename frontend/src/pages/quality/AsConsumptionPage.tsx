@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { ymd, INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
@@ -14,6 +14,8 @@ import { ymd, INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
  */
 interface Row { itemId: number; itemName: string; asCount: number; totalQty: number; totalAmount: number }
 const won = (n: number) => n.toLocaleString('ko-KR')
+
+const initP = periodOf('금월(~오늘)')!
 
 export default function AsConsumptionPage() {
   const [rows, setRows] = useState<Row[]>([])
@@ -28,8 +30,10 @@ export default function AsConsumptionPage() {
    * [프로젝트]·[수리유형]은 A/S 전표에 그 값이 없고, 담당자는 우리 쪽이 하나뿐이라
    * 원본의 수리·접수 둘로 가를 수 없다.
    */
-  const [from, setFrom] = useState(`${new Date().getFullYear()}-01-01`)
-  const [to, setTo] = useState(ymd(new Date()))
+  /* 원본 A/S소모현황은 <b>금월</b>을 보고 열린다(사본 실측). 우리는 <b>올해 1월 1일</b>부터라 */
+  /* 한 해치 소모가 한 화면에 뭉쳐 이번 달 소모가 얼마인지 읽히지 않았다. */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [warehouseId, setWarehouseId] = useState('')
   const [partnerId, setPartnerId] = useState('')
   const [repairItemId, setRepairItemId] = useState('')
