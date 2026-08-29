@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -28,7 +29,14 @@ interface Filters {
   dateFrom: string; dateTo: string; warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
+/*
+ * 원본 A/S접수현황은 <b>금월</b>을 보고 열리고, 기간 단추에 <b>직전분기·직전반기</b>가
+ * 더 있다(사본 실측). A/S 는 분기·반기로 접수량을 견주는 일이 흔해서다.
+ * 우리는 기간을 비워 두고 단추도 없어서, 열면 접수가 통째로 쏟아졌다.
+ */
+const init = periodOf('금월(~오늘)')!
+
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
 
 /** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
 function daysBetween(from: string, to: string | null): number | null {
@@ -225,6 +233,10 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
+              onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+          </span>
       </div>
       <div style={rowStyle}>
         {/* 원본 A/S접수현황 차례: <b>창고 · 프로젝트</b> · 담당자 · 접수진행상태 · 거래처 · 품목 */}

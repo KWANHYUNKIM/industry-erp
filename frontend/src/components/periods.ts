@@ -88,6 +88,31 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
         from: ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
         to: ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0)),
       }
+    /*
+     * <b>직전분기</b> — 지금 분기의 <b>바로 앞</b> 세 달을 통째로. 1~3월이면 작년 10~12월이다.
+     * A/S접수현황·A/S수리현황 버튼줄에 있다(사본 실측) — 분기로 접수량을 견주는 화면이라서다.
+     */
+    case '직전분기': {
+      const q = Math.floor(t.getMonth() / 3) - 1
+      const y = q < 0 ? t.getFullYear() - 1 : t.getFullYear()
+      const m = ((q % 4) + 4) % 4 * 3
+      return {
+        from: ymd(new Date(y, m, 1)),
+        to: ymd(new Date(y, m + 3, 0)),
+      }
+    }
+    /*
+     * <b>직전반기</b> — 지금 반기의 바로 앞 여섯 달. 상반기(1~6월)에 있으면 작년 하반기다.
+     */
+    case '직전반기': {
+      const firstHalf = t.getMonth() < 6
+      const y = firstHalf ? t.getFullYear() - 1 : t.getFullYear()
+      const m = firstHalf ? 6 : 0
+      return {
+        from: ymd(new Date(y, m, 1)),
+        to: ymd(new Date(y, m + 6, 0)),
+      }
+    }
     // 이번 달 마지막 날 하루. 원본 건설예정공정표 버튼줄에 있다.
     case '말일': {
       const last = new Date(t.getFullYear(), t.getMonth() + 1, 0)
@@ -185,6 +210,12 @@ export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
  * 견적은 <b>앞으로</b>의 일이라 아직 안 온 날짜까지 봐야 한다 — 작업지시서조회와 같은 까닭이다.
  * 차례도 원본대로 [종료일] 다음이다.
  */
+/**
+ * A/S접수현황·A/S수리현황(E040610·E040611) — 조회 묶음에 <b>직전분기·직전반기</b>가 붙는다
+ * (사본 실측). A/S 는 분기·반기로 접수량을 견주는 일이 흔하다.
+ */
+export const AS_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일'] as const
+
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
 
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const

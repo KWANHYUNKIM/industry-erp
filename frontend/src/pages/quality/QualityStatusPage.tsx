@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -36,7 +37,13 @@ interface Filters {
   result: '' | QualityResult
   inspector: string
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', type: '', item: '', warehouse: '', project: '', result: '', inspector: '' }
+/*
+ * 원본 품질검사현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간을 비워 두고 단추도 없었다.
+ */
+const init = periodOf('금월(~오늘)')!
+
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', inspector: '' }
 
 const pct = (n: number) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
 
@@ -221,6 +228,10 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={draft.dateFrom}
+              onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+          </span>
       </div>
       <div style={rowStyle}>
         <span style={label}>검사유형</span>

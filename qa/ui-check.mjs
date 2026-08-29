@@ -1156,6 +1156,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
     ['미주문현황', 'trade/UnorderedStatusPage.tsx'],
     ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
+    ['A/S접수현황', 'quality/AsStatusPage.tsx'],
+    ['품질검사현황', 'quality/QualityStatusPage.tsx'],
   ])
 
   /**

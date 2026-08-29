@@ -165,3 +165,23 @@ test('최근30일(+1개월) — 달을 넘어가도 같은 날로 잡는다', ()
   assert.deepEqual(periodOf('최근30일(+1개월)', new Date(2026, 11, 20)),
     { from: '2026-11-20', to: '2027-01-20' })
 })
+
+test('직전분기 — 3분기에 있으면 4~6월', () => {
+  assert.deepEqual(periodOf('직전분기', new Date(2026, 6, 16)),
+    { from: '2026-04-01', to: '2026-06-30' })
+})
+
+test('직전분기 — 1분기에 있으면 작년 10~12월', () => {
+  assert.deepEqual(periodOf('직전분기', new Date(2026, 1, 3)),
+    { from: '2025-10-01', to: '2025-12-31' })
+})
+
+test('직전반기 — 하반기에 있으면 올해 1~6월', () => {
+  assert.deepEqual(periodOf('직전반기', new Date(2026, 6, 16)),
+    { from: '2026-01-01', to: '2026-06-30' })
+})
+
+test('직전반기 — 상반기에 있으면 작년 7~12월', () => {
+  assert.deepEqual(periodOf('직전반기', new Date(2026, 2, 9)),
+    { from: '2025-07-01', to: '2025-12-31' })
+})
