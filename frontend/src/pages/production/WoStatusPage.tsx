@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -48,6 +49,12 @@ interface Row {
   dueDate: string | null
 }
 
+/*
+ * 원본 작업지시서현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간 칸이 <b>아예 없어서</b> 지시가 쌓이면 몇 해치가 한 화면에 쏟아졌다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 export default function WoStatusPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,6 +66,8 @@ export default function WoStatusPage() {
    * 우리는 이름 한 칸(keyword)뿐이라, 창고로 좁히려면 눈으로 훑어야 했다 —
    * 네 값 모두 이미 목록에 실려 오고 있었다.
    */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -93,7 +102,8 @@ export default function WoStatusPage() {
     && (!orderNoCond || r.orderNo.includes(orderNoCond))
     && (!warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
     && (!partnerCond || (r.partnerName ?? '').includes(partnerCond))
-    && (!itemCond || r.productName.includes(itemCond)))
+    && (!itemCond || r.productName.includes(itemCond))
+    && (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
 
   return (
     <EcListShell
@@ -105,6 +115,18 @@ export default function WoStatusPage() {
     >
       {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="작업지시No.">
           <input className="ec-input" value={orderNoCond}
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />

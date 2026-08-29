@@ -1161,6 +1161,10 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['작업지시서조회', 'production/WorkOrderPage.tsx'],
     ['작업내역조회', 'production/WorkResultInquiryPage.tsx'],
     ['재고실사현황', 'inventory/StocktakeStatusPage.tsx'],
+    ['작업지시서현황', 'production/WoStatusPage.tsx'],
+    ['생산불출조회', 'production/IssuePage.tsx'],
+    ['생산입고조회', 'production/ReceiptInquiryPage.tsx'],
+    ['불량률파악보고서', 'quality/DefectReportPage.tsx'],
   ])
 
   /**

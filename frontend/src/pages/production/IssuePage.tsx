@@ -8,6 +8,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 interface MaterialIssue {
@@ -74,6 +75,14 @@ interface FormLine { key: number; itemId: string; qty: string; note: string }
 let nextLineKey = 1
 const emptyLine = (): FormLine => ({ key: nextLineKey++, itemId: '', qty: '', note: '' })
 
+/*
+ * 원본 생산불출조회는 <b>[최근30일(+1개월)]</b> 로 열린다(사본 실측 — 달 스핀박스가
+ * 06·08 셋). 불출은 <b>앞으로 낼 것</b>까지 잡아 두는 일이 있어 미래가 들어간다.
+ *
+ * <p>우리는 기간 칸이 <b>아예 없었다</b>.
+ */
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function IssuePage() {
   const [rows, setRows] = useState<MaterialIssue[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -95,6 +104,8 @@ export default function IssuePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [whCond, setWhCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [empCond, setEmpCond] = useState('')
@@ -235,6 +246,7 @@ export default function IssuePage() {
    * [프로젝트]는 생산불출 응답에 그 값이 없어 못 만든다.
    */
   const shown = rows
+    .filter((r) => (!from || r.issueDate >= from) && (!to || r.issueDate <= to))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond)
       || (r.toWarehouseName ?? '').includes(whCond))
@@ -368,6 +380,18 @@ export default function IssuePage() {
 
       {/* 원본 조건 차례: 창고 · 품목 · 프로젝트 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={condPickers.warehouses} />

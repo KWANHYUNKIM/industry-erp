@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CommonCode, QualityInspection, StockAdjustment } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
@@ -31,8 +32,13 @@ export default function DefectReportPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * 원본 불량률파악보고서는 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+   * 우리는 비워 두어서, 열면 몇 해치 불량이 한 비율로 뭉개졌다 — 이번 달이 나쁜지
+   * 좋은지 알 수 없는 숫자다.
+   */
+  const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 불량률파악보고서 조건 차례: 창고 · 프로젝트 · <b>담당자</b> · 불량유형 · <b>처리방법</b>.
