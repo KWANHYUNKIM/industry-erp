@@ -9135,11 +9135,28 @@ async function scenarioNewCompany() {
   }
 
   /* 본사 자료가 새 회사에 비쳐 보이면 안 된다. 본사에는 자료가 많아야 이 비교가 뜻이 있다. */
-  for (const [이름표, path] of [['품목', '/items'], ['거래처', '/partners'], ['판매', '/sales']]) {
+  /*
+   * 줄 수로 견주지 않는다 — 이 시나리오가 아래에서 새 회사에 제 자료를 넣기 때문에
+   * '0줄' 은 두 번째 실행부터 거짓이 된다. <b>본사 것이 비쳐 보이는지</b>로 잰다.
+   */
+  for (const [이름표, path] of [['품목', '/items'], ['거래처', '/partners']]) {
     const 본사 = await must('GET', path)
     eq(`본사에 ${이름표} 자료가 있다`, 본사.length > 0, true)
-    eq(`새 회사에는 본사 ${이름표} 자료가 안 보인다`, (await 그쪽(path)).length, 0)
+    const 본사코드 = new Set(본사.map((x) => x.code))
+    const 비친것 = (await 그쪽(path)).filter((x) => 본사코드.has(x.code)).map((x) => x.code)
+    eq(`새 회사에 본사 ${이름표} 자료가 비쳐 보이지 않는다`, 비친것.join(', ') || '없음', '없음')
   }
+  /*
+   * 판매는 전표번호로 못 견준다 — 채번이 스키마마다 따로 돌아서 두 회사에
+   * SO-20260830-0001 이 <b>둘 다 있는 것이 정상</b>이다(실제로 그래서 한 번 헛걸렸다).
+   * 대신 그 회사 판매가 <b>그 회사 거래처</b>만 물고 있는지 본다. 본사 전표가 비쳤다면
+   * 그 회사에 없는 거래처 이름이 딸려 온다.
+   */
+  const 그거래처 = new Set((await 그쪽('/partners')).map((x) => x.name))
+  const 남의거래처 = (await 그쪽('/sales'))
+    .filter((x) => x.partnerName && !그거래처.has(x.partnerName))
+    .map((x) => `${x.docNo}(${x.partnerName})`)
+  eq('새 회사 판매가 제 회사 거래처만 물고 있다', 남의거래처.join(', ') || '없음', '없음')
 
   /* 파일도 스키마마다 따로다 — 번호를 넘겨줘도 남의 회사 것은 안 나온다. */
   const fd = new FormData()
@@ -9152,6 +9169,58 @@ async function scenarioNewCompany() {
     { headers: { Authorization: `Bearer ${그회사.token}` } })
   eq('본사 파일 번호를 새 회사에서 부르면 없다고 한다', r2.status, 404)
   await call('DELETE', `/files/${본사파일.id}`)
+
+  /*
+   * <b>갓 만든 회사에서 실제로 일이 되나.</b> 스키마만 생기고 쓸 수 없으면 만든 뜻이 없다.
+   * 기초자료를 넣고 전표를 끊어 재고와 채권까지 이어지는지 본다.
+   */
+  const 그쪽쓰기 = async (p, body) => {
+    const r = await fetch(`${BASE}${p}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${그회사.token}` },
+      body: JSON.stringify(body),
+    })
+    return [r.status, await r.json().catch(() => null)]
+  }
+  const 있는것 = async (p, key, val) => (await 그쪽(p)).find((x) => x[key] === val)
+
+  const 창고 = await 있는것('/warehouses', 'code', 'QAW')
+    ?? (await 그쪽쓰기('/warehouses', { code: 'QAW', name: 'QA새회사창고' }))[1]
+  const 품목 = await 있는것('/items', 'code', 'QAI')
+    ?? (await 그쪽쓰기('/items', {
+      code: 'QAI', name: 'QA새회사품목', unit: 'EA', category: 'FINISHED',
+      unitPrice: 5000, safetyStock: 0,
+    }))[1]
+  const 거래처 = await 있는것('/partners', 'code', 'QAC')
+    ?? (await 그쪽쓰기('/partners', { code: 'QAC', name: 'QA새회사거래처', type: 'CUSTOMER' }))[1]
+  eq('새 회사에 기초자료를 넣을 수 있다',
+    [창고?.id, 품목?.id, 거래처?.id].every((x) => x != null), true)
+
+  await 그쪽쓰기('/stock-adjustments', {
+    type: 'ADJUST', itemId: 품목.id, warehouseId: 창고.id, actualQty: 100, adjustDate: '2026-08-30',
+  })
+  const [판매st, 판매] = await 그쪽쓰기('/sales', {
+    partnerId: 거래처.id, warehouseId: 창고.id, saleDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: 품목.id, quantity: 3, unitPrice: 5000 }],
+  })
+  eq('새 회사에서 판매를 끊을 수 있다', 판매st, 200)
+  const 그재고 = (await 그쪽('/stock')).find((x) => x.itemId === 품목.id)
+  eq('판 만큼 재고가 줄어 있다', Number(그재고?.quantity), 97)
+  const 그채권 = (await 그쪽('/ledger/partner-balances')).find((x) => x.partnerId === 거래처.id)
+  eq('채권도 잡힌다', Number(그채권?.receivable) > 0, true)
+  await call('DELETE', `/sales/${판매.id}`)   // 다음 실행에서 재고가 다시 100 이도록
+
+  /*
+   * <b>인쇄 결재란.</b> V71 이 기본 결재란을 시드하면서 public. 으로 못 박아, 테넌트는
+   * 표만 받고 씨앗은 못 받았다. 회사로 로그인해 [인쇄]를 누르면 출력물 우측 상단의
+   * 결재란이 통째로 안 찍혔다 — 도장 찍을 자리가 없는 종이가 나온다.
+   */
+  const 결재란 = await fetch(`${BASE}/print-sign-lines/default`,
+    { headers: { Authorization: `Bearer ${그회사.token}` } })
+  eq('새 회사에도 기본 결재란이 있다', 결재란.status, 200)
+  const 칸 = await 결재란.json().catch(() => null)
+  eq('결재란에 담당·검토·승인 세 칸이 있다',
+    (칸?.slots ?? []).map((x) => x.title).join('/'), '담당/검토/승인')
 }
 
 async function scenarioNoPermission() {
