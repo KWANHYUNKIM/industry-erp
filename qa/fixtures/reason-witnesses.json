@@ -137,12 +137,6 @@
   ],
   "file": "hr/AttendanceInputPage.tsx"
  },
- "오더관리진행단계|전체단계완료": {
-  "claim": "고른 오더를 한 번에 끝낸다 — 단추줄이다",
-  "present": [
-   "completeAll"
-  ]
- },
  "매출계획|금액": {
   "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다",
   "present": [
@@ -267,5 +261,149 @@
    "대표거래처로 합산"
   ],
   "file": "trade/LedgerPage.tsx"
+ },
+ "특별단가등록|창고설정": {
+  "claim": "창고로 좁히는 특별단가를 만들지 않는다",
+  "absent": [
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|품목그룹설정": {
+  "claim": "품목그룹으로 좁히는 특별단가를 만들지 않는다",
+  "absent": [
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|특별단가그룹코드": {
+  "claim": "단가그룹은 이름만 든다 — 코드 마스터가 아니다",
+  "absent": [
+   "PriceGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "외화등록|금액소수점": {
+  "claim": "통화별 소수점 자릿수를 우리 마스터가 안 든다",
+  "absent": [
+   "decimal",
+   "Scale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/Currency.java"
+ },
+ "계좌등록|검색창내용": {
+  "claim": "계좌 마스터에 찾기용 별칭 칸이 없다",
+  "absent": [
+   "alias",
+   "Alias",
+   "searchKey"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
+ },
+ "A/S소모현황|수리담당자": {
+  "claim": "A/S 전표의 담당자가 하나라 접수·수리로 가를 수 없다",
+  "absent": [
+   "repairCharge",
+   "repairEmployee",
+   "receiptCharge"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "생산공정": {
+  "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
+  "absent": [
+   "process",
+   "Process"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "발주서|발송여부": {
+  "claim": "전표를 거래처에 내보내는 기능이 없다",
+  "absent": [
+   "sentAt",
+   "sentDate",
+   "sendMail"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "프로젝트계획|판매계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획|구매계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획|노무비계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획|경비계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획조회|판매계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획조회|구매계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획조회|노무비계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "프로젝트계획조회|경비계획": {
+  "claim": "우리 프로젝트계획은 매출·원가 두 값뿐이라 네 갈래로 나눌 것이 없다",
+  "absent": [
+   "planLabor",
+   "planExpense",
+   "planPurchase",
+   "planSale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
  }
 }

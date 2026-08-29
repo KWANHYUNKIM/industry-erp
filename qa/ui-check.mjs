@@ -775,6 +775,12 @@ console.log('\n■ 대조표를 다 쓰고 있나')
        * <b>화면|항목</b> 으로 적힌 대조표(예: 이유의 근거)는 앞쪽이 화면 이름이다.
        * 통째로 지도에서 찾으면 <b>있는 화면도 없다고</b> 나온다.
        */
+      /*
+       * 이유의 근거는 <b>조건 이름 하나</b>로 적힌 키도 있다(화면을 안 가리는 전역 예외).
+       * 그런 키는 지도에서 찾을 것이 없다 — 대신 아래 1-t 에서 <b>그 이름의 예외가
+       * 실제로 있는지</b>를 잰다. 여기서는 화면|항목 꼴만 본다.
+       */
+      if (f === 'reason-witnesses.json' && !k.includes('|')) continue
       const screen = k.includes('|') ? k.slice(0, k.indexOf('|')) : k
       if (UNMAPPED[screen] !== undefined) continue
       checked += 1
@@ -4008,6 +4014,14 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
    * <b>왜 못 재는지</b>를 커밋에 적게 된다. 줄이는 것은 언제든 좋다.
    */
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'unwitnessed-reasons.json'), 'utf8'))
+  /*
+   * <b>없는 이유에 증거를 달면 아무것도 안 재게 된다.</b> 키를 한 글자 틀리면 그 증거는
+   * 영원히 조용하다 — 통과했다고 안심하는데 실은 재는 것이 없다. 반대 방향으로 한 번 건다.
+   */
+  const ghosts = Object.keys(witnesses).filter((k) => !ALL_REASON_KEYS.has(k))
+  eq(`증거를 단 이유 ${Object.keys(witnesses).length}개가 다 실제 예외다`,
+    ghosts.join(', ') || '없음', '없음')
+
   const withoutWitness = [...ALL_REASON_KEYS].filter((k) => !witnesses[k])
   eq(`증거 없는 이유가 ${cap.gap}개를 넘지 않는다 (지금 ${withoutWitness.length}개 · 예외 ${ALL_REASON_KEYS.size}종)`,
     withoutWitness.length <= cap.gap ? '없음'
