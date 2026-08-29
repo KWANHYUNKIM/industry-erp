@@ -3,6 +3,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Item, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -16,6 +18,10 @@ interface OrderLine { itemId: number; itemName: string; unit: string; quantity: 
 interface SalesOrder {
   id: number; orderNo: string; partnerId: number; partnerName: string
   orderDate: string; dueDate: string | null; status: OrderStatus; statusName: string
+  /** 수주의 [창고]·[프로젝트]·[담당자]. 견적에서 전환하면 그 값이 따라온다. */
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null; lines: OrderLine[]
 }
 
@@ -39,6 +45,10 @@ export default function SalesOrderPage() {
   const [dueDate, setDueDate] = useState('')
   const [taxable, setTaxable] = useState(true)
   const [remark, setRemark] = useState('')
+  const [fWarehouse, setFWarehouse] = useState('')
+  const [fProject, setFProject] = useState('')
+  const [fEmployee, setFEmployee] = useState('')
+  const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
@@ -84,9 +94,16 @@ export default function SalesOrderPage() {
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
     try {
-      const res = await api.post<SalesOrder>('/sales-orders', { partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined, taxable, remark: remark || undefined, lines: validLines })
+      const res = await api.post<SalesOrder>('/sales-orders', {
+        partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
+        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
+        projectId: fProject ? Number(fProject) : undefined,
+        employeeId: fEmployee ? Number(fEmployee) : undefined,
+        taxable, remark: remark || undefined, lines: validLines,
+      })
       setOk(`${res.data.orderNo} 수주 등록 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setLines([emptyLine()]); setRemark(''); setDueDate('')
+      setFWarehouse(''); setFProject(''); setFEmployee('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -160,6 +177,33 @@ export default function SalesOrderPage() {
                 </td>
               </tr>
               <tr>
+                {/*
+                  수주의 [창고]·[프로젝트]·[담당자]. 견적에서 전환하면 그 값이 따라오는데,
+                  <b>수주를 직접 만들면 정할 데가 없어</b> 미출하현황의 그 조건들이 헛돌았다.
+                */}
+                <th style={th}>창고</th>
+                <td>
+                  <CodePickerField label="창고" hideLabel width={170} emptyLabel="선택 안 함"
+                                   value={fWarehouse} onChange={setFWarehouse}
+                                   items={pickers.warehouses.map((x) => ({ ...x, value: String(x.id) }))} />
+                </td>
+                <th style={th}>프로젝트</th>
+                <td>
+                  <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="선택 안 함"
+                                   value={fProject} onChange={setFProject}
+                                   items={pickers.projects.map((x) => ({ ...x, value: String(x.id) }))} />
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>담당자</th>
+                <td>
+                  <CodePickerField label="담당자" hideLabel width={170} emptyLabel="선택 안 함"
+                                   value={fEmployee} onChange={setFEmployee}
+                                   items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
+                </td>
+                <td colSpan={2}></td>
+              </tr>
+              <tr>
                 <th style={th}>수주일자</th>
                 <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>납기일자</th>
@@ -229,12 +273,14 @@ export default function SalesOrderPage() {
             <th style={{ width: 34 }}></th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주번호')}>수주번호 {sort.mark('수주번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주일')}>수주일 {sort.mark('수주일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th>
             <th style={{ textAlign: 'right' }}>합계금액</th><th>납기일</th>
+            {/* 정할 수는 있는데 <b>목록에서 볼 수가 없으면</b> 반쪽이다 — 안 정한 수주는 빈칸이다. */}
+            <th style={{ width: 100 }}>창고</th><th style={{ width: 110 }}>프로젝트</th><th style={{ width: 90 }}>담당자</th>
             <th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -244,6 +290,9 @@ export default function SalesOrderPage() {
               <td>{o.lines[0]?.itemName}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(o.totalAmount)}</td>
               <td>{o.dueDate ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{o.warehouseName ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{o.projectName ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{o.employeeName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
