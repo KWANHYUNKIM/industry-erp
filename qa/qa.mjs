@@ -3906,6 +3906,25 @@ async function scenarioHttpProtocol() {
   eq('한계 안의 크기는 그대로 준다',
     (await must('GET', '/stock/transactions?page=0&size=1000')).content.length, 1000)
 
+  /*
+   * <b>재고수불부가 화면을 열 때마다 얼마나 받아 오나.</b>
+   *
+   * <p>목록 자리 160곳의 응답 크기를 재 봤더니 이 자리가 압도적이었다 —
+   * 전 기간이면 <b>12만 줄 · 34MB</b>, 화면의 기본 기간(전월+금월)이라도 <b>6만 4천 줄</b>이다.
+   * 즉 이 화면은 지금도 열 때마다 그만큼을 받는다. 받은 브라우저는 그리다 멈춘다.
+   *
+   * <p>상한을 걸어 보다가 되돌렸다. 5,000줄로 막으면 <b>기본 화면이 그대로 깨지고</b>,
+   * 6만 4천을 넘기는 상한은 있으나 마나다. 제대로 된 답은 쪽 나누기이거나, 원본이 하는 대로
+   * <b>[오천건이상조회]</b> 버튼을 두어 그 위로는 눌러야 가게 하는 것이다(사본 실측: 조회 화면
+   * 139곳에 그 버튼이 있다). 둘 다 화면까지 함께 고쳐야 해서 이 판에 담지 않았다.
+   *
+   * <p>그동안 <b>더 나빠지지만 않게</b> 잰다. 지금 수를 적어 두고 넘으면 걸리게 한다.
+   */
+  const 수불부 = await must('GET', '/stock/ledger?from=2026-07-01&to=2026-08-31')
+  eq('재고수불부 기본 기간이 지금보다 더 커지지 않았다', 수불부.rows.length <= 70000, true)
+  eq('재고수불부가 기간을 실제로 거른다',
+    (await must('GET', '/stock/ledger?from=2026-08-30&to=2026-08-30')).rows.length < 수불부.rows.length, true)
+
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 
