@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
+import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 
 interface AsPart {
   id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
@@ -28,6 +29,44 @@ interface AsRow {
 }
 
 const today = () => ymd(new Date())
+
+/**
+ * 원본 A/S접수 격자의 <b>[접수증]</b> — 그 한 건을 접수증으로 찍는다.
+ *
+ * <p>고친 물건을 돌려줄 때 손에 쥐여 주는 종이다. 우리는 <b>찍을 데가 없어</b>
+ * 화면을 그대로 인쇄하거나 손으로 적어 줬다.
+ *
+ * <p>줄은 <b>쓴 부품</b>이다. 부품이 없으면(아직 안 고쳤거나 부품이 안 드는 수리)
+ * 줄이 없는 종이가 나오는데, 그게 맞다 — 없는 부품을 지어내지 않는다.
+ * 증상·수리내용은 머리에 적는다.
+ */
+async function printAsReceipt(r: AsRow) {
+  let parts: AsPart[] = []
+  try { parts = (await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data } catch { /* 부품이 없어도 찍는다 */ }
+  const ours = await loadSupplierParty('수리처')
+  await printDocuments([{
+    title: 'A/S 접수증',
+    docNo: r.asNo,
+    docDate: r.receiptDate,
+    supplier: ours ?? { label: '수리처', name: '(회사정보 미등록)' },
+    customer: { label: '의뢰처', name: r.partnerName },
+    extra: [
+      { label: '접수품목', value: r.itemName },
+      { label: '증상', value: r.symptom },
+      { label: '수리예정일자', value: r.scheduledDate },
+      { label: '담당자', value: r.charge },
+      { label: '진행상태', value: r.statusName },
+    ],
+    remark: r.repairNote,
+    lines: parts.map((pt) => ({
+      itemName: pt.itemName, unit: '',
+      quantity: pt.quantity,
+      unitPrice: pt.unitPrice ?? 0,
+      supplyAmount: pt.amount ?? 0,
+      vatAmount: 0,
+    })),
+  }])
+}
 
 export default function AsManagePage() {
   const [rows, setRows] = useState<AsRow[]>([])
@@ -340,12 +379,15 @@ export default function AsManagePage() {
             */}
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
             {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
-            <th>담당자명</th><th>수리예정일자</th><th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th>담당자명</th><th>수리예정일자</th>
+            {/* 원본 차례는 수리예정일자 <b>다음</b>이 [접수증] 이다(사본 실측). */}
+            <th style={{ width: 60, textAlign: 'center' }}>접수증</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -356,6 +398,10 @@ export default function AsManagePage() {
               <td>{r.symptom ?? ''}</td>
               <td>{r.charge ?? ''}</td>
               <td>{r.scheduledDate ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => printAsReceipt(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+              </td>
               <td style={{ textAlign: 'center', color: COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
               <td>{r.doneDate ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
