@@ -117,7 +117,12 @@ export default function PaymentHistoryPage() {
    */
   const [cond, setCond] = useState({ from: initP.from, to: initP.to, partnerName: '', amtFrom: '', amtTo: '' })
   const setC = (p: Partial<typeof cond>) => setCond((c) => ({ ...c, ...p }))
-  const [tab, setTab] = useState<Tab>('전체')
+  /*
+   * 원본은 <b>[미반영]</b> 탭이 켜진 채로 열린다(사본 실측 — 그 탭에 active 가 붙어 있다).
+   * 이 화면에 오는 까닭은 대개 <b>아직 회계로 안 넘긴 결제</b>를 찾으려는 것이라,
+   * 전체로 열면 이미 끝난 것까지 섞여 그 사이에서 골라내야 한다.
+   */
+  const [tab, setTab] = useState<Tab>('미반영')
   const [picked, setPicked] = useState<number[]>([])
 
   async function load() {

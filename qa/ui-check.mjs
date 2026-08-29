@@ -4350,6 +4350,39 @@ console.log('\n■ QA 가 한 번도 안 부르는 컨트롤러가 있나')
 }
 
 
+// ── 1-s7) 화면을 열었을 때 켜져 있는 탭이 원본과 같나 ────────────────────
+console.log('\n■ 화면을 열었을 때 켜져 있는 탭이 원본과 같나')
+
+/*
+ * 탭이 <b>있는지</b>는 이미 재고 있었지만 <b>어느 탭이 켜진 채로 열리는지</b>는 안 봤다.
+ * 사본의 탭 줄에서 <code>active</code> 가 붙은 것을 뽑아 우리 useState 초기값과 견준다.
+ *
+ * <p>실제로 하나 어긋나 있었다 — <b>결제내역조회</b>는 원본이 [미반영] 로 열리는데 우리는
+ * [전체] 였다. 그 화면에 오는 까닭은 대개 <b>아직 회계로 안 넘긴 결제</b>를 찾으려는 것이라,
+ * 전체로 열면 이미 끝난 것까지 섞여 그 사이에서 골라내야 한다.
+ *
+ * <p>사본의 '기본' 은 탭이 아니라 <b>검색 프리셋</b> 줄이라 뺐다. 켜진 것이 둘 이상이거나
+ * (사본이 같은 화면을 여러 번 담은 경우) 우리 화면에 탭 상태가 없으면 대조표에 안 적는다.
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-tab-default.json'), 'utf8'))
+  const TAB_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+  const bad = []
+  let checked = 0
+  for (const [screen, want] of Object.entries(cap)) {
+    const rel = TAB_MAP.get(screen)
+    if (!rel) { bad.push(`${screen}  (지도에 없다)`); continue }
+    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
+    if (!existsSync(path)) { bad.push(`${screen}  (${rel} 없음)`); continue }
+    const src = readFileSync(path, 'utf8')
+    const got = [...src.matchAll(/useState<\w*Tab\w*>\('([^']+)'\)/g)].map((m) => m[1])
+    if (got.length === 0) { bad.push(`${screen}  (탭 상태를 못 찾았다)`); continue }
+    checked += 1
+    if (!got.includes(want)) bad.push(`${rel.split('/').pop()}  원본 [${want}] · 우리 [${got.join(' | ')}]`)
+  }
+  eq(`탭 기본값을 잰 화면 ${checked}개가 원본과 같다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 
