@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 영업 > 오더관리진행단계.
@@ -65,6 +66,16 @@ export default function OrderStagePage() {
   /** 원본 [사용여부] — 오더관리유형이 사용중단된 것을 볼지. 기본은 쓰는 것만. */
   const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [detailId, setDetailId] = useState<number | null>(null)
+  /*
+   * 원본 버튼 [신규(F2)]·[사용중단/재사용]·[선택상세보기].
+   *
+   * <p>예전에는 '우리 화면은 단계 마스터가 아니라 오더 진행 목록이다' 라고 적고 뺐는데,
+   * <b>그 이유가 뒤집혀 있었다</b> — 그 뒤에 이 화면을 진행 목록으로 바꿨으니 이제
+   * 그 셋은 <b>바로 이 화면의 버튼</b>이다. 이유가 옛 화면을 두고 하는 말로 남아 있었다.
+   */
+  const navigate = useNavigate()
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [multiDetail, setMultiDetail] = useState<number[]>([])
 
   async function load() {
     setLoading(true)
@@ -126,6 +137,39 @@ export default function OrderStagePage() {
   })
 
   const detail = detailId != null ? orders.find((o) => o.id === detailId) ?? null : null
+  /** [선택상세보기] — 고른 줄을 <b>한 창에 이어서</b> 편다. 한 건씩 열었다 닫으면 견줄 수가 없다. */
+  const details = multiDetail.length > 0
+    ? orders.filter((o) => multiDetail.includes(o.id))
+    : (detail ? [detail] : [])
+
+  /**
+   * 원본 [사용중단/재사용] — 고른 오더를 <b>취소</b>하거나 <b>되살린다</b>.
+   * 고른 것이 모두 취소 상태면 되살리고, 하나라도 살아 있으면 취소한다(거래처리스트와 같은 규칙).
+   */
+  /** 원본 [전체단계완료] — 고른 오더를 유형의 <b>마지막 단계</b>까지 한 번에 보낸다. */
+  async function completeAll() {
+    const targets = shown.filter((o) => checked.has(o.id))
+    if (targets.length === 0) { setError('끝낼 오더를 고르세요.'); return }
+    setError('')
+    try {
+      for (const t of targets) await patch(t, '?complete=true')
+      setChecked(new Set())
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  async function toggleUse() {
+    const targets = shown.filter((o) => checked.has(o.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 오더를 고르세요.'); return }
+    const reviving = targets.every((o) => o.statusName === '취소')
+    setError('')
+    try {
+      for (const o of targets) {
+        await api.patch(`/sales-orders/${o.id}/status`, { status: reviving ? 'RECEIVED' : 'CANCELED' })
+      }
+      setChecked(new Set())
+      await load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -139,7 +183,22 @@ export default function OrderStagePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       searchable
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      /* 원본 [신규(F2)] — 오더는 수주다. 수주입력으로 간다. */
+      onNew={() => navigate('/sales/orders')}
+      actions={[
+        { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleUse },
+        /*
+         * 원본에서 <b>[전체단계완료]는 줄 버튼이 아니라 단추줄</b>이다 — 고른 오더들을
+         * 한 번에 끝낸다. 우리는 줄마다 두고 있어서 열 건을 끝내려면 열 번 눌러야 했다.
+         */
+        { label: `전체단계완료${checked.size ? ` (${checked.size})` : ''}`, onClick: completeAll },
+        { label: `선택상세보기${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
+          if (checked.size === 0) { setError('상세를 볼 오더를 고르세요.'); return }
+          setError(''); setDetailId(null); setMultiDetail([...checked])
+        } },
+        { label: '새로고침', onClick: load },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -184,6 +243,13 @@ export default function OrderStagePage() {
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>
             <tr>
+              {/* [사용중단/재사용]·[선택상세보기]가 고를 자리. 원본도 줄마다 고르게 한다. */}
+              <th style={{ width: 30, textAlign: 'center' }}>
+                <input type="checkbox"
+                       checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
+                       onChange={() => setChecked(
+                         shown.every((o) => checked.has(o.id)) ? new Set() : new Set(shown.map((o) => o.id)))} />
+              </th>
               <th style={{ width: 34 }}></th>
               <th style={{ width: 170 }}>오더관리번호</th>
               <th>오더관리명</th>
@@ -196,15 +262,22 @@ export default function OrderStagePage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.slice(0, 200).map((o, i) => {
               const steps = o.orderTypeId != null ? (stepsOf.get(o.orderTypeId) ?? []) : []
               const at = steps.findIndex((s) => s.stageId === o.stageId)
               const done = steps.length > 0 && at === steps.length - 1
               return (
                 <tr key={o.id}>
+                  <td style={{ textAlign: 'center' }}>
+                    <input type="checkbox" checked={checked.has(o.id)} onChange={() => setChecked((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(o.id)) next.delete(o.id); else next.add(o.id)
+                      return next
+                    })} />
+                  </td>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
                   <td>
@@ -246,10 +319,6 @@ export default function OrderStagePage() {
                                 style={{ color: done ? '#c9ced6' : 'var(--ec-blue)', marginRight: 6, background: 'none', border: 'none', cursor: done ? 'default' : 'pointer', fontSize: 12 }}>
                           다음단계
                         </button>
-                        <button onClick={() => patch(o, '?complete=true')} disabled={done}
-                                style={{ color: done ? '#c9ced6' : '#1c7c3c', marginRight: 6, background: 'none', border: 'none', cursor: done ? 'default' : 'pointer', fontSize: 12 }}>
-                          전체단계완료
-                        </button>
                       </>
                     )}
                     <button onClick={() => setDetailId(o.id)}
@@ -269,23 +338,30 @@ export default function OrderStagePage() {
         )}
       </div>
 
-      {detail && (
-        <div onClick={() => setDetailId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {details.length > 0 && (
+        <div onClick={() => { setDetailId(null); setMultiDetail([]) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
             <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
-              <span>오더 상세 · {detail.orderNo}</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setDetailId(null)}>닫기</button>
+              <span>오더 상세{details.length > 1 ? ` · ${details.length}건` : ` · ${details[0].orderNo}`}</span>
+              <button className="ec-btn" style={{ marginLeft: 'auto' }}
+                      onClick={() => { setDetailId(null); setMultiDetail([]) }}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.9 }}>
-              <div>거래처 <b>{detail.partnerName}</b></div>
-              <div>기준일자 {detail.orderDate} · 납기 {detail.dueDate ?? '-'}</div>
-              <div>유형 {detail.orderTypeName ?? '(미지정)'} · 진행단계 <b>{detail.stageName ?? '(없음)'}</b></div>
-              <div>수주상태 {detail.statusName} · 합계 {won(detail.totalAmount)}</div>
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e6eaef' }}>
-                {detail.lines.map((l, k) => (
-                  <div key={k}>{l.itemName} <span style={{ color: '#8a929c' }}>{won(l.quantity)}</span></div>
-                ))}
-              </div>
+            {/* 여러 건을 고르면 <b>한 창에 이어서</b> 편다 — 한 건씩 열었다 닫으면 견줄 수가 없다. */}
+            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {details.map((d) => (
+                <div key={d.id} style={{ padding: 14, fontSize: 12.5, lineHeight: 1.9, borderBottom: '1px solid #eef1f5' }}>
+                  {details.length > 1 && <div style={{ fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{d.orderNo}</div>}
+                  <div>거래처 <b>{d.partnerName}</b></div>
+                  <div>기준일자 {d.orderDate} · 납기 {d.dueDate ?? '-'}</div>
+                  <div>유형 {d.orderTypeName ?? '(미지정)'} · 진행단계 <b>{d.stageName ?? '(없음)'}</b></div>
+                  <div>수주상태 {d.statusName} · 합계 {won(d.totalAmount)}</div>
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e6eaef' }}>
+                    {d.lines.map((l, k) => (
+                      <div key={k}>{l.itemName} <span style={{ color: '#8a929c' }}>{won(l.quantity)}</span></div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
