@@ -254,6 +254,13 @@ export default function WorkResultPage() {
                 <th style={{ width: 120 }}>작업</th>
                 <th style={{ width: 130 }}>작업품목코드</th>
                 <th>작업품목명</th>
+                {/*
+                  원본 작업내역입력 격자는 <b>[수량]</b> 한 칸이다(사본 실측). 우리는 양품·불량으로
+                  나눠 적는데, <b>둘을 합쳐 얼마나 작업했는지</b>는 아무 데도 안 나왔다 —
+                  같은 지시의 두 줄을 견줄 때 눈으로 더해야 했다. 셋을 다 낸다(수량 = 양품 + 불량).
+                  원본 차례도 <b>[수량]이 [투입자원]보다 앞</b>이다.
+                */}
+                <th style={{ width: 80, textAlign: 'right' }}>수량</th>
                 <th style={{ width: 150 }}>투입자원</th>
                 <th style={{ width: 80, textAlign: 'right' }}>양품</th>
                 <th style={{ width: 80, textAlign: 'right' }}>불량</th>
@@ -295,6 +302,10 @@ export default function WorkResultPage() {
                   <td style={{ color: '#6b7280' }}>
                     {items.find((x) => String(x.id) === l.workItemId)?.name ?? ''}
                   </td>
+                  {/* 사람이 적는 칸이 아니다 — 양품·불량을 적으면 따라 는다. */}
+                  <td style={{ textAlign: 'right', color: '#6b7280', fontWeight: 600 }}>
+                    {(Number(l.goodQty || 0) + Number(l.defectQty || 0)).toLocaleString()}
+                  </td>
                   <td>
                     {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 그 줄의 작업에 맞는 것만 낸다. */}
                     <select className={inputCls} value={l.resourceId} onChange={(e) => setWrLine(l.key, { resourceId: e.target.value })}>
@@ -329,6 +340,10 @@ export default function WorkResultPage() {
             <tfoot>
               <tr>
                 <td colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                {/* 수량 합계도 양품 + 불량이다 — 줄마다 더한 것과 같아야 한다. */}
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                  {wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0) + (Number(l.defectQty) || 0), 0).toLocaleString()}
+                </td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>

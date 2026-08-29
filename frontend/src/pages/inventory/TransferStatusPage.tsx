@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
+import { printDocuments } from '../../utils/printDocument'
 import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
@@ -41,6 +42,35 @@ interface Transfer {
 }
 
 const num = (n: number) => n.toLocaleString()
+
+/**
+ * 원본 창고이동조회의 마지막 열 <b>[인쇄]</b> — 그 한 건을 이동증으로 찍는다.
+ *
+ * <p>금액 칸은 안 그린다. 창고이동은 <b>사내 이동</b>이라 금액이 없다 —
+ * 0 으로 채워 그리면 "0원짜리 거래" 로 읽힌다. 공급자/공급받는자 칸도 없다(상대가 없다).
+ * 생산불출증과 같은 규칙이다.
+ */
+async function printTransfer(r: Transfer) {
+  await printDocuments([{
+    title: '창고이동증',
+    docNo: r.transferNo,
+    docDate: r.transferDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '보내는창고', value: r.fromWarehouseName },
+      { label: '받는창고', value: r.toWarehouseName },
+      { label: '프로젝트', value: r.projectName },
+    ],
+    remark: r.reason,
+    lines: [{
+      itemCode: r.itemCode, itemName: r.itemName, unit: r.unit,
+      quantity: r.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    }],
+  }])
+}
 
 export default function TransferStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -192,13 +222,15 @@ export default function TransferStatusPage() {
                 <th>품목명[규격명]</th>
                 <th style={{ textAlign: 'right' }}>수량</th>
                 <th>적요</th>
+                {/* 원본 창고이동조회의 마지막 열 [인쇄] — 그 한 건을 이동증으로 찍는다. */}
+                <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
@@ -212,6 +244,10 @@ export default function TransferStatusPage() {
                     {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
                   <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button onClick={() => printTransfer(r)}
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -220,7 +256,7 @@ export default function TransferStatusPage() {
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
-                  <td style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
             )}
