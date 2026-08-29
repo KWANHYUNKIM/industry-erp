@@ -3868,6 +3868,19 @@ async function scenarioHttpProtocol() {
   eq('만들 수 없는 응답 형식은 406', xml.status, 406)
   eq('토큰이 멀쩡한데 401 로 쫓아내지 않는다', xml.status === 401, false)
 
+  /*
+   * <b>칸보다 긴 글자.</b> 예전에는 22001 분기가 없어 맨 아래 일반 문구로 떨어졌다 —
+   * 공정명에 300자를 넣으면 409 "저장할 수 없습니다. 자료가 서로 맞지 않습니다." 가 떴다.
+   * 길이가 문제라는 말이 어디에도 없으니 무엇을 고쳐야 할지 알 수가 없었다.
+   * 등록·수정 요청의 글자 칸 382개 중 @Size 로 막아 둔 것은 둘뿐이라 나머지가 다 여기로 온다.
+   */
+  const tooLong = await call('POST', '/processes', { code: `${P}LONG`, name: '가'.repeat(300) })
+  eq('칸보다 긴 글자는 400', tooLong.status, 400)
+  eq('몇 자까지인지 말해 준다',
+    /너무 깁니다.*\d+자까지/.test(String(tooLong.data?.message ?? '')), true)
+  eq('길이 문제를 자료 충돌이라고 하지 않는다',
+    /자료가 서로 맞지 않습니다/.test(String(tooLong.data?.message ?? '')), false)
+
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 

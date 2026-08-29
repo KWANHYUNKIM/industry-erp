@@ -224,6 +224,30 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "허용되지 않는 값입니다."));
         }
+        /*
+         * 22001 string_data_right_truncation — 글자가 칸보다 길다.
+         *
+         * <p>여기에 분기가 없어서 <b>맨 아래 일반 문구</b>로 떨어지고 있었다. 공정명에 300자를
+         * 넣으면 409 "저장할 수 없습니다. 자료가 서로 맞지 않습니다." 가 떴다 — 길이가 문제라는
+         * 말이 어디에도 없으니, 쓰는 사람은 무엇을 고쳐야 할지 모른 채 같은 버튼만 다시 누른다.
+         *
+         * <p>등록·수정 요청의 글자 칸 382개 중 {@code @Size} 로 길이를 막아 둔 것은 둘뿐이다.
+         * 나머지 380개가 전부 이 자리로 떨어진다. 칸마다 애노테이션을 다는 일과 별개로,
+         * <b>여기서 한 번에</b> 몇 자까지인지 말해 준다. 값이 잘못된 것이므로 409 가 아니라 400 이다.
+         */
+        if ("22001".equals(sqlState)) {
+            java.util.regex.Matcher m =
+                    java.util.regex.Pattern.compile("character varying\\((\\d+)\\)").matcher(raw);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, m.find()
+                            ? "입력한 글자가 너무 깁니다. %s자까지 넣을 수 있습니다.".formatted(m.group(1))
+                            : "입력한 글자가 너무 깁니다."));
+        }
+        // 22003 numeric_value_out_of_range — 숫자가 칸보다 크다. 이것도 값이 잘못된 것이다.
+        if ("22003".equals(sqlState)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "입력한 숫자가 너무 큽니다. 자릿수를 확인하세요."));
+        }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ErrorResponse.of(HttpStatus.CONFLICT, "저장할 수 없습니다. 자료가 서로 맞지 않습니다."));
     }
