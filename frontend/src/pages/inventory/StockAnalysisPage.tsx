@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
@@ -52,7 +53,8 @@ export default function StockAnalysisPage() {
   const [includeZero, setIncludeZero] = useState(false)
   /** 재고 평가에 쓸 구매전표. 마지막 입고단가를 여기서 뽑는다. */
   const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
-  const [date, setDate] = useState(ymd(new Date()))
+  /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
+  const [date, setDate] = useState(periodOf('금일')!.to)
   const today = ymd(new Date())
 
   async function load() {

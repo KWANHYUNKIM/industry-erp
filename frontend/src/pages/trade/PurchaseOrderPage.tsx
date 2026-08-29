@@ -10,6 +10,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -36,6 +37,15 @@ interface LineForm { itemId: string; quantity: string; unitPrice: string; partne
 const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '' })
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */
+/*
+ * 원본 발주서는 <b>기준일자</b>를 들고 [최근30일(+1개월)] 로 열린다(사본 실측 —
+ * 달 스핀박스가 06·08 셋이다). 발주는 <b>앞으로 들어올 것</b>이라 미래가 들어간다.
+ *
+ * <p>우리는 기간 칸이 <b>아예 없어서</b> 발주가 쌓이면 목록만 길어지고, "이번 달에 낸
+ * 발주" 를 볼 방법이 없었다. 단추줄 사이에 [말일]이 끼는 것도 원본 그대로다.
+ */
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function PurchaseOrderPage() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<PurchaseOrder[]>([])
@@ -66,6 +76,8 @@ export default function PurchaseOrderPage() {
     }
   }
   const [error, setError] = useState('')
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
   const [whCond, setWhCond] = useState('')
   /* 원본 발주서 조건 차례: 발주No. · 내.외자구분 · 창고 · <b>프로젝트</b> · 거래처 · 품목. */
@@ -103,12 +115,13 @@ export default function PurchaseOrderPage() {
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
-    [rows, tab, orderNoCond, whCond, projCond, partnerCond, itemCond])
+    [rows, tab, from, to, orderNoCond, whCond, projCond, partnerCond, itemCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -205,6 +218,18 @@ export default function PurchaseOrderPage() {
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: 발주No. · … · 창고 · … · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추줄에 [말일]이 낀다(사본 실측). */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={ORDER_DOC_PICKS} currentFrom={from}
+              onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
         <EcCond label="발주No.">
           <input className="ec-input" value={orderNoCond}
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />

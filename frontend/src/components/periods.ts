@@ -229,6 +229,15 @@ export const STOCKTAKE_PICKS = [...BASE_PICKS, '전년', '종료일'] as const
 
 export const AS_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일'] as const
 
+/**
+ * 발주서·발주서조회(C000075 계열·E040311) — 조회 묶음 사이에 <b>[말일]</b>이 끼어 있다
+ * (금일·전일·<b>말일</b>·금주(~오늘)·전주·금월(~오늘)·전월·종료일 — 사본 실측).
+ * 발주는 <b>월말에 맞춰</b> 넣는 일이 많아 이번 달 마지막 날을 한 번에 고른다.
+ */
+export const ORDER_DOC_PICKS = [
+  '금일', '전일', '말일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일',
+] as const
+
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
 
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const

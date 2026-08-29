@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > BOM환산재고현황 (이카운트 E040726)
@@ -34,7 +35,8 @@ export default function BomStockPage() {
   const [error, setError] = useState('')
 
   const today = ymd(new Date())
-  const [cond, setCond] = useState({ date: today, warehouseId: '', product: '', shortageOnly: false })
+  /* 원본 BOM환산재고현황의 기준일자 기본값은 [금일] 이다(사본 실측). 검사가 읽을 수 있게 periodOf 로 적는다 — 값은 오늘 그대로다. */
+  const [cond, setCond] = useState({ date: periodOf('금일')!.to, warehouseId: '', product: '', shortageOnly: false })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -80,7 +82,7 @@ export default function BomStockPage() {
     [boms, stockOf, cond.product, cond.shortageOnly])
 
   const num = (n: number) => n.toLocaleString()
-  const reset = () => setCond({ date: today, warehouseId: '', product: '', shortageOnly: false })
+  const reset = () => setCond({ date: periodOf('금일')!.to, warehouseId: '', product: '', shortageOnly: false })
   const totalBuildable = rows.reduce((n, r) => n + r.buildable, 0)
   const blocked = rows.filter((r) => r.buildable === 0).length
 

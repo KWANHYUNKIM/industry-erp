@@ -7,6 +7,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 일별재고현황 (이카운트 E040807)
@@ -58,7 +59,8 @@ export default function DailyStockPage() {
 
   const today = ymd(new Date())
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
-  const [cond, setCond] = useState({ date: today, warehouseId: '', item: '' })
+  /* 원본 일별재고현황의 기준일자 기본값은 [금일] 이다(사본 실측). 검사가 읽을 수 있게 periodOf 로 적는다 — 값은 오늘 그대로다. */
+  const [cond, setCond] = useState({ date: periodOf('금일')!.to, warehouseId: '', item: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -128,7 +130,7 @@ export default function DailyStockPage() {
   const totalAmount = shown.reduce((n, r) => n + (r.amount ?? 0), 0)
   const missing = shown.filter((r) => r.price === null).length
 
-  const reset = () => { setBasis('입고단가(품목)'); setCond({ date: today, warehouseId: '', item: '' }) }
+  const reset = () => { setBasis('입고단가(품목)'); setCond({ date: periodOf('금일')!.to, warehouseId: '', item: '' }) }
 
   return (
     <EcListShell
