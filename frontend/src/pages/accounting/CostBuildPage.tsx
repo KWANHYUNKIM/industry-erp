@@ -200,6 +200,13 @@ export default function CostBuildPage() {
         { label: '표준원가생성', onClick: build },
         { label: '실제원가 계산', onClick: calcActual },
         { label: '새로고침', onClick: load },
+        /*
+         * [인쇄] — '원가생성은 실행 화면이라 찍을 표가 없다' 고 적고 뺐는데,
+         * <b>이 화면에는 원가 표가 있다</b>(품목·기간·재료비·노무비·경비·표준원가).
+         * 셸이 그려진 표를 그대로 찍어 주므로 붙이기만 하면 된다 —
+         * 원가를 뽑아 놓고 종이로 남길 길이 없었다.
+         */
+        { label: '인쇄' },
         // 원본 차례: … Excel · 원가생성전 점검사항 (사본 실측)
         { label: 'Excel' },
         { label: '원가생성전 점검사항', onClick: () => setCheckOpen(true) },
