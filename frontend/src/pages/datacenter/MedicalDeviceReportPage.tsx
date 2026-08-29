@@ -57,6 +57,15 @@ const thisMonth = () => ymd(new Date()).slice(0, 7)
  */
 const SUPPLY_SHAPES = ['제조, 수입, 판매', '의료기관', '약국개설자, 의약품도매상', '견본품, 기부용, 군납용'] as const
 
+/**
+ * 원본 [조회구분] — <b>라디오 둘</b>이고 기본이 [전표별]이다(사본 실측: value 3=건별, 4=전표별, 4 가 켜짐).
+ *
+ * <p>우리는 건별 하나뿐이었다. 전표 하나에 UDI 품목이 여러 줄이면 <b>보고 단위를 바꿀 수가 없다</b> —
+ * 한 번 판 것을 몇 줄로 셀지가 곧 보고 건수라, 그것을 못 고르면 건수를 맞출 수가 없다.
+ */
+const SEARCH_TYPES = ['건별', '전표별'] as const
+type SearchType = typeof SEARCH_TYPES[number]
+
 export default function MedicalDeviceReportPage() {
   const today = iso(new Date())
   const [from, setFrom] = useState(today.slice(0, 8) + '01')
@@ -70,6 +79,8 @@ export default function MedicalDeviceReportPage() {
   const [itemCond, setItemCond] = useState('')
   /* 원본처럼 처음엔 전부 켠다 — 하나도 안 켜면 아무것도 안 나와 화면이 고장 난 것처럼 보인다. */
   const [shapes, setShapes] = useState<string[]>([...SUPPLY_SHAPES])
+  /* 원본 기본값이 [전표별] 이다 — 우리가 임의로 건별로 두면 첫 화면의 건수가 원본과 다르다. */
+  const [searchType, setSearchType] = useState<SearchType>('전표별')
   const [reportMonth, setReportMonth] = useState(thisMonth())
 
   const [lines, setLines] = useState<SupplyLine[]>([])
@@ -110,13 +121,43 @@ export default function MedicalDeviceReportPage() {
       && (allShapes || (l.supplyShape != null && shapes.includes(l.supplyShape)))),
     [lines, itemCond, shapes, allShapes])
 
+  /**
+   * 원본 [전표별] — 한 전표를 <b>한 줄</b>로 센다. 품목 줄은 몇 개인지와 수량 합계만 남는다.
+   *
+   * <p>전표번호가 없는 줄은 <b>묶지 않는다</b>. 없는 번호끼리 묶으면 서로 아무 상관 없는
+   * 공급이 한 줄이 된다.
+   */
+  const byDoc = useMemo(() => {
+    const m = new Map<string, {
+      key: string; supplyDate: string; supplyType: string; supplyTypeName: string
+      docNo: string | null; partnerName: string | null; supplyShape: string | null
+      itemCount: number; quantity: number
+    }>()
+    shownLines.forEach((l, i) => {
+      const key = l.docNo ? `${l.supplyType}:${l.docNo}` : `#${i}`
+      const cur = m.get(key)
+      if (!cur) {
+        m.set(key, {
+          key, supplyDate: l.supplyDate, supplyType: l.supplyType, supplyTypeName: l.supplyTypeName,
+          docNo: l.docNo, partnerName: l.partnerName, supplyShape: l.supplyShape,
+          itemCount: 1, quantity: Number(l.quantity),
+        })
+      } else {
+        cur.itemCount += 1
+        cur.quantity += Number(l.quantity)
+      }
+    })
+    return [...m.values()]
+  }, [shownLines])
+
   /* 요약도 걸러진 것으로 낸다 — 한 기기만 보면서 건수가 전체이면 숫자가 거짓말을 한다. */
   const summary = useMemo(() => ({
-    count: shownLines.length,
+    // 원본 [조회구분] 이 곧 <b>무엇을 한 건으로 세느냐</b>다 — 건수 칸도 같이 따라야 한다.
+    count: searchType === '전표별' ? byDoc.length : shownLines.length,
     qty: shownLines.reduce((a, l) => a + Number(l.quantity), 0),
     out: shownLines.filter((l) => l.supplyType === 'OUT').length,
     disposal: shownLines.filter((l) => l.supplyType === 'DISPOSAL').length,
-  }), [shownLines])
+  }), [shownLines, byDoc, searchType])
 
   async function generate() {
     setBusy(true); setError(''); setNotice('')
@@ -158,6 +199,17 @@ export default function MedicalDeviceReportPage() {
       {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
+        {/* 원본 첫 조건은 [조회구분] 이고 <b>라디오</b>다(사본 실측). */}
+        <label style={{ fontSize: 12.5 }}>{label('조회구분')}
+          <div style={{ display: 'flex', gap: 10, paddingTop: 3 }}>
+            {SEARCH_TYPES.map((k) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="radio" name="udiSearchType" checked={searchType === k}
+                       onChange={() => setSearchType(k)} />{k}
+              </label>
+            ))}
+          </div>
+        </label>
         {/* 원본 의료기기공급내역보고의 이름은 [기준일자]가 아니라 <b>[납품일자]</b> 다(사본 실측)
             — 이 구간이 재는 것이 공급(납품)한 날이다. */}
         <label style={{ fontSize: 12.5 }}>{label('납품일자')}
@@ -213,6 +265,46 @@ export default function MedicalDeviceReportPage() {
         ))}
       </div>
 
+      {searchType === '전표별' ? (
+      /*
+       * 전표별 — 한 전표가 한 줄이다. 품목·UDI-DI 는 전표 안에서 여러 개일 수 있어
+       * <b>지어내지 않고</b> 몇 품목인지와 수량 합계만 낸다.
+       */
+      <table className="w-full text-left">
+        <thead><tr>
+          <th style={{ width: 34 }}></th>
+          <th style={{ width: 110 }}>공급일자</th>
+          <th style={{ width: 70 }}>공급구분</th>
+          <th style={{ width: 160 }}>전표번호</th>
+          <th style={{ width: 150 }}>공급받는자</th>
+          <th style={{ width: 160 }}>공급형태</th>
+          <th style={{ width: 90, textAlign: 'right' }}>품목수</th>
+          <th style={{ width: 100, textAlign: 'right' }}>수량</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : byDoc.length === 0 ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+              보고 대상 공급내역이 없습니다. 품목등록에서 UDI-DI 를 입력한 품목의 판매·폐기만 집계됩니다.
+            </td></tr>
+          ) : byDoc.map((d, i) => (
+            <tr key={d.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace' }}>{d.supplyDate}</td>
+              <td style={{ color: d.supplyType === 'DISPOSAL' ? '#c60a2e' : 'var(--ec-blue)', fontWeight: 700 }}>{d.supplyTypeName}</td>
+              <td style={{ fontFamily: 'monospace' }}>{d.docNo ?? ''}</td>
+              <td>{d.partnerName ?? <span style={{ color: '#9aa1ab' }}>-</span>}</td>
+              <td style={{ color: d.supplyShape ? undefined : '#c9ced6' }}>{d.supplyShape ?? '미지정'}</td>
+              <td style={{ textAlign: 'right' }}>{d.itemCount.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{d.quantity.toLocaleString()}</td>
+              <td></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      ) : (
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
@@ -252,6 +344,7 @@ export default function MedicalDeviceReportPage() {
           ))}
         </tbody>
       </table>
+      )}
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>
         보고파일 이력 <span style={{ fontWeight: 400, color: '#8a929c', fontSize: 12 }}>(원본의 ‘송신이력’ — 우리는 산출·보관까지)</span>
