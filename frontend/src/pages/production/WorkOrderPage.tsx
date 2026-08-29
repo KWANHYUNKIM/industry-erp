@@ -67,6 +67,12 @@ async function printOne(o: WorkOrder, empName: (id: number | null) => string) {
 const statusColor = (s: string) =>
   s === 'COMPLETED' ? '#1c7c3c' : s === 'IN_PROGRESS' ? '#b6791b' : '#7a828c'
 
+/** 원본은 일자와 번호를 '2026/07/16 -1' 로 한 칸에 적는다(판매조회·견적서와 같은 규칙). */
+const dateNo = (o: { orderDate: string; orderNo: string }) => {
+  const seq = o.orderNo.split('-').pop() ?? ''
+  return `${o.orderDate.replace(/-/g, '/')} -${Number(seq) || seq}`
+}
+
 export default function WorkOrderPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -278,6 +284,13 @@ export default function WorkOrderPage() {
             <th style={{ width: 90 }}>담당자명</th>
             {/* 원본 차례는 거래처명 · 담당자명 · <b>납기일자</b> · 품목명[규격] · 지시수량 · 생산수량 이다. */}
             <th style={{ width: 100 }}>납기일자</th>
+            {/*
+              원본 차례는 납기일자 <b>다음</b>이 [작업지시No.] 다(사본 실측).
+              [일자-No.] 와 다른 칸이다 — 그쪽은 <b>그날 몇 번째</b>인지(2026/07/16 -1)이고
+              이쪽은 전표번호 전체다. 우리는 [일자-No.] 한 칸에 날짜와 전표번호를 <b>붙여
+              찍고</b> 있어서, 원본을 쓰던 사람이 번호로 훑을 때 눈이 걸렸다.
+            */}
+            <th style={{ width: 150 }}>작업지시No.</th>
             <th>품목명[규격]</th>
             <th>창고</th>
             <th style={{ textAlign: 'right' }}>지시수량</th>
@@ -299,18 +312,19 @@ export default function WorkOrderPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{o.orderDate} {o.orderNo}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateNo(o)}</td>
                 <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? '-'}</td>
                 <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
                 <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{o.dueDate ?? '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)' }}>{o.orderNo}</td>
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>
                 <td style={{ textAlign: 'right' }}>{o.plannedQty.toLocaleString()} {o.productUnit}</td>
