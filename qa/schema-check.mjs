@@ -274,6 +274,97 @@ for (const schema of ['public', ...tenants]) {
     select je.doc_no from ${schema}.journal_entries je
     where not exists (select 1 from ${schema}.journal_lines l where l.entry_id = je.id)`).map((r) => r[0])
   eq(`${schema}: 라인 없는 회계전표 없음`, empty.join(', ') || '없음', '없음')
+
+  /*
+   * <b>전표 머리에 찍힌 돈이 줄의 합과 같은가.</b>
+   *
+   * <p>화면은 머리의 합계를 크게 보여 주고 줄은 아래에 늘어놓는다. 둘이 갈라지면
+   * 보는 사람은 <b>어느 쪽을 믿을지 고를 수가 없다</b> — 게다가 채권·매출현황·부가세는
+   * 머리를 더하고, 품목별 이익은 줄을 더해서, 같은 달을 보는 화면 둘이 다른 숫자를 낸다.
+   *
+   * <p>줄만 고치고 머리를 다시 안 더하는 코드가 하나만 생겨도 이렇게 갈라진다.
+   * 지금은 다섯 전표 모두 맞다 — 맞는 지금을 못 박아 둔다.
+   */
+  const 머리줄 = [
+    ['판매', 'sales', 'sales_lines', 'sales_id', 'quantity*unit_price'],
+    ['구매', 'purchases', 'purchase_lines', 'purchase_id', 'quantity*unit_price'],
+    ['견적', 'quotations', 'quotation_lines', 'quotation_id', 'quantity*unit_price'],
+    ['수주', 'sales_orders', 'sales_order_lines', 'sales_order_id', 'quantity*unit_price'],
+    ['발주', 'purchase_orders', 'purchase_order_lines', 'purchase_order_id', 'supply_amount'],
+  ]
+  for (const [이름, 머리, 줄, 키, 식] of 머리줄) {
+    const 갈린것 = psql(`
+      select h.id || ': 머리 ' || coalesce(h.supply_amount,0) || ' vs 줄합 ' ||
+             coalesce((select sum(${식}) from ${schema}.${줄} l where l.${키}=h.id),0)
+      from ${schema}.${머리} h
+      where abs(coalesce(h.supply_amount,0)
+            - coalesce((select sum(${식}) from ${schema}.${줄} l where l.${키}=h.id),0)) > 1
+      limit 5`).map((r) => r[0])
+    eq(`${schema}: ${이름} 머리 공급가액 = 줄의 합`, 갈린것.join(' / ') || '없음', '없음')
+  }
+
+  /* 합계 = 공급가액 + 부가세. 세액만 따로 고치면 여기서 갈린다. */
+  for (const [이름, 표] of [['판매', 'sales'], ['구매', 'purchases']]) {
+    const 갈린것 = psql(`
+      select id || ': 합계 ' || coalesce(total_amount,0) || ' vs ' ||
+             coalesce(supply_amount,0) || '+' || coalesce(vat_amount,0)
+      from ${schema}.${표}
+      where abs(coalesce(total_amount,0) - (coalesce(supply_amount,0)+coalesce(vat_amount,0))) > 1
+      limit 5`).map((r) => r[0])
+    eq(`${schema}: ${이름} 합계 = 공급가액 + 부가세`, 갈린것.join(' / ') || '없음', '없음')
+  }
+
+  /*
+   * <b>수량이 제 상한을 넘지 않았나.</b> 넘은 줄이 하나 있으면 미출하·잔여수량이
+   * 음수가 되어, 그 화면이 '아직 덜 나갔다'와 '더 나갔다'를 구분 못 한다.
+   */
+  const 상한 = [
+    ['수주 줄의 출하수량 ≤ 주문수량', 'sales_order_lines', 'coalesce(shipped_qty,0) > quantity'],
+    ['작업지시 기생산 ≤ 지시수량', 'work_orders', 'coalesce(produced_qty,0) > planned_qty'],
+    ['재고 잔량이 음수가 아니다', 'stocks', 'quantity < 0'],
+  ]
+  for (const [이름, 표, 조건] of 상한) {
+    const 넘은것 = psql(`select id from ${schema}.${표} where ${조건} limit 5`).map((r) => r[0])
+    eq(`${schema}: ${이름}`, 넘은것.join(', ') || '없음', '없음')
+  }
+
+  /*
+   * <b>줄이 하나도 없는 전표.</b> 목록에는 뜨는데 열면 빈 표가 나오고, 합계는 0 이라
+   * 매출에도 안 잡힌다. 지우다 만 것인지 처음부터 잘못 만든 것인지도 알 수 없다.
+   */
+  const 빈전표 = psql(`
+    select t || ' ' || c from (
+      select 'sales' t, count(*) c from ${schema}.sales h
+        where not exists (select 1 from ${schema}.sales_lines l where l.sales_id=h.id)
+      union all select 'purchases', count(*) from ${schema}.purchases h
+        where not exists (select 1 from ${schema}.purchase_lines l where l.purchase_id=h.id)
+      union all select 'quotations', count(*) from ${schema}.quotations h
+        where not exists (select 1 from ${schema}.quotation_lines l where l.quotation_id=h.id)
+      union all select 'sales_orders', count(*) from ${schema}.sales_orders h
+        where not exists (select 1 from ${schema}.sales_order_lines l where l.sales_order_id=h.id)
+      union all select 'purchase_orders', count(*) from ${schema}.purchase_orders h
+        where not exists (select 1 from ${schema}.purchase_order_lines l where l.purchase_order_id=h.id)
+    ) x where c > 0`).map((r) => r[0])
+  eq(`${schema}: 줄이 하나도 없는 전표가 없다`, 빈전표.join(' / ') || '없음', '없음')
+
+  /* 급여명세: 실지급 = 기본급 + 수당 − 공제, 그리고 그 수당·공제가 줄의 합과 같은가. */
+  const 급여 = psql(`
+    select id || ': 실지급 ' || coalesce(net_pay,0) || ' vs ' || coalesce(base_salary,0)
+           || '+' || coalesce(allowance_total,0) || '-' || coalesce(deduction_total,0)
+    from ${schema}.payslips
+    where abs(coalesce(net_pay,0)
+          - (coalesce(base_salary,0)+coalesce(allowance_total,0)-coalesce(deduction_total,0))) > 1
+    limit 5`).map((r) => r[0])
+  eq(`${schema}: 급여 실지급 = 기본급 + 수당 − 공제`, 급여.join(' / ') || '없음', '없음')
+  for (const [이름, 칸, 갈래] of [['수당', 'allowance_total', 'ALLOWANCE'], ['공제', 'deduction_total', 'DEDUCTION']]) {
+    const 갈린것 = psql(`
+      select p.id from ${schema}.payslips p
+      where abs(coalesce(p.${칸},0) - coalesce((select sum(l.amount) from ${schema}.payslip_lines l
+            where l.payslip_id=p.id and l.kind='${갈래}'),0)) > 1
+      limit 5`).map((r) => r[0])
+    eq(`${schema}: 급여 ${이름}합계 = ${이름}줄의 합`, 갈린것.join(', ') || '없음', '없음')
+  }
+
 }
 
 console.log('\n' + '─'.repeat(50))
