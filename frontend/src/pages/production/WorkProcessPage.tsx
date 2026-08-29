@@ -23,8 +23,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * 뜻이다. 첫 공정은 지시수량이 상한이고, 그다음부터는 직전 공정의 완료 수량이 상한이다.
  * 이걸 안 보면 조립을 하나도 안 했는데 검사를 100개 했다고 적을 수 있다.
  *
- * <p>생산공장은 우리에게 없다(재고는 창고 단위). 작업품목/생산품목 구분도 없어
- * 품목 한 칸으로 둔다 — 없는 조건을 그려 두면 눌러도 아무 일이 없다.
+ * <p>생산공장은 우리에게 없다(재고는 창고 단위). <b>작업품목</b>은 BOR 줄에 붙은 품목이고
+ * <b>생산품목</b>은 작업지시가 만드는 물건이라 서로 다른 축이다 — 조건도 열도 따로 둔다.
  */
 interface WorkOrder {
   id: number
@@ -50,6 +50,10 @@ interface BorRow {
   workName: string
   hoursPerUnit: number
   active: boolean
+  /** BOR 줄이 다루는 <b>작업품목</b>. 만드는 물건(생산품목)과 다르다. */
+  workItemId: number | null
+  workItemCode: string | null
+  workItemName: string | null
 }
 
 interface WorkResult {
@@ -67,6 +71,9 @@ interface Row {
   processId: number
   processName: string
   workName: string
+  workItemId: number | null
+  /** [코드] 이름 꼴로 미리 붙여 둔 작업품목. 없으면 빈 글자. */
+  workItemLabel: string
   /** 이미 이 공정에 기록된 수량 */
   doneQty: number
   /** 직전 공정이 끝낸 수량. 첫 공정은 지시수량. */
@@ -103,12 +110,15 @@ export default function WorkProcessPage() {
    * <p>납기일자·생산공장·작업이 빠져 있었다. 처리할 줄이 수십 개면 "오늘 납기인 것부터",
    * "이 공장 것만" 을 못 골라 눈으로 훑게 된다.
    *
-   * <p>[작업품목]은 BOR 의 작업기준품목이라 아직 없다(사본에 값이 비어 있어 의미를 못 쟀다).
+   * <p>[작업품목]은 BOR 의 작업기준품목이다. BOR 이 그 값을 안 들던 때에는 조건을 만들 수
+   * 없었는데, BOR 에 작업품목이 생긴 뒤로도 <b>이 화면만 그대로 비어 있었다.</b>
    * [담당자]는 이 화면이 작업지시의 담당자를 안 받는다.
    */
   const [dueDate, setDueDate] = useState('')
   const [plant, setPlant] = useState('')
   const [work, setWork] = useState('')
+  /** 원본 [작업품목]. BOR 줄에 붙은 품목이라 <b>생산품목과 따로</b> 거른다. */
+  const [workItem, setWorkItem] = useState('')
   /** 원본 [담당자]. 값은 사원명이고, 전표에는 id 만 있어 목록으로 잇는다. */
   const [manager, setManager] = useState('')
   /** 줄마다 입력한 처리 수량·시간 */
@@ -182,6 +192,8 @@ export default function WorkProcessPage() {
         out.push({
           key: `${wo.id}:${o.processId}`,
           wo, seq: o.seq, processId: o.processId, processName: o.processName, workName: o.workName,
+          workItemId: o.workItemId,
+          workItemLabel: o.workItemId == null ? '' : `[${o.workItemCode ?? ''}] ${o.workItemName ?? ''}`,
           doneQty: done, availableQty: prevDone, remainQty: remain,
         })
         prevDone = done
@@ -190,13 +202,15 @@ export default function WorkProcessPage() {
     const min = Number(minRemain)
     return out
       .filter((r) => !work || `${r.processName} ${r.workName}`.includes(work))
+      // 작업품목은 BOR 줄에 붙는다 — 생산품목(작업지시가 만드는 물건)과 다른 축이다.
+      .filter((r) => !workItem || r.workItemLabel.includes(workItem))
       // 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 사원 목록으로 이름과 잇는다.
       .filter((r) => !manager || (nameOfEmployee.get(r.wo.employeeId ?? -1) ?? '') === manager)
       .filter((r) => (minRemain && !Number.isNaN(min) ? r.remainQty >= min : r.remainQty > 0))
       .sort((a, b) => (a.wo.orderDate < b.wo.orderDate ? 1 : a.wo.orderDate > b.wo.orderDate ? -1
         : a.wo.orderNo.localeCompare(b.wo.orderNo) || a.seq - b.seq))
   }, [orders, opsOf, doneOf, from, to, item, orderNo, prevBased, minRemain, dueDate, plant, work,
-    manager, nameOfEmployee])
+    workItem, manager, nameOfEmployee])
 
   async function process(r: Row) {
     const v = input[r.key]
@@ -208,6 +222,8 @@ export default function WorkProcessPage() {
       await api.post('/work-results', {
         workOrderId: r.wo.id,
         process: r.processName,
+        // BOR 이 정해 둔 작업품목을 그대로 실적에 남긴다 — 나중에 무엇을 만졌는지 알 수 있다.
+        workItemId: r.workItemId ?? undefined,
         goodQty: qty,
         defectQty: 0,
         workTimeMin: Number(v?.minutes ?? '') || 0,
@@ -232,7 +248,7 @@ export default function WorkProcessPage() {
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to); setItem(''); setOrderNo('')
           setPrevBased(true); setMinRemain('')
-          setDueDate(''); setPlant(''); setWork('')
+          setDueDate(''); setPlant(''); setWork(''); setWorkItem('')
         } },
         { label: 'Excel' },
       ]}
@@ -276,6 +292,11 @@ export default function WorkProcessPage() {
           <input className="ec-input" placeholder="공정명·작업명 일부" value={work}
                  onChange={(e) => setWork(e.target.value)} style={{ width: 180 }} />
         </EcCond>
+        <EcCond label="작업품목" pick>
+          <CodePickerField label="작업품목" hideLabel width={200} emptyLabel="전체"
+                           value={workItem} onChange={(v) => setWorkItem(v)}
+                           items={pickers.items} />
+        </EcCond>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
@@ -308,6 +329,7 @@ export default function WorkProcessPage() {
               <th>생산품목</th>
               <th style={{ width: 60, textAlign: 'right' }}>순서</th>
               <th style={{ width: 130 }}>작업/공정</th>
+              <th style={{ width: 150 }}>작업품목</th>
               <th style={{ width: 90, textAlign: 'right' }}>지시수량</th>
               <th style={{ width: 90, textAlign: 'right' }}>완료</th>
               <th style={{ width: 100, textAlign: 'right' }}>미작업량</th>
@@ -318,9 +340,9 @@ export default function WorkProcessPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
                 처리할 작업이 없습니다. 품목에 BOR(작업소요시간)이 있어야 여기 나옵니다.
               </td></tr>
             ) : rows.slice(0, 300).map((r, i) => (
@@ -331,6 +353,7 @@ export default function WorkProcessPage() {
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
                 <td style={{ textAlign: 'right' }}>{r.seq}</td>
                 <td>{r.workName} <span style={{ color: '#8a929c', fontSize: 11.5 }}>({r.processName})</span></td>
+                <td style={{ color: r.workItemLabel ? undefined : '#9aa1ab' }}>{r.workItemLabel || '—'}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.wo.plannedQty)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}

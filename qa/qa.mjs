@@ -4211,6 +4211,14 @@ async function scenarioProductionLaborMinutes(f) {
   })
   eq('작업기준품목이 붙는다', bor.workItemCode, f.material.code)
   /*
+   * <b>목록에도 실려야 한다.</b> 작업지시서작업처리는 /bor 목록을 통째로 읽어 줄마다
+   * 작업품목을 붙이고 그 값으로 거른다 — 만드는 응답에만 있고 목록에서 빠지면
+   * 그 화면의 [작업품목] 조건이 아무것도 못 걸러 조용히 전부를 보여 준다.
+   */
+  const borInList = (await must('GET', '/bor')).find((x) => x.id === bor.id)
+  eq('목록에도 작업품목 id 가 실린다', borInList.workItemId, f.material.id)
+  eq('목록에도 작업품목명이 실린다', borInList.workItemName, f.material.name)
+  /*
    * 공정명은 <b>자유입력</b>이라 마스터에 없는 이름도 들어온다. 그때 응답의 processId 가
    * null 이 되고 표준시간이 빈다 — 화면은 그 둘을 보고 <b>왜 비었는지</b>를 말한다
    * (이름을 고칠 일인지, BOR 을 세울 일인지). 서버가 그 표시를 실어 주는지 못 박는다.

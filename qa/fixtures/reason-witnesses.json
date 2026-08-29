@@ -405,5 +405,139 @@
    "planSale"
   ],
   "in": "backend/src/main/java/com/erp/accounting/domain/ProjectPlan.java"
+ },
+ "발주서입력|전체수량": {
+  "claim": "주문하면서 지금 재고를 같이 보여 주는 기능이 없다",
+  "absent": [
+   "stock",
+   "Stock"
+  ],
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
+ },
+ "발주서입력|창고수량": {
+  "claim": "그 창고의 재고를 발주 화면에 붙이지 않는다",
+  "absent": [
+   "stock",
+   "Stock"
+  ],
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
+ },
+ "건설예정공정표|업무지원AI": {
+  "claim": "업무지원 AI 를 붙이지 않았다",
+  "absent": [
+   "AI",
+   "업무지원"
+  ],
+  "in": "frontend/src/pages/groupware/ConstructionSchedulePage.tsx"
+ },
+ "생산계획/MRP생성|생성일자": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획/MRP생성|생산계획계산": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획/MRP생성|MRP계산": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획/MRP생성|생산계획/MRP현황": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획/MRP생성|기타": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획_MRP리스트|생성일자": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획_MRP리스트|MRP계산": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획_MRP리스트|H": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "직접입력": {
+  "claim": "생성 팝업과 소요량 전개(MRP) 엔진을 안 만든다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "품목등록 리스트|파일관리": {
+  "claim": "파일은 품목 팝업의 [이미지] 칸에서 붙이고 뗀다",
+  "present": [
+   "image"
+  ],
+  "file": "inventory/ItemsPage.tsx"
+ },
+ "거래처리스트|이체정보": {
+  "claim": "이체정보는 거래처 팝업 안에서 본다 — 따로 여는 화면이 없다",
+  "present": [
+   "accountNo",
+   "bankName"
+  ],
+  "file": "trade/PartnersPage.tsx"
+ },
+ "거래처관계기준": {
+  "claim": "[대표거래처로 합산] 체크가 곧 그 선택이다",
+  "present": [
+   "byParent"
+  ],
+  "file": "trade/LedgerPage.tsx"
+ },
+ "개별거래처기준": {
+  "claim": "위와 같음",
+  "present": [
+   "byParent"
+  ],
+  "file": "trade/LedgerPage.tsx"
  }
 }
