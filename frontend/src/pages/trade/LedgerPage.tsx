@@ -122,10 +122,23 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    * 부르는 이름(별칭)이라, 코드도 상호도 모르는 사람이 이 칸으로 알아본다.
    */
   const [aliasOf, setAliasOf] = useState<Map<number, string>>(new Map())
+  /*
+   * 원본 <b>[대표거래처로 합산]</b> — 지점·사업장을 <b>한 회사로 묶어</b> 잔액을 본다.
+   * 예전에는 '거래처 관계 마스터가 없다' 고 적고 뺐는데 <b>대표거래처는 그 사이 생겼다</b>
+   * (BusinessPartner.parent, 거래처리스트의 [관계설정]으로 정한다).
+   * 지점이 다섯이면 채권이 다섯 줄로 흩어져, 그 회사에 얼마를 받을지 눈으로 더해야 했다.
+   */
+  const [parentOf, setParentOf] = useState<Map<number, { id: number; name: string }>>(new Map())
+  const [byParent, setByParent] = useState(false)
   useEffect(() => {
-    api.get<{ id: number; searchKeyword: string | null }[]>('/partners')
-      .then((r) => setAliasOf(new Map(r.data.map((x) => [x.id, x.searchKeyword ?? '']))))
-      .catch(() => setAliasOf(new Map()))
+    api.get<{ id: number; searchKeyword: string | null; parentId: number | null; parentName: string | null }[]>('/partners')
+      .then((r) => {
+        setAliasOf(new Map(r.data.map((x) => [x.id, x.searchKeyword ?? ''])))
+        setParentOf(new Map(r.data
+          .filter((x) => x.parentId != null)
+          .map((x) => [x.id, { id: x.parentId as number, name: x.parentName ?? '' }])))
+      })
+      .catch(() => { setAliasOf(new Map()); setParentOf(new Map()) })
   }, [])
 
   /** 잔액을 다시 읽는다. 원본 [검색(F8)] 이 이 일을 한다. */
@@ -161,6 +174,26 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
     return true
   }), [rows, partner, manager, withInactive, onlyOpen, showAr, showAp])
 
+  /**
+   * 원본 [대표거래처로 합산]. 대표를 정해 둔 거래처는 <b>대표 줄에 합쳐</b> 센다.
+   * 대표가 없는 거래처는 <b>자기가 곧 대표</b>라 그대로 한 줄로 남는다.
+   */
+  const rollUp = <T extends { partnerId: number; name: string }>(list: T[], add: (a: T, b: T) => T) => {
+    if (!byParent) return list
+    const m = new Map<number, T>()
+    for (const r of list) {
+      const head = parentOf.get(r.partnerId)
+      const key = head?.id ?? r.partnerId
+      const cur = m.get(key)
+      if (!cur) m.set(key, { ...r, partnerId: key, name: head?.name || r.name })
+      else m.set(key, add(cur, r))
+    }
+    return [...m.values()]
+  }
+  const shownRolled = rollUp(shown, (a, b) => ({
+    ...a, receivable: a.receivable + b.receivable, payable: a.payable + b.payable,
+  }))
+
   /** 담당자별 — 같은 관리담당자의 거래처 잔액을 모은다. 담당자가 없으면 '(미지정)'. */
   const byManager = useMemo(() => {
     const m = new Map<string, { key: string; count: number; receivable: number; payable: number }>()
@@ -180,25 +213,32 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
     if (onlyOpen && m.closing === 0) return false
     return true
   }), [moves, partner, manager, onlyOpen])
+  const movesRolled = rollUp(shownMoves, (a, b) => ({
+    ...a,
+    opening: a.opening + b.opening, stockAmount: a.stockAmount + b.stockAmount,
+    accountingAmount: a.accountingAmount + b.accountingAmount,
+    settledAmount: a.settledAmount + b.settledAmount,
+    otherDiff: a.otherDiff + b.otherDiff, closing: a.closing + b.closing,
+  }))
 
-  const moveTotal = useMemo(() => shownMoves.reduce((t, m) => ({
+  const moveTotal = useMemo(() => movesRolled.reduce((t, m) => ({
     opening: t.opening + m.opening, stock: t.stock + m.stockAmount,
     acct: t.acct + m.accountingAmount, settled: t.settled + m.settledAmount,
     other: t.other + m.otherDiff, closing: t.closing + m.closing,
-  }), { opening: 0, stock: 0, acct: 0, settled: 0, other: 0, closing: 0 }), [shownMoves])
+  }), { opening: 0, stock: 0, acct: 0, settled: 0, other: 0, closing: 0 }), [movesRolled])
 
   const subtotals = useMemo(
-    () => subtotalBy(shown, (r) => (subtotal === '거래처관리담당자' ? r.manager : r.partnerGroupName),
+    () => subtotalBy(shownRolled, (r) => (subtotal === '거래처관리담당자' ? r.manager : r.partnerGroupName),
       { receivable: (r) => r.receivable, payable: (r) => r.payable }),
     [shown, subtotal])
   /* 한쪽만 보는 화면이면 그 쪽 잔액을, 둘 다 보면 순채권(채권−채무)을 그린다. */
-  const chartRows = useMemo(() => shown.map((r) => ({
+  const chartRows = useMemo(() => shownRolled.map((r) => ({
     label: r.name,
     value: side === 'AR' ? r.receivable : side === 'AP' ? r.payable : r.receivable - r.payable,
   })), [shown, side])
 
-  const totalReceivable = shown.reduce((a, r) => a + r.receivable, 0)
-  const totalPayable = shown.reduce((a, r) => a + r.payable, 0)
+  const totalReceivable = shownRolled.reduce((a, r) => a + r.receivable, 0)
+  const totalPayable = shownRolled.reduce((a, r) => a + r.payable, 0)
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
@@ -208,13 +248,13 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    * 아래 소계·그래프는 <code>shown</code> 을 묶어 만들므로 그쪽 입력까지 뒤집으면
    * 소계 줄의 차례가 목록을 따라 흔들린다.
    */
-  const sort = useTableSort(shown, {
+  const sort = useTableSort(shownRolled, {
     거래처코드: (r) => r.code,
     /* 원본 거래처관리대장 I 의 이름은 [상호] 가 아니라 <b>[거래처명]</b> 이다(사본 실측). */
     거래처명: (r) => r.name,
   })
 
-  useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shown.length, group])
+  useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shownRolled.length, group, byParent])
   // 담당자별 표도 채권/채무 열이 조건부라 정적으로 셀 수 없다 — 같은 방식으로 못 박는다.
   const mgrTableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(mgrTableRef, '담당자별 채권·채무', [side, byManager.length, group])
@@ -284,6 +324,17 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
+        </EcCond>
+        {/*
+          원본 [대표거래처로 합산] — 지점·사업장을 한 회사로 묶어 본다.
+          대표를 안 정한 거래처는 <b>자기가 곧 대표</b>라 그대로 한 줄로 남는다.
+          원본은 이것을 <b>[기타]에 섞지 않고 제 줄로</b> 둔다 — [거래처] 바로 다음이다(실측).
+        */}
+        <EcCond label="대표거래처로 합산">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byParent} onChange={(e) => setByParent(e.target.checked)} />
+            지점을 대표거래처로 묶어 본다
+          </label>
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
@@ -367,7 +418,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={2} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(shown.length)}</td>
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(shownRolled.length)}</td>
               {showAr && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totalReceivable)}</td>}
               {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(totalPayable)}</td>}
             </tr>
@@ -388,9 +439,9 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             </tr>
           </thead>
           <tbody>
-            {shownMoves.length === 0 ? (
+            {movesRolled.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shownMoves.map((m, i) => (
+            ) : movesRolled.map((m, i) => (
               <tr key={m.partnerId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{m.name}</td>
@@ -409,7 +460,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({shownMoves.length}곳)</td>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({movesRolled.length}곳)</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.opening)}</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.stock)}</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.acct)}</td>
@@ -437,7 +488,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         <tbody>
           {loading ? (
             <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          ) : shownRolled.length === 0 ? (
             <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, idx) => (
             <tr key={r.partnerId}>
@@ -463,7 +514,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             </tr>
           ))}
         </tbody>
-        {shown.length > 0 && (
+        {shownRolled.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={5} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
@@ -476,7 +527,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       </table>
       )}
 
-      {view === '표' && shown.length > 0 && (
+      {view === '표' && shownRolled.length > 0 && (
         <>
           <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
           <table className="w-full text-left">

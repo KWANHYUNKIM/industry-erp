@@ -8348,6 +8348,16 @@ async function scenarioPartnerParent(f) {
   eq('대표거래처 이름도 함께 온다', tied.parentName, head.name)
   eq('다시 읽어도 남아 있다',
     (await must('GET', '/partners')).find((x) => x.id === f.customer.id).parentId, head.id)
+  /*
+   * 대표거래처는 <b>채권·채무를 묶어 보려고</b> 두는 값이다(거래처관리대장의
+   * [대표거래처로 합산]). 화면이 합치므로 여기서는 <b>잔액 응답이 그 두 거래처를 각각
+   * 들고 오는지</b>만 본다 — 서버가 미리 합쳐 버리면 화면이 풀 수가 없다.
+   */
+  await save(head.id)
+  const bal = await must('GET', '/ledger/partner-balances')
+  eq('잔액은 지점과 대표를 <b>각각</b> 들고 온다 — 합치는 것은 화면이 한다',
+    bal.some((b) => b.partnerId === f.customer.id) && bal.some((b) => b.partnerId === head.id), true)
+
   isNull('풀 수도 있다 — 지점이 독립하면 대표가 없다', (await save(null)).parentId)
 }
 

@@ -260,5 +260,12 @@
    "dailyKind"
   ],
   "in": "backend"
+ },
+ "거래처관리대장 II|대표거래처로 합산": {
+  "claim": "거래처 목록이라 합칠 금액이 없다 — 잔액을 보는 화면에는 만들었다",
+  "present": [
+   "대표거래처로 합산"
+  ],
+  "file": "trade/LedgerPage.tsx"
  }
 }
