@@ -51,6 +51,10 @@ public class BorService {
                 .workName(req.workName().trim())
                 .baseQty(req.baseQty() != null ? req.baseQty() : BigDecimal.ONE)
                 .workHours(req.workHours())
+                /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
+                .workItem(req.workItemId() != null ? itemService.get(req.workItemId()) : null)
+                /* 품목을 안 고르면 양도 없다 — 무엇을 얼마나 다루는지 반쪽만 남기지 않는다. */
+                .workQty(req.workItemId() != null ? req.workQty() : null)
                 .remark(req.remark())
                 .active(req.active() == null || req.active())
                 .build();
@@ -68,6 +72,8 @@ public class BorService {
         o.setWorkName(req.workName().trim());
         o.setBaseQty(req.baseQty() != null ? req.baseQty() : BigDecimal.ONE);
         o.setWorkHours(req.workHours());
+        o.setWorkItem(req.workItemId() != null ? itemService.get(req.workItemId()) : null);
+        o.setWorkQty(req.workItemId() != null ? req.workQty() : null);
         o.setRemark(req.remark());
         if (req.active() != null) {
             o.setActive(req.active());

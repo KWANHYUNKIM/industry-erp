@@ -61,6 +61,26 @@ public class BorOperation extends BaseTimeEntity {
     private BigDecimal baseQty = BigDecimal.ONE;
 
     /** 작업시간(H). 소수 3자리 — 6분은 0.1시간이다. */
+    /**
+     * 작업기준품목. 원본 BOR 격자의 <b>[작업기준품목코드]·[작업기준품목명]</b>.
+     *
+     * <p>이 작업이 <b>어느 품목을</b> 다루는가. 완제품과 다를 수 있다 —
+     * AQD 를 만드는 공정 안에서 이 작업은 'AQD 몸체' 를 다니는 식이다
+     * (작업내역입력의 [작업품목]과 같은 뜻이다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_item_id")
+    private Item workItem;
+
+    /**
+     * 작업량. 원본 격자의 <b>[작업량]</b> — 그 품목을 <b>얼마만큼</b> 다루는가.
+     *
+     * <p>같은 공정이라도 다루는 물건과 양이 다르면 걸리는 시간이 달라지는데,
+     * 작업시간만 적어 두면 그 근거가 어디에도 안 남는다.
+     */
+    @Column(name = "work_qty", precision = 15, scale = 3)
+    private BigDecimal workQty;
+
     @Column(name = "work_hours", nullable = false, precision = 10, scale = 3)
     @Builder.Default
     private BigDecimal workHours = BigDecimal.ZERO;

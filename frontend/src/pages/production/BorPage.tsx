@@ -36,6 +36,11 @@ interface BorRow {
   workHours: number
   /** 1개당 작업시간(H) = 작업시간 ÷ 생산수량. 서버가 낸다. */
   hoursPerUnit: number
+  /** 원본 [작업기준품목코드]·[작업기준품목명]·[작업량]. 안 정했으면 null. */
+  workItemId: number | null
+  workItemCode: string | null
+  workItemName: string | null
+  workQty: number | null
   remark: string | null
   active: boolean
 }
@@ -43,7 +48,8 @@ interface BorRow {
 /** active — 원본은 사용중단한 공정을 코드도움에 안 띄운다. */
 interface ProcessRow { id: number; code: string; name: string; workcenter: string | null; active: boolean }
 
-const emptyForm = { productId: '', processId: '', seq: '1', workName: '', baseQty: '1', workHours: '', remark: '' }
+const emptyForm = { productId: '', processId: '', seq: '1', workName: '', baseQty: '1', workHours: '',
+  workItemId: '', workQty: '', remark: '' }
 
 /** 소수시간을 시:분으로. 0.175H 는 10분 30초라 분까지 보여 준다. */
 function hhmm(hours: number): string {
@@ -103,6 +109,7 @@ export default function BorPage() {
     setForm({
       productId: String(r.productId), processId: String(r.processId),
       seq: String(r.seq), workName: r.workName,
+      workItemId: r.workItemId ? String(r.workItemId) : '', workQty: r.workQty != null ? String(r.workQty) : '',
       baseQty: String(r.baseQty), workHours: String(r.workHours), remark: r.remark ?? '',
     })
     setShowForm(true)
@@ -114,6 +121,8 @@ export default function BorPage() {
     const body = {
       productId: Number(form.productId), processId: Number(form.processId),
       seq: Number(form.seq), workName: form.workName,
+      workItemId: form.workItemId ? Number(form.workItemId) : undefined,
+      workQty: form.workQty ? Number(form.workQty) : undefined,
       baseQty: Number(form.baseQty || 1), workHours: Number(form.workHours || 0),
       remark: form.remark || null, active: true,
     }
@@ -192,6 +201,22 @@ export default function BorPage() {
                   .map((o) => <option key={o.id} value={o.name}>{o.code}</option>)}
               </datalist>
             </div>
+            {/*
+              원본 [작업기준품목]·[작업량]. 여기서 안 받으면 그 열이 늘 빈칸이다.
+              안 정해도 된다(완제품 기준으로만 재는 공정) — 대신 <b>품목을 안 고르면 양도 안 받는다</b>.
+              무엇을 얼마나 다루는지 반쪽만 남기지 않는다.
+            */}
+            <CodePickerField
+              label="작업기준품목" placeholder="완제품과 같으면 비워 둠"
+              value={form.workItemId} onChange={(v) => set('workItemId', v)}
+              items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.categoryName }))}
+            />
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">작업량</label>
+              <input className="ec-input w-full text-right" type="number" step="any" value={form.workQty}
+                     disabled={!form.workItemId}
+                     onChange={(e) => set('workQty', e.target.value)} />
+            </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">생산수량</label>
               <input className="ec-input w-full text-right" type="number" step="any" value={form.baseQty}
@@ -252,6 +277,14 @@ export default function BorPage() {
               <th style={{ width: 80 }}>작업순서</th>
               <th>작업명</th>
               <th style={{ width: 100, textAlign: 'right' }}>작업시간(H)</th>
+              {/*
+                원본 차례: … 작업시간(H) · <b>작업기준품목코드 · 작업기준품목명 · 작업량</b>.
+                이 작업이 <b>어느 품목을 얼마만큼</b> 다루는가 — 같은 공정이라도 다루는 물건과
+                양이 다르면 걸리는 시간이 달라지는데, 작업시간만 적어 두면 그 근거가 안 남는다.
+              */}
+              <th style={{ width: 110 }}>작업기준품목코드</th>
+              <th style={{ width: 140 }}>작업기준품목명</th>
+              <th style={{ width: 90, textAlign: 'right' }}>작업량</th>
               <th style={{ width: 100, textAlign: 'right' }}>1개당(H)</th>
               <th style={{ width: 110, textAlign: 'right' }}>{lot.toLocaleString('ko-KR')}개 소요</th>
               <th style={{ width: 80, textAlign: 'center' }}>관리</th>
@@ -259,9 +292,9 @@ export default function BorPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => {
               const first = i === 0 || shown[i - 1].productId !== r.productId
               return (
@@ -275,6 +308,11 @@ export default function BorPage() {
                   <td style={{ textAlign: 'right' }}>{r.seq}</td>
                   <td>{r.workName}</td>
                   <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString('ko-KR')}</td>
+                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? '-'}</td>
+                  <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>{r.workItemName ?? '-'}</td>
+                  <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : '#c9ced6' }}>
+                    {r.workQty != null ? r.workQty.toLocaleString('ko-KR') : '-'}
+                  </td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.hoursPerUnit.toFixed(4)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{hhmm(r.hoursPerUnit * lot)}</td>
                   <td style={{ textAlign: 'center' }}>
@@ -288,7 +326,7 @@ export default function BorPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={9} style={{ textAlign: 'right' }}>
+                <td colSpan={12} style={{ textAlign: 'right' }}>
                   품목 {perProduct.size}개 · 작업 {shown.length}줄
                 </td>
                 <td style={{ textAlign: 'right' }}>

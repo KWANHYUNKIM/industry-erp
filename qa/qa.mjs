@@ -4202,7 +4202,22 @@ async function scenarioProductionLaborMinutes(f) {
   const bor = await must('POST', '/bor', {
     productId: f.product.id, processId: proc.id, seq: 1,
     workName: `${P}노무시험`, baseQty: 1, workHours: 2,
+    /*
+     * 원본 BOR 격자의 [작업기준품목]·[작업량] — 이 작업이 <b>어느 품목을 얼마만큼</b> 다루나.
+     * 같은 공정이라도 다루는 물건과 양이 다르면 걸리는 시간이 달라지는데,
+     * 작업시간만 적어 두면 그 근거가 어디에도 안 남았다.
+     */
+    workItemId: f.material.id, workQty: 3,
   })
+  eq('작업기준품목이 붙는다', bor.workItemCode, f.material.code)
+  eq('작업량도 함께 남는다', Number(bor.workQty), 3)
+  /* 품목을 안 고르면 양도 없다 — 무엇을 얼마나 다루는지 <b>반쪽만</b> 남기지 않는다. */
+  const halfway = await must('POST', '/bor', {
+    productId: f.product.id, processId: proc.id, seq: 9,
+    workName: `${P}반쪽`, baseQty: 1, workHours: 1, workQty: 5,
+  })
+  isNull('품목 없이 양만 주면 버린다', halfway.workQty)
+  await must('DELETE', `/bor/${halfway.id}`)
 
   const wo = await must('POST', '/work-orders', {
     productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 10, orderDate: D,
