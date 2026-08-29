@@ -66,7 +66,17 @@ export default function UnshippedPage() {
   const [rows, setRows] = useState<UnshippedLine[]>([])
   const [keyword, setKeyword] = useState('')
   /** 원본 조건 판에 해당하는 값들. 고치면 바로 반영된다(원본도 그렇다). */
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
+  /*
+   * 원본 미출하현황 조건 차례: 구분 · 기준일자(영업주기) · 출하지시No. · <b>출하예정일</b> ·
+   * 창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 담당자 · <b>거래처관리담당자</b> · 미출하수량.
+   *
+   * <p>[출하예정일]은 <b>줄에 이미 실려 오는데</b>(납기일) 거를 수가 없었다 —
+   * "이번 주까지 나가야 할 미출하" 를 보려면 표를 눈으로 훑어야 했다.
+   * [거래처관리담당자]는 거래처 마스터가 든다 — "내가 맡은 거래처의 미출하" 를 못 봤다.
+   */
+  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '',
+    dueFrom: '', dueTo: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
+  const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -123,12 +133,28 @@ export default function UnshippedPage() {
     load()
   }, [])
 
+  /* [거래처관리담당자]는 거래처 마스터가 든다 — 미출하 줄은 거래처 <b>이름만</b> 들고 온다. */
+  useEffect(() => {
+    api.get<{ name: string; manager: string | null }[]>('/partners')
+      .then((r) => setPartnerMgrs(new Map(r.data.map((p) => [p.name, p.manager ?? '']))))
+      .catch(() => {})
+  }, [])
+
   const shownRows = rows.filter(
     (r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.itemName.includes(keyword),
   )
-    // 기준일자는 납기일로 본다 — '언제까지 나가야 하는데 안 나갔나'가 이 화면의 질문이다.
-    .filter((r) => !cond.from || (r.dueDate ?? '') >= cond.from)
-    .filter((r) => !cond.to || (r.dueDate ?? '') <= cond.to)
+    /*
+     * <b>기준일자는 주문일이고, 출하예정일은 납기일이다.</b>
+     *
+     * <p>예전에는 [기준일자]를 <b>납기일로 읽었다</b> — 원본의 [출하예정일]이 우리에게 없어서
+     * "언제까지 나가야 하는데 안 나갔나" 를 물을 길이 그것뿐이었기 때문이다.
+     * 이제 [출하예정일]을 따로 만들었으니 그 절충이 필요 없다. 둘 다 제 뜻으로 돌린다.
+     */
+    .filter((r) => !cond.from || r.orderDate >= cond.from)
+    .filter((r) => !cond.to || r.orderDate <= cond.to)
+    .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
+    .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
+    .filter((r) => !cond.partnerMgr || partnerMgrs.get(r.partnerName) === cond.partnerMgr)
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
     .filter((r) => !cond.item || r.itemName.includes(cond.item))
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
@@ -184,7 +210,8 @@ export default function UnshippedPage() {
     [mode, byItem, shown])
 
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
+    setCond({ from: '', to: '', partner: '', item: '', orderNo: '',
+      dueFrom: '', dueTo: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
     setKeyword('')
   }
 
@@ -210,6 +237,13 @@ export default function UnshippedPage() {
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
       >
+        <EcCond label="출하예정일">
+          <input type="date" className="ec-input" value={cond.dueFrom}
+                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.dueTo}
+                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
@@ -223,6 +257,14 @@ export default function UnshippedPage() {
         <EcCond label="주문번호" pick>
           <input className="ec-input" placeholder="주문번호 일부" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          {/* 후보는 <b>실제로 거래처를 맡은 사람들</b>에서 뽑는다 — 아무 거래처도 안 맡은
+              사원을 고를 수 있게 두면 골라도 아무것도 안 나온다. */}
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={[...new Set(partnerMgrs.values())].filter(Boolean).sort()
+                             .map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="미출하수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
