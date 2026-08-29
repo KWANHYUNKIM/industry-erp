@@ -2321,6 +2321,14 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
  * <b>110개</b>가 그랬다([기본(수정불가)] 51 · [라인별] 18 · [사용안함] 17 · [현황] 6 …).
  * 없는 버튼 목록이 365였는데 그중 114가 애초에 버튼이 아니었다.
  * <code>layer.selectbox</code> 나 <code>selectbox-label</code> 이 든 button 은 건너뛴다.
+ *
+ * <p><b>숨긴 자리의 단추도 아니다.</b> 감싼 <code>&lt;div class="control-set … hidden"&gt;</code>
+ * 안의 button 은 <b>그 순간 안 보이는</b> 것이다 — 늘 있는 단추가 아니라 <b>조건이 맞을 때만</b>
+ * 뜬다. <code>[오천건이상조회]</code>가 그렇다: 원본도 결과가 5천을 넘을 때만 띄우고,
+ * 우리도 잘렸을 때만 띄운다. 그런데 사본에는 <b>안 보이는 채로</b> 담겨 있어서
+ * "39곳에 없다" 로 세어졌다 — 없는 게 아니라 <b>지금 뜰 자리가 아닌</b> 것이다.
+ * 그래프 보기에 딸린 <code>id="graphFilter"</code>([필터] 15곳)도 같다.
+ * 이 규칙으로 <b>57개</b>가 목록에서 빠졌다(239 → 182).
  */
 {
   const BTN_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
