@@ -8850,6 +8850,7 @@ async function main() {
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
   await scenarioPressedTwice(fixtures)
+  await scenarioNoPermission()
 
   checkDeadAssertions()
 
@@ -9066,6 +9067,85 @@ async function scenarioGhostId() {
  * 넣을 뿐이거나(전자결재는 currentActionableLine 이, 발주 확정은 expect(PRICED) 가 막는다)
  * 아무 흔적을 안 남긴다.
  */
+/**
+ * <b>권한이 하나도 없는 계정으로 쓰는 자리를 두드린다.</b>
+ *
+ * <p>인가 인터셉터는 경로를 메뉴 권한 카탈로그에서 찾아 막는데, <b>못 찾으면 그냥 통과</b>시킨다
+ * ({@code requiredCode == null}). 그래서 카탈로그에 없는 쓰기 자리는 아무나 부를 수 있다.
+ * 쓰는 자리 363곳을 권한 없는 계정으로 두드려 403 이 아닌 아홉을 찾았다.
+ *
+ * <p>여덟은 <b>제 것</b>이라 맞다 — 북마크·My품목·업무메모는 그 사람 것이고 권한과 상관없다.
+ * 남은 하나가 파일이었다. 권한이 하나도 없는 계정이 남이 올린 증빙을 <b>내려받고 지웠다.</b>
+ * FileController 주석은 "접근 제어는 파일을 소유한 화면의 권한을 따른다" 고 적어 뒀는데,
+ * 적어 둔 정책과 도는 코드가 달랐다.
+ *
+ * <p>지우는 것만 막았다. 권한 코드 하나로 막으면 파일을 곁다리로 쓰는 화면
+ * (증빙센터·드라이브·품목이미지·보고파일·설문)이 조용히 깨지므로, <b>올린 사람</b>으로 가른다.
+ * 내려받기는 아직 열려 있다 — 증빙은 올린 사람과 보는 사람이 다른 것이 정상이라
+ * 화면별 권한을 알아야 제대로 막을 수 있고, 그건 이 자리에서 지어낼 수 없다.
+ */
+async function scenarioNoPermission() {
+  section('■ 시나리오 40. 권한 없는 계정이 쓰는 자리를 두드리면')
+
+  await ensure('/roles', 'name', `${P}NOPERM`, null, {
+    name: `${P}NOPERM`, displayName: 'QA권한없음', description: 'QA 시험용 — 권한 없음',
+    permissionCodes: [],
+  })
+  await ensure('/users', 'username', `${P.toLowerCase()}noperm`, null, {
+    username: `${P.toLowerCase()}noperm`, password: 'qanoperm1234', name: 'QA권한없는이',
+    email: 'qanoperm@example.com', roleNames: [`${P}NOPERM`],
+  })
+  const low = await must('POST', '/auth/login',
+    { username: `${P.toLowerCase()}noperm`, password: 'qanoperm1234' })
+  eq('권한이 하나도 없는 계정이다', (low.permissionCodes ?? []).length, 0)
+
+  const 낮은쪽 = async (method, path, body) => {
+    const r = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${low.token}` },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    })
+    return [r.status, await r.json().catch(() => null)]
+  }
+
+  /* 업무 자료는 권한 없이 못 쓴다 */
+  for (const [이름, path, body] of [
+    ['품목', '/items', { code: `${P}X1`, name: 'X', unit: 'EA' }],
+    ['판매', '/sales', {}],
+    ['거래처', '/partners', { code: `${P}X2`, name: 'X' }],
+  ]) {
+    const [st] = await 낮은쪽('POST', path, body)
+    eq(`${이름} 등록은 403 이다`, st, 403)
+  }
+
+  /* 제 것은 권한 없이도 쓴다 — 막으면 그 사람 화면이 깨진다 */
+  const [메모st] = await 낮은쪽('POST', '/workspace/notes', { content: 'QA 메모' })
+  eq('제 업무메모는 권한 없이도 쓸 수 있다', 메모st < 300, true)
+
+  /* 남의 파일은 못 지운다 */
+  const fd = new FormData()
+  fd.append('file', new Blob(['QA 증빙'], { type: 'text/plain' }), 'qa-evidence.txt')
+  const up = await fetch(`${BASE}/files`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+  })
+  const 올린파일 = await up.json()
+  eq('관리자가 파일을 올렸다', up.status, 200)
+  const [지움] = await 낮은쪽('DELETE', `/files/${올린파일.id}`)
+  eq('남이 올린 파일은 못 지운다', 지움, 403)
+  eq('그 파일은 그대로 있다', (await call('GET', `/files/${올린파일.id}/meta`)).status, 200)
+  /* 내가 올린 것은 지울 수 있어야 한다 — 아니면 아무도 못 지우는 자리가 된다. */
+  const fd2 = new FormData()
+  fd2.append('file', new Blob(['내 것'], { type: 'text/plain' }), 'qa-mine.txt')
+  const up2 = await fetch(`${BASE}/files`, {
+    method: 'POST', headers: { Authorization: `Bearer ${low.token}` }, body: fd2,
+  })
+  const 내파일 = await up2.json()
+  const [내가지움] = await 낮은쪽('DELETE', `/files/${내파일.id}`)
+  eq('내가 올린 파일은 내가 지운다', 내가지움, 204)
+
+  await call('DELETE', `/files/${올린파일.id}`)
+}
+
 async function scenarioPressedTwice(f) {
   section('■ 시나리오 39. 두 번 눌렀을 때')
 
