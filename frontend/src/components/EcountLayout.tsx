@@ -809,6 +809,13 @@ export default function EcountLayout() {
     return () => window.clearInterval(t)
   }, [panel])
 
+  /* 화면 안의 버튼(근태조회 [메신저]·설문조사조회 [대화방])이 <b>같은 창을</b> 열어 달라고 알린다. */
+  useEffect(() => {
+    const open = (e: Event) => setPanel((e as CustomEvent<PanelKind>).detail)
+    window.addEventListener('ec:open-panel', open)
+    return () => window.removeEventListener('ec:open-panel', open)
+  }, [])
+
   // 상단 북마크바. 아무것도 담지 않은 사람에게는 서버가 기본 여섯을 내려 준다.
   useEffect(() => {
     api.get<Bookmark[]>('/bookmarks')

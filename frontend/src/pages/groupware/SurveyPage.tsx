@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { openAppBarPanel } from '../../components/AppBarPanel'
 import Modal from '../../components/Modal'
 import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../api/types'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -110,7 +111,18 @@ export default function SurveyPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => navigate('/groupware/survey-input')}
-      actions={[{ label: '선택삭제', onClick: removeSelected }, { label: 'Excel' }]}
+      actions={[
+        /*
+         * 원본 설문조사조회의 [대화방]. '사내 대화방이 없다' 고 적어 뒀는데
+         * <b>대화방은 진작 있었다</b>(ChatRoom·앱바 💬). 설문을 보다 담당자에게 바로
+         * 물으려면 화면을 떠나지 않고 열려야 한다 — 앱바의 <b>같은 창</b>을 연다.
+         *
+         * <p>원본 차례상 <b>[선택삭제] 앞</b>이다(신규(F2) · 대화방 · 선택삭제).
+         */
+        { label: '대화방', onClick: () => openAppBarPanel('messenger') },
+        { label: '선택삭제', onClick: removeSelected },
+        { label: 'Excel' },
+      ]}
     >
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (

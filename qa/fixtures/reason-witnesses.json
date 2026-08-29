@@ -1,0 +1,63 @@
+{
+ "품목등록 리스트|관계설정": {
+  "claim": "품목 사이 관계(대체품·세트) 개념이 없다",
+  "absent": [
+   "substituteItem",
+   "setComponent"
+  ],
+  "in": "backend"
+ },
+ "거래처리스트|SMS": {
+  "claim": "문자 발송을 붙이지 않았다",
+  "absent": [
+   "SmsService",
+   "/api/sms"
+  ],
+  "in": "backend"
+ },
+ "결제내역조회|승인번호": {
+  "claim": "PG 연동에서 들어오는 자료라 값이 안 생긴다",
+  "absent": [
+   "approvalNo",
+   "PgPayment"
+  ],
+  "in": "backend"
+ },
+ "생산입고조회|진행상태변경": {
+  "claim": "생산입고에 진행상태가 없다",
+  "absent": [
+   "ProductionStatus"
+  ],
+  "in": "backend"
+ },
+ "단가요청진행단계|수취금액": {
+  "claim": "단가요청에 받은 금액을 적는 칸이 없다",
+  "absent": [
+   "receivedAmount",
+   "quotedAmount"
+  ],
+  "in": "backend"
+ },
+ "매출계획|일자-No.": {
+  "claim": "계획에는 번호가 없다",
+  "absent": [
+   "planNo"
+  ],
+  "in": "backend"
+ },
+ "구매단가일괄변경|환율": {
+  "claim": "전표에 통화·환율이 없다",
+  "absent": [
+   "exchangeRate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain"
+ },
+ "내결재관리|My도장/서명": {
+  "claim": "결재 도장 이미지를 만들지 않는다",
+  "absent": [
+   "stampImage",
+   "signatureImage"
+  ],
+  "in": "backend"
+ }
+}

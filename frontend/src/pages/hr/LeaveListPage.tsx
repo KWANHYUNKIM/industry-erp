@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { openAppBarPanel } from '../../components/AppBarPanel'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
@@ -165,7 +166,15 @@ export default function LeaveListPage() {
       onNew={() => navigate('/hr/leave-input')}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        // 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측)
+        /*
+         * 원본 근태조회의 [메신저]. 예전에는 '사내 메신저가 없다' 고 적고 뺐는데
+         * <b>메신저는 진작 있었다</b>(앱바 💬). 근태를 보다 그 사람에게 바로 물으려면
+         * 화면을 떠나지 않고 열려야 한다 — 앱바의 <b>같은 창</b>을 연다.
+         *
+         * <p>원본 차례상 <b>[인쇄] 앞</b>이다(신규(F2) · 메신저 · 인쇄 …).
+         */
+        { label: '메신저', onClick: () => openAppBarPanel('messenger') },
+        // 원본 차례: 신규(F2) · 메신저 · 인쇄 · 선택삭제 · Excel (사본 실측)
         { label: '인쇄' },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
         { label: 'Excel' },

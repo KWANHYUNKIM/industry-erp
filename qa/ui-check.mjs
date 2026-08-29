@@ -755,9 +755,14 @@ console.log('\n■ 대조표를 다 쓰고 있나')
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
     if (Array.isArray(j)) continue
     for (const k of Object.keys(j)) {
-      if (UNMAPPED[k] !== undefined) continue
+      /*
+       * <b>화면|항목</b> 으로 적힌 대조표(예: 이유의 근거)는 앞쪽이 화면 이름이다.
+       * 통째로 지도에서 찾으면 <b>있는 화면도 없다고</b> 나온다.
+       */
+      const screen = k.includes('|') ? k.slice(0, k.indexOf('|')) : k
+      if (UNMAPPED[screen] !== undefined) continue
       checked += 1
-      if (!MAP.has(k)) bad.push(`${f}  [${k}] — 대조표에 있는데 지도에 없다(늘려도 안 쓰인다)`)
+      if (!MAP.has(screen)) bad.push(`${f}  [${k}] — 대조표에 있는데 지도에 없다(늘려도 안 쓰인다)`)
     }
   }
   eq(`대조표 화면 ${checked}개가 다 지도에 걸려 있다`, bad.join('\n') || '없음', '없음')
@@ -2119,12 +2124,12 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
   const NO_BUTTON = new Map([
 
     ['거래처리스트|SMS', '문자 발송을 붙이지 않았다'],
-    ['근태조회|메신저', '사내 메신저가 없다'],
 
 
 
     ['근태입력|저장/전표(F7)', '근태를 회계전표로 넘기지 않는다'],
 
+    ['설문조사조회|Email', '전표를 메일로 보내지 않는다'],
     ['설문조사조회|미리보기', '설문 미리보기 화면이 없다'],
     ['소요시간계산|작업지시서', '계산 결과에서 작업지시서를 만들지 않는다'],
     ['생산입고조회|생산입고I', '입력 화면을 [신규(F2)]로 연다'],
@@ -2169,7 +2174,6 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['일정관리|라벨변경', '위와 같음'],
     ['내결재관리|My도장/서명', '결재 도장 이미지를 만들지 않는다'],
     ['내결재관리|보내기', '전표를 메일로 보내지 않는다'],
-    ['설문조사조회|Email', '위와 같음'], ['설문조사조회|대화방', '사내 대화방이 없다'],
     ['작업내역조회|보내기', '위와 같음'], ['작업내역조회|바코드(품목)', '바코드를 찍지 않는다'],
     ['생산입고조회|바코드(품목)', '위와 같음'],
     ['원가생성_수정|인쇄', '원가생성은 실행 화면이라 찍을 표가 없다'],
@@ -3892,6 +3896,62 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
   eq(`원본이 조건으로도 두는 열 ${checked}개 가운데 새로 못 거르게 된 것이 없다`,
     grown.join('\n') || '없음', '없음')
   eq('만들어 놓고 목록에 남겨 둔 것이 없다', gone.join('\n') || '없음', '없음')
+}
+
+
+// ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
+console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
+
+/*
+ * <b>이유는 적을 때는 맞지만 코드가 자라면 거짓이 된다.</b>
+ *
+ * <p>실제로 네 번 그랬다 — '코드를 가진 몰 마스터가 없다'(그 사이 쇼핑몰계정등록이 생겼다),
+ * '거래처 관계 마스터가 없다'(대표거래처가 생겼다), '기간 빠른선택에 그 조합을 두지
+ * 않았다'(진작 있었다), '검사요청 전표에 프로젝트 칸이 없다'(검사에는 있었다).
+ * 넷 다 <b>사람이 우연히</b> 다시 읽어서 알았다. 아무도 안 읽으면 그 항목은 영영 안 만들어진다.
+ *
+ * <p>그래서 이유마다 <b>그 주장의 증거</b>를 함께 적는다 — "이 이름이 코드에 없다" 는 식으로.
+ * 그 이름이 생기면 검사가 <b>다시 재 보라</b>고 말한다. 이유를 지우라는 뜻이 아니라,
+ * 전제가 바뀌었으니 그 자리에서 판단을 새로 하라는 뜻이다.
+ *
+ * <p>모든 이유에 증거를 달 수는 없다. '사본에 그 격자의 줄이 없다' 처럼 <b>원본을 두고 하는
+ * 말</b>이나 '화면 위 버튼 하나로 연다' 처럼 <b>우리가 그렇게 정한 것</b>은 코드로 잴 수 없다.
+ * 잴 수 있는 것만 적는다.
+ */
+{
+  const witnesses = JSON.parse(readFileSync(join('qa', 'fixtures', 'reason-witnesses.json'), 'utf8'))
+  const cache = new Map()
+  const treeText = (where) => {
+    if (cache.has(where)) return cache.get(where)
+    const roots = where === 'backend' ? ['backend/src/main/java']
+      : where === 'frontend' ? ['frontend/src']
+        : where === 'both' ? ['backend/src/main/java', 'frontend/src']
+          : [where]
+    let all = ''
+    for (const r of roots) {
+      if (!existsSync(r)) continue
+      for (const f of walk(r)) {
+        if (!/[.](java|ts|tsx)$/.test(f)) continue
+        all += readFileSync(f, 'utf8')
+      }
+    }
+    cache.set(where, all)
+    return all
+  }
+
+  const stale = []
+  let checked = 0
+  for (const [key, w] of Object.entries(witnesses)) {
+    const text = treeText(w.in)
+    for (const name of w.absent) {
+      checked++
+      if (text.includes(name)) {
+        stale.push(`[${key}] — "${w.claim}" 라고 적어 뒀는데 코드에 <${name}> 가 생겼다. 다시 재 보세요`)
+      }
+    }
+  }
+  eq(`이유의 근거 ${checked}개가 아직 사실이다 (예외 ${Object.keys(witnesses).length}종)`,
+    stale.join('\n') || '없음', '없음')
 }
 
 console.log('\n' + '─'.repeat(50))
