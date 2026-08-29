@@ -25,6 +25,11 @@ export interface BottomAction { label: string; onClick?: () => void; primary?: b
 /** onClick이 없을 때 셸이 기본 동작을 붙여주는 액션 라벨 */
 const EXCEL_LABELS = ['Excel', '엑셀']
 const PRINT_LABELS = ['인쇄', '출력']
+/**
+ * 원본 [미리보기] — 인쇄와 <b>같은 종이</b>를 띄우되 인쇄 대화상자는 안 띄운다.
+ * 무엇이 나오는지 보려고 [인쇄]를 누르면 대화상자부터 떠서 <b>취소를 먼저</b> 눌러야 했다.
+ */
+const PREVIEW_LABELS = ['미리보기']
 
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
@@ -87,6 +92,12 @@ export default function EcListShell({
     return printTable(t, title, await defaultSignLine(), win)
   })
 
+  const doPreview = withTable(async (t) => {
+    const win = openPrintWindow()
+    if (!win) return true
+    return printTable(t, title, await defaultSignLine(), win, false)
+  })
+
   const filterRows = (q: string) => {
     const table = findDataTable(bodyRef.current)
     if (!table) return
@@ -136,6 +147,8 @@ export default function EcListShell({
   const resolved = actions.map((a) => {
     let handler = a.onClick
     if (!handler && EXCEL_LABELS.some((l) => a.label.includes(l))) handler = doExcel
+    /* [미리보기]를 [인쇄]보다 <b>먼저</b> 본다 — '인쇄 미리보기' 는 둘 다 품는다. */
+    if (!handler && PREVIEW_LABELS.some((l) => a.label.includes(l))) handler = doPreview
     if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
     return { ...a, onClick: handler }
   })

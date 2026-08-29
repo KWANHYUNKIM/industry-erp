@@ -97,20 +97,6 @@
   ],
   "in": "backend"
  },
- "설문조사조회|미리보기": {
-  "claim": "설문 미리보기 화면이 없다",
-  "absent": [
-   "SurveyPreview"
-  ],
-  "in": "frontend"
- },
- "공용품관리|미리보기": {
-  "claim": "인쇄 미리보기 화면이 없다",
-  "absent": [
-   "PrintPreviewPage"
-  ],
-  "in": "frontend"
- },
  "작업내역조회|바코드(품목)": {
   "claim": "바코드를 찍지 않는다",
   "absent": [

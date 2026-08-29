@@ -163,7 +163,18 @@ export default function SchedulePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '인쇄' }, { label: '선택삭제', onClick: removeSelected }, { label: 'Excel' }]}
+      actions={[
+      /*
+       * 원본 [미리보기] — 인쇄와 <b>같은 종이</b>를 띄우되 인쇄 대화상자는 안 띄운다.
+       * '미리보기 화면이 없다' 고 적고 뺐는데, 셸이 이미 그 종이를 만들고 있었다 —
+       * 없던 것은 <b>대화상자를 안 띄우는 길</b>뿐이었다. 무엇이 나오는지 보려고
+       * [인쇄]를 누르면 대화상자부터 떠서 취소를 먼저 눌러야 했다.
+       */
+        { label: '미리보기' },
+        { label: '인쇄' },
+        { label: '선택삭제', onClick: removeSelected },
+        { label: 'Excel' },
+      ]}
     >
       {/* 원본 왼쪽의 캘린더 고르기. 우리 화면은 좌우가 달력·목록이라 위에 한 줄로 둔다. */}
       <div style={{

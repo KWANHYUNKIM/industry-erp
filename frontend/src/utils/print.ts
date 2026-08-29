@@ -55,15 +55,20 @@ export function openPrintWindow(): Window | null {
   return win
 }
 
-/** 준비된 창에 문서를 써 넣고 인쇄 대화상자를 띄운다. */
-export function fillAndPrint(win: Window, html: string) {
+/**
+ * 준비된 창에 문서를 써 넣고 인쇄 대화상자를 띄운다.
+ *
+ * @param autoPrint false 면 <b>보여 주기만</b> 한다 — 원본의 [미리보기]가 그것이다.
+ *   찍기 전에 무엇이 나오는지 보고 싶은데, 대화상자가 먼저 뜨면 <b>취소부터</b> 눌러야 한다.
+ */
+export function fillAndPrint(win: Window, html: string, autoPrint = true) {
   win.document.open()
   win.document.write(html)
   win.document.close()
   win.focus()
   // document.write 로 만든 문서는 load 이벤트가 이미 지나가 onload 가 안 오는 경우가 있다.
   // 렌더가 끝난 뒤 인쇄를 부르려고 한 박자 늦춘다(바로 부르면 빈 페이지가 찍히는 브라우저가 있다).
-  win.setTimeout(() => win.print(), 200)
+  if (autoPrint) win.setTimeout(() => win.print(), 200)
 }
 
 /**
@@ -71,7 +76,8 @@ export function fillAndPrint(win: Window, html: string) {
  *            {@link openPrintWindow} 로 <b>클릭 시점에</b> 열어서 넘겨야 팝업 차단을 피한다.
  */
 export function printTable(table: HTMLTableElement, title: string,
-                           signLine?: PrintSignLine | null, win?: Window | null): boolean {
+                           signLine?: PrintSignLine | null, win?: Window | null,
+                           autoPrint = true): boolean {
   const { headers, rows } = tableToMatrix(table)
   if (rows.length === 0) {
     win?.close()
@@ -104,6 +110,6 @@ export function printTable(table: HTMLTableElement, title: string,
     ${signLineHtml(signLine)}
   </div>
   <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
-</body></html>`)
+</body></html>`, autoPrint)
   return true
 }
