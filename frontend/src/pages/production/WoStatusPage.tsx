@@ -57,6 +57,11 @@ interface Row {
 const initP = periodOf('금월(~오늘)')!
 
 export default function WoStatusPage() {
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -153,6 +158,7 @@ export default function WoStatusPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
+      signLine={signBox}
     >
       {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -199,6 +205,12 @@ export default function WoStatusPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </ul>
 

@@ -88,6 +88,11 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    * 채권을 보다가 채무를 보려면 <b>메뉴로 되돌아가야</b> 했다. 원본은 화면 안에서 고른다.
    * 들어온 경로가 기본값이 된다.
    */
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [side, setSide] = useState<LedgerSide>(initialSide)
   /** 원본 [전표입력] — 판매입력으로 넘긴다. */
   const navigate = useNavigate()
@@ -282,6 +287,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           setGroup('거래처별'); setPartner(''); setManager(''); setWithInactive(false); setOnlyOpen(false)
         } },
       ]}
+      signLine={signBox}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/*
@@ -372,6 +378,12 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
                       onClick={() => setView(v)}>{v === '그래프' ? '그래프로 보기' : '표'}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </ul>
 

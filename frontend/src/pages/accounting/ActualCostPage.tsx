@@ -83,6 +83,11 @@ function monthRange(period: string): { from: string; to: string } {
 export default function ActualCostPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [mode, setMode] = useState<Mode>('원가집계표')
   const [period, setPeriod] = useState(thisMonth())
   const [keyword, setKeyword] = useState('')
@@ -197,6 +202,7 @@ export default function ActualCostPage() {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
@@ -224,6 +230,12 @@ export default function ActualCostPage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
+          </label>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </ul>

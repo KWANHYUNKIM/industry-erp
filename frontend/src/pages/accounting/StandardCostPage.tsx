@@ -33,6 +33,10 @@ interface Cost {
 }
 
 export default function StandardCostPage() {
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(도장칸)이 찍힌다. 기본은 <b>꺼짐</b>이다(사본 실측).
+   */
+  const [signBox, setSignBox] = useState(false)
   const [rows, setRows] = useState<Cost[]>([])
   const [keyword, setKeyword] = useState('')
   const [period, setPeriod] = useState('전체')
@@ -80,7 +84,7 @@ export default function StandardCostPage() {
 
   return (
     <EcListShell title="표준원가현황" search={keyword} onSearchChange={setKeyword}
-      newLabel="새로고침" onNew={load} actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: 'Excel' }]}>
+      newLabel="새로고침" onNew={load} actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: 'Excel' }]} signLine={signBox}>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준월">
@@ -116,6 +120,12 @@ export default function StandardCostPage() {
                       onClick={() => setSubtotal(v)}>{v}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
         </EcCond>
       </ul>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>

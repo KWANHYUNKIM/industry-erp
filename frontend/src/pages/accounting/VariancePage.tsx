@@ -70,6 +70,11 @@ const varColor = (n: number | null) => (n == null ? '#c9ced6' : n > 0 ? '#c60a2e
 export default function VariancePage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [mode, setMode] = useState<Mode>('원가비교집계표')
   const [costs, setCosts] = useState<Cost[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -218,6 +223,7 @@ export default function VariancePage() {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -248,6 +254,12 @@ export default function VariancePage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
+          </label>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </ul>
