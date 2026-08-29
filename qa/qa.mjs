@@ -1447,6 +1447,25 @@ async function scenarioBankCard() {
   await rejects('중복 계좌번호 등록은 거부', 'POST', '/bank-cards/accounts', {
     bankName: 'QA은행2', accountNo, openingBalance: 0,
   }, '이미 등록된 계좌번호')
+
+  /*
+   * 계좌·카드 <b>수정</b>. 서버에는 진작 있었는데 화면이 안 불러서 등록만 되고 고칠 수가
+   * 없었다 — 계좌번호를 잘못 치면 그 계좌를 영영 두거나 새로 만들어야 했다.
+   *
+   * <p>고칠 때 <b>잔액은 움직이지 않는다.</b> 잔액은 입출금으로만 움직이는데 수정 요청에도
+   * 기초잔액 칸이 있어서, 화면이 그 값을 실어 보내면 이미 쌓인 수불과 어긋난다.
+   * 서버가 일부러 안 받는다 — 그 약속을 여기서 못 박는다(화면은 아예 안 묻는다).
+   */
+  const balBefore = Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance)
+  const edited = await must('PUT', `/bank-cards/accounts/${bank.id}`, {
+    bankName: 'QA은행(수정)', accountNo, holder: 'QA예금주', openingBalance: 999_999, remark: 'QA수정',
+  })
+  eq('계좌를 고칠 수 있다', edited.bankName, 'QA은행(수정)')
+  eq('고쳐도 잔액은 그대로다 — 기초잔액으로 덮어쓰지 않는다',
+    Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id).balance), balBefore)
+  await must('PUT', `/bank-cards/accounts/${bank.id}`, {
+    bankName: 'QA은행', accountNo, openingBalance: 0,
+  })
 }
 
 /** 고정자산 — 취득 → 월별 감가상각(자동 분개) → 처분(처분손익) */

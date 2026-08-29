@@ -41,6 +41,12 @@ export default function BankCardPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
+  /**
+   * 계좌·카드를 <b>고치는</b> 자리. 서버에는 진작 PUT 이 있었는데 화면에는 등록만
+   * 있어서, 계좌번호를 잘못 치면 <b>그 계좌를 영영 그대로 두거나</b> 새로 만들어야 했다.
+   */
+  const [editAccount, setEditAccount] = useState<BankAccountRow | null>(null)
+  const [editCard, setEditCard] = useState<CreditCardRow | null>(null)
   const [kw, setKw] = useState('')
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중지'>('전체')
   const [glCond, setGlCond] = useState('')
@@ -148,11 +154,19 @@ export default function BankCardPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={showForm && tab === '계좌등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
-        <BankAccountForm glAccounts={glAccounts} currencies={currencies} onError={setError} onSaved={() => saved('계좌를 등록했습니다.')} />
+      <Modal open={(showForm || !!editAccount) && tab === '계좌등록'}
+             title={editAccount ? '계좌 수정' : '계좌/카드 등록'}
+             onClose={() => { setShowForm(false); setEditAccount(null) }}>{(
+        <BankAccountForm key={editAccount?.id ?? 'new'} edit={editAccount}
+          glAccounts={glAccounts} currencies={currencies} onError={setError}
+          onSaved={() => { setEditAccount(null); saved(editAccount ? '계좌를 수정했습니다.' : '계좌를 등록했습니다.') }} />
       )}</Modal>
-      <Modal open={showForm && tab === '카드등록'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
-        <CardForm accounts={accounts} onError={setError} onSaved={() => saved('카드를 등록했습니다.')} />
+      <Modal open={(showForm || !!editCard) && tab === '카드등록'}
+             title={editCard ? '카드 수정' : '계좌/카드 등록'}
+             onClose={() => { setShowForm(false); setEditCard(null) }}>{(
+        <CardForm key={editCard?.id ?? 'new'} edit={editCard}
+          accounts={accounts} onError={setError}
+          onSaved={() => { setEditCard(null); saved(editCard ? '카드를 수정했습니다.' : '카드를 등록했습니다.') }} />
       )}</Modal>
       <Modal open={showForm && tab === '계좌입출금'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <BankTxnForm accounts={accounts} glAccounts={glAccounts} partners={partners}
@@ -204,8 +218,8 @@ export default function BankCardPage() {
       )}
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} />
-        : tab === '카드등록' ? <CardTable rows={shownCards} />
+        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} />
+        : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} />
         : tab === '계좌입출금' ? <BankTxnTable rows={txns} />
         : <CardUsageTable rows={usages} />}
     </EcListShell>
@@ -214,7 +228,7 @@ export default function BankCardPage() {
 
 // ── 목록 ────────────────────────────────────────────────────────────────
 
-function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
+function BankAccountTable({ rows, onEdit }: { rows: BankAccountRow[]; onEdit: (r: BankAccountRow) => void }) {
   return (
     <table className="w-full text-left">
       <thead>
@@ -232,11 +246,12 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
           {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
           <th>적요</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
+          <th style={{ width: 70, textAlign: 'center' }}>처리</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -250,6 +265,9 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
             <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
+            <td style={{ textAlign: 'center' }}>
+              <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -257,7 +275,7 @@ function BankAccountTable({ rows }: { rows: BankAccountRow[] }) {
   )
 }
 
-function CardTable({ rows }: { rows: CreditCardRow[] }) {
+function CardTable({ rows, onEdit }: { rows: CreditCardRow[]; onEdit: (r: CreditCardRow) => void }) {
   return (
     <table className="w-full text-left">
       <thead>
@@ -275,11 +293,12 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
           <th style={{ width: 110 }}>계정명</th>
           <th style={{ width: 80, textAlign: 'center' }}>결제일</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
+          <th style={{ width: 70, textAlign: 'center' }}>처리</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -293,6 +312,9 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
             <td style={{ color: '#5a626e' }}>{r.glAccountName ?? ''}</td>
             <td style={{ textAlign: 'center' }}>{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
+            <td style={{ textAlign: 'center' }}>
+              <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -410,23 +432,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function BankAccountForm({ glAccounts, currencies, onError, onSaved }: {
+function BankAccountForm({ edit, glAccounts, currencies, onError, onSaved }: {
+  edit?: BankAccountRow | null
   glAccounts: AccountOption[]; currencies: Currency[]
   onError: (m: string) => void; onSaved: () => void
 }) {
   const deposits = useMemo(() => glAccounts.filter((a) => a.division === 'ASSET'), [glAccounts])
   const [form, setForm] = useState({
-    code: '', name: '',
-    bankName: '', accountNo: '', holder: '', glAccountId: '', currencyId: '', openingBalance: '', remark: '',
+    code: edit?.code ?? '', name: edit?.name ?? '',
+    bankName: edit?.bankName ?? '', accountNo: edit?.accountNo ?? '', holder: edit?.holder ?? '',
+    glAccountId: edit?.glAccountId != null ? String(edit.glAccountId) : '',
+    currencyId: edit?.currencyId != null ? String(edit.currencyId) : '',
+    openingBalance: '',
+    remark: edit?.remark ?? '',
+    /* 고칠 때만 쓴다 — 등록은 늘 사용중으로 시작한다. */
+    active: edit ? edit.active : true,
   })
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }))
 
   async function submit() {
     onError('')
     if (!form.bankName) return onError('은행명을 입력하세요.')
     if (!form.accountNo) return onError('계좌번호를 입력하세요.')
     try {
-      await api.post('/bank-cards/accounts', {
+      const body = {
         code: form.code || undefined,
         name: form.name || undefined,
         bankName: form.bankName,
@@ -436,7 +465,10 @@ function BankAccountForm({ glAccounts, currencies, onError, onSaved }: {
         currencyId: form.currencyId ? Number(form.currencyId) : undefined,
         openingBalance: form.openingBalance ? Number(form.openingBalance) : 0,
         remark: form.remark || undefined,
-      })
+        active: form.active,
+      }
+      if (edit) await api.put(`/bank-cards/accounts/${edit.id}`, body)
+      else await api.post('/bank-cards/accounts', body)
       onSaved()
     } catch (err) {
       onError(extractErrorMessage(err))
@@ -444,7 +476,7 @@ function BankAccountForm({ glAccounts, currencies, onError, onSaved }: {
   }
 
   return (
-    <Panel title="계좌등록" submitLabel="등록" onSubmit={submit}
+    <Panel title={edit ? '계좌수정' : '계좌등록'} submitLabel={edit ? '수정' : '등록'} onSubmit={submit}
       hint="※ 예금계정을 비우면 보통예금(103)으로 분개됩니다. 기초잔액 이후 잔액은 입출금으로만 움직입니다.">
       {/* 원본 계좌등록 차례: <b>계좌코드 · 계좌명</b> · 계정 · … */}
       <Field label="계좌코드">
@@ -475,23 +507,42 @@ function BankAccountForm({ glAccounts, currencies, onError, onSaved }: {
           {currencies.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
         </select>
       </Field>
-      <Field label="기초잔액">
-        <input className="ec-input" type="number" step="any" value={form.openingBalance} onChange={(e) => set('openingBalance', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
-      </Field>
+      {/*
+        고칠 때는 기초잔액을 묻지 않는다 — 서버가 <b>일부러 안 받는다</b>.
+        잔액은 입출금으로만 움직이므로 여기서 덮어쓰면 수불과 어긋난다.
+      */}
+      {!edit && (
+        <Field label="기초잔액">
+          <input className="ec-input" type="number" step="any" value={form.openingBalance} onChange={(e) => set('openingBalance', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+        </Field>
+      )}
       <Field label="비고">
         <input className="ec-input" value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: 160 }} />
       </Field>
+      {edit && (
+        <Field label="사용">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, height: 24 }}>
+            <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} />
+            사용중
+          </label>
+        </Field>
+      )}
     </Panel>
   )
 }
 
-function CardForm({ accounts, onError, onSaved }: {
+function CardForm({ edit, accounts, onError, onSaved }: {
+  edit?: CreditCardRow | null
   accounts: BankAccountRow[]; onError: (m: string) => void; onSaved: () => void
 }) {
   const [form, setForm] = useState({
-    code: '',
-    cardName: '', cardCompany: '', cardNo: '', type: 'CORPORATE' as CardType,
-    ownerName: '', settlementAccountId: '', settlementDay: '', remark: '',
+    code: edit?.code ?? '',
+    cardName: edit?.cardName ?? '', cardCompany: edit?.cardCompany ?? '', cardNo: edit?.cardNo ?? '',
+    type: (edit?.type ?? 'CORPORATE') as CardType,
+    ownerName: edit?.ownerName ?? '',
+    settlementAccountId: edit?.settlementAccountId != null ? String(edit.settlementAccountId) : '',
+    settlementDay: edit?.settlementDay != null ? String(edit.settlementDay) : '',
+    remark: edit?.remark ?? '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -501,7 +552,7 @@ function CardForm({ accounts, onError, onSaved }: {
     if (!form.cardCompany) return onError('카드사를 입력하세요.')
     if (!form.cardNo) return onError('카드번호를 입력하세요.')
     try {
-      await api.post('/bank-cards/cards', {
+      const body = {
         code: form.code || undefined,
         cardName: form.cardName,
         cardCompany: form.cardCompany,
@@ -511,7 +562,9 @@ function CardForm({ accounts, onError, onSaved }: {
         settlementAccountId: form.settlementAccountId ? Number(form.settlementAccountId) : undefined,
         settlementDay: form.settlementDay ? Number(form.settlementDay) : undefined,
         remark: form.remark || undefined,
-      })
+      }
+      if (edit) await api.put(`/bank-cards/cards/${edit.id}`, body)
+      else await api.post('/bank-cards/cards', body)
       onSaved()
     } catch (err) {
       onError(extractErrorMessage(err))
