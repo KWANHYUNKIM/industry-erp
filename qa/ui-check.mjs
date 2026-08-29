@@ -4454,6 +4454,67 @@ console.log('\n■ 검사 글에 눈에 안 보이는 글자가 섞여 있지 �
   eq(`글 ${scanned}개에 눈에 안 보이는 제어문자가 없다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-s10) 수량·금액 칸에 음수를 넣을 수 있나 ────────────────────────────
+console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
+
+/*
+ * 등록·수정 요청의 <b>수량·금액·비율</b> 칸에 아래 한계를 안 붙이면 음수가 그대로 저장된다.
+ * 컴파일도 타입체크도 통과하고, 화면은 <input type="number"> 라 사람이 -50 을 찍을 수 있다.
+ *
+ * <p>실제로 여섯 자리가 그랬다 — 공용품 재고수량 -50, 공정·자원 시간당비용 -10000,
+ * 카드사 수수료율 -5, 공정 표준시간 -60분, 자원 능력 -100 이 전부 <b>200 으로 저장됐다.</b>
+ * 시간당비용이 음수면 만들수록 원가가 내려가고, 수수료율이 음수면 카드로 팔 때 돈이 붙는다.
+ *
+ * <p>서버가 서비스에서 따로 막는 자리는 예외로 적는다 — 휴가 사용일수(기간보다 많은지까지 본다),
+ * 정률 상각률(정률법일 때만 뜻이 있어 그때만 본다) 처럼 <b>한계 하나로 말할 수 없는</b> 것들이다.
+ */
+{
+  const 예외 = {
+    'CreateVacationRequest.days': '서비스가 0 초과인지도 보고 기간 일수보다 많은지도 본다(HrService.createVacation)',
+    'CreateAssetRequest.declineRate': '정률법일 때만 뜻이 있다 — 그때만 0 초과를 본다(FixedAssetService)',
+  }
+  const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/
+  const 이름 = /(qty|quantity|price|amount|rate|cost|total|unit|stock|days|hours|count|weight|discount)/i
+  const 한계 = /@(Positive|PositiveOrZero|Min|DecimalMin|Max|DecimalMax|Digits)\b/
+
+  const bad = []
+  const 쓴예외 = new Set()
+  let 잰칸 = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('.java') || !f.includes('dto')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/record\s+(\w*(?:Create|Update|Input|Apply|Save)\w*Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
+      const 요청 = m[1]
+      /* 괄호 깊이로 끊는다 — 애노테이션 안의 쉼표에 걸리지 않게. */
+      const parts = []
+      let depth = 0
+      let cur = ''
+      for (const ch of m[2]) {
+        if (ch === '(') depth += 1
+        if (ch === ')') depth -= 1
+        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; continue }
+        cur += ch
+      }
+      parts.push(cur)
+      for (const p of parts) {
+        const t = p.replace(/\s+/g, ' ').trim()
+        const fm = t.match(숫자)
+        if (!fm) continue
+        const 칸 = fm[2]
+        if (!이름.test(칸) || /Id$/.test(칸)) continue
+        잰칸 += 1
+        const key = `${요청}.${칸}`
+        if (예외[key]) { 쓴예외.add(key); continue }
+        if (!한계.test(t)) bad.push(`${key}  (${f.split(/[\\/]/).pop()})`)
+      }
+    }
+  }
+  eq(`등록·수정의 숫자 칸 ${잰칸}개에 아래 한계가 있다`, bad.join('\n') || '없음', '없음')
+  /* 사라진 예외를 남겨 두면 다음 사람이 '이미 본 자리' 로 착각한다. */
+  eq('적어 둔 예외가 전부 아직 있다',
+    Object.keys(예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

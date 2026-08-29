@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.OtherWithholding;
 import com.erp.accounting.domain.enums.IncomeType;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -16,7 +17,8 @@ public class OtherWithholdingDtos {
             Long partnerId,
             String payeeName,
             String payeeRegNo,
-            @NotNull(message = "지급액을 입력하세요.") BigDecimal grossAmount,
+            @NotNull(message = "지급액을 입력하세요.")
+            @Positive(message = "지급액은 0보다 커야 합니다.") BigDecimal grossAmount,
             String description
     ) {}
 

@@ -3985,6 +3985,17 @@ async function scenarioValidationMessages(f) {
      * 무엇인지 모른다. 만드는 자리 123곳을 빈 몸통으로 두드려 찾은 <b>하나</b>다.
      */
     ['단가일괄변경', '/price-bulk/apply', {}, ['판매단가', '증감율', '변경값', '품목']],
+    /*
+     * <b>음수를 그냥 받던 여섯 자리.</b> 시간당비용이 음수면 만들수록 원가가 내려가고,
+     * 수수료율이 음수면 카드로 팔 때 돈이 붙는다. 화면은 숫자 칸이라 사람이 -50 을
+     * 찍을 수 있는데 서버가 200 으로 받아 저장하고 있었다.
+     */
+    ['공용품 재고수량', '/supplies', { code: 'ZZNEG1', name: 'ZZNEG공용품', stockQty: -50 }, ['재고수량', '0 이상']],
+    ['공정 시간당비용', '/processes', { code: 'ZZNEG2', name: 'ZZNEG공정', costPerHr: -10000 }, ['시간당비용', '0 이상']],
+    ['공정 표준시간', '/processes', { code: 'ZZNEG3', name: 'ZZNEG공정2', stdTimeMin: -60 }, ['표준시간', '0 이상']],
+    ['자원 능력', '/resources', { code: 'ZZNEG4', name: 'ZZNEG자원', capacity: -100 }, ['능력', '0 이상']],
+    ['자원 시간당비용', '/resources', { code: 'ZZNEG5', name: 'ZZNEG자원2', costPerHr: -10000 }, ['시간당비용', '0 이상']],
+    ['카드사 수수료율', '/card-issuers', { code: 'ZZNEG6', name: 'ZZNEG카드사', feeRate: -5 }, ['수수료율', '0~100']],
   ]
 
   for (const [label, path, body, expected] of cases) {

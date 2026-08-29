@@ -3,6 +3,8 @@ package com.erp.hr.dto;
 import com.erp.hr.domain.EmploymentContract;
 import com.erp.hr.domain.enums.ContractStatus;
 import com.erp.hr.domain.enums.ContractType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -19,7 +21,8 @@ public class EmploymentContractDtos {
             Long departmentId,
             String jobTitle,
             BigDecimal monthlySalary,
-            Integer weeklyHours,
+            @PositiveOrZero(message = "주 소정근로시간은 0~168 입니다.")
+            @Max(value = 168, message = "주 소정근로시간은 0~168 입니다.") Integer weeklyHours,
             String workPlace,
             String duty,
             String remark

@@ -1,6 +1,7 @@
 package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.ItemCost;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -14,21 +15,21 @@ public final class CostDtos {
     public record CreateCostRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotBlank(message = "적용기간을 입력하세요.") String period,
-            BigDecimal materialCost,
-            BigDecimal laborCost,
-            BigDecimal overheadCost,
-            BigDecimal actualMaterial,
-            BigDecimal actualLabor,
-            BigDecimal actualOverhead
+            @PositiveOrZero(message = "재료비는 0 이상이어야 합니다.") BigDecimal materialCost,
+            @PositiveOrZero(message = "노무비는 0 이상이어야 합니다.") BigDecimal laborCost,
+            @PositiveOrZero(message = "경비는 0 이상이어야 합니다.") BigDecimal overheadCost,
+            @PositiveOrZero(message = "실제재료비는 0 이상이어야 합니다.") BigDecimal actualMaterial,
+            @PositiveOrZero(message = "실제노무비는 0 이상이어야 합니다.") BigDecimal actualLabor,
+            @PositiveOrZero(message = "실제경비는 0 이상이어야 합니다.") BigDecimal actualOverhead
     ) {}
 
     public record UpdateCostRequest(
-            BigDecimal materialCost,
-            BigDecimal laborCost,
-            BigDecimal overheadCost,
-            BigDecimal actualMaterial,
-            BigDecimal actualLabor,
-            BigDecimal actualOverhead
+            @PositiveOrZero(message = "재료비는 0 이상이어야 합니다.") BigDecimal materialCost,
+            @PositiveOrZero(message = "노무비는 0 이상이어야 합니다.") BigDecimal laborCost,
+            @PositiveOrZero(message = "경비는 0 이상이어야 합니다.") BigDecimal overheadCost,
+            @PositiveOrZero(message = "실제재료비는 0 이상이어야 합니다.") BigDecimal actualMaterial,
+            @PositiveOrZero(message = "실제노무비는 0 이상이어야 합니다.") BigDecimal actualLabor,
+            @PositiveOrZero(message = "실제경비는 0 이상이어야 합니다.") BigDecimal actualOverhead
     ) {}
 
     public record CostResponse(

@@ -1,6 +1,8 @@
 package com.erp.hr.dto;
 
 import com.erp.hr.domain.DailyWorkRecord;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -13,7 +15,8 @@ public class DailyWorkDtos {
             @NotNull(message = "사원을 선택하세요.") Long employeeId,
             @NotNull(message = "근무일을 입력하세요.") LocalDate workDate,
             @NotNull(message = "일당을 입력하세요.") BigDecimal dailyWage,
-            Integer workHours,
+            @PositiveOrZero(message = "근무시간은 0~24 입니다.")
+            @Max(value = 24, message = "근무시간은 0~24 입니다.") Integer workHours,
             String remark
     ) {}
 

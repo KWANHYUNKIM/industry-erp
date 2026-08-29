@@ -1,6 +1,7 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.ProductionResource;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
@@ -13,9 +14,9 @@ public final class ResourceDtos {
             @NotBlank(message = "자원코드를 입력하세요.") String code,
             @NotBlank(message = "자원명을 입력하세요.") String name,
             String type,
-            BigDecimal capacity,
+            @PositiveOrZero(message = "능력은 0 이상이어야 합니다.") BigDecimal capacity,
             String unit,
-            BigDecimal costPerHr,
+            @PositiveOrZero(message = "시간당비용은 0 이상이어야 합니다.") BigDecimal costPerHr,
             /** 위치(창고). 원본 자원등록의 [위치] 열. 비워 두면 자리를 안 정한 설비다. */
             Long warehouseId,
             /** 대상작업(공정). 원본 [대상작업] 열. */
@@ -25,9 +26,9 @@ public final class ResourceDtos {
     public record UpdateResourceRequest(
             @NotBlank(message = "자원명을 입력하세요.") String name,
             String type,
-            BigDecimal capacity,
+            @PositiveOrZero(message = "능력은 0 이상이어야 합니다.") BigDecimal capacity,
             String unit,
-            BigDecimal costPerHr,
+            @PositiveOrZero(message = "시간당비용은 0 이상이어야 합니다.") BigDecimal costPerHr,
             /** 위치(창고). 원본 자원등록의 [위치] 열. 비워 두면 자리를 안 정한 설비다. */
             Long warehouseId,
             /** 대상작업(공정). 원본 [대상작업] 열. */

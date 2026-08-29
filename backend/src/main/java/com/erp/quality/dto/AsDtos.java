@@ -3,6 +3,7 @@ package com.erp.quality.dto;
 import com.erp.quality.domain.AsPart;
 import com.erp.quality.domain.AsRequest;
 import com.erp.quality.domain.AsStatus;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -18,7 +19,7 @@ public final class AsDtos {
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            BigDecimal unitPrice,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             String remark
     ) {}
 

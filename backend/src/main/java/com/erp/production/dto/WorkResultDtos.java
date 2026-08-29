@@ -2,6 +2,7 @@ package com.erp.production.dto;
 
 import com.erp.production.domain.WorkResult;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
 
@@ -55,8 +56,8 @@ public final class WorkResultDtos {
             /** 생산공장 id. 원본 작업내역입력 머리의 [생산공장]. */
             Long warehouseId,
             String worker,
-            BigDecimal goodQty,
-            BigDecimal defectQty,
+            @PositiveOrZero(message = "양품수량은 0 이상이어야 합니다.") BigDecimal goodQty,
+            @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             Integer workTimeMin,
             LocalDate workDate,
             /** 귀속 프로젝트. 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */

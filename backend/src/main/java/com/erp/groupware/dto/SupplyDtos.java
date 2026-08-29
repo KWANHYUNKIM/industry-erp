@@ -1,6 +1,7 @@
 package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.SupplyItem;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
@@ -14,7 +15,7 @@ public final class SupplyDtos {
             @NotBlank(message = "공용품명을 입력하세요.") String name,
             String category,
             String unit,
-            BigDecimal stockQty,
+            @PositiveOrZero(message = "재고수량은 0 이상이어야 합니다.") BigDecimal stockQty,
             String note
     ) {}
 
@@ -23,7 +24,7 @@ public final class SupplyDtos {
             String name,
             String category,
             String unit,
-            BigDecimal stockQty,
+            @PositiveOrZero(message = "재고수량은 0 이상이어야 합니다.") BigDecimal stockQty,
             String note
     ) {}
 
