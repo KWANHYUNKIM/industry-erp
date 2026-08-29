@@ -28,6 +28,14 @@ type Tab = (typeof TABS)[number]
  *   계좌입금 차)예금 / 대)상대계정 · 계좌출금 차)상대계정 / 대)예금
  *   카드사용 차)비용·부가세대급금 / 대)미지급금
  */
+interface BankTxnList {
+  rows: BankTxn[]
+  /** 전체 줄 수 — 잘려도 탭 옆 숫자는 참말이어야 한다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 안내와 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
+
 export default function BankCardPage() {
   const [tab, setTab] = useState<Tab>('계좌등록')
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
@@ -35,6 +43,13 @@ export default function BankCardPage() {
   const [curCond, setCurCond] = useState('')
   const [cards, setCards] = useState<CreditCardRow[]>([])
   const [txns, setTxns] = useState<BankTxn[]>([])
+  /*
+   * 계좌 입출금은 조건이 하나도 없어서 늘 전부 왔다 — 1만 2천 줄·5MB 였고, <b>다른 탭을
+   * 보고 있어도</b> 화면을 열 때 함께 받았다. 이제 앞 5천 줄만 받고, 전체 수는 따로 받아
+   * 탭 옆 숫자가 그대로 참말이게 한다(원본 [오천건이상조회] 와 같은 문턱).
+   */
+  const [txnTotal, setTxnTotal] = useState(0)
+  const [txnTruncated, setTxnTruncated] = useState(false)
   const [usages, setUsages] = useState<CardUsage[]>([])
   const [glAccounts, setGlAccounts] = useState<AccountOption[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -57,6 +72,14 @@ export default function BankCardPage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
+  /** 원본 [오천건이상조회] — 잘린 뒤 눌러서 전부 가져온다. */
+  async function loadAllTxns() {
+    const r = await api.get<BankTxnList>('/bank-cards/transactions', { params: { all: true } })
+    setTxns(r.data.rows)
+    setTxnTotal(r.data.totalRows)
+    setTxnTruncated(r.data.truncated)
+  }
+
   async function load() {
     setLoading(true)
     try {
@@ -64,7 +87,7 @@ export default function BankCardPage() {
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Currency[]>('/currencies'),
         api.get<CreditCardRow[]>('/bank-cards/cards'),
-        api.get<BankTxn[]>('/bank-cards/transactions'),
+        api.get<BankTxnList>('/bank-cards/transactions'),
         api.get<CardUsage[]>('/bank-cards/usages'),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
@@ -72,7 +95,9 @@ export default function BankCardPage() {
       setAccounts(a.data)
       setCurrencies(cur.data)
       setCards(c.data)
-      setTxns(t.data)
+      setTxns(t.data.rows)
+      setTxnTotal(t.data.totalRows)
+      setTxnTruncated(t.data.truncated)
       setUsages(u.data)
       setGlAccounts(gl.data)
       setPartners(p.data)
@@ -99,7 +124,7 @@ export default function BankCardPage() {
   }
 
   const count = (t: Tab) =>
-    t === '계좌등록' ? accounts.length : t === '카드등록' ? cards.length : t === '계좌입출금' ? txns.length : usages.length
+    t === '계좌등록' ? accounts.length : t === '카드등록' ? cards.length : t === '계좌입출금' ? txnTotal : usages.length
 
   const totalBalance = accounts.filter((a) => a.active).reduce((s, a) => s + a.balance, 0)
 
@@ -221,7 +246,22 @@ export default function BankCardPage() {
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
         : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} />
         : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} />
-        : tab === '계좌입출금' ? <BankTxnTable rows={txns} />
+        : tab === '계좌입출금' ? (
+          <>
+            {/*
+              잘라서 받았으면 말한다. 탭 옆 숫자는 전체를 그대로 보여 주므로,
+              말이 없으면 "1만 2천 건" 이라 써 놓고 5천 줄만 그리는 꼴이 된다.
+            */}
+            {txnTruncated && (
+              <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+                모두 {txnTotal.toLocaleString('ko-KR')}건 중 앞 {txns.length.toLocaleString('ko-KR')}건만 보고 있습니다.
+                {' '}
+                <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => void loadAllTxns()}>오천건이상조회</button>
+              </p>
+            )}
+            <BankTxnTable rows={txns} />
+          </>
+        )
         : <CardUsageTable rows={usages} />}
     </EcListShell>
   )

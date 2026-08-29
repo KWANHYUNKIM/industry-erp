@@ -57,8 +57,10 @@ public class BankCardController {
     }
 
     @GetMapping("/transactions")
-    public List<BankTxnResponse> transactions() {
-        return service.findTxns();
+    public com.erp.accounting.dto.BankCardDtos.BankTxnListResponse transactions(
+            /* 원본 [오천건이상조회] — 문턱 위로는 눌러야 간다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        return service.findTxns(all);
     }
 
     @PostMapping("/transactions")

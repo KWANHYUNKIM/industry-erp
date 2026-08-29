@@ -148,9 +148,19 @@ public class BankCardService {
 
     // ── 계좌 입출금 ────────────────────────────────────────────────────
 
+    /** 한 번에 내려보낼 줄 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    public static final int TXN_PAGE_ROWS = 5000;
+
     @Transactional(readOnly = true)
-    public List<BankTxnResponse> findTxns() {
-        return txnRepository.findAllWithRefs().stream().map(BankTxnResponse::from).toList();
+    public BankCardDtos.BankTxnListResponse findTxns(boolean all) {
+        long totalRows = txnRepository.countAll();
+        boolean truncated = !all && totalRows > TXN_PAGE_ROWS;
+        List<com.erp.accounting.domain.BankTransaction> found = truncated
+                ? txnRepository.findByIdsWithRefs(txnRepository.findIdsPaged(
+                        org.springframework.data.domain.PageRequest.of(0, TXN_PAGE_ROWS)))
+                : txnRepository.findAllWithRefs();
+        return new BankCardDtos.BankTxnListResponse(
+                found.stream().map(BankTxnResponse::from).toList(), totalRows, truncated);
     }
 
     @Transactional

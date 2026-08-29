@@ -13,6 +13,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class BankCardDtos {
 
@@ -118,6 +119,20 @@ public final class BankCardDtos {
             LocalDate txnDate,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description
+    ) {}
+
+    /**
+     * 계좌 입출금 목록 — <b>줄이 너무 많으면 앞부분만</b> 준다.
+     *
+     * <p>이 자리는 조건이 하나도 없어서 늘 전부 줬다. 재 보니 <b>1만 2천 줄·5MB</b> 였고,
+     * 자금관리 화면은 <b>다른 탭을 보고 있어도</b> 열 때 이것까지 함께 받았다.
+     * 원본은 조회 화면 139곳에 [오천건이상조회] 를 두고 그 위는 눌러야 가게 한다(사본 실측).
+     * 재고수불부·회계전표조회와 같은 방식이다.
+     */
+    public record BankTxnListResponse(
+            List<BankTxnResponse> rows,
+            long totalRows,
+            boolean truncated
     ) {}
 
     public record BankTxnResponse(

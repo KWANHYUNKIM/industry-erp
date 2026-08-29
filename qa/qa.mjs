@@ -3950,6 +3950,20 @@ async function scenarioHttpProtocol() {
   const 전표금월 = await must('GET', '/journals?from=2026-08-01&to=2026-08-31')
   eq('전표조회도 문턱 아래면 자르지 않는다', 전표금월.truncated, false)
 
+  /*
+   * <b>계좌 입출금도 같은 문턱을 쓴다.</b> 이 자리는 조건이 하나도 없어서 늘 전부 줬고
+   * (1만 2천 건·5MB), 자금관리 화면은 <b>다른 탭을 보고 있어도</b> 열 때 함께 받았다.
+   * 탭 옆 숫자는 전체를 그대로 보여 줘야 하므로 전체 수를 따로 싣는다 —
+   * 그러지 않으면 "5,000건" 이라 써 놓고 실제로는 1만 2천 건인 셈이 된다.
+   */
+  const 입출금 = await must('GET', '/bank-cards/transactions')
+  eq('계좌 입출금도 앞 5천 건만 준다', 입출금.rows.length, 5000)
+  eq('계좌 입출금도 잘랐다고 말해 준다', 입출금.truncated, true)
+  eq('탭에 쓸 전체 수는 자르기 전 수다', 입출금.totalRows > 5000, true)
+  const 입출금다 = await must('GET', '/bank-cards/transactions?all=true')
+  eq('계좌 입출금도 다 보기를 누르면 전체가 온다', 입출금다.rows.length, 입출금.totalRows)
+  eq('계좌 입출금 다 보기는 잘렸다고 하지 않는다', 입출금다.truncated, false)
+
   const notMultipart = await raw('POST', '/files', { 'Content-Type': 'application/json' }, '{}')
   eq('multipart 가 아니면 400', notMultipart.status, 400)
 
