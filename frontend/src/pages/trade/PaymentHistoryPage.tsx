@@ -34,7 +34,11 @@ interface SettlementRow {
   /** 수금 · 지급. 결제에는 부가세유형이 없어 이 자리에 구분이 온다. */
   vatType: string
   /** 결제방법. 결제에는 품목이 없어 이 자리에 온다. */
-  itemSummary: string
+  /**
+   * <b>이름과 달리 품목이 아니라 [결제방법] 글자다.</b> 결제 전표에는 품목이 없다 —
+   * 이 이름 때문에 [품목] 열을 만들 뻔했다(그러면 머리는 품목인데 값은 결제방법이 된다).
+   */
+  methodText: string
   totalAmount: number
   createdBy: string | null
   /** 전표를 만든 시각. 원본 첫 열이 [결제요청일시] 라 날짜만으로는 그 이름을 못 지킨다. */
@@ -65,12 +69,12 @@ async function printReceipt(r: SettlementRow) {
     supplier: ours ?? { label: received ? '수령자' : '지급자', name: '(회사정보 미등록)' },
     customer: { label: received ? '납부자' : '수령자', name: r.partnerName },
     extra: [
-      { label: '결제방법', value: r.itemSummary },
+      { label: '결제방법', value: r.methodText },
       { label: '결제요청자', value: r.createdBy },
     ],
     remark: r.note,
     lines: [{
-      itemName: `${r.vatType}${r.itemSummary ? ` (${r.itemSummary})` : ''}`,
+      itemName: `${r.vatType}${r.methodText ? ` (${r.methodText})` : ''}`,
       quantity: 1, unitPrice: r.totalAmount, supplyAmount: r.totalAmount, vatAmount: 0,
     }],
     footNote: received ? '위 금액을 정히 영수함.' : '위 금액을 정히 지급함.',
@@ -172,16 +176,22 @@ export default function PaymentHistoryPage() {
             <th style={{ width: 34 }}></th>
             <th style={{ width: 30, textAlign: 'center' }}></th>
             {/* 원본 첫 열은 [결제요청일시] 다 — 날짜만 있으면 같은 날 여러 건의 순서가 안 보인다. */}
-            <th style={{ width: 135 }}>결제요청일시</th>
+            {/* 원본 폭은 결제요청일시 160 · 회계전표 100 — 우리는 135 vs 150 으로 <b>앞뒤가 뒤집혀</b> 있었다. */}
+            <th style={{ width: 160 }}>결제요청일시</th>
+            {/*
+              원본 차례: 결제요청일시 · <b>결제요청자ID</b> · 거래처 · <b>품목</b> · 결제금액 ·
+              결제방법 · … · <b>회계전표</b> · 내역 · 영수증인쇄 (사본 실측).
+              요청자는 뒤에 가 있었고, 품목은 <b>값이 있는데 안 보여 줬다.</b>
+            */}
+            <th style={{ width: 110 }}>결제요청자ID</th>
             <th style={{ width: 150 }}>전표번호</th>
             <th>거래처</th>
             <th style={{ width: 60, textAlign: 'center' }}>구분</th>
             {/* 원본 차례는 <b>결제금액 · 결제방법</b> 이다(사본 실측) — 우리는 뒤집혀 있었다. */}
             <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
             <th style={{ width: 110 }}>결제방법</th>
-            <th style={{ width: 110 }}>결제요청자</th>
             <th style={{ width: 90, textAlign: 'center' }}>회계반영</th>
-            <th style={{ width: 150 }}>회계전표No.</th>
+            <th style={{ width: 100 }}>회계전표</th>
             <th>내역</th>
             {/* 원본 결제내역조회의 마지막 열 [영수증인쇄]. */}
             <th style={{ width: 80, textAlign: 'center' }}>영수증인쇄</th>
@@ -204,12 +214,12 @@ export default function PaymentHistoryPage() {
                   <span style={{ color: '#9aa1ab', marginLeft: 4 }}>{r.createdAt.slice(11, 16)}</span>
                 )}
               </td>
+              <td style={{ color: '#5a626e', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.vatType}</td>
               <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
-              <td>{r.itemSummary || '-'}</td>
-              <td style={{ color: '#5a626e', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
+              <td>{r.methodText || '-'}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
                            color: r.reflected ? '#1c7c3c' : '#c07a00' }}>
                 {r.reflected ? '반영' : '미반영'}
