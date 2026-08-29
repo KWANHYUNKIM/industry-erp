@@ -175,7 +175,12 @@ export default function TimeCalcPage() {
       searchable={false}
       actions={[
         { label: '계산(F8)', primary: true, onClick: () => setCalculated(true) },
-        { label: '작업지시 불러오기', onClick: loadFromOrders },
+        /*
+         * 원본 이름은 <b>[작업지시서]</b> 다(옆의 [주문]과 짝 — 어디서 불러올지를 고르는 버튼이다).
+         * 우리는 [작업지시 불러오기] 라고 적어 두고 '그 버튼이 없다' 고 예외에 적었는데,
+         * <b>없던 것이 아니라 이름이 달랐다.</b>
+         */
+        { label: '작업지시서', onClick: loadFromOrders },
         { label: '줄 추가', onClick: () => setLines((p) => [...p, { key: nextKey++, itemId: '', extraQty: '', qty: '' }]) },
         { label: '다시 작성', onClick: () => { setLines([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }]); setCalculated(false) } },
         { label: '새로고침', onClick: load },

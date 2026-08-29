@@ -179,7 +179,7 @@
  "소요시간계산|주문": {
   "claim": "수주에서 불러오지 않는다 — 작업지시에서 불러온다",
   "present": [
-   "작업지시"
+   "작업지시서"
   ]
  },
  "구매조회|발주": {
@@ -188,5 +188,32 @@
    "발주서"
   ],
   "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "작업지시서효율현황|닫기": {
+  "claim": "화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다",
+  "absent": [
+   "label: '닫기'"
+  ],
+  "in": "frontend/src/pages"
+ },
+ "공용품관리|라벨": {
+  "claim": "우리 [라벨]은 표의 열이다",
+  "present": [
+   "라벨"
+  ]
+ },
+ "설문조사조회|저장": {
+  "claim": "그 격자와 [저장]은 설문조사입력에 있다",
+  "present": [
+   "저장"
+  ],
+  "file": "groupware/SurveyInputPage.tsx"
+ },
+ "생산계획_MRP리스트|저장(F8)": {
+  "claim": "생성 팝업을 안 만든다 — 그 팝업의 버튼이다",
+  "absent": [
+   "Modal open={genOpen"
+  ],
+  "in": "frontend/src/pages/production/MrpPage.tsx"
  }
 }
