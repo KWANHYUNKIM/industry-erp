@@ -30,6 +30,8 @@ interface SupplyLine {
   partnerId: number | null
   partnerName: string | null
   partnerBizRegNo: string | null
+  /** 공급받는 자의 [공급형태] — 거래처에 정해 둔 값. 폐기는 받는 자가 없어 null 이다. */
+  supplyShape: string | null
 }
 interface ReportHistory {
   id: number
@@ -48,6 +50,13 @@ interface ReportHistory {
 const iso = (d: Date) => ymd(d)
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 
+/**
+ * 원본 [공급형태] — 공급받는 자가 어떤 곳인지. 원본은 <b>여러 개를 켜고 끄는 체크박스</b>이고
+ * 처음엔 전부 켜져 있다(사본 실측). 쉼표까지 원본 표기 그대로다 — 한 칸에 여러 형태를 묶어
+ * 놓은 것이라 우리가 쪼개면 보고 서식의 값과 어긋난다.
+ */
+const SUPPLY_SHAPES = ['제조, 수입, 판매', '의료기관', '약국개설자, 의약품도매상', '견본품, 기부용, 군납용'] as const
+
 export default function MedicalDeviceReportPage() {
   const today = iso(new Date())
   const [from, setFrom] = useState(today.slice(0, 8) + '01')
@@ -59,6 +68,8 @@ export default function MedicalDeviceReportPage() {
    * 줄이 서는데 그것으로 거를 수가 없어, 한 기기의 공급만 보려면 표를 눈으로 훑어야 했다.
    */
   const [itemCond, setItemCond] = useState('')
+  /* 원본처럼 처음엔 전부 켠다 — 하나도 안 켜면 아무것도 안 나와 화면이 고장 난 것처럼 보인다. */
+  const [shapes, setShapes] = useState<string[]>([...SUPPLY_SHAPES])
   const [reportMonth, setReportMonth] = useState(thisMonth())
 
   const [lines, setLines] = useState<SupplyLine[]>([])
@@ -89,7 +100,15 @@ export default function MedicalDeviceReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const shownLines = useMemo(() => lines.filter((l) => !itemCond || l.itemName === itemCond), [lines, itemCond])
+  /*
+   * 전부 켠 것은 <b>안 거른다</b>는 뜻이다. 그래야 공급형태를 안 정한 거래처(그리고
+   * 받는 자가 없는 폐기)가 조건을 건드리지 않은 사람 앞에서 사라지지 않는다.
+   */
+  const allShapes = shapes.length === SUPPLY_SHAPES.length
+  const shownLines = useMemo(
+    () => lines.filter((l) => (!itemCond || l.itemName === itemCond)
+      && (allShapes || (l.supplyShape != null && shapes.includes(l.supplyShape)))),
+    [lines, itemCond, shapes, allShapes])
 
   /* 요약도 걸러진 것으로 낸다 — 한 기기만 보면서 건수가 전체이면 숫자가 거짓말을 한다. */
   const summary = useMemo(() => ({
@@ -154,6 +173,21 @@ export default function MedicalDeviceReportPage() {
           </select></label>
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
                          items={partnerCodeItems(partners)} />
+        <label style={{ fontSize: 12.5 }}>{label('공급형태')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 3 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <input type="checkbox" checked={allShapes}
+                     onChange={(e) => setShapes(e.target.checked ? [...SUPPLY_SHAPES] : [])} />전체
+            </label>
+            {SUPPLY_SHAPES.map((k) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={shapes.includes(k)}
+                       onChange={(e) => setShapes((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
+                {k}
+              </label>
+            ))}
+          </div>
+        </label>
         <CodePickerField label="품목" value={itemCond} onChange={setItemCond} width={170}
                          items={[...new Map(lines.map((l) => [l.itemCode, l])).values()]
                            .map((l) => ({ value: l.itemName, code: l.itemCode, name: l.itemName }))} />
@@ -191,12 +225,14 @@ export default function MedicalDeviceReportPage() {
           <th style={{ width: 90, textAlign: 'right' }}>수량</th>
           <th style={{ width: 60 }}>단위</th>
           <th style={{ width: 150 }}>공급받는자</th>
+          {/* 원본 조건 [공급형태]. 거를 수만 있고 볼 수가 없으면 왜 걸렸는지 알 수 없다. */}
+          <th style={{ width: 160 }}>공급형태</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shownLines.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               보고 대상 공급내역이 없습니다. 품목등록에서 UDI-DI 를 입력한 품목의 판매·폐기만 집계됩니다.
             </td></tr>
           ) : shownLines.map((l, i) => (
@@ -211,6 +247,7 @@ export default function MedicalDeviceReportPage() {
               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{Number(l.quantity).toLocaleString()}</td>
               <td>{l.unit}</td>
               <td>{l.partnerName ?? <span style={{ color: '#9aa1ab' }}>-</span>}</td>
+              <td style={{ color: l.supplyShape ? undefined : '#c9ced6' }}>{l.supplyShape ?? '미지정'}</td>
             </tr>
           ))}
         </tbody>

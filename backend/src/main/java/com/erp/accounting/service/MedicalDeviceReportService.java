@@ -89,7 +89,8 @@ public class MedicalDeviceReportService {
                                 udiByItem.get(l.itemId()),
                                 l.itemId(), l.itemCode(), l.itemName(), l.unit(),
                                 l.quantity(),
-                                s.partnerId(), s.partnerName(), p != null ? p.bizRegNo() : null)));
+                                s.partnerId(), s.partnerName(), p != null ? p.bizRegNo() : null,
+                                p != null ? p.udiSupplyShape() : null)));
             }
         }
 
@@ -104,7 +105,8 @@ public class MedicalDeviceReportService {
                         udiByItem.get(a.itemId()),
                         a.itemId(), a.itemCode(), a.itemName(), a.unit(),
                         a.quantityChange().abs(),
-                        null, null, null));
+                        // 폐기는 공급받는 자가 없다 — 거래처도, 그 거래처의 공급형태도 없다.
+                        null, null, null, null));
             }
         }
 

@@ -226,6 +226,11 @@ export interface Partner {
   regNoKind: string
   /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. */
   industryKind: string
+  /**
+   * 원본 의료기기공급내역보고의 [공급형태] — 이 거래처가 어떤 곳인지.
+   * 안 정할 수 있다(의료기기를 안 다루면 없는 개념이다).
+   */
+  udiSupplyShape: string | null
   subBizNo: string | null
   postalCode2: string | null
   address2: string | null

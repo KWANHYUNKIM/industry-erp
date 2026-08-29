@@ -21,7 +21,7 @@ const empty = {
   /** 원본 [관계설정]의 대표거래처. 비우면 자기가 곧 대표다. */
   parentId: '',
   salesPriceGroup: '', purchasePriceGroup: '', searchKeyword: '',
-  regNoKind: '사업자등록번호', industryKind: '일반', subBizNo: '',
+  regNoKind: '사업자등록번호', industryKind: '일반', udiSupplyShape: '', subBizNo: '',
   postalCode2: '', address2: '', homepage: '', remark: '',
   taxReport: true, shipmentTarget: true,
   /**
@@ -173,6 +173,7 @@ export default function PartnersPage() {
       salesPriceGroup: p.salesPriceGroup ?? '', purchasePriceGroup: p.purchasePriceGroup ?? '',
       searchKeyword: p.searchKeyword ?? '',
       regNoKind: p.regNoKind ?? '사업자등록번호', industryKind: p.industryKind ?? '일반',
+      udiSupplyShape: p.udiSupplyShape ?? '',
       subBizNo: p.subBizNo ?? '', postalCode2: p.postalCode2 ?? '', address2: p.address2 ?? '',
       homepage: p.homepage ?? '', remark: p.remark ?? '',
       taxReport: p.taxReport, shipmentTarget: p.shipmentTarget,
@@ -226,6 +227,7 @@ export default function PartnersPage() {
     postalCode: x.postalCode, address: x.address,
     salesPriceGroup: x.salesPriceGroup, purchasePriceGroup: x.purchasePriceGroup,
     searchKeyword: x.searchKeyword, regNoKind: x.regNoKind, industryKind: x.industryKind,
+    udiSupplyShape: x.udiSupplyShape || undefined,
     subBizNo: x.subBizNo, postalCode2: x.postalCode2, address2: x.address2,
     homepage: x.homepage, remark: x.remark,
     taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
@@ -463,6 +465,19 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-slate-600">업종별구분</label>
               <select className={inputCls} value={form.industryKind} onChange={(e) => set('industryKind', e.target.value)}>
                 {['일반', '관세사', '외화거래처'].map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            {/*
+              원본 의료기기공급내역보고의 [공급형태]. 전표마다 고르는 것이 아니라
+              <b>그 거래처가 어떤 곳인지</b>라서 거래처에 붙는다. 보고 서식이 요구하는
+              항목이라 여기서 안 정하면 내보낸 보고파일의 그 칸이 빈다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">공급형태</label>
+              <select className={inputCls} value={form.udiSupplyShape}
+                      onChange={(e) => set('udiSupplyShape', e.target.value)}>
+                <option value="">(미지정)</option>
+                {['제조, 수입, 판매', '의료기관', '약국개설자, 의약품도매상', '견본품, 기부용, 군납용'].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
             <div>

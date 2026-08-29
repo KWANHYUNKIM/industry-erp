@@ -7955,6 +7955,76 @@ async function scenarioReturnSlip(f) {
   eq('넣어 둔 시험 재고도 뺀다', await stockOf(f.product.id), stock0 - 20)
 }
 
+/**
+ * 의료기기공급내역보고의 <b>[공급형태]</b> — 공급받는 자가 어떤 곳인지.
+ *
+ * <p>원본 조건이자 <b>보고 서식이 요구하는 항목</b>이다. 우리 보고파일에는 아예 빠져 있었다.
+ * 이 값은 전표가 아니라 <b>거래처</b>에 붙는다 — 그 거래처가 어떤 곳인지는 전표마다
+ * 달라지지 않기 때문이다. 그래서 거래처에 정한 값이 공급내역 줄까지 따라오는지를 본다.
+ */
+async function scenarioUdiSupplyShape(f) {
+  section('■ 의료기기 공급형태')
+
+  const before = (await must('GET', '/partners')).find((x) => x.id === f.customer.id)
+  const save = async (shape) => must('PUT', `/partners/${f.customer.id}`, {
+    name: before.name, type: before.type, bizRegNo: before.bizRegNo,
+    regNoKind: before.regNoKind, industryKind: before.industryKind,
+    udiSupplyShape: shape, active: true,
+  })
+
+  const saved = await save('의료기관')
+  eq('거래처에 공급형태를 정할 수 있다', saved.udiSupplyShape, '의료기관')
+  eq('다시 읽어도 남아 있다',
+    (await must('GET', '/partners')).find((x) => x.id === f.customer.id).udiSupplyShape, '의료기관')
+
+  /*
+   * 아무 글자나 받으면 <b>보고파일에 서식 밖의 값이 실려 나간다</b> — 내보내고 나서야 안다.
+   */
+  await rejects('서식에 없는 공급형태는 거부', 'PUT', `/partners/${f.customer.id}`, {
+    name: before.name, type: before.type, regNoKind: before.regNoKind,
+    industryKind: before.industryKind, udiSupplyShape: '병원', active: true,
+  }, '공급형태')
+
+  /*
+   * UDI-DI 가 붙은 품목을 그 거래처에 판다. <b>그 판매가 곧 공급내역 한 줄</b>이 되고,
+   * 거기에 거래처의 공급형태가 따라와야 한다.
+   *
+   * <p>보고 대상은 <b>UDI-DI 를 적어 둔 품목뿐</b>이라, 먼저 시험용 품목에 그 번호를 붙인다.
+   * 끝나면 도로 뗀다 — 안 그러면 다음 실행부터 이 품목이 늘 보고 대상으로 남는다.
+   */
+  const item = (await must('GET', '/items')).find((x) => x.id === f.material.id)
+  const saveItem = (udi) => must('PUT', `/items/${f.material.id}`, {
+    name: item.name, spec: item.spec, unit: item.unit, category: item.category,
+    unitPrice: item.unitPrice, safetyStock: item.safetyStock, barcode: item.barcode,
+    udiDi: udi, managementItemId: item.managementItemId, active: true,
+  })
+  await saveItem('08800000000017')
+
+  const sale = await must('POST', '/sales', {
+    saleDate: '2026-08-22', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 1000 }],
+  })
+  const lines = await must('GET',
+    '/medical-device-reports/lines?from=2026-08-22&to=2026-08-22')
+  const mine = lines.filter((l) => l.docNo === sale.docNo)
+  eq('UDI 품목을 팔면 공급내역 줄이 선다', mine.length > 0, true)
+  eq('공급내역 줄이 그 거래처의 공급형태를 들고 온다',
+    mine.every((l) => l.supplyShape === '의료기관'), true)
+  await must('DELETE', `/sales/${sale.id}`)
+  await saveItem(item.udiDi ?? null)
+  /*
+   * 폐기는 <b>공급받는 자가 없다</b>. 거래처가 없으니 그 거래처의 공급형태도 없다 —
+   * 여기에 아무 값이나 채우면 보고 서식이 '누구에게 폐기했는지' 를 묻는 꼴이 된다.
+   */
+  const all = await must('GET', '/medical-device-reports/lines?from=2000-01-01&to=2099-12-31')
+  eq('폐기 줄에는 공급형태가 없다',
+    all.filter((l) => l.supplyType === 'DISPOSAL').every((l) => l.supplyShape == null), true)
+
+  const cleared = await save('')
+  eq('공급형태는 다시 비울 수 있다 — 의료기기를 안 다루는 거래처도 있다',
+    cleared.udiSupplyShape ?? null, null)
+}
+
 async function scenarioNotFound() {
   section('■ 없는 경로')
 
@@ -8328,6 +8398,7 @@ async function main() {
   await scenarioAsConsumption(fixtures)
   await scenarioQuotationWarehouseProject(fixtures)
   await scenarioSalesPlanScope(fixtures)
+  await scenarioUdiSupplyShape(fixtures)
 
   checkDeadAssertions()
 

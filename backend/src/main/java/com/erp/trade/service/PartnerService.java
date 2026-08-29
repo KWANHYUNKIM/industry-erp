@@ -31,6 +31,13 @@ public class PartnerService {
     /** 원본 [업종별구분]. */
     private static final List<String> INDUSTRY_KINDS =
             List.of("일반", "관세사", "외화거래처");
+    /**
+     * 원본 의료기기공급내역보고(UDI001M)의 <b>[공급형태]</b> — 공급받는 자가 어떤 곳인지.
+     * 원본 화면에서 그대로 읽은 네 가지다. 쉼표까지 원본의 표기다 — 한 칸에 여러 형태를
+     * 묶어 놓은 것이라 우리가 임의로 쪼개면 보고 서식의 값과 어긋난다.
+     */
+    private static final List<String> UDI_SUPPLY_SHAPES = List.of(
+            "제조, 수입, 판매", "의료기관", "약국개설자, 의약품도매상", "견본품, 기부용, 군납용");
 
     @Transactional(readOnly = true)
     public List<PartnerResponse> findAll() {
@@ -52,6 +59,7 @@ public class PartnerService {
                 .bizRegNo(requireValidRegNo(regNoKind, req.bizRegNo()))
                 .regNoKind(regNoKind)
                 .industryKind(oneOf(req.industryKind(), INDUSTRY_KINDS, "일반", "업종별구분"))
+                .udiSupplyShape(oneOfOrNull(req.udiSupplyShape(), UDI_SUPPLY_SHAPES, "공급형태"))
                 .subBizNo(emptyToNull(req.subBizNo()))
                 .postalCode2(emptyToNull(req.postalCode2()))
                 .address2(emptyToNull(req.address2()))
@@ -92,6 +100,7 @@ public class PartnerService {
         p.setRegNoKind(regNoKind);
         p.setBizRegNo(requireValidRegNo(regNoKind, req.bizRegNo()));
         p.setIndustryKind(oneOf(req.industryKind(), INDUSTRY_KINDS, "일반", "업종별구분"));
+        p.setUdiSupplyShape(oneOfOrNull(req.udiSupplyShape(), UDI_SUPPLY_SHAPES, "공급형태"));
         p.setSubBizNo(emptyToNull(req.subBizNo()));
         p.setPostalCode2(emptyToNull(req.postalCode2()));
         p.setAddress2(emptyToNull(req.address2()));
@@ -122,6 +131,15 @@ public class PartnerService {
             p.setActive(req.active());
         }
         return PartnerResponse.from(p);
+    }
+
+    /**
+     * 안 정해도 되는 값. 비어 있으면 null 이고, 값이 있으면 <b>허용 목록 안이어야</b> 한다.
+     * 아무 글자나 받으면 보고파일에 서식 밖의 값이 실려 나간다 — 내보내고 나서야 안다.
+     */
+    private static String oneOfOrNull(String v, List<String> allowed, String what) {
+        if (v == null || v.isBlank()) return null;
+        return oneOf(v, allowed, null, what);
     }
 
     private static String oneOf(String v, List<String> allowed, String fallback, String what) {

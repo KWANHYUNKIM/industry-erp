@@ -148,6 +148,20 @@ public class BusinessPartner extends BaseTimeEntity {
     private String industryKind = "일반";
 
     /** 원본 [종사업장번호]. 사업장이 여럿인 거래처. 세금계산서에 찍힌다. */
+    /**
+     * 의료기기 공급내역 보고의 <b>[공급형태]</b> — 이 거래처가 어떤 곳인지.
+     *
+     * <p>보고 서식이 요구하는 값이라 <b>거래처에 붙어 있어야</b> 한다. 전표마다 다시 고르는
+     * 것이 아니라 그 거래처의 성질이기 때문이다. 안 정할 수도 있다 — 의료기기를 안 다루는
+     * 회사에는 없는 개념이고, 있는 회사도 모든 거래처가 대상은 아니다.
+     *
+     * <p>자바 enum 이 아니라 문자열이다(regNoKind·industryKind 와 같다). enum 으로 두면
+     * 값을 하나 늘릴 때마다 본사·테넌트 CHECK 를 같이 고쳐야 하고, 잊으면 기동은 멀쩡한데
+     * 그 값을 처음 저장할 때 23514 로 터진다.
+     */
+    @Column(name = "udi_supply_shape", length = 30)
+    private String udiSupplyShape;
+
     @Column(name = "sub_biz_no", length = 20)
     private String subBizNo;
 

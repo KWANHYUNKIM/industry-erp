@@ -54,6 +54,13 @@ public final class PartnerDtos {
             String regNoKind,
             /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. 안 주면 일반. */
             String industryKind,
+            /**
+             * 원본 의료기기공급내역보고의 <b>[공급형태]</b> — 이 거래처가 <b>어떤 곳인지</b>.
+             * '제조, 수입, 판매' · '의료기관' · '약국개설자, 의약품도매상' ·
+             * '견본품, 기부용, 군납용' (원본 실측). 안 정할 수도 있다 — 의료기기를 안 다루는
+             * 회사에는 없는 개념이다.
+             */
+            String udiSupplyShape,
             /** 원본 [종사업장번호]. */
             String subBizNo,
             String postalCode2,
@@ -112,6 +119,13 @@ public final class PartnerDtos {
             String regNoKind,
             /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. 안 주면 일반. */
             String industryKind,
+            /**
+             * 원본 의료기기공급내역보고의 <b>[공급형태]</b> — 이 거래처가 <b>어떤 곳인지</b>.
+             * '제조, 수입, 판매' · '의료기관' · '약국개설자, 의약품도매상' ·
+             * '견본품, 기부용, 군납용' (원본 실측). 안 정할 수도 있다 — 의료기기를 안 다루는
+             * 회사에는 없는 개념이다.
+             */
+            String udiSupplyShape,
             /** 원본 [종사업장번호]. */
             String subBizNo,
             String postalCode2,
@@ -168,6 +182,8 @@ public final class PartnerDtos {
             String searchKeyword,
             String regNoKind,
             String industryKind,
+            /** 원본 의료기기공급내역보고의 [공급형태]. 안 정했으면 null. */
+            String udiSupplyShape,
             String subBizNo,
             String postalCode2,
             String address2,
@@ -191,7 +207,7 @@ public final class PartnerDtos {
                     p.getBankName(), p.getAccountNo(), p.getAccountHolder(),
                     p.getPostalCode(), p.getAddress(),
                     p.getSalesPriceGroup(), p.getPurchasePriceGroup(), p.getSearchKeyword(),
-                    p.getRegNoKind(), p.getIndustryKind(), p.getSubBizNo(),
+                    p.getRegNoKind(), p.getIndustryKind(), p.getUdiSupplyShape(), p.getSubBizNo(),
                     p.getPostalCode2(), p.getAddress2(), p.getHomepage(), p.getRemark(),
                     p.isTaxReport(), p.isShipmentTarget(),
                     p.getParent() != null ? p.getParent().getId() : null,

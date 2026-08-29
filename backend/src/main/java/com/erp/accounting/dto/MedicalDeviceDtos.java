@@ -22,7 +22,12 @@ public final class MedicalDeviceDtos {
             String udiDi,
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal quantity,
-            Long partnerId, String partnerName, String partnerBizRegNo
+            Long partnerId, String partnerName, String partnerBizRegNo,
+            /**
+             * 공급받는 자의 <b>[공급형태]</b> — 거래처에 정해 둔 값이다(원본 조건이자 보고 서식의 항목).
+             * 폐기는 공급받는 자가 없어 늘 null 이다.
+             */
+            String supplyShape
     ) {}
 
     /** 송신이력(=보고파일 산출 이력) */
