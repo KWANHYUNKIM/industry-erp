@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -25,6 +26,14 @@ interface ComparisonRow {
   projectName: string | null
   /** 원본 매출계획비교표의 [담당자]. 위 셋과 같은 성질의 축이다. */
   employeeName: string | null
+  /** 원본 [설정]의 [코드포함] — 이름 옆에 같이 보여 줄 코드. 안 나눈 축은 null. */
+  itemCode: string
+  warehouseCode: string | null
+  partnerCode: string | null
+  projectCode: string | null
+  employeeCode: string | null
+  /** 원본 매출계획입력의 [예상매출일자]. 안 정했으면 null. */
+  expectedDate: string | null
   unit: string
   planQty: number
   planAmount: number
@@ -48,6 +57,15 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 const SALE_FLAGS = ['전체', '일반', '반품'] as const
 type SaleFlag = typeof SALE_FLAGS[number]
 
+/**
+ * 원본 매출계획비교표의 [설정] — 체크박스 셋이다(사본 실측).
+ * <b>코드포함</b>(꺼짐) · <b>비율(%)</b>(켜짐) · <b>수량</b>(꺼짐).
+ *
+ * <p>표에 무엇을 낼지를 정하는 자리다. 원본 기본값 그대로 켠다 — 우리가 임의로 다 켜 두면
+ * 첫 화면이 원본보다 넓고, 왜 다른지는 화면 어디에도 안 보인다.
+ */
+const SETUPS = ['코드포함', '비율(%)', '수량'] as const
+
 interface CodeRow { id: number; code: string; name: string }
 
 export default function SalesPlanPage() {
@@ -64,6 +82,13 @@ export default function SalesPlanPage() {
   const [projCond, setProjCond] = useState('')
   const [empCond, setEmpCond] = useState('')
   const [saleFlag, setSaleFlag] = useState<SaleFlag>('전체')
+  const [setups, setSetups] = useState<string[]>(['비율(%)'])
+  const withCode = setups.includes('코드포함')
+  const withRate = setups.includes('비율(%)')
+  const withQty = setups.includes('수량')
+  /** 이름 옆에 코드를 붙여 준다 — [코드포함]이 꺼져 있으면 이름만. */
+  const named = (name: string | null, code: string | null) =>
+    (!name ? '' : withCode && code ? `${code} ${name}` : name)
   const [employees, setEmployees] = useState<CodeRow[]>([])
   const [warehouses, setWarehouses] = useState<CodeRow[]>([])
   const [partners, setPartners] = useState<CodeRow[]>([])
@@ -116,6 +141,13 @@ export default function SalesPlanPage() {
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !empCond || r.employeeName === empCond),
     [rows, itemCond, whCond, partnerCond, projCond, empCond])
+
+  /*
+   * [설정]으로 열이 켜지고 꺼지니 <b>머리와 줄의 칸 수가 자료 따라 변한다</b> —
+   * 정적으로는 못 센다. 렌더된 표를 직접 재는 검사를 단다.
+   */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '매출계획비교표', [withQty, withRate, shown.length])
 
   /* 합계도 걸러진 것으로 낸다 — 한 품목만 보면서 합계는 전체이면 숫자가 거짓말을 한다. */
   const totals = useMemo(() => {
@@ -187,13 +219,27 @@ export default function SalesPlanPage() {
             ))}
           </div>
         </EcCond>
+        <EcCond label="설정">
+          <div style={{ display: 'flex', gap: 12 }}>
+            {SETUPS.map((k) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+                <input type="checkbox" checked={setups.includes(k)}
+                       onChange={(e) => setSetups((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
+                {k}
+              </label>
+            ))}
+          </div>
+        </EcCond>
       </ul>
 
+      <div ref={tableRef}>
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ textAlign: 'center' }}>연월</th>
+            {/* 원본 매출계획입력의 [예상매출일자]. 안 정한 계획은 빈칸이다. */}
+            <th style={{ width: 110, textAlign: 'center' }}>예상매출일자</th>
             {/*
               원본 매출계획입력의 열 [거래처]. 계획에 축을 만들었는데 <b>표에는 안 보여</b>
               같은 품목·같은 달 계획이 여럿일 때 <b>어느 것이 어느 축인지</b> 알 수 없었다.
@@ -201,38 +247,41 @@ export default function SalesPlanPage() {
             */}
             <th style={{ width: 110 }}>거래처명</th>
             {/* 원본 차례는 거래처명 <b>바로 다음</b>이 담당자다(사본 실측). */}
-            <th style={{ width: 90 }}>담당자</th>
+            <th style={{ width: 90 }}>담당자명</th>
             <th style={{ width: 100 }}>창고명</th>
             <th style={{ width: 110 }}>프로젝트명</th>
             {/* 원본 차례: 거래처명 · 창고명 · 프로젝트명 · <b>품목명</b> · 금액 */}
             <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>계획수량</th>
+            {/* 원본 [설정]의 [수량] — 처음엔 꺼져 있다. 금액만 보는 것이 기본이다. */}
+            {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
             <th style={{ textAlign: 'right' }}>계획금액</th>
-            <th style={{ textAlign: 'right' }}>실적수량</th>
+            {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
             <th style={{ textAlign: 'right' }}>실적금액</th>
-            <th style={{ textAlign: 'right' }}>달성률</th>
+            {/* 원본 [설정]의 [비율(%)] — 처음부터 켜져 있다. */}
+            {withRate && <th style={{ textAlign: 'right' }}>달성률</th>}
             <th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={9 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
-              <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.employeeName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.warehouseName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
-              <td>{r.itemName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
-              <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{r.expectedDate ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{named(r.partnerName, r.partnerCode)}</td>
+              <td style={{ color: '#5a626e' }}>{named(r.employeeName, r.employeeCode)}</td>
+              <td style={{ color: '#5a626e' }}>{named(r.warehouseName, r.warehouseCode)}</td>
+              <td style={{ color: '#5a626e' }}>{named(r.projectName, r.projectCode)}</td>
+              <td>{named(r.itemName, r.itemCode)} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
+              {withQty && <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>}
               <td style={{ textAlign: 'right' }}>{won(r.planAmount)}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.actualQty)}</td>
+              {withQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.actualQty)}</td>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{won(r.actualAmount)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.achieveRate) }}>{r.achieveRate.toFixed(1)}%</td>
+              {withRate && <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.achieveRate) }}>{r.achieveRate.toFixed(1)}%</td>}
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r.id)}>삭제</button>
               </td>
@@ -240,6 +289,7 @@ export default function SalesPlanPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </EcListShell>
   )
 }
@@ -269,6 +319,8 @@ function PlanForm({
   const [fPartner, setFPartner] = useState('')
   const [fProject, setFProject] = useState('')
   const [fEmployee, setFEmployee] = useState('')
+  /* 원본 매출계획입력 머리의 [예상매출일자]. 안 정해도 된다. */
+  const [expectedDate, setExpectedDate] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
@@ -286,6 +338,7 @@ function PlanForm({
         partnerId: fPartner ? Number(fPartner) : undefined,
         projectId: fProject ? Number(fProject) : undefined,
         employeeId: fEmployee ? Number(fEmployee) : undefined,
+        expectedDate: expectedDate || undefined,
         remark: remark || undefined,
       })
       onSaved()
@@ -307,6 +360,11 @@ function PlanForm({
             <option value="">품목 선택</option>
             {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
           </select>
+        </label>
+        {/* 정하면 <b>계획연월과 같은 달</b>이어야 한다 — 어긋나면 서버가 막는다. */}
+        <label style={{ flex: 1 }}><span style={lbl}>예상매출일자</span>
+          <input className={cls} type="date" value={expectedDate}
+                 onChange={(e) => setExpectedDate(e.target.value)} style={{ width: '100%' }} />
         </label>
         <label style={{ flex: 1 }}><span style={lbl}>월 *</span>
           <select className={cls} value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: '100%' }}>

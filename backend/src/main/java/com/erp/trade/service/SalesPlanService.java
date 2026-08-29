@@ -53,12 +53,25 @@ public class SalesPlanService {
     @Transactional
     public SalesPlanResponse create(CreateSalesPlanRequest req, String username) {
         Item item = itemService.get(req.itemId());
+        /*
+         * 예상매출일자를 정했으면 <b>계획연월과 같은 달</b>이어야 한다. 5월 계획에 6월
+         * 예상일이 붙으면 어느 쪽이 참인지 알 수 없는 줄이 남고, 그 줄은 5월 실적과
+         * 견줘진다 — 화면은 멀쩡하고 숫자만 조용히 틀린다.
+         */
+        if (req.expectedDate() != null
+                && (req.expectedDate().getYear() != req.planYear()
+                    || req.expectedDate().getMonthValue() != req.planMonth())) {
+            throw ApiException.badRequest(
+                    "예상매출일자가 계획연월과 다릅니다: " + req.expectedDate()
+                    + " ≠ " + req.planYear() + "-" + String.format("%02d", req.planMonth()));
+        }
         SalesPlan plan = SalesPlan.builder()
                 .item(item)
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .partner(req.partnerId() == null ? null : partnerService.get(req.partnerId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
+                .expectedDate(req.expectedDate())
                 .planYear(req.planYear())
                 .planMonth(req.planMonth())
                 .planQty(req.planQty())
@@ -143,6 +156,12 @@ public class SalesPlanService {
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
+                    p.getItem().getCode(),
+                    p.getWarehouse() != null ? p.getWarehouse().getCode() : null,
+                    p.getPartner() != null ? p.getPartner().getCode() : null,
+                    p.getProject() != null ? p.getProject().getCode() : null,
+                    p.getEmployee() != null ? p.getEmployee().getCode() : null,
+                    p.getExpectedDate(),
                     p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate));
         }
         return out;

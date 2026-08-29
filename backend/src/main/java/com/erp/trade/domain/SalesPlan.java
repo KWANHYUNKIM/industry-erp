@@ -59,6 +59,16 @@ public class SalesPlan extends BaseTimeEntity {
     @JoinColumn(name = "employee_id")
     private com.erp.hr.domain.Employee employee;
 
+    /**
+     * 예상매출일자. 원본 매출계획입력 머리의 날짜다.
+     *
+     * <p>계획은 달 단위지만 <b>그 달 안에서 언제쯤</b>인지는 달만으로 말할 수 없다.
+     * 안 정할 수도 있다. 정하면 계획연월과 <b>어긋날 수 없다</b> — 어긋나면 어느 쪽이
+     * 참인지 알 수 없는 줄이 남는다.
+     */
+    @Column(name = "expected_date")
+    private java.time.LocalDate expectedDate;
+
     @Column(name = "plan_year", nullable = false)
     private int planYear;
 

@@ -890,6 +890,32 @@ async function scenarioSalesPlanScope(f) {
     amtOf(await must('GET', `/sales-plans/comparison?year=${year}`), planAll.id),
     amtOf(all, planAll.id))
 
+  /*
+   * 원본 매출계획입력의 [예상매출일자]. 달만으로는 <b>그 달 안에서 언제쯤</b>인지 못 적는다.
+   * 정했으면 계획연월과 어긋날 수 없다 — 5월 계획에 6월 예상일이 붙으면 어느 쪽이 참인지
+   * 알 수 없는 줄이 남고, 그 줄은 5월 실적과 견줘진다(화면은 멀쩡하고 숫자만 조용히 틀린다).
+   */
+  const dated = await must('POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 1, planAmount: 1000,
+    expectedDate: `${year}-05-20`,
+  })
+  eq('예상매출일자가 저장된다', dated.expectedDate, `${year}-05-20`)
+  eq('비교표에도 실려 온다',
+    (await must('GET', `/sales-plans/comparison?year=${year}`))
+      .find((r) => r.id === dated.id).expectedDate, `${year}-05-20`)
+  await rejects('계획연월과 다른 예상매출일자는 거부', 'POST', '/sales-plans', {
+    itemId: f.product.id, planYear: year, planMonth: 5, planQty: 1, planAmount: 1000,
+    expectedDate: `${year}-06-01`,
+  }, '예상매출일자가 계획연월과 다릅니다')
+  await must('DELETE', `/sales-plans/${dated.id}`)
+
+  /* 원본 [설정]의 [코드포함] — 이름 옆에 코드를 붙이려면 응답이 코드를 들고 와야 한다. */
+  const withCodes = (await must('GET', `/sales-plans/comparison?year=${year}`))
+    .find((r) => r.id === planHere.id)
+  eq('비교표가 품목코드를 든다', withCodes.itemCode, f.product.code)
+  eq('고른 축의 코드도 든다 — 같은 이름의 창고가 둘일 때 이름만으로는 못 가린다',
+    withCodes.warehouseCode, f.warehouse.code)
+
   for (const p of [planAll, planHere, planThere]) await must('DELETE', `/sales-plans/${p.id}`)
 }
 
