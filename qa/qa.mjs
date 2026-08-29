@@ -8849,6 +8849,7 @@ async function main() {
   await scenarioSeedRows()
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
+  await scenarioPressedTwice(fixtures)
 
   checkDeadAssertions()
 
@@ -9048,6 +9049,74 @@ async function scenarioGhostId() {
  * <p>수불이력은 견주지 않는다. 지울 때 <b>반대 거래를 남기는 것이 맞아서</b>
  * 줄 수가 늘어나는 것이 정상이다(자재불출이 이미 그렇게 하고 있다).
  */
+/**
+ * <b>두 번 눌렀을 때.</b> 화면이 느리면 사람은 버튼을 한 번 더 누른다.
+ *
+ * <p>세 가지를 잰다.
+ * <ul>
+ *   <li><b>같은 순간에 여덟 번 만들기</b> — 전표번호가 겹치면 안 된다.
+ *       DocumentNoGenerator 가 번호 공간을 잠그는데(CLAUDE.md), 그 성질을 실제로 두드려 본 적이 없었다.</li>
+ *   <li><b>확정을 두 번</b> — 두 번째는 거절해야 하고, 재고가 또 깎이면 안 된다.</li>
+ *   <li><b>취소를 두 번</b> — 발주서가 그냥 통과해서 이력에 <b>"취소 → 취소"</b> 가
+ *       누른 만큼 쌓였다. 일어나지도 않은 전이를 이력이 적고 있었다.</li>
+ * </ul>
+ *
+ * <p>상태를 바꾸는 자리 열아홉 곳을 훑어 '같은 상태인지 미리 안 보는' 열다섯을 골랐지만,
+ * 되풀이해서 <b>자국이 남는 것은 발주서 취소 하나뿐</b>이었다. 나머지는 같은 값을 다시
+ * 넣을 뿐이거나(전자결재는 currentActionableLine 이, 발주 확정은 expect(PRICED) 가 막는다)
+ * 아무 흔적을 안 남긴다.
+ */
+async function scenarioPressedTwice(f) {
+  section('■ 시나리오 39. 두 번 눌렀을 때')
+
+  await call('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 900,
+    adjustDate: '2026-08-30',
+  })
+
+  // ── 같은 순간에 여덟 번 만들면 전표번호가 겹치나
+  const N = 8
+  const 만들기 = () => call('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+  })
+  const 결과 = await Promise.all(Array.from({ length: N }, 만들기))
+  const 만든것 = 결과.filter((r) => r.status < 300).map((r) => r.data)
+  eq(`동시에 ${N}번 눌러도 다 만들어진다`, 만든것.length, N)
+  const 번호 = 만든것.map((d) => d.docNo)
+  eq('전표번호가 하나도 안 겹친다', new Set(번호).size, N)
+
+  // ── 확정을 두 번
+  const 확정할것 = 만든것[0]
+  const 재고 = async () => Number((await must('GET', '/stock')).find(
+    (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity ?? 0)
+  const 첫확정 = await call('POST', `/sales/${확정할것.id}/confirm`)
+  eq('판매 확정은 된다', 첫확정.status, 200)
+  const 확정후재고 = await 재고()
+  const 둘째확정 = await call('POST', `/sales/${확정할것.id}/confirm`)
+  eq('두 번째 확정은 거절한다', 둘째확정.status >= 400, true)
+  eq('두 번째 확정이 재고를 또 건드리지 않는다', await 재고(), 확정후재고)
+
+  for (const d of 만든것) await call('DELETE', `/sales/${d.id}`)
+
+  // ── 취소를 두 번 — 이력에 없던 전이가 쌓이나
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    orderDate: '2026-08-30', dueDate: '2026-09-30',
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  const 이력 = async () => (await must('GET', `/purchase-orders/${po.id}/history`)).length
+  const 취소전 = await 이력()
+  eq('발주 취소는 된다', (await call('POST', `/purchase-orders/${po.id}/cancel`, {})).status, 200)
+  const 취소후 = await 이력()
+  eq('취소하면 이력이 한 줄 는다', 취소후, 취소전 + 1)
+  const 둘째취소 = await call('POST', `/purchase-orders/${po.id}/cancel`, {})
+  eq('두 번째 취소는 거절한다', 둘째취소.status >= 400, true)
+  eq('이미 취소됐다고 말해 준다',
+    /이미 취소된/.test(String(둘째취소.data?.message ?? '')), true)
+  eq('없던 전이가 이력에 쌓이지 않는다', await 이력(), 취소후)
+}
+
 async function scenarioRoundTrip(f) {
   section('■ 시나리오 38. 만들었다 지우면 원래대로 돌아오나')
 

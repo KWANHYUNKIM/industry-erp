@@ -218,6 +218,15 @@ public class PurchaseOrderService {
         if (po.getStatus() == PurchaseOrderStatus.RECEIVED) {
             throw ApiException.badRequest("이미 입고된 발주서는 취소할 수 없습니다.");
         }
+        /*
+         * <b>이미 취소된 것을 또 취소하지 않는다.</b> 예전에는 그냥 통과해서, 화면이 느릴 때
+         * [취소]를 두 번 누르면 발주서 이력에 <b>"취소 → 취소"</b> 가 누른 만큼 쌓였다.
+         * 일어나지도 않은 전이가 이력에 남으면, 나중에 그 발주서에 무슨 일이 있었는지
+         * 읽는 사람이 잘못 읽는다. 형제 자리(입고전환·견적 수주전환)가 쓰는 말투를 따른다.
+         */
+        if (po.getStatus() == PurchaseOrderStatus.CANCELLED) {
+            throw ApiException.conflict("이미 취소된 발주서입니다: " + po.getOrderNo());
+        }
         trace(po, po.getStatus(), PurchaseOrderStatus.CANCELLED, username, null);
         po.setStatus(PurchaseOrderStatus.CANCELLED);
         return PurchaseOrderResponse.from(po);
