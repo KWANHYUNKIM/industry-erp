@@ -364,8 +364,11 @@ public class ApprovalService {
     }
 
     private StoredFile findStoredFile(Long id) {
-        return storedFileRepository.findById(id)
+        StoredFile f = storedFileRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        if (f.getOwnerCode() == null) f.setOwnerCode("GROUPWARE");
+        return f;
     }
 
     private User findUser(Long id, String what) {

@@ -9143,6 +9143,32 @@ async function scenarioNoPermission() {
   const [내가지움] = await 낮은쪽('DELETE', `/files/${내파일.id}`)
   eq('내가 올린 파일은 내가 지운다', 내가지움, 204)
 
+  /*
+   * <b>내려받기.</b> 지우는 것만 막았을 때는 파일 번호만 넣으면 남의 증빙이 그대로 내려왔다.
+   * 이제 파일에 <b>어느 화면 것인지</b>가 적혀 있고(그 화면의 메뉴 권한 코드), 그 권한이
+   * 있어야 받는다. 주인이 안 적힌 파일은 지금까지처럼 통과한다 — 아직 안 적은 파일 때문에
+   * 화면이 조용히 빈칸이 되면 안 되기 때문이다. 그 두 갈래를 다 잰다.
+   */
+  const [주인없음] = await 낮은쪽('GET', `/files/${올린파일.id}`)
+  eq('주인이 안 적힌 파일은 그대로 내려받는다', 주인없음, 200)
+
+  const 증빙 = new FormData()
+  증빙.append('file', new Blob(['QA 증빙본문'], { type: 'text/plain' }), 'qa-ev.txt')
+  증빙.append('entityType', 'SALES')
+  증빙.append('entityId', '1')
+  증빙.append('worker', USER)
+  const evRes = await fetch(`${BASE}/evidence-attachments`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: 증빙,
+  })
+  const ev = await evRes.json()
+  eq('증빙을 붙였다', evRes.status, 200)
+  const 증빙파일 = ev.fileId ?? ev.file?.id
+  eq('증빙에 파일이 달렸다', 증빙파일 != null, true)
+  const [남의증빙] = await 낮은쪽('GET', `/files/${증빙파일}`)
+  eq('회계 권한이 없으면 증빙파일을 못 받는다', 남의증빙, 403)
+  eq('권한이 있으면 받는다', (await call('GET', `/files/${증빙파일}`)).status, 200)
+
+  await call('DELETE', `/evidence-attachments/${ev.id}`)
   await call('DELETE', `/files/${올린파일.id}`)
 }
 

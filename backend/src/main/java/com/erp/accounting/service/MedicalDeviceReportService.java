@@ -144,6 +144,8 @@ public class MedicalDeviceReportService {
 
         StoredFile file = fileStorage.storeText(
                 "의료기기공급내역_" + reportMonth + ".csv", "text/csv", toCsv(rows), username);
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        file.setOwnerCode("TAX");
 
         BigDecimal totalQty = rows.stream().map(SupplyLine::quantity)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

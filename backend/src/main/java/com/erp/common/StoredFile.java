@@ -38,4 +38,16 @@ public class StoredFile extends BaseTimeEntity {
 
     @Column(length = 50)
     private String uploader;
+
+    /**
+     * 이 파일이 <b>어느 화면 것인지</b> — 메뉴 권한 코드({@link MenuPermissionCatalog}).
+     *
+     * <p>내려받기를 막으려면 필요하다. '올린 사람' 만으로는 못 막는다 — 증빙은 회계 담당자가
+     * 올리고 결재자가 보는 것이 정상이라, 올린 사람으로 막으면 멀쩡한 화면이 깨진다.
+     *
+     * <p>비어 있으면 지금까지처럼 누구나 읽는다. 아직 주인을 안 적은 파일 때문에 화면이
+     * 조용히 깨지는 것보다, 적은 것부터 차례로 막는 편이 낫다.
+     */
+    @Column(name = "owner_code", length = 40)
+    private String ownerCode;
 }

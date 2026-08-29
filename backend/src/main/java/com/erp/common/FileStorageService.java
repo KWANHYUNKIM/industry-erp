@@ -81,6 +81,27 @@ public class FileStorageService {
      *
      * <p>바로 위 {@link #meta}·{@link #load} 와 똑같이 <b>없으면 없다고 말한다.</b>
      */
+    /**
+     * 이 파일의 주인을 적는다 — 붙이는 쪽 모듈이 부른다.
+     *
+     * <p>파일은 올릴 때 어느 화면 것인지 모른다. 화면이 먼저 올리고 나중에 전표·문서에
+     * 붙이기 때문이다. 그래서 <b>붙이는 순간</b> 그 모듈이 제 권한 코드를 적어 준다.
+     * 한 번 적힌 주인은 바꾸지 않는다 — 나중에 다른 화면이 같은 파일을 참조하더라도
+     * 처음 붙인 곳이 그 파일의 주인이다.
+     *
+     * <p>없는 id 를 주면 조용히 넘어간다. 붙이는 쪽은 이미 파일을 확인하고 부르는데,
+     * 여기서 또 터뜨리면 주인을 적는 일 때문에 본래 하려던 저장이 통째로 롤백된다.
+     */
+    @Transactional
+    public void claim(Long fileId, String ownerCode) {
+        if (fileId == null || ownerCode == null) {
+            return;
+        }
+        fileRepository.findById(fileId)
+                .filter(f -> f.getOwnerCode() == null)
+                .ifPresent(f -> f.setOwnerCode(ownerCode));
+    }
+
     @Transactional
     public void delete(Long id) {
         if (!fileRepository.existsById(id)) {

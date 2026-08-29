@@ -130,8 +130,11 @@ public class ItemService {
      */
     private StoredFile imageOf(Long id) {
         if (id == null) return null;
-        return storedFileRepository.findById(id)
+        StoredFile f = storedFileRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("이미지 파일을 찾을 수 없습니다. id=" + id));
+        /* 붙는 순간 이 파일의 주인을 적는다 — 품목 이미지는 기초등록 권한 아래에 있다. */
+        if (f.getOwnerCode() == null) f.setOwnerCode("INV_MASTER");
+        return f;
     }
 
     /** 품목그룹. null 이면 그룹 없음 — 없는 id 를 주면 조용히 무시하지 않고 알린다. */

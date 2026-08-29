@@ -73,6 +73,8 @@ public class EvidenceService {
             throw ApiException.badRequest("증빙을 붙일 전표를 지정하세요.");
         }
         StoredFile stored = (file != null && !file.isEmpty()) ? fileStorage.store(file, worker) : null;
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        if (stored != null) stored.setOwnerCode("ACCOUNTING");
 
         EvidenceAttachment e = EvidenceAttachment.builder()
                 .entityType(entityType)

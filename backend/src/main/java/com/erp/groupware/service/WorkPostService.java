@@ -34,8 +34,11 @@ public class WorkPostService {
     /** 첨부 파일. null 이면 안 붙인 것이다 — 없는 id 를 주면 그건 오류다. */
     private StoredFile attachmentOf(Long id) {
         if (id == null) return null;
-        return storedFileRepository.findById(id)
+        StoredFile f = storedFileRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+        /* 붙는 순간 이 파일의 주인을 적는다 — 업무게시판은 생산 권한 아래에 있다. */
+        if (f.getOwnerCode() == null) f.setOwnerCode("PRODUCTION");
+        return f;
     }
 
     /** 로그인 아이디 → 표시 이름. 계정이 지워졌으면 아이디를 그대로 보여 준다. */

@@ -72,6 +72,8 @@ public class DriveService {
     @Transactional
     public DocumentResponse upload(MultipartFile file, String drive, String uploader) {
         StoredFile stored = fileStorage.store(file, uploader);
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        stored.setOwnerCode("GROUPWARE");
         DriveDocument doc = DriveDocument.builder()
                 .name(stored.getName())
                 .drive("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY")

@@ -37,14 +37,16 @@ public class FileController {
     }
 
     @GetMapping("/{id}/meta")
-    public FileMeta meta(@PathVariable Long id) {
-        return FileMeta.from(storage.meta(id));
+    public FileMeta meta(@PathVariable Long id,
+                         @AuthenticationPrincipal UserPrincipal principal) {
+        return FileMeta.from(readable(storage.meta(id), principal));
     }
 
     /** 다운로드. 한글 파일명이 깨지지 않도록 RFC 5987 형식으로 내려보낸다. */
     @GetMapping("/{id}")
-    public ResponseEntity<Resource> download(@PathVariable Long id) {
-        StoredFile meta = storage.meta(id);
+    public ResponseEntity<Resource> download(@PathVariable Long id,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        StoredFile meta = readable(storage.meta(id), principal);
         byte[] bytes = storage.load(id);
         String encoded = URLEncoder.encode(meta.getName(), StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()
@@ -84,6 +86,33 @@ public class FileController {
         }
         storage.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 이 파일을 내려받을 수 있는 사람인가.
+     *
+     * <p>예전에는 <b>누구든</b> 받을 수 있었다. 권한이 하나도 없는 계정으로 파일 번호만
+     * 넣으면 남이 올린 증빙이 그대로 내려왔다. 지우는 것은 '올린 사람' 으로 막았지만
+     * 읽기는 그걸로 못 막는다 — 증빙은 회계 담당자가 올리고 결재자가 보는 것이 정상이라,
+     * 올린 사람으로 막으면 멀쩡한 화면이 깨진다.
+     *
+     * <p>그래서 파일에 <b>어느 화면 것인지</b>를 적어 두고(그 화면의 메뉴 권한 코드),
+     * 그 권한을 가진 사람·올린 사람·관리자만 받게 한다.
+     *
+     * <p>주인이 안 적힌 파일은 지금까지처럼 통과시킨다. 아직 안 적은 파일 때문에 화면이
+     * 조용히 빈칸이 되는 것보다, 적은 것부터 차례로 막는 편이 낫다. 새로 붙는 파일은
+     * 붙는 순간 주인이 적히고, 이미 붙어 있던 것은 V204 가 붙은 곳을 보고 적었다.
+     */
+    private static StoredFile readable(StoredFile file, UserPrincipal principal) {
+        if (file.getOwnerCode() == null || principal == null) {
+            return file;
+        }
+        if (principal.isAdmin()
+                || principal.getPermissionCodes().contains(file.getOwnerCode())
+                || principal.getUsername().equals(file.getUploader())) {
+            return file;
+        }
+        throw ApiException.forbidden("이 파일을 볼 권한이 없습니다.");
     }
 
     public record FileMeta(Long id, String name, String contentType, long sizeBytes, String uploader) {
