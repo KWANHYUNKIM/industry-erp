@@ -8782,6 +8782,7 @@ async function main() {
   await scenarioDefectType(fixtures)
   await scenarioIssueNoAndRequestProject(fixtures)
   await scenarioPartnerParent(fixtures)
+  await scenarioChat()
 
   checkDeadAssertions()
 
@@ -8792,6 +8793,88 @@ async function main() {
     process.exit(1)
   }
   console.log('전부 통과했습니다.')
+}
+
+/**
+ * 메신저 — 대화방을 만들고, 말하고, 안 읽은 수를 세고, 이름을 바꾸고, 나간다.
+ *
+ * <p>컨트롤러 하나(열 자리)가 <b>QA 에서 한 번도 안 불렸다</b>. 화면에서만 쓰는 기능이라
+ * 손으로 눌러 보는 것 말고는 확인할 길이 없었는데, 로그인 화면이 막혀 있어 그마저 못 한다.
+ *
+ * <p>특히 <b>안 읽은 수</b>는 조용히 틀리기 쉽다 — 내가 보낸 말을 나에게도 세면 배지가
+ * 늘 켜져 있고, 남이 보낸 말을 안 세면 새 말이 와도 아무 표시가 없다. 앱바의 배지가
+ * 그 값을 그대로 쓴다.
+ */
+async function scenarioChat() {
+  section('■ 시나리오 32. 메신저 (대화방 · 안 읽은 수 · 이름변경)')
+
+  const users = await must('GET', '/users')
+  const mate = users.find((u) => u.enabled && u.username === 'manager')
+  eq('말을 걸 상대(manager)가 있다', mate != null, true)
+
+  const room = await must('POST', '/chat/rooms', {
+    name: `${P}대화방`, memberIds: [mate.id],
+  })
+  eq('그룹 대화방이 만들어진다', room.title, `${P}대화방`)
+  eq('만든 사람과 부른 사람이 함께 들어간다', room.memberCount, 2)
+  eq('일대일 방이 아니다', room.direct, false)
+
+  const said = await must('POST', `/chat/rooms/${room.id}/messages`, { content: `${P}안녕하세요` })
+  eq('말이 실린다', said.content, `${P}안녕하세요`)
+  const msgs = await must('GET', `/chat/rooms/${room.id}/messages`)
+  eq('대화 내용에 그 말이 있다', msgs.some((m) => m.id === said.id), true)
+  /* afterId 를 주면 그 뒤만 온다 — 화면이 30초마다 이것으로 늘려 받는다. */
+  eq('afterId 뒤로는 새 말이 없다',
+    (await must('GET', `/chat/rooms/${room.id}/messages?afterId=${said.id}`)).length, 0)
+
+  /*
+   * <b>내가 한 말은 나에게 안 읽은 말이 아니다.</b> 여기를 틀리면 앱바 배지가 늘 켜진다.
+   */
+  const mine = await must('GET', '/chat/unread-count')
+  eq('내가 한 말은 내 안 읽은 수에 안 든다', Number(mine.unread), 0)
+
+  const saved = token
+  const asMate = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  eq('상대로 로그인된다', asMate.ok, true)
+  if (asMate.ok) {
+    token = asMate.data.token
+    const before = Number((await must('GET', '/chat/unread-count')).unread)
+    eq('상대에게는 안 읽은 말로 잡힌다', before >= 1, true)
+    await must('POST', `/chat/rooms/${room.id}/read`)
+    eq('읽고 나면 그만큼 준다',
+      Number((await must('GET', '/chat/unread-count')).unread), before - 1)
+    token = saved
+  }
+
+  const renamed = await must('PUT', `/chat/rooms/${room.id}/name`, { name: `${P}이름바꾼방` })
+  eq('대화방 이름을 바꾼다', renamed.title, `${P}이름바꾼방`)
+  await rejects('빈 이름으로는 못 바꾼다', 'PUT', `/chat/rooms/${room.id}/name`,
+    { name: '' }, '대화방 이름을 입력하세요')
+
+  /*
+   * 방 목록에는 바뀐 이름과 <b>마지막 말</b>이 실린다 — 메신저 패널이 그 둘로 줄을 그린다.
+   * 이름을 바꾸면 그 사실이 <b>방 안에 말로 남는다</b>(시스템 알림). 그래서 마지막 말은
+   * 방금 한 인사가 아니라 그 알림이다 — 나중에 들어온 사람도 왜 이름이 다른지 알 수 있다.
+   */
+  const inList = (await must('GET', '/chat/rooms')).find((r) => r.id === room.id)
+  eq('목록에도 바뀐 이름이 온다', inList.title, `${P}이름바꾼방`)
+  eq('이름을 바꾼 자취가 방에 말로 남는다', inList.lastMessage.includes(`${P}이름바꾼방`), true)
+
+  await must('DELETE', `/chat/rooms/${room.id}/me`)
+  eq('나가면 내 목록에서 빠진다',
+    (await must('GET', '/chat/rooms')).some((r) => r.id === room.id), false)
+
+  /*
+   * <b>내가 나가도 남은 사람의 방은 그대로다.</b> 한 사람이 나갔다고 방이 사라지면
+   * 남은 쪽은 하던 이야기를 통째로 잃는다. 마지막 사람이 나갈 때만 없어진다.
+   */
+  if (asMate.ok) {
+    token = asMate.data.token
+    eq('남은 사람에게는 방이 그대로 있다',
+      (await must('GET', '/chat/rooms')).some((r) => r.id === room.id), true)
+    await must('DELETE', `/chat/rooms/${room.id}/me`)   // 뒷정리 — 마지막 사람이 나가면 방이 사라진다
+    token = saved
+  }
 }
 
 /**
