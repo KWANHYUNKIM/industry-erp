@@ -185,3 +185,13 @@ test('직전반기 — 상반기에 있으면 작년 7~12월', () => {
   assert.deepEqual(periodOf('직전반기', new Date(2026, 2, 9)),
     { from: '2025-07-01', to: '2025-12-31' })
 })
+
+test('최근7일 — 오늘까지 이레(결제내역조회)', () => {
+  assert.deepEqual(periodOf('최근7일', new Date(2026, 6, 16)),
+    { from: '2026-07-10', to: '2026-07-16' })
+})
+
+test('최근7일 — 달을 넘어가도 이레', () => {
+  assert.deepEqual(periodOf('최근7일', new Date(2026, 7, 3)),
+    { from: '2026-07-28', to: '2026-08-03' })
+})

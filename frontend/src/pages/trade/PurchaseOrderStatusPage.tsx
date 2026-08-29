@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { dateText } from '../../utils/dateText'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 구매관리 > 발주서현황 (이카운트 E040306)
@@ -55,8 +56,14 @@ interface Filters {
   sortByDoc: boolean
 }
 
+/*
+ * 원본 발주서현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 비워 두어 열면 몇 해치 발주가 쏟아졌다.
+ */
+const initP = periodOf('금월(~오늘)')!
+
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', employee: '', orderNo: '', warehouse: '', project: '', item: '', status: '', sortByDoc: false,
+  dateFrom: initP.from, dateTo: initP.to, partner: '', employee: '', orderNo: '', warehouse: '', project: '', item: '', status: '', sortByDoc: false,
 }
 
 export default function PurchaseOrderStatusPage() {

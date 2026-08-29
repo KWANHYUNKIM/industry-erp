@@ -7,6 +7,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 > 재고현황 (이카운트 E040701)
@@ -33,7 +34,7 @@ export default function CurrentStockPage() {
 
   const today = ymd(new Date())
   const [cond, setCond] = useState({
-    date: today,
+    date: periodOf('금일')!.to,   // 원본 기준일자 기본값은 [금일] 이다(사본 실측)
     warehouse: '',
     item: '',
     belowSafetyOnly: false,

@@ -65,6 +65,12 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
       return { from: ymd(new Date(t.getFullYear(), 0, 1)), to: ymd(new Date(t.getFullYear(), 11, 31)) }
     case '전년':
       return { from: ymd(new Date(t.getFullYear() - 1, 0, 1)), to: ymd(new Date(t.getFullYear() - 1, 11, 31)) }
+    /*
+     * <b>최근7일</b> — 오늘까지 이레. 결제내역조회의 기본값이다(사본 실측 — 다른 현황이
+     * 다 금월인데 이 화면만 이레다). 수금·지급은 <b>방금 들어온 돈</b>을 보는 화면이라서다.
+     */
+    case '최근7일':
+      return { from: ymd(addDays(t, -6)), to: ymd(t) }
     // 원본 그대로의 이름. 오늘 기준 사흘 전부터 이레 뒤까지 — 지난 일과 다가올 일을 함께 본다.
     case '최근3일+7일':
       return { from: ymd(addDays(t, -3)), to: ymd(addDays(t, 7)) }

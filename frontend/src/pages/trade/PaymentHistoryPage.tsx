@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
@@ -98,6 +99,8 @@ async function printReceipt(r: SettlementRow) {
 const TABS = ['전체', '미반영', '회계반영'] as const
 type Tab = typeof TABS[number]
 
+const initP = periodOf('최근7일')!
+
 export default function PaymentHistoryPage() {
   /** 원본 [입금보고서작성] — FastEntry 의 입금보고서 화면을 연다. */
   const navigate = useNavigate()
@@ -107,7 +110,12 @@ export default function PaymentHistoryPage() {
   const [ok, setOk] = useState('')
   const [keyword, setKeyword] = useState('')
   /** 원본 조건 판. 기간은 비워 두면 전체다 — 기본값으로 과거를 숨기지 않는다. */
-  const [cond, setCond] = useState({ from: '', to: '', partnerName: '', amtFrom: '', amtTo: '' })
+  /*
+   * 원본 결제내역조회는 <b>[최근7일]</b> 로 열린다(사본 실측). 다른 현황이 다 금월인데
+   * 이 화면만 이레다 — 수금·지급은 <b>방금 들어온 돈</b>을 보는 자리라서다.
+   * 우리는 비워 두어 열면 몇 해치 결제가 쏟아졌다.
+   */
+  const [cond, setCond] = useState({ from: initP.from, to: initP.to, partnerName: '', amtFrom: '', amtTo: '' })
   const setC = (p: Partial<typeof cond>) => setCond((c) => ({ ...c, ...p }))
   const [tab, setTab] = useState<Tab>('전체')
   const [picked, setPicked] = useState<number[]>([])
