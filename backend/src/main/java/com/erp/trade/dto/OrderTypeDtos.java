@@ -20,6 +20,8 @@ public final class OrderTypeDtos {
              */
             List<Long> stageIds,
             Boolean useInInput,
+            /** 원본 [처리메뉴] — 이 유형을 고를 수 있는 입력 화면의 경로. 안 주면 어디서나. */
+            String procMenu,
             String manager
     ) {}
 
@@ -29,6 +31,8 @@ public final class OrderTypeDtos {
             /** 순서대로 준다. 통째로 갈아 끼운다 — 부분 수정은 순서가 어긋나기 쉽다. */
             List<Long> stageIds,
             Boolean useInInput,
+            /** 원본 [처리메뉴]. 안 주면 어디서나 쓴다는 뜻이다. */
+            String procMenu,
             String manager,
             Boolean active
     ) {}
@@ -48,6 +52,8 @@ public final class OrderTypeDtos {
             String description,
             List<OrderTypeStepResponse> steps,
             boolean useInInput,
+            /** 원본 [처리메뉴]. 안 정했으면 null — 어느 화면에서나 쓴다. */
+            String procMenu,
             String manager,
             boolean active
     ) {
@@ -55,7 +61,7 @@ public final class OrderTypeDtos {
             return new OrderTypeResponse(
                     t.getId(), t.getCode(), t.getName(), t.getDescription(),
                     steps.stream().map(OrderTypeStepResponse::from).toList(),
-                    t.isUseInInput(), t.getManager(), t.isActive());
+                    t.isUseInInput(), t.getProcMenu(), t.getManager(), t.isActive());
         }
     }
 }

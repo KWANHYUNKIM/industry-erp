@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { FLAT_MENU } from '../../components/EcountLayout'
+import CodePickerField from '../../components/CodePickerField'
 
 /**
  * 영업 > 오더관리유형등록.
@@ -24,6 +26,8 @@ interface OrderType {
   description: string | null
   steps: Step[]
   useInInput: boolean
+  /** 원본 [처리메뉴] — 이 유형을 고를 수 있는 입력 화면의 경로. 안 정했으면 null. */
+  procMenu: string | null
   manager: string | null
   active: boolean
 }
@@ -36,7 +40,7 @@ const MAX_STEPS = 10
 const STEP_COLS = Array.from({ length: MAX_STEPS }, (_, i) => i + 1)
 
 const inputCls = 'ec-input w-full'
-const emptyForm = { code: '', name: '', description: '', manager: '', useInInput: true, active: true }
+const emptyForm = { code: '', name: '', description: '', manager: '', procMenu: '', useInInput: true, active: true }
 
 export default function OrderTypePage() {
   const [rows, setRows] = useState<OrderType[]>([])
@@ -52,6 +56,11 @@ export default function OrderTypePage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
+  /*
+   * 원본 [처리메뉴] — 이 유형을 <b>어느 입력 화면에서</b> 고를 수 있나(사본 실측, 코드도움).
+   * [입력메뉴에서 사용]은 쓰나 안 쓰나일 뿐 <b>어디서</b> 쓰는지는 말하지 않는다.
+   */
+  const [menuCond, setMenuCond] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
@@ -88,7 +97,8 @@ export default function OrderTypePage() {
     setEditId(t.id)
     setForm({
       code: t.code, name: t.name, description: t.description ?? '',
-      manager: t.manager ?? '', useInInput: t.useInInput, active: t.active,
+      manager: t.manager ?? '', procMenu: t.procMenu ?? '',
+      useInInput: t.useInInput, active: t.active,
     })
     const next = Array(MAX_STEPS).fill('')
     t.steps.forEach((s) => { if (s.seq >= 1 && s.seq <= MAX_STEPS) next[s.seq - 1] = String(s.stageId) })
@@ -105,12 +115,14 @@ export default function OrderTypePage() {
       if (editId) {
         await api.put(`/order-types/${editId}`, {
           name: form.name, description: form.description, stageIds,
-          useInInput: form.useInInput, manager: form.manager || null, active: form.active,
+          useInInput: form.useInInput, procMenu: form.procMenu || null,
+          manager: form.manager || null, active: form.active,
         })
       } else {
         await api.post('/order-types', {
           code: form.code, name: form.name, description: form.description, stageIds,
-          useInInput: form.useInInput, manager: form.manager || null,
+          useInInput: form.useInInput, procMenu: form.procMenu || null,
+          manager: form.manager || null,
         })
       }
       setShowForm(false)
@@ -144,7 +156,7 @@ export default function OrderTypePage() {
     const results = await Promise.allSettled(targets.map((r) => api.put(`/order-types/${r.id}`, {
       name: r.name, description: r.description,
       stageIds: [...r.steps].sort((a, b) => a.seq - b.seq).map((st) => st.stageId),
-      useInInput: r.useInInput, manager: r.manager, active: reviving,
+      useInInput: r.useInInput, procMenu: r.procMenu ?? '', manager: r.manager, active: reviving,
     })))
     const failed = results.filter((x) => x.status === 'rejected').length
     setChecked(new Set())
@@ -152,7 +164,10 @@ export default function OrderTypePage() {
     if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
+  const shown = rows
+    .filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
+    /* 안 정한 유형은 어느 화면에서나 쓴다는 뜻이라 <b>어느 메뉴로 물어도 걸린다.</b> */
+    .filter((r) => !menuCond || !r.procMenu || r.procMenu === menuCond)
     .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
 
 
@@ -171,6 +186,17 @@ export default function OrderTypePage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/* 원본 조건 차례: <b>처리메뉴 · 사용구분</b>. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>처리메뉴</span>
+        <CodePickerField label="처리메뉴" hideLabel width={190} emptyLabel="전체"
+                         value={menuCond} onChange={setMenuCond}
+                         items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
+        <span style={{ marginLeft: 10 }}>사용구분</span>
+        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중단</option>
+        </select>
+      </div>
       <Modal open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
@@ -200,6 +226,17 @@ export default function OrderTypePage() {
             <div>
               <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>담당자</label>
               <input className={inputCls} value={form.manager} onChange={(e) => setForm((f) => ({ ...f, manager: e.target.value }))} />
+            </div>
+            {/*
+              원본 [처리메뉴]. 후보는 <b>우리 메뉴 목록 그대로</b>다 — 따로 적어 두면
+              메뉴를 옮길 때 둘이 갈린다. 안 고르면 어느 화면에서나 쓴다.
+            */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>처리메뉴</label>
+              <CodePickerField label="처리메뉴" hideLabel fill emptyLabel="어느 화면에서나"
+                               value={form.procMenu}
+                               onChange={(v) => setForm((f) => ({ ...f, procMenu: v }))}
+                               items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>입력메뉴에서 사용</label>
@@ -240,13 +277,6 @@ export default function OrderTypePage() {
 
       {/* 단계 열이 열 개라 표가 넓다 — 페이지가 가로로 밀리지 않게 표 안에서만 스크롤한다. */}
       <div className="overflow-x-auto">
-      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>사용구분</span>
-        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
-          <option>전체</option><option>사용</option><option>중단</option>
-        </select>
-      </div>
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -271,15 +301,17 @@ export default function OrderTypePage() {
             ))}
             <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
             <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            {/* 안 정한 유형은 '어느 화면에서나' 다 — 빈칸으로 두면 안 정한 것과 못 쓰는 것이 같아 보인다. */}
+            <th style={{ width: 130 }}>처리메뉴</th>
             <th style={{ width: 90 }}>담당자</th>
             <th style={{ width: 90 }}>관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -313,6 +345,9 @@ export default function OrderTypePage() {
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
               <td style={{ textAlign: 'center', color: r.useInInput ? '#1c7c3c' : '#9aa1ab' }}>
                 {r.useInInput ? 'YES' : 'NO'}
+              </td>
+              <td style={{ color: r.procMenu ? undefined : '#9aa1ab', fontSize: 11.5 }}>
+                {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
               </td>
               <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? '-'}</td>
               <td>

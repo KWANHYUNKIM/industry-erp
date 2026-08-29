@@ -755,9 +755,14 @@ function resolveActive(pathname: string): [number, number] {
   return found
 }
 
-// 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록
-interface FlatItem { label: string; to: string; path: string }
-const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
+/*
+ * 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록.
+ *
+ * <p>밖으로도 낸다 — 오더관리유형의 [처리메뉴]처럼 <b>화면을 가리키는 값</b>을 고르는 칸이
+ * 여기 목록을 그대로 써야 한다. 따로 적어 두면 메뉴를 옮길 때 둘이 갈린다.
+ */
+export interface FlatItem { label: string; to: string; path: string }
+export const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
   m.tabs.flatMap((tab) =>
     tab.nodes.flatMap((n) =>
       isGroup(n)

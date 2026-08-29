@@ -6944,6 +6944,19 @@ async function scenarioOrderStages(f) {
   eq('첫 단계가 맞다', type.steps[0].stageName, stages[0].name)
   eq('담당자도 저장된다', type.manager, 'QA담당')
   eq('입력메뉴에서 사용도 저장된다', type.useInInput, true)
+  /*
+   * 원본 [처리메뉴] — 이 유형을 <b>어느 입력 화면에서</b> 고를 수 있나.
+   * [입력메뉴에서 사용]은 쓰나 안 쓰나일 뿐 <b>어디서</b> 쓰는지는 말하지 않는다.
+   */
+  isNull('안 주면 어느 화면에서나 — 처리메뉴는 비어 있다', type.procMenu)
+  const bound = await must('PUT', `/order-types/${type.id}`, {
+    name: type.name, procMenu: '/sales/orders', active: true,
+  })
+  eq('처리메뉴가 저장된다', bound.procMenu, '/sales/orders')
+  eq('다시 읽어도 남아 있다',
+    (await must('GET', '/order-types')).find((t) => t.id === type.id).procMenu, '/sales/orders')
+  eq('다시 비울 수 있다 — 화면을 안 가리면 어디서나 쓴다',
+    (await must('PUT', `/order-types/${type.id}`, { name: type.name, active: true })).procMenu ?? null, null)
 
   const dup = await call('PUT', `/order-types/${type.id}`, {
     name: type.name, stageIds: [stages[0].id, stages[0].id], active: true,

@@ -51,6 +51,7 @@ public class OrderTypeService {
                 .name(req.name())
                 .description(req.description())
                 .useInInput(req.useInInput() == null || req.useInInput())
+                .procMenu(req.procMenu())
                 .manager(req.manager())
                 .active(true)
                 .build();
@@ -66,6 +67,7 @@ public class OrderTypeService {
         if (req.useInInput() != null) {
             t.setUseInInput(req.useInInput());
         }
+        t.setProcMenu(req.procMenu());
         t.setManager(req.manager());
         if (req.active() != null) {
             t.setActive(req.active());
