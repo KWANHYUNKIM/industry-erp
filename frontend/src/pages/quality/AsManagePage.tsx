@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
+import { Link } from 'react-router-dom'
 
 interface AsPart {
   id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
@@ -77,11 +78,26 @@ export default function AsManagePage() {
   const [error, setError] = useState('')
 
   // 소모부품 관리
+  /*
+   * 원본 격자의 <b>[상세내역]</b> — 줄을 눌러 그 접수에 쓴 부품을 <b>그 자리에서</b> 편다.
+   * 우리는 [부품] 창을 따로 열어야만 볼 수 있었다. 창을 열면 목록이 가려져,
+   * 여러 건을 견주려면 열었다 닫았다 해야 했다.
+   */
+  const [openDetail, setOpenDetail] = useState<number | null>(null)
+  const [detailParts, setDetailParts] = useState<AsPart[]>([])
   const [partsFor, setPartsFor] = useState<AsRow | null>(null)
   const [parts, setParts] = useState<AsPart[]>([])
   const [partForm, setPartForm] = useState({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
   const [partError, setPartError] = useState('')
   const [ok, setOk] = useState('')
+  /** 펼칠 때 그 줄의 부품만 가져온다 — 목록을 열 때 전부 가져오면 안 볼 것까지 부른다. */
+  async function toggleDetail(r: AsRow) {
+    if (openDetail === r.id) { setOpenDetail(null); return }
+    setOpenDetail(r.id)
+    setDetailParts([])
+    try { setDetailParts((await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data) }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
   const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | AsStatus>('ALL')
@@ -382,13 +398,22 @@ export default function AsManagePage() {
             <th>담당자명</th><th>수리예정일자</th>
             {/* 원본 차례는 수리예정일자 <b>다음</b>이 [접수증] 이다(사본 실측). */}
             <th style={{ width: 60, textAlign: 'center' }}>접수증</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th><th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            {/* 원본 차례: 접수증 · <b>상세내역</b> · 진행상태 · <b>생성한 전표</b>. */}
+            <th style={{ width: 66, textAlign: 'center' }}>상세내역</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th>
+            {/*
+              원본 [생성한 전표] — 그 접수에서 <b>나온 전표</b>로 건너뛴다.
+              우리 A/S 는 부품을 쓸 때마다 재고 출고 전표를 남긴다(적요에 'A/S소모 접수번호').
+              재고수불부를 그 번호로 걸러 연다 — 접수와 전표가 이어져 있는데 <b>건너갈 길만</b> 없었다.
+            */}
+            <th style={{ width: 84, textAlign: 'center' }}>생성한 전표</th>
+            <th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r, i) => [
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
@@ -402,15 +427,56 @@ export default function AsManagePage() {
                 <button onClick={() => printAsReceipt(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => toggleDetail(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                  {openDetail === r.id ? '접기' : '펼치기'}
+                </button>
+              </td>
               <td style={{ textAlign: 'center', color: COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
+              <td style={{ textAlign: 'center' }}>
+                <Link to={`/inventory/ledger?keyword=${encodeURIComponent(r.asNo)}`}
+                      style={{ color: 'var(--ec-blue)', fontSize: 12 }}>재고수불</Link>
+              </td>
               <td>{r.doneDate ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
                 <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: '#5a626e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
                 {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
               </td>
-            </tr>
-          ))}
+            </tr>,
+            openDetail === r.id ? (
+              /* 펼친 줄 — 그 접수에 쓴 부품. 아직 안 썼으면 그렇게 적는다(빈 표를 그리지 않는다). */
+              <tr key={`${r.id}-detail`}>
+                <td colSpan={14} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                  {detailParts.length === 0 ? (
+                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>쓴 부품이 없습니다.</span>
+                  ) : (
+                    <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                      <thead><tr>
+                        <th style={{ width: 34 }}></th><th>부품</th><th style={{ width: 120 }}>창고</th>
+                        <th style={{ width: 80, textAlign: 'right' }}>수량</th>
+                        <th style={{ width: 100, textAlign: 'right' }}>단가</th>
+                        <th style={{ width: 110, textAlign: 'right' }}>금액</th>
+                      </tr></thead>
+                      <tbody>
+                        {detailParts.map((pt, k) => (
+                          <tr key={pt.id}>
+                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td>{pt.itemName}</td>
+                            <td style={{ color: '#5a626e' }}>{pt.warehouseName}</td>
+                            <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
+                            <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : '-'}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </td>
+              </tr>
+            ) : null,
+          ]).flat()}
         </tbody>
       </table>
     </EcListShell>

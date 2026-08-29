@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
@@ -45,7 +46,13 @@ export default function StockLedgerPage() {
   const [filters, setFilters] = useState<ServerFilters>({ from: firstOfMonth(), to: today(), itemId: '', warehouseId: '' })
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
-  const [keyword, setKeyword] = useState('')
+  /*
+   * <b>주소로 찾아 들어올 수 있게</b> 검색어를 URL 에서 받는다.
+   * A/S 접수의 [생성한 전표]가 이리로 건너온다 — 그 A/S 로 나간 부품 전표만 보여 주려면
+   * 화면을 열자마자 걸러져 있어야 한다. 열고 나서 사람이 다시 치게 하면 건너온 뜻이 없다.
+   */
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') ?? '')
   /** 원본 '거래내역없는품목제외'. 조회 결과에 변동이 0 인 행이 섞이면 원장이 지저분해진다. */
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
