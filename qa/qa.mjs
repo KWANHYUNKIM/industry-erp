@@ -8810,6 +8810,7 @@ async function main() {
   await scenarioChat()
   await scenarioAccountingSummary()
   await scenarioGhostId()
+  await scenarioReversedPeriod()
 
   checkDeadAssertions()
 
@@ -8962,6 +8963,68 @@ async function scenarioGhostId() {
   /* 자리를 못 찾으면 이 시나리오는 아무것도 안 잰 것이다 — 그 사실을 먼저 못 박는다. */
   eq('두드릴 자리를 찾았다', seen.size > 20, true)
   eq(`없는 번호로 두드린 ${seen.size}자리가 모두 404 다`, bad.join(' / ') || '없음', '없음')
+}
+
+/**
+ * <b>거꾸로 준 기간을 조용히 뒤집지 않나.</b>
+ *
+ * <p>조회 화면의 [시작일]·[종료일]은 손으로 찍을 수 있어서 거꾸로 넣기 쉽다.
+ * 그때 서버가 몰래 두 날짜를 맞바꾸면, 화면 머리에는 사람이 넣은 <b>8/31 ~ 8/1</b> 이
+ * 그대로 적혀 있는데 표에는 <b>한 달치</b>가 깔린다. 적힌 기간과 표가 다른 것을
+ * 알아챌 방법이 없다.
+ *
+ * <p>실제로 근태조회·근태집계가 그랬다(HrService.range 가 뒤집고 있었다).
+ * 나머지 기간 조회 21자리는 전부 아무것도 안 줬다 — 이 둘만 달랐다.
+ *
+ * <p>기간을 받는 자리를 컨트롤러에서 <b>실행할 때 뽑아</b> 전부 두드린다. 넓게 물어
+ * 자료가 나오는 자리만 견준다 — 원래 빈 자리는 견줄 것이 없다.
+ */
+async function scenarioReversedPeriod() {
+  section('■ 시나리오 35. 거꾸로 준 기간을 조용히 뒤집지 않나')
+
+  const SRC = 'backend/src/main/java/com/erp'
+  const walk = (dir) => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+
+  const paths = new Set()
+  for (const f of walk(SRC)) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,700}?)\)\s*\{/g)) {
+      const sub = m[1] ?? ''
+      if (sub.includes('{')) continue
+      if (!/LocalDate\s+from\b/.test(m[2]) || !/LocalDate\s+to\b/.test(m[2])) continue
+      paths.add((base + sub).replace('/api', ''))
+    }
+  }
+
+  const bad = []
+  let compared = 0
+  for (const p of paths) {
+    const wide = await call('GET', `${p}?from=2000-01-01&to=2099-12-31`)
+    if (wide.status !== 200) continue
+    const wideText = JSON.stringify(wide.data)
+    /*
+     * 자료가 아예 없으면 거꾸로 물어도 같은 빈 답이 오므로 견줄 것이 없다.
+     * 배열만 보고 판단하면 안 된다 — 현장근무처럼 <b>합계를 감싼 객체</b>는 줄이 하나도
+     * 없어도 {요청:0, 승인:0, 목록:[]} 이라 '비었다' 로 안 보인다. 실제로 이 자리에서
+     * 헛걸렸다. 본문 안의 모든 배열이 비어 있으면 자료가 없는 것으로 본다.
+     */
+    const rows = [...wideText.matchAll(/\[[^\[\]]*\]/g)].map((m) => m[0])
+    if (rows.length > 0 && rows.every((r) => r === '[]')) continue
+    if (wideText === '[]' || wideText === '{}') continue
+    const rev = await call('GET', `${p}?from=2099-12-31&to=2000-01-01`)
+    if (rev.status === 400) continue        // 거꾸로라고 딱 잘라 말하는 자리는 옳다
+    compared += 1
+    if (JSON.stringify(rev.data) === wideText) bad.push(p)
+  }
+
+  eq('견줄 자리를 찾았다', compared > 10, true)
+  eq(`기간을 받는 ${compared}자리가 거꾸로 준 기간에 전체를 내주지 않는다`,
+    bad.join(' / ') || '없음', '없음')
 }
 
 /**

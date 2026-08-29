@@ -250,15 +250,20 @@ public class HrService {
         }
     }
 
+    /**
+     * 안 준 기간을 채운다(최근 한 달).
+     *
+     * <p>예전에는 <b>거꾸로 준 기간을 조용히 뒤집었다.</b> 시작 8/31 · 종료 8/1 로 물으면
+     * 8/1~8/31 로 바꿔서 <b>한 달치 30줄</b>을 내줬다 — 화면 머리에는 여전히 8/31 ~ 8/1 이
+     * 적혀 있으니, 적힌 기간과 표의 내용이 서로 다른 것을 사람이 알 길이 없었다.
+     *
+     * <p>이 저장소의 다른 기간 조회 21자리는 전부 거꾸로 된 기간에 <b>아무것도 안 준다</b>.
+     * 여기만 달랐다. 뒤집기를 걷어내 나머지와 같게 맞춘다.
+     */
     private LocalDate[] range(LocalDate from, LocalDate to) {
         LocalDate t = LocalDate.now();
         LocalDate f = from != null ? from : t.minusMonths(1);
         LocalDate e = to != null ? to : t;
-        if (e.isBefore(f)) {
-            LocalDate tmp = f;
-            f = e;
-            e = tmp;
-        }
         return new LocalDate[]{f, e};
     }
 
