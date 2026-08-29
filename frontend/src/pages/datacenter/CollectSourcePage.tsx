@@ -82,8 +82,33 @@ export default function CollectSourcePage() {
 
   const inputCls = 'ec-input'
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 수집처을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/collect-sources/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 수집한 자료가 붙어 있을 수 있습니다).` : '')
+    load()
+  }
+
   return (
-    <EcListShell title="수집데이터등록" onNew={openNew} actions={[{ label: '새로고침', onClick: load }]}>
+    <EcListShell title="수집데이터등록" onNew={openNew} actions={[
+      { label: '새로고침', onClick: load },
+      /* 원본 차례: 신규(F2) · 선택삭제 (사본 실측) */
+      { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+    ]}>
       <p className="mb-2 text-xs text-slate-500">데이터수집 화면이 실행하는 소스 목록입니다. 소스 = 우리 API 목록 GET 엔드포인트(예: /sales, /shipments). 여기서 추가하면 코드 배포 없이 수집 대상이 늘어납니다.</p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -133,6 +158,7 @@ export default function CollectSourcePage() {
 
       <table className="w-full text-left">
         <thead><tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
           <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
           <th style={{ width: 90 }}>데이터코드</th>
@@ -148,11 +174,14 @@ export default function CollectSourcePage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s) => (
             <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={picked.has(s.id)} onChange={() => pick(s.id)} />
+              </td>
               <td></td>
               <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{s.sortOrder}</td>
               <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{s.code ?? ''}</td>

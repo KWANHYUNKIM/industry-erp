@@ -64,7 +64,6 @@
  "TransferStatusPage.tsx  원본 창고이동조회 의 [보내기] 버튼이 없다",
  "TransferStatusPage.tsx  원본 창고이동조회 의 [바코드(품목)] 버튼이 없다",
  "TransferStatusPage.tsx  원본 창고이동조회 의 [전자결재] 버튼이 없다",
- "TransferStatusPage.tsx  원본 창고이동조회 의 [선택삭제] 버튼이 없다",
  "TransferStatusPage.tsx  원본 창고이동조회 의 [오천건이상조회] 버튼이 없다",
  "TransferStatusPage.tsx  원본 창고이동현황 의 [필터] 버튼이 없다",
  "TransferStatusPage.tsx  원본 창고이동현황 의 [오천건이상조회] 버튼이 없다",
@@ -92,7 +91,6 @@
  "MrpPage.tsx  원본 생산계획/MRP생성 의 [오천건이상조회] 버튼이 없다",
  "MallItemMappingPage.tsx  원본 쇼핑몰품목코드연결 의 [검색(F8)] 버튼이 없다",
  "MallItemMappingPage.tsx  원본 쇼핑몰품목코드연결 의 [저장/검색(F8)] 버튼이 없다",
- "MallItemMappingPage.tsx  원본 쇼핑몰품목코드연결 의 [선택삭제] 버튼이 없다",
  "QuotationPage.tsx  원본 견적서 의 [검색(F8)] 버튼이 없다",
  "QuotationPage.tsx  원본 견적서 의 [다시작성] 버튼이 없다",
  "QuotationPage.tsx  원본 견적서조회 의 [검색(F8)] 버튼이 없다",
@@ -239,6 +237,5 @@
  "MedicalDeviceReportPage.tsx  원본 의료기기공급내역보고 의 [송신이력] 버튼이 없다",
  "MedicalDeviceReportPage.tsx  원본 의료기기공급내역보고 의 [3천건이상조회] 버튼이 없다",
  "CollectSourcePage.tsx  원본 수집데이터등록 의 [검색(F8)] 버튼이 없다",
- "CollectSourcePage.tsx  원본 수집데이터등록 의 [선택삭제] 버튼이 없다",
  "CollectSourcePage.tsx  원본 수집데이터등록 의 [3천건이상조회] 버튼이 없다"
 ]

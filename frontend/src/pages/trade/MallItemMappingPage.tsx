@@ -98,11 +98,37 @@ export default function MallItemMappingPage() {
     .filter((m) => !mallCond || m.mall === mallCond)
     .filter((m) => !keyCond || m.mallProductCode.includes(keyCond))
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 연결을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/mall-item-mappings/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 주문이 물고 있을 수 있습니다).` : '')
+    load()
+  }
+
   return (
     <EcListShell
       title="쇼핑몰품목코드연결"
       onNew={openNew}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
+        { label: 'Excel' },
+        { label: '인쇄' },
+      ]}
     >
       <p className="mb-2 text-xs text-slate-500">(쇼핑몰, 몰품목코드) → 우리 품목 매핑. 주문 수집 시 품목이 지정되지 않으면 이 매핑으로 자동 연결됩니다.</p>
 
@@ -151,6 +177,7 @@ export default function MallItemMappingPage() {
 
       <table className="w-full text-left">
         <thead><tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
           {/*
             원본 쇼핑몰품목코드연결의 열은 <b>쇼핑몰명 · 품목코드 · 품목명 · 쇼핑몰품목key</b>
@@ -173,11 +200,14 @@ export default function MallItemMappingPage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={picked.has(m.id)} onChange={() => pick(m.id)} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? '#5a626e' : '#c9ced6' }}>{mallCodeOf(m.mall) || ''}</td>
               <td>{m.mall}</td>

@@ -137,6 +137,28 @@ export default function TransferStatusPage() {
     setCond({ from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '' })
   }
 
+  /*
+   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다.
+   *
+   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
+   * 중간에 끊으면 무엇이 지워졌는지 사람이 알 수 없다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) { setError('삭제할 창고이동을(를) 고르세요.'); return }
+    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/stock-transfers/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 다른 전표가 물고 있을 수 있습니다).` : '')
+    load()
+  }
+
   return (
     <EcListShell
       title="창고이동현황"
@@ -144,7 +166,9 @@ export default function TransferStatusPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
+        /* 원본 차례: 인쇄 · 선택삭제 · Excel (사본 실측) */
         { label: '인쇄' },
+        { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
         { label: 'Excel' },
       ]}
     >
@@ -209,6 +233,7 @@ export default function TransferStatusPage() {
             </colgroup>
             <thead>
               <tr>
+                <th style={{ width: 28 }}></th>
                 <th></th>
                 {/*
                   원본 창고이동조회의 열은 <b>일자-No. · 보내는창고명 · 받는창고명 ·
@@ -228,11 +253,14 @@ export default function TransferStatusPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
+                  <td style={{ textAlign: 'center', background: '#f3f3f3' }}>
+                    <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
+                  </td>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>
                     {r.transferDate.replace(/-/g, '/')} {r.transferNo}
@@ -254,7 +282,7 @@ export default function TransferStatusPage() {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
                   <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
                 </tr>
