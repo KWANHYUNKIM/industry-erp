@@ -8846,6 +8846,7 @@ async function main() {
   await scenarioAccountingSummary()
   await scenarioGhostId()
   await scenarioReversedPeriod()
+  await scenarioSeedRows()
 
   checkDeadAssertions()
 
@@ -9014,6 +9015,33 @@ async function scenarioGhostId() {
  * <p>기간을 받는 자리를 컨트롤러에서 <b>실행할 때 뽑아</b> 전부 두드린다. 넓게 물어
  * 자료가 나오는 자리만 견준다 — 원래 빈 자리는 견줄 것이 없다.
  */
+/**
+ * <b>응답에 실려 있는데 값은 늘 없는 칸.</b>
+ *
+ * <p>수집데이터등록의 [데이터코드]·[최초작성일자]·[최종작업일자]가 아홉 줄 모두 비어 있었다.
+ * V188 이 "최초작성일자·최종작업일자는 마이그레이션이 필요 없다 — BaseTimeEntity 를
+ * 상속해 이미 들고 있다" 고 적었는데, 그 말은 <b>앞으로 만들 줄</b>에만 맞았다.
+ * 시드 아홉 줄은 SQL INSERT 로 들어와 JPA 의 @CreatedDate 가 돈 적이 없다.
+ * 화면은 그 세 열을 늘 빈 칸으로 그리고, [데이터코드]로는 아무것도 못 찾았다.
+ *
+ * <p>이 줄들은 마이그레이션이 만드는 것이라 어느 회사에나 똑같이 있다 — 그래서
+ * '개발 자료가 얇아서 비었다' 로 넘길 수 없고, 여기서 못 박을 수 있다.
+ */
+async function scenarioSeedRows() {
+  section('■ 시나리오 36. 씨앗으로 넣은 줄에 값이 다 들어 있나')
+
+  const srcs = await must('GET', '/collect-sources')
+  eq('수집처 씨앗이 아홉 줄이다', srcs.length >= 9, true)
+  for (const key of ['code', 'createdAt', 'updatedAt']) {
+    const 빈줄 = srcs.filter((s) => s[key] === null || s[key] === undefined || s[key] === '')
+    eq(`수집처의 ${key} 가 비어 있는 줄이 없다`, 빈줄.map((s) => s.name).join(', ') || '없음', '없음')
+  }
+  /* 만들어진 시각을 지어내지 않았는지 — 오늘로 찍어 두면 '오늘 만든 것' 이 되어 버린다. */
+  const 오늘 = new Date().toISOString().slice(0, 10)
+  eq('씨앗 줄의 최초작성일자가 오늘로 찍혀 있지 않다',
+    srcs.filter((s) => String(s.createdAt ?? '').startsWith(오늘)).length, 0)
+}
+
 async function scenarioReversedPeriod() {
   section('■ 시나리오 35. 거꾸로 준 기간을 조용히 뒤집지 않나')
 
