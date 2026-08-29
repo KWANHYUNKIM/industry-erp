@@ -15,12 +15,9 @@
  "/pay-settings/transfers",
  "/pay-settings/transfers/transferred-payslips",
  "/production-plans",
- "/productions",
  "/quality-inspection-requests",
  "/sales-orders/unshipped",
  "/sales-orders/unsold",
- "/shipments",
- "/staged-adjustments",
  "/vouchers",
  "/work-journals"
 ]

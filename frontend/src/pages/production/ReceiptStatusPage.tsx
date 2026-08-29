@@ -108,7 +108,7 @@ export default function ReceiptStatusPage() {
     setError('')
     try {
       const [prod, wh, it, pu] = await Promise.all([
-        api.get<Production[]>('/productions'),
+        api.get<Production[]>('/productions', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
         api.get<PurchaseDoc[]>('/purchases'),
@@ -125,7 +125,11 @@ export default function ReceiptStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [from, to])
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)

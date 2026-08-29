@@ -8,11 +8,13 @@ import com.erp.security.UserPrincipal;
 import com.erp.production.service.ProductionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.production.dto.ProductionDtos;
 
@@ -23,9 +25,12 @@ public class ProductionController {
 
     private final ProductionService productionService;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<ProductionResponse> list() {
-        return productionService.findAll();
+    public List<ProductionResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return productionService.findAll(from, to);
     }
 
     /** 생산수량에 대한 예상 소요자재 */

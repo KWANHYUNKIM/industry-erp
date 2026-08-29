@@ -80,7 +80,7 @@ export default function ShipmentOrderStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Shipment[]>('/shipments')
+      const res = await api.get<Shipment[]>('/shipments', { params: { from: from || undefined, to: to || undefined } })
       setRows(res.data)
       setError('')
     } catch (err) {
@@ -89,7 +89,11 @@ export default function ShipmentOrderStatusPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [from, to])
 
   function reset() {
     const p = periodOf('금월(~오늘)')!

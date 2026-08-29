@@ -132,7 +132,7 @@ export default function ProductionIssueStatusPage() {
     setLoading(true)
     setError('')
     Promise.all([
-      api.get<Production[]>('/productions'),
+      api.get<Production[]>('/productions', { params: { from: cond.from || undefined, to: cond.to || undefined } }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<BomRow[]>('/boms'),
       api.get<Item[]>('/items'),
@@ -147,7 +147,11 @@ export default function ProductionIssueStatusPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   /**
    * 품목 조건은 <b>생산품이든 소모자재든</b> 걸리면 잡는다.

@@ -69,12 +69,16 @@ export default function ShipmentInquiryPage() {
 
   function load() {
     setLoading(true); setError('')
-    api.get<Shipment[]>('/shipments')
+    api.get<Shipment[]>('/shipments', { params: { from: from || undefined, to: to || undefined } })
       .then((res) => setRows(res.data))
       .catch((err) => { setError(extractErrorMessage(err)); setRows([]) })
       .finally(() => setLoading(false))
   }
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [from, to])
 
   /*
    * 원본 출하조회의 조건은 <b>기준일자·출하No.·창고·프로젝트·거래처·품목·발송여부</b> 다(사본 실측).
