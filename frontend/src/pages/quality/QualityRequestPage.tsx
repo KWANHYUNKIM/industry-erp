@@ -50,6 +50,7 @@ export default function QualityRequestPage() {
   const [form, setForm] = useState({
     requestDate: today(), type: 'INCOMING', itemId: '',
     lotNo: '', requestQty: '', dueDate: '', projectId: '', requester: '', remark: '',
+    inspectMethod: '', samplePercent: '',
   })
 
   async function load() {
@@ -81,10 +82,13 @@ export default function QualityRequestPage() {
         requestQty: Number(form.requestQty),
         dueDate: form.dueDate || undefined,
         projectId: form.projectId ? Number(form.projectId) : undefined,
+        inspectMethod: form.inspectMethod || undefined,
+        samplePercent: form.samplePercent ? Number(form.samplePercent) : undefined,
         requester: form.requester || undefined,
         remark: form.remark || undefined,
       })
-      setForm((f) => ({ ...f, itemId: '', lotNo: '', requestQty: '', dueDate: '', projectId: '', requester: '', remark: '' }))
+      setForm((f) => ({ ...f, itemId: '', lotNo: '', requestQty: '', dueDate: '', projectId: '',
+        inspectMethod: '', samplePercent: '', requester: '', remark: '' }))
       setShowForm(false)
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -146,6 +150,23 @@ export default function QualityRequestPage() {
               <input className={inputCls} value={form.requester} onChange={(e) => set('requester', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
             <label style={{ fontSize: 12.5, flex: 1, minWidth: 180 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
+            {/*
+              원본 [검사방법] — <b>전수 · 샘플링(%)</b> 둘이고 샘플링이면 옆에 비율을 적는다(실측).
+              몇 개를 검사해 달라는 수량만으로는 <b>다 보라는 건지 몇 개만 보라는 건지</b>
+              알 수 없어, 요청서를 받고 되물어야 했다.
+            */}
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사방법</div>
+              <select className={inputCls} value={form.inspectMethod}
+                      onChange={(e) => set('inspectMethod', e.target.value)} style={{ width: 110 }}>
+                <option value="">(미지정)</option>
+                <option value="전수">전수</option>
+                <option value="샘플링">샘플링</option>
+              </select></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>샘플링(%)</div>
+              <input className={inputCls} type="number" step="any" value={form.samplePercent}
+                     disabled={form.inspectMethod !== '샘플링'}
+                     onChange={(e) => set('samplePercent', e.target.value)}
+                     style={{ width: 90, textAlign: 'right' }} /></label>
             {/* 원본 격자의 마지막이 [프로젝트] 다. 여기서 안 받으면 그 열이 늘 빈칸이다. */}
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
               <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 150 }}>
@@ -188,6 +209,8 @@ export default function QualityRequestPage() {
             <th style={{ width: 130 }}>요청번호</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일자')}>요청일자 {sort.mark('요청일자')}</th>
             <th style={{ width: 90 }}>검사구분</th>
+            {/* 원본 격자의 첫 열이 [검사방법] 이다(사본 실측). 샘플링이면 비율까지 적는다. */}
+            <th style={{ width: 100 }}>검사방법</th>
             {/* 원본 격자 차례: 검사방법 · <b>품목 · 품목명 · 규격</b> · <b>수량</b> · <b>적요</b> · 프로젝트 */}
             <th style={{ width: 110 }}>품목</th>
             <th>품목명</th>
@@ -208,15 +231,21 @@ export default function QualityRequestPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.requestNo}</td>
               <td>{r.requestDate}</td>
               <td>{r.typeName}</td>
+              <td style={{ color: r.inspectMethod ? '#5a626e' : '#c9ced6' }}>
+                {r.inspectMethod
+                  ? (r.inspectMethod === '샘플링' && r.samplePercent != null
+                    ? `샘플링 ${r.samplePercent}%` : r.inspectMethod)
+                  : '-'}
+              </td>
               <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>

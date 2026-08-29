@@ -22,6 +22,10 @@ public final class QualityRequestDtos {
             LocalDate dueDate,
             /** 원본 격자의 [프로젝트]. 안 걸 수도 있다. */
             Long projectId,
+            /** 원본 [검사방법] — 전수 · 샘플링. 안 정할 수도 있다. */
+            String inspectMethod,
+            /** 샘플링일 때의 비율(%). 전수에는 없다. */
+            BigDecimal samplePercent,
             String requester,
             String remark
     ) {}
@@ -42,6 +46,8 @@ public final class QualityRequestDtos {
             QualityRequestStatus status, String statusName,
             /** 원본 격자의 [프로젝트]. 안 걸었으면 null. */
             Long projectId, String projectName,
+            /** 원본 [검사방법]과 그 비율. 안 정했으면 null. */
+            String inspectMethod, BigDecimal samplePercent,
             String requester, String remark
     ) {
         public static RequestResponse from(QualityInspectionRequest r) {
@@ -55,6 +61,7 @@ public final class QualityRequestDtos {
                     r.getStatus(), r.getStatus().getDisplayName(),
                     r.getProject() != null ? r.getProject().getId() : null,
                     r.getProject() != null ? r.getProject().getName() : null,
+                    r.getInspectMethod(), r.getSamplePercent(),
                     r.getRequester(), r.getRemark());
         }
     }

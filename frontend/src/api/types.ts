@@ -840,6 +840,9 @@ export interface QualityInspectionRequest {
   /** 원본 품질검사요청입력 격자의 [프로젝트]. 안 걸었으면 null. */
   projectId: number | null
   projectName: string | null
+  /** 원본 [검사방법] — 전수 · 샘플링. 샘플링이면 비율이 함께 온다. */
+  inspectMethod: string | null
+  samplePercent: number | null
   requester: string | null
   remark: string | null
 }

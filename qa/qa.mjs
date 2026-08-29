@@ -8275,6 +8275,38 @@ async function scenarioIssueNoAndRequestProject(f) {
   isNull('안 걸 수도 있다', (await must('POST', '/quality-inspection-requests', {
     requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 1, requester: 'QA',
   })).projectId)
+
+  /*
+   * 원본 [검사방법] — <b>전수 · 샘플링(%)</b> 둘이다(실측). 수량만 적으면 검사자가
+   * <b>다 봐야 하는지 몇 개만 봐도 되는지</b> 알 수 없어 요청서를 받고 되물어야 했다.
+   */
+  const sampled = await must('POST', '/quality-inspection-requests', {
+    requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 100,
+    inspectMethod: '샘플링', samplePercent: 10, requester: 'QA',
+  })
+  /*
+   * 자릿수로 재지 않는다 — 저장 직후 응답은 <b>보낸 값 그대로</b>(10)이고 다시 읽으면
+   * 컬럼 자릿수를 따른다(10.00). 재야 할 것은 자릿수가 아니라 <b>값</b>이다.
+   */
+  eq('샘플링과 비율이 함께 남는다',
+    `${sampled.inspectMethod} ${Number(sampled.samplePercent)}`, '샘플링 10')
+  eq('다시 읽어도 남아 있다',
+    Number((await must('GET', '/quality-inspection-requests'))
+      .find((r) => r.id === sampled.id).samplePercent), 10)
+  await rejects('샘플링인데 비율이 없으면 거부 — 몇 개를 보라는 말인지 알 수 없다',
+    'POST', '/quality-inspection-requests', {
+      requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 100,
+      inspectMethod: '샘플링', requester: 'QA',
+    }, '비율')
+  await rejects('서식에 없는 검사방법은 거부', 'POST', '/quality-inspection-requests', {
+    requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 1,
+    inspectMethod: '대충', requester: 'QA',
+  }, '검사방법')
+  /* 전수에는 비율이 없다 — 다 보는데 비율을 적으면 무엇을 뜻하는지 알 수 없다. */
+  isNull('전수로 내면 비율은 버린다', (await must('POST', '/quality-inspection-requests', {
+    requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 100,
+    inspectMethod: '전수', samplePercent: 10, requester: 'QA',
+  })).samplePercent)
 }
 
 async function scenarioNotFound() {
