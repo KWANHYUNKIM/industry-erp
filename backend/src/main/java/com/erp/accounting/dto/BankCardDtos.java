@@ -68,6 +68,11 @@ public final class BankCardDtos {
             Long id, String code, String cardName, String cardCompany, String cardNo,
             CardType type, String typeName, String ownerName,
             Long settlementAccountId, String settlementAccountName,
+            /*
+             * 원본 카드등록의 [계정명] — 결제계좌가 물고 있는 <b>예금계정</b>이다.
+             * 카드 사용이 어느 계정으로 분개되는지를 카드 목록에서 바로 보라는 뜻이다.
+             */
+            String glAccountName,
             Integer settlementDay, boolean active, String remark
     ) {
         public static CreditCardResponse from(CreditCard c) {
@@ -77,6 +82,7 @@ public final class BankCardDtos {
                     c.getType(), c.getType().getDisplayName(), c.getOwnerName(),
                     s != null ? s.getId() : null,
                     s != null ? s.getBankName() + " " + s.getAccountNo() : null,
+                    s != null && s.getGlAccount() != null ? s.getGlAccount().getName() : null,
                     c.getSettlementDay(), c.isActive(), c.getRemark());
         }
     }

@@ -1138,6 +1138,8 @@ export interface CreditCardRow {
   ownerName: string | null
   settlementAccountId: number | null
   settlementAccountName: string | null
+  /** 원본 카드등록의 [계정명] — 결제계좌가 물고 있는 예금계정이다. */
+  glAccountName: string | null
   settlementDay: number | null
   active: boolean
   remark: string | null

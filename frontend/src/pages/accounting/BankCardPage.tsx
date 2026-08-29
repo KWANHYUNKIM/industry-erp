@@ -252,13 +252,15 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
           <th style={{ width: 100 }}>명의자</th>
           {/* 원본 카드등록의 이름은 <b>[결제계좌명]</b> 이다. */}
             <th>결제계좌명</th>
+          {/* 원본 카드등록의 [계정명] — 카드 사용이 <b>어느 계정으로 분개되는지</b>를 여기서 본다. */}
+          <th style={{ width: 110 }}>계정명</th>
           <th style={{ width: 80, textAlign: 'center' }}>결제일</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -269,6 +271,7 @@ function CardTable({ rows }: { rows: CreditCardRow[] }) {
             <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : '#5a626e' }}>{r.typeName}</td>
             <td>{r.ownerName ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.settlementAccountName ?? '-'}</td>
+            <td style={{ color: '#5a626e' }}>{r.glAccountName ?? ''}</td>
             <td style={{ textAlign: 'center' }}>{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
           </tr>
