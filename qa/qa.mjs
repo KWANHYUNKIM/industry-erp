@@ -3996,7 +3996,7 @@ async function scenarioValidationMessages(f) {
     eq(`${label}: Hibernate 기본 번역이 새어 나가지 않는다`,
       /널이어서는|must not be null|must not be blank/.test(message), false)
     eq(`${label}: 영문 필드명이 그대로 보이지 않는다`,
-      /(unitPrice|safetyStock|quantity|planQty|planYear)/.test(message), false)
+      /\b(unitPrice|safetyStock|quantity|planQty|planYear)\b/.test(message), false)
   }
 }
 
@@ -8809,6 +8809,7 @@ async function main() {
   await scenarioPartnerParent(fixtures)
   await scenarioChat()
   await scenarioAccountingSummary()
+  await scenarioGhostId()
 
   checkDeadAssertions()
 
@@ -8901,6 +8902,66 @@ async function scenarioChat() {
     await must('DELETE', `/chat/rooms/${room.id}/me`)   // 뒷정리 — 마지막 사람이 나가면 방이 사라진다
     token = saved
   }
+}
+
+/**
+ * <b>없는 번호로 물으면 없다고 답하나</b> — 자리 하나가 아니라 <b>그 무리 전체</b>를 쓸어 잰다.
+ *
+ * <p>컨트롤러에서 경로변수가 하나뿐인 GET·DELETE 자리를 <b>실행할 때 뽑아서</b> 전부
+ * 없는 번호(99999999)로 두드린다. 새 자리가 늘어도 자동으로 걸리므로, 이 성질은
+ * 한 번 고치고 끝나는 것이 아니라 계속 지켜진다.
+ *
+ * <p>이렇게 두 가지를 잡았다.
+ * <ul>
+ *   <li><b>파일 지우기</b>가 없는 파일에도 204(지웠다)를 냈다 — 화면은 "삭제되었습니다" 를
+ *       띄우고 목록에서 줄을 지운다. 아무것도 안 지웠는데 지운 것처럼 보인다.</li>
+ *   <li><b>A/S 소모부품 읽기</b>가 없는 접수에 200 빈목록을 냈다 — 화면은 "부품을 안 썼다" 로
+ *       그린다. 같은 번호에 부품을 <b>붙이려</b> 하면 404 였다. 읽을 때와 쓸 때가 달랐다.</li>
+ * </ul>
+ *
+ * <p>대화방은 일부러 뺀다. 없는 방을 404 로 갈라 주면 번호를 올려 가며 어느 방이 있는지
+ * 알아낼 수 있어, 있는 방·없는 방을 똑같이 403 으로 뭉뚱그리는 자리다.
+ */
+async function scenarioGhostId() {
+  section('■ 시나리오 34. 없는 번호로 물으면 없다고 답하나')
+
+  const SRC = 'backend/src/main/java/com/erp'
+  const walk = (dir) => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+
+  /* 있는 방·없는 방을 갈라 주지 않기로 한 자리 — 까닭은 ChatService.mine 주석에 있다. */
+  const SKIP = [/^\/chat\//]
+  const GHOST = '99999999'
+  const found = []
+  for (const f of walk(SRC)) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@(Get|Delete)Mapping\((?:value\s*=\s*)?"([^"]*)"\)/g)) {
+      const sub = m[2]
+      if ((sub.match(/\{/g) || []).length !== 1) continue
+      if (m[1] === 'Get' && !/\{\w*[Ii]d\}/.test(sub)) continue
+      const path = (base + sub).replace('/api', '').replace(/\{[^}]+\}/, GHOST)
+      if (SKIP.some((re) => re.test(path))) continue
+      found.push([m[1].toUpperCase(), path])
+    }
+  }
+
+  const seen = new Set()
+  const bad = []
+  for (const [method, path] of found) {
+    const key = `${method} ${path}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const r = await call(method, path)
+    if (r.status !== 404) bad.push(`${key} → ${r.status}`)
+  }
+
+  /* 자리를 못 찾으면 이 시나리오는 아무것도 안 잰 것이다 — 그 사실을 먼저 못 박는다. */
+  eq('두드릴 자리를 찾았다', seen.size > 20, true)
+  eq(`없는 번호로 두드린 ${seen.size}자리가 모두 404 다`, bad.join(' / ') || '없음', '없음')
 }
 
 /**

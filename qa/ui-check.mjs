@@ -4417,6 +4417,43 @@ console.log('\n■ 없는 것을 지우라 했는데 지웠다고 하지 않나'
   eq(`지우는 자리 ${checked}곳이 없는 id 를 그냥 넘기지 않는다`, bad.join('\n') || '없음', '없음')
 }
 
+// ── 1-s9) 정규식의 \b 가 백스페이스로 삭아 있지 않나 ─────────────────────
+console.log('\n■ 검사 글에 눈에 안 보이는 글자가 섞여 있지 않나')
+
+/*
+ * 셸 heredoc 은 <code>\b</code> 의 역슬래시를 한 겹 먹는다. 그래서 파일에 <b>진짜
+ * 백스페이스 한 글자(0x08)</b>가 박히는데, 편집기에서도 diff 에서도 보이지 않는다.
+ * 정규식 <code>/\b단어\b/</code> 가 그 모양이 되면 <b>영영 아무것도 안 맞는다</b> —
+ * 그 단언은 늘 통과하고, 통과 수도 그대로라 죽은 줄을 알 길이 없다.
+ *
+ * <p>이 저장소에서 <b>네 번</b> 그랬다. 세 번은 고쳤고, 네 번째는 오늘 우연히 찾았다 —
+ * "영문 필드명이 그대로 보이지 않는다" 단언이 그 모양이라 <b>한 번도 재지 않고</b>
+ * 통과하고 있었다. 우연 말고 기계가 잡게 못 박는다.
+ *
+ * <p>탭(09)·줄바꿈(0a)·캐리지리턴(0d)은 정상이므로 뺀다. 그 밖의 C0 제어문자는
+ * 소스에 있을 까닭이 없다.
+ */
+{
+  const CTRL = /[\x00-\x08\x0b\x0c\x0e-\x1f]/
+  const roots = ['qa', join('frontend', 'src'), join('backend', 'src', 'main', 'java')]
+  const bad = []
+  let scanned = 0
+  for (const root of roots) {
+    for (const f of walk(root)) {
+      if (!/\.(mjs|js|ts|tsx|java|json)$/.test(f)) continue
+      if (f.includes('node_modules')) continue
+      scanned += 1
+      const src = readFileSync(f, 'utf8')
+      if (!CTRL.test(src)) continue
+      src.split(/\r?\n/).forEach((line, i) => {
+        const m = CTRL.exec(line)
+        if (m) bad.push(`${f}:${i + 1}  0x${m[0].charCodeAt(0).toString(16).padStart(2, '0')}`)
+      })
+    }
+  }
+  eq(`글 ${scanned}개에 눈에 안 보이는 제어문자가 없다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
 console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 

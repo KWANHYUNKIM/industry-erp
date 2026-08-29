@@ -106,8 +106,17 @@ public class AsService {
 
     // ------------------------------------------------------------ 소모부품
 
+    /**
+     * <p>없는 접수 번호로 물으면 <b>빈 목록이 아니라 404</b> 다. 빈 목록을 주면 화면은
+     * "이 A/S 는 부품을 안 썼다" 로 그린다 — 실제로는 그 접수 자체가 없는 것이라
+     * 사람은 지워진 줄 모르고 부품을 붙이려 든다. 바로 아래 {@link #addPart} 는
+     * 같은 번호에 이미 404 를 내고 있었다. 읽을 때와 쓸 때가 달랐다.
+     */
     @Transactional(readOnly = true)
     public List<AsPartResponse> findParts(Long asId) {
+        if (!asRepository.existsById(asId)) {
+            throw ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + asId);
+        }
         return asPartRepository.findByAsRequestIdWithRefs(asId).stream().map(AsPartResponse::from).toList();
     }
 
