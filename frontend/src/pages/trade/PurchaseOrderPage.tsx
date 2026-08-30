@@ -252,7 +252,16 @@ export default function PurchaseOrderPage() {
   }
 
   return (
-    <EcListShell title="발주서" actions={[
+    <EcListShell
+      title="발주서"
+      /*
+       * 원본 [신규(F2)] 는 <b>아래 단추줄 맨 앞</b>이다. 우리 것은 표 위에 따로 떠 있고
+       * 이름도 [+ 발주요청(F2)] 이었다 — 화면마다 새로 만드는 단추가 다른 자리에 있으면
+       * 손이 매번 다시 찾는다. 셸에 맡겨 다른 화면과 같은 자리에 세운다.
+       */
+      newLabel={showForm ? '입력닫기' : '발주요청(F2)'}
+      onNew={() => setShowForm((v) => !v)}
+      actions={[
       /* 원본 차례: 신규(F2) · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
       { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
       { label: '인쇄' },
@@ -260,7 +269,6 @@ export default function PurchaseOrderPage() {
       { label: 'Excel' },
     ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 발주요청(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
         <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
           발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환. 재고는 입고전환 시에만 증가합니다.

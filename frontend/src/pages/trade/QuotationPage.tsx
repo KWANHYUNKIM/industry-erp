@@ -213,7 +213,12 @@ export default function QuotationPage() {
   }
 
   return (
-    <EcListShell title="견적서" actions={[
+    <EcListShell
+      title="견적서"
+      /* 원본 [신규(F2)] 는 아래 단추줄 맨 앞이다 — 표 위에 따로 두지 않는다. */
+      newLabel={showForm ? '입력닫기' : '신규 견적(F2)'}
+      onNew={() => setShowForm((v) => !v)}
+      actions={[
       /* 원본 차례: 신규(F2) · 다시 작성 · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
       { label: '다시 작성', onClick: reset },
       { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
@@ -222,7 +227,6 @@ export default function QuotationPage() {
       { label: 'Excel' },
     ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 신규 견적(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
         <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>견적 → 발송 → 수주전환. 부가세 10% 자동.</span>
       </div>
