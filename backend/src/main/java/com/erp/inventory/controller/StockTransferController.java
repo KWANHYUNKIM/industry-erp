@@ -6,11 +6,13 @@ import com.erp.security.UserPrincipal;
 import com.erp.inventory.service.StockTransferService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 import com.erp.inventory.dto.StockTransferDtos;
 
 @RestController
@@ -21,8 +23,10 @@ public class StockTransferController {
     private final StockTransferService stockTransferService;
 
     @GetMapping
-    public List<TransferResponse> list() {
-        return stockTransferService.findAll();
+    public List<TransferResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return stockTransferService.findAll(from, to);
     }
 
     @PostMapping

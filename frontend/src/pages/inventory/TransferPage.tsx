@@ -77,7 +77,7 @@ export default function TransferPage() {
     setLoading(true)
     try {
       const [t, a, i, w, s, pj, em] = await Promise.all([
-        api.get<StockTransfer[]>('/stock-transfers'),
+        api.get<StockTransfer[]>('/stock-transfers', { params: { from, to } }),
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),

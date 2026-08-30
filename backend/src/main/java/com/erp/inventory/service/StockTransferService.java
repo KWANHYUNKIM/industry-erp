@@ -32,9 +32,23 @@ public class StockTransferService {
 
     @Transactional(readOnly = true)
     public List<TransferResponse> findAll() {
-        return transferRepository.findAllWithRefs().stream()
-                .map(TransferResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 창고이동 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>창고이동조회 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내,
+     * 전 기간을 받아 브라우저에서 걸렀다.
+     */
+    @Transactional(readOnly = true)
+    public List<TransferResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? transferRepository.findAllWithRefs()
+                : transferRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(TransferResponse::from).toList();
     }
 
     /** 창고 간 이동: 출고창고에서 차감(OUTBOUND) 후 입고창고에 가산(INBOUND). 한 트랜잭션으로 원자 처리. */

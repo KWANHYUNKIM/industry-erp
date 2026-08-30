@@ -94,7 +94,7 @@ export default function TransferStatusPage() {
     setLoading(true)
     setError('')
     Promise.all([
-      api.get<Transfer[]>('/stock-transfers'),
+      api.get<Transfer[]>('/stock-transfers', { params: { from: cond.from || undefined, to: cond.to || undefined } }),
       api.get<Warehouse[]>('/warehouses'),
     ])
       .then(([t, w]) => { setRows(t.data); setWarehouses(w.data) })
@@ -102,7 +102,8 @@ export default function TransferStatusPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간이 바뀌면 서버에 다시 묻는다 — 예전에는 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   /* 담당자는 id 만 저장한다(inventory 는 hr 을 참조할 수 없다) — 이름은 코드도움 목록에서 붙인다. */
   const empName = (id: number | null) => pickers.employees.find((e) => e.id === id)?.name ?? ''
