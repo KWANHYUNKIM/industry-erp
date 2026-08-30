@@ -84,7 +84,7 @@ export default function DailyWorkHoursPage() {
   useTableColumnCheck(tableRef, '일별근무시간', [month, days.length, rows.length])
 
   return (
-    <EcListShell title="일별근무시간" search={keyword} onSearchChange={setKeyword} onSearch={load}
+    <EcListShell title="일별근무시간(ID)" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
         <span>기간(월)</span>

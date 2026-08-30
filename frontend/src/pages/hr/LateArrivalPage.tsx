@@ -92,7 +92,7 @@ export default function LateArrivalPage() {
 
   return (
     <EcListShell
-      title="지각현황"
+      title="지각현황(ID)"
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },

@@ -84,7 +84,8 @@ export default function AttendanceStatusPage() {
 
   return (
     <EcListShell
-      title="근태현황"
+      /* [근태현황]은 <b>다른 화면</b>(AttendanceKindStatusPage)의 이름이다 — 이 화면은 출/퇴근현황(ID)이다. */
+      title="출/퇴근현황(ID)"
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: () => void load() },

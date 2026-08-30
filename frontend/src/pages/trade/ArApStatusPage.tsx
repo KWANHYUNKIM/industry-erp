@@ -120,7 +120,12 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   return (
     <EcListShell
-      title={mode === 'RECEIVABLE' ? '거래처별채권' : mode === 'PAYABLE' ? '거래처별채무' : '채권/채무현황'}
+      /*
+        <b>이름이 겹쳐 있었다.</b> [거래처별채권]·[거래처별채무]는 <b>다른 화면</b>(LedgerPage)의
+        이름인데 이 화면이 그것을 달고 있었다 — 메뉴에서 [채권현황]을 눌러 들어오면
+        엉뚱한 이름이 뜬다. 메뉴가 부르는 이름(원본 이름)으로 맞춘다.
+      */
+      title={mode === 'RECEIVABLE' ? '채권현황' : mode === 'PAYABLE' ? '채무현황' : '채권·채무현황'}
       actions={[{ label: '검색(F8)', onClick: load, primary: true }, { label: 'Excel' }, { label: '인쇄' }]}
       help={
         <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>

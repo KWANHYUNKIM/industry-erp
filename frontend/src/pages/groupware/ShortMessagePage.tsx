@@ -115,7 +115,8 @@ export default function ShortMessagePage() {
 
   return (
     <EcListShell
-      title="쪽지"
+      /* 메뉴가 부르는 이름은 <b>[커뮤니케이션센터]</b> 다(원본 이름) — 제목도 같아야 한다. */
+      title="커뮤니케이션센터"
       formTitle="쪽지 쓰기"
       formWidth={520}
       renderForm={(close) => (

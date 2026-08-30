@@ -146,7 +146,9 @@ export default function EmployeePage() {
 
   return (
     <EcListShell
-      title="사원등록"
+      /* 메뉴는 이 화면을 <b>[사원(담당)등록]</b> 이라 부른다(원본 이름) — 제목도 같아야 한다.
+         메뉴에서 누른 이름과 열린 화면의 이름이 다르면 잘못 들어온 줄 안다. */
+      title="사원(담당)등록"
       onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >

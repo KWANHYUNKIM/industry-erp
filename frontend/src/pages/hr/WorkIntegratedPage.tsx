@@ -102,7 +102,7 @@ export default function WorkIntegratedPage() {
   })
 
   return (
-    <EcListShell title="출퇴근/근태/일정 통합현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
+    <EcListShell title="출퇴근/근태/일정현황(ID)" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       {/* 원본 출·퇴근기록부(ID)의 탭 — [사용자]는 내 기록만, [전체]는 모두. */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>

@@ -148,7 +148,7 @@ export default function ReportsPage() {
   useTableColumnCheck(tableRef, '재고 보고서', [])
 
   return (
-    <EcListShell title="출력물 (장표)" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
+    <EcListShell title="출력물" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>

@@ -89,7 +89,11 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
 
   return (
     <EcListShell
-      title="월별채권/채무증감내역"
+      /*
+        메뉴는 이 파일을 <b>두 이름</b>으로 부른다 — [월별채권증감내역]·[월별채무증감내역]
+        (원본도 그렇다). 한 제목으로 눌러 두면 채무로 들어온 사람이 채권 화면에 온 줄 안다.
+      */
+      title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-slate-500">
