@@ -36,6 +36,8 @@ public final class StockAdjustmentDtos {
             Long id, String adjustNo, LocalDate adjustDate,
             StockAdjustmentType type, String typeName,
             Long itemId, String itemCode, String itemName, String unit,
+            /** 원본 조건 <b>[규격]</b>. 품목은 이미 물고 오는데 이 칸만 안 실어 못 걸렀다. */
+            String spec,
             Long warehouseId, String warehouseName,
             BigDecimal beforeQty, BigDecimal quantityChange, BigDecimal afterQty,
             Long projectId, String projectName, Long employeeId,
@@ -46,6 +48,7 @@ public final class StockAdjustmentDtos {
                     a.getId(), a.getAdjustNo(), a.getAdjustDate(),
                     a.getType(), a.getType().getDisplayName(),
                     a.getItem().getId(), a.getItem().getCode(), a.getItem().getName(), a.getItem().getUnit(),
+                    a.getItem().getSpec(),
                     a.getWarehouse().getId(), a.getWarehouse().getName(),
                     a.getBeforeQty(), a.getQuantityChange(), a.getAfterQty(),
                     a.getProject() != null ? a.getProject().getId() : null,

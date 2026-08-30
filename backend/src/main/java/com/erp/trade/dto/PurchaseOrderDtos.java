@@ -73,6 +73,8 @@ public final class PurchaseOrderDtos {
     public record OrderLineResponse(
             Long id, int lineNo,
             Long itemId, String itemCode, String itemName, String unit,
+            /** 원본 조건·열의 <b>[규격]</b>. 품목은 이미 물고 오는데 이 칸만 안 실어 못 걸렀다. */
+            String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             Long partnerId, String partnerName, String remark
     ) {
@@ -80,6 +82,7 @@ public final class PurchaseOrderDtos {
             return new OrderLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getPartner() != null ? l.getPartner().getId() : null,
                     l.getPartner() != null ? l.getPartner().getName() : null,
