@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
 import GroupMasterModal from '../../components/GroupMasterModal'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { useTableSort } from '../../utils/useTableSort'
@@ -281,10 +282,29 @@ export default function ItemsPage() {
    * 이미 안 쓰는 품목이 코드도움·목록에 계속 섞여 나왔다.
    */
   const [withStopped, setWithStopped] = useState(false)
+
+  /*
+   * <b>원본 품목등록의 조건 판.</b> 우리에게는 검색상자 하나뿐이라, 품목이 쌓이면
+   * <b>구매처로도 품목구분으로도 좁힐 수가 없었다</b> — 코드나 이름을 외워 치는 수밖에.
+   * 원본 조건은 80칸이지만 대부분 우리에게 없는 값(단가A~J·추가항목·표준원가)이다.
+   * <b>값이 실제로 있는 여섯</b>만 만든다: 품목명 · 규격명 · 품목구분 · 구매처 ·
+   * 검색창내용 · 바코드. 차례는 사본 실측을 따른다.
+   */
+  const [cond, setCond] = useState({ name: '', spec: '', category: '', supplier: '', keywordCol: '', barcode: '' })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+
   const shownRows = items
     .filter((it) => withStopped || it.active)
     .filter((it) =>
       !keyword || it.code.toLowerCase().includes(keyword.toLowerCase()) || it.name.toLowerCase().includes(keyword.toLowerCase()))
+    .filter((it) => !cond.name || it.name.includes(cond.name))
+    .filter((it) => !cond.spec || (it.spec ?? '').includes(cond.spec))
+    /* 품목구분은 서버가 주는 목록(/meta/item-categories)의 code 로 견준다. */
+    .filter((it) => !cond.category || it.category === cond.category)
+    .filter((it) => !cond.supplier
+      || (partners.find((p) => p.id === it.supplierId)?.name ?? '') === cond.supplier)
+    .filter((it) => !cond.keywordCol || (it.searchKeyword ?? '').includes(cond.keywordCol))
+    .filter((it) => !cond.barcode || (it.barcode ?? '').includes(cond.barcode))
 
   /*
    * 원본 품목등록 리스트는 머리를 눌러 정렬한다 — 사본에서 정렬 표시가 붙은 아홉 칸을
@@ -329,6 +349,38 @@ export default function ItemsPage() {
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+      {/* 원본 조건 차례: 품목명 · 규격명 · 단위 · 품목구분 · 구매처 · … · 검색창내용 (사본 실측) */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="품목명">
+          <input className="ec-input" value={cond.name}
+                 onChange={(e) => setC({ name: e.target.value })} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="규격명">
+          <input className="ec-input" value={cond.spec}
+                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={cond.category}
+                  onChange={(e) => setC({ category: e.target.value })} style={{ width: 120 }}>
+            <option value="">전체</option>
+            {categories.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="구매처" pick>
+          <CodePickerField label="구매처" hideLabel width={180} emptyLabel="전체"
+                           value={cond.supplier} onChange={(v) => setC({ supplier: v })}
+                           items={partnerCodeItems(partners)} />
+        </EcCond>
+        <EcCond label="바코드">
+          <input className="ec-input" value={cond.barcode}
+                 onChange={(e) => setC({ barcode: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="검색창내용">
+          <input className="ec-input" value={cond.keywordCol}
+                 onChange={(e) => setC({ keywordCol: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
+      </ul>
 
       <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
