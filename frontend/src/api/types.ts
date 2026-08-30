@@ -1679,6 +1679,9 @@ export interface PurchaseOrderLine {
   unit: string
   /** 원본 조건·열의 [규격]. 서버가 품목에서 실어 준다. */
   spec: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategory: string | null
+  itemCategoryName: string | null
   quantity: number
   unitPrice: number
   supplyAmount: number

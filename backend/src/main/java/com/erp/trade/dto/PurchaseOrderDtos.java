@@ -1,5 +1,6 @@
 package com.erp.trade.dto;
 
+import com.erp.inventory.domain.ItemCategory;
 import com.erp.trade.domain.PurchaseOrder;
 import com.erp.trade.domain.PurchaseOrderLine;
 import com.erp.trade.domain.PurchaseOrderStatus;
@@ -75,6 +76,11 @@ public final class PurchaseOrderDtos {
             Long itemId, String itemCode, String itemName, String unit,
             /** 원본 조건·열의 <b>[규격]</b>. 품목은 이미 물고 오는데 이 칸만 안 실어 못 걸렀다. */
             String spec,
+            /**
+             * 원본 조건 <b>[품목구분]</b>. 발주계획·단가요청을 볼 때 원자재를 사는 건인지
+             * 상품을 사는 건인지로 먼저 갈라 본다. 품목 마스터의 값이라 실어 주기만 한다.
+             */
+            ItemCategory itemCategory, String itemCategoryName,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             Long partnerId, String partnerName, String remark
     ) {
@@ -83,6 +89,8 @@ public final class PurchaseOrderDtos {
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
                     l.getItem().getSpec(),
+                    l.getItem().getCategory(),
+                    l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getPartner() != null ? l.getPartner().getId() : null,
                     l.getPartner() != null ? l.getPartner().getName() : null,

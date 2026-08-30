@@ -172,10 +172,10 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처관리담당자</span>
-          <select className="ec-input" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 120 }}>
-            <option value="">전체</option>
-            {managers.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+          {/* 원본은 사람을 고르는 칸을 <b>코드도움</b>으로 둔다 — 거래처 칸과 같은 모양이다. */}
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={manager} onChange={setManager}
+                           items={managers.map((m) => ({ value: m, name: m }))} />
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['AR', 'AP'] as const).map((m) => (
