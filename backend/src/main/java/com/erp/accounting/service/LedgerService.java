@@ -176,6 +176,8 @@ public class LedgerService {
                 payables.getOrDefault(p.getId(), BigDecimal.ZERO),
                 p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                 p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
-                p.getManager(), p.isActive());
+                p.getManager(), p.isActive(),
+                p.getParent() != null ? p.getParent().getId() : null,
+                p.getParent() != null ? p.getParent().getName() : null);
     }
 }

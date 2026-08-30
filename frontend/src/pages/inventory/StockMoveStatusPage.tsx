@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { CodeOption, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
@@ -56,6 +56,9 @@ interface Adjustment {
   spec: string | null
   /** 원본 조건 [프로젝트]. 서버는 진작 보내는데 화면이 받아 두지 않았다. */
   projectName: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategory: string | null
+  itemCategoryName: string | null
 }
 
 /** 서버가 잘라서 줄 수 있다 — 전체 줄 수와 잘랐는지를 함께 준다. */
@@ -76,6 +79,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const [truncated, setTruncated] = useState(false)
   const [all, setAll] = useState(false)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /** 원본 [품목구분] 의 값 목록. 화면이 지어내지 않고 서버가 주는 것을 쓴다. */
+  const [cats, setCats] = useState<CodeOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -90,7 +95,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    */
   const init = (kind === 'SELF_USE' ? periodOf('전월+금월') : periodOf('금월(~오늘)'))
     ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '', project: '' })
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', category: '', reason: '', employee: '', spec: '', project: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -99,10 +104,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     Promise.all([
       api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all } }),
       api.get<Warehouse[]>('/warehouses'),
+      api.get<CodeOption[]>('/meta/item-categories'),
     ])
-      .then(([a, w]) => {
+      .then(([a, w, c]) => {
         setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
-        setWarehouses(w.data)
+        setWarehouses(w.data); setCats(c.data)
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -125,6 +131,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.to || r.adjustDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    /*
+     * 원본 조건 <b>[품목구분]</b>. 원자재가 나갔는지 제품이 나갔는지는 사유보다 먼저 묻는
+     * 것인데, 다섯 화면 어디에도 그 칸이 없어 <b>표를 눈으로 훑는</b> 수밖에 없었다.
+     * 품목등록과 같이 서버가 주는 목록(/meta/item-categories)의 code 로 견준다.
+     */
+    .filter((r) => !cond.category || r.itemCategory === cond.category)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     /* 원본 조건 [담당자]. 담당자 <b>이름</b>은 사원 목록에서 붙인다 — 재고 모듈은 사원을 모른다. */
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
@@ -178,7 +190,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const reset = () => {
     setMode('내역')
     setSubtotal('창고·품목')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '', project: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', category: '', reason: '', employee: '', spec: '', project: '' })
   }
 
   return (
@@ -226,6 +238,14 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 차례는 다섯 화면 모두 품목 <b>바로 뒤</b>가 품목구분이다(사본 실측). */}
+        <EcCond label="품목구분">
+          <select className="ec-input" value={cond.category}
+                  onChange={(e) => setC({ category: e.target.value })} style={{ width: 130 }}>
+            <option value="">전체</option>
+            {cats.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
         </EcCond>
         {/* 원본 조건 [담당자] — 표에는 찍히는데 그것으로 거를 수가 없었다. */}
         <EcCond label="담당자" pick>

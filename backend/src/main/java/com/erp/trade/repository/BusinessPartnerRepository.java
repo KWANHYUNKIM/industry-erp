@@ -27,8 +27,13 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
            "or lower(p.searchKeyword) like :q")
     long searchCount(@Param("q") String q);
 
-    /** 거래처그룹까지 한 번에 (채권/채무현황처럼 그룹으로 묶는 목록의 N+1 방지) */
-    @Query("select p from BusinessPartner p left join fetch p.partnerGroup order by p.code")
+    /**
+     * 거래처그룹·대표거래처까지 한 번에 (채권/채무현황처럼 그룹으로 묶는 목록의 N+1 방지)
+     *
+     * <p>대표거래처를 뒤에 붙이면서 <b>parent 를 같이 안 물고 오면</b> 거래처 수만큼
+     * 쿼리가 더 나간다 — 목록 하나에 수백 번이다. 조인을 같이 늘린다.
+     */
+    @Query("select p from BusinessPartner p left join fetch p.partnerGroup left join fetch p.parent order by p.code")
     List<BusinessPartner> findAllWithGroup();
 
 }

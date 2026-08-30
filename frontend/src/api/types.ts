@@ -364,6 +364,9 @@ export interface PartnerBalance {
   partnerGroupName: string | null
   manager: string | null
   active: boolean
+  /** 원본 [대표거래처로 합산]이 쓰는 본사. 미지정이면 자기가 곧 대표다. */
+  parentId: number | null
+  parentName: string | null
 }
 
 // ===== 생산관리 =====

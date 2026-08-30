@@ -51,6 +51,14 @@ public final class LedgerDtos {
             Long partnerGroupId,
             String partnerGroupName,
             String manager,          // 거래처관리담당자
-            boolean active           // false 면 사용중단 거래처
+            boolean active,          // false 면 사용중단 거래처
+            /**
+             * 원본 조건 <b>[대표거래처로 합산]</b> 이 쓰는 값. 지점·사업장으로 나눠 등록한
+             * 거래처의 <b>본사</b>다. 미지정이면 자기가 곧 대표라 화면은 자기 자신으로 묶는다.
+             * 채권을 회사 단위로 볼지 사업장 단위로 볼지는 <b>받을 돈을 누구에게 청구하나</b>
+             * 의 문제라, 표를 눈으로 더해서 될 일이 아니다.
+             */
+            Long parentId,
+            String parentName
     ) {}
 }

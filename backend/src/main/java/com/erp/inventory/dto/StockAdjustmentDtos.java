@@ -1,5 +1,6 @@
 package com.erp.inventory.dto;
 
+import com.erp.inventory.domain.ItemCategory;
 import com.erp.inventory.domain.StockAdjustment;
 import com.erp.inventory.domain.enums.StockAdjustmentType;
 import jakarta.validation.constraints.Size;
@@ -38,6 +39,12 @@ public final class StockAdjustmentDtos {
             Long itemId, String itemCode, String itemName, String unit,
             /** 원본 조건 <b>[규격]</b>. 품목은 이미 물고 오는데 이 칸만 안 실어 못 걸렀다. */
             String spec,
+            /**
+             * 원본 조건 <b>[품목구분]</b>. 다섯 현황 화면이 모두 이것으로 좁힌다 — 원자재가
+             * 나간 것인지 제품이 나간 것인지는 <b>사유보다 먼저</b> 묻는 것이다.
+             * 품목 마스터의 값이라 여기서는 실어 주기만 한다.
+             */
+            ItemCategory itemCategory, String itemCategoryName,
             Long warehouseId, String warehouseName,
             BigDecimal beforeQty, BigDecimal quantityChange, BigDecimal afterQty,
             Long projectId, String projectName, Long employeeId,
@@ -49,6 +56,8 @@ public final class StockAdjustmentDtos {
                     a.getType(), a.getType().getDisplayName(),
                     a.getItem().getId(), a.getItem().getCode(), a.getItem().getName(), a.getItem().getUnit(),
                     a.getItem().getSpec(),
+                    a.getItem().getCategory(),
+                    a.getItem().getCategory() != null ? a.getItem().getCategory().getDisplayName() : null,
                     a.getWarehouse().getId(), a.getWarehouse().getName(),
                     a.getBeforeQty(), a.getQuantityChange(), a.getAfterQty(),
                     a.getProject() != null ? a.getProject().getId() : null,

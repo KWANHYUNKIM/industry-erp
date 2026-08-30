@@ -19,8 +19,9 @@ import { ymd } from '../../components/EcPeriodPicks'
  * [사용중단거래처포함]은 원본과 같이 기본으로 켜 둔다. 거래를 그만둔 곳이라도
  * 못 받은 돈은 그대로 남아 있어서, 꺼 두면 화면의 채권 합계가 실제보다 작게 보인다.
  *
- * 원본의 거래처계층그룹·하위그룹포함검색·대표거래처합산은 우리 거래처 모델에 계층이 없어 제외했다
- * (거래처그룹은 1단계 평면 그룹이다).
+ * 원본의 거래처계층그룹·하위그룹포함검색은 우리 거래처 <b>그룹</b>에 계층이 없어 제외했다
+ * (거래처그룹은 1단계 평면 그룹이다). <b>[대표거래처로 합산]은 다르다</b> — 거래처끼리는
+ * 대표(parent)로 묶이므로 만들 수 있는데, 없다고 적어 두고 넘어갔었다.
  */
 type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
@@ -52,6 +53,12 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const [partnerCode, setPartnerCode] = useState('')
   const [includeInactive, setIncludeInactive] = useState(true)
   const [hideZero, setHideZero] = useState(true)
+  /**
+   * 원본 조건 <b>[대표거래처로 합산]</b>. 지점·사업장으로 나눠 등록한 거래처를 <b>본사 한 줄</b>로
+   * 모아 본다. 받을 돈을 어느 단위로 청구하느냐의 문제라 표를 눈으로 더해 될 일이 아니다.
+   * 원본과 같이 기본은 꺼 둔다 — 켜면 줄 수가 줄어드는데 말없이 그러면 빠진 줄 알게 된다.
+   */
+  const [rollUp, setRollUp] = useState(false)
 
   useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
@@ -69,7 +76,25 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   const managers = useMemo(
     () => [...new Set(rows.map((r) => r.manager).filter(Boolean))] as string[], [rows])
 
-  const shown = useMemo(() => rows.filter((r) => {
+  /*
+   * 대표로 묶는다. 대표가 목록에 <b>있으면 그 줄에</b> 더하고(그 줄의 그룹·담당자를 그대로
+   * 쓴다), 없으면 대표 이름으로 줄을 하나 세운다 — 지점만 거래가 있고 본사는 없을 수 있다.
+   * 거르기는 <b>묶은 뒤</b>에 한다. 본사 기준으로 보는 화면이니 담당자·그룹도 본사 것이다.
+   */
+  const rolled = useMemo(() => {
+    if (!rollUp) return rows
+    const 대표 = new Map<number, PartnerBalance>()
+    for (const r of rows) if (r.parentId == null) 대표.set(r.partnerId, { ...r })
+    for (const r of rows) {
+      if (r.parentId == null) continue
+      const 머리 = 대표.get(r.parentId)
+        ?? { ...r, partnerId: r.parentId, code: '', name: r.parentName ?? '(대표 미등록)', receivable: 0, payable: 0 }
+      대표.set(r.parentId, { ...머리, receivable: 머리.receivable + r.receivable, payable: 머리.payable + r.payable })
+    }
+    return [...대표.values()]
+  }, [rows, rollUp])
+
+  const shown = useMemo(() => rolled.filter((r) => {
     if (!includeInactive && !r.active) return false
     if (group !== '전체' && (r.partnerGroupName ?? '') !== group) return false
     if (manager !== '전체' && (r.manager ?? '') !== manager) return false
@@ -79,7 +104,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
       if (v === 0) return false
     }
     return true
-  }), [rows, includeInactive, group, manager, keyword, hideZero, mode])
+  }), [rolled, includeInactive, group, manager, keyword, hideZero, mode])
 
   const total = useMemo(() => shown.reduce(
     (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable }),
@@ -155,6 +180,11 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         <CodePickerField label="거래처그룹" value={group === '전체' ? '' : group} width={130}
                          onChange={(v) => setGroup(v || '전체')}
                          items={groups.map((g) => ({ value: g, name: g }))} />
+        {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}
+        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} />
+          대표거래처로 합산
+        </label>
         <CodePickerField label="거래처관리담당자" value={manager === '전체' ? '' : manager} width={120}
                          onChange={(v) => setManager(v || '전체')}
                          items={managers.map((m) => ({ value: m, name: m }))} />
