@@ -61,6 +61,16 @@ export default function QuotationPage() {
   const [sentCond, setSentCond] = useState<'전체' | '발송' | '미발송'>('전체')
   const [company, setCompany] = useState<DocParty | null>(null)
 
+  /*
+   * 원본 <b>[다시 작성]</b> — 조건을 처음 상태로 되돌린다. 조건이 여덟 칸이라
+   * 하나씩 지우게 두면 무엇이 남았는지 모른 채 빈 표를 보게 된다.
+   */
+  function reset() {
+    const p = periodOf('최근30일(+1개월)')!
+    setFrom(p.from); setTo(p.to)
+    setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체')
+  }
+
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
   function load() {
@@ -185,7 +195,8 @@ export default function QuotationPage() {
 
   return (
     <EcListShell title="견적서" actions={[
-      /* 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      /* 원본 차례: 신규(F2) · 다시 작성 · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      { label: '다시 작성', onClick: reset },
       { label: '인쇄' },
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },

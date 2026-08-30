@@ -192,7 +192,12 @@ export default function UnpurchasedStatusPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 [다시 작성] — 조건을 처음 상태로 되돌린다. 하나씩 지우게 두지 않는다. */
+        { label: '다시 작성', onClick: () => setKeyword('') },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
