@@ -43,6 +43,11 @@ export default function LateArrivalPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 조건은 <b>[사원명]과 [부서]가 따로</b>다. 우리는 한 칸으로 둘을 함께 훑어서
+   * "김" 을 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다 — 부서로만 좁힐 수가 없었다.
+   */
+  const [deptCond, setDeptCond] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -62,13 +67,14 @@ export default function LateArrivalPage() {
   /** 지각 건별(지각시간 분 포함), 최근일자 → 지각시간 큰 순 */
   const late = useMemo(() => rows
     .filter((r) => r.status === '지각')
-    .filter((r) => !keyword || r.empName.includes(keyword) || (r.department ?? '').includes(keyword))
+    .filter((r) => !keyword || r.empName.includes(keyword))
+    .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
     .map((r) => {
       const cin = toMinutes(r.clockIn)
       return { ...r, lateMin: cin != null ? Math.max(0, cin - START_MIN) : 0 }
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.lateMin - a.lateMin),
-  [rows, keyword])
+  [rows, keyword, deptCond])
 
   /** 사원별 지각 횟수·총 지각시간 */
   const byEmp = useMemo(() => {
@@ -107,9 +113,14 @@ export default function LateArrivalPage() {
         picks={INQUIRY_FULL_PICKS}
         dateLabel="기간"
       >
-        <EcCond label="사원" pick>
+        {/* 원본 차례: 기간 · <b>사원명 · 부서</b> (사본 실측) */}
+        <EcCond label="사원명">
           <input className="ec-input" placeholder="사원명 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="부서">
+          <input className="ec-input" placeholder="부서 일부" value={deptCond}
+                 onChange={(e) => setDeptCond(e.target.value)} style={{ width: 160 }} />
         </EcCond>
       </EcStatusPanel>
 

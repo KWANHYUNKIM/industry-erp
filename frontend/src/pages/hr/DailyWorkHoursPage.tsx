@@ -31,6 +31,11 @@ export default function DailyWorkHoursPage() {
   const [rows, setRows] = useState<AttendanceRow[]>([])
   const [month, setMonth] = useState(monthNow())
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 조건은 <b>[사원명]과 [부서]가 따로</b>다. 우리는 한 칸으로 둘을 함께 훑어서
+   * "김" 을 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다 — 부서로만 좁힐 수가 없었다.
+   */
+  const [deptCond, setDeptCond] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -63,9 +68,10 @@ export default function DailyWorkHoursPage() {
       byEmp.set(r.empName, cur)
     }
     return [...byEmp.values()]
-      .filter((e) => !keyword || e.empName.includes(keyword) || (e.department ?? '').includes(keyword))
+      .filter((e) => !keyword || e.empName.includes(keyword))
+      .filter((e) => !deptCond || (e.department ?? '').includes(deptCond))
       .sort((a, b) => a.empName.localeCompare(b.empName, 'ko'))
-  }, [rows, keyword])
+  }, [rows, keyword, deptCond])
 
   /** 일자별 총 근무시간(하단 합계행) */
   const dayTotals = useMemo(() => {
@@ -89,6 +95,13 @@ export default function DailyWorkHoursPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
         <span>기간(월)</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 160 }} />
+        {/* 원본 차례: 기간 · <b>사원명 · 부서</b> (사본 실측) */}
+        <span style={{ marginLeft: 8 }}>사원명</span>
+        <input className="ec-input" placeholder="사원명 일부" value={keyword}
+               onChange={(e) => setKeyword(e.target.value)} style={{ width: 120 }} />
+        <span style={{ marginLeft: 8 }}>부서</span>
+        <input className="ec-input" placeholder="부서 일부" value={deptCond}
+               onChange={(e) => setDeptCond(e.target.value)} style={{ width: 120 }} />
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>셀 = 그날 근무시간(h) · <span style={{ color: '#c07a00' }}>지각/조퇴</span> · <span style={{ color: '#c60a2e' }}>결근</span></span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
           사원 <b style={{ color: '#3c4553' }}>{matrix.length}</b>명
