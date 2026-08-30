@@ -816,5 +816,21 @@
    "DepartmentTree"
   ],
   "in": "backend"
+ },
+ "월별채권증감내역|정렬/소계기준": {
+  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "present": [
+   "전월이월",
+   "당월잔액"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "월별채무증감내역|정렬/소계기준": {
+  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "present": [
+   "전월이월",
+   "당월잔액"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
  }
 }

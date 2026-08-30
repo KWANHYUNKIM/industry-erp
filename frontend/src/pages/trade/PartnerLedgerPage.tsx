@@ -244,6 +244,14 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const showDetail = group === '전표별+내역'
   const COLS = 8
 
+  /*
+   * 원본 조건 판의 <b>[정렬/소계기준]</b>(사본 실측). 우리 대장은 거래처로만 묶여 있어서,
+   * 여러 달치를 뽑으면 <b>달마다 얼마씩 오갔는지</b>를 눈으로 세는 수밖에 없었다.
+   * [월]을 고르면 거래처 안에서 달이 바뀔 때 그 달의 증가·감소 소계를 끼워 넣는다.
+   */
+  const SUBTOTALS = ['거래처', '월'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+
   /** 그 거래처의 등록 정보. 목록에 없으면 undefined — 머리말을 아예 안 그린다. */
   const info = (id: number) => partnerInfo.get(id)
 
@@ -277,6 +285,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         {fixedSide === 'BOTH' && (
           <EcCond label="채권채무구분">
@@ -372,8 +383,33 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   </td>
                 </tr>
               )}
-              {p.rows.map((r, i) => (
+              {p.rows.map((r, i) => {
+                /*
+                 * 달이 바뀌는 <b>앞</b>에 지난 달 소계를 끼운다. 마지막 달은 아래 거래처
+                 * 합계가 받으므로 따로 넣지 않는다 — 같은 숫자를 두 줄로 보여 주면 헷갈린다.
+                 */
+                const ym = (d: string) => d.slice(0, 7)
+                const prev = i > 0 ? p.rows[i - 1] : null
+                const monthBreak = subtotal === '월' && prev !== null
+                  && ym(prev.entry.date) !== ym(r.entry.date)
+                const monthSum = monthBreak
+                  ? p.rows.filter((x) => ym(x.entry.date) === ym(prev!.entry.date))
+                    .reduce((acc, x) => ({
+                      inc: acc.inc + x.entry.increase, dec: acc.dec + x.entry.decrease,
+                    }), { inc: 0, dec: 0 })
+                  : null
+                return (
                 <Fragment key={r.entry.key}>
+                  {monthSum && (
+                    <tr style={{ background: '#fbfcfe', fontWeight: 600, color: '#5a626e' }}>
+                      <td colSpan={5} style={{ textAlign: 'right' }}>
+                        {ym(prev!.entry.date).replace('-', '/')} 소계
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{monthSum.inc ? won(monthSum.inc) : ''}</td>
+                      <td style={{ textAlign: 'right' }}>{monthSum.dec ? won(monthSum.dec) : ''}</td>
+                      <td></td>
+                    </tr>
+                  )}
                   <tr>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'monospace' }}>{dateText(r.entry.date)}</td>
@@ -410,7 +446,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                     </tr>
                   ))}
                 </Fragment>
-              ))}
+                )})}
               <tr style={{ background: 'var(--ec-body-bg)', fontWeight: 700 }}>
                 <td colSpan={5} style={{ textAlign: 'right' }}>{p.name} 소계</td>
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(p.increase)}</td>
