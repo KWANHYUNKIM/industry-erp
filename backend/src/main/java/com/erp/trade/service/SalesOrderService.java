@@ -98,6 +98,12 @@ public class SalesOrderService {
      */
     @Transactional(readOnly = true)
     public List<UnshippedLineResponse> findUnshipped() {
+        return findUnshipped(null, null);
+    }
+
+    /** 미출하현황. 기간을 주면 그 기간에 받은 주문만 본다. */
+    @Transactional(readOnly = true)
+    public List<UnshippedLineResponse> findUnshipped(LocalDate from, LocalDate to) {
         List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
         Map<Long, BigDecimal> committed = new HashMap<>();
         for (Object[] row : shipmentLineRepository.sumQuantityByOrderLineAll(
@@ -112,7 +118,7 @@ public class SalesOrderService {
         for (Object[] row : shipmentLineRepository.findShipNosByOrderLine(ShipmentStatus.READY)) {
             shipNos.merge((Long) row[0], (String) row[1], (a, b) -> a + ", " + b);
         }
-        return salesOrderRepository.findByStatusesWithLines(open).stream()
+        return openOrders(open, from, to).stream()
                 .flatMap(o -> o.getLines().stream()
                         .map(l -> UnshippedLineResponse.of(o, l,
                                 committed.getOrDefault(l.getId(), BigDecimal.ZERO),
@@ -129,12 +135,30 @@ public class SalesOrderService {
      */
     @Transactional(readOnly = true)
     public List<UnsoldLineResponse> findUnsold() {
+        return findUnsold(null, null);
+    }
+
+    /**
+     * 열려 있는 주문. 기간을 안 주면 전 기간이다 —
+     * 널을 쿼리에 넘기면 PostgreSQL 이 그 자리의 형을 못 정한다.
+     */
+    private List<SalesOrder> openOrders(List<SalesOrderStatus> open, LocalDate from, LocalDate to) {
+        return (from == null && to == null)
+                ? salesOrderRepository.findByStatusesWithLines(open)
+                : salesOrderRepository.findByStatusesWithLinesInPeriod(open,
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+    }
+
+    /** 미판매현황. 기간을 주면 그 기간에 받은 주문만 본다. */
+    @Transactional(readOnly = true)
+    public List<UnsoldLineResponse> findUnsold(LocalDate from, LocalDate to) {
         Map<String, BigDecimal> sold = new HashMap<>();
         for (SalesLineRepository.OrderItemAggregate a : salesLineRepository.aggregateSoldByOrderAndItem()) {
             sold.merge(a.getOrderId() + ":" + a.getItemId(), a.getQty(), BigDecimal::add);
         }
         List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
-        return salesOrderRepository.findByStatusesWithLines(open).stream()
+        return openOrders(open, from, to).stream()
                 .flatMap(o -> o.getLines().stream()
                         .map(l -> UnsoldLineResponse.of(o, l, sold.get(o.getId() + ":" + l.getItem().getId()))))
                 .filter(r -> r.unsoldQty().signum() > 0)

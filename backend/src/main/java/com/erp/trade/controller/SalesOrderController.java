@@ -40,14 +40,18 @@ public class SalesOrderController {
 
     /** 미출하현황 (접수·진행중 주문의 라인별 미출하 잔량) */
     @GetMapping("/unshipped")
-    public List<UnshippedLineResponse> unshipped() {
-        return salesOrderService.findUnshipped();
+    public List<UnshippedLineResponse> unshipped(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return salesOrderService.findUnshipped(from, to);
     }
 
     /** 미판매현황 — 판매 전표로 아직 안 끊은 주문 잔량. */
     @GetMapping("/unsold")
-    public List<UnsoldLineResponse> unsold() {
-        return salesOrderService.findUnsold();
+    public List<UnsoldLineResponse> unsold(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return salesOrderService.findUnsold(from, to);
     }
 
     @PostMapping

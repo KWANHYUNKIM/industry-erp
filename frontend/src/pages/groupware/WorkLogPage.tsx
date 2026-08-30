@@ -111,7 +111,7 @@ export default function WorkLogPage() {
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<WorkJournal[]>('/work-journals')
+      const r = await api.get<WorkJournal[]>('/work-journals', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(r.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -120,7 +120,8 @@ export default function WorkLogPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   useEffect(() => {
     let alive = true

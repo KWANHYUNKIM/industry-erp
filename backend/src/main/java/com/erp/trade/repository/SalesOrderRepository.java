@@ -33,6 +33,19 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
             "order by o.dueDate asc, o.orderDate desc, o.id desc")
     List<SalesOrder> findByStatusesWithLines(@Param("statuses") List<SalesOrderStatus> statuses);
 
+    /**
+     * 위와 같되 <b>주문일 기간</b>으로도 거른다(미출하·미판매현황의 [기준일자]).
+     * 안 준 쪽은 서비스가 열린 끝으로 채운다 — 널을 넘기면 PostgreSQL 이 형을 못 정한다.
+     */
+    @Query("select distinct o from SalesOrder o " +
+            "join fetch o.partner " +
+            "join fetch o.lines l join fetch l.item " +
+            "where o.status in :statuses and o.orderDate between :from and :to " +
+            "order by o.dueDate asc, o.orderDate desc, o.id desc")
+    List<SalesOrder> findByStatusesWithLinesInPeriod(@Param("statuses") List<SalesOrderStatus> statuses,
+                                                     @Param("from") LocalDate from,
+                                                     @Param("to") LocalDate to);
+
     /** 통합검색: 수주번호·거래처명 부분일치 상위 N건 */
     @Query("select o from SalesOrder o join fetch o.partner p " +
            "where lower(o.orderNo) like :q or lower(p.name) like :q " +

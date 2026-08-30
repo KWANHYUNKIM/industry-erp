@@ -103,7 +103,7 @@ export default function UnshippedPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<UnshippedLine[]>('/sales-orders/unshipped')
+      const res = await api.get<UnshippedLine[]>('/sales-orders/unshipped', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(res.data)
       setShipQty({})
     } catch (err) {
@@ -143,9 +143,10 @@ export default function UnshippedPage() {
     }
   }
 
+  /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
   useEffect(() => {
     load()
-  }, [])
+  }, [cond.from, cond.to])
 
   /* [거래처관리담당자]는 거래처 마스터가 든다 — 미출하 줄은 거래처 <b>이름만</b> 들고 온다. */
   useEffect(() => {

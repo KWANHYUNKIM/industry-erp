@@ -4150,8 +4150,27 @@ async function scenarioNoUnboundedList() {
    * 200줄이 넘는 자리만 본다 — 작은 마스터(창고·계정)는 기간이 있을 까닭이 없다.
    * 한 판에 다 고칠 수 없으니 목록에 적어 <b>늘지만 않게</b> 한다.
    */
+  /*
+   * <b>기간을 받는다고 줄 수가 줄지는 않는다.</b> /projects/profit 은 from·to 를 진작 받는데
+   * 프로젝트마다 한 줄이라 <b>기간을 좁혀도 줄 수가 같다</b> — 숫자만 바뀐다. 줄 수만 보고
+   * "안 받는다" 고 세면 고칠 것이 없는 자리가 목록에 남는다(실제로 그랬다).
+   * 그래서 <b>컨트롤러가 그 자리에서 LocalDate 를 받는지</b>를 먼저 본다.
+   */
+  const 기간받는자리 = new Set()
+  for (const f of walk(SRC)) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,600}?)\{/g)) {
+      const sub = m[1] ?? ''
+      if (sub.includes('{')) continue
+      if (/LocalDate\s+from/.test(m[2])) 기간받는자리.add((base + sub).replace('/api', ''))
+    }
+  }
+
   const 안받는것 = []
   for (const p of [...paths].sort()) {
+    if (기간받는자리.has(p)) continue
     const a = await call('GET', p)
     if (a.status !== 200) continue
     const la = Array.isArray(a.data) ? a.data

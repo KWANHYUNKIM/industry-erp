@@ -30,9 +30,18 @@ public class WorkJournalService {
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
-        return workJournalRepository.findAllWithRefs().stream()
-                .map(WorkJournalResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /** 업무일지 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
+    @Transactional(readOnly = true)
+    public List<WorkJournalResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? workJournalRepository.findAllWithRefs()
+                : workJournalRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(WorkJournalResponse::from).toList();
     }
 
     @Transactional

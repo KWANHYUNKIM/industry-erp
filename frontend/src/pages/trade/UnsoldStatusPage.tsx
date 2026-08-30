@@ -67,7 +67,7 @@ export default function UnsoldStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<UnsoldLine[]>('/sales-orders/unsold')
+      const res = await api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -77,7 +77,8 @@ export default function UnsoldStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   const shown = rows
     // 기준일자는 납기일로 본다 — '언제까지 매출을 잡아야 했나'가 이 화면의 질문이다.
