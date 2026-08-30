@@ -912,5 +912,104 @@
    "orderManagementNo"
   ],
   "in": "backend"
+ },
+ "자가사용현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "불량처리현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "폐기현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "재고조정현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "출/퇴근현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "출/퇴근현황(ID)|업무일/휴일구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "지각현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "지각현황(ID)|업무일/휴일구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "출퇴근/근태/일정현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "월별채권증감내역|기준일자": {
+  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
+  "present": [
+   "연도"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "월별채무증감내역|기준일자": {
+  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
+  "present": [
+   "연도"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
  }
 }

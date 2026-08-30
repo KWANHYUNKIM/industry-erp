@@ -93,7 +93,8 @@ export default function DailyWorkHoursPage() {
     <EcListShell title="일별근무시간(ID)" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간(월)</span>
+        {/* 원본은 이 줄을 <b>[기간]</b> 이라 부른다(사본 실측) — 달로 고르는 것은 우리 방식이다. */}
+        <span>기간</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 160 }} />
         {/* 원본 차례: 기간 · <b>사원명 · 부서</b> (사본 실측) */}
         <span style={{ marginLeft: 8 }}>사원명</span>
