@@ -121,12 +121,31 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
 
-  /** 집계 — 창고 × 품목으로 묶어 증감 합을 낸다. */
+  /*
+   * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
+   * 우리는 창고 × 품목으로 <b>박아 두어</b>, "이 사유로 얼마나 나갔나" 를 볼 수가 없었다.
+   * 기본값은 예전 그대로라 지금 보이던 표는 안 바뀐다.
+   */
+  const SUBTOTALS = ['창고·품목', '품목', '창고', '사유'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('창고·품목')
+
+  /** 집계 — 고른 기준으로 묶어 증감 합을 낸다. */
   const summary = useMemo(() => {
     const m = new Map<string, { warehouseName: string; itemCode: string; itemName: string; unit: string; change: number; count: number }>()
     shown.forEach((r) => {
-      const k = `${r.warehouseId}:${r.itemId}`
-      const g = m.get(k) ?? { warehouseName: r.warehouseName, itemCode: r.itemCode, itemName: r.itemName, unit: r.unit, change: 0, count: 0 }
+      /* 묶는 열쇠와, 그 묶음에서 <b>안 쓰는 칸</b>은 비워 둔다 — 첫 줄 값이 남으면 거짓말이 된다. */
+      const k = subtotal === '품목' ? `i:${r.itemId}`
+        : subtotal === '창고' ? `w:${r.warehouseId}`
+          : subtotal === '사유' ? `r:${(r.reason ?? '').trim()}`
+            : `${r.warehouseId}:${r.itemId}`
+      const shell = subtotal === '품목'
+        ? { warehouseName: '', itemCode: r.itemCode, itemName: r.itemName }
+        : subtotal === '창고'
+          ? { warehouseName: r.warehouseName, itemCode: '', itemName: '' }
+          : subtotal === '사유'
+            ? { warehouseName: '', itemCode: '', itemName: (r.reason ?? '').trim() || '(적요 없음)' }
+            : { warehouseName: r.warehouseName, itemCode: r.itemCode, itemName: r.itemName }
+      const g = m.get(k) ?? { ...shell, unit: r.unit, change: 0, count: 0 }
       g.change += r.quantityChange
       g.count += 1
       m.set(k, g)
@@ -134,11 +153,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     return [...m.entries()].map(([k, g]) => ({ k, ...g }))
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, kind, cond])
+  }, [rows, kind, cond, subtotal])
 
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
   const reset = () => {
     setMode('내역')
+    setSubtotal('창고·품목')
     setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
   }
 
@@ -158,6 +178,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         dateLabel="일자"
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -270,9 +293,10 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             <thead>
               <tr>
                 <th></th>
+                {/* 묶는 기준에 따라 머리 이름이 바뀐다 — [사유]로 묶으면 품목명 자리에 사유가 온다. */}
                 <th>창고</th>
                 <th>품목코드</th>
-                <th>품목명</th>
+                <th>{subtotal === '사유' ? '사유' : '품목명'}</th>
                 <th style={{ textAlign: 'right' }}>건수</th>
                 <th style={{ textAlign: 'right' }}>증감계</th>
               </tr>
