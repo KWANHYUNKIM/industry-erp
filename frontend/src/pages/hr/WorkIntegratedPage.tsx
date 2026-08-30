@@ -46,6 +46,15 @@ export default function WorkIntegratedPage() {
    * 화면이 버리고 있어서, "출장이라고 적어 둔 날" 만 골라 볼 수가 없었다.
    */
   const [noteCond, setNoteCond] = useState('')
+  /*
+   * 원본 조건 <b>[사원명]·[부서]·[상태]·[일정구분]</b>. 우리는 검색상자 하나로 이름과 부서를
+   * 함께 훑고 있어서, "김"으로 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다.
+   * 나머지 조건(내/외근구분·근태항목·휴가항목·근태그룹·공유여부)은 우리 응답에 그 값이 없다.
+   */
+  const [nameCond, setNameCond] = useState('')
+  const [deptCond, setDeptCond] = useState('')
+  const [statusCond, setStatusCond] = useState('')
+  const [catCond, setCatCond] = useState('')
   /**
    * 원본 출·퇴근기록부(ID)의 탭 — <b>[사용자]가 기본</b>이다. 내 기록만 보는 자리인데
    * 우리는 늘 전체를 뿌려서, 사람이 많은 회사에서는 내 줄을 눈으로 찾아야 했다.
@@ -96,12 +105,20 @@ export default function WorkIntegratedPage() {
     return [...map.values()]
       .filter((r) => !keyword || r.name.includes(keyword) || (r.department ?? '').includes(keyword))
       .filter((r) => !noteCond || (r.note ?? '').includes(noteCond))
+      .filter((r) => !nameCond || r.name.includes(nameCond))
+      .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
+      .filter((r) => !statusCond || (r.status ?? '') === statusCond)
+      /* 일정구분은 그 줄의 <b>일정 가운데 하나라도</b> 맞으면 남긴다 — 하루에 여럿일 수 있다. */
+      .filter((r) => !catCond || r.events.some((e) => (e.category ?? '') === catCond))
       // 원본 탭 [사용자] — 내 기록만 본다. 사람이 많은 회사에서 남의 줄 사이를 훑을 일이 아니다.
       .filter((r) => tab === '전체' || r.name === user?.name)
       .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'ko'))
-  }, [att, events, from, to, keyword, noteCond, tab, user?.name])
+  }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, statusCond, catCond, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
+  /** 고를 값 — 받아 온 줄에서 모은다(마스터가 없다). */
+  const statuses = [...new Set(att.map((a) => a.status).filter(Boolean))].sort()
+  const categories = [...new Set(events.map((e) => e.category ?? '').filter(Boolean))].sort()
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -125,10 +142,33 @@ export default function WorkIntegratedPage() {
         <span>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn" onClick={load}>조회</button>
+        {/*
+          원본 조건 [사원명]·[부서]·[상태]·[일정구분].
+          <b>고를 값은 지금 받아 온 줄에서 모은다</b> — 근태 상태와 일정 구분은 서버가 목록으로
+          주는 마스터가 아니라서다. 그래서 기간을 바꾸면 고를 수 있는 값도 같이 달라진다.
+        */}
+        <span style={{ marginLeft: 8 }}>사원명</span>
+        <input className="ec-input" value={nameCond}
+               onChange={(e) => setNameCond(e.target.value)} style={{ width: 110 }} />
+        <span style={{ marginLeft: 8 }}>부서</span>
+        <input className="ec-input" value={deptCond}
+               onChange={(e) => setDeptCond(e.target.value)} style={{ width: 110 }} />
         {/* 원본 조건 [적요] — 근태 메모로 좁힌다. */}
         <span style={{ marginLeft: 8 }}>적요</span>
         <input className="ec-input" placeholder="적요 일부" value={noteCond}
                onChange={(e) => setNoteCond(e.target.value)} style={{ width: 150 }} />
+        <span style={{ marginLeft: 8 }}>상태</span>
+        <select className="ec-input" value={statusCond} style={{ width: 100 }}
+                onChange={(e) => setStatusCond(e.target.value)}>
+          <option value="">전체</option>
+          {statuses.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
+        <span style={{ marginLeft: 8 }}>일정구분</span>
+        <select className="ec-input" value={catCond} style={{ width: 110 }}
+                onChange={(e) => setCatCond(e.target.value)}>
+          <option value="">전체</option>
+          {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>근태·일정을 사원명+일자로 통합</span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
           행 <b style={{ color: '#3c4553' }}>{rows.length}</b>

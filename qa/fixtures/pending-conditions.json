@@ -170,8 +170,6 @@
  "DailyWorkHoursPage.tsx  원본 일별근무시간(ID) 의 [사원명] 조건이 없다",
  "DailyWorkHoursPage.tsx  원본 일별근무시간(ID) 의 [부서] 조건이 없다",
  "DailyWorkHoursPage.tsx  원본 일별근무시간(ID) 의 [정렬/소계기준] 조건이 없다",
- "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [사원명] 조건이 없다",
- "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [부서] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [내/외근구분] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태구분] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근무구분] 조건이 없다",
@@ -179,8 +177,6 @@
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태항목] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [휴가항목] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태그룹] 조건이 없다",
- "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [상태] 조건이 없다",
- "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [일정구분] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [공유여부] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [정렬/소계기준] 조건이 없다"
 ]

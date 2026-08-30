@@ -5,6 +5,5 @@
  "PurchaseRequestStatusPage.tsx  발주계획현황 [부가세] — 열로는 찍는데 거를 수 없다",
  "LateArrivalPage.tsx  지각현황(ID) [사원명] — 열로는 찍는데 거를 수 없다",
  "LateArrivalPage.tsx  지각현황(ID) [부서] — 열로는 찍는데 거를 수 없다",
- "DailyWorkHoursPage.tsx  일별근무시간(ID) [부서] — 열로는 찍는데 거를 수 없다",
- "WorkIntegratedPage.tsx  출퇴근/근태/일정현황(ID) [부서] — 열로는 찍는데 거를 수 없다"
+ "DailyWorkHoursPage.tsx  일별근무시간(ID) [부서] — 열로는 찍는데 거를 수 없다"
 ]
