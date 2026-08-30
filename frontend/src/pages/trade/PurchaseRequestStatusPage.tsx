@@ -75,7 +75,7 @@ export default function PurchaseRequestStatusPage({
   title?: string
 }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'warehouses', 'items'])
+  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'employees'])
   const [summary, setSummary] = useState<SummaryRow[]>([])
   const [status, setStatus] = useState<PurchaseOrderStatus>(defaultStatus)
   const [rows, setRows] = useState<Row[]>([])
@@ -97,7 +97,7 @@ export default function PurchaseRequestStatusPage({
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',
-    orderNo: '', partner: '', item: '', warehouse: '',
+    orderNo: '', partner: '', item: '', warehouse: '', employee: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -151,6 +151,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.partner || r.partner.includes(c.partner))
     && (!c.item || r.itemName.includes(c.item))
     && (!c.warehouse || r.warehouse.includes(c.warehouse))
+    /* 원본 조건 [담당자]. 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */
+    && (!c.employee || r.employee.includes(c.employee))
     && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
     && (!c.dueTo || (r.dueDate ?? '') <= c.dueTo)
 
@@ -189,7 +191,7 @@ export default function PurchaseRequestStatusPage({
   }, [mode, shown])
 
   const reset = () => {
-    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '' })
+    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '', employee: '' })
     setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
 
@@ -288,6 +290,12 @@ export default function PurchaseRequestStatusPage({
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 조건 [담당자] — 표에는 찍는데 그것으로 거를 수가 없었다. */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={pickers.employees} />
         </EcCond>
         {/*
           원본 조건 판의 <b>[진행상태]</b>(사본 실측). 우리는 위 <b>단계 카드</b>를 눌러

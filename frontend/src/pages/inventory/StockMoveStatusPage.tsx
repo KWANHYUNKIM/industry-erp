@@ -50,6 +50,8 @@ interface Adjustment {
   afterQty: number
   reason: string | null
   createdBy: string | null
+  /** 원본 조건 [담당자]. 서버는 진작 보내는데 화면이 받아 두지 않아 거를 수가 없었다. */
+  employeeId: number | null
 }
 
 /** 서버가 잘라서 줄 수 있다 — 전체 줄 수와 잘랐는지를 함께 준다. */
@@ -63,7 +65,7 @@ const num = (n: number) => n.toLocaleString()
 
 export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'employees'])
   const [rows, setRows] = useState<Adjustment[]>([])
   /** 조건에 걸린 <b>전체</b> 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 와 같은 문턱이다. */
   const [totalRows, setTotalRows] = useState(0)
@@ -84,7 +86,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    */
   const init = (kind === 'SELF_USE' ? periodOf('전월+금월') : periodOf('금월(~오늘)'))
     ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -120,6 +122,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
+    /* 원본 조건 [담당자]. 담당자 <b>이름</b>은 사원 목록에서 붙인다 — 재고 모듈은 사원을 모른다. */
+    .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
 
   /*
    * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -155,11 +159,18 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, kind, cond, subtotal])
 
+  /*
+   * 담당자 이름. 서버는 <b>id 만</b> 준다 — 재고(inventory)는 사원(hr)을 참조할 수 없어서
+   * (CLAUDE.md 4.1 의 순환 금지) 이름은 화면이 목록에서 붙인다. 지워진 사원이면 빈칸이다.
+   */
+  const empName = (id: number | null) =>
+    (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
+
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
   const reset = () => {
     setMode('내역')
     setSubtotal('창고·품목')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '' })
   }
 
   return (
@@ -201,6 +212,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 조건 [담당자] — 표에는 찍히는데 그것으로 거를 수가 없었다. */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={pickers.employees} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
@@ -249,14 +266,16 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <th style={{ textAlign: 'right' }}>이전재고</th>
                 <th style={{ textAlign: 'right' }}>증감</th>
                 <th style={{ textAlign: 'right' }}>이후재고</th>
+                {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
+                <th style={{ width: 90 }}>담당자</th>
                 <th>적요</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
@@ -269,6 +288,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                     {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
                   <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
+                  <td style={{ color: '#5a626e' }}>{empName(r.employeeId)}</td>
                   <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
                 </tr>
               ))}
@@ -278,7 +298,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
-                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={3} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
             )}
