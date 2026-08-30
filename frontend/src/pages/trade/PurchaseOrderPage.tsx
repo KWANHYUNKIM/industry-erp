@@ -214,6 +214,31 @@ export default function PurchaseOrderPage() {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
   })
 
+  /*
+   * 원본 하단 단추줄의 <b>[진행상태변경]</b> — 고른 줄을 한 번에 다음 단계로 넘긴다.
+   *
+   * <p>발주는 요청 → 계획 → 단가확정 → <b>발주확정</b> → 입고 로 간다. 그중 <b>[발주확정]</b>
+   * 하나만 한꺼번에 한다 — 단가확정은 값을 받아야 하고 입고전환은 창고를 물어야 해서,
+   * 고른 열 줄에 대해 열 번 묻는 꼴이 된다. 단가까지 정해 둔 줄만 한 번에 확정한다.
+   *
+   * <p><b>넘어간 줄과 건너뛴 줄을 함께 말한다.</b> 열 줄을 골랐는데 셋만 움직였을 때
+   * 아무 말이 없으면 나머지 일곱이 왜 그대로인지 알 수 없다.
+   */
+  async function bulkStatus() {
+    const targets = shown.filter((po) => picked.has(po.id) && po.status === 'PRICED')
+    const skipped = picked.size - targets.length
+    if (targets.length === 0) { setError('단가확정까지 끝난 발주서를 고르세요 — 그 줄만 한 번에 확정합니다.'); return }
+    const results = await Promise.allSettled(
+      targets.map((po) => api.post(`/purchase-orders/${po.id}/confirm`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError([
+      failed ? `${failed}건은 확정하지 못했습니다.` : '',
+      skipped ? `${skipped}건은 단가확정 전이라 건너뛰었습니다.` : '',
+    ].filter(Boolean).join(' '))
+    load()
+  }
+
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 발주서를 고르세요.'); return }
@@ -228,7 +253,8 @@ export default function PurchaseOrderPage() {
 
   return (
     <EcListShell title="발주서" actions={[
-      /* 원본 차례: 신규(F2) · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      /* 원본 차례: 신규(F2) · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
       { label: '인쇄' },
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },

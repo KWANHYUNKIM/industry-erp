@@ -182,6 +182,25 @@ export default function QuotationPage() {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
   })
 
+  /*
+   * 원본 하단 단추줄의 <b>[진행상태변경]</b> — 고른 줄을 한 번에 <b>발송</b> 으로 넘긴다.
+   * 수주전환은 한꺼번에 하지 않는다 — 전환은 수주를 새로 만드는 일이라, 열 건을 한 번에
+   * 누르면 무엇이 만들어졌는지 사람이 못 따라간다.
+   */
+  async function bulkStatus() {
+    const targets = shown.filter((q) => picked.has(q.id) && q.status === 'DRAFT')
+    const skipped = picked.size - targets.length
+    if (targets.length === 0) { setError('아직 안 보낸 견적서를 고르세요 — 그 줄만 한 번에 발송합니다.'); return }
+    const results = await Promise.allSettled(targets.map((q) => api.post(`/quotations/${q.id}/send`)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setPicked(new Set())
+    setError([
+      failed ? `${failed}건은 발송하지 못했습니다.` : '',
+      skipped ? `${skipped}건은 이미 보낸 견적서라 건너뛰었습니다.` : '',
+    ].filter(Boolean).join(' '))
+    load()
+  }
+
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 견적서을(를) 고르세요.'); return }
@@ -195,8 +214,9 @@ export default function QuotationPage() {
 
   return (
     <EcListShell title="견적서" actions={[
-      /* 원본 차례: 신규(F2) · 다시 작성 · 인쇄 · 선택삭제 · Excel (사본 실측) */
+      /* 원본 차례: 신규(F2) · 다시 작성 · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
       { label: '다시 작성', onClick: reset },
+      { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
       { label: '인쇄' },
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },
