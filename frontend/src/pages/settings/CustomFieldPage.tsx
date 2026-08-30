@@ -24,6 +24,15 @@ const ENTITY_TYPES = [
   { key: 'SALES_LINE', label: '판매전표 줄(격자 열)' },
   { key: 'PURCHASE', label: '구매전표 머리(구매입력 II)' },
   { key: 'PURCHASE_LINE', label: '구매전표 줄(격자 열)' },
+  /*
+   * <b>마스터에도 추가항목을 붙인다.</b> 원본 품목등록·거래처등록·사원등록에는
+   * [문자형추가항목1~6]·[숫자형추가항목1~10] 이 <b>칸 이름째로 박혀</b> 있다(사본 실측).
+   * 우리는 반대로 간다 — 여기서 <b>필요한 만큼 이름을 지어</b> 정의하면 그 마스터 수정
+   * 화면에 그대로 뜬다. 정의가 없으면 아무것도 안 그린다.
+   */
+  { key: 'ITEM', label: '품목등록' },
+  { key: 'PARTNER', label: '거래처등록' },
+  { key: 'EMPLOYEE', label: '사원등록' },
 ]
 const emptyForm = { fieldKey: '', label: '', fieldType: 'TEXT' as CustomFieldType, options: '', required: false, sortOrder: '0' }
 

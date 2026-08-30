@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, GroupMaster, Item, ManagementItem, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -286,7 +287,7 @@ export default function ItemsPage() {
   /*
    * <b>원본 품목등록의 조건 판.</b> 우리에게는 검색상자 하나뿐이라, 품목이 쌓이면
    * <b>구매처로도 품목구분으로도 좁힐 수가 없었다</b> — 코드나 이름을 외워 치는 수밖에.
-   * 원본 조건은 80칸이지만 대부분 우리에게 없는 값(단가A~J·추가항목·표준원가)이다.
+   * 원본 조건은 80칸이지만 대부분 우리에게 없는 값(단가A~J·표준원가)이다.
    * <b>값이 실제로 있는 여섯</b>만 만든다: 품목명 · 규격명 · 품목구분 · 구매처 ·
    * 검색창내용 · 바코드. 차례는 사본 실측을 따른다.
    */
@@ -394,8 +395,9 @@ export default function ItemsPage() {
             원본 품목등록 폼은 <b>품목정보 · 수량 · 단가 · 원가 · 부가정보 · 관리대상</b>
             여섯 탭이다(사본 실측 — 칸이 어느 탭인지는 ecpath 셋째 조각에 남아 있다).
             우리는 한 화면에 열여섯 칸을 죽 펴 놓아, 단가를 고치려 해도 코드부터 훑어야 했다.
-            <b>원가·부가정보는 만들지 않는다</b> — 표준원가 넷·숫자형추가항목 열에 해당하는
-            칸이 우리 품목에 없다. 눌러도 빈 탭은 있는 것만 못하다.
+            <b>원가 탭은 만들지 않는다</b> — 표준원가 넷(재료비·노무비·경비·외주비)에 해당하는
+            칸이 우리 품목에 없다. 눌러도 빈 탭은 있는 것만 못하다. 부가정보에 해당하는
+            추가항목은 아래 <b>사용자정의 패널</b>이 대신한다.
           */}
           {/* 폼 탭은 거래처등록과 같은 모양으로 그린다 — 우리끼리 달라 보이면 안 된다. */}
           <ul className="ec-tabs" style={{ marginBottom: 10 }}>
@@ -540,6 +542,13 @@ export default function ItemsPage() {
                     우리는 그룹이 하나라 '2명'에 해당하는 열이 없다. */}
             </div>
           )}
+          {/*
+            <b>추가항목(사용자정의).</b> 원본은 이 자리에 [문자형추가항목1~6]·[숫자형추가항목N]
+            을 이름째 박아 둔다. 우리는 Self-Customizing &gt; 사용자정의필드에서 <b>이름을 지어</b>
+            정의하고, 정의가 있을 때만 여기 뜬다. <b>수정할 때만</b> 보인다 — 값은 그 행에
+            붙는 것이라 행이 아직 없으면 붙일 데가 없다.
+          */}
+          {editId && <CustomFieldsPanel entityType="ITEM" entityId={editId} />}
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>

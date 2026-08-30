@@ -1011,5 +1011,421 @@
    "연도"
   ],
   "file": "trade/MonthlyArApPage.tsx"
+ },
+ "문자형추가항목1": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목2": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목1": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목2": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목7": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목8": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목9": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목10": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "단가A": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가B": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가C": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가D": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가E": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가F": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가G": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가H": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가I": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가J": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "안전재고관리-주문서": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-판매": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-생산불출": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-생산입고": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-창고이동": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-자가사용": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-불량처리": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "재료비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "노무비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "경비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "외주비표준원가": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "경비가중치": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "표준노무시간(노무비가중치)": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "C-Portal최소주문수량체크": {
+  "claim": "고객이 직접 주문을 넣는 웹 포털이 없다",
+  "in": "backend",
+  "absent": [
+   "minOrderQty"
+  ]
+ },
+ "C-Portal최소주문수량": {
+  "claim": "고객이 직접 주문을 넣는 웹 포털이 없다",
+  "in": "backend",
+  "absent": [
+   "minOrderQty"
+  ]
+ },
+ "카드사그룹1": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "카드사그룹2": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "결제대행사그룹1": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "결제대행사그룹2": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
  }
 }

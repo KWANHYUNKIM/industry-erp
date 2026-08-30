@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import GroupMasterModal from '../../components/GroupMasterModal'
@@ -621,6 +622,13 @@ export default function PartnersPage() {
           </div>
           )}
 
+          {/*
+            <b>추가항목(사용자정의).</b> 원본은 이 자리에 [문자형추가항목1~6]·[숫자형추가항목N]
+            을 이름째 박아 둔다. 우리는 Self-Customizing &gt; 사용자정의필드에서 <b>이름을 지어</b>
+            정의하고, 정의가 있을 때만 여기 뜬다. <b>수정할 때만</b> 보인다 — 값은 그 행에
+            붙는 것이라 행이 아직 없으면 붙일 데가 없다.
+          */}
+          {editId != null && <CustomFieldsPanel entityType="PARTNER" entityId={editId} />}
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             {/*
