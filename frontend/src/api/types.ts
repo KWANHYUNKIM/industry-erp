@@ -218,6 +218,9 @@ export interface Partner {
   /** 우편번호. 원본 거래처등록 [기본] 탭의 [주소1 우편번호]. */
   postalCode: string | null
   address: string | null
+  /** 원본 조건 [최초작성일자]·[최종수정일자]. 서버가 BaseTimeEntity 에서 실어 준다. */
+  createdDate: string | null
+  updatedDate: string | null
   salesPriceGroup: string | null
   purchasePriceGroup: string | null
   /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾는다. */

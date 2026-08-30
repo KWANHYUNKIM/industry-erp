@@ -248,7 +248,14 @@ public final class PartnerDtos {
             String parentName,
             Long partnerGroupId,
             String partnerGroupName,
-            boolean active
+            boolean active,
+            /**
+             * 원본 거래처등록 조건의 <b>[최초작성일자]·[최종수정일자]</b>.
+             * BaseTimeEntity 가 진작 들고 있는데 응답에 안 실어 <b>언제 만든 거래처인지</b>를
+             * 화면에서 알 수가 없었다 — 새로 딴 거래처만 골라 보려면 코드를 외워야 했다.
+             */
+            java.time.LocalDate createdDate,
+            java.time.LocalDate updatedDate
     ) {
         public static PartnerResponse from(BusinessPartner p) {
             return new PartnerResponse(
@@ -266,7 +273,9 @@ public final class PartnerDtos {
                     p.getParent() != null ? p.getParent().getName() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getId() : null,
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
-                    p.isActive());
+                    p.isActive(),
+                    p.getCreatedAt() != null ? p.getCreatedAt().toLocalDate() : null,
+                    p.getUpdatedAt() != null ? p.getUpdatedAt().toLocalDate() : null);
         }
     }
 }

@@ -73,6 +73,17 @@ export default function PartnersPage() {
     /* 원본 조건 판의 차례 그대로다 — 상호 다음이 종사업장번호, 그 다음이 대표자명이다. */
     '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
     Email: '', 주소1: '', 검색창내용: '',
+    /*
+     * 원본 조건 <b>[영업단가그룹]</b> — 우리 폼은 이 값을 [판매단가그룹]이라 부르고 있었다.
+     * 특별단가의 '그룹별' 이 보는 그 값이다.
+     */
+    영업단가그룹: '', 구매단가그룹: '',
+    /*
+     * 원본 조건 <b>[최초작성일자]·[최종수정일자]</b>. BaseTimeEntity 가 진작 들고 있는데
+     * 응답에 안 실어 <b>언제 딴 거래처인지</b>를 화면에서 알 수가 없었다.
+     * 일부만 쳐도 걸린다 — <code>2026-08</code> 이면 그 달에 만든 것만 남는다.
+     */
+    최초작성일자: '', 최종수정일자: '',
   })
   const setCd = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
   const hit = (v: string | null, q: string) => !q || (v ?? '').includes(q.trim())
@@ -85,7 +96,9 @@ export default function PartnersPage() {
       && hit(p.bizType, cond.업태) && hit(p.bizItem, cond.종목)
       && hit(p.phone, cond.전화) && hit(p.email, cond.Email)
       && hit(p.address, cond.주소1) && hit(p.searchKeyword, cond.검색창내용)
-      && hit(p.subBizNo, cond.종사업장번호))
+      && hit(p.subBizNo, cond.종사업장번호)
+      && hit(p.salesPriceGroup, cond.영업단가그룹) && hit(p.purchasePriceGroup, cond.구매단가그룹)
+      && hit(p.createdDate, cond.최초작성일자) && hit(p.updatedDate, cond.최종수정일자))
 
   /*
    * 원본은 목록 머리를 눌러 정렬한다(사본 열의 78%에 정렬 표시가 붙어 있다).
@@ -341,16 +354,34 @@ export default function PartnersPage() {
 
       {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-        {(Object.keys(cond) as (keyof typeof cond)[]).map((k) => (
-          <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <label style={{ fontSize: 12.5, color: '#5a626e' }}>{k}</label>
-            <input className="ec-input" style={{ width: 120 }} value={cond[k]}
-                   onChange={(e) => setCd(k, e.target.value)} />
-          </span>
-        ))}
+        {(Object.keys(cond) as (keyof typeof cond)[])
+          /* 날짜 둘은 아래에서 따로 그린다 — 안내 글이 붙고, 이름표가 정적이어야 검사가 본다. */
+          .filter((k) => !k.endsWith('일자'))
+          .map((k) => (
+            <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <label style={{ fontSize: 12.5, color: '#5a626e' }}>{k}</label>
+              <input className="ec-input" style={{ width: 120 }} value={cond[k]}
+                     onChange={(e) => setCd(k, e.target.value)} />
+            </span>
+          ))}
+        {/*
+          원본 조건 [최초작성일자]·[최종수정일자]. <b>일부만 쳐도 걸린다</b> —
+          2026-08 이면 그 달에 만든 거래처만 남는다. 그래서 날짜 칸이 아니라 글자 칸이다.
+        */}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최초작성일자</label>
+          <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
+                 value={cond.최초작성일자} onChange={(e) => setCd('최초작성일자', e.target.value)} />
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최종수정일자</label>
+          <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
+                 value={cond.최종수정일자} onChange={(e) => setCd('최종수정일자', e.target.value)} />
+        </span>
         <button type="button" className="ec-btn" onClick={() => setCond({
           '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
           Email: '', 주소1: '', 검색창내용: '',
+          영업단가그룹: '', 구매단가그룹: '', 최초작성일자: '', 최종수정일자: '',
         })}>조건 지우기</button>
       </div>
 
@@ -558,7 +589,8 @@ export default function PartnersPage() {
               폼에 칸이 없어 <b>PATCH /partners/{id}/price-group 을 직접 부르지 않으면 정할 수가 없었다.</b>
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">판매단가그룹</label>
+              {/* 원본은 이 칸을 <b>[영업단가그룹]</b> 이라 부른다(사본 실측) — 우리는 [판매단가그룹]이었다. */}
+              <label className="mb-1 block text-sm text-slate-600">영업단가그룹</label>
               <input className={inputCls} value={form.salesPriceGroup} onChange={(e) => set('salesPriceGroup', e.target.value)} />
             </div>
             <div>
