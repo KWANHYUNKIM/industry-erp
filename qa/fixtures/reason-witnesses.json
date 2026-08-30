@@ -736,5 +736,85 @@
    "계획연도"
   ],
   "file": "trade/SalesPlanPage.tsx"
+ },
+ "거래처그룹1": {
+  "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
+  "absent": [
+   "partnerGroup2",
+   "partnerGroup1"
+  ],
+  "in": "backend"
+ },
+ "거래처그룹2": {
+  "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
+  "absent": [
+   "partnerGroup2",
+   "partnerGroup1"
+  ],
+  "in": "backend"
+ },
+ "거래처계층그룹": {
+  "claim": "그룹 위에 그룹을 두지 않는다",
+  "absent": [
+   "parentGroup",
+   "PartnerGroupTree"
+  ],
+  "in": "backend"
+ },
+ "품목그룹1": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목그룹2": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목그룹3": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목계층그룹": {
+  "claim": "그룹 위에 그룹을 두지 않는다",
+  "absent": [
+   "ItemGroupTree",
+   "parentItemGroup"
+  ],
+  "in": "backend"
+ },
+ "프로젝트그룹1": {
+  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
+  "absent": [
+   "ProjectGroup",
+   "projectGroupId"
+  ],
+  "in": "backend"
+ },
+ "프로젝트그룹2": {
+  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
+  "absent": [
+   "ProjectGroup",
+   "projectGroupId"
+  ],
+  "in": "backend"
+ },
+ "부서계층그룹": {
+  "claim": "부서를 계층으로 묶지 않는다",
+  "absent": [
+   "parentDepartment",
+   "DepartmentTree"
+  ],
+  "in": "backend"
  }
 }

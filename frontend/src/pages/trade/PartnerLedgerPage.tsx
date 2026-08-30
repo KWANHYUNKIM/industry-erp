@@ -301,6 +301,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
           한 회사가 지점별로 거래처코드를 따로 쓰면 채권채무를 회사 단위로 봐야 하는데
           우리는 코드 단위로밖에 볼 수 없었다.
         */}
+        {/* 원본 차례: 집계구분 · <b>거래처 · 대표거래처로 합산</b> (사본 실측) — 우리는 뒤바뀌어 있었다. */}
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
+        </EcCond>
         <EcCond label="대표거래처로 합산">
           <div className="ec-pills">
             {(['개별거래처기준', '거래처관계기준'] as const).map((b) => (
@@ -308,11 +314,6 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                       onClick={() => setBasis(b)}>{b}</button>
             ))}
           </div>
-        </EcCond>
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={partner} onChange={(v) => setPartner(v)}
-                           items={pickers.partners} />
         </EcCond>
       </EcStatusPanel>
 

@@ -273,15 +273,16 @@ export default function PurchaseRequestStatusPage({
           <input type="date" className="ec-input" value={cond.dueTo}
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={cond.partner} onChange={(v) => setC({ partner: v })}
-                           items={pickers.partners} />
-        </EcCond>
+        {/* 원본 차례: 납기일자 · <b>창고 · 거래처</b> · 품목 (사본 실측) — 우리는 뒤바뀌어 있었다. */}
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
