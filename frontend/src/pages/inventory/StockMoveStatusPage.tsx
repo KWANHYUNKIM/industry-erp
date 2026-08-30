@@ -54,6 +54,8 @@ interface Adjustment {
   employeeId: number | null
   /** 원본 조건 [규격]. 서버가 이제 실어 준다. */
   spec: string | null
+  /** 원본 조건 [프로젝트]. 서버는 진작 보내는데 화면이 받아 두지 않았다. */
+  projectName: string | null
 }
 
 /** 서버가 잘라서 줄 수 있다 — 전체 줄 수와 잘랐는지를 함께 준다. */
@@ -67,7 +69,7 @@ const num = (n: number) => n.toLocaleString()
 
 export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items', 'employees'])
+  const pickers = useCondPickers(['items', 'employees', 'projects'])
   const [rows, setRows] = useState<Adjustment[]>([])
   /** 조건에 걸린 <b>전체</b> 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 와 같은 문턱이다. */
   const [totalRows, setTotalRows] = useState(0)
@@ -88,7 +90,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    */
   const init = (kind === 'SELF_USE' ? periodOf('전월+금월') : periodOf('금월(~오늘)'))
     ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '' })
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '', project: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -128,6 +130,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     /* 원본 조건 [규격]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */
     .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
+    /* 원본 조건 [프로젝트]. 어느 현장에 나간 자재인지로 좁힌다. */
+    .filter((r) => !cond.project || (r.projectName ?? '') === cond.project)
 
   /*
    * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -174,7 +178,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const reset = () => {
     setMode('내역')
     setSubtotal('창고·품목')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', employee: '', spec: '', project: '' })
   }
 
   return (
@@ -212,6 +216,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
+        {/* 원본 차례: 창고 · <b>프로젝트</b> · 품목 (사본 실측 — 넷이 다 같다). */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
@@ -228,10 +238,10 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           불량처리는 담당자·적요·규격, 대체사용·폐기는 담당자·규격·적요다.
           한 파일이라 하나만 고를 수 있어 <b>둘이 겹치는</b> 대체사용·폐기 차례를 따른다.
         */}
-        <EcCond label="규격">
-          <input className="ec-input" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
-        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={cond.spec}
+                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
@@ -278,6 +288,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <th>품목</th>
                 {/* 원본 조건에 [규격]이 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 110 }}>규격</th>
+                {/* 원본 조건에 [프로젝트]가 있다 — 거르려면 표에도 보여야 한다. */}
+                <th style={{ width: 110 }}>프로젝트</th>
                 <th style={{ textAlign: 'right' }}>이전재고</th>
                 <th style={{ textAlign: 'right' }}>증감</th>
                 <th style={{ textAlign: 'right' }}>이후재고</th>
@@ -288,9 +300,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
@@ -299,6 +311,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td>{r.warehouseName}</td>
                   <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
                   <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
+                  <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
                     {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
@@ -314,7 +327,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
-                  <td colSpan={4} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={5} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
             )}

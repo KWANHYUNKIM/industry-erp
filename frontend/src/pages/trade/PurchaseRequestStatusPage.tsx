@@ -55,6 +55,8 @@ interface Row {
   partner: string
   warehouse: string
   employee: string
+  /** 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
+  project: string
   itemName: string
   qty: number
   unitPrice: number
@@ -75,7 +77,7 @@ export default function PurchaseRequestStatusPage({
   title?: string
 }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'employees'])
+  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'employees', 'projects'])
   const [summary, setSummary] = useState<SummaryRow[]>([])
   const [status, setStatus] = useState<PurchaseOrderStatus>(defaultStatus)
   const [rows, setRows] = useState<Row[]>([])
@@ -97,7 +99,7 @@ export default function PurchaseRequestStatusPage({
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',
-    orderNo: '', partner: '', item: '', warehouse: '', employee: '',
+    orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -124,6 +126,7 @@ export default function PurchaseRequestStatusPage({
           partner: o.partnerName,
           warehouse: o.warehouseName ?? '',
           employee: o.employeeName ?? '',
+          project: o.projectName ?? '',
           itemName: l.itemName,
           qty: l.quantity,
           unitPrice: l.unitPrice,
@@ -151,6 +154,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.partner || r.partner.includes(c.partner))
     && (!c.item || r.itemName.includes(c.item))
     && (!c.warehouse || r.warehouse.includes(c.warehouse))
+    /* 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 거를 수가 없었다. */
+    && (!c.project || r.project === c.project)
     /* 원본 조건 [담당자]. 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.employee || r.employee.includes(c.employee))
     && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
@@ -191,7 +196,7 @@ export default function PurchaseRequestStatusPage({
   }, [mode, shown])
 
   const reset = () => {
-    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '', employee: '' })
+    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '' })
     setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
 
@@ -280,6 +285,17 @@ export default function PurchaseRequestStatusPage({
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={pickers.warehouses} />
+        </EcCond>
+        {/*
+          원본 <b>두 화면이 프로젝트를 다른 자리에 둔다</b>(사본 실측) —
+          발주계획현황은 창고 · <b>프로젝트</b> · 거래처 · 품목, 단가요청현황은
+          거래처 · 품목 · <b>프로젝트</b> 다. 한 파일이라 하나만 고를 수 있어
+          조건이 더 많은 발주계획현황에 맞춘다.
+        */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
