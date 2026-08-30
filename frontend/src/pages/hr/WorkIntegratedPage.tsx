@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { useAuth } from '../../auth/AuthContext'
 import { dateText } from '../../utils/dateText'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -116,6 +117,22 @@ export default function WorkIntegratedPage() {
   }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, statusCond, catCond, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
+
+  /*
+   * 원본 조건 <b>[정렬/소계기준]</b> — 소계를 무엇으로 묶을지 고른다(사본 실측).
+   * 이 표는 사람×날짜로 잘게 펴 놓은 것이라, "이 부서가 그 주에 결근이 몇 건이었나" 를
+   * 세려면 줄을 손으로 헤아려야 했다.
+   */
+  const SUBTOTALS = ['사원', '부서'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('사원')
+  const subtotals = useMemo(
+    () => subtotalBy(rows, (r) => (subtotal === '부서' ? r.department : r.name), {
+      건수: () => 1,
+      결근: (r) => (r.status === '결근' ? 1 : 0),
+      지각조퇴: (r) => (r.status === '지각' || r.status === '조퇴' ? 1 : 0),
+      일정: (r) => r.events.length,
+    }),
+    [rows, subtotal])
   /** 고를 값 — 받아 온 줄에서 모은다(마스터가 없다). */
   const statuses = [...new Set(att.map((a) => a.status).filter(Boolean))].sort()
   const categories = [...new Set(events.map((e) => e.category ?? '').filter(Boolean))].sort()
@@ -169,6 +186,14 @@ export default function WorkIntegratedPage() {
           <option value="">전체</option>
           {categories.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
+        {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
+        <span style={{ marginLeft: 8 }}>정렬/소계기준</span>
+        <div className="ec-pills">
+          {SUBTOTALS.map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                    onClick={() => setSubtotal(v)}>{v}</button>
+          ))}
+        </div>
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>근태·일정을 사원명+일자로 통합</span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
           행 <b style={{ color: '#3c4553' }}>{rows.length}</b>
@@ -220,6 +245,32 @@ export default function WorkIntegratedPage() {
           ))}
         </tbody>
       </table>
+
+      {rows.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>{subtotal}</th>
+              <th style={{ width: 80, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 70, textAlign: 'right' }}>결근</th>
+              <th style={{ width: 90, textAlign: 'right' }}>지각·조퇴</th>
+              <th style={{ width: 70, textAlign: 'right' }}>일정</th>
+            </tr></thead>
+            <tbody>
+              {subtotals.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right' }}>{g.sums.건수}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.결근 ? '#c60a2e' : undefined }}>{g.sums.결근}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.지각조퇴 ? '#c07a00' : undefined }}>{g.sums.지각조퇴}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.일정 ? '#2b6cb0' : undefined }}>{g.sums.일정}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </EcListShell>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseDoc, SalesDoc } from '../../api/types'
+import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -42,17 +42,31 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
    * 응답에 진작 실려 온다(하네스가 SalesResponse 에 partnerName 이 있다고 짚어 줬다).
    */
   const [partner, setPartner] = useState('')
+  /**
+   * 원본 조건 <b>[거래처관리담당자]</b>. 받을 돈을 나눠 맡는 곳에서는 "내가 맡은 곳이
+   * 이 달을 얼마나 밀었나" 가 이 표를 여는 이유다. 담당자는 <b>거래처 마스터</b>에 붙어
+   * 있고 전표에는 없어서, 거래처 목록을 받아 이름으로 이어 붙인다.
+   */
+  const [manager, setManager] = useState('')
+  /**
+   * 원본 조건 <b>[대표거래처로 합산]</b>. 거래처를 하나 골랐을 때 그 회사의 <b>지점·사업장</b>
+   * 것까지 같이 센다. 본사로 청구하는 곳이면 지점별로 갈린 표는 읽을 수가 없다.
+   * 원본과 같이 기본은 꺼 둔다.
+   */
+  const [rollUp, setRollUp] = useState(false)
+  const [partnerRows, setPartnerRows] = useState<Partner[]>([])
   const pickers = useCondPickers(['partners'])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b, st] = await Promise.all([
+      const [s, b, st, pr] = await Promise.all([
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<Settlement[]>('/settlements'),
+        api.get<Partner[]>('/partners'),
       ])
-      setSales(s.data); setPurchases(b.data); setSettlements(st.data)
+      setSales(s.data); setPurchases(b.data); setSettlements(st.data); setPartnerRows(pr.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -63,7 +77,28 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
   const rows = useMemo<MonthRow[]>(() => {
     // 증가/감소 소스: 채권=매출/수금, 채무=매입/지급
     /* 거래처를 고르면 <b>증가·감소 양쪽</b>을 같이 좁힌다 — 한쪽만 좁히면 잔액이 거짓말이 된다. */
-    const mine = (name: string | null | undefined) => !partner || (name ?? '') === partner
+    /*
+     * 고른 거래처의 <b>이름 집합</b>을 먼저 만든다. [대표거래처로 합산]을 켜면 그 회사를
+     * 대표로 둔 거래처의 이름을 함께 넣는다 — 전표는 이름으로만 이어져 있어서다.
+     */
+    const 고른이름 = new Set<string>()
+    if (partner) {
+      고른이름.add(partner)
+      if (rollUp) {
+        const 머리 = partnerRows.find((p) => p.name === partner)
+        if (머리) for (const p of partnerRows) if (p.parentId === 머리.id) 고른이름.add(p.name)
+      }
+    }
+    /* 담당자로 좁힐 때 쓸 이름 집합. 거래처 마스터의 값이라 전표에서는 이름으로 잇는다. */
+    const 담당이름 = manager
+      ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.name))
+      : null
+    const mine = (name: string | null | undefined) => {
+      const n = name ?? ''
+      if (고른이름.size && !고른이름.has(n)) return false
+      if (담당이름 && !담당이름.has(n)) return false
+      return true
+    }
     const incDocs = mode === 'AR'
       ? sales.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.saleDate, amt: d.totalAmount }))
       : purchases.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount }))
@@ -89,7 +124,11 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       carry = closing
     }
     return out
-  }, [sales, purchases, settlements, mode, year, partner])
+  }, [sales, purchases, settlements, mode, year, partner, manager, rollUp, partnerRows])
+
+  /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
+  const managers = useMemo(
+    () => [...new Set(partnerRows.map((p) => p.manager).filter(Boolean))] as string[], [partnerRows])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({ inc: s.inc + r.increase, dec: s.dec + r.decrease }), { inc: 0, dec: 0 }), [rows])
   const closing = rows.length ? rows[rows.length - 1].closing : 0
@@ -125,6 +164,18 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
+        </div>
+        {/* 원본 차례: 거래처 → 거래처그룹들 → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
+        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} disabled={!partner} />
+          <span style={{ color: partner ? undefined : '#a8b0ba' }}>대표거래처로 합산</span>
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처관리담당자</span>
+          <select className="ec-input" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            {managers.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['AR', 'AP'] as const).map((m) => (

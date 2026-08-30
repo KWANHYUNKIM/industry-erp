@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 관리 > 근태관리 > 근태현황 (= 이카운트 출/퇴근현황(ID), E070306)
@@ -39,6 +40,12 @@ export default function AttendanceStatusPage() {
   const [allDates, setAllDates] = useState(false)
   const [empName, setEmpName] = useState('')
   const [department, setDepartment] = useState('')
+  /*
+   * 원본 조건 <b>[정렬/소계기준]</b> — 소계를 무엇으로 묶을지 고른다(사본 실측).
+   * 표는 사람마다 한 줄인데, 결근·지각이 <b>어느 부서에 몰려 있나</b>는 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['사원', '부서'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('부서')
 
   async function load() {
     setLoading(true)
@@ -78,6 +85,16 @@ export default function AttendanceStatusPage() {
     absentDays: t.absentDays + r.absentDays,
     totalWorkHours: t.totalWorkHours + r.totalWorkHours,
   }), { workDays: 0, lateDays: 0, earlyLeaveDays: 0, absentDays: 0, totalWorkHours: 0 })
+
+  const subtotals = useMemo(
+    () => subtotalBy(shown, (r) => (subtotal === '부서' ? r.department : r.empName), {
+      workDays: (r) => r.workDays,
+      lateDays: (r) => r.lateDays,
+      earlyLeaveDays: (r) => r.earlyLeaveDays,
+      absentDays: (r) => r.absentDays,
+      totalWorkHours: (r) => r.totalWorkHours,
+    }),
+    [shown, subtotal])
 
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const num = (n: number) => n.toLocaleString('ko-KR')
@@ -133,6 +150,18 @@ export default function AttendanceStatusPage() {
                                items={departments.map((d) => ({ value: d, name: d }))} />
             </td>
           </tr>
+          {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
+          <tr>
+            <th style={th}>정렬/소계기준</th>
+            <td colSpan={3}>
+              <div className="ec-pills">
+                {SUBTOTALS.map((v) => (
+                  <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                          onClick={() => setSubtotal(v)}>{v}</button>
+                ))}
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
 
@@ -183,6 +212,38 @@ export default function AttendanceStatusPage() {
           </tfoot>
         )}
       </table>
+
+      {shown.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>{subtotal}</th>
+              <th style={{ width: 80, textAlign: 'right' }}>사원수</th>
+              <th style={{ width: 90, textAlign: 'right' }}>근무일수</th>
+              <th style={{ width: 70, textAlign: 'right' }}>지각</th>
+              <th style={{ width: 70, textAlign: 'right' }}>조퇴</th>
+              <th style={{ width: 70, textAlign: 'right' }}>결근</th>
+              <th style={{ width: 110, textAlign: 'right' }}>총근무시간</th>
+            </tr></thead>
+            <tbody>
+              {subtotals.map((g) => (
+                <tr key={g.label}>
+                  <td style={{ fontWeight: 600 }}>{g.label}</td>
+                  <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right' }}>{num(g.sums.workDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.lateDays ? '#c60a2e' : undefined }}>{num(g.sums.lateDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.earlyLeaveDays ? '#c07a00' : undefined }}>{num(g.sums.earlyLeaveDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.absentDays ? '#c60a2e' : undefined }}>{num(g.sums.absentDays)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {g.sums.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </EcListShell>
   )
 }

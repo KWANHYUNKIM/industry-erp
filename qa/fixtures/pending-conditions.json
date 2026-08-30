@@ -1,7 +1,5 @@
 [
  "ApprovalAllPage.tsx  원본 기안서통합관리 의 [구분] 조건이 없다",
- "AttendanceStatusPage.tsx  원본 출/퇴근현황(ID) 의 [정렬/소계기준] 조건이 없다",
- "DailyWorkHoursPage.tsx  원본 일별근무시간(ID) 의 [정렬/소계기준] 조건이 없다",
  "EmployeePage.tsx  원본 사원(담당)등록 의 [검색창내용] 조건이 없다",
  "EmployeePage.tsx  원본 사원(담당)등록 의 [담당자Email] 조건이 없다",
  "EmployeePage.tsx  원본 사원(담당)등록 의 [담당자연락처] 조건이 없다",
@@ -27,13 +25,8 @@
  "ItemsPage.tsx  원본 품목등록 의 [품질검사요청-구매] 조건이 없다",
  "ItemsPage.tsx  원본 품목등록 의 [품질검사요청-생산입고] 조건이 없다",
  "ItemsPage.tsx  원본 품목등록 의 [품질검사유형] 조건이 없다",
- "LateArrivalPage.tsx  원본 지각현황(ID) 의 [정렬/소계기준] 조건이 없다",
  "LeaveListPage.tsx  원본 근태조회 의 [기준일자] 조건이 없다",
  "LotStockComparePage.tsx  원본 품목vs시리얼재고수량비교 의 [기준일자] 조건이 없다",
- "MonthlyArApPage.tsx  원본 월별채권증감내역 의 [거래처관리담당자] 조건이 없다",
- "MonthlyArApPage.tsx  원본 월별채권증감내역 의 [대표거래처로 합산] 조건이 없다",
- "MonthlyArApPage.tsx  원본 월별채무증감내역 의 [거래처관리담당자] 조건이 없다",
- "MonthlyArApPage.tsx  원본 월별채무증감내역 의 [대표거래처로 합산] 조건이 없다",
  "MyApprovalPage.tsx  원본 내결재관리 의 [구분] 조건이 없다",
  "PartnersPage.tsx  원본 거래처등록 의 [거래유형(구매)] 조건이 없다",
  "PartnersPage.tsx  원본 거래처등록 의 [거래유형(영업)] 조건이 없다",
@@ -87,7 +80,6 @@
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태구분] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태그룹] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [근태항목] 조건이 없다",
- "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [정렬/소계기준] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [프로젝트] 조건이 없다",
  "WorkIntegratedPage.tsx  원본 출퇴근/근태/일정현황(ID) 의 [휴가항목] 조건이 없다"
 ]
