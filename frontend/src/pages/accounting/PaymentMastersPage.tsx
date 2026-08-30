@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { EcCond } from '../../components/EcStatusPanel'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
@@ -26,6 +27,23 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
   const [editId, setEditId] = useState<number | null>(null)
   const [cardForm, setCardForm] = useState(emptyCard)
   const [agencyForm, setAgencyForm] = useState(emptyAgency)
+
+  /*
+   * <b>조건 판이 통째로 없었다.</b> 원본 카드사등록·결제대행사등록에는 코드·이름·사용구분으로
+   * 좁히는 자리가 있는데, 우리 화면은 표만 있어서 카드사가 스무 개만 넘어도 눈으로 찾아야 했다.
+   *
+   * <p>원본 조건은 스물 남짓이지만 대부분 우리에게 없는 값이다(그룹1·2 · 업태·종목 ·
+   * 주소·우편번호 · 세무신고거래처 · 외화거래처). <b>값이 실제로 있는 셋</b>만 만든다 —
+   * 코드 · 이름 · 사용구분. 두 탭이 같은 조건을 쓰므로 한 벌로 둔다.
+   */
+  const [cond, setCond] = useState({ code: '', name: '', use: '전체' as '전체' | '사용' | '중지' })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+  const narrow = <T extends { code: string; name: string; active: boolean }>(rows: T[]) => rows
+    .filter((r) => !cond.code || r.code.includes(cond.code))
+    .filter((r) => !cond.name || r.name.includes(cond.name))
+    .filter((r) => cond.use === '전체' || (r.active ? '사용' : '중지') === cond.use)
+  const shownCards = narrow(cards)
+  const shownAgencies = narrow(agencies)
 
   useEffect(() => { setTab(defaultTab) }, [defaultTab])
 
@@ -139,6 +157,24 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
         </form>
       )}</Modal>
 
+      {/* 원본 조건 차례: 코드 · 이름 · … · 사용구분 (사본 실측). 두 탭이 같은 조건을 쓴다. */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label={tab === 'card' ? '카드사 코드' : '결제대행사코드'}>
+          <input className="ec-input" value={cond.code}
+                 onChange={(e) => setC({ code: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label={tab === 'card' ? '카드사명' : '결제대행사명'}>
+          <input className="ec-input" value={cond.name}
+                 onChange={(e) => setC({ name: e.target.value })} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="사용구분">
+          <select className="ec-input" value={cond.use} style={{ width: 100 }}
+                  onChange={(e) => setC({ use: e.target.value as typeof cond.use })}>
+            <option>전체</option><option>사용</option><option>중지</option>
+          </select>
+        </EcCond>
+      </ul>
+
       {tab === 'card' ? (
         <table className="w-full text-left">
           <thead><tr>
@@ -149,7 +185,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
           <tbody>
             {loading ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             : cards.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            : cards.map((c, i) => (
+            : shownCards.map((c, i) => (
               <tr key={c.id} style={{ opacity: c.active ? 1 : 0.5 }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.code}</td>
@@ -177,7 +213,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
           <tbody>
             {loading ? <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             : agencies.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            : agencies.map((a, i) => (
+            : shownAgencies.map((a, i) => (
               <tr key={a.id} style={{ opacity: a.active ? 1 : 0.5 }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{a.code}</td>
