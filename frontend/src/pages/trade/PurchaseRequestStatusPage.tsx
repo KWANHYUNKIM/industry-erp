@@ -58,6 +58,9 @@ interface Row {
   /** 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
   project: string
   itemName: string
+  /** 원본 조건 [규격]·[적요]. 서버는 진작 보내는데 화면이 안 받아 뒀다. */
+  spec: string
+  remark: string
   qty: number
   unitPrice: number
   supply: number
@@ -99,7 +102,7 @@ export default function PurchaseRequestStatusPage({
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',
-    orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '',
+    orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '', spec: '', remark: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -128,6 +131,8 @@ export default function PurchaseRequestStatusPage({
           employee: o.employeeName ?? '',
           project: o.projectName ?? '',
           itemName: l.itemName,
+          spec: l.spec ?? '',
+          remark: l.remark ?? '',
           qty: l.quantity,
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
@@ -156,6 +161,9 @@ export default function PurchaseRequestStatusPage({
     && (!c.warehouse || r.warehouse.includes(c.warehouse))
     /* 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.project || r.project === c.project)
+    /* 원본 조건 [규격]·[적요]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */
+    && (!c.spec || r.spec.includes(c.spec))
+    && (!c.remark || r.remark.includes(c.remark))
     /* 원본 조건 [담당자]. 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.employee || r.employee.includes(c.employee))
     && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
@@ -196,7 +204,7 @@ export default function PurchaseRequestStatusPage({
   }, [mode, shown])
 
   const reset = () => {
-    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '' })
+    setCond({ from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '', spec: '', remark: '' })
     setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
 
@@ -318,6 +326,18 @@ export default function PurchaseRequestStatusPage({
           고르게만 해 두어서, 조건 판만 보는 사람은 <b>지금 어느 단계를 보고 있는지</b>도
           모르고 다른 단계로 옮길 수도 없었다. 카드와 <b>같은 값</b>을 쓴다.
         */}
+        {/*
+          원본 차례: 담당자 · <b>규격 · 적요</b> · 진행상태(발주계획현황) 인데,
+          단가요청현황은 적요 · 규격 순이다 — 조건이 더 많은 발주계획현황에 맞춘다.
+        */}
+        <EcCond label="규격">
+          <input className="ec-input" value={cond.spec}
+                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={cond.remark}
+                 onChange={(e) => setC({ remark: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
         <EcCond label="진행상태">
           <select className="ec-input" value={status} style={{ width: 140 }}
                   onChange={(e) => setStatus(e.target.value as PurchaseOrderStatus)}>

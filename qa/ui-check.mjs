@@ -148,6 +148,26 @@ const DTO_SRC = (() => {
   return walk(dir).filter((f) => f.endsWith('Dtos.java')).map((f) => readFileSync(f, 'utf8')).join('')
 })()
 
+/**
+ * <b>모듈별</b> 응답 DTO. 위 DTO_SRC 는 백엔드를 한 덩어리로 봐서, 아무 데나 그 이름이
+ * 있으면 '있다' 고 귀띔한다 — 그래서 단정하지 않고 귀띔만 했다.
+ *
+ * <p>화면 파일은 <code>trade/…Page.tsx</code> 처럼 <b>모듈로 갈라져</b> 있고 백엔드도
+ * <code>com/erp/trade/dto/…Dtos.java</code> 로 같은 이름을 쓴다. 짝을 지으면 그 화면이
+ * 실제로 받는 쪽만 볼 수 있다.
+ */
+const DTO_BY_MODULE = (() => {
+  const dir = join('backend', 'src', 'main', 'java', 'com', 'erp')
+  const m = new Map()
+  if (!existsSync(dir)) return m
+  for (const f of walk(dir)) {
+    if (!f.endsWith('Dtos.java')) continue
+    const mod = f.split(sep).slice(-3)[0]
+    m.set(mod, (m.get(mod) ?? '') + readFileSync(f, 'utf8'))
+  }
+  return m
+})()
+
 /** 조건 이름 → 응답에서 찾아볼 필드 이름. 되풀이해 걸린 것만 적는다. */
 const COND_FIELD = new Map([
   ['창고', 'warehouseName'], ['출하창고', 'warehouseName'], ['입고창고', 'warehouseName'],
@@ -3285,6 +3305,29 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
   const grown = flat.filter((x) => !TODO.includes(x))
   const gone = TODO.filter((x) => !flat.includes(x))
   eq(`안 만든 조건이 늘지 않았다 (아직 ${TODO.length}개 남음)`, grown.join('\n') || '없음', '없음')
+
+  /*
+   * <b>목록에서 먼저 손댈 것을 골라 준다.</b> 세 판 내리 같은 모양이었다 —
+   * [담당자]·[규격]·[프로젝트] 셋 다 <b>서버는 보내는데 화면이 안 받아 둬서</b> 못 걸렀다.
+   * 그런 자리는 화면만 고치면 되므로 <b>제일 싸다</b>. 목록을 훑어 몇 개인지 세고 앞줄을 보여 준다.
+   *
+   * <p>귀띔은 그 화면이 속한 <b>모듈의 DTO</b> 만 본다 — 백엔드 전체를 보면 아무 데나 그
+   * 이름이 있어 늘 '있다' 가 된다. 그래도 <b>단정은 아니다</b>: 같은 모듈의 다른 응답일 수 있다.
+   */
+  const cheap = []
+  for (const line of TODO) {
+    const m = /^(\S+\.tsx)\s+원본 (.+?) 의 \[(.+?)\] 조건이 없다$/.exec(line)
+    if (!m) continue
+    const rel = FORM_MAP.get(m[2])
+    const field = COND_FIELD.get(m[3])
+    if (!rel || !field) continue
+    const dto = DTO_BY_MODULE.get(rel.split('/')[0]) ?? ''
+    if (new RegExp(String.raw`\b` + field + String.raw`\b`).test(dto)) {
+      cheap.push(`${line}  ← 같은 모듈 응답에 ${field} 가 있다`)
+    }
+  }
+  console.log(`  · 목록 ${TODO.length}개 가운데 서버가 이미 보내는 것으로 보이는 자리 ${cheap.length}개`)
+  for (const c of cheap.slice(0, 6)) console.log(`      ${c}`)
   eq('만들어 놓고 목록에 남겨 둔 조건이 없다', gone.join('\n') || '없음', '없음')
 }
 

@@ -1671,10 +1671,14 @@ export interface PurchaseOrderLine {
   itemCode: string
   itemName: string
   unit: string
+  /** 원본 조건·열의 [규격]. 서버가 품목에서 실어 준다. */
+  spec: string | null
   quantity: number
   unitPrice: number
   supplyAmount: number
   vatAmount: number
+  /** 원본 조건 [적요]. 줄마다 붙는 메모다. */
+  remark: string | null
 }
 
 export interface PurchaseOrder {
