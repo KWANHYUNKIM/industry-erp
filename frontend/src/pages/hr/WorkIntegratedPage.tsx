@@ -21,6 +21,8 @@ interface ScheduleEvent {
 interface MergedRow {
   key: string; date: string; name: string; department: string | null
   clockIn: string | null; clockOut: string | null; status: string | null
+  /** 원본 조건 [적요] — 근태에 적어 둔 메모다(응답의 note). */
+  note: string | null
   events: { title: string; category: string | null; startTime: string | null }[]
 }
 
@@ -39,6 +41,11 @@ export default function WorkIntegratedPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 조건 <b>[적요]</b>. 근태에 적어 둔 메모(note)가 응답에 진작 실려 오는데
+   * 화면이 버리고 있어서, "출장이라고 적어 둔 날" 만 골라 볼 수가 없었다.
+   */
+  const [noteCond, setNoteCond] = useState('')
   /**
    * 원본 출·퇴근기록부(ID)의 탭 — <b>[사용자]가 기본</b>이다. 내 기록만 보는 자리인데
    * 우리는 늘 전체를 뿌려서, 사람이 많은 회사에서는 내 줄을 눈으로 찾아야 했다.
@@ -70,7 +77,7 @@ export default function WorkIntegratedPage() {
     for (const a of att) {
       map.set(`${a.empName}|${a.date}`, {
         key: `${a.empName}|${a.date}`, date: a.date, name: a.empName, department: a.department,
-        clockIn: a.clockIn, clockOut: a.clockOut, status: a.status, events: [],
+        clockIn: a.clockIn, clockOut: a.clockOut, status: a.status, note: a.note, events: [],
       })
     }
     // 일정을 이름+일자로 붙인다. 기간 필터는 근태와 동일하게 적용.
@@ -81,17 +88,18 @@ export default function WorkIntegratedPage() {
       const key = `${name}|${ev.eventDate}`
       let row = map.get(key)
       if (!row) {
-        row = { key, date: ev.eventDate, name, department: null, clockIn: null, clockOut: null, status: null, events: [] }
+        row = { key, date: ev.eventDate, name, department: null, clockIn: null, clockOut: null, status: null, note: null, events: [] }
         map.set(key, row)
       }
       row.events.push({ title: ev.title, category: ev.category, startTime: ev.startTime })
     }
     return [...map.values()]
       .filter((r) => !keyword || r.name.includes(keyword) || (r.department ?? '').includes(keyword))
+      .filter((r) => !noteCond || (r.note ?? '').includes(noteCond))
       // 원본 탭 [사용자] — 내 기록만 본다. 사람이 많은 회사에서 남의 줄 사이를 훑을 일이 아니다.
       .filter((r) => tab === '전체' || r.name === user?.name)
       .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'ko'))
-  }, [att, events, from, to, keyword, tab, user?.name])
+  }, [att, events, from, to, keyword, noteCond, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
 
@@ -117,6 +125,10 @@ export default function WorkIntegratedPage() {
         <span>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn" onClick={load}>조회</button>
+        {/* 원본 조건 [적요] — 근태 메모로 좁힌다. */}
+        <span style={{ marginLeft: 8 }}>적요</span>
+        <input className="ec-input" placeholder="적요 일부" value={noteCond}
+               onChange={(e) => setNoteCond(e.target.value)} style={{ width: 150 }} />
         <span style={{ marginLeft: 8, color: '#9aa1ab' }}>근태·일정을 사원명+일자로 통합</span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
           행 <b style={{ color: '#3c4553' }}>{rows.length}</b>
@@ -133,14 +145,16 @@ export default function WorkIntegratedPage() {
             <th style={{ width: 34 }}></th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원/담당</th><th>부서</th>
             <th style={{ textAlign: 'center' }}>출근</th><th style={{ textAlign: 'center' }}>퇴근</th>
-            <th style={{ textAlign: 'center' }}>근태</th><th>일정</th>
+            <th style={{ textAlign: 'center' }}>근태</th>
+            {/* 원본 조건에 [적요]가 있다 — 거르려면 표에도 보여야 한다. */}
+            <th style={{ width: 140 }}>적요</th><th>일정</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -150,6 +164,7 @@ export default function WorkIntegratedPage() {
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.note ?? ''}</td>
               <td>
                 {r.events.length === 0 ? <span style={{ color: '#c5cbd3' }}>-</span> : (
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

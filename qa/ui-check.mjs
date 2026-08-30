@@ -222,15 +222,26 @@ const responseSrcFor = (pageSrc) => {
  * 있는지가 중요하다 — 이름을 같이 적어야 헛다리인지 사람이 바로 안다.
  */
 const recordWith = (pairs, field) => {
-  const hit = pairs.find(([, body]) => new RegExp(String.raw`\b` + field + String.raw`\b`).test(body))
-  return hit ? hit[0] : ''
+  /* 짝이 여럿일 수 있다 — [적요]는 전표의 remark 와 근태의 note 를 둘 다 본다. */
+  const names = Array.isArray(field) ? field : [field]
+  for (const n of names) {
+    const hit = pairs.find(([, body]) => new RegExp(String.raw`\b` + n + String.raw`\b`).test(body))
+    if (hit) return `${hit[0]} 에 ${n}`
+  }
+  return ''
 }
 
 /** 조건 이름 → 응답에서 찾아볼 필드 이름. 되풀이해 걸린 것만 적는다. */
 const COND_FIELD = new Map([
   ['창고', 'warehouseName'], ['출하창고', 'warehouseName'], ['입고창고', 'warehouseName'],
   ['프로젝트', 'projectName'], ['담당자', 'employeeName'], ['거래처', 'partnerName'],
-  ['품목', 'itemName'], ['규격', 'spec'], ['재직구분', 'active'], ['적요', 'remark'],
+  ['품목', 'itemName'], ['규격', 'spec'], ['재직구분', 'active'],
+  /*
+   * <b>한 이름이 응답에서 여러 낱말로 불린다.</b> [적요]는 전표에서는 remark 인데
+   * 근태에서는 <b>note</b> 다 — 하나만 보면 엉뚱한 응답을 짚는다(출퇴근/근태/일정현황의
+   * [적요]를 일정의 remark 로 짚었는데, 실제로는 근태의 note 였다).
+   */
+  ['적요', ['remark', 'note', 'memo']],
 ])
 
 const serverHasHint = (cond) => {
@@ -3385,7 +3396,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 응답을 못 따라가면 모듈 DTO 로 물러서되, 그때는 <b>귀띔을 달지 않는다</b>.
      */
     const rec = recordWith(responseSrcFor(pageSource(rel) ?? ''), field)
-    if (rec) cheap.push(`${line}  ← ${rec} 에 ${field} 가 있다`)
+    if (rec) cheap.push(`${line}  ← ${rec} 가 있다`)
   }
   console.log(`  · 목록 ${TODO.length}개 가운데 서버가 이미 보내는 것으로 보이는 자리 ${cheap.length}개`)
   for (const c of cheap.slice(0, 12)) console.log(`      ${c}`)
