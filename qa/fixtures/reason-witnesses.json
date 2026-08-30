@@ -721,5 +721,20 @@
    "postedAt"
   ],
   "in": "backend"
+ },
+ "거래처관리대장 II|기준일자": {
+  "claim": "거래처 목록에 잔액을 싣지 않는다 — 자를 값이 없다",
+  "absent": [
+   "balance",
+   "outstanding"
+  ],
+  "in": "trade/dto/PartnerDtos.java"
+ },
+ "매출계획비교표|기준일자": {
+  "claim": "계획이 연·월 단위라 날짜 구간으로 자를 것이 없다",
+  "present": [
+   "계획연도"
+  ],
+  "file": "trade/SalesPlanPage.tsx"
  }
 }

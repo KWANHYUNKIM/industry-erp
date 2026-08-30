@@ -76,6 +76,15 @@ export default function SchedulePage() {
   const [labelCond, setLabelCond] = useState('')
   /** 캘린더에서 고른 날. 빈 문자열이면 고른 날 없음 = 전체 보기. */
   const [pickedDate, setPickedDate] = useState('')
+  /*
+   * 원본 일정관리 조건 첫째는 <b>[기준일자]</b> 이고 <b>구간</b>이다(사본 실측).
+   * 우리는 달력에서 <b>하루</b>만 고를 수 있었고, 안 고르면 <b>전 기간</b>이었다 —
+   * 일정이 쌓이면 "이번 주" 나 "다음 달" 을 볼 방법이 없었다.
+   *
+   * <p>비워 두고 시작한다. 채우면 그 구간만 보고, 달력에서 하루를 고르면 그 안에서 더 좁힌다.
+   */
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   /** 원본 하단 [선택삭제] 는 고른 행을 한꺼번에 지운다. 고르는 방식은 회색 행번호 칸 클릭 — 다른 목록과 같다. */
   const [selected, setSelected] = useState<Set<number>>(new Set())
 
@@ -142,7 +151,10 @@ export default function SchedulePage() {
     // 원본 왼쪽 [캘린더]. 공유일정캘린더는 전체다.
     .filter((r) => calendar === '[기본] 공유일정캘린더'
       || (calendar === '내 캘린더' ? isMine(r) : !otherOwner || (r.createdBy ?? '') === otherOwner))
-    // 달력에서 고른 날이 있으면 그날만. 없으면 전체 — 원본도 같은 규칙이다.
+    // 원본 [기준일자] 구간. 비어 있으면 안 거른다.
+    .filter((r) => !from || r.eventDate >= from)
+    .filter((r) => !to || r.eventDate <= to)
+    // 달력에서 고른 날이 있으면 그 구간 안에서 그날만.
     .filter((r) => !pickedDate || r.eventDate === pickedDate)
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
@@ -260,10 +272,20 @@ export default function SchedulePage() {
           <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--ec-text-grid)' }}>
             {pickedDate
               ? `${pickedDate.replace(/-/g, '/')} (${DOW[new Date(pickedDate).getDay()]})`
+              : (from || to)
+                ? `${(from || '처음').replace(/-/g, '/')} ~ ${(to || '끝').replace(/-/g, '/')}`
               : '전체 기간'}
           </div>
           {/* 원본 차례: 참석자 · 제목 · 장소 — 참석자는 등록 폼의 칸이라 조건 판에는 둘이다. */}
           <ul className="ec-cond" style={{ marginBottom: 6 }}>
+            {/* 원본 조건 첫째 [기준일자] — 구간이다. 달력의 하루 고르기는 이 안에서 더 좁힌다. */}
+            <EcCond label="기준일자">
+              <input type="date" className="ec-input" value={from}
+                     onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className="ec-input" value={to}
+                     onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
             <EcCond label="제목">
               <input className="ec-input" value={titleCond} placeholder="제목"
                      onChange={(e) => setTitleCond(e.target.value)} style={{ width: 160 }} />
