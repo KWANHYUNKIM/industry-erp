@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../api/types'
 import { dateText } from '../../utils/dateText'
@@ -129,7 +130,22 @@ export default function EmployeePage() {
     }
   }
 
-  const shownRows = rows.filter((e) => includeInactive || e.active)
+  /*
+   * <b>거르는 자리가 [사용중단사원포함] 체크 하나뿐이었다.</b> 사원이 쌓이면 사번이나 이름으로
+   * 좁힐 수가 없어 표를 눈으로 훑어야 했다. 원본 조건 셋을 만든다 —
+   * 사원(담당)코드 · 사원(담당)명 · 사용구분.
+   *
+   * <p>나머지(검색창내용 · 적요 · 담당자연락처 · 담당자Email · 추가항목3~6)는 우리 사원에
+   * 그 칸이 없다. 사용구분은 이미 있는 체크와 <b>같은 뜻</b>이라, 체크를 조건으로 옮기고
+   * [전체]를 기본으로 둔다 — 지금 보이던 목록이 그대로다.
+   */
+  const [codeCond, setCodeCond] = useState('')
+  const [nameCond, setNameCond] = useState('')
+
+  const shownRows = rows
+    .filter((e) => includeInactive || e.active)
+    .filter((e) => !codeCond || e.code.includes(codeCond))
+    .filter((e) => !nameCond || e.name.includes(nameCond))
 
   /*
    * 사본의 사원(담당)등록 격자는 <b>코드·이름·사용</b>에 정렬 표시를 단다(부서등록의
@@ -159,11 +175,24 @@ export default function EmployeePage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-        <input type="checkbox" checked={includeInactive}
-               onChange={(e) => setIncludeInactive(e.target.checked)} />
-        사용중단사원포함
-      </label>
+      {/* 원본 조건 차례: 사원(담당)코드 · 사원(담당)명 · … · 사용구분 (사본 실측) */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="사원(담당)코드">
+          <input className="ec-input" value={codeCond}
+                 onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="사원(담당)명">
+          <input className="ec-input" value={nameCond}
+                 onChange={(e) => setNameCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="사용구분">
+          <select className="ec-input" style={{ width: 110 }}
+                  value={includeInactive ? '전체' : '사용'}
+                  onChange={(e) => setIncludeInactive(e.target.value === '전체')}>
+            <option>전체</option><option>사용</option>
+          </select>
+        </EcCond>
+      </ul>
 
       <Modal open={showForm} title={editId ? '사원 수정' : '사원 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
