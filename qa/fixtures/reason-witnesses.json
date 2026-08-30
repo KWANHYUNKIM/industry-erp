@@ -832,5 +832,37 @@
    "당월잔액"
   ],
   "file": "trade/MonthlyArApPage.tsx"
+ },
+ "자가사용현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "불량처리현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "폐기현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
  }
 }

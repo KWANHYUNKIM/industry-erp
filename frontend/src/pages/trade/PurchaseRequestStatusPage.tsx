@@ -289,6 +289,17 @@ export default function PurchaseRequestStatusPage({
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 조건 판의 <b>[진행상태]</b>(사본 실측). 우리는 위 <b>단계 카드</b>를 눌러
+          고르게만 해 두어서, 조건 판만 보는 사람은 <b>지금 어느 단계를 보고 있는지</b>도
+          모르고 다른 단계로 옮길 수도 없었다. 카드와 <b>같은 값</b>을 쓴다.
+        */}
+        <EcCond label="진행상태">
+          <select className="ec-input" value={status} style={{ width: 140 }}
+                  onChange={(e) => setStatus(e.target.value as PurchaseOrderStatus)}>
+            {PIPELINE.map((st) => <option key={st} value={st}>{STATUS_LABEL[st]}</option>)}
+          </select>
+        </EcCond>
       </EcStatusPanel>
 
       {prevTotals && (
