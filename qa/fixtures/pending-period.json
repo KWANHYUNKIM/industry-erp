@@ -15,6 +15,8 @@
  "/pay-settings/transfers",
  "/pay-settings/transfers/transferred-payslips",
  "/production-plans",
+ "/projects",
+ "/projects/profit",
  "/quality-inspection-requests",
  "/sales-orders/unshipped",
  "/sales-orders/unsold",
