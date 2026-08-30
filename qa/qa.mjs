@@ -987,7 +987,13 @@ async function scenarioQuotationWarehouseProject(f) {
     type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1,
     adjustDate: '2026-03-02', projectId: proj.id, employeeId: emp?.id,
   })
-  const adj = (await must('GET', '/stock-adjustments')).rows.find((x) => x.projectName === proj.name)
+  /*
+   * <b>기간을 준다.</b> 조건 없이 부르면 최신 5천 줄만 오는데(#238 의 문턱), 이 시나리오가
+   * 넣는 줄은 2026-03-02 이라 자료가 쌓이면 그 뒤로 밀린다 — 실제로 그렇게 걸렸다.
+   * 재고수불부에서 겪은 것과 같은 일이다: 자르기를 만들면 <b>세던 쪽</b>이 조용히 달라진다.
+   */
+  const adj = (await must('GET', '/stock-adjustments?from=2026-03-01&to=2026-03-31'))
+    .rows.find((x) => x.projectName === proj.name)
   eq('재고조정이 프로젝트를 문다', adj?.projectName, proj.name)
   eq('재고조정이 담당자 id 를 그대로 돌려준다', adj?.employeeId, emp?.id ?? null)
 

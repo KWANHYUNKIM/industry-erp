@@ -168,6 +168,64 @@ const DTO_BY_MODULE = (() => {
   return m
 })()
 
+/**
+ * <b>화면이 실제로 받는 응답 record 를 찾아 준다.</b>
+ *
+ * <p>모듈로 좁힌 것만으로는 모자랐다 — 사원(담당)등록의 [적요]를 '서버가 보낸다' 고
+ * 귀띔했는데, 그 remark 는 <b>발령 기록(AssignmentResponse)</b> 의 것이었다.
+ * 품목등록의 [적요]도 마찬가지로 헛짚었다(Item 에는 remark 가 아예 없다).
+ * 아홉 중 셋이 거짓이었다 — 그대로 두면 다음 사람이 그 셋을 파느라 시간을 버린다.
+ *
+ * <p>그래서 <b>화면 → 부르는 자리 → 컨트롤러 → 응답 record</b> 까지 따라가 그 record 의
+ * 칸만 본다. 못 따라가면 아무 말도 안 한다(귀띔이 없는 편이 틀린 귀띔보다 낫다).
+ */
+const RESPONSE_FIELDS = (() => {
+  const dir = join('backend', 'src', 'main', 'java', 'com', 'erp')
+  const byPath = new Map()   // '/stock-adjustments' → 응답 record 이름
+  const recBody = new Map()  // record 이름 → 본문
+  if (!existsSync(dir)) return { byPath, recBody }
+  for (const f of walk(dir)) {
+    const src = readFileSync(f, 'utf8')
+    if (f.endsWith('Controller.java')) {
+      const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+      for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?[\s\S]{0,200}?public\s+([\w<>., ]+?)\s+\w+\(/g)) {
+        const sub = m[1] ?? ''
+        if (sub.includes('{')) continue
+        const rec = (m[2].match(/(\w+Response|\w+Row|\w+Summary)/) || [])[1]
+        if (rec) byPath.set((base + sub).replace('/api', ''), rec)
+      }
+    }
+    if (f.endsWith('Dtos.java')) {
+      for (const m of src.matchAll(/record\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g)) {
+        if (!recBody.has(m[1])) recBody.set(m[1], m[2])
+      }
+    }
+  }
+  return { byPath, recBody }
+})()
+
+/** 그 화면이 부르는 자리들의 응답 record 본문을 이어 준다. */
+const responseSrcFor = (pageSrc) => {
+  const out = []
+  for (const m of pageSrc.matchAll(/api\.get<[^>]*>\('([^']+)'/g)) {
+    const rec = RESPONSE_FIELDS.byPath.get(m[1].split('?')[0])
+    const body = rec && RESPONSE_FIELDS.recBody.get(rec)
+    if (body) out.push([rec, body])
+  }
+  return out
+}
+
+/**
+ * 그 이름의 칸을 가진 <b>응답 record 이름</b>을 돌려준다. 없으면 빈 문자열.
+ *
+ * <p>한 화면이 여러 자리를 부르면(품목등록은 품목·그룹·관리항목 …) <b>어느 응답</b>에
+ * 있는지가 중요하다 — 이름을 같이 적어야 헛다리인지 사람이 바로 안다.
+ */
+const recordWith = (pairs, field) => {
+  const hit = pairs.find(([, body]) => new RegExp(String.raw`\b` + field + String.raw`\b`).test(body))
+  return hit ? hit[0] : ''
+}
+
 /** 조건 이름 → 응답에서 찾아볼 필드 이름. 되풀이해 걸린 것만 적는다. */
 const COND_FIELD = new Map([
   ['창고', 'warehouseName'], ['출하창고', 'warehouseName'], ['입고창고', 'warehouseName'],
@@ -3321,13 +3379,16 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     const rel = FORM_MAP.get(m[2])
     const field = COND_FIELD.get(m[3])
     if (!rel || !field) continue
-    const dto = DTO_BY_MODULE.get(rel.split('/')[0]) ?? ''
-    if (new RegExp(String.raw`\b` + field + String.raw`\b`).test(dto)) {
-      cheap.push(`${line}  ← 같은 모듈 응답에 ${field} 가 있다`)
-    }
+    /*
+     * <b>그 화면이 실제로 받는 응답</b>만 본다. 모듈만 좁혔을 때는 아홉 중 셋이 거짓이었다 —
+     * 사원(담당)등록의 remark 는 발령 기록의 것이고 품목에는 remark 가 아예 없다.
+     * 응답을 못 따라가면 모듈 DTO 로 물러서되, 그때는 <b>귀띔을 달지 않는다</b>.
+     */
+    const rec = recordWith(responseSrcFor(pageSource(rel) ?? ''), field)
+    if (rec) cheap.push(`${line}  ← ${rec} 에 ${field} 가 있다`)
   }
   console.log(`  · 목록 ${TODO.length}개 가운데 서버가 이미 보내는 것으로 보이는 자리 ${cheap.length}개`)
-  for (const c of cheap.slice(0, 6)) console.log(`      ${c}`)
+  for (const c of cheap.slice(0, 12)) console.log(`      ${c}`)
   eq('만들어 놓고 목록에 남겨 둔 조건이 없다', gone.join('\n') || '없음', '없음')
 }
 
