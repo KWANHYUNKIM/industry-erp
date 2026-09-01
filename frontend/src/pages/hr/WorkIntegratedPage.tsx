@@ -18,6 +18,8 @@ interface AttendanceRow {
 }
 interface ScheduleEvent {
   id: number; eventDate: string; startTime: string | null; title: string; category: string | null; owner: string | null
+  /** 원본 조건 [공유여부]·[프로젝트]. 일정에 담을 자리가 없어 두 조건을 만들 수가 없었다. */
+  shared: boolean; projectId: number | null; projectName: string | null
 }
 interface MergedRow {
   key: string; date: string; name: string; department: string | null
@@ -25,6 +27,8 @@ interface MergedRow {
   /** 원본 조건 [적요] — 근태에 적어 둔 메모다(응답의 note). */
   note: string | null
   events: { title: string; category: string | null; startTime: string | null }[]
+  /** 그 줄에 걸린 일정의 공유 여부와 프로젝트 이름들 — 거르는 데 쓴다. */
+  hasShared: boolean; hasPrivate: boolean; projects: Set<string>
 }
 
 const mono = { fontFamily: 'monospace' as const }
@@ -56,6 +60,9 @@ export default function WorkIntegratedPage() {
   const [deptCond, setDeptCond] = useState('')
   const [statusCond, setStatusCond] = useState('')
   const [catCond, setCatCond] = useState('')
+  /** 원본 조건 [공유여부]·[프로젝트]. 서버가 이제 실어 준다. */
+  const [sharedCond, setSharedCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
   /**
    * 원본 출·퇴근기록부(ID)의 탭 — <b>[사용자]가 기본</b>이다. 내 기록만 보는 자리인데
    * 우리는 늘 전체를 뿌려서, 사람이 많은 회사에서는 내 줄을 눈으로 찾아야 했다.
@@ -88,6 +95,7 @@ export default function WorkIntegratedPage() {
       map.set(`${a.empName}|${a.date}`, {
         key: `${a.empName}|${a.date}`, date: a.date, name: a.empName, department: a.department,
         clockIn: a.clockIn, clockOut: a.clockOut, status: a.status, note: a.note, events: [],
+        hasShared: false, hasPrivate: false, projects: new Set<string>(),
       })
     }
     // 일정을 이름+일자로 붙인다. 기간 필터는 근태와 동일하게 적용.
@@ -98,10 +106,18 @@ export default function WorkIntegratedPage() {
       const key = `${name}|${ev.eventDate}`
       let row = map.get(key)
       if (!row) {
-        row = { key, date: ev.eventDate, name, department: null, clockIn: null, clockOut: null, status: null, note: null, events: [] }
+        row = {
+          key, date: ev.eventDate, name, department: null, clockIn: null, clockOut: null,
+          status: null, note: null, events: [],
+          hasShared: false, hasPrivate: false, projects: new Set<string>(),
+        }
         map.set(key, row)
       }
       row.events.push({ title: ev.title, category: ev.category, startTime: ev.startTime })
+      /* 일정의 공유·프로젝트는 <b>그 줄에</b> 모아 둔다 — 한 줄에 일정이 여럿일 수 있다. */
+      if (ev.shared) row.hasShared = true
+      else row.hasPrivate = true
+      if (ev.projectName) row.projects.add(ev.projectName)
     }
     return [...map.values()]
       .filter((r) => !keyword || r.name.includes(keyword) || (r.department ?? '').includes(keyword))
@@ -109,12 +125,19 @@ export default function WorkIntegratedPage() {
       .filter((r) => !nameCond || r.name.includes(nameCond))
       .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
       .filter((r) => !statusCond || (r.status ?? '') === statusCond)
+      /*
+       * 원본 조건 <b>[공유여부]</b>. 한 줄에 일정이 여럿일 수 있어 <b>그 줄에 하나라도</b>
+       * 있으면 걸리게 한다 — 공유 하나·비공개 하나면 어느 쪽으로 걸러도 나온다.
+       */
+      .filter((r) => !sharedCond || (sharedCond === '공유' ? r.hasShared : r.hasPrivate))
+      /* 원본 조건 [프로젝트]. 일정에 붙은 현장·과제로 좁힌다. */
+      .filter((r) => !projectCond || r.projects.has(projectCond))
       /* 일정구분은 그 줄의 <b>일정 가운데 하나라도</b> 맞으면 남긴다 — 하루에 여럿일 수 있다. */
       .filter((r) => !catCond || r.events.some((e) => (e.category ?? '') === catCond))
       // 원본 탭 [사용자] — 내 기록만 본다. 사람이 많은 회사에서 남의 줄 사이를 훑을 일이 아니다.
       .filter((r) => tab === '전체' || r.name === user?.name)
       .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'ko'))
-  }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, statusCond, catCond, tab, user?.name])
+  }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, statusCond, catCond, sharedCond, projectCond, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
 
@@ -136,6 +159,8 @@ export default function WorkIntegratedPage() {
   /** 고를 값 — 받아 온 줄에서 모은다(마스터가 없다). */
   const statuses = [...new Set(att.map((a) => a.status).filter(Boolean))].sort()
   const categories = [...new Set(events.map((e) => e.category ?? '').filter(Boolean))].sort()
+  /* 고를 값은 지금 받아 온 일정에서 모은다 — 안 쓰는 프로젝트를 늘어놓지 않는다. */
+  const projects = [...new Set(events.map((e) => e.projectName ?? '').filter(Boolean))].sort()
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -170,6 +195,13 @@ export default function WorkIntegratedPage() {
         <span style={{ marginLeft: 8 }}>부서</span>
         <input className="ec-input" value={deptCond}
                onChange={(e) => setDeptCond(e.target.value)} style={{ width: 110 }} />
+        {/* 원본 차례: 사원명 · 부서 · <b>프로젝트</b> · 적요 (사본 실측). */}
+        <span style={{ marginLeft: 8 }}>프로젝트</span>
+        <select className="ec-input" value={projectCond} style={{ width: 130 }}
+                onChange={(e) => setProjectCond(e.target.value)}>
+          <option value="">전체</option>
+          {projects.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
         {/* 원본 조건 [적요] — 근태 메모로 좁힌다. */}
         <span style={{ marginLeft: 8 }}>적요</span>
         <input className="ec-input" placeholder="적요 일부" value={noteCond}
@@ -187,6 +219,14 @@ export default function WorkIntegratedPage() {
           {categories.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
+        {/* 원본 차례: 적요 · 상태 · 일정구분 · <b>공유여부</b> · 정렬/소계기준 (사본 실측). */}
+        <span style={{ marginLeft: 8 }}>공유여부</span>
+        <select className="ec-input" value={sharedCond} style={{ width: 100 }}
+                onChange={(e) => setSharedCond(e.target.value)}>
+          <option value="">전체</option>
+          <option value="공유">공유</option>
+          <option value="비공개">비공개</option>
+        </select>
         <span style={{ marginLeft: 8 }}>정렬/소계기준</span>
         <div className="ec-pills">
           {SUBTOTALS.map((v) => (

@@ -31,7 +31,10 @@ public final class ScheduleEventDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String labelText,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /* 원본 [공유여부]·[프로젝트]. 안 주면 공유이고 프로젝트는 안 붙는다. */
+            Boolean shared,
+            Long projectId
     ) {}
 
     /** null 필드는 변경하지 않음. */
@@ -54,20 +57,28 @@ public final class ScheduleEventDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String labelText,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /* 원본 [공유여부]·[프로젝트]. 안 주면 공유이고 프로젝트는 안 붙는다. */
+            Boolean shared,
+            Long projectId
     ) {}
 
     public record ScheduleEventResponse(
             Long id, LocalDate eventDate, String startTime, String endTime, String title,
             String category, String owner, String location, String attendees,
-            String labelText, String remark, String createdBy
+            String labelText, String remark, String createdBy,
+            /** 원본 [공유여부]·[프로젝트]. 프로젝트는 id 와 <b>이름</b>을 같이 준다. */
+            boolean shared, Long projectId, String projectName
     ) {
         public static ScheduleEventResponse from(ScheduleEvent e) {
             return new ScheduleEventResponse(
                     e.getId(), e.getEventDate(), e.getStartTime(), e.getEndTime(), e.getTitle(),
                     e.getCategory(), e.getOwner(), e.getLocation(), e.getAttendees(),
                     e.getLabelText(),
-                    e.getRemark(), e.getCreatedBy());
+                    e.getRemark(), e.getCreatedBy(),
+                    e.isShared(),
+                    e.getProject() != null ? e.getProject().getId() : null,
+                    e.getProject() != null ? e.getProject().getName() : null);
         }
     }
 }

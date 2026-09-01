@@ -67,4 +67,22 @@ public class ScheduleEvent extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /**
+     * 원본 <b>[공유여부]</b>. 이 일정을 남도 보나. 꺼 두면 만든 사람만 본다.
+     * 통합 현황에서 "내 것만" 과 "다 같이 보는 것" 을 갈라 보는 데 쓴다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean shared = true;
+
+    /**
+     * 원본 <b>[프로젝트]</b>. 이 일정이 어느 현장·과제의 것인가 (선택).
+     *
+     * <p><code>Project</code> 는 기초 마스터라 그룹웨어가 참조해도 된다
+     * (groupware → inventory, CLAUDE.md 4.1 의 이미 있는 간선이다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
 }

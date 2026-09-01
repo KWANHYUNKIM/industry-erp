@@ -18,6 +18,7 @@ import com.erp.groupware.dto.ScheduleEventDtos;
 @RequiredArgsConstructor
 public class ScheduleEventService {
 
+    private final com.erp.inventory.service.ProjectService projectService;
     private final ScheduleEventRepository scheduleEventRepository;
 
     /** 일자 오름차순, 그다음 시간/ID 순. */
@@ -42,6 +43,9 @@ public class ScheduleEventService {
                 .attendees(req.attendees())
                 .labelText(req.labelText())
                 .remark(req.remark())
+                /* 안 주면 공유다 — 예전 일정이 다 그랬고, 갑자기 안 보이는 것이 더 놀랍다. */
+                .shared(req.shared() == null || req.shared())
+                .project(projectOf(req.projectId()))
                 .createdBy(username)
                 .build();
         return ScheduleEventResponse.from(scheduleEventRepository.save(e));
@@ -60,6 +64,8 @@ public class ScheduleEventService {
         if (req.attendees() != null) e.setAttendees(req.attendees());
         if (req.labelText() != null) e.setLabelText(req.labelText());
         if (req.remark() != null) e.setRemark(req.remark());
+        if (req.shared() != null) e.setShared(req.shared());
+        if (req.projectId() != null) e.setProject(projectOf(req.projectId()));
         return ScheduleEventResponse.from(e);
     }
 
@@ -72,4 +78,11 @@ public class ScheduleEventService {
         return scheduleEventRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("일정을 찾을 수 없습니다. id=" + id));
     }
+
+    /** 원본 [프로젝트]. 안 고르면 안 붙인다. 없는 id 를 조용히 흘리지 않는다. */
+    private com.erp.inventory.domain.Project projectOf(Long id) {
+        if (id == null) return null;
+        return projectService.get(id);
+    }
+
 }

@@ -1429,5 +1429,49 @@
    "refNo",
    "refDocument"
   ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태항목": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태그룹": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태구분": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근무구분": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|휴가항목": {
+  "claim": "이 화면은 근태와 일정만 합친다",
+  "file": "hr/WorkIntegratedPage.tsx",
+  "present": [
+   "/hr/attendance",
+   "/schedule-events"
+  ]
  }
 }
