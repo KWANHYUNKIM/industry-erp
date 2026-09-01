@@ -271,6 +271,14 @@ export interface Partner {
    */
   parentId: number | null
   parentName: string | null
+  /* 원본 거래처등록 폼의 나머지 칸들. */
+  foreignCurrency: boolean
+  salesTaxType: string | null
+  purchaseTaxType: string | null
+  creditDays: number | null
+  settleDueDay: number | null
+  arNoManaged: boolean
+  apNoManaged: boolean
   partnerGroupId: number | null
   partnerGroupName: string | null
   active: boolean
@@ -820,7 +828,8 @@ export interface PaymentAgency {
   searchKeyword: string | null
   feeRate: number | null
   regNoKind: string
-  industryKind: string
+  /** 원본 [외화거래처]. #281 에 [업종별구분]으로 잘못 만들었던 칸을 깃발로 바로잡았다. */
+  foreignCurrency: boolean
   bizType: string | null
   bizItem: string | null
   manager: string | null

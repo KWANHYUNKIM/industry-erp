@@ -195,6 +195,54 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(name = "search_keyword", length = 200)
     private String searchKeyword;
 
+    /**
+     * 원본 <b>[외화거래처]</b>. 사본에서 이 칸의 id 는 <code>ddlSforeignFlag</code> —
+     * <b>구분이 아니라 깃발</b>이다(업종별구분 <code>ddlSgubun</code> 은 따로 있다).
+     * 이 거래처와의 거래가 외화로 오가나.
+     */
+    @Column(name = "foreign_currency", nullable = false)
+    @Builder.Default
+    private boolean foreignCurrency = false;
+
+    /**
+     * 원본 <b>[거래유형(영업)]</b>·<b>[거래유형(구매)]</b>. 이 거래처와 팔고 살 때의
+     * <b>기본</b> 과세 구분이다 — 전표를 열 때마다 고르지 않게 한다.
+     * 면세 사업자와 거래하면서 매번 과세로 끊으면 세금계산서가 통째로 틀린다.
+     */
+    @Column(name = "sales_tax_type", length = 10)
+    private String salesTaxType;
+
+    @Column(name = "purchase_tax_type", length = 10)
+    private String purchaseTaxType;
+
+    /**
+     * 원본 <b>[여신기간]</b> (일). 여신한도가 <b>얼마나</b>라면 이것은 <b>언제까지</b>다 —
+     * 한도만 있고 기간이 없으면 오래 안 갚는 곳을 가려낼 수가 없다.
+     */
+    @Column(name = "credit_days")
+    @Builder.Default
+    private Integer creditDays = 0;
+
+    /**
+     * 원본 <b>[수금/지급예정일]</b>. 매달 며칠에 주고받기로 한 날 (1~31).
+     * 0 이면 안 정한 것이다 — 거래처마다 결제일이 달라 전표 날짜로는 짐작할 수 없다.
+     */
+    @Column(name = "settle_due_day")
+    @Builder.Default
+    private Integer settleDueDay = 0;
+
+    /**
+     * 원본 <b>[채권번호관리]</b>·<b>[채무번호관리]</b>. 이 거래처의 채권·채무를
+     * <b>건별 번호로</b> 따라가나. 켜면 어느 매출이 아직 안 들어왔는지 건마다 맞춰 본다.
+     */
+    @Column(name = "ar_no_managed", nullable = false)
+    @Builder.Default
+    private boolean arNoManaged = false;
+
+    @Column(name = "ap_no_managed", nullable = false)
+    @Builder.Default
+    private boolean apNoManaged = false;
+
 
     @Column(nullable = false)
     @Builder.Default

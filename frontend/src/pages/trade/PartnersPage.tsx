@@ -24,6 +24,13 @@ const empty = {
   salesPriceGroup: '', purchasePriceGroup: '', searchKeyword: '',
   regNoKind: '사업자등록번호', industryKind: '일반', udiSupplyShape: '', subBizNo: '',
   postalCode2: '', address2: '', homepage: '', remark: '',
+  /*
+   * 원본 거래처등록 폼의 나머지 칸들. 참/거짓은 다른 칸과 같이 'Y'/'N' 으로 든다.
+   * [외화거래처]는 사본에서 id 가 <code>ddlSforeignFlag</code> — <b>구분이 아니라 깃발</b>이다
+   * (업종별구분 <code>ddlSgubun</code> 은 따로 있다).
+   */
+  foreignCurrency: 'N', salesTaxType: '', purchaseTaxType: '',
+  creditDays: '0', settleDueDay: '0', arNoManaged: 'N', apNoManaged: 'N',
   taxReport: true, shipmentTarget: true,
   /**
    * 사용구분. 예전에는 저장할 때 늘 true 를 보냈다 —
@@ -194,6 +201,10 @@ export default function PartnersPage() {
       active: p.active,
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
       parentId: p.parentId != null ? String(p.parentId) : '',
+      foreignCurrency: p.foreignCurrency ? 'Y' : 'N',
+      salesTaxType: p.salesTaxType ?? '', purchaseTaxType: p.purchaseTaxType ?? '',
+      creditDays: String(p.creditDays ?? 0), settleDueDay: String(p.settleDueDay ?? 0),
+      arNoManaged: p.arNoManaged ? 'Y' : 'N', apNoManaged: p.apNoManaged ? 'Y' : 'N',
     })
     setShowForm(true)
   }
@@ -205,6 +216,13 @@ export default function PartnersPage() {
       ...form,
       partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null,
       parentId: form.parentId ? Number(form.parentId) : null,
+      foreignCurrency: form.foreignCurrency === 'Y',
+      salesTaxType: form.salesTaxType || null,
+      purchaseTaxType: form.purchaseTaxType || null,
+      creditDays: Number(form.creditDays) || 0,
+      settleDueDay: Number(form.settleDueDay) || 0,
+      arNoManaged: form.arNoManaged === 'Y',
+      apNoManaged: form.apNoManaged === 'Y',
       creditLimit: Number(form.creditLimit) || 0,
     }
     try {
@@ -246,6 +264,10 @@ export default function PartnersPage() {
     homepage: x.homepage, remark: x.remark,
     taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
     parentId: x.parentId, partnerGroupId: x.partnerGroupId, active: x.active,
+    /* 통째로 덮어쓰므로 새 칸도 되돌려 보낸다 — 빠뜨리면 일괄변경 한 번에 조용히 지워진다. */
+    foreignCurrency: x.foreignCurrency, salesTaxType: x.salesTaxType,
+    purchaseTaxType: x.purchaseTaxType, creditDays: x.creditDays,
+    settleDueDay: x.settleDueDay, arNoManaged: x.arNoManaged, apNoManaged: x.apNoManaged,
     ...patch,
   })
 
@@ -489,7 +511,7 @@ export default function PartnersPage() {
             */}
             <div>
               <CodePickerField
-                label="대표거래처 (관계설정)" placeholder="대표거래처 선택" emptyLabel="선택 해제"
+                label="대표거래처코드" placeholder="대표거래처 선택" emptyLabel="선택 해제"
                 value={form.parentId} onChange={(v) => set('parentId', v)}
                 items={partners.filter((x) => x.id !== editId && x.parentId == null)
                   .map((x) => ({ value: String(x.id), code: x.code, name: x.name }))}
@@ -521,6 +543,12 @@ export default function PartnersPage() {
               <b>그 거래처가 어떤 곳인지</b>라서 거래처에 붙는다. 보고 서식이 요구하는
               항목이라 여기서 안 정하면 내보낸 보고파일의 그 칸이 빈다.
             */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">외화거래처</label>
+              <select className={inputCls} value={form.foreignCurrency} onChange={(e) => set('foreignCurrency', e.target.value)}>
+                <option value="N">원화</option><option value="Y">외화</option>
+              </select>
+            </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">공급형태</label>
               <select className={inputCls} value={form.udiSupplyShape}
@@ -598,8 +626,53 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-slate-600">구매단가그룹</label>
               <input className={inputCls} value={form.purchasePriceGroup} onChange={(e) => set('purchasePriceGroup', e.target.value)} />
             </div>
-            <div className="sm:col-span-3" style={{ fontSize: 11.5, color: '#8a929c' }}>
-              ※ 여신한도는 원본 탭 안을 열어 보지 못해(탭을 누르기 전에는 화면에 없습니다) 만들지 않았습니다.
+            {/*
+              원본 <b>[여신기간]</b>·<b>[수금/지급예정일]</b>. 여신한도가 <b>얼마나</b>라면
+              여신기간은 <b>언제까지</b>다 — 한도만 있고 기간이 없으면 오래 안 갚는 곳을
+              가려낼 수가 없다. 예정일은 매달 며칠에 주고받기로 한 날이라, 거래처마다 달라
+              전표 날짜로는 짐작할 수 없다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">여신기간</label>
+              <input type="number" className={inputCls} value={form.creditDays}
+                     onChange={(e) => set('creditDays', e.target.value)} title="일 단위" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">수금/지급예정일</label>
+              <input type="number" min={0} max={31} className={inputCls} value={form.settleDueDay}
+                     onChange={(e) => set('settleDueDay', e.target.value)} title="매달 며칠 (0 = 안 정함)" />
+            </div>
+            {/*
+              원본 <b>[채권번호관리]·[채무번호관리]</b>. 켜면 어느 매출이 아직 안 들어왔는지
+              건마다 번호로 맞춰 본다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">채권번호관리</label>
+              <select className={inputCls} value={form.arNoManaged} onChange={(e) => set('arNoManaged', e.target.value)}>
+                <option value="N">관리안함</option><option value="Y">관리함</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">채무번호관리</label>
+              <select className={inputCls} value={form.apNoManaged} onChange={(e) => set('apNoManaged', e.target.value)}>
+                <option value="N">관리안함</option><option value="Y">관리함</option>
+              </select>
+            </div>
+            {/*
+              원본 <b>[거래유형(영업)]·[거래유형(구매)]</b>. 이 거래처와 팔고 살 때의 기본
+              과세 구분이다 — 면세 사업자와 거래하면서 매번 과세로 끊으면 세금계산서가 통째로 틀린다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">거래유형(영업)</label>
+              <select className={inputCls} value={form.salesTaxType} onChange={(e) => set('salesTaxType', e.target.value)}>
+                <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">거래유형(구매)</label>
+              <select className={inputCls} value={form.purchaseTaxType} onChange={(e) => set('purchaseTaxType', e.target.value)}>
+                <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
+              </select>
             </div>
           </div>
           )}

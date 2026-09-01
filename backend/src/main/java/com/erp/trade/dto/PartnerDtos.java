@@ -2,6 +2,8 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.trade.domain.PartnerType;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -102,7 +104,16 @@ public final class PartnerDtos {
              * 그 회사를 가리킨다. 거래처관리대장의 [대표거래처로 합산]이 이걸 쓴다.
              */
             Long parentId,
-            Long partnerGroupId
+            Long partnerGroupId,
+            /* 원본 거래처등록 폼의 나머지 칸들. */
+            Boolean foreignCurrency,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String salesTaxType,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String purchaseTaxType,
+            @PositiveOrZero(message = "여신기간은 0 이상이어야 합니다.") Integer creditDays,
+            @PositiveOrZero(message = "수금/지급예정일은 0 이상이어야 합니다.")
+            @Max(value = 31, message = "수금/지급예정일은 31일까지입니다.") Integer settleDueDay,
+            Boolean arNoManaged,
+            Boolean apNoManaged
     ) {}
 
     public record UpdatePartnerRequest(
@@ -192,7 +203,16 @@ public final class PartnerDtos {
              */
             Long parentId,
             Long partnerGroupId,
-            Boolean active
+            Boolean active,
+            /* 원본 거래처등록 폼의 나머지 칸들. */
+            Boolean foreignCurrency,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String salesTaxType,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String purchaseTaxType,
+            @PositiveOrZero(message = "여신기간은 0 이상이어야 합니다.") Integer creditDays,
+            @PositiveOrZero(message = "수금/지급예정일은 0 이상이어야 합니다.")
+            @Max(value = 31, message = "수금/지급예정일은 31일까지입니다.") Integer settleDueDay,
+            Boolean arNoManaged,
+            Boolean apNoManaged
     ) {}
 
     public record UpdatePriceGroupRequest(
@@ -255,7 +275,11 @@ public final class PartnerDtos {
              * 화면에서 알 수가 없었다 — 새로 딴 거래처만 골라 보려면 코드를 외워야 했다.
              */
             java.time.LocalDate createdDate,
-            java.time.LocalDate updatedDate
+            java.time.LocalDate updatedDate,
+            /* 원본 거래처등록 폼의 나머지 칸들. */
+            boolean foreignCurrency, String salesTaxType, String purchaseTaxType,
+            Integer creditDays, Integer settleDueDay,
+            boolean arNoManaged, boolean apNoManaged
     ) {
         public static PartnerResponse from(BusinessPartner p) {
             return new PartnerResponse(
@@ -275,7 +299,10 @@ public final class PartnerDtos {
                     p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
                     p.isActive(),
                     p.getCreatedAt() != null ? p.getCreatedAt().toLocalDate() : null,
-                    p.getUpdatedAt() != null ? p.getUpdatedAt().toLocalDate() : null);
+                    p.getUpdatedAt() != null ? p.getUpdatedAt().toLocalDate() : null,
+                    p.isForeignCurrency(), p.getSalesTaxType(), p.getPurchaseTaxType(),
+                    p.getCreditDays(), p.getSettleDueDay(),
+                    p.isArNoManaged(), p.isApNoManaged());
         }
     }
 }

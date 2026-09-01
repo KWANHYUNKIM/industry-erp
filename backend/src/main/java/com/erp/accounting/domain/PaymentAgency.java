@@ -72,10 +72,18 @@ public class PaymentAgency extends BaseTimeEntity {
     @Builder.Default
     private String regNoKind = "사업자등록번호";
 
-    /** 원본 <b>[업종별구분]</b> — 일반 · 관세사 · <b>외화거래처</b>. 조건 [외화거래처]가 이 값을 본다. */
-    @Column(name = "industry_kind", nullable = false, length = 20)
+    /**
+     * 원본 <b>[외화거래처]</b>.
+     *
+     * <p><b>#281 에서 잘못 만들었다.</b> 이것을 [업종별구분](일반·관세사·외화거래처)으로
+     * 보고 세 값짜리 칸을 두었는데, 사본을 다시 재 보니 이 화면의 id 는
+     * <code>ddlForeignFlag</code> 로 <b>깃발</b>이고 결제대행사등록에는 [업종별구분]이
+     * <b>아예 없다</b>(거래처등록에만 <code>ddlSgubun</code> 으로 따로 있다).
+     * 이름만 맞고 뜻이 다른 칸을 만들어 둔 셈이라 바로잡는다.
+     */
+    @Column(name = "foreign_currency", nullable = false)
     @Builder.Default
-    private String industryKind = "일반";
+    private boolean foreignCurrency = false;
 
     /** 원본 <b>[업태]</b>·<b>[종목]</b>. 세금계산서에 찍힌다. */
     @Column(name = "biz_type", length = 100)

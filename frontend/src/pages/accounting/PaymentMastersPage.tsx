@@ -21,13 +21,12 @@ const emptyCard = {
 const emptyAgency = {
   code: '', name: '', ceoName: '', phone: '', email: '', remark: '',
   accountId: '', depositAccount: '', searchKeyword: '', feeRate: '',
-  regNoKind: '사업자등록번호', industryKind: '일반',
+  regNoKind: '사업자등록번호', foreignCurrency: false,
   bizType: '', bizItem: '', manager: '', taxReport: true,
   postalCode: '', address: '', postalCode2: '', address2: '',
 }
-/** 원본 [결제대행사코드구분]·[업종별구분]의 값 — 거래처등록과 같은 셋이다. */
+/** 원본 [결제대행사코드구분]의 값 — 거래처등록과 같은 셋이다. */
 const REG_KINDS = ['사업자등록번호', '주민등록번호', '외국인']
-const INDUSTRY_KINDS = ['일반', '관세사', '외화거래처']
 
 export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(defaultTab)
@@ -95,7 +94,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
       email: a.email ?? '', remark: a.remark ?? '',
       accountId: a.accountId?.toString() ?? '', depositAccount: a.depositAccount ?? '',
       searchKeyword: a.searchKeyword ?? '', feeRate: a.feeRate?.toString() ?? '',
-      regNoKind: a.regNoKind, industryKind: a.industryKind,
+      regNoKind: a.regNoKind, foreignCurrency: a.foreignCurrency,
       bizType: a.bizType ?? '', bizItem: a.bizItem ?? '', manager: a.manager ?? '',
       taxReport: a.taxReport,
       postalCode: a.postalCode ?? '', address: a.address ?? '',
@@ -127,7 +126,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
           depositAccount: agencyForm.depositAccount || undefined,
           searchKeyword: agencyForm.searchKeyword || undefined,
           feeRate: agencyForm.feeRate ? Number(agencyForm.feeRate) : 0,
-          regNoKind: agencyForm.regNoKind, industryKind: agencyForm.industryKind,
+          regNoKind: agencyForm.regNoKind, foreignCurrency: agencyForm.foreignCurrency,
           bizType: agencyForm.bizType || undefined, bizItem: agencyForm.bizItem || undefined,
           manager: agencyForm.manager || undefined, taxReport: agencyForm.taxReport,
           postalCode: agencyForm.postalCode || undefined, address: agencyForm.address || undefined,
@@ -160,7 +159,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
         await api.put(`/payment-agencies/${a.id}`, {
           name: a.name, ceoName: a.ceoName, phone: a.phone, email: a.email, remark: a.remark,
           accountId: a.accountId, depositAccount: a.depositAccount, searchKeyword: a.searchKeyword,
-          feeRate: a.feeRate ?? 0, regNoKind: a.regNoKind, industryKind: a.industryKind,
+          feeRate: a.feeRate ?? 0, regNoKind: a.regNoKind, foreignCurrency: a.foreignCurrency,
           bizType: a.bizType, bizItem: a.bizItem, manager: a.manager, taxReport: a.taxReport,
           postalCode: a.postalCode, address: a.address,
           postalCode2: a.postalCode2, address2: a.address2, active: !a.active,
@@ -244,10 +243,15 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
                   <select className={inputCls} value={agencyForm.regNoKind} onChange={(e) => setAgency('regNoKind', e.target.value)} style={{ width: 150 }}>
                     {REG_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
                   </select></label>
-                {/* 원본 [업종별구분]의 값 중 하나가 <b>외화거래처</b>다 — 따로 있는 칸이 아니다. */}
+{/*
+                  <b>#281 에 잘못 만들었던 칸이다.</b> [업종별구분](일반·관세사·외화거래처)으로
+                  보고 세 값짜리 칸을 두었는데, 사본의 id 가 <code>ddlForeignFlag</code> 라
+                  <b>깃발</b>이고 이 화면에는 업종별구분이 아예 없다(거래처등록에만 있다).
+                */}
                 <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>외화거래처</div>
-                  <select className={inputCls} value={agencyForm.industryKind} onChange={(e) => setAgency('industryKind', e.target.value)} style={{ width: 130 }}>
-                    {INDUSTRY_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+                  <select className={inputCls} value={agencyForm.foreignCurrency ? 'Y' : 'N'}
+                          onChange={(e) => setAgency('foreignCurrency', e.target.value === 'Y')} style={{ width: 110 }}>
+                    <option value="N">원화</option><option value="Y">외화</option>
                   </select></label>
                 <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>업태</div>
                   <input className={inputCls} value={agencyForm.bizType} onChange={(e) => setAgency('bizType', e.target.value)} style={{ width: 150 }} /></label>

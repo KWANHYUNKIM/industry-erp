@@ -29,6 +29,9 @@ public class PartnerService {
     private static final List<String> REG_NO_KINDS =
             List.of("사업자등록번호", "주민등록번호", "외국인");
     /** 원본 [업종별구분]. */
+    /** 원본 [거래유형(영업)]·[거래유형(구매)]. 안 정할 수 있다 — 정하면 전표의 기본값이 된다. */
+    private static final List<String> TAX_TYPES = List.of("과세", "면세");
+
     private static final List<String> INDUSTRY_KINDS =
             List.of("일반", "관세사", "외화거래처");
     /**
@@ -86,6 +89,13 @@ public class PartnerService {
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
                 .parent(parentOf(req.parentId(), null))
+                .foreignCurrency(Boolean.TRUE.equals(req.foreignCurrency()))
+                .salesTaxType(oneOfOrNull(req.salesTaxType(), TAX_TYPES, "거래유형(영업)"))
+                .purchaseTaxType(oneOfOrNull(req.purchaseTaxType(), TAX_TYPES, "거래유형(구매)"))
+                .creditDays(req.creditDays() != null ? req.creditDays() : 0)
+                .settleDueDay(req.settleDueDay() != null ? req.settleDueDay() : 0)
+                .arNoManaged(Boolean.TRUE.equals(req.arNoManaged()))
+                .apNoManaged(Boolean.TRUE.equals(req.apNoManaged()))
                 .active(true)
                 .build();
         return PartnerResponse.from(partnerRepository.save(p));
@@ -127,6 +137,13 @@ public class PartnerService {
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
         p.setParent(parentOf(req.parentId(), p));
+        p.setForeignCurrency(Boolean.TRUE.equals(req.foreignCurrency()));
+        p.setSalesTaxType(oneOfOrNull(req.salesTaxType(), TAX_TYPES, "거래유형(영업)"));
+        p.setPurchaseTaxType(oneOfOrNull(req.purchaseTaxType(), TAX_TYPES, "거래유형(구매)"));
+        p.setCreditDays(req.creditDays() != null ? req.creditDays() : 0);
+        p.setSettleDueDay(req.settleDueDay() != null ? req.settleDueDay() : 0);
+        p.setArNoManaged(Boolean.TRUE.equals(req.arNoManaged()));
+        p.setApNoManaged(Boolean.TRUE.equals(req.apNoManaged()));
         if (req.active() != null) {
             p.setActive(req.active());
         }
