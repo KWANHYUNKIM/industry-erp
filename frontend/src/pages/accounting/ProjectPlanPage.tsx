@@ -27,6 +27,10 @@ interface ComparisonRow {
   actualProfit: number
   revenueAchieveRate: number
   profitAchieveRate: number
+  /* 원본 격자의 [구매]·[노무비]·[경비]. 판매는 planRevenue 가 곧 그것이다. */
+  planPurchase: number
+  planLabor: number
+  planExpense: number
   startDate: string | null
   endDate: string | null
   remark: string | null
@@ -55,7 +59,7 @@ export default function ProjectPlanPage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const [form, setForm] = useState({ projectId: '', planRevenue: '', planCost: '', remark: '' })
+  const [form, setForm] = useState({ projectId: '', planRevenue: '', planCost: '', planPurchase: '', planLabor: '', planExpense: '', remark: '' })
 
   async function load() {
     setLoading(true); setError('')
@@ -81,10 +85,13 @@ export default function ProjectPlanPage() {
         planYear: year,
         planRevenue: Number(form.planRevenue || 0),
         planCost: Number(form.planCost || 0),
+        planPurchase: Number(form.planPurchase || 0),
+        planLabor: Number(form.planLabor || 0),
+        planExpense: Number(form.planExpense || 0),
         remark: form.remark || undefined,
       })
       setOk('프로젝트계획이 등록되었습니다.')
-      setForm({ projectId: '', planRevenue: '', planCost: '', remark: '' })
+      setForm({ projectId: '', planRevenue: '', planCost: '', planPurchase: '', planLabor: '', planExpense: '', remark: '' })
       setShowForm(false)
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -106,8 +113,10 @@ export default function ProjectPlanPage() {
   /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
   const totals = shown.reduce((s, r) => ({
     planRevenue: s.planRevenue + r.planRevenue, planProfit: s.planProfit + r.planProfit,
+    planPurchase: s.planPurchase + r.planPurchase, planLabor: s.planLabor + r.planLabor,
+    planExpense: s.planExpense + r.planExpense,
     actualRevenue: s.actualRevenue + r.actualRevenue, actualProfit: s.actualProfit + r.actualProfit,
-  }), { planRevenue: 0, planProfit: 0, actualRevenue: 0, actualProfit: 0 })
+  }), { planRevenue: 0, planProfit: 0, planPurchase: 0, planLabor: 0, planExpense: 0, actualRevenue: 0, actualProfit: 0 })
   const inputCls = 'ec-input'
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
 
@@ -187,6 +196,16 @@ export default function ProjectPlanPage() {
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planRevenue} onChange={(e) => set('planRevenue', e.target.value)} style={{ width: 150 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계획원가</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planCost} onChange={(e) => set('planCost', e.target.value)} style={{ width: 150 }} /></label>
+            {/*
+              원본 격자의 <b>[구매]·[노무비]·[경비]</b>. 계획을 네 갈래로 적는데 우리는
+              원가 한 칸뿐이라 <b>갈라 적을 데가 없었다</b>. 계획원가는 합계 그대로 둔다.
+            */}
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구매</div>
+              <input className={`${inputCls} text-right`} type="number" step="any" value={form.planPurchase} onChange={(e) => set('planPurchase', e.target.value)} style={{ width: 130 }} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>노무비</div>
+              <input className={`${inputCls} text-right`} type="number" step="any" value={form.planLabor} onChange={(e) => set('planLabor', e.target.value)} style={{ width: 130 }} /></label>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>경비</div>
+              <input className={`${inputCls} text-right`} type="number" step="any" value={form.planExpense} onChange={(e) => set('planExpense', e.target.value)} style={{ width: 130 }} /></label>
             <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
@@ -208,7 +227,11 @@ export default function ProjectPlanPage() {
             <th>프로젝트명</th>
             <th style={{ width: 100 }}>시작일</th>
             <th style={{ width: 100 }}>종료일</th>
-            <th style={{ textAlign: 'right' }}>계획매출</th>
+            {/* 원본 격자의 마지막 넷: <b>판매 · 구매 · 노무비 · 경비</b>. 판매는 계획매출이 곧 그것이다. */}
+            <th style={{ textAlign: 'right' }}>판매</th>
+            <th style={{ textAlign: 'right' }}>구매</th>
+            <th style={{ textAlign: 'right' }}>노무비</th>
+            <th style={{ textAlign: 'right' }}>경비</th>
             <th style={{ textAlign: 'right' }}>실적매출</th>
             <th style={{ textAlign: 'right' }}>매출달성</th>
             <th style={{ textAlign: 'right' }}>계획이익</th>
@@ -219,9 +242,9 @@ export default function ProjectPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -233,6 +256,9 @@ export default function ProjectPlanPage() {
               <td style={{ color: r.startDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.startDate) || ''}</td>
               <td style={{ color: r.endDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.endDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.planRevenue)}</td>
+              <td style={{ textAlign: 'right' }}>{won(r.planPurchase)}</td>
+              <td style={{ textAlign: 'right' }}>{won(r.planLabor)}</td>
+              <td style={{ textAlign: 'right' }}>{won(r.planExpense)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.actualRevenue)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.revenueAchieveRate) }}>{r.revenueAchieveRate.toFixed(1)}%</td>
               <td style={{ textAlign: 'right' }}>{won(r.planProfit)}</td>
@@ -249,6 +275,9 @@ export default function ProjectPlanPage() {
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(totals.planRevenue)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.planPurchase)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.planLabor)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.planExpense)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.actualRevenue)}</td>
               <td style={{ textAlign: 'right', color: rateColor(totals.planRevenue > 0 ? totals.actualRevenue / totals.planRevenue * 100 : 0) }}>
                 {totals.planRevenue > 0 ? (totals.actualRevenue / totals.planRevenue * 100).toFixed(1) : '0.0'}%

@@ -47,6 +47,10 @@ public class ProjectPlanService {
                 .planYear(req.planYear())
                 .planRevenue(req.planRevenue())
                 .planCost(req.planCost())
+                /* 원본 격자의 [구매]·[노무비]·[경비] — 안 주면 0 이다(엔티티 기본값과 같게 둔다). */
+                .planPurchase(req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO)
+                .planLabor(req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO)
+                .planExpense(req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
@@ -86,6 +90,7 @@ public class ProjectPlanService {
                     planRevenue, planCost, planProfit,
                     actRevenue, actCost, actProfit,
                     rate(actRevenue, planRevenue), rate(actProfit, planProfit),
+                    p.getPlanPurchase(), p.getPlanLabor(), p.getPlanExpense(),
                     p.getProject().getStartDate(), p.getProject().getEndDate(), p.getRemark());
         }).toList();
     }
