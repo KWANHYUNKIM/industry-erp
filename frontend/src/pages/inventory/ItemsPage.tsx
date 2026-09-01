@@ -17,6 +17,10 @@ const inputCls = 'ec-input w-full'
 const FORM_TABS = ['품목정보', '수량', '단가', '관리대상'] as const
 type FormTab = typeof FORM_TABS[number]
 
+/** 품질검사 유형·방법. 품질 모듈이 쓰는 값과 같다(사본 실측). */
+const QC_TYPES = ['수입검사', '공정검사', '출하검사']
+const QC_METHODS = ['전수', '샘플링']
+
 const emptyForm = {
   code: '',
   name: '',
@@ -27,6 +31,18 @@ const emptyForm = {
   purchasePrice: '0',
   safetyStock: '0',
   barcode: '', searchKeyword: '',
+  /*
+   * 원본 품목등록 폼의 나머지 칸들. 담을 데가 아예 없어 그리지도 못하던 것이다.
+   * 참/거짓은 다른 칸(stockTracked·active)과 같이 'Y'/'N' 으로 든다 — 한 폼에 두 가지
+   * 표현이 섞이면 보낼 때 한쪽만 바꿔 놓고 지나친다.
+   */
+  remark: '',
+  vatRateSales: '10', vatRatePurchase: '10',
+  subcontractPrice: '0', leadTimeDays: '0', minPurchaseUnit: '0',
+  itemType: '', parentItemId: '',
+  setItem: 'N', sharedItem: 'N', lotManaged: 'N',
+  qcType: '', qcMethod: '', qcOnPurchase: 'N', qcOnProduction: 'N',
+  autoProductionOnSales: 'N', autoProductionOnTransfer: 'N',
   /** 원본 품목등록 리스트의 [구매처명]. */
   supplierId: '',
   /** 재고수량관리. 기본은 관리대상 — 모르고 껐다가 재고가 조용히 안 움직이는 것보다 낫다. */
@@ -134,6 +150,23 @@ export default function ItemsPage() {
       udiDi: item.udiDi ?? '',
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
       itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
+      remark: item.remark ?? '',
+      vatRateSales: String(item.vatRateSales ?? 10),
+      vatRatePurchase: String(item.vatRatePurchase ?? 10),
+      subcontractPrice: String(item.subcontractPrice ?? 0),
+      leadTimeDays: String(item.leadTimeDays ?? 0),
+      minPurchaseUnit: String(item.minPurchaseUnit ?? 0),
+      itemType: item.itemType ?? '',
+      parentItemId: item.parentItemId != null ? String(item.parentItemId) : '',
+      setItem: item.setItem ? 'Y' : 'N',
+      sharedItem: item.sharedItem ? 'Y' : 'N',
+      lotManaged: item.lotManaged ? 'Y' : 'N',
+      qcType: item.qcType ?? '',
+      qcMethod: item.qcMethod ?? '',
+      qcOnPurchase: item.qcOnPurchase ? 'Y' : 'N',
+      qcOnProduction: item.qcOnProduction ? 'Y' : 'N',
+      autoProductionOnSales: item.autoProductionOnSales ? 'Y' : 'N',
+      autoProductionOnTransfer: item.autoProductionOnTransfer ? 'Y' : 'N',
     })
     setImage(item.imageFileId != null ? { id: item.imageFileId, name: item.imageFileName ?? '' } : null)
     setShowForm(true)
@@ -157,6 +190,20 @@ export default function ItemsPage() {
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
       supplierId: form.supplierId ? Number(form.supplierId) : null,
       imageFileId: image ? image.id : null,
+      /* 숫자는 숫자로, 'Y'/'N' 은 참/거짓으로 바꿔 보낸다 — 서버는 문자열을 안 받는다. */
+      vatRateSales: Number(form.vatRateSales),
+      vatRatePurchase: Number(form.vatRatePurchase),
+      subcontractPrice: Number(form.subcontractPrice),
+      leadTimeDays: Number(form.leadTimeDays),
+      minPurchaseUnit: Number(form.minPurchaseUnit),
+      parentItemId: form.parentItemId ? Number(form.parentItemId) : null,
+      setItem: form.setItem === 'Y',
+      sharedItem: form.sharedItem === 'Y',
+      lotManaged: form.lotManaged === 'Y',
+      qcOnPurchase: form.qcOnPurchase === 'Y',
+      qcOnProduction: form.qcOnProduction === 'Y',
+      autoProductionOnSales: form.autoProductionOnSales === 'Y',
+      autoProductionOnTransfer: form.autoProductionOnTransfer === 'Y',
     }
     try {
       if (editId) {
@@ -291,7 +338,15 @@ export default function ItemsPage() {
    * <b>값이 실제로 있는 여섯</b>만 만든다: 품목명 · 규격명 · 품목구분 · 구매처 ·
    * 검색창내용 · 바코드. 차례는 사본 실측을 따른다.
    */
-  const [cond, setCond] = useState({ name: '', spec: '', category: '', supplier: '', keywordCol: '', barcode: '' })
+  const [cond, setCond] = useState({
+    name: '', spec: '', category: '', supplier: '', keywordCol: '', barcode: '',
+    /*
+     * 원본 조건 <b>[최초작성일자]·[최종수정일자]</b>. 서버가 BaseTimeEntity 에서 진작
+     * 실어 주는데(거래처와 같다) 화면이 받아 두지 않아 거를 수가 없었다.
+     * "이번 달에 새로 등록한 품목만" 은 마스터를 훑을 때 늘 묻는 것이다.
+     */
+    createdFrom: '', createdTo: '', updatedFrom: '', updatedTo: '',
+  })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   const shownRows = items
@@ -306,6 +361,11 @@ export default function ItemsPage() {
       || (partners.find((p) => p.id === it.supplierId)?.name ?? '') === cond.supplier)
     .filter((it) => !cond.keywordCol || (it.searchKeyword ?? '').includes(cond.keywordCol))
     .filter((it) => !cond.barcode || (it.barcode ?? '').includes(cond.barcode))
+    /* 날짜는 yyyy-MM-dd 문자열이라 그대로 견줘도 차례가 맞는다. */
+    .filter((it) => !cond.createdFrom || (it.createdDate ?? '') >= cond.createdFrom)
+    .filter((it) => !cond.createdTo || (it.createdDate ?? '') <= cond.createdTo)
+    .filter((it) => !cond.updatedFrom || (it.updatedDate ?? '') >= cond.updatedFrom)
+    .filter((it) => !cond.updatedTo || (it.updatedDate ?? '') <= cond.updatedTo)
 
   /*
    * 원본 품목등록 리스트는 머리를 눌러 정렬한다 — 사본에서 정렬 표시가 붙은 아홉 칸을
@@ -376,6 +436,21 @@ export default function ItemsPage() {
         <EcCond label="바코드">
           <input className="ec-input" value={cond.barcode}
                  onChange={(e) => setC({ barcode: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        {/* 원본 차례: … 적요 · 품질검사유형·방법 · 최초작성자·최종수정자 · <b>최초작성일자·최종수정일자</b> */}
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={cond.createdFrom}
+                 onChange={(e) => setC({ createdFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.createdTo}
+                 onChange={(e) => setC({ createdTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종수정일자">
+          <input type="date" className="ec-input" value={cond.updatedFrom}
+                 onChange={(e) => setC({ updatedFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.updatedTo}
+                 onChange={(e) => setC({ updatedTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="검색창내용">
           <input className="ec-input" value={cond.keywordCol}
@@ -504,6 +579,37 @@ export default function ItemsPage() {
                   items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
                 />
               </div>
+              <div>
+                {/* 사본에 고를 값 목록이 남아 있지 않아 <b>자유 입력</b>으로 둔다 —
+                    지어낸 값을 원본 이름표 아래 늘어놓는 것보다 낫다. */}
+                <label className="mb-1 block text-sm text-slate-600">품목유형</label>
+                <input className={inputCls} value={form.itemType} onChange={(e) => set('itemType', e.target.value)} />
+              </div>
+              <div>
+                {/* 규격만 다른 형제 품목들의 대표. 자기 자신은 고를 수 없다(서버도 막는다). */}
+                <CodePickerField
+                  label="대표품목" placeholder="대표품목 선택" emptyLabel="선택 해제"
+                  value={form.parentItemId} onChange={(v) => set('parentItemId', v)}
+                  items={items.filter((x) => x.id !== editId)
+                    .map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">세트여부</label>
+                <select className={inputCls} value={form.setItem} onChange={(e) => set('setItem', e.target.value)}>
+                  <option value="N">일반</option><option value="Y">세트</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품목공유여부</label>
+                <select className={inputCls} value={form.sharedItem} onChange={(e) => set('sharedItem', e.target.value)}>
+                  <option value="N">공유안함</option><option value="Y">공유</option>
+                </select>
+              </div>
+              <div className="sm:col-span-3">
+                <label className="mb-1 block text-sm text-slate-600">적요</label>
+                <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
+              </div>
             </div>
           )}
           {formTab === '수량' && (
@@ -512,20 +618,59 @@ export default function ItemsPage() {
                 <label className="mb-1 block text-sm text-slate-600">안전재고</label>
                 <input type="number" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
               </div>
+              <div>
+                {/* 주문하고 물건이 오기까지 걸리는 날수 — 발주계획이 이 값으로 거꾸로 센다. */}
+                <label className="mb-1 block text-sm text-slate-600">조달기간</label>
+                <input type="number" className={inputCls} value={form.leadTimeDays}
+                       onChange={(e) => set('leadTimeDays', e.target.value)} title="일 단위" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">최소구매단위</label>
+                <input type="number" step="any" className={inputCls} value={form.minPurchaseUnit}
+                       onChange={(e) => set('minPurchaseUnit', e.target.value)} />
+              </div>
+              <div>
+                {/* 켜면 입출고할 때 로트번호를 받는다. */}
+                <label className="mb-1 block text-sm text-slate-600">시리얼/로트No.</label>
+                <select className={inputCls} value={form.lotManaged} onChange={(e) => set('lotManaged', e.target.value)}>
+                  <option value="N">관리안함</option><option value="Y">관리함</option>
+                </select>
+              </div>
             </div>
           )}
           {formTab === '단가' && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm text-slate-600">판매단가</label>
+                {/* 원본은 이 둘을 <b>[출고단가]·[입고단가]</b> 라 부른다(사본 실측). 파는 값과
+                    사는 값이 아니라 <b>나가는 값과 들어오는 값</b>으로 읽는 것이다. */}
+                <label className="mb-1 block text-sm text-slate-600">출고단가</label>
                 <input type="number" className={inputCls} value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
               </div>
               <div>
                 {/* 원본 품목등록도 판매단가와 구매단가를 따로 둔다. 하나로 쓰면 구매할인현황이
                     매입가를 판매가와 견주게 되고, 그러면 화면 이름과 달리 늘 할증만 찍힌다. */}
-                <label className="mb-1 block text-sm text-slate-600">구매단가</label>
+                <label className="mb-1 block text-sm text-slate-600">입고단가</label>
                 <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
                        title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">외주비단가</label>
+                <input type="number" step="any" className={inputCls} value={form.subcontractPrice}
+                       onChange={(e) => set('subcontractPrice', e.target.value)} />
+              </div>
+              {/*
+                품목마다 세율이 갈리는 회사가 있다(면세 품목·영세율 수출품). 전표에서 매번
+                고르게 하면 사람이 틀리고, 틀린 것이 <b>세금계산서까지</b> 간다.
+              */}
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">부가세율(매출)</label>
+                <input type="number" step="any" className={inputCls} value={form.vatRateSales}
+                       onChange={(e) => set('vatRateSales', e.target.value)} title="%" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">부가세율(매입)</label>
+                <input type="number" step="any" className={inputCls} value={form.vatRatePurchase}
+                       onChange={(e) => set('vatRatePurchase', e.target.value)} title="%" />
               </div>
             </div>
           )}
@@ -540,6 +685,49 @@ export default function ItemsPage() {
               </div>
               {/* 원본 품목등록 리스트의 '품목그룹1명'. 열 이름은 원본을 그대로 쓰고,
                     우리는 그룹이 하나라 '2명'에 해당하는 열이 없다. */}
+              {/*
+                품질검사 설정. 값은 품질 모듈이 쓰는 것과 같다 — 유형은 수입·공정·출하검사,
+                방법은 전수·샘플링(사본 실측). 켜 두면 그때 검사요청이 자동으로 나간다.
+              */}
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품질검사유형</label>
+                <select className={inputCls} value={form.qcType} onChange={(e) => set('qcType', e.target.value)}>
+                  <option value="">선택 안 함</option>
+                  {QC_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품질검사방법</label>
+                <select className={inputCls} value={form.qcMethod} onChange={(e) => set('qcMethod', e.target.value)}>
+                  <option value="">선택 안 함</option>
+                  {QC_METHODS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품질검사요청-구매</label>
+                <select className={inputCls} value={form.qcOnPurchase} onChange={(e) => set('qcOnPurchase', e.target.value)}>
+                  <option value="N">요청안함</option><option value="Y">요청함</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">품질검사요청-생산입고</label>
+                <select className={inputCls} value={form.qcOnProduction} onChange={(e) => set('qcOnProduction', e.target.value)}>
+                  <option value="N">요청안함</option><option value="Y">요청함</option>
+                </select>
+              </div>
+              {/* 팔거나 옮길 때 생산전표를 자동으로 만든다 — 만들면서 파는 품목에 쓴다. */}
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">생산전표생성-판매</label>
+                <select className={inputCls} value={form.autoProductionOnSales} onChange={(e) => set('autoProductionOnSales', e.target.value)}>
+                  <option value="N">생성안함</option><option value="Y">생성함</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600">생산전표생성-창고이동</label>
+                <select className={inputCls} value={form.autoProductionOnTransfer} onChange={(e) => set('autoProductionOnTransfer', e.target.value)}>
+                  <option value="N">생성안함</option><option value="Y">생성함</option>
+                </select>
+              </div>
             </div>
           )}
           {/*

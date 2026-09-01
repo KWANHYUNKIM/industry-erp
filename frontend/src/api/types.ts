@@ -118,6 +118,28 @@ export interface Item {
   itemGroupId: number | null
   itemGroupName: string | null
   active: boolean
+  /* 원본 품목등록 폼의 나머지 칸들. */
+  remark: string | null
+  vatRateSales: number | null
+  vatRatePurchase: number | null
+  subcontractPrice: number | null
+  leadTimeDays: number | null
+  minPurchaseUnit: number | null
+  setItem: boolean
+  sharedItem: boolean
+  itemType: string | null
+  parentItemId: number | null
+  parentItemName: string | null
+  lotManaged: boolean
+  qcType: string | null
+  qcMethod: string | null
+  qcOnPurchase: boolean
+  qcOnProduction: boolean
+  autoProductionOnSales: boolean
+  autoProductionOnTransfer: boolean
+  /** 원본 조건 [최초작성일자]·[최종수정일자]. */
+  createdDate: string | null
+  updatedDate: string | null
 }
 
 /** 품목그룹·거래처그룹 마스터. 두 그룹의 모양이 같아 한 타입으로 쓴다. */

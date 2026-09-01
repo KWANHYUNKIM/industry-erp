@@ -137,4 +137,107 @@ public class Item extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** 원본 <b>[적요]</b>. 품목에 남기는 메모. */
+    @Column(length = 200)
+    private String remark;
+
+    /**
+     * 원본 <b>[부가세율(매출)]</b>·<b>[부가세율(매입)]</b> (%).
+     *
+     * <p>품목마다 세율이 갈리는 회사가 있다(면세 품목·영세율 수출품). 전표에서 매번 고르게
+     * 하면 사람이 틀리고, 틀린 것이 세금계산서까지 간다. 기본은 10 이다.
+     */
+    @Column(name = "vat_rate_sales", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal vatRateSales = BigDecimal.TEN;
+
+    @Column(name = "vat_rate_purchase", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal vatRatePurchase = BigDecimal.TEN;
+
+    /** 원본 <b>[외주비단가]</b>. 이 품목을 외주로 돌릴 때 한 개당 주는 값. */
+    @Column(name = "subcontract_price", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal subcontractPrice = BigDecimal.ZERO;
+
+    /**
+     * 원본 <b>[조달기간]</b> (일). 주문하고 물건이 오기까지 걸리는 날수 —
+     * 발주계획이 <b>언제 넣어야 하나</b>를 이 값으로 거꾸로 센다.
+     */
+    @Column(name = "lead_time_days")
+    @Builder.Default
+    private Integer leadTimeDays = 0;
+
+    /** 원본 <b>[최소구매단위]</b>. 이보다 적게는 못 산다(박스 단위로만 파는 것 등). */
+    @Column(name = "min_purchase_unit", precision = 15, scale = 3)
+    @Builder.Default
+    private BigDecimal minPurchaseUnit = BigDecimal.ZERO;
+
+    /** 원본 <b>[세트여부]</b>. 여러 품목을 묶어 하나로 파는 것. */
+    @Column(name = "set_item", nullable = false)
+    @Builder.Default
+    private boolean setItem = false;
+
+    /** 원본 <b>[품목공유여부]</b>. 회사 사이에서 이 품목을 같이 쓰나. */
+    @Column(name = "shared_item", nullable = false)
+    @Builder.Default
+    private boolean sharedItem = false;
+
+    /**
+     * 원본 <b>[품목유형]</b>. 사본에 값 목록이 남아 있지 않아 <b>자유 입력</b>으로 둔다 —
+     * 고를 값을 지어내면 원본에 없는 낱말을 이름표만 같게 달아 놓는 꼴이 된다.
+     */
+    @Column(name = "item_type", length = 30)
+    private String itemType;
+
+    /**
+     * 원본 <b>[대표품목]</b>. 규격만 다른 형제 품목들의 대표. 안 정하면 자기가 곧 대표다
+     * (거래처의 대표거래처와 같은 얼개다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_item_id")
+    private Item parentItem;
+
+    /**
+     * 원본 <b>[시리얼/로트No.]</b>. 이 품목을 로트로 관리하나.
+     * 켜면 입출고할 때 로트번호를 받는다.
+     */
+    @Column(name = "lot_managed", nullable = false)
+    @Builder.Default
+    private boolean lotManaged = false;
+
+    /**
+     * 원본 <b>[품질검사유형]</b>·<b>[품질검사방법]</b>. 값은 품질 모듈이 쓰는 것과 같다 —
+     * 유형은 수입검사·공정검사·출하검사, 방법은 전수·샘플링(사본 실측).
+     *
+     * <p><b>enum 을 그대로 쓰지 않고 문자열로 둔다.</b> 재고(inventory)는 아무 모듈에도
+     * 의존하지 않는 기반층이라 quality 를 참조하는 순간 순환이 생긴다(CLAUDE.md 4.1).
+     */
+    @Column(name = "qc_type", length = 20)
+    private String qcType;
+
+    @Column(name = "qc_method", length = 10)
+    private String qcMethod;
+
+    /** 원본 <b>[품질검사요청-구매]</b>·<b>[품질검사요청-생산입고]</b>. 그때 검사요청을 자동으로 낸다. */
+    @Column(name = "qc_on_purchase", nullable = false)
+    @Builder.Default
+    private boolean qcOnPurchase = false;
+
+    @Column(name = "qc_on_production", nullable = false)
+    @Builder.Default
+    private boolean qcOnProduction = false;
+
+    /**
+     * 원본 <b>[생산전표생성-판매]</b>·<b>[생산전표생성-창고이동]</b>.
+     * 팔거나 옮길 때 생산전표를 자동으로 만든다 — 만들면서 파는 품목에 쓴다.
+     */
+    @Column(name = "auto_production_on_sales", nullable = false)
+    @Builder.Default
+    private boolean autoProductionOnSales = false;
+
+    @Column(name = "auto_production_on_transfer", nullable = false)
+    @Builder.Default
+    private boolean autoProductionOnTransfer = false;
 }

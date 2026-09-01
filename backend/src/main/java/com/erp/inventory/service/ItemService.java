@@ -68,6 +68,12 @@ public class ItemService {
                 .managementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()))
                 .active(true)
                 .build();
+        applyExtras(item, req.remark(), req.vatRateSales(), req.vatRatePurchase(),
+                req.subcontractPrice(), req.leadTimeDays(), req.minPurchaseUnit(),
+                req.setItem(), req.sharedItem(), req.itemType(), req.parentItemId(),
+                req.lotManaged(), req.qcType(), req.qcMethod(),
+                req.qcOnPurchase(), req.qcOnProduction(),
+                req.autoProductionOnSales(), req.autoProductionOnTransfer());
         return ItemResponse.from(itemRepository.save(item));
     }
 
@@ -89,6 +95,12 @@ public class ItemService {
         item.setImageFile(imageOf(req.imageFileId()));
         item.setUdiDi(req.udiDi());
         item.setManagementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()));
+        applyExtras(item, req.remark(), req.vatRateSales(), req.vatRatePurchase(),
+                req.subcontractPrice(), req.leadTimeDays(), req.minPurchaseUnit(),
+                req.setItem(), req.sharedItem(), req.itemType(), req.parentItemId(),
+                req.lotManaged(), req.qcType(), req.qcMethod(),
+                req.qcOnPurchase(), req.qcOnProduction(),
+                req.autoProductionOnSales(), req.autoProductionOnTransfer());
         if (req.active() != null) {
             item.setActive(req.active());
         }
@@ -142,6 +154,53 @@ public class ItemService {
         if (groupId == null) return null;
         return itemGroupRepository.findById(groupId)
                 .orElseThrow(() -> ApiException.badRequest("품목그룹을 찾을 수 없습니다. id=" + groupId));
+    }
+
+    /**
+     * 원본 폼의 나머지 칸들을 한 자리에서 옮긴다 — 등록과 수정 두 곳에 같은 줄을 늘어놓으면
+     * 한쪽만 고쳐 <b>등록에서는 저장되는데 수정하면 사라지는</b> 칸이 생긴다.
+     *
+     * <p>참/거짓과 세율은 <b>안 보내면 기본값</b>을 쓴다. null 을 그대로 넣으면
+     * NOT NULL 칸이 저장할 때 터지고, 세율은 0% 가 되어 <b>부가세가 조용히 사라진다.</b>
+     */
+    private void applyExtras(Item item,
+                             String remark, BigDecimal vatRateSales, BigDecimal vatRatePurchase,
+                             BigDecimal subcontractPrice, Integer leadTimeDays, BigDecimal minPurchaseUnit,
+                             Boolean setItem, Boolean sharedItem, String itemType, Long parentItemId,
+                             Boolean lotManaged, String qcType, String qcMethod,
+                             Boolean qcOnPurchase, Boolean qcOnProduction,
+                             Boolean autoProductionOnSales, Boolean autoProductionOnTransfer) {
+        item.setRemark(remark);
+        item.setVatRateSales(vatRateSales != null ? vatRateSales : BigDecimal.TEN);
+        item.setVatRatePurchase(vatRatePurchase != null ? vatRatePurchase : BigDecimal.TEN);
+        item.setSubcontractPrice(subcontractPrice != null ? subcontractPrice : BigDecimal.ZERO);
+        item.setLeadTimeDays(leadTimeDays != null ? leadTimeDays : 0);
+        item.setMinPurchaseUnit(minPurchaseUnit != null ? minPurchaseUnit : BigDecimal.ZERO);
+        item.setSetItem(Boolean.TRUE.equals(setItem));
+        item.setSharedItem(Boolean.TRUE.equals(sharedItem));
+        item.setItemType(itemType);
+        item.setParentItem(parentOf(item, parentItemId));
+        item.setLotManaged(Boolean.TRUE.equals(lotManaged));
+        item.setQcType(qcType);
+        item.setQcMethod(qcMethod);
+        item.setQcOnPurchase(Boolean.TRUE.equals(qcOnPurchase));
+        item.setQcOnProduction(Boolean.TRUE.equals(qcOnProduction));
+        item.setAutoProductionOnSales(Boolean.TRUE.equals(autoProductionOnSales));
+        item.setAutoProductionOnTransfer(Boolean.TRUE.equals(autoProductionOnTransfer));
+    }
+
+    /**
+     * 원본 <b>[대표품목]</b>. 안 정하면 자기가 곧 대표다.
+     *
+     * <p><b>자기를 자기 대표로 두지 못하게 막는다.</b> 그러면 대표로 묶어 보는 화면이
+     * 자기를 따라가다 제자리를 돈다 — 목록이 통째로 멈춘다.
+     */
+    private Item parentOf(Item item, Long parentItemId) {
+        if (parentItemId == null) return null;
+        if (item.getId() != null && parentItemId.equals(item.getId())) {
+            throw ApiException.badRequest("자기 자신을 대표품목으로 둘 수 없습니다.");
+        }
+        return getItem(parentItemId);
     }
 
     private Item getItem(Long id) {

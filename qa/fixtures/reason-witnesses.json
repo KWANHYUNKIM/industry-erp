@@ -192,14 +192,6 @@
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
- "재고수불부|대표품목으로 합산": {
-  "claim": "품목 마스터에 대표품목 칸이 없어 묶을 축이 없다",
-  "absent": [
-   "private Item parent",
-   "representativeItem"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
- },
  "판매조회|통화": {
   "claim": "판매·구매 전표에 통화 칸이 없다",
   "absent": [

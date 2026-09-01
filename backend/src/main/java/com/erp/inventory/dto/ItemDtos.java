@@ -58,7 +58,34 @@ public final class ItemDtos {
              * 지정할 수 없었다 — 그래서 채권/채무현황의 거래처그룹 소계가 늘 '(미지정)' 하나였고,
              * 특별단가의 '그룹별' 도 걸릴 일이 없었다.
              */
-            Long itemGroupId
+            Long itemGroupId,
+            /*
+             * 원본 품목등록 폼의 나머지 칸들 — 담을 데가 없어 화면에 그리지도 못하던 것이다.
+             * 참/거짓은 Boolean 으로 받는다: 안 보내면 <b>기본값</b>을 쓴다는 뜻이고,
+             * false 와 "안 보냄" 을 가려야 나중에 부분 수정이 가능하다.
+             */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark,
+            @PositiveOrZero(message = "부가세율은 0 이상이어야 합니다.") BigDecimal vatRateSales,
+            @PositiveOrZero(message = "부가세율은 0 이상이어야 합니다.") BigDecimal vatRatePurchase,
+            @PositiveOrZero(message = "외주비단가는 0 이상이어야 합니다.") BigDecimal subcontractPrice,
+            @PositiveOrZero(message = "조달기간은 0 이상이어야 합니다.") Integer leadTimeDays,
+            @PositiveOrZero(message = "최소구매단위는 0 이상이어야 합니다.") BigDecimal minPurchaseUnit,
+            Boolean setItem,
+            Boolean sharedItem,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String itemType,
+            /** 원본 [대표품목]. 규격만 다른 형제 품목들의 대표 (선택). */
+            Long parentItemId,
+            Boolean lotManaged,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
+            String qcType,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
+            String qcMethod,
+            Boolean qcOnPurchase,
+            Boolean qcOnProduction,
+            Boolean autoProductionOnSales,
+            Boolean autoProductionOnTransfer
     ) {}
 
     public record UpdateItemRequest(
@@ -100,6 +127,33 @@ public final class ItemDtos {
             String udiDi,
             Long managementItemId,
             Long itemGroupId,
+            /*
+             * 원본 품목등록 폼의 나머지 칸들 — 담을 데가 없어 화면에 그리지도 못하던 것이다.
+             * 참/거짓은 Boolean 으로 받는다: 안 보내면 <b>기본값</b>을 쓴다는 뜻이고,
+             * false 와 "안 보냄" 을 가려야 나중에 부분 수정이 가능하다.
+             */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark,
+            @PositiveOrZero(message = "부가세율은 0 이상이어야 합니다.") BigDecimal vatRateSales,
+            @PositiveOrZero(message = "부가세율은 0 이상이어야 합니다.") BigDecimal vatRatePurchase,
+            @PositiveOrZero(message = "외주비단가는 0 이상이어야 합니다.") BigDecimal subcontractPrice,
+            @PositiveOrZero(message = "조달기간은 0 이상이어야 합니다.") Integer leadTimeDays,
+            @PositiveOrZero(message = "최소구매단위는 0 이상이어야 합니다.") BigDecimal minPurchaseUnit,
+            Boolean setItem,
+            Boolean sharedItem,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String itemType,
+            /** 원본 [대표품목]. 규격만 다른 형제 품목들의 대표 (선택). */
+            Long parentItemId,
+            Boolean lotManaged,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
+            String qcType,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
+            String qcMethod,
+            Boolean qcOnPurchase,
+            Boolean qcOnProduction,
+            Boolean autoProductionOnSales,
+            Boolean autoProductionOnTransfer,
             Boolean active
     ) {}
 
@@ -129,7 +183,19 @@ public final class ItemDtos {
             String udiDi,
             Long managementItemId,
             String managementItemName,
-            boolean active
+            boolean active,
+            /* 원본 품목등록 폼의 나머지 칸들. */
+            String remark,
+            BigDecimal vatRateSales, BigDecimal vatRatePurchase,
+            BigDecimal subcontractPrice, Integer leadTimeDays, BigDecimal minPurchaseUnit,
+            boolean setItem, boolean sharedItem, String itemType,
+            /** 대표품목은 id 와 <b>이름</b>을 같이 준다 — 화면이 목록을 다시 뒤지지 않게. */
+            Long parentItemId, String parentItemName,
+            boolean lotManaged, String qcType, String qcMethod,
+            boolean qcOnPurchase, boolean qcOnProduction,
+            boolean autoProductionOnSales, boolean autoProductionOnTransfer,
+            /** 원본 조건 [최초작성일자]·[최종수정일자]. BaseTimeEntity 가 진작 들고 있다. */
+            java.time.LocalDate createdDate, java.time.LocalDate updatedDate
     ) {
         public static ItemResponse from(Item item) {
             return new ItemResponse(
@@ -154,7 +220,18 @@ public final class ItemDtos {
                     item.getUdiDi(),
                     item.getManagementItem() == null ? null : item.getManagementItem().getId(),
                     item.getManagementItem() == null ? null : item.getManagementItem().getName(),
-                    item.isActive()
+                    item.isActive(),
+                    item.getRemark(),
+                    item.getVatRateSales(), item.getVatRatePurchase(),
+                    item.getSubcontractPrice(), item.getLeadTimeDays(), item.getMinPurchaseUnit(),
+                    item.isSetItem(), item.isSharedItem(), item.getItemType(),
+                    item.getParentItem() != null ? item.getParentItem().getId() : null,
+                    item.getParentItem() != null ? item.getParentItem().getName() : null,
+                    item.isLotManaged(), item.getQcType(), item.getQcMethod(),
+                    item.isQcOnPurchase(), item.isQcOnProduction(),
+                    item.isAutoProductionOnSales(), item.isAutoProductionOnTransfer(),
+                    item.getCreatedAt() != null ? item.getCreatedAt().toLocalDate() : null,
+                    item.getUpdatedAt() != null ? item.getUpdatedAt().toLocalDate() : null
             );
         }
     }
