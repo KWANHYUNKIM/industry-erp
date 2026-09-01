@@ -91,7 +91,8 @@ public class ProjectPlanService {
                     actRevenue, actCost, actProfit,
                     rate(actRevenue, planRevenue), rate(actProfit, planProfit),
                     p.getPlanPurchase(), p.getPlanLabor(), p.getPlanExpense(),
-                    p.getProject().getStartDate(), p.getProject().getEndDate(), p.getRemark());
+                    p.getProject().getStartDate(), p.getProject().getEndDate(), p.getRemark(),
+                    p.getUpdatedAt());
         }).toList();
     }
 

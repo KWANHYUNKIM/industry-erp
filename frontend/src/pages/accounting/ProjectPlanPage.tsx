@@ -33,6 +33,8 @@ interface ComparisonRow {
   planExpense: number
   startDate: string | null
   endDate: string | null
+  /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
+  updatedAt: string | null
   remark: string | null
 }
 
@@ -83,6 +85,12 @@ export default function ProjectPlanPage() {
   const [laborTo, setLaborTo] = useState('')
   const [expenseFrom, setExpenseFrom] = useState('')
   const [expenseTo, setExpenseTo] = useState('')
+  /*
+   * 원본 조건 [기타]의 <b>[수정일자순(정렬)]</b> 체크박스(2026-09-01 E040636 실측).
+   * 꺼져 있는 것이 기본이다. 켜면 <b>나중에 고친 계획이 위</b>로 온다 —
+   * 오늘 손댄 계획을 찾을 길이 없었다.
+   */
+  const [byUpdated, setByUpdated] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -145,6 +153,12 @@ export default function ProjectPlanPage() {
     .filter((r) => inRange(r.planPurchase, purchaseFrom, purchaseTo))
     .filter((r) => inRange(r.planLabor, laborFrom, laborTo))
     .filter((r) => inRange(r.planExpense, expenseFrom, expenseTo))
+    /*
+     * 원본 [수정일자순(정렬)] — 켜면 나중에 고친 것이 위다. 안 켜면 서버가 준 차례
+     * 그대로 둔다. sort 는 제자리를 바꾸므로 베껴서 한다.
+     */
+    .slice()
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
   const totals = shown.reduce((s, r) => ({
@@ -254,6 +268,12 @@ export default function ProjectPlanPage() {
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>적요</span>
         <input className={inputCls} value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 150 }} />
+        {/* 원본 조건 차례의 마지막 [기타] — [수정일자순(정렬)] 하나다(실측). */}
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>기타</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5, color: '#3c4553' }}>
+          <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}

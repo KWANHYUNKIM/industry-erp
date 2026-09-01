@@ -67,6 +67,12 @@ public final class ProjectPlanDtos {
              * 시작·종료는 프로젝트 마스터의 것이고 적요는 계획행의 것인데, 셋 다
              * 응답에 싣지 않아 <b>화면이 볼 수도 거를 수도 없었다.</b>
              */
-            LocalDate startDate, LocalDate endDate, String remark
+            LocalDate startDate, LocalDate endDate, String remark,
+            /*
+             * 원본 조건 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축(2026-09-01 E040636 실측).
+             * 그 축이 응답에 없어 정렬을 만들 수 없었다 — BaseTimeEntity 가 이미 들고 있는
+             * 값이라 싣기만 하면 된다. 매출계획조회에서 같은 자리를 같은 방식으로 채웠다.
+             */
+            java.time.LocalDateTime updatedAt
     ) {}
 }
