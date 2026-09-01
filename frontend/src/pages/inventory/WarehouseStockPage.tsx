@@ -47,6 +47,12 @@ export default function WarehouseStockPage() {
     inactiveItem: false,
     inactiveWarehouse: false,
     safety: false,
+    /**
+     * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
+     * 모아 본다. "이 물건이 통틀어 몇 개 있나" 는 규격별로 갈린 표에서는 눈으로 더해야 한다.
+     * 원본과 같이 기본은 꺼 둔다 — 켜면 줄 수가 줄어드는데 말없이 그러면 빠진 줄 안다.
+     */
+    rollUp: false,
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -65,12 +71,26 @@ export default function WarehouseStockPage() {
 
   useEffect(() => { load() }, [])
 
+  /**
+   * 품목 id → <b>대표품목 id</b>. 대표가 없으면 자기가 곧 대표다.
+   * 합산을 끄면 자기 자신으로 돌려주므로 아래 계산은 한 벌로 끝난다.
+   */
+  const headOf = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const it of items) m.set(it.id, cond.rollUp ? (it.parentItemId ?? it.id) : it.id)
+    return (id: number) => m.get(id) ?? id
+  }, [items, cond.rollUp])
+
   /** 재고가 0 인 칸도 보이려면 품목·창고 목록으로 격자를 만들어야 한다 — /stock 은 있는 것만 준다. */
   const qtyOf = useMemo(() => {
     const m = new Map<string, number>()
-    stock.forEach((r) => m.set(`${r.itemId}:${r.warehouseId}`, r.quantity))
+    /* 대표로 모을 때는 형제들의 수량이 <b>한 칸에 겹친다</b> — 덮어쓰지 말고 더한다. */
+    stock.forEach((r) => {
+      const k = `${headOf(r.itemId)}:${r.warehouseId}`
+      m.set(k, (m.get(k) ?? 0) + r.quantity)
+    })
     return m
-  }, [stock])
+  }, [stock, headOf])
 
   const shownWarehouses = useMemo(() => {
     const used = new Set(stock.filter((r) => r.quantity !== 0).map((r) => r.warehouseId))
@@ -83,13 +103,15 @@ export default function WarehouseStockPage() {
   const shownItems = useMemo(() => {
     const wid = new Set(shownWarehouses.map((w) => w.id))
     const total = (id: number) => stock
-      .filter((r) => r.itemId === id && wid.has(r.warehouseId))
+      .filter((r) => headOf(r.itemId) === id && wid.has(r.warehouseId))
       .reduce((n, r) => n + r.quantity, 0)
     return items
+      /* 합산을 켜면 <b>대표만</b> 줄로 세운다 — 형제 줄은 대표 줄에 들어가 있다. */
+      .filter((it) => !cond.rollUp || it.parentItemId == null)
       .filter((it) => cond.inactiveItem || it.active)
       .filter((it) => !cond.item || it.name.includes(cond.item) || it.code.includes(cond.item))
       .filter((it) => cond.zeroItem || total(it.id) !== 0)
-  }, [items, stock, shownWarehouses, cond.inactiveItem, cond.item, cond.zeroItem])
+  }, [items, stock, shownWarehouses, headOf, cond.rollUp, cond.inactiveItem, cond.item, cond.zeroItem])
 
   const itemTotal = (id: number) => shownWarehouses.reduce((n, w) => n + (qtyOf.get(`${id}:${w.id}`) ?? 0), 0)
   const warehouseTotal = (id: number) => shownItems.reduce((n, it) => n + (qtyOf.get(`${it.id}:${id}`) ?? 0), 0)
@@ -104,7 +126,7 @@ export default function WarehouseStockPage() {
   const num = (n: number) => n.toLocaleString()
   const reset = () => {
     setMode('종')
-    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: false, inactiveWarehouse: false, safety: false })
+    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: false, inactiveWarehouse: false, safety: false, rollUp: false })
   }
 
   const flatCols = 6 + (cond.safety ? 1 : 0)
@@ -165,6 +187,13 @@ export default function WarehouseStockPage() {
                      onChange={(e) => setC({ [k]: e.target.checked })} /> {label}
             </label>
           ))}
+        </EcCond>
+        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={cond.rollUp}
+                   onChange={(e) => setC({ rollUp: e.target.checked })} /> 형제 품목을 대표 한 줄로
+          </label>
         </EcCond>
       </EcStatusPanel>
 

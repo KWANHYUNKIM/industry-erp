@@ -36,4 +36,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
            "or lower(i.searchKeyword) like :q")
     long searchCount(@Param("q") String q);
 
+
+    /** 그 대표품목을 가리키는 형제들. [대표품목으로 합산] 이 가족을 세울 때 쓴다. */
+    List<Item> findByParentItemId(Long parentItemId);
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -122,4 +123,43 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
            "from StockTransaction t where t.transactionDate > :asOf " +
            "group by t.item.id, t.warehouse.id")
     List<Object[]> sumChangeAfter(@Param("asOf") java.time.LocalDate asOf);
+
+    /*
+     * <b>[대표품목으로 합산]</b> 용. 위 질의들은 품목을 <b>하나</b>만 받는데, 합산은 대표와
+     * 형제들을 <b>한꺼번에</b> 봐야 한다.
+     *
+     * <p>기존 질의에 <code>(:itemIds is null or t.item.id in :itemIds)</code> 를 얹지 않고
+     * <b>따로</b> 둔다. PostgreSQL 은 <code>is null</code> 비교에서 파라미터 타입을 못 정해
+     * 42P18 로 터진다 — 기타이동 기간 조건에서 겪은 것과 같은 함정이다. 여기서는 ids 가
+     * 결코 비지 않으므로 null 갈래가 아예 필요 없다.
+     */
+    @Query("select t from StockTransaction t " +
+            "join fetch t.item join fetch t.warehouse " +
+            "where t.item.id in :itemIds " +
+            "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
+            "and t.transactionDate >= :from and t.transactionDate <= :to " +
+            "order by t.transactionDate asc, t.id asc")
+    List<StockTransaction> findLedgerOfItems(@Param("itemIds") List<Long> itemIds,
+                                             @Param("warehouseId") Long warehouseId,
+                                             @Param("from") LocalDate from,
+                                             @Param("to") LocalDate to,
+                                             Pageable pageable);
+
+    @Query("select count(t) from StockTransaction t " +
+            "where t.item.id in :itemIds " +
+            "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
+            "and t.transactionDate >= :from and t.transactionDate <= :to")
+    long countLedgerOfItems(@Param("itemIds") List<Long> itemIds,
+                            @Param("warehouseId") Long warehouseId,
+                            @Param("from") LocalDate from,
+                            @Param("to") LocalDate to);
+
+    /** 합산일 때의 기초잔량 — 형제들의 그 날 이전 움직임을 다 더한다. */
+    @Query("select coalesce(sum(t.quantityChange), 0) from StockTransaction t " +
+            "where t.item.id in :itemIds and t.warehouse.id = :warehouseId " +
+            "and t.transactionDate < :date")
+    BigDecimal sumChangeBeforeOfItems(@Param("itemIds") List<Long> itemIds,
+                                      @Param("warehouseId") Long warehouseId,
+                                      @Param("date") LocalDate date);
+
 }

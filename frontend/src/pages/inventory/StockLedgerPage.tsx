@@ -38,7 +38,15 @@ interface LedgerResponse {
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 
-interface ServerFilters { from: string; to: string; itemId: string; warehouseId: string }
+interface ServerFilters {
+  from: string; to: string; itemId: string; warehouseId: string
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>. 고른 품목을 <b>대표품목의 가족</b>으로 넓혀 본다.
+   * <b>서버 조건</b>이다 — 이 화면은 5천 줄에서 자르고 기초잔량을 따로 세므로, 화면에서
+   * 걸러 봐야 잘린 뒤에 거르는 것이라 수량이 조용히 모자란다.
+   */
+  rollUp: boolean
+}
 
 /*
  * 원본 재고수불부는 <b>[전월+금월]</b> 로 열린다(사본 실측). 수불은 <b>지난달에서
@@ -59,7 +67,7 @@ export default function StockLedgerPage() {
   const [error, setError] = useState('')
 
   // 서버 필터(조회 버튼으로 반영)
-  const [filters, setFilters] = useState<ServerFilters>({ from: initP.from, to: initP.to, itemId: '', warehouseId: '' })
+  const [filters, setFilters] = useState<ServerFilters>({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
   /*
@@ -73,7 +81,7 @@ export default function StockLedgerPage() {
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
   const reset = () => {
-    setFilters({ from: initP.from, to: initP.to, itemId: '', warehouseId: '' })
+    setFilters({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
     setTypeFilter('ALL'); setKeyword(''); setExcludeNoTx(false)
   }
 
@@ -97,6 +105,8 @@ export default function StockLedgerPage() {
       if (filters.itemId) params.itemId = filters.itemId
       if (filters.warehouseId) params.warehouseId = filters.warehouseId
       if (all) params.all = 'true'
+      /* 품목을 안 골랐으면 넓힐 것이 없다 — 보낼 것도 없다. */
+      if (filters.rollUp && filters.itemId) params.rollUp = 'true'
       const res = await api.get<LedgerResponse>('/stock/ledger', { params })
       setRows(res.data.rows)
       setOpening(res.data.opening)
@@ -191,6 +201,14 @@ export default function StockLedgerPage() {
           <label style={{ fontSize: 12 }}>
             <input type="checkbox" checked={excludeNoTx}
                    onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
+          </label>
+        </EcCond>
+        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
+                   onChange={(e) => setF({ rollUp: e.target.checked })} />
+            <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
           </label>
         </EcCond>
       </EcStatusPanel>

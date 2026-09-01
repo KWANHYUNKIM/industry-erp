@@ -113,6 +113,21 @@ public class StockService {
     @Transactional(readOnly = true)
     public StockDtos.StockLedgerResponse ledger(Long itemId, Long warehouseId,
                                                 LocalDate from, LocalDate to, boolean all) {
+        return ledger(itemId, warehouseId, from, to, all, false);
+    }
+
+    /**
+     * 재고수불부. <code>rollUp</code> 이면 고른 품목을 <b>대표품목의 가족</b>으로 넓혀서 본다
+     * (원본 조건 [대표품목으로 합산]).
+     *
+     * <p>거르기를 <b>서버가</b> 해야 하는 까닭: 이 화면은 5천 줄에서 자르고 기초잔량을
+     * 따로 센다. 화면에서 걸러 봐야 <b>잘린 뒤에</b> 거르는 것이라 대표 줄의 수량이
+     * 조용히 모자라고, 기초잔량은 고른 품목 하나 것만 남는다.
+     */
+    @Transactional(readOnly = true)
+    public StockDtos.StockLedgerResponse ledger(Long itemId, Long warehouseId,
+                                                LocalDate from, LocalDate to, boolean all,
+                                                boolean rollUp) {
         // 날짜는 항상 non-null로 (PostgreSQL 42P18 회피). 미지정이면 넓은 경계로 채운다.
         LocalDate effFrom = from != null ? from : LocalDate.of(1900, 1, 1);
         LocalDate effTo = to != null ? to : LocalDate.of(9999, 12, 31);
@@ -120,19 +135,29 @@ public class StockService {
          * 다 꺼내 놓고 자르면 이미 늦다 — 서버가 그 자료를 전부 메모리에 든 뒤다.
          * 몇 줄인지 <b>먼저 세고</b>, 넘치면 앞부분만 꺼낸다.
          */
-        long totalRows = transactionRepository.countLedger(itemId, warehouseId, effFrom, effTo);
+        /* 합산이 켜져 있고 품목을 골랐을 때만 가족으로 넓힌다 — 안 고르면 넓힐 것이 없다. */
+        List<Long> family = (rollUp && itemId != null) ? familyOf(itemId) : null;
+
+        long totalRows = family != null
+                ? transactionRepository.countLedgerOfItems(family, warehouseId, effFrom, effTo)
+                : transactionRepository.countLedger(itemId, warehouseId, effFrom, effTo);
         boolean truncated = !all && totalRows > LEDGER_PAGE_ROWS;
-        List<StockTransactionResponse> rows = (truncated
-                ? transactionRepository.findLedgerPage(itemId, warehouseId, effFrom, effTo,
-                        org.springframework.data.domain.PageRequest.of(0, LEDGER_PAGE_ROWS))
-                : transactionRepository.findLedger(itemId, warehouseId, effFrom, effTo)).stream()
+        var page = truncated
+                ? org.springframework.data.domain.PageRequest.of(0, LEDGER_PAGE_ROWS)
+                : org.springframework.data.domain.Pageable.unpaged();
+        List<StockTransactionResponse> rows = (family != null
+                ? transactionRepository.findLedgerOfItems(family, warehouseId, effFrom, effTo, page)
+                : truncated
+                        ? transactionRepository.findLedgerPage(itemId, warehouseId, effFrom, effTo, page)
+                        : transactionRepository.findLedger(itemId, warehouseId, effFrom, effTo)).stream()
                 .map(StockTransactionResponse::from)
                 .toList();
         BigDecimal opening = null;
         if (itemId != null && warehouseId != null) {
-            opening = from != null
-                    ? transactionRepository.sumChangeBefore(itemId, warehouseId, from)
-                    : BigDecimal.ZERO;   // from 미지정 → 전기간, 첫 거래 이전 재고는 0
+            opening = from == null ? BigDecimal.ZERO   // from 미지정 → 전기간, 첫 거래 이전 재고는 0
+                    : family != null
+                            ? transactionRepository.sumChangeBeforeOfItems(family, warehouseId, from)
+                            : transactionRepository.sumChangeBefore(itemId, warehouseId, from);
         }
         return new StockDtos.StockLedgerResponse(opening, rows, totalRows, truncated);
     }
@@ -398,4 +423,19 @@ public class StockService {
             case ADJUST -> Boolean.FALSE.equals(req.increase()) ? qty.negate() : qty;
         };
     }
+
+    /**
+     * 그 품목이 속한 <b>대표품목의 가족</b> — 대표와 그 대표를 가리키는 형제들 전부.
+     * 대표가 없으면 자기가 곧 대표라 자기와 자기를 가리키는 것들이 가족이다.
+     */
+    private List<Long> familyOf(Long itemId) {
+        Item item = itemRepository.findById(itemId).orElse(null);
+        if (item == null) return List.of(itemId);
+        Long head = item.getParentItem() != null ? item.getParentItem().getId() : item.getId();
+        List<Long> ids = new java.util.ArrayList<>();
+        ids.add(head);
+        for (Item sibling : itemRepository.findByParentItemId(head)) ids.add(sibling.getId());
+        return ids;
+    }
+
 }

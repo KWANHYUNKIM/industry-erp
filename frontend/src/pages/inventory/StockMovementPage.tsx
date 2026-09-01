@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { Item, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -55,13 +55,25 @@ export default function StockMovementPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [hideZero, setHideZero] = useState(false)
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
+   * 모아 본다. 규격별로 갈린 표에서는 "이 물건이 이 달에 통틀어 얼마나 움직였나" 를
+   * 눈으로 더해야 한다. 원본과 같이 기본은 꺼 둔다.
+   */
+  const [rollUp, setRollUp] = useState(false)
+  /** 대표품목을 알려면 품목 마스터가 필요하다 — 변동표 응답에는 품목 id 만 온다. */
+  const [items, setItems] = useState<Item[]>([])
   /** 원본 [구분] — 집계·일별·월별. */
   const [mode, setMode] = useState<'집계' | '일별' | '월별'>('집계')
   const [buckets, setBuckets] = useState<BucketRow[]>([])
 
   async function loadRefs() {
-    const w = await api.get<Warehouse[]>('/warehouses')
+    const [w, i] = await Promise.all([
+      api.get<Warehouse[]>('/warehouses'),
+      api.get<Item[]>('/items'),
+    ])
     setWarehouses(w.data)
+    setItems(i.data)
   }
   async function load() {
     setLoading(true); setError('')
@@ -115,17 +127,40 @@ export default function StockMovementPage() {
 
   const reset = () => {
     setFrom(firstOfMonth()); setTo(today())
-    setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계')
+    setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계'); setRollUp(false)
   }
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
-    return rows.filter((r) => {
+    /*
+     * 대표로 모을 때는 <b>더한 뒤에 거른다.</b> 먼저 거르면 형제 하나가 검색어에 안 걸려
+     * 빠지고, 그러면 대표 줄의 수량이 조용히 모자란다.
+     */
+    let base = rows
+    if (rollUp) {
+      const head = new Map(items.map((it) => [it.id, it.parentItemId ?? it.id]))
+      const names = new Map(items.map((it) => [it.id, it]))
+      const m = new Map<number, MovementRow>()
+      for (const r of rows) {
+        const id = head.get(r.itemId) ?? r.itemId
+        const h = names.get(id)
+        const cur = m.get(id) ?? {
+          ...r, itemId: id,
+          itemCode: h?.code ?? r.itemCode, itemName: h?.name ?? r.itemName,
+          opening: 0, inQty: 0, outQty: 0, closing: 0,
+        }
+        cur.opening += r.opening; cur.inQty += r.inQty
+        cur.outQty += r.outQty; cur.closing += r.closing
+        m.set(id, cur)
+      }
+      base = [...m.values()]
+    }
+    return base.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
       if (hideZero && r.inQty === 0 && r.outQty === 0) return false
       return true
     })
-  }, [rows, keyword, hideZero])
+  }, [rows, keyword, hideZero, rollUp, items])
 
   const totals = useMemo(() => shown.reduce((s, r) => ({
     opening: s.opening + r.opening, inQty: s.inQty + r.inQty, outQty: s.outQty + r.outQty, closing: s.closing + r.closing,
@@ -177,6 +212,18 @@ export default function StockMovementPage() {
             <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} /> 입출고수량0제외
           </label>
         </EcCond>
+        {/*
+          원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다).
+          집계 보기에서만 뜻이 있다 — 일별·월별은 이미 품목을 한 덩어리로 굴린 표다.
+        */}
+        {mode === '집계' && (
+          <EcCond label="대표품목으로 합산">
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={rollUp}
+                     onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
+            </label>
+          </EcCond>
+        )}
       </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
