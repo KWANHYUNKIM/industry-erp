@@ -157,7 +157,9 @@ public class SalesPlanService {
                     : actualAmount.multiply(BigDecimal.valueOf(100))
                         .divide(p.getPlanAmount(), 1, RoundingMode.HALF_UP);
             out.add(new ComparisonRow(
-                    p.getId(), p.getPlanYear(), p.getPlanMonth(),
+                    p.getId(),
+                    p.getPlanNo(), p.getPlanDate(), p.getUpdatedAt(),
+                    p.getPlanYear(), p.getPlanMonth(),
                     p.getItem().getId(), p.getItem().getName(), p.getItem().getUnit(),
                     p.getWarehouse() != null ? p.getWarehouse().getId() : null,
                     p.getWarehouse() != null ? p.getWarehouse().getName() : null,

@@ -39,7 +39,14 @@ interface ComparisonRow {
   planQty: number
   planAmount: number
   /** 원본 [일자-No.] — 계획 한 줄을 가리키는 전표번호다. */
+  /*
+   * 원본 격자 첫 열 [일자-No.]. 열은 진작 그렸는데 <b>서버가 안 보내 늘 빈칸이었다</b>
+   * (2026-09-01 원본 E040625 대조 중 드러남).
+   */
   planNo: string
+  planDate: string
+  /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
+  updatedAt: string | null
   actualQty: number
   actualAmount: number
   achieveRate: number
@@ -86,6 +93,11 @@ export default function SalesPlanPage() {
   const [empCond, setEmpCond] = useState('')
   const [saleFlag, setSaleFlag] = useState<SaleFlag>('전체')
   const [setups, setSetups] = useState<string[]>(['비율(%)'])
+  /*
+   * 원본 조건 [기타]의 <b>[수정일자순(정렬)]</b> 체크박스(2026-09-01 실측). 꺼져 있는 것이 기본이다.
+   * 켜면 <b>가장 나중에 고친 계획이 위로</b> 온다 — 오늘 손댄 계획을 찾을 길이 없었다.
+   */
+  const [byUpdated, setByUpdated] = useState(false)
   const withCode = setups.includes('코드포함')
   const withRate = setups.includes('비율(%)')
   const withQty = setups.includes('수량')
@@ -142,8 +154,14 @@ export default function SalesPlanPage() {
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !partnerCond || r.partnerName === partnerCond)
     .filter((r) => !projCond || r.projectName === projCond)
-    .filter((r) => !empCond || r.employeeName === empCond),
-    [rows, itemCond, whCond, partnerCond, projCond, empCond])
+    .filter((r) => !empCond || r.employeeName === empCond)
+    /*
+     * 원본 [기타]의 [수정일자순(정렬)] — 켜면 <b>나중에 고친 것이 위</b>다.
+     * 안 켜면 서버가 준 차례(계획연월) 그대로 둔다. sort 는 제자리를 바꾸므로 베껴서 한다.
+     */
+    .slice()
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+    [rows, itemCond, whCond, partnerCond, projCond, empCond, byUpdated])
 
   /*
    * [설정]으로 열이 켜지고 꺼지니 <b>머리와 줄의 칸 수가 자료 따라 변한다</b> —
@@ -250,6 +268,17 @@ export default function SalesPlanPage() {
             ))}
           </div>
         </EcCond>
+        {/*
+          원본 조건 [기타] — [수정일자순(정렬)] 하나다(2026-09-01 실측).
+          원본에는 [최종수정자] 조건도 있으나 우리 매출계획이 <b>누가 고쳤는지를 안 든다</b>
+          (created_by 만 있고 updated_by 가 없다). 값을 지어내지 않고 그대로 둔다.
+        */}
+        <EcCond label="기타">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
+        </EcCond>
         <EcCond label="설정">
           <div style={{ display: 'flex', gap: 12 }}>
             {SETUPS.map((k) => (
@@ -310,7 +339,9 @@ export default function SalesPlanPage() {
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.planNo}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', whiteSpace: 'nowrap' }}>
+                {dateText(r.planDate)}-{r.planNo}
+              </td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{dateText(r.expectedDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{named(r.partnerName, r.partnerCode)}</td>

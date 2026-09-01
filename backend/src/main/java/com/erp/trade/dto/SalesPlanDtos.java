@@ -54,7 +54,19 @@ public final class SalesPlanDtos {
 
     /** 매출계획비교표 한 줄: 계획 vs 실적(판매 집계)과 달성률. id 는 계획행 삭제용. */
     public record ComparisonRow(
-            Long id, int planYear, int planMonth,
+            Long id,
+            /*
+             * 원본 매출계획조회(E040625) 격자의 <b>첫 열 [일자-No.]</b>(2026-09-01 실측).
+             * 화면은 진작 그 열을 그리고 있었는데 <b>응답에 싣지 않아 늘 빈칸이었다</b> —
+             * 계획 한 줄을 가리킬 이름이 표에 하나도 안 보였다.
+             */
+            String planNo, java.time.LocalDate planDate,
+            /*
+             * 원본 조건 [기타]의 <b>[수정일자순(정렬)]</b>. 그 축이 응답에 없어 정렬을 만들 수 없었다.
+             * BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다.
+             */
+            java.time.LocalDateTime updatedAt,
+            int planYear, int planMonth,
             Long itemId, String itemName, String unit,
             Long warehouseId, String warehouseName,
             Long partnerId, String partnerName,
