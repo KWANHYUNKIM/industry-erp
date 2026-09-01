@@ -27,6 +27,13 @@ const EXPIRY_WARN_DAYS = 30
  * 작성 → 서명요청 → 전자서명(서명자·서명일시·동의문구 기록) → 해지.
  */
 export default function ContractPage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 계약은 <b>기간이 걸쳐 있는 것</b>이라, 올해로 잘라 놓으면 작년에 맺어 아직 살아 있는 계약이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [rows, setRows] = useState<BusinessContract[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [tab, setTab] = useState<Tab>('전체')
@@ -42,7 +49,7 @@ export default function ContractPage() {
     setLoading(true)
     try {
       const [c, p] = await Promise.all([
-        api.get<BusinessContract[]>('/contracts'),
+        api.get<BusinessContract[]>('/contracts', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<Partner[]>('/partners'),
       ])
       setRows(c.data)
@@ -54,7 +61,7 @@ export default function ContractPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   async function send(c: BusinessContract) {
     try {
@@ -118,6 +125,16 @@ export default function ContractPage() {
           )}
         </span>
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

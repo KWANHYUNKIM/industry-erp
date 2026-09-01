@@ -18,6 +18,13 @@ const statusColor = (s: NoteStatus) =>
 
 /** 어음거래 — 받을어음 수취 / 지급어음 발행 → 만기결제·할인·부도. 모든 단계가 분개를 남긴다. */
 export default function PromissoryNotePage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 어음은 <b>오래된 것이 살아 있다</b> — 기본으로 자르면 지난달에 받아 아직 안 돌아온 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [summary, setSummary] = useState<NoteSummary | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
@@ -30,14 +37,17 @@ export default function PromissoryNotePage() {
 
   function load() {
     setError('')
-    api.get<NoteSummary>('/notes').then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<NoteSummary>('/notes', { params: { from: pFrom || undefined, to: pTo || undefined } }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   useEffect(() => {
     load()
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
     api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setAccounts(r.data)).catch(() => {})
+    /* 기간을 바꾸면 어음만 다시 물어본다 — 거래처·계좌는 기간과 상관없다. */
   }, [])
+
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const notes = summary?.notes ?? []
   const shown = useMemo(() => notes.filter((n) => tab === '전체' || n.status === TAB_STATUS[tab]), [notes, tab])
@@ -97,6 +107,16 @@ export default function PromissoryNotePage() {
           수취/발행 → 만기결제 · 할인 · 부도. 결제·할인은 계좌 잔액이 함께 움직입니다.
         </span>
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

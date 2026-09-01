@@ -54,6 +54,13 @@ export default function FastVoucherPage() {
    * 가리켰다. 그래서 <b>무엇을 누르든 지출결의서가 떴다.</b> 메뉴가 ?type= 으로 지목한다.
    */
   const [params] = useSearchParams()
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 전표는 열자마자 최근 것을 찾는 일이 많지만, 지난 분기를 맞춰 보는 일도 잦다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [type, setType] = useState<FastVoucherType>(
     (TABS.find((v) => v.type === params.get('type'))?.type) ?? 'EXPENSE_REPORT')
   const [rows, setRows] = useState<FastVoucher[]>([])
@@ -72,7 +79,7 @@ export default function FastVoucherPage() {
     setLoading(true)
     try {
       const [v, a, b, p] = await Promise.all([
-        api.get<FastVoucher[]>('/vouchers'),
+        api.get<FastVoucher[]>('/vouchers', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Partner[]>('/partners'),
@@ -88,7 +95,7 @@ export default function FastVoucherPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const shown = rows.filter((r) => r.type === type)
   const count = (t: FastVoucherType) => rows.filter((r) => r.type === t).length
@@ -122,6 +129,16 @@ export default function FastVoucherPage() {
           }}>{t.label} ({count(t.type)})</button>
         ))}
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

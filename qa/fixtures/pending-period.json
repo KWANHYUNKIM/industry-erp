@@ -2,17 +2,14 @@
  "/bank-cards/usages",
  "/cash-details/account-transfers",
  "/cash-details/card-payments",
- "/contracts",
  "/exports",
  "/fixed-assets",
  "/fixed-assets/depreciations",
  "/mails/sent",
  "/mails/shared",
- "/notes",
  "/pay-settings/transfers",
  "/pay-settings/transfers/transferred-payslips",
  "/production-plans",
  "/projects",
- "/quality-inspection-requests",
- "/vouchers"
+ "/quality-inspection-requests"
 ]

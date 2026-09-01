@@ -13,6 +13,9 @@ public interface FastVoucherRepository extends JpaRepository<FastVoucher, Long> 
            "join fetch v.lines l join fetch l.account " +
            "left join fetch v.bankAccount left join fetch v.partner left join fetch v.journalEntry " +
            "where (:type is null or v.type = :type) " +
+           "and v.voucherDate >= :from and v.voucherDate <= :to " +
            "order by v.voucherDate desc, v.id desc")
-    List<FastVoucher> findAllWithRefs(FastVoucherType type);
+    List<FastVoucher> findAllWithRefs(FastVoucherType type,
+                                      @org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
+                                      @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
 }
