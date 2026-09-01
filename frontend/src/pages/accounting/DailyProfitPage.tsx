@@ -99,7 +99,18 @@ export default function DailyProfitPage() {
   const [error, setError] = useState('')
   const [whyOpen, setWhyOpen] = useState(false)
 
-  const [mode, setMode] = useState<Mode>('라인별')
+  /*
+   * 화면을 열었을 때 켜져 있는 [구분]. 원본은 <b>[품목별]</b> 이다
+   * (2026-09-01 원본 C000036 직접 실측 — 라디오가 품목별에 찍혀 있다).
+   *
+   * <p>우리는 [라인별] 로 열고 있었다. 대조표 둘이 서로 다른 값을 적고 있었던 탓이다 —
+   * ecount-mode-default.json 은 '라인별', ecount-radio-options.json 은 '*품목별'.
+   * 원본을 열어 가려 보니 라디오 쪽이 맞았다. mode-default 도 같이 고쳤다.
+   *
+   * <p>라인별로 열면 전표 줄이 그대로 쏟아져, 무엇이 남는 장사인지 보려면 사람이 눈으로
+   * 품목을 모아야 한다. 이익현황은 품목으로 접어 보는 것이 첫 화면이다.
+   */
+  const [mode, setMode] = useState<Mode>('품목별')
   const [basis, setBasis] = useState<Basis>('입고단가(품목)')
   const [withVat, setWithVat] = useState(false)
   /**
