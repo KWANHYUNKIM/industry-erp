@@ -1883,6 +1883,10 @@ export interface NoteSummary {
   receivableDueSoon: number
   payableDueSoon: number
   notes: PromissoryNote[]
+  /** 조건에 걸린 전체 어음 수. 잘렸을 때 "몇 장 중 몇 장" 을 말하려고 받는다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
 }
 
 // ===== 전자근로계약 =====

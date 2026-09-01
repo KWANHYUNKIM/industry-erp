@@ -33,8 +33,10 @@ public class PromissoryNoteController {
             @RequestParam(required = false)
             @org.springframework.format.annotation.DateTimeFormat(
                     iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-            java.time.LocalDate to) {
-        return service.findAll(from, to);
+            java.time.LocalDate to,
+            /* 원본 [오천건이상조회] — 눌러야 문턱 위를 준다. */
+            @RequestParam(required = false, defaultValue = "false") boolean all) {
+        return service.findAll(from, to, all);
     }
 
     @PostMapping

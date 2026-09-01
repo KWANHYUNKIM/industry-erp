@@ -1424,6 +1424,55 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
   eq('[구분] 기본값을 잰 화면 ' + checked + '개가 원본과 같다', bad.join('\n') || '없음', '없음')
 }
 
+// ── 2-g') 대조표 둘이 같은 기본값을 적고 있나 ────────────────────────────
+console.log('\n■ 기본값을 적어 둔 두 대조표가 서로 어긋나지 않나')
+
+/*
+ * <b>ecount-mode-default.json 과 ecount-radio-options.json 이 같은 [구분]의 기본값을
+ * 서로 다르게 적고 있지 않나.</b>
+ *
+ * <p>둘은 같은 사본을 서로 다른 방식으로 뽑은 것이다 — 앞은 checked 가 붙은 라디오를,
+ * 뒤는 보기 목록에 <code>*</code> 로 기본을 표시해 둔 것이다. 그래서 <b>같은 값을 두 번</b>
+ * 적고 있고, 어긋나면 둘 중 하나가 틀렸다는 뜻이다.
+ *
+ * <p>실제로 일별이익현황이 그랬다 — mode-default 는 '라인별', radio-options 는 '*품목별'.
+ * 바로 위 검사는 mode-default 만 보므로 <b>늘 통과했고</b>, 화면은 틀린 쪽을 따라
+ * [라인별]로 열리고 있었다. 원본(C000036)을 직접 열어 보고서야 품목별인 줄 알았다.
+ * 라인별로 열면 전표 줄이 그대로 쏟아져 무엇이 남는 장사인지 눈으로 모아야 한다.
+ *
+ * <p>보기 목록이 <b>절반 넘게 겹치는</b> 짝만 견준다 — 한 화면이 라디오 묶음을 여럿
+ * 가질 수 있어(구분·거래구분·판매액 …) 이름만으로는 어느 것이 어느 것인지 모른다.
+ */
+{
+  const capMode = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-mode-default.json'), 'utf8'))
+  const capRadio = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-radio-options.json'), 'utf8'))
+  const bad = []
+  let checked = 0
+  for (const [screen, groups] of Object.entries(capMode)) {
+    const radios = capRadio[screen]
+    if (!radios) continue
+    for (const [gname, g] of Object.entries(groups)) {
+      const vals = g['값'] ?? []
+      const base = g['기본']
+      if (!vals.length || !base) continue
+      for (const [rkey, opts] of Object.entries(radios)) {
+        if (!Array.isArray(opts)) continue
+        const plain = opts.filter((o) => typeof o === 'string').map((o) => o.replace(/^[*]/, ''))
+        const starred = opts.filter((o) => typeof o === 'string' && o.startsWith('*')).map((o) => o.slice(1))
+        if (!plain.length || !starred.length) continue
+        const inter = plain.filter((o) => vals.includes(o)).length
+        const union = new Set([...plain, ...vals]).size
+        if (inter / union < 0.5) continue
+        checked += 1
+        if (starred[0] !== base) {
+          bad.push(`${screen} [${gname}] — mode-default 는 [${base}] · radio-options(${rkey}) 는 [${starred[0]}]`)
+        }
+      }
+    }
+  }
+  eq(`두 대조표가 같이 적어 둔 기본값 ${checked}쌍이 서로 같다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-e) 코드도움 후보를 안 받고 쓰지 않나 ────────────────────────────────
 console.log('\n■ 코드도움 후보를 받아 놓고 쓰나')
 

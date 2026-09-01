@@ -49,9 +49,17 @@ public class PromissoryNoteService {
     private final BankCardService bankCardService;
     private final DocumentNoGenerator docNoGenerator;
 
+    /** 한 번에 내려보낼 어음 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    public static final int LIST_PAGE_ROWS = 5000;
+
     @Transactional(readOnly = true)
     public NoteSummary findAll() {
-        return findAll(null, null);
+        return findAll(null, null, false);
+    }
+
+    @Transactional(readOnly = true)
+    public NoteSummary findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        return findAll(from, to, false);
     }
 
     /**
@@ -61,7 +69,7 @@ public class PromissoryNoteService {
      * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
      */
     @Transactional(readOnly = true)
-    public NoteSummary findAll(java.time.LocalDate from, java.time.LocalDate to) {
+    public NoteSummary findAll(java.time.LocalDate from, java.time.LocalDate to, boolean all) {
         List<PromissoryNote> notes = noteRepository.findAllWithPartner(
                 from != null ? from : java.time.LocalDate.of(1900, 1, 1),
                 to != null ? to : java.time.LocalDate.of(9999, 12, 31));
@@ -83,8 +91,15 @@ public class PromissoryNoteService {
                 if (dueSoon) paySoon = paySoon.add(n.getAmount());
             }
         }
+        /*
+         * 요약 넷은 <b>기간 전체</b>로 이미 다 더했다. 목록만 자른다 — 자른 몫으로 더하면
+         * 화면 위의 잔액이 조용히 줄어든다.
+         */
+        boolean truncated = !all && notes.size() > LIST_PAGE_ROWS;
+        List<PromissoryNote> shown = truncated ? notes.subList(0, LIST_PAGE_ROWS) : notes;
         return new NoteSummary(recvHeld, payHeld, recvSoon, paySoon,
-                notes.stream().map(NoteResponse::from).toList());
+                shown.stream().map(NoteResponse::from).toList(),
+                notes.size(), truncated);
     }
 
     /** 어음 수취(받을어음) / 발행(지급어음). 채권·채무가 어음으로 대체된다. */

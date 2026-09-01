@@ -72,6 +72,12 @@ public final class PromissoryNoteDtos {
             BigDecimal payableHeld,
             BigDecimal receivableDueSoon,
             BigDecimal payableDueSoon,
-            List<NoteResponse> notes
+            List<NoteResponse> notes,
+            /*
+             * 원본 [오천건이상조회] 와 같은 자리. 어음이 5천 장을 넘으면 목록만 자르고
+             * <b>요약 넷은 기간 전체로</b> 낸다 — 자른 몫만 더하면 잔액이 조용히 줄어든다.
+             */
+            long totalRows,
+            boolean truncated
     ) {}
 }

@@ -35,9 +35,21 @@ export default function PromissoryNotePage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
-  function load() {
+  /*
+   * <b>넓게 물으면 앞 5천 장만 받는다.</b> 어음이 쌓이면 목록이 통째로 내려와 몇 MB 가 된다 —
+   * 실제로 5,006장에서 걸렸다. 원본도 큰 결과를 그냥 주지 않는다: 조회 화면에
+   * <b>[오천건이상조회]</b> 를 두고 그 위로는 눌러야 가게 한다. 자른 것은 숨기지 않는다.
+   *
+   * <p>화면 위의 <b>잔액 넷은 자르기 전 기간 전체</b>로 낸다 — 서버가 그렇게 준다.
+   * 자른 몫만 더하면 보유잔액이 조용히 줄어든다.
+   */
+  function load(all = false) {
     setError('')
-    api.get<NoteSummary>('/notes', { params: { from: pFrom || undefined, to: pTo || undefined } }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    const params: Record<string, string | boolean> = {}
+    if (pFrom) params.from = pFrom
+    if (pTo) params.to = pTo
+    if (all) params.all = true
+    api.get<NoteSummary>('/notes', { params }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   useEffect(() => {
@@ -99,10 +111,14 @@ export default function PromissoryNotePage() {
   }
 
   return (
-    <EcListShell title="어음거래" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="어음거래" actions={[
+      /* 원본 [오천건이상조회] — 잘려 왔을 때만 눌린다. 안 잘렸는데 붙여 두면 흉내일 뿐이다. */
+      { label: '오천건이상조회', onClick: () => load(true), disabled: !summary?.truncated },
+      { label: 'Excel' }, { label: '인쇄' },
+    ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 어음등록(F2)</button>
-        <button className="ec-btn" onClick={load}>새로고침</button>
+        <button className="ec-btn" onClick={() => load()}>새로고침</button>
         <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
           수취/발행 → 만기결제 · 할인 · 부도. 결제·할인은 계좌 잔액이 함께 움직입니다.
         </span>
