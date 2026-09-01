@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 회계 > 프로젝트 > 프로젝트계획 / 계획·실적현황 (이카운트 C000653·E040636·E040637)
@@ -134,14 +135,15 @@ export default function ProjectPlanPage() {
 
   return (
     <EcListShell
-      title="프로젝트계획"
+      /* 원본 화면 제목이 [프로젝트계획 리스트] 다(2026-09-01 원본 E040636 실측) */
+      title="프로젝트계획 리스트"
       onNew={() => setShowForm(true)}
       actions={[
         { label: '새로고침', onClick: load },
         /* 원본 차례: 신규(F2) · 선택삭제 · Excel (사본 실측) */
         { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
         { label: 'Excel' },
-        { label: '인쇄' },
+        /* 원본 버튼줄은 [신규(F2)]·[선택삭제]·[Excel] 뿐이다 — [인쇄] 는 우리가 없는 것을 만든 것이었다. */
       ]}
     >
       <p className="mb-2 text-xs text-slate-500">프로젝트별 연간 계획 매출·원가 등록 → 전표 집계 실적과 대조(달성률). 실적은 판매·구매·비용 전표에서 계산.</p>
@@ -197,7 +199,15 @@ export default function ProjectPlanPage() {
           <tr>
             <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
-            <th>프로젝트</th>
+            {/*
+              원본 격자 차례: <b>프로젝트코드 · 프로젝트명 · 시작일 · 종료일</b> · 판매 · 구매 · 노무비 · 경비.
+              우리는 코드와 이름을 한 칸에 붙여 놓고 <b>시작일·종료일은 아예 없었다</b> —
+              조건으로 시작일·종료일을 거를 수는 있는데 정작 그 값이 목록에 안 보였다.
+            */}
+            <th style={{ width: 90 }}>프로젝트코드</th>
+            <th>프로젝트명</th>
+            <th style={{ width: 100 }}>시작일</th>
+            <th style={{ width: 100 }}>종료일</th>
             <th style={{ textAlign: 'right' }}>계획매출</th>
             <th style={{ textAlign: 'right' }}>실적매출</th>
             <th style={{ textAlign: 'right' }}>매출달성</th>
@@ -209,16 +219,19 @@ export default function ProjectPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.projectCode}</span>{r.projectName}</td>
+              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.projectCode}</td>
+              <td>{r.projectName}</td>
+              <td style={{ color: r.startDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.startDate) || ''}</td>
+              <td style={{ color: r.endDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.endDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.planRevenue)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.actualRevenue)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.revenueAchieveRate) }}>{r.revenueAchieveRate.toFixed(1)}%</td>
@@ -234,7 +247,7 @@ export default function ProjectPlanPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
+              <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(totals.planRevenue)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.actualRevenue)}</td>
               <td style={{ textAlign: 'right', color: rateColor(totals.planRevenue > 0 ? totals.actualRevenue / totals.planRevenue * 100 : 0) }}>
