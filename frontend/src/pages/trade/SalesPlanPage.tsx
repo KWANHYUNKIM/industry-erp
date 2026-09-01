@@ -93,6 +93,20 @@ const SETUPS = ['코드포함', '비율(%)', '수량'] as const
 const AXES = ['없음', '담당자', '창고', '품목명', '거래처', '프로젝트'] as const
 type Axis = typeof AXES[number]
 
+/**
+ * 원본 매출계획현황(E040640)의 <b>[구분]</b> — [내역]·[집계] 라디오와 그 아래 단위 칸이다
+ * (2026-09-01 원본 실측). 단위 후보 여덟:
+ * 일별 · 월별 · 라인별 · 전표별 · 품목별 · 전표별품목별 · 거래처별 · 담당자별 (기본 라인별).
+ *
+ * <p>계획을 <b>어느 단위로 합쳐 보느냐</b>가 이 화면의 본체인데 우리에겐 그 자리가 없어
+ * 늘 줄 하나씩만 보였다 — 이번 달 계획이 다 해서 얼마인지를 표에서 읽을 수가 없었다.
+ *
+ * <p>원본은 [내역] 에서도 이 칸을 열어 두는데 <b>그때 무엇이 달라지는지는 재지 못했다</b>
+ * (이 회사에 매출계획 자료가 한 건도 없어 표가 안 그려진다). 우리는 [집계] 에만 건다.
+ */
+const UNITS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type Unit = typeof UNITS[number]
+
 /** 원본 [표시조건] 옆의 정렬 선택(사본 실측: 코드순이 기본). */
 const AXIS_SORTS = ['코드순', '코드명순', '금액순', '수량순'] as const
 type AxisSort = typeof AXIS_SORTS[number]
@@ -123,6 +137,9 @@ export default function SalesPlanPage() {
   const [axis1, setAxis1] = useState<Axis>('없음')
   const [axis2, setAxis2] = useState<Axis>('없음')
   const [axisSort, setAxisSort] = useState<AxisSort>('코드순')
+  /* 원본 매출계획현황 [구분] — [내역]이 기본이고 단위는 [라인별]이 기본이다(실측). */
+  const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  const [unit, setUnit] = useState<Unit>('라인별')
   const withCode = setups.includes('코드포함')
   const withRate = setups.includes('비율(%)')
   const withQty = setups.includes('수량')
@@ -193,7 +210,7 @@ export default function SalesPlanPage() {
    * 정적으로는 못 센다. 렌더된 표를 직접 재는 검사를 단다.
    */
   const tableRef = useRef<HTMLDivElement>(null)
-  useTableColumnCheck(tableRef, '매출계획비교표', [withQty, withRate, shown.length])
+  useTableColumnCheck(tableRef, '매출계획비교표', [withQty, withRate, shown.length, mode])
 
   /* 합계도 걸러진 것으로 낸다 — 한 품목만 보면서 합계는 전체이면 숫자가 거짓말을 한다. */
   const totals = useMemo(() => {
@@ -259,6 +276,24 @@ export default function SalesPlanPage() {
       </Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/*
+          원본 매출계획현황(E040640) 조건 판의 <b>첫 줄 [구분]</b> — [내역]·[집계] 와 단위 칸이다
+          (2026-09-01 실측). 원본 차례대로 맨 앞에 둔다.
+        */}
+        <EcCond label="구분">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="ec-pills">
+              {(['내역', '집계'] as const).map((m) => (
+                <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                        onClick={() => setMode(m)}>{m}</button>
+              ))}
+            </div>
+            <select className="ec-input" value={unit}
+                    onChange={(e) => setUnit(e.target.value as Unit)} style={{ width: 140 }}>
+              {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
@@ -341,6 +376,61 @@ export default function SalesPlanPage() {
         </EcCond>
       </ul>
 
+      {/*
+        원본 [구분]이 <b>[집계]</b> 일 때는 고른 단위로 합친 표를 낸다 — 줄 목록 대신이다.
+        이번 달 계획이 다 해서 얼마인지를 표에서 읽을 수 있어야 한다.
+      */}
+      {mode === '집계' ? (
+        (() => {
+          const keyOf = (r: ComparisonRow) =>
+            unit === '일별' ? dateText(r.planDate)
+              : unit === '월별' ? `${r.planYear}-${String(r.planMonth).padStart(2, '0')}`
+                : unit === '전표별' ? r.planNo
+                  : unit === '품목별' ? r.itemName
+                    : unit === '전표별품목별' ? `${r.planNo} · ${r.itemName}`
+                      : unit === '거래처별' ? r.partnerName
+                        : unit === '담당자별' ? r.employeeName
+                          /* [라인별]은 합칠 것이 없다 — 줄 하나가 곧 라인이라 계획No. 로 묶는다. */
+                          : r.planNo
+          const groups = subtotalBy(shown, keyOf,
+            { plan: (r) => r.planAmount, actual: (r) => r.actualAmount,
+              planQty: (r) => r.planQty, actualQty: (r) => r.actualQty })
+          return (
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th>{unit.replace(/별$/, '')}</th>
+                  <th style={{ width: 70, textAlign: 'right' }}>건수</th>
+                  {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
+                  <th style={{ textAlign: 'right' }}>계획금액</th>
+                  {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
+                  <th style={{ textAlign: 'right' }}>실적금액</th>
+                  {withRate && <th style={{ width: 90, textAlign: 'right' }}>달성률</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {groups.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                ) : groups.map((g) => (
+                  <tr key={g.label}>
+                    <td>{g.label}</td>
+                    <td style={{ textAlign: 'right' }}>{g.count}</td>
+                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.planQty.toLocaleString()}</td>}
+                    <td style={{ textAlign: 'right' }}>{won(g.sums.plan)}</td>
+                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.actualQty.toLocaleString()}</td>}
+                    <td style={{ textAlign: 'right' }}>{won(g.sums.actual)}</td>
+                    {withRate && (
+                      <td style={{ textAlign: 'right' }}>
+                        {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        })()
+      ) : (
       <div ref={tableRef}>
       <table className="w-full text-left">
         <thead>
@@ -411,6 +501,7 @@ export default function SalesPlanPage() {
         </tbody>
       </table>
       </div>
+      )}
 
       {/*
         원본 [표시조건] 으로 고른 축의 <b>소계</b>. 축을 안 고르면(둘 다 [없음]) 안 그린다 —
