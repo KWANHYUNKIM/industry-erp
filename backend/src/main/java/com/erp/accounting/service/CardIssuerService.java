@@ -5,6 +5,8 @@ import com.erp.accounting.dto.CardIssuerDtos.CardIssuerResponse;
 import com.erp.accounting.dto.CardIssuerDtos.CreateCardIssuerRequest;
 import com.erp.accounting.dto.CardIssuerDtos.UpdateCardIssuerRequest;
 import com.erp.accounting.repository.CardIssuerRepository;
+import com.erp.accounting.domain.Account;
+import com.erp.accounting.repository.AccountRepository;
 import com.erp.common.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -20,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CardIssuerService {
 
+    private final AccountRepository accountRepository;
     private final CardIssuerRepository repository;
 
     @Transactional(readOnly = true)
@@ -39,6 +42,9 @@ public class CardIssuerService {
                 .name(req.name())
                 .feeRate(req.feeRate() != null ? req.feeRate() : BigDecimal.ZERO)
                 .remark(req.remark())
+                .account(account(req.accountId()))
+                .depositAccount(req.depositAccount())
+                .searchKeyword(req.searchKeyword())
                 .active(true)
                 .build();
         return CardIssuerResponse.from(repository.save(c));
@@ -50,6 +56,9 @@ public class CardIssuerService {
         c.setName(req.name());
         c.setFeeRate(req.feeRate() != null ? req.feeRate() : BigDecimal.ZERO);
         c.setRemark(req.remark());
+        c.setAccount(account(req.accountId()));
+        c.setDepositAccount(req.depositAccount());
+        c.setSearchKeyword(req.searchKeyword());
         if (req.active() != null) {
             c.setActive(req.active());
         }
@@ -64,6 +73,16 @@ public class CardIssuerService {
     private CardIssuer get(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("카드사를 찾을 수 없습니다. id=" + id));
+    }
+
+    /**
+     * 원본 <b>[계정]</b>. 안 고르면 안 붙인다 — 회계반영할 때 사람이 고르면 된다.
+     * 없는 id 를 조용히 무시하지 않는다: 화면이 잘못 보낸 것을 모르면 값이 사라진 줄 안다.
+     */
+    private Account account(Long id) {
+        if (id == null) return null;
+        return accountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계정을 찾을 수 없습니다. id=" + id));
     }
 
     private String generateCode() {

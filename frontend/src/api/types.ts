@@ -775,6 +775,11 @@ export interface CardIssuer {
   feeRate: number | null
   remark: string | null
   active: boolean
+  /** 원본 폼의 [계정]·[입금계좌]·[검색창내용]. */
+  accountId: number | null
+  accountName: string | null
+  depositAccount: string | null
+  searchKeyword: string | null
 }
 
 export interface PaymentAgency {
@@ -786,6 +791,22 @@ export interface PaymentAgency {
   email: string | null
   remark: string | null
   active: boolean
+  /** 원본 E010114 폼의 나머지 칸들. */
+  accountId: number | null
+  accountName: string | null
+  depositAccount: string | null
+  searchKeyword: string | null
+  feeRate: number | null
+  regNoKind: string
+  industryKind: string
+  bizType: string | null
+  bizItem: string | null
+  manager: string | null
+  taxReport: boolean
+  postalCode: string | null
+  address: string | null
+  postalCode2: string | null
+  address2: string | null
 }
 
 // ===== 품질검사 =====
