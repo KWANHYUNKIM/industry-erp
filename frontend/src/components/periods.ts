@@ -247,6 +247,19 @@ export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개�
  */
 export const QUALITY_REQUEST_PICKS = QUOTATION_PICKS
 
+/**
+ * A/S소모현황(E040641) — 조회 묶음이 <b>[종료일] 다음에 [최근30일(+1개월)]</b> 이다
+ * (2026-09-01 원본 실측). 기본은 [금월(~오늘)] 이다.
+ *
+ * <p>우리는 INQUIRY_FULL_PICKS 를 써서 그 자리에 <b>[전월+금월]</b> 이 붙어 있었다 —
+ * 원본에 없는 버튼이고, 정작 원본이 주는 [최근30일(+1개월)] 은 없었다.
+ * A/S 는 <b>수리예정일이 앞에 있는</b> 일이라 아직 안 온 날짜까지 보는 버튼이 필요하다.
+ *
+ * <p>같은 A/S 라도 수리현황(E040611)은 <b>직전분기·직전반기</b>가 붙는 다른 묶음이다
+ * (AS_PICKS). 화면마다 다르다 — 한 묶음으로 눌러 두면 한쪽이 늘 틀린다.
+ */
+export const AS_CONSUMPTION_PICKS = QUOTATION_PICKS
+
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
 /**

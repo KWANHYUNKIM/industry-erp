@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { AS_CONSUMPTION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
@@ -21,8 +21,18 @@ export default function AsConsumptionPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [keyword, setKeyword] = useState('')
   /*
-   * 원본 A/S소모현황 조건 실측(사본): 접수일자 · 창고 · 프로젝트 · 수리담당자 ·
-   * 접수담당자 · 수리유형 · 거래처 · 수리품목.
+   * 원본 A/S소모현황(E040641) 조건 <b>실측(2026-09-01 원본 직접 확인)</b>:
+   * 구분(내역/집계+단위) · <b>기준일자</b> · <b>접수일자(기본 [사용안함])</b> · 창고 ·
+   * 프로젝트 · 수리담당자 · 접수담당자 · 수리유형 · 거래처 · 수리품목.
+   *
+   * <p>사본에서 옮겨 적을 때 첫 조건을 [접수일자] 로 적어 두었는데, 원본을 열어 보니
+   * <b>[기준일자]가 먼저고 [접수일자]는 따로</b> 있는 보조 조건이다(끄고 열린다).
+   * 우리 기간은 접수일로 거르므로 라벨은 [접수일자] 가 맞다 — 다만 <b>원본이 주 조건으로
+   * 쓰는 기준일자(수리·소모한 날)로는 아직 못 거른다.</b> 서버가 품목별로 합쳐 주기 때문에
+   * 그 축을 넣으려면 집계를 고쳐야 한다.
+   *
+   * <p>기간 빠른선택도 달랐다 — 우리는 [전월+금월] 을 달아 두었는데 원본에는 없고,
+   * 원본이 주는 [최근30일(+1개월)] 이 우리에게 없었다. AS_CONSUMPTION_PICKS 로 맞췄다.
    *
    * <p>우리 화면은 <b>조건이 하나도 없었다</b> — 서버가 전체를 품목별로 합쳐 주는 것을
    * 그대로 받아 품목명 검색만 했다. 언제 쓴 부품인지, 어느 창고에서 나갔는지로
@@ -63,7 +73,7 @@ export default function AsConsumptionPage() {
     <EcListShell title="A/S소모현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <EcStatusPanel from={from} to={to} onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={INQUIRY_FULL_PICKS} dateLabel="접수일자">
+        picks={AS_CONSUMPTION_PICKS} dateLabel="접수일자">
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseId} onChange={setWarehouseId} items={pickers.warehouses} />
