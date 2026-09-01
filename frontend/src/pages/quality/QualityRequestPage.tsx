@@ -6,7 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -33,6 +33,15 @@ const TABS: { v: Tab; label: string }[] = [
 const statusColor = (s: QualityRequestStatus) => (s === 'REQUESTED' ? '#c07a00' : s === 'INSPECTED' ? '#1c7c3c' : '#8a929c')
 
 export default function QualityRequestPage() {
+  /**
+   * 원본 조건 판 첫째 <b>[기준일자]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>최근30일(+1개월)</b> 이다(2026-09-01 원본 실측: 2026/08/02 ~ 2026/10/01).
+   * 비워 두면 전 기간이라 몇 해치가 한 번에 쏟아졌다. 밀린 미검사 건은 원본과 같이
+   * <b>미검사현황</b> 화면이 따로 본다.
+   */
+  const initP = periodOf('최근30일(+1개월)')!
+  const [pFrom, setPFrom] = useState(initP.from)
+  const [pTo, setPTo] = useState(initP.to)
   const [rows, setRows] = useState<QualityInspectionRequest[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
@@ -44,6 +53,15 @@ export default function QualityRequestPage() {
    */
   const [docCond, setDocCond] = useState('')
   const [reqCond, setReqCond] = useState('')
+  /*
+   * 원본 품질검사요청조회(E040629) 조건 판에 있는데 <b>우리에게 없던</b> 셋 —
+   * [품목] · [프로젝트] · [적요]. 셋 다 표에는 열로 찍히는데 <b>거를 수가 없었다.</b>
+   * (원본에는 [창고]·[거래처]·[관리항목]·[거래처관리담당자]·[최종수정자]·[발송여부]도 있으나
+   *  검사요청이 그 값을 안 들고 있어 만들 자리가 없다.)
+   */
+  const [itemCond, setItemCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
   const [tab, setTab] = useState<Tab>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -58,7 +76,7 @@ export default function QualityRequestPage() {
     setLoading(true)
     try {
       const [q, i, pj] = await Promise.all([
-        api.get<QualityInspectionRequest[]>('/quality-inspection-requests'),
+        api.get<QualityInspectionRequest[]>('/quality-inspection-requests', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<Item[]>('/items'),
         api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
@@ -66,7 +84,7 @@ export default function QualityRequestPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -104,8 +122,11 @@ export default function QualityRequestPage() {
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !docCond || r.requestNo.includes(docCond) || r.requestDate.includes(docCond))
     .filter((r) => !reqCond || (r.requester ?? '') === reqCond)
+    .filter((r) => !itemCond || String(r.itemId) === itemCond)
+    .filter((r) => !projectCond || String(r.projectId ?? '') === projectCond)
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.requestNo.includes(keyword) || (r.lotNo ?? '').includes(keyword)),
-  [rows, tab, keyword, docCond, reqCond])
+  [rows, tab, keyword, docCond, reqCond, itemCond, projectCond, remarkCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
@@ -124,6 +145,21 @@ export default function QualityRequestPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <p className="mb-2 text-xs text-slate-500">검사 전 요청을 등록 → 검사완료/취소 처리. 미검사현황 = 요청(대기) 상태.</p>
+      {/*
+        원본 조건 판 첫째 <b>[기준일자]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다.
+        빠른선택 줄이 없어 <b>기간을 매번 손으로 찍어야</b> 했다(원본에는 있다).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+        <span>기준일자</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcPeriodPicks labels={QUALITY_REQUEST_PICKS} currentFrom={pFrom}
+                       onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
+      </div>
+
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal open={showForm} title="품질검사요청 등록" onClose={() => setShowForm(false)}>{(
@@ -200,6 +236,23 @@ export default function QualityRequestPage() {
                            value={reqCond} onChange={setReqCond}
                            items={[...new Set(rows.map((r) => r.requester).filter(Boolean))]
                              .map((n) => ({ value: n as string, name: n as string }))} />
+        </EcCond>
+        {/* 원본 조건 [품목] — 표에 품목 열이 있는데 그 값으로 거를 수가 없었다. */}
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name }))} />
+        </EcCond>
+        {/* 원본 조건 [프로젝트] — 프로젝트를 걸어 요청해 놓고 그 프로젝트만 볼 수가 없었다. */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} />
+        </EcCond>
+        {/* 원본 조건 [적요] — 적요는 표에 찍히기만 하고 검색상자로도 안 걸렸다. */}
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 190 }} />
         </EcCond>
       </ul>
 

@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -26,6 +26,12 @@ type Tab = (typeof TABS)[number]
  * 상각은 차)감가상각비 / 대)감가상각누계액, 처분은 장부에서 자산·누계액을 털고 처분손익을 인식한다.
  */
 export default function FixedAssetPage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>비워</b> 둔다: 자산은 <b>몇 해를 두고 상각한다</b> — 올해로 자르면 재작년에 산 자산이 목록에서 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [tab, setTab] = useState<Tab>('자산목록')
   const [assets, setAssets] = useState<FixedAsset[]>([])
   const [deps, setDeps] = useState<DepreciationRow[]>([])
@@ -42,8 +48,8 @@ export default function FixedAssetPage() {
     setLoading(true)
     try {
       const [a, d, acc] = await Promise.all([
-        api.get<FixedAsset[]>('/fixed-assets'),
-        api.get<DepreciationRow[]>('/fixed-assets/depreciations'),
+        api.get<FixedAsset[]>('/fixed-assets', { params: { from: pFrom || undefined, to: pTo || undefined } }),
+        api.get<DepreciationRow[]>('/fixed-assets/depreciations', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<AccountOption[]>('/accounts'),
       ])
       setAssets(a.data)
@@ -56,7 +62,7 @@ export default function FixedAssetPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   async function runDepreciation() {
     setError('')
@@ -113,6 +119,23 @@ export default function FixedAssetPage() {
           사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalBook)}</b>
         </span>
       </div>
+      {/*
+        화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다.
+        빠른선택 줄이 없어 기간을 매번 손으로 찍어야 했다. 묶음은 조회 화면 공통(INQUIRY_PICKS)을 쓴다 —
+        원본 고정자산대장은 이 계정에 <b>업무 권한이 없어</b> 조건 판을 못 봤다(2026-09-01 확인).
+        원본을 열 수 있게 되면 그때 실측해서 묶음과 기본값을 맞춘다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={pFrom}
+                       onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

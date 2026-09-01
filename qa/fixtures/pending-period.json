@@ -1,11 +1,8 @@
 [
- "/fixed-assets",
- "/fixed-assets/depreciations",
  "/mails/sent",
  "/mails/shared",
  "/pay-settings/transfers",
  "/pay-settings/transfers/transferred-payslips",
  "/production-plans",
- "/projects",
- "/quality-inspection-requests"
+ "/projects"
 ]

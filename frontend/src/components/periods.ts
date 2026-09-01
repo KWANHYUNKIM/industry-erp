@@ -240,6 +240,13 @@ export const ORDER_DOC_PICKS = [
 
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
 
+/**
+ * 품질검사요청조회(E040629) — 조회 묶음이 <b>[종료일] 다음에 [최근30일(+1개월)]</b> 이고
+ * 기본도 <b>최근30일(+1개월)</b> 이다(2026-09-01 원본 실측: 조건판이 2026/08/02 ~ 2026/10/01).
+ * 검사요청은 <b>검사기한</b>이 앞에 있는 일이라 아직 안 온 날짜까지 봐야 한다 — 견적서조회와 같은 까닭이다.
+ */
+export const QUALITY_REQUEST_PICKS = QUOTATION_PICKS
+
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
 /**

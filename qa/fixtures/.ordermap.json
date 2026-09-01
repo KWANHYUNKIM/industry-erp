@@ -734,5 +734,9 @@
  [
   "품질검사요청",
   "quality/QualityRequestPage.tsx"
+ ],
+ [
+  "품질검사요청조회",
+  "quality/QualityRequestPage.tsx"
  ]
 ]

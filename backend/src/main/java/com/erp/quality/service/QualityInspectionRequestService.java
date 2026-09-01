@@ -28,9 +28,21 @@ public class QualityInspectionRequestService {
     /** status가 null이면 전체, 아니면 해당 상태만(미검사현황=REQUESTED). */
     @Transactional(readOnly = true)
     public List<RequestResponse> findAll(QualityRequestStatus status) {
+        return findAll(status, null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     * 안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 는 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<RequestResponse> findAll(QualityRequestStatus status,
+                                         java.time.LocalDate from, java.time.LocalDate to) {
         List<QualityInspectionRequest> rows = status != null
                 ? requestRepository.findByStatusWithRefs(status)
-                : requestRepository.findAllWithRefs();
+                : requestRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
         return rows.stream().map(RequestResponse::from).toList();
     }
 
