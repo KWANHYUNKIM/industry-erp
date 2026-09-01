@@ -26,7 +26,16 @@ interface AsRow {
 }
 
 interface Filters {
-  dateFrom: string; dateTo: string; warehouse: string; project: string
+  dateFrom: string; dateTo: string
+  /*
+   * 원본 A/S수리현황(E040611)의 <b>[기준일자]</b> — 그 화면은 수리한 날로 거르고
+   * [접수일자]를 따로 둔다(2026-09-01 실측, 접수일자 기본은 [사용안함]).
+   * 우리는 한 화면이 접수현황·수리현황을 겸하는데 <b>접수일로만</b> 걸러,
+   * 이번 달에 <b>고친</b> 건이 몇 건인지를 볼 수가 없었다 — 접수는 지난달인데
+   * 수리가 이번 달인 건이 통째로 빠진다.
+   */
+  doneFrom: string; doneTo: string
+  warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
 }
 /*
@@ -36,7 +45,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, doneFrom: '', doneTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
 
 /** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
 function daysBetween(from: string, to: string | null): number | null {
@@ -80,6 +89,9 @@ export default function AsStatusPage() {
       if (kw && !r.partnerName.includes(kw) && !r.itemName.includes(kw) && !r.asNo.includes(kw)) return false
       if (f.dateFrom && r.receiptDate < f.dateFrom) return false
       if (f.dateTo && r.receiptDate > f.dateTo) return false
+      /* 원본 A/S수리현황의 [기준일자] — 수리한 날. 안 고친 건은 그 날이 없으니 빠진다. */
+      if (f.doneFrom && (r.doneDate == null || r.doneDate < f.doneFrom)) return false
+      if (f.doneTo && (r.doneDate == null || r.doneDate > f.doneTo)) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
@@ -106,6 +118,7 @@ export default function AsStatusPage() {
   const activeCount = useMemo(() => {
     let n = 0
     if (filters.dateFrom || filters.dateTo) n++
+    if (filters.doneFrom || filters.doneTo) n++
     if (filters.partner) n++
     if (filters.item) n++
     if (filters.charge) n++
@@ -241,6 +254,21 @@ function SearchPanel({
             <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
           </span>
+      </div>
+      {/*
+        원본 A/S수리현황(E040611)의 <b>[기준일자]</b> 자리다 — 그 화면은 <b>수리한 날</b>로
+        거르고 접수일자를 따로 둔다. 우리는 한 화면이 접수현황·수리현황을 겸하면서
+        접수일 하나뿐이라, 이번 달에 <b>고친</b> 건을 볼 수가 없었다.
+        (원본은 이쪽이 주 조건이고 접수일자가 보조인데, 우리는 서버가 접수일로 기간을 받아
+         차례가 반대다. 접수일로 좁힌 안에서 수리일을 다시 거른다.)
+      */}
+      <div style={rowStyle}>
+        <span style={label}>수리일자</span>
+        <input type="date" className="ec-input" value={draft.doneFrom}
+          onChange={(e) => onChange({ doneFrom: e.target.value })} style={{ width: 150 }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input type="date" className="ec-input" value={draft.doneTo}
+          onChange={(e) => onChange({ doneTo: e.target.value })} style={{ width: 150 }} />
       </div>
       <div style={rowStyle}>
         {/* 원본 A/S접수현황 차례: <b>창고 · 프로젝트</b> · 담당자 · 접수진행상태 · 거래처 · 품목 */}
