@@ -158,6 +158,12 @@ public final class SalesOrderDtos {
             SalesOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             String remark, String createdBy,
+            /*
+             * 원본 오더관리진행단계(C000651) 조건 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축
+             * (2026-09-01 실측). 그 축이 응답에 없어 정렬을 만들 수 없었다 —
+             * BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다.
+             */
+            java.time.LocalDateTime updatedAt,
             /**
              * 오더관리 유형과 현재 진행단계.
              *
@@ -183,6 +189,7 @@ public final class SalesOrderDtos {
                     o.getStatus(), o.getStatus().getDisplayName(),
                     o.getSupplyAmount(), o.getVatAmount(), o.getTotalAmount(),
                     o.getRemark(), o.getCreatedBy(),
+                    o.getUpdatedAt(),
                     o.getOrderType() != null ? o.getOrderType().getId() : null,
                     o.getOrderType() != null ? o.getOrderType().getName() : null,
                     o.getStage() != null ? o.getStage().getId() : null,

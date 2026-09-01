@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { periodOf, ORDER_STAGE_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 
@@ -31,11 +32,22 @@ interface Order {
   orderTypeName: string | null
   stageId: number | null
   stageName: string | null
+  /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
+  updatedAt: string | null
   lines: { itemName: string; quantity: number }[]
 }
 
 interface Step { seq: number; stageId: number; stageName: string }
 interface OrderType { id: number; name: string; steps: Step[]; active: boolean }
+
+/*
+ * 원본 오더관리진행단계(C000651) 조건 판의 <b>첫 줄 [기준일자]</b>. 기본은
+ * <b>최근30일(+1개월)</b> 이다(2026-09-01 원본 실측: 2026/08/02 ~ 2026/10/01).
+ *
+ * <p>우리 화면에는 기간이 <b>아예 없어</b> /sales-orders 를 조건 없이 불러 <b>여태 받은
+ * 오더를 통째로</b> 받고 있었다. 서버는 진작 from·to 를 받는데 화면이 안 보냈다.
+ */
+const initP = periodOf('최근30일(+1개월)')!
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -49,7 +61,11 @@ export default function OrderStagePage() {
    * 원본 오더관리진행단계의 조건 차례는 <b>오더관리유형 · 오더관리번호 · …</b> 다(사본 실측).
    * [오더관리번호]가 없었다 — 표 첫 칸에 찍히는데 그것으로 찾을 수가 없었다.
    */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
+  /* 원본 조건 [기타] — [수정일자순(정렬)] 하나이고 꺼진 것이 기본이다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
   /*
    * 원본 조건의 <b>[검색창내용]</b> — 화면에는 안 보이고 <b>찾는 데만</b> 쓰는 이름이다
    * (약칭·옛 상호 같은 것). 거래처 마스터가 그 값을 들고 있는데 여기서 못 썼다.
@@ -82,7 +98,7 @@ export default function OrderStagePage() {
     setError('')
     try {
       const [o, t] = await Promise.all([
-        api.get<Order[]>('/sales-orders'),
+        api.get<Order[]>('/sales-orders', { params: { from: from || undefined, to: to || undefined } }),
         api.get<OrderType[]>('/order-types'),
       ])
       setOrders(o.data)
@@ -93,7 +109,7 @@ export default function OrderStagePage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
   useEffect(() => {
     api.get<{ name: string; searchKeyword: string | null }[]>('/partners')
       .then((r) => setPartnerAlias(new Map(r.data.map((p) => [p.name, p.searchKeyword ?? '']))))
@@ -135,6 +151,9 @@ export default function OrderStagePage() {
     }
     return true
   })
+    /* 원본 [수정일자순(정렬)] — 켜면 나중에 고친 오더가 위다. 안 켜면 서버가 준 차례 그대로. */
+    .slice()
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   const detail = detailId != null ? orders.find((o) => o.id === detailId) ?? null : null
   /** [선택상세보기] — 고른 줄을 <b>한 창에 이어서</b> 편다. 한 건씩 열었다 닫으면 견줄 수가 없다. */
@@ -203,6 +222,18 @@ export default function OrderStagePage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 조건 판의 첫 줄 [기준일자] — 서버가 이 구간만 준다. */}
+        <EcCond label="기준일자">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <input type="date" className="ec-input" value={from}
+                   onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <input type="date" className="ec-input" value={to}
+                   onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            <EcPeriodPicks labels={ORDER_STAGE_PICKS} currentFrom={from}
+                           onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </div>
+        </EcCond>
         <EcCond label="오더관리유형" pick>
           <select className="ec-input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ width: 160 }}>
             <option>전체</option>
@@ -215,6 +246,13 @@ export default function OrderStagePage() {
         <EcCond label="오더관리번호">
           <input className="ec-input" value={orderNoCond}
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        {/* 원본 조건 차례에서 [기타]는 [오더관리번호] 다음, [검색창내용] 앞이다(실측). */}
+        <EcCond label="기타">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
         <EcCond label="검색창내용">
           <input className="ec-input" value={searchKeywordCond} placeholder="검색창내용"

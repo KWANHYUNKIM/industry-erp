@@ -260,6 +260,13 @@ export const QUALITY_REQUEST_PICKS = QUOTATION_PICKS
  */
 export const AS_CONSUMPTION_PICKS = QUOTATION_PICKS
 
+/**
+ * 오더관리진행단계(C000651) — 조회 묶음이 <b>[종료일] 다음에 [최근30일(+1개월)]</b> 이고
+ * 기본도 <b>최근30일(+1개월)</b> 이다(2026-09-01 원본 실측: 2026/08/02 ~ 2026/10/01).
+ * 오더는 <b>앞으로 끝낼 단계</b>를 보는 일이라 아직 안 온 날짜까지 본다.
+ */
+export const ORDER_STAGE_PICKS = QUOTATION_PICKS
+
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
 /**

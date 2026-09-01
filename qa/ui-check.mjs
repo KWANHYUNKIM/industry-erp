@@ -1254,6 +1254,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['업무일지', 'groupware/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
     ['품질검사요청조회', 'quality/QualityRequestPage.tsx'],
+    ['오더관리진행단계', 'trade/OrderStagePage.tsx'],
     ['거래처별채권', 'trade/LedgerPage.tsx'],
     ['거래처별채무', 'trade/LedgerPage.tsx'],
     ['설문조사현황', 'groupware/SurveyStatusPage.tsx'],
