@@ -31,6 +31,12 @@ const esc = (v: unknown) =>
  * 금액은 외화가 원본이고, 원화는 발행일 고시환율로 환산해 인보이스에 고정된다.
  */
 export default function ExportPage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>비워</b> 둔다: 수출은 인보이스를 끊고 <b>대금이 몇 달 뒤에</b> 들어온다 — 잘라 놓으면 미수 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [summary, setSummary] = useState<ExportSummary | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
@@ -45,7 +51,7 @@ export default function ExportPage() {
 
   function load() {
     setError('')
-    api.get<ExportSummary>('/exports').then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<ExportSummary>('/exports', { params: { from: pFrom || undefined, to: pTo || undefined } }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   useEffect(() => {
@@ -54,6 +60,9 @@ export default function ExportPage() {
     api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data.filter((c) => c.code !== 'KRW'))).catch(() => {})
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
   }, [])
+
+  /* 기간을 바꾸면 수출 목록만 다시 물어본다 — 거래처·통화·품목은 기간과 상관없다. */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const rows = summary?.exports ?? []
   const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
@@ -129,6 +138,16 @@ export default function ExportPage() {
           오더 → 통관진행(신고번호) → 선적완료(B/L) → 입금완료. 원화는 발행일 고시환율로 고정됩니다.
         </span>
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

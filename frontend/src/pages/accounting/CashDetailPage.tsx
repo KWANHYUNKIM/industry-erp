@@ -20,6 +20,12 @@ type Tab = (typeof TABS)[number]
  *   카드대금 결제 — 카드사용 때 잡아 둔 미지급금을 결제계좌에서 갚는다.
  */
 export default function CashDetailPage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>비워</b> 둔다: 카드결제는 <b>미결제 건이 오래된 것도 살아 있다</b> — 잘라 놓으면 아직 안 낸 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [tab, setTab] = useState<Tab>('계좌간이동')
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [cards, setCards] = useState<CreditCardRow[]>([])
@@ -37,8 +43,8 @@ export default function CashDetailPage() {
       const [b, c, t, p] = await Promise.all([
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<CreditCardRow[]>('/bank-cards/cards'),
-        api.get<AccountTransfer[]>('/cash-details/account-transfers'),
-        api.get<CardPayment[]>('/cash-details/card-payments'),
+        api.get<AccountTransfer[]>('/cash-details/account-transfers', { params: { from: pFrom || undefined, to: pTo || undefined } }),
+        api.get<CardPayment[]>('/cash-details/card-payments', { params: { from: pFrom || undefined, to: pTo || undefined } }),
       ])
       setBanks(b.data)
       setCards(c.data)
@@ -51,7 +57,7 @@ export default function CashDetailPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   return (
     <EcListShell
@@ -68,6 +74,16 @@ export default function CashDetailPage() {
           }}>{t} ({t === '계좌간이동' ? transfers.length : payments.length})</button>
         ))}
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}

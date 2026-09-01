@@ -10,6 +10,8 @@ public interface AccountTransferRepository extends JpaRepository<AccountTransfer
 
     @Query("select t from AccountTransfer t " +
            "join fetch t.fromAccount join fetch t.toAccount left join fetch t.journalEntry " +
+           "where t.transferDate >= :from and t.transferDate <= :to " +
            "order by t.transferDate desc, t.id desc")
-    List<AccountTransfer> findAllWithRefs();
+    List<AccountTransfer> findAllWithRefs(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
+                             @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
 }

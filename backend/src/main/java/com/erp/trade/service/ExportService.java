@@ -53,7 +53,20 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public ExportSummary findAll() {
-        List<ExportOrder> all = exportRepository.findAllWithRefs();
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public ExportSummary findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        List<ExportOrder> all = exportRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
 
         BigDecimal totalKrw = BigDecimal.ZERO;
         BigDecimal unpaidKrw = BigDecimal.ZERO;

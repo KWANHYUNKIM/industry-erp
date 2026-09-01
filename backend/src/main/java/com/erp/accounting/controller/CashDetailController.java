@@ -25,8 +25,17 @@ public class CashDetailController {
     private final CashDetailService service;
 
     @GetMapping("/account-transfers")
-    public List<AccountTransferResponse> transfers() {
-        return service.findTransfers();
+    public List<AccountTransferResponse> transfers(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findTransfers(from, to);
     }
 
     @PostMapping("/account-transfers")
@@ -36,8 +45,17 @@ public class CashDetailController {
     }
 
     @GetMapping("/card-payments")
-    public List<CardPaymentResponse> payments() {
-        return service.findPayments();
+    public List<CardPaymentResponse> payments(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findPayments(from, to);
     }
 
     /** 해당 카드의 미결제 사용내역 */
