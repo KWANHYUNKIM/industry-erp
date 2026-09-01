@@ -37,6 +37,15 @@ export default function LotStockComparePage() {
   const [keyword, setKeyword] = useState('')
   const [diffOnly, setDiffOnly] = useState(false)
   /* 원본 조건에 <b>[창고]</b> 가 있다(사본 실측). 재고도 로트도 창고를 달고 온다. */
+  /**
+   * 원본 조건 <b>[기준일자]</b> — 그 날 시점의 수량으로 견준다.
+   *
+   * <p>이 표는 "품목재고와 로트재고합이 어긋나 있나" 를 보는 것이라, <b>어긋나기 시작한
+   * 날</b>을 찾으려면 날짜를 되돌려 봐야 한다. 오늘 것만 볼 수 있으면 언제부터인지
+   * 알 수가 없다. <b>품목과 로트를 같은 날짜로</b> 되돌린다 — 한쪽만 되돌리면 있지도 않은
+   * 차이가 표에 가득 찬다.
+   */
+  const [asOf, setAsOf] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   const pickers = useCondPickers(['warehouses', 'items'])
@@ -44,9 +53,10 @@ export default function LotStockComparePage() {
   async function load() {
     setLoading(true); setError('')
     try {
+      const params = asOf ? { asOf } : {}
       const [s2, l] = await Promise.all([
-        api.get<StockRow[]>('/stock'),
-        api.get<Lot[]>('/lots'),
+        api.get<StockRow[]>('/stock', { params }),
+        api.get<Lot[]>('/lots', { params }),
       ])
       setStocks(s2.data); setLots(l.data)
     } catch (err) {
@@ -56,7 +66,7 @@ export default function LotStockComparePage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [asOf])
 
   const rows = useMemo<Row[]>(() => {
     const keep = (name: string | null) => !warehouse || (name ?? '').includes(warehouse)
@@ -108,6 +118,10 @@ export default function LotStockComparePage() {
     >
       {/* 원본 조건: <b>[창고]</b> — 창고를 고르면 그 창고의 재고와 로트만 다시 센다. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        {/* 원본 차례: 비교기준 · <b>기준일자</b> · 창고 · 품목 (사본 실측). */}
+        <span>기준일자</span>
+        <input type="date" className="ec-input" value={asOf}
+               onChange={(e) => setAsOf(e.target.value)} style={{ width: 148 }} />
         <span>창고</span>
         <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                          value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />

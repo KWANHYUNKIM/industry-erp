@@ -75,6 +75,9 @@ export default function LeaveListPage() {
    * 목록에 근태일자가 찍히는데 그 날짜로 좁힐 수가 없었다.
    */
   const [dayCond, setDayCond] = useState('')
+  /** 원본 조건 [기준일자] — 신청한 기간으로 좁힌다([근태일자]와 다른 것이다). */
+  const [fromCond, setFromCond] = useState('')
+  const [toCond, setToCond] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
   async function load() {
@@ -124,11 +127,14 @@ export default function LeaveListPage() {
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
     if (dayCond && !(r.startDate <= dayCond && dayCond <= r.endDate)) return false
+    /* [기준일자] — 신청 기간이 이 구간에 걸치나. 시작이 끝보다 뒤면 겹치지 않는 것이다. */
+    if (fromCond && r.endDate < fromCond) return false
+    if (toCond && r.startDate > toCond) return false
     if (tab === '결재중' && r.status !== 'PENDING') return false
     if (tab === '확인' && r.status !== 'APPROVED') return false
     if (tab === '이력' && r.status !== 'REJECTED') return false
     return true
-  }), [rows, emp, type, tab, dept, reasonCond, dayCond])
+  }), [rows, emp, type, tab, dept, reasonCond, dayCond, fromCond, toCond])
 
   const total = shown.reduce((n, r) => n + r.days, 0)
 
@@ -190,6 +196,19 @@ export default function LeaveListPage() {
       </div>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/*
+          원본 차례: <b>[기준일자]</b> 가 맨 앞이다(사본 실측). 이 화면은 신청 전체를 늘
+          받아 놓고 보여 줘서, <b>지난달에 낸 것</b>만 보려면 눈으로 훑어야 했다.
+          아래 [근태일자]와 다른 것이다 — 그쪽은 <b>휴가가 걸쳐 있는 날</b>이고
+          이쪽은 <b>신청한 기간</b>이다.
+        */}
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={fromCond}
+                 onChange={(e) => setFromCond(e.target.value)} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={toCond}
+                 onChange={(e) => setToCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />

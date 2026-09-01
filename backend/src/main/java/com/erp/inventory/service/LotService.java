@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import com.erp.inventory.dto.LotDtos;
 
@@ -43,8 +45,27 @@ public class LotService {
 
     @Transactional(readOnly = true)
     public List<LotResponse> findAll() {
-        return lotRepository.findAllWithRefs().stream()
-                .map(LotResponse::from)
+        return findAll(null);
+    }
+
+    /**
+     * 로트 목록. <code>asOf</code> 를 주면 <b>그 날 시점의 잔량</b>으로 되돌린다
+     * (원본 품목vs시리얼재고수량비교의 [기준일자]).
+     *
+     * <p>품목 재고를 asOf 로 되돌리는 방식과 같다 — <b>지금 잔량에서 그 뒤의 움직임을 뺀다.</b>
+     * 품목 쪽만 되돌리고 로트는 오늘 것을 쓰면, 있지도 않은 차이가 표에 가득 찬다.
+     */
+    @Transactional(readOnly = true)
+    public List<LotResponse> findAll(java.time.LocalDate asOf) {
+        List<Lot> lots = lotRepository.findAllWithRefs();
+        if (asOf == null) return lots.stream().map(LotResponse::from).toList();
+        Map<Long, BigDecimal> after = new HashMap<>();
+        for (Object[] r : lotTxRepository.sumChangeAfter(asOf)) {
+            after.put((Long) r[0], (BigDecimal) r[1]);
+        }
+        return lots.stream()
+                .map((l) -> LotResponse.from(l).withStockQty(
+                        l.getStockQty().subtract(after.getOrDefault(l.getId(), BigDecimal.ZERO))))
                 .toList();
     }
 

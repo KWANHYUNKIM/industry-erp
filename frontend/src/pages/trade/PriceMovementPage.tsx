@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { dateText } from '../../utils/dateText'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -50,6 +51,15 @@ export default function PriceMovementPage() {
   const pickers = useCondPickers(['warehouses', 'partners'])
 
   const [mode, setMode] = useState<Mode>('SALE')
+  /**
+   * 원본 단가변동표의 <b>[구분]</b> — 조건 판의 <b>맨 앞</b> 줄이다(사본 실측: 선택상자이고
+   * 열릴 때 값이 <b>'전표별'</b>이다). 무엇을 한 줄로 볼지를 고른다.
+   *
+   * <p>우리는 <b>품목별로만</b> 냈다 — 품목마다 평균·최고·최저를 요약해 보여 주는 표다.
+   * 그래서 "그 최고단가가 <b>어느 전표</b>였나" 를 이 화면에서 짚을 수가 없어, 전표조회로
+   * 건너가 날짜로 뒤져야 했다. 원본이 기본으로 여는 쪽이 그 전표별이다.
+   */
+  const [gubun, setGubun] = useState<'전표별' | '품목별'>('전표별')
   /* 원본 기본값 그대로 — 단순평균단가만 켠다. */
   const [bases, setBases] = useState<string[]>(['단순평균단가'])
   const withAvg = bases.includes('단순평균단가')
@@ -133,6 +143,41 @@ export default function PriceMovementPage() {
       .sort((a, b) => (b.max - b.min) - (a.max - a.min))
   }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner, itemCond])
 
+  /**
+   * [전표별] 한 줄 = 전표의 한 라인. 같은 조건으로 모은 점(Pt)을 요약하지 않고 그대로 편다.
+   * 위 요약이 어디서 나왔는지를 이 표에서 바로 짚을 수 있어야 한다.
+   */
+  const lineRows = useMemo(() => {
+    if (gubun !== '전표별') return []
+    const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
+    const keep = (wh: string, pt: string) =>
+      (!warehouse || wh.includes(warehouse)) && (!partner || pt.includes(partner))
+    const docs = mode === 'SALE'
+      ? sales.filter((d) => keep(d.warehouseName, d.partnerName))
+        .map((d) => ({ date: d.saleDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
+      : purchases.filter((d) => keep(d.warehouseName, d.partnerName))
+        .map((d) => ({ date: d.purchaseDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
+    const kw = keyword.trim()
+    const pickedItem = itemCond.trim()
+    const out = []
+    for (const d of docs) {
+      if (!inPeriod(d.date)) continue
+      for (const l of d.lines) {
+        if (l.unitPrice == null) continue
+        if (kw && !l.itemName.includes(kw)) continue
+        if (pickedItem && l.itemName !== pickedItem) continue
+        out.push({
+          key: `${d.no}-${l.itemId}-${out.length}`,
+          date: d.date, no: d.no ?? '', partner: d.partner,
+          itemName: l.itemName, spec: l.spec, unit: l.unit,
+          quantity: l.quantity, price: l.unitPrice,
+        })
+      }
+    }
+    /* 값이 언제 어떻게 움직였나를 보는 표라 <b>날짜순</b>이다 — 요약표는 변동폭순이다. */
+    return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  }, [gubun, sales, purchases, mode, from, to, keyword, warehouse, partner, itemCond])
+
   const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   /*
@@ -153,6 +198,16 @@ export default function PriceMovementPage() {
       <p className="mb-2 text-xs text-slate-500">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+        {/* 원본 차례: <b>[구분]</b> 이 조건 판의 맨 앞이다(사본 실측). */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>구분</span>
+          <div className="ec-pills">
+            {(['전표별', '품목별'] as const).map((g) => (
+              <button key={g} type="button" className={`ec-pill no-ec${gubun === g ? ' active' : ''}`}
+                      onClick={() => setGubun(g)}>{g}</button>
+            ))}
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* 원본 단가변동표는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측) — [기간]이 아니다. */}
           <span style={label}>기준일자</span>
@@ -213,6 +268,46 @@ export default function PriceMovementPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/*
+        [전표별] 은 요약하지 않고 그대로 편다 — 요약표의 최고·최저가 <b>어느 전표였나</b>를
+        여기서 바로 짚는다. 열이 고정이라 렌더 검사(useTableColumnCheck)를 걸지 않는다.
+      */}
+      {gubun === '전표별' ? (
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th style={{ width: 34 }}></th>
+            <th style={{ width: 110 }}>일자</th>
+            <th style={{ width: 140 }}>전표번호</th>
+            <th>거래처</th>
+            <th>품목명</th>
+            <th style={{ width: 110 }}>규격</th>
+            <th style={{ width: 70 }}>단위</th>
+            <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+            <th style={{ width: 110, textAlign: 'right' }}>단가</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : lineRows.length === 0 ? (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : lineRows.map((r, i) => (
+            <tr key={r.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.no}</td>
+              <td>{r.partner}</td>
+              <td>{r.itemName}</td>
+              <td>{r.spec ?? ''}</td>
+              <td>{r.unit}</td>
+              <td style={{ textAlign: 'right' }}>{r.quantity.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      ) : (
       <div ref={tableRef}>
       <table className="w-full text-left">
         <thead>
@@ -266,6 +361,7 @@ export default function PriceMovementPage() {
         </tbody>
       </table>
       </div>
+      )}
     </EcListShell>
   )
 }

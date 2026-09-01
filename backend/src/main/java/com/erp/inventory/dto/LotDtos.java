@@ -72,6 +72,17 @@ public final class LotDtos {
             BigDecimal inboundQty, BigDecimal stockQty,
             boolean held, LotStatus status, String statusName
     ) {
+        /**
+         * 기준일자 시점의 잔량으로 바꿔 준다. <b>상태도 같이 다시 낸다</b> —
+         * 그때는 남아 있던 로트를 '소진' 이라고 적으면 표가 거짓말을 한다.
+         */
+        public LotResponse withStockQty(BigDecimal qty) {
+            LotStatus s = LotStatus.of(held, qty);
+            return new LotResponse(id, lotNo, itemId, itemCode, itemName, unit, spec,
+                    warehouseId, warehouseName, inboundDate, expireDate, inboundQty, qty,
+                    held, s, s.getDisplayName());
+        }
+
         public static LotResponse from(Lot l) {
             // 상태는 저장하지 않는다. 보유수량·보류 플래그에서 파생한다(LotStatus 참조).
             LotStatus status = LotStatus.of(l.isHeld(), l.getStockQty());

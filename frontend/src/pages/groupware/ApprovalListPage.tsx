@@ -420,7 +420,12 @@ export default function ApprovalListPage({
           <option value="">전체</option>
           {approvers.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>출력양식</label>
+        {/*
+          <b>이름을 잘못 달고 있었다.</b> 이 칸이 거르는 것은 기안서의 <b>양식</b>(지출결의서·
+          품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
+          <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
+        */}
+        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>구분</label>
         <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
           <option value="">전체</option>
           {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
