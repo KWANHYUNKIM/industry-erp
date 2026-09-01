@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
+import { periodOf } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
@@ -41,6 +42,15 @@ export default function BankCardPage() {
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [curCond, setCurCond] = useState('')
+  /**
+   * 원본 예금출납장의 <b>[기간]</b>. 예전에는 물어보지도 않고 <b>전 기간 5,000줄·2MB</b> 를
+   * 받아 브라우저에서 걸렀다. 서버가 이제 기간을 받는다.
+   *
+   * <p>기본은 <b>금월(~오늘)</b> 이다 — 출납장은 <b>흘러간 기록</b>이라 오래된 줄이 살아
+   * 있는 것이 아니다(미결제 수표·어음과는 다르다).
+   */
+  const [txnFrom, setTxnFrom] = useState(periodOf('금월(~오늘)')?.from ?? '')
+  const [txnTo, setTxnTo] = useState(periodOf('금월(~오늘)')?.to ?? '')
   const [cards, setCards] = useState<CreditCardRow[]>([])
   const [txns, setTxns] = useState<BankTxn[]>([])
   /*
@@ -74,7 +84,8 @@ export default function BankCardPage() {
 
   /** 원본 [오천건이상조회] — 잘린 뒤 눌러서 전부 가져온다. */
   async function loadAllTxns() {
-    const r = await api.get<BankTxnList>('/bank-cards/transactions', { params: { all: true } })
+    const r = await api.get<BankTxnList>('/bank-cards/transactions',
+      { params: { all: true, from: txnFrom || undefined, to: txnTo || undefined } })
     setTxns(r.data.rows)
     setTxnTotal(r.data.totalRows)
     setTxnTruncated(r.data.truncated)
@@ -87,7 +98,7 @@ export default function BankCardPage() {
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Currency[]>('/currencies'),
         api.get<CreditCardRow[]>('/bank-cards/cards'),
-        api.get<BankTxnList>('/bank-cards/transactions'),
+        api.get<BankTxnList>('/bank-cards/transactions', { params: { from: txnFrom || undefined, to: txnTo || undefined } }),
         api.get<CardUsage[]>('/bank-cards/usages'),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
@@ -108,7 +119,8 @@ export default function BankCardPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 다시 물어본다 — 서버가 그 구간만 주므로 화면에서 다시 거를 것이 없다. */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [txnFrom, txnTo])
 
   function switchTab(t: Tab) {
     setTab(t)
@@ -285,6 +297,14 @@ export default function BankCardPage() {
                                items={glAccounts.map((a) => ({ value: a.name, code: a.code, name: a.name }))} />
             </EcCond>
           )}
+          {/* 원본 예금출납장의 [기간] — 서버가 이 구간만 준다. */}
+          <EcCond label="기간">
+            <input type="date" className="ec-input" value={txnFrom}
+                   onChange={(e) => setTxnFrom(e.target.value)} style={{ width: 140 }} />
+            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <input type="date" className="ec-input" value={txnTo}
+                   onChange={(e) => setTxnTo(e.target.value)} style={{ width: 140 }} />
+          </EcCond>
           <EcCond label="검색창내용">
             <input className="ec-input" value={kw} placeholder="검색창내용"
                    onChange={(e) => setKw(e.target.value)} style={{ width: 190 }} />

@@ -14,20 +14,27 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
     @Query("select t from BankTransaction t " +
            "join fetch t.bankAccount ba left join fetch t.counterAccount " +
            "left join fetch t.partner left join fetch t.journalEntry " +
+           "where t.txnDate >= :from and t.txnDate <= :to " +
            "order by t.txnDate desc, t.id desc")
-    List<BankTransaction> findAllWithRefs();
+    List<BankTransaction> findAllWithRefs(@Param("from") java.time.LocalDate from,
+                                          @Param("to") java.time.LocalDate to);
 
     /** 같은 조건의 줄 수. 다 꺼내 놓고 세면 이미 늦다. */
-    @Query("select count(t) from BankTransaction t")
-    long countAll();
+    @Query("select count(t) from BankTransaction t " +
+           "where t.txnDate >= :from and t.txnDate <= :to")
+    long countAll(@Param("from") java.time.LocalDate from, @Param("to") java.time.LocalDate to);
 
     /**
      * 같은 차례로 <b>id 만</b> 앞에서 몇 개 꺼낸다.
      * 위 질의는 {@code join fetch} 라 그대로 페이징하면 하이버네이트가 전부 읽어
      * 메모리에서 자른다 — 자르는 뜻이 없어진다.
      */
-    @Query("select t.id from BankTransaction t order by t.txnDate desc, t.id desc")
-    List<Long> findIdsPaged(org.springframework.data.domain.Pageable pageable);
+    @Query("select t.id from BankTransaction t " +
+           "where t.txnDate >= :from and t.txnDate <= :to " +
+           "order by t.txnDate desc, t.id desc")
+    List<Long> findIdsPaged(@Param("from") java.time.LocalDate from,
+                            @Param("to") java.time.LocalDate to,
+                            org.springframework.data.domain.Pageable pageable);
 
     /** 위에서 고른 id 들을 붙임까지 실어 같은 차례로 가져온다. */
     @Query("select t from BankTransaction t "

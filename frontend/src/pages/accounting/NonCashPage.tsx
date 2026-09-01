@@ -40,6 +40,14 @@ export default function NonCashPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [filter, setFilter] = useState<NonCashType | '전체'>('전체')
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이제 이 구간만 준다(전에는 전 기간을 통째로 받았다).
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
+   * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
+   */
+  const [from2, setFrom2] = useState('')
+  const [to2, setTo2] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -51,7 +59,7 @@ export default function NonCashPage() {
     setLoading(true)
     try {
       const [t, a, p] = await Promise.all([
-        api.get<NonCashTxn[]>('/non-cash'),
+        api.get<NonCashTxn[]>('/non-cash', { params: { from: from2 || undefined, to: to2 || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
       ])
@@ -65,7 +73,7 @@ export default function NonCashPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   const shown = rows.filter((r) => filter === '전체' || r.type === filter)
   const count = (t: NonCashType | '전체') => rows.filter((r) => t === '전체' || r.type === t).length
@@ -97,6 +105,19 @@ export default function NonCashPage() {
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: '#8a929c' }}>
           현금·예금이 움직이는 거래는 현금거래·계좌입출금 화면에서 처리합니다.
         </span>
+      </div>
+
+      {/*
+        화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+        비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={from2}
+               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={to2}
+               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}

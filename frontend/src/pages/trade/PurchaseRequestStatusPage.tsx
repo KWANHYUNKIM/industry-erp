@@ -122,6 +122,7 @@ export default function PurchaseRequestStatusPage({
     category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
     /* 원본 [거래유형]·[단가]. */
     taxKind: '', priceFrom: '', priceTo: '',
+    qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -208,12 +209,20 @@ export default function PurchaseRequestStatusPage({
     /* 원본 조건 [거래유형]. 판매·구매조회와 같은 규칙 — 부가세가 있으면 과세다. */
     && (!c.taxKind || (c.taxKind === '과세' ? r.vat > 0 : r.vat === 0))
     /*
-     * 원본 조건 <b>[단가]</b>. 원본은 이 자리에 수량·단가·공급가액·부가세 넷을 나란히 두고
-     * 값의 <b>구간</b>으로 좁힌다. 우리 표에 그 넷이 열로 있어 하네스는 셋을 이미 '있다'
-     * 로 세지만, <b>거르는 것은 단가 하나뿐</b>이다 — 나머지 셋도 같은 모양이면 된다.
+     * 원본 조건 <b>[수량]·[단가]·[공급가액]·[부가세]</b> — 값의 <b>구간</b>으로 좁힌다.
+     *
+     * <p>넷 다 우리 표에 <b>열로는</b> 있어서 검사는 '있다' 로 셌지만, 실제로 거를 수 있는
+     * 것은 단가 하나뿐이었다(#280). 열로 보이는 것과 그걸로 좁힐 수 있는 것은 다른 일이다 —
+     * "부가세가 큰 건만" 을 보려면 표를 눈으로 훑는 수밖에 없었다.
      */
+    && (!c.qtyFrom || r.qty >= Number(c.qtyFrom))
+    && (!c.qtyTo || r.qty <= Number(c.qtyTo))
     && (!c.priceFrom || r.unitPrice >= Number(c.priceFrom))
     && (!c.priceTo || r.unitPrice <= Number(c.priceTo))
+    && (!c.supplyFrom || r.supply >= Number(c.supplyFrom))
+    && (!c.supplyTo || r.supply <= Number(c.supplyTo))
+    && (!c.vatFrom || r.vat >= Number(c.vatFrom))
+    && (!c.vatTo || r.vat <= Number(c.vatTo))
     && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
     && (!c.dueTo || (r.dueDate ?? '') <= c.dueTo)
 
@@ -265,6 +274,7 @@ export default function PurchaseRequestStatusPage({
       warehouse: '', project: '', employee: '', spec: '', remark: '',
       category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
       taxKind: '', priceFrom: '', priceTo: '',
+      qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
     })
     setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
@@ -446,13 +456,34 @@ export default function PurchaseRequestStatusPage({
           <input className="ec-input" value={cond.spec}
                  onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
         </EcCond>
-        {/* 원본 차례: 규격 · 수량 · <b>단가</b> · 공급가액 · 부가세 (발주계획현황). */}
+        {/* 원본 차례: 규격 · <b>수량 · 단가 · 공급가액 · 부가세</b> (발주계획현황). */}
+        <EcCond label="수량">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={cond.qtyFrom}
+                 onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 90 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={cond.qtyTo}
+                 onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 90 }} />
+        </EcCond>
         <EcCond label="단가">
           <input type="number" className="ec-input text-right" placeholder="이상" value={cond.priceFrom}
                  onChange={(e) => setC({ priceFrom: e.target.value })} style={{ width: 100 }} />
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={cond.priceTo}
                  onChange={(e) => setC({ priceTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={cond.supplyFrom}
+                 onChange={(e) => setC({ supplyFrom: e.target.value })} style={{ width: 110 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={cond.supplyTo}
+                 onChange={(e) => setC({ supplyTo: e.target.value })} style={{ width: 110 }} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={cond.vatFrom}
+                 onChange={(e) => setC({ vatFrom: e.target.value })} style={{ width: 100 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={cond.vatTo}
+                 onChange={(e) => setC({ vatTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.remark}

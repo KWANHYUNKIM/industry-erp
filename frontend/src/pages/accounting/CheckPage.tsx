@@ -32,6 +32,14 @@ export default function CheckPage() {
   const [rows, setRows] = useState<BankCheck[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이제 이 구간만 준다(전에는 전 기간을 통째로 받았다).
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
+   * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
+   */
+  const [from2, setFrom2] = useState('')
+  const [to2, setTo2] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -43,7 +51,7 @@ export default function CheckPage() {
     setLoading(true)
     try {
       const [c, b, p] = await Promise.all([
-        api.get<BankCheck[]>('/checks'),
+        api.get<BankCheck[]>('/checks', { params: { from: from2 || undefined, to: to2 || undefined } }),
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Partner[]>('/partners'),
       ])
@@ -57,7 +65,7 @@ export default function CheckPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   async function deposit(c: BankCheck) {
     const usable = banks.filter((b) => b.active)
@@ -120,6 +128,19 @@ export default function CheckPage() {
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
           미처리 {held.length}건 · <b style={{ color: 'var(--ec-blue-dark)' }}>{won(heldTotal)}</b>
         </span>
+      </div>
+
+      {/*
+        화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+        비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={from2}
+               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={to2}
+               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}

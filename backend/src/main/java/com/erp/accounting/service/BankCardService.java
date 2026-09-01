@@ -153,12 +153,29 @@ public class BankCardService {
 
     @Transactional(readOnly = true)
     public BankCardDtos.BankTxnListResponse findTxns(boolean all) {
-        long totalRows = txnRepository.countAll();
+        return findTxns(all, null, null);
+    }
+
+    /**
+     * 예금출납장. <b>기간을 서버가 받는다.</b>
+     *
+     * <p>화면은 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내, 전 기간
+     * <b>5,000줄·2MB</b> 를 받아 브라우저에서 걸렀다. 기타이동·판매에서 고친 것과 같은 일이다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public BankCardDtos.BankTxnListResponse findTxns(boolean all,
+                                                     java.time.LocalDate from, java.time.LocalDate to) {
+        java.time.LocalDate f = from != null ? from : java.time.LocalDate.of(1900, 1, 1);
+        java.time.LocalDate t = to != null ? to : java.time.LocalDate.of(9999, 12, 31);
+        long totalRows = txnRepository.countAll(f, t);
         boolean truncated = !all && totalRows > TXN_PAGE_ROWS;
         List<com.erp.accounting.domain.BankTransaction> found = truncated
-                ? txnRepository.findByIdsWithRefs(txnRepository.findIdsPaged(
+                ? txnRepository.findByIdsWithRefs(txnRepository.findIdsPaged(f, t,
                         org.springframework.data.domain.PageRequest.of(0, TXN_PAGE_ROWS)))
-                : txnRepository.findAllWithRefs();
+                : txnRepository.findAllWithRefs(f, t);
         return new BankCardDtos.BankTxnListResponse(
                 found.stream().map(BankTxnResponse::from).toList(), totalRows, truncated);
     }
