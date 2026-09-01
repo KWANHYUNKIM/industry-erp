@@ -296,6 +296,14 @@ export const WORK_PROCESS_PICKS = [...BASE_PICKS, '최근30일(+1개월)', '종�
 export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const
 
 /**
+ * 시리얼/로트No.재고수불부(E040620) — 조회 묶음에 <b>[전월+금월]</b> 이 [전월] 다음에 붙고
+ * 기본도 <b>[전월+금월]</b> 이다(2026-09-01 원본 실측: 2026/08/01 ~ 2026/09/01).
+ * 수불은 <b>지난달 것이 이번 달로 넘어와</b> 이어지는 자료라 두 달을 함께 본다.
+ */
+export const LOT_LEDGER_PICKS = INQUIRY_FULL_PICKS
+
+
+/**
  * 건설예정공정표(C000044) 묶음 — 앞으로의 일정을 보는 화면이라 '차주·차월' 처럼
  * 미래 구간이 들어 있다. 조회 화면들과 라인업이 꽤 다르다.
  */

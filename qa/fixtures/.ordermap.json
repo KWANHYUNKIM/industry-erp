@@ -532,6 +532,10 @@
   "quality/SerialLotPage.tsx"
  ],
  [
+  "시리얼/로트No.재고수불부",
+  "quality/LotLedgerPage.tsx"
+ ],
+ [
   "매출계획",
   "trade/SalesPlanPage.tsx"
  ],

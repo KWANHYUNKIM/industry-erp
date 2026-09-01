@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction, LotTxType } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 시리얼/로트No. — 로트 수불부 / 내역조회 (이카운트 E040618·E040620·E040639)
@@ -17,11 +18,24 @@ const TYPE_COLOR: Record<LotTxType, { bg: string; fg: string }> = {
 }
 const num = (n: number) => n.toLocaleString('ko-KR')
 
+/* 원본 E040620 은 [전월+금월] 을 보고 열린다(2026-09-01 실측). */
+const initP = periodOf('전월+금월')!
+
 export default function LotLedgerPage() {
   const [rows, setRows] = useState<LotTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  /*
+   * 원본 시리얼/로트No.재고수불부(E040620) 조건의 <b>[기준일자]</b>. 기본은 <b>[전월+금월]</b>
+   * 이다(2026-09-01 실측: 2026/08/01 ~ 2026/09/01) — 수불은 지난달 것이 이번 달로 넘어와
+   * 이어지는 자료라 두 달을 함께 본다.
+   *
+   * <p>우리 화면에는 기간이 <b>아예 없어</b> /lots/transactions 를 조건 없이 불러
+   * <b>여태 쌓인 움직임을 통째로</b> 받고 있었다. 서버도 안 받고 있었다.
+   */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [lotNo, setLotNo] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
   const [keyword, setKeyword] = useState('')
@@ -29,12 +43,14 @@ export default function LotLedgerPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const res = await api.get<LotTransaction[]>('/lots/transactions')
+      const res = await api.get<LotTransaction[]>('/lots/transactions', {
+        params: { from: from || undefined, to: to || undefined },
+      })
       setRows(res.data)
     } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
 
   const lotNos = useMemo(() => [...new Set(rows.map((r) => r.lotNo))].sort(), [rows])
 
@@ -56,11 +72,12 @@ export default function LotLedgerPage() {
   // 단일 로트 선택 시 기말 = 마지막 행 잔량
   const closing = lotNo && shown.length ? shown[shown.length - 1].balanceAfter : null
 
-  const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
-      title="로트 수불부"
+      /* 원본 화면 이름 그대로다(2026-09-01 E040620 실측) — 우리는 [로트 수불부] 라고만 불렀다. */
+      title="시리얼/로트No.재고수불부"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -69,6 +86,17 @@ export default function LotLedgerPage() {
       <p className="mb-2 text-xs text-slate-500">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+        {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={label}>기준일자</span>
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
+                         onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>로트</span>
           <select className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} style={{ width: 200 }}>

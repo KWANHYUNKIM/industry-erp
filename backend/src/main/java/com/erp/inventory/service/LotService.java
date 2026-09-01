@@ -38,7 +38,18 @@ public class LotService {
 
     @Transactional(readOnly = true)
     public List<LotTransactionResponse> transactions() {
-        return lotTxRepository.findAllWithRefs().stream()
+        return transactions(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기준일자]</b>. 서버가 이 구간만 준다 — 전에는 여태 쌓인 움직임을
+     * 통째로 주었다(원본 E040620 은 [전월+금월] 을 보고 열린다).
+     */
+    @Transactional(readOnly = true)
+    public List<LotTransactionResponse> transactions(java.time.LocalDate from, java.time.LocalDate to) {
+        return lotTxRepository.findByPeriodWithRefs(
+                        from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                        to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream()
                 .map(LotTransactionResponse::from)
                 .toList();
     }

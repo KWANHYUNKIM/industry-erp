@@ -34,8 +34,17 @@ public class LotController {
 
     /** 로트 수불부/내역조회 — 전체 로트 입출고 이력. */
     @GetMapping("/transactions")
-    public List<LotTransactionResponse> transactions() {
-        return lotService.transactions();
+    public List<LotTransactionResponse> transactions(
+            /* 화면 조건 판의 [기준일자] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return lotService.transactions(from, to);
     }
 
     @PostMapping
