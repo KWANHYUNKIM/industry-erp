@@ -60,6 +60,10 @@ public class EmployeeService {
                 .jobTitle(req.jobTitle())
                 .hireDate(req.hireDate() != null ? req.hireDate() : LocalDate.now())
                 .baseSalary(req.baseSalary() != null ? req.baseSalary() : BigDecimal.ZERO)
+                .phone(req.phone())
+                .email(req.email())
+                .searchKeyword(req.searchKeyword())
+                .remark(req.remark())
                 .active(true)
                 .build();
         return EmployeeResponse.from(employeeRepository.save(e));
@@ -85,6 +89,11 @@ public class EmployeeService {
             }
             e.setBaseSalary(req.baseSalary());
         }
+
+        e.setPhone(req.phone());
+        e.setEmail(req.email());
+        e.setSearchKeyword(req.searchKeyword());
+        e.setRemark(req.remark());
 
         boolean active = req.active() == null ? e.isActive() : req.active();
         if (req.resignDate() != null) {

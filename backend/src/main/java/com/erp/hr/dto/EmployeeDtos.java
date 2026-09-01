@@ -76,7 +76,16 @@ public class EmployeeDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
             LocalDate hireDate,
-            @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary
+            @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary,
+            /* 원본 사원(담당)등록 폼의 나머지 칸들 — 담을 데가 없어 그리지도 못했다. */
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String phone,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String email,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String searchKeyword,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark
     ) {}
 
     /**
@@ -94,6 +103,15 @@ public class EmployeeDtos {
             LocalDate hireDate,
             LocalDate resignDate,
             @PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary,
+            /* 원본 사원(담당)등록 폼의 나머지 칸들 — 담을 데가 없어 그리지도 못했다. */
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String phone,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String email,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String searchKeyword,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark,
             Boolean active
     ) {}
 
@@ -107,7 +125,9 @@ public class EmployeeDtos {
             BigDecimal baseSalary,
             LocalDate hireDate,
             LocalDate resignDate,
-            boolean active
+            boolean active,
+            /* 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
+            String phone, String email, String searchKeyword, String remark
     ) {
         public static EmployeeResponse from(Employee e) {
             return new EmployeeResponse(
@@ -116,7 +136,8 @@ public class EmployeeDtos {
                     e.getDepartment() != null ? e.getDepartment().getName() : "",
                     e.getJobTitle() != null ? e.getJobTitle() : "",
                     e.getBaseSalary(),
-                    e.getHireDate(), e.getResignDate(), e.isActive());
+                    e.getHireDate(), e.getResignDate(), e.isActive(),
+                    e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark());
         }
 
         /**
@@ -131,7 +152,9 @@ public class EmployeeDtos {
          */
         public EmployeeResponse maskSalary() {
             return new EmployeeResponse(id, code, name, departmentId, department, jobTitle,
-                    null, hireDate, resignDate, active);
+                    null, hireDate, resignDate, active,
+                    /* 연락처·적요는 급여가 아니다 — 가릴 것은 급여 칸 하나뿐이다. */
+                    phone, email, searchKeyword, remark);
         }
     }
 }

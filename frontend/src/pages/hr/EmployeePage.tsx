@@ -42,6 +42,8 @@ export default function EmployeePage() {
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
     hireDate: '', resignDate: '', baseSalary: '',
+    /* 원본 사원(담당)등록 폼의 나머지 칸들 — 담을 데가 없어 그리지도 못했다. */
+    phone: '', email: '', searchKeyword: '', remark: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -88,6 +90,8 @@ export default function EmployeePage() {
       jobTitle: e.jobTitle ?? '',
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '',
       baseSalary: String(e.baseSalary ?? 0),
+      phone: e.phone ?? '', email: e.email ?? '',
+      searchKeyword: e.searchKeyword ?? '', remark: e.remark ?? '',
     })
     setShowForm(true)
   }
@@ -100,6 +104,10 @@ export default function EmployeePage() {
       jobTitle: form.jobTitle.trim() || null,
       hireDate: form.hireDate || null,
       baseSalary: Number(form.baseSalary) || 0,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      searchKeyword: form.searchKeyword.trim() || null,
+      remark: form.remark.trim() || null,
     }
     try {
       if (editId) {
@@ -136,17 +144,31 @@ export default function EmployeePage() {
    * 좁힐 수가 없어 표를 눈으로 훑어야 했다. 원본 조건 셋을 만든다 —
    * 사원(담당)코드 · 사원(담당)명 · 사용구분.
    *
-   * <p>나머지(검색창내용 · 적요 · 담당자연락처 · 담당자Email · 추가항목3~6)는 우리 사원에
+   * <p>추가항목3~6 은 이름을 지어 정의한다(Self-Customizing). 나머지는 우리 사원에
    * 그 칸이 없다. 사용구분은 이미 있는 체크와 <b>같은 뜻</b>이라, 체크를 조건으로 옮기고
    * [전체]를 기본으로 둔다 — 지금 보이던 목록이 그대로다.
    */
   const [codeCond, setCodeCond] = useState('')
   const [nameCond, setNameCond] = useState('')
+  /**
+   * 원본 조건 <b>[검색창내용]·[적요]·[담당자연락처]·[담당자Email]</b>.
+   * 사원등록이 곧 <b>담당자 등록</b>이라(원본 이름이 '사원(담당)등록' 이다) 전표의 담당자에게
+   * 연락할 길이 여기 있어야 한다. 전에는 이름만 있어 <b>누가 맡았는지는 알아도 연락할 데가
+   * 없었다.</b> 서버가 이제 실어 준다.
+   */
+  const [kwCond, setKwCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [phoneCond, setPhoneCond] = useState('')
+  const [emailCond, setEmailCond] = useState('')
 
   const shownRows = rows
     .filter((e) => includeInactive || e.active)
     .filter((e) => !codeCond || e.code.includes(codeCond))
     .filter((e) => !nameCond || e.name.includes(nameCond))
+    .filter((e) => !kwCond || (e.searchKeyword ?? '').includes(kwCond))
+    .filter((e) => !remarkCond || (e.remark ?? '').includes(remarkCond))
+    .filter((e) => !phoneCond || (e.phone ?? '').includes(phoneCond))
+    .filter((e) => !emailCond || (e.email ?? '').includes(emailCond))
 
   /*
    * 사본의 사원(담당)등록 격자는 <b>코드·이름·사용</b>에 정렬 표시를 단다(부서등록의
@@ -185,6 +207,24 @@ export default function EmployeePage() {
         <EcCond label="사원(담당)명">
           <input className="ec-input" value={nameCond}
                  onChange={(e) => setNameCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        {/* 원본 차례: 사원(담당)코드 · 사원(담당)명 · <b>검색창내용 · 적요 · 담당자연락처 ·
+            담당자Email</b> · 추가항목3~6 · 사용구분 (사본 실측). */}
+        <EcCond label="검색창내용">
+          <input className="ec-input" value={kwCond}
+                 onChange={(e) => setKwCond(e.target.value)} style={{ width: 150 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="담당자연락처">
+          <input className="ec-input" value={phoneCond}
+                 onChange={(e) => setPhoneCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="담당자Email">
+          <input className="ec-input" value={emailCond}
+                 onChange={(e) => setEmailCond(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="사용구분">
           <select className="ec-input" style={{ width: 110 }}
@@ -230,6 +270,30 @@ export default function EmployeePage() {
               <label className="mb-1 block text-sm text-slate-600">기본급</label>
               <input type="number" className={inputCls} value={form.baseSalary}
                      onChange={(e) => setForm({ ...form, baseSalary: e.target.value })} />
+            </div>
+            {/*
+              원본 [담당자연락처]·[담당자Email] — 사원등록이 곧 <b>담당자 등록</b>이라
+              전표의 담당자에게 연락할 길이 여기 있어야 한다.
+            */}
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자연락처</label>
+              <input className={inputCls} value={form.phone}
+                     onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자Email</label>
+              <input className={inputCls} value={form.email}
+                     onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <input className={inputCls} value={form.searchKeyword}
+                     onChange={(e) => setForm({ ...form, searchKeyword: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <input className={inputCls} value={form.remark}
+                     onChange={(e) => setForm({ ...form, remark: e.target.value })} />
             </div>
             {editId && (
               <div>

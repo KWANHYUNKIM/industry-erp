@@ -1588,6 +1588,11 @@ export interface EmployeeMaster {
   hireDate: string | null
   resignDate: string | null
   active: boolean
+  /** 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
+  phone: string | null
+  email: string | null
+  searchKeyword: string | null
+  remark: string | null
 }
 
 export interface PayslipLine {

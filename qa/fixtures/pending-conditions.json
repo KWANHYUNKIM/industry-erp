@@ -1,9 +1,5 @@
 [
  "ApprovalAllPage.tsx  원본 기안서통합관리 의 [구분] 조건이 없다",
- "EmployeePage.tsx  원본 사원(담당)등록 의 [검색창내용] 조건이 없다",
- "EmployeePage.tsx  원본 사원(담당)등록 의 [담당자Email] 조건이 없다",
- "EmployeePage.tsx  원본 사원(담당)등록 의 [담당자연락처] 조건이 없다",
- "EmployeePage.tsx  원본 사원(담당)등록 의 [적요] 조건이 없다",
  "LeaveListPage.tsx  원본 근태조회 의 [기준일자] 조건이 없다",
  "LotStockComparePage.tsx  원본 품목vs시리얼재고수량비교 의 [기준일자] 조건이 없다",
  "MyApprovalPage.tsx  원본 내결재관리 의 [구분] 조건이 없다",
