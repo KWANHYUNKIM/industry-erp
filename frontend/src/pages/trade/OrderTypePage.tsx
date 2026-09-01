@@ -17,7 +17,11 @@ import CodePickerField from '../../components/CodePickerField'
  * <p>우리 유형에는 코드·이름·설명뿐이라 "이 유형은 어떤 단계를 밟나" 를 적을 자리가 없었다.
  * 그래서 오더관리진행단계 화면도 단계 마스터를 나열할 뿐 진행을 보여 주지 못했다.
  */
-interface Step { seq: number; stageId: number; stageCode: string; stageName: string }
+interface Step {
+  seq: number; stageId: number; stageCode: string; stageName: string
+  /** 원본 격자가 단계 열 <b>아래</b>에 적는 [담당자]. 안 정했으면 null. */
+  charge: string | null
+}
 
 interface OrderType {
   id: number
@@ -67,6 +71,8 @@ export default function OrderTypePage() {
   const [stages, setStages] = useState<Stage[]>([])
   /** 1단계~10단계 칸. 빈 칸은 그 단계를 안 쓴다는 뜻이다. */
   const [stepIds, setStepIds] = useState<string[]>(Array(MAX_STEPS).fill(''))
+  /* 단계마다의 담당자 — 원본 격자가 단계 열 아래에 적는 [담당자] 다. stepIds 와 같은 자리. */
+  const [stepCharges, setStepCharges] = useState<string[]>(Array(MAX_STEPS).fill(''))
 
   async function load() {
     setLoading(true)
@@ -90,6 +96,7 @@ export default function OrderTypePage() {
     setEditId(null)
     setForm({ ...emptyForm })
     setStepIds(Array(MAX_STEPS).fill(''))
+    setStepCharges(Array(MAX_STEPS).fill(''))
     setShowForm(true)
   }
 
@@ -101,8 +108,15 @@ export default function OrderTypePage() {
       useInInput: t.useInInput, active: t.active,
     })
     const next = Array(MAX_STEPS).fill('')
-    t.steps.forEach((s) => { if (s.seq >= 1 && s.seq <= MAX_STEPS) next[s.seq - 1] = String(s.stageId) })
+    const charges = Array(MAX_STEPS).fill('')
+    t.steps.forEach((s) => {
+      if (s.seq >= 1 && s.seq <= MAX_STEPS) {
+        next[s.seq - 1] = String(s.stageId)
+        charges[s.seq - 1] = s.charge ?? ''
+      }
+    })
     setStepIds(next)
+    setStepCharges(charges)
     setShowForm(true)
   }
 
@@ -112,15 +126,19 @@ export default function OrderTypePage() {
     try {
       // 빈 칸은 빼고 앞에서부터 순서대로 보낸다 — 가운데를 비워도 순번이 밀리지 않는다.
       const stageIds = stepIds.filter(Boolean).map(Number)
+      /* 담당자도 <b>같은 차례</b>로 추린다 — 빈 단계를 뺀 뒤의 자리에 맞춰야 짝이 안 어긋난다. */
+      const stageCharges = stepIds
+        .map((v, i) => (v ? (stepCharges[i] || null) : null))
+        .filter((_, i) => Boolean(stepIds[i]))
       if (editId) {
         await api.put(`/order-types/${editId}`, {
-          name: form.name, description: form.description, stageIds,
+          name: form.name, description: form.description, stageIds, stageCharges,
           useInInput: form.useInInput, procMenu: form.procMenu || null,
           manager: form.manager || null, active: form.active,
         })
       } else {
         await api.post('/order-types', {
-          code: form.code, name: form.name, description: form.description, stageIds,
+          code: form.code, name: form.name, description: form.description, stageIds, stageCharges,
           useInInput: form.useInInput, procMenu: form.procMenu || null,
           manager: form.manager || null,
         })
@@ -265,6 +283,15 @@ export default function OrderTypePage() {
                     <option value="">(없음)</option>
                     {stages.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
                   </select>
+                  {/* 원본은 단계마다 담당자를 적는다 — 단계를 안 고르면 적을 자리도 없다. */}
+                  <input className={inputCls} placeholder="담당자" value={stepCharges[i]}
+                         disabled={!v}
+                         onChange={(e) => setStepCharges((prev) => {
+                           const next = [...prev]
+                           next[i] = e.target.value
+                           return next
+                         })}
+                         style={{ marginTop: 3 }} />
                 </label>
               ))}
             </div>
@@ -281,37 +308,53 @@ export default function OrderTypePage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th rowSpan={2} style={{ width: 34, textAlign: 'center' }}>
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
                      onChange={() => setChecked(
                        shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
                      )} />
             </th>
-            <th style={{ width: 90 }}>유형코드</th>
-            <th style={{ width: 130 }}>유형명</th>
+            <th rowSpan={2} style={{ width: 90 }}>유형코드</th>
+            <th rowSpan={2} style={{ width: 130 }}>유형명</th>
             {/*
               원본은 단계를 <b>[1단계] ~ [10단계] 열 열 개</b>로 편다(열 id STEPS∬S1…S10).
               우리는 '진행단계 (1 → n)' 한 칸에 몰아넣고 있었는데, 그 칸에 실제로 그려지던
               값은 단계가 아니라 <b>설명(description)</b> 이었다 — 헤더가 약속한 것과
               본문이 다른 상태였고, 뒤따르는 담당자·입력메뉴에서 사용은 아예 안 그려졌다.
             */}
+            {/*
+              원본은 단계 열마다 <b>[담당자]</b> 를 머리 둘째 줄로 붙인다(2026-09-01 E040901 실측).
+              우리는 담당자를 <b>표 끝에 한 열</b>로 두어, 그 사람이 <b>어느 단계</b> 담당인지
+              알 수가 없었다. 한 단계에 한 칸을 지키려고 머리를 두 줄로 가르지 않고
+              칸 안에 위아래로 적는다 — 머리는 [n단계] 한 줄로 두고(열 대조 검사가 머리 글자를
+              그대로 읽는다) 사람 이름은 <b>줄 칸 안 둘째 줄</b>에 낸다.
+            */}
             {STEP_COLS.map((n) => (
               <th key={n} style={{ width: 96 }}>{n}단계</th>
             ))}
-            <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
-            <th style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            <th rowSpan={2} style={{ width: 80, textAlign: 'center' }}>사용구분</th>
+            <th rowSpan={2} style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
             {/* 안 정한 유형은 '어느 화면에서나' 다 — 빈칸으로 두면 안 정한 것과 못 쓰는 것이 같아 보인다. */}
-            <th style={{ width: 130 }}>처리메뉴</th>
-            <th style={{ width: 90 }}>담당자</th>
-            <th style={{ width: 90 }}>관리</th>
+            <th rowSpan={2} style={{ width: 130 }}>처리메뉴</th>
+            <th rowSpan={2} style={{ width: 90 }}>관리</th>
+          </tr>
+          {/*
+            원본 머리는 <b>두 줄</b>이다 — 단계 열 아래에 [담당자] 가 한 줄 더 붙는다
+            (2026-09-01 E040901 실측). 그 줄을 그대로 낸다. 줄 칸은 한 단계에 하나이고,
+            그 안에 단계 이름과 담당자를 위아래로 적는다.
+          */}
+          <tr>
+            {STEP_COLS.map((n) => (
+              <th key={`c${n}`} style={{ fontWeight: 400, fontSize: 11.5, color: '#5a626e' }}>담당자</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -339,6 +382,11 @@ export default function OrderTypePage() {
                 return (
                   <td key={n} style={{ color: st ? undefined : '#e2e6ea' }}>
                     {st ? st.stageName : '·'}
+                    {st && (
+                      <div style={{ fontSize: 11, color: st.charge ? '#5a626e' : '#c9ced6' }}>
+                        {st.charge ?? '·'}
+                      </div>
+                    )}
                   </td>
                 )
               })}
@@ -349,7 +397,6 @@ export default function OrderTypePage() {
               <td style={{ color: r.procMenu ? undefined : '#9aa1ab', fontSize: 11.5 }}>
                 {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
               </td>
-              <td style={{ color: r.manager ? undefined : '#c9ced6' }}>{r.manager ?? ''}</td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>

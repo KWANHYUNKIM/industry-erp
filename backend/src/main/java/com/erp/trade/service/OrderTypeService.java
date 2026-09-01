@@ -56,7 +56,7 @@ public class OrderTypeService {
                 .active(true)
                 .build();
         OrderType saved = orderTypeRepository.save(t);
-        return OrderTypeResponse.from(saved, replaceSteps(saved, req.stageIds()));
+        return OrderTypeResponse.from(saved, replaceSteps(saved, req.stageIds(), req.stageCharges()));
     }
 
     @Transactional
@@ -75,7 +75,7 @@ public class OrderTypeService {
         // 단계를 안 주면 그대로 둔다(이름만 고치는 수정이 단계를 날리면 안 된다).
         List<OrderTypeStep> steps = req.stageIds() == null
                 ? stepRepository.findByTypeWithStage(id)
-                : replaceSteps(t, req.stageIds());
+                : replaceSteps(t, req.stageIds(), req.stageCharges());
         return OrderTypeResponse.from(t, steps);
     }
 
@@ -92,7 +92,7 @@ public class OrderTypeService {
      * <p>부분 수정을 지원하지 않는 이유: 단계는 <b>순서가 곧 뜻</b>이라, 가운데 한 칸만 바꾸면
      * 나머지 순번이 어긋난다. 화면도 원본처럼 1~10칸을 한 번에 저장한다.
      */
-    private List<OrderTypeStep> replaceSteps(OrderType type, List<Long> stageIds) {
+    private List<OrderTypeStep> replaceSteps(OrderType type, List<Long> stageIds, List<String> stageCharges) {
         stepRepository.deleteByOrderType_Id(type.getId());
         /*
          * 지운 것을 <b>DB 까지 밀어 넣고</b> 새로 넣는다.
@@ -118,8 +118,11 @@ public class OrderTypeService {
         for (Long stageId : stageIds) {
             OrderStage stage = stageRepository.findById(stageId)
                     .orElseThrow(() -> ApiException.badRequest("진행단계를 찾을 수 없습니다. id=" + stageId));
+            /* 담당자는 stageIds 와 같은 차례로 온다. 안 주거나 짧으면 그 단계는 빈다. */
+            String charge = (stageCharges != null && seq - 1 < stageCharges.size())
+                    ? stageCharges.get(seq - 1) : null;
             saved.add(stepRepository.save(OrderTypeStep.builder()
-                    .orderType(type).seq(seq++).stage(stage).build()));
+                    .orderType(type).seq(seq++).stage(stage).charge(charge).build()));
         }
         return saved;
     }

@@ -31,6 +31,15 @@ public class OrderTypeStep extends BaseTimeEntity {
     @Column(nullable = false)
     private Integer seq;
 
+    /*
+     * 원본 오더관리유형리스트(E040901) 격자의 <b>[담당자]</b> — 단계마다 하나씩이다
+     * (2026-09-01 실측: 1단계~10단계 열 아래에 담당자 줄이 따로 있다).
+     * 우리는 유형에 하나만 두어 <b>그 담당자가 어느 단계 사람인지</b> 알 수 없었다.
+     * 사람 마스터를 물지 않고 이름만 든다 — trade 는 hr 을 참조할 수 없다.
+     */
+    @Column(length = 50)
+    private String charge;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_stage_id", nullable = false)
     private OrderStage stage;
