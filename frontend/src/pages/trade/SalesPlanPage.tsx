@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -76,6 +77,26 @@ type SaleFlag = typeof SALE_FLAGS[number]
  */
 const SETUPS = ['코드포함', '비율(%)', '수량'] as const
 
+/**
+ * 원본 매출계획비교표(E040626)의 <b>[표시조건1]·[표시조건2]</b> — 무엇으로 묶어 볼지 고르는 자리다
+ * (2026-09-01 원본 실측). 원본 후보는 열하나다:
+ * 없음 · 담당자 · 품목그룹1 · 품목그룹2 · 품목그룹3 · 창고 · 품목명 · 거래처 · 프로젝트 ·
+ * 거래처그룹1 · 거래처그룹2.
+ *
+ * <p>이 화면은 <b>어느 축으로 계획을 견줄지</b>가 본체인데 우리에겐 그 자리가 아예 없어,
+ * 품목 한 줄씩만 볼 수 있었다. 담당자별로 계획을 채웠는지 보려면 표를 눈으로 훑어야 했다.
+ *
+ * <p><b>품목그룹1~3 · 거래처그룹1~2 는 뺐다.</b> 원본 품목·거래처는 그룹을 여러 단으로 두는데
+ * 우리 마스터는 품목에 [분류] 하나, 거래처에 [거래처그룹] 하나뿐이라 1·2·3 으로 나눌 단이 없다.
+ * 지어내지 않는다.
+ */
+const AXES = ['없음', '담당자', '창고', '품목명', '거래처', '프로젝트'] as const
+type Axis = typeof AXES[number]
+
+/** 원본 [표시조건] 옆의 정렬 선택(사본 실측: 코드순이 기본). */
+const AXIS_SORTS = ['코드순', '코드명순', '금액순', '수량순'] as const
+type AxisSort = typeof AXIS_SORTS[number]
+
 interface CodeRow { id: number; code: string; name: string }
 
 export default function SalesPlanPage() {
@@ -98,6 +119,10 @@ export default function SalesPlanPage() {
    * 켜면 <b>가장 나중에 고친 계획이 위로</b> 온다 — 오늘 손댄 계획을 찾을 길이 없었다.
    */
   const [byUpdated, setByUpdated] = useState(false)
+  /* 원본 [표시조건1]·[표시조건2] — 둘 다 처음엔 [없음] 이다(실측). */
+  const [axis1, setAxis1] = useState<Axis>('없음')
+  const [axis2, setAxis2] = useState<Axis>('없음')
+  const [axisSort, setAxisSort] = useState<AxisSort>('코드순')
   const withCode = setups.includes('코드포함')
   const withRate = setups.includes('비율(%)')
   const withQty = setups.includes('수량')
@@ -269,6 +294,30 @@ export default function SalesPlanPage() {
           </div>
         </EcCond>
         {/*
+          원본 [표시조건] — <b>표시조건1 · 표시조건2</b> 두 줄이고, 1 옆에 정렬이 붙는다
+          (2026-09-01 실측: 정렬은 코드순·코드명순·금액순·수량순, 기본 코드순).
+          원본은 두 축을 겹쳐 접어 보여 주고, 우리는 <b>두 축을 한 묶음</b>으로 낸다 —
+          같은 숫자를 같은 자리에 내되 접었다 폈다 하지는 않는다.
+        */}
+        <EcCond label="표시조건">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: '#5a626e' }}>표시조건1</span>
+            <select className="ec-input" value={axis1}
+                    onChange={(e) => setAxis1(e.target.value as Axis)} style={{ width: 130 }}>
+              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select className="ec-input" value={axisSort}
+                    onChange={(e) => setAxisSort(e.target.value as AxisSort)} style={{ width: 110 }}>
+              {AXIS_SORTS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 6 }}>표시조건2</span>
+            <select className="ec-input" value={axis2}
+                    onChange={(e) => setAxis2(e.target.value as Axis)} style={{ width: 130 }}>
+              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        </EcCond>
+        {/*
           원본 조건 [기타] — [수정일자순(정렬)] 하나다(2026-09-01 실측).
           원본에는 [최종수정자] 조건도 있으나 우리 매출계획이 <b>누가 고쳤는지를 안 든다</b>
           (created_by 만 있고 updated_by 가 없다). 값을 지어내지 않고 그대로 둔다.
@@ -362,6 +411,66 @@ export default function SalesPlanPage() {
         </tbody>
       </table>
       </div>
+
+      {/*
+        원본 [표시조건] 으로 고른 축의 <b>소계</b>. 축을 안 고르면(둘 다 [없음]) 안 그린다 —
+        원본도 그때는 줄 목록만 낸다. 소계표는 본 표와 열 수가 달라 <b>바깥</b>에 둔다
+        (본 표는 [설정]으로 열이 늘고 줄어 렌더된 칸을 재는 검사가 붙어 있다).
+      */}
+      {(axis1 !== '없음' || axis2 !== '없음') && shown.length > 0 && (() => {
+        const valueOf = (r: ComparisonRow, a: Axis) =>
+          a === '담당자' ? r.employeeName
+            : a === '창고' ? r.warehouseName
+              : a === '품목명' ? r.itemName
+                : a === '거래처' ? r.partnerName
+                  : a === '프로젝트' ? r.projectName
+                    : null
+        const label = [axis1, axis2].filter((a) => a !== '없음').join(' · ')
+        const groups = subtotalBy(shown,
+          (r) => [axis1, axis2].filter((a) => a !== '없음')
+            .map((a) => valueOf(r, a) ?? '(미지정)').join(' · '),
+          { plan: (r) => r.planAmount, actual: (r) => r.actualAmount,
+            planQty: (r) => r.planQty, actualQty: (r) => r.actualQty })
+        /* 원본 정렬: 코드순·코드명순은 이름 차례, 금액순·수량순은 큰 것부터다. */
+        const sorted = axisSort === '금액순' ? [...groups].sort((a, b) => b.sums.plan - a.sums.plan)
+          : axisSort === '수량순' ? [...groups].sort((a, b) => b.sums.planQty - a.sums.planQty)
+            : groups
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{label} 소계</h3>
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th>{label}</th>
+                  <th style={{ width: 70, textAlign: 'right' }}>건수</th>
+                  {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
+                  <th style={{ textAlign: 'right' }}>계획금액</th>
+                  {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
+                  <th style={{ textAlign: 'right' }}>실적금액</th>
+                  {withRate && <th style={{ width: 90, textAlign: 'right' }}>달성률</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((g) => (
+                  <tr key={g.label}>
+                    <td>{g.label}</td>
+                    <td style={{ textAlign: 'right' }}>{g.count}</td>
+                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.planQty.toLocaleString()}</td>}
+                    <td style={{ textAlign: 'right' }}>{won(g.sums.plan)}</td>
+                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.actualQty.toLocaleString()}</td>}
+                    <td style={{ textAlign: 'right' }}>{won(g.sums.actual)}</td>
+                    {withRate && (
+                      <td style={{ textAlign: 'right' }}>
+                        {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
