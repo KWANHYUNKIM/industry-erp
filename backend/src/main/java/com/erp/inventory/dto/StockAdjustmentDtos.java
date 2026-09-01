@@ -30,7 +30,12 @@ public final class StockAdjustmentDtos {
             Long projectId,
             Long employeeId,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String reason
+            String reason,
+            /* 원본 [불량유형]·[사용유형](유형에 따라 이름이 다른 같은 자리)·[처리방법]. */
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String kind,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String handling
     ) {}
 
     public record AdjustmentResponse(
@@ -48,7 +53,9 @@ public final class StockAdjustmentDtos {
             Long warehouseId, String warehouseName,
             BigDecimal beforeQty, BigDecimal quantityChange, BigDecimal afterQty,
             Long projectId, String projectName, Long employeeId,
-            String reason, String createdBy
+            String reason, String createdBy,
+            /** 원본 [불량유형]·[사용유형]·[처리방법]. */
+            String kind, String handling
     ) {
         public static AdjustmentResponse from(StockAdjustment a) {
             return new AdjustmentResponse(
@@ -63,7 +70,8 @@ public final class StockAdjustmentDtos {
                     a.getProject() != null ? a.getProject().getId() : null,
                     a.getProject() != null ? a.getProject().getName() : null,
                     a.getEmployeeId(),
-                    a.getReason(), a.getCreatedBy());
+                    a.getReason(), a.getCreatedBy(),
+                    a.getKind(), a.getHandling());
         }
     }
 

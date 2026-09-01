@@ -106,6 +106,8 @@ public class StockAdjustmentService {
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employeeId(req.employeeId())
                 .reason(req.reason())
+                .kind(req.kind())
+                .handling(req.handling())
                 .createdBy(username)
                 .build();
         return AdjustmentResponse.from(adjustmentRepository.save(adjustment));

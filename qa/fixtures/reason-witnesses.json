@@ -1473,5 +1473,14 @@
    "/hr/attendance",
    "/schedule-events"
   ]
+ },
+ "자가사용현황|거래처관리담당자": {
+  "claim": "전표에 거래처가 없어 그 거래처의 담당자도 없다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java",
+  "absent": [
+   "adjustPartner",
+   "partner_id",
+   "BusinessPartner"
+  ]
  }
 }

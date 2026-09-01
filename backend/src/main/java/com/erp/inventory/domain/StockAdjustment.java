@@ -74,6 +74,24 @@ public class StockAdjustment extends BaseTimeEntity {
     @Column(length = 300)
     private String reason;
 
+    /**
+     * 원본 <b>[불량유형]</b>·<b>[처리방법]</b>·<b>[사용유형]</b>.
+     *
+     * <p>세 이름이지만 <b>유형이 다른 화면의 같은 자리</b>다 — 불량처리·대체사용·폐기는
+     * [불량유형]을, 자가사용은 [사용유형]을 묻는다. 그래서 칸 하나(<code>kind</code>)로 두고
+     * 화면이 유형에 맞는 <b>이름표와 고를 값</b>을 붙인다. 칸을 셋 만들면 한 전표에 늘 둘이
+     * 비어 있고, 유형을 바꿀 때 어느 칸을 지워야 하는지가 규칙이 된다.
+     *
+     * <p>고를 값은 <b>공통코드</b>에서 온다(settings). 재고는 아무 모듈도 참조하지 않는
+     * 기반층이라 여기서는 <b>고른 값의 글자</b>만 든다 — 화면이 목록을 가져와 고르게 한다.
+     */
+    @Column(length = 30)
+    private String kind;
+
+    /** 원본 <b>[처리방법]</b>(불량처리) — 불량을 어떻게 했나(폐기·재작업·반품). */
+    @Column(name = "handling", length = 30)
+    private String handling;
+
     @Column(length = 50)
     private String createdBy;
 }

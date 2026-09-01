@@ -7,12 +7,5 @@
  "LeaveListPage.tsx  원본 근태조회 의 [기준일자] 조건이 없다",
  "LotStockComparePage.tsx  원본 품목vs시리얼재고수량비교 의 [기준일자] 조건이 없다",
  "MyApprovalPage.tsx  원본 내결재관리 의 [구분] 조건이 없다",
- "PriceMovementPage.tsx  원본 단가변동표 의 [구분] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 대체사용현황 의 [불량유형] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 불량처리현황 의 [불량유형] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 불량처리현황 의 [처리방법] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 자가사용현황 의 [거래처관리담당자] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 자가사용현황 의 [사용유형] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 자가사용현황 의 [수량] 조건이 없다",
- "StockMoveStatusPage.tsx  원본 폐기현황 의 [불량유형] 조건이 없다"
+ "PriceMovementPage.tsx  원본 단가변동표 의 [구분] 조건이 없다"
 ]

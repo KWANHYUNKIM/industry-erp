@@ -58,6 +58,10 @@ interface Adjustment {
   projectName: string | null
   /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
   itemCategory: string | null
+  /** 원본 조건 [불량유형]·[사용유형] — 유형에 따라 이름이 다른 같은 자리다. */
+  kind: string | null
+  /** 원본 조건 [처리방법](불량처리). */
+  handling: string | null
   itemCategoryName: string | null
 }
 
@@ -81,6 +85,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   /** 원본 [품목구분] 의 값 목록. 화면이 지어내지 않고 서버가 주는 것을 쓴다. */
   const [cats, setCats] = useState<CodeOption[]>([])
+  /**
+   * 원본 [불량유형]·[사용유형]·[처리방법] 의 값 목록. <b>공통코드</b>에서 가져온다 —
+   * 회사마다 부르는 이름이 달라 코드로 박아 둘 값이 아니다. 없으면 그 회사가 아직 안
+   * 만든 것이라, 고를 것이 없는 빈 목록을 그대로 보여 준다.
+   */
+  const [codeGroups, setCodeGroups] = useState<{ code: string; name: string; codes: { name: string }[] }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -95,7 +105,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    */
   const init = (kind === 'SELF_USE' ? periodOf('전월+금월') : periodOf('금월(~오늘)'))
     ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', item: '', category: '', reason: '', employee: '', spec: '', project: '' })
+  const [cond, setCond] = useState({
+    from: init.from, to: init.to, warehouseId: '', item: '', category: '',
+    reason: '', employee: '', spec: '', project: '',
+    /* 원본 [불량유형]/[사용유형] · [처리방법] · [수량]. */
+    kind: '', handling: '', qtyFrom: '', qtyTo: '',
+  })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -105,10 +120,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all } }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<CodeOption[]>('/meta/item-categories'),
+      api.get<{ code: string; name: string; codes: { name: string }[] }[]>('/codes'),
     ])
-      .then(([a, w, c]) => {
+      .then(([a, w, c, g]) => {
         setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
-        setWarehouses(w.data); setCats(c.data)
+        setWarehouses(w.data); setCats(c.data); setCodeGroups(g.data)
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -124,6 +140,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   useEffect(() => { setAll(false) }, [cond.from, cond.to])
   // 같은 컴포넌트를 다섯 메뉴가 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 유형이 바뀌면 조건만 되돌린다.
   useEffect(() => { setMode('내역') }, [kind])
+
+  /** 그 이름의 공통코드 묶음에 든 값들. 없으면 빈 목록이다. */
+  const codesOf = (groupName: string) =>
+    (codeGroups.find((g) => g.name === groupName)?.codes ?? []).map((c) => c.name)
+  const kindOptions = codesOf(kind === 'SELF_USE' ? '사용유형' : '불량유형')
+  const handlingOptions = codesOf('처리방법')
 
   const shown = rows
     .filter((r) => r.type === kind)
@@ -144,6 +166,16 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
     /* 원본 조건 [프로젝트]. 어느 현장에 나간 자재인지로 좁힌다. */
     .filter((r) => !cond.project || (r.projectName ?? '') === cond.project)
+    /* 원본 조건 [불량유형](불량처리·대체사용·폐기) · [사용유형](자가사용) — 같은 자리다. */
+    .filter((r) => !cond.kind || (r.kind ?? '') === cond.kind)
+    /* 원본 조건 [처리방법] — 불량처리에만 있다. */
+    .filter((r) => !cond.handling || (r.handling ?? '') === cond.handling)
+    /*
+     * 원본 조건 <b>[수량]</b>(자가사용). 움직인 <b>크기</b>로 좁힌다 — 부호는 유형이
+     * 정하는 것이라(자가사용은 늘 빠져나간다) 절댓값으로 견준다.
+     */
+    .filter((r) => !cond.qtyFrom || Math.abs(r.quantityChange) >= Number(cond.qtyFrom))
+    .filter((r) => !cond.qtyTo || Math.abs(r.quantityChange) <= Number(cond.qtyTo))
 
   /*
    * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -190,7 +222,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const reset = () => {
     setMode('내역')
     setSubtotal('창고·품목')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', category: '', reason: '', employee: '', spec: '', project: '' })
+    setCond({
+      from: init.from, to: init.to, warehouseId: '', item: '', category: '',
+      reason: '', employee: '', spec: '', project: '',
+      kind: '', handling: '', qtyFrom: '', qtyTo: '',
+    })
   }
 
   return (
@@ -253,6 +289,39 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                            value={cond.employee} onChange={(v) => setC({ employee: v })}
                            items={pickers.employees} />
         </EcCond>
+        {/*
+          원본 <b>[불량유형]</b>(불량처리·대체사용·폐기) 과 <b>[사용유형]</b>(자가사용) 은
+          <b>유형이 다른 화면의 같은 자리</b>다 — 전표의 한 칸을 화면이 이름만 바꿔 부른다.
+          재고조정에는 없다(그 화면은 [기타] 로 묶는다).
+          고를 값은 <b>공통코드</b>에서 가져온다 — 화면이 지어내지 않는다.
+        */}
+        {kind !== 'ADJUST' && (
+          <EcCond label={kind === 'SELF_USE' ? '사용유형' : '불량유형'}>
+            <select className="ec-input" value={cond.kind}
+                    onChange={(e) => setC({ kind: e.target.value })} style={{ width: 140 }}>
+              <option value="">전체</option>
+              {kindOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </EcCond>
+        )}
+        {kind === 'DEFECT' && (
+          <EcCond label="처리방법">
+            <select className="ec-input" value={cond.handling}
+                    onChange={(e) => setC({ handling: e.target.value })} style={{ width: 130 }}>
+              <option value="">전체</option>
+              {handlingOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </EcCond>
+        )}
+        {kind === 'SELF_USE' && (
+          <EcCond label="수량">
+            <input type="number" className="ec-input text-right" placeholder="이상" value={cond.qtyFrom}
+                   onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 90 }} />
+            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <input type="number" className="ec-input text-right" placeholder="이하" value={cond.qtyTo}
+                   onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 90 }} />
+          </EcCond>
+        )}
         {/*
           원본 <b>다섯 화면이 서로 다른 차례</b>를 쓴다(사본 실측) — 자가사용은 규격·담당자·적요,
           불량처리는 담당자·적요·규격, 대체사용·폐기는 담당자·규격·적요다.
