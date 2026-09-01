@@ -29,6 +29,12 @@ public final class LotDtos {
     public record LotTransactionResponse(
             Long id, Long lotId, String lotNo,
             Long itemId, String itemCode, String itemName, String unit,
+            /*
+             * 원본 시리얼/로트No.재고수불부(E040620) 조건의 <b>[창고]</b>(2026-09-01 실측).
+             * 로트는 창고를 물고 있는데 수불부 응답에 안 실어, 어느 창고에서 오간 로트인지
+             * <b>보이지도 걸리지도</b> 않았다. 창고를 안 정한 로트는 null 이다.
+             */
+            Long warehouseId, String warehouseName,
             LocalDate txDate, LotTxType type, String typeName,
             BigDecimal quantityChange, BigDecimal balanceAfter,
             String note, String createdBy
@@ -38,6 +44,8 @@ public final class LotDtos {
             return new LotTransactionResponse(
                     t.getId(), l.getId(), l.getLotNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getWarehouse() != null ? l.getWarehouse().getId() : null,
+                    l.getWarehouse() != null ? l.getWarehouse().getName() : null,
                     t.getTxDate(), t.getType(), t.getType().getDisplayName(),
                     t.getQuantityChange(), t.getBalanceAfter(),
                     t.getNote(), t.getCreatedBy());

@@ -12,6 +12,7 @@ public interface LotTransactionRepository extends JpaRepository<LotTransaction, 
 
     /** 로트 수불부/내역 — 로트·품목 함께 로딩, 로트별로 시간순(오름차순)으로 읽도록 정렬. */
     @Query("select t from LotTransaction t join fetch t.lot l join fetch l.item " +
+            "left join fetch l.warehouse " +
             "order by l.lotNo asc, t.txDate asc, t.id asc")
     List<LotTransaction> findAllWithRefs();
 
@@ -22,6 +23,7 @@ public interface LotTransactionRepository extends JpaRepository<LotTransaction, 
      * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
      */
     @Query("select t from LotTransaction t join fetch t.lot l join fetch l.item " +
+            "left join fetch l.warehouse " +
             "where t.txDate between :from and :to " +
             "order by l.lotNo asc, t.txDate asc, t.id asc")
     List<LotTransaction> findByPeriodWithRefs(@Param("from") java.time.LocalDate from,

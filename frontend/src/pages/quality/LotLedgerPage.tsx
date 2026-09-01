@@ -37,6 +37,13 @@ export default function LotLedgerPage() {
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
   const [lotNo, setLotNo] = useState('')
+  /*
+   * 원본 조건 [창고]·[품목](2026-09-01 E040620 실측). 표에는 품목이 찍히는데 그 값으로
+   * 거를 수가 없었고, 창고는 아예 보이지도 않았다. 고를 후보는 <b>지금 걸린 자료</b>에서
+   * 뽑는다 — 마스터를 통째로 받으면 조건을 안 쓰는 사람에게도 느려진다.
+   */
+  const [warehouse, setWarehouse] = useState('')
+  const [item, setItem] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
   const [keyword, setKeyword] = useState('')
 
@@ -53,16 +60,21 @@ export default function LotLedgerPage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
 
   const lotNos = useMemo(() => [...new Set(rows.map((r) => r.lotNo))].sort(), [rows])
+  const warehouses = useMemo(
+    () => [...new Set(rows.map((r) => r.warehouseName).filter(Boolean) as string[])].sort(), [rows])
+  const items = useMemo(() => [...new Set(rows.map((r) => r.itemName))].sort(), [rows])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return rows.filter((r) => {
+      if (warehouse && r.warehouseName !== warehouse) return false
+      if (item && r.itemName !== item) return false
       if (lotNo && r.lotNo !== lotNo) return false
       if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
-  }, [rows, lotNo, typeFilter, keyword])
+  }, [rows, warehouse, item, lotNo, typeFilter, keyword])
 
   const totals = useMemo(() => shown.reduce((s, r) => {
     if (r.quantityChange >= 0) s.inQty += r.quantityChange
@@ -96,6 +108,21 @@ export default function LotLedgerPage() {
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
                          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+        </div>
+        {/* 원본 조건 차례: 기준일자 · … · [창고] · [품목]. */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>창고</span>
+          <select className="ec-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }}>
+            <option value="">전체</option>
+            {warehouses.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>품목</span>
+          <select className="ec-input" value={item} onChange={(e) => setItem(e.target.value)} style={{ width: 200 }}>
+            <option value="">전체</option>
+            {items.map((it) => <option key={it} value={it}>{it}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>로트</span>

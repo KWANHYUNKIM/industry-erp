@@ -1349,6 +1349,12 @@ export interface LotTransaction {
   itemCode: string
   itemName: string
   unit: string
+  /*
+   * 원본 시리얼/로트No.재고수불부 조건의 [창고]. 로트가 물고 있는 창고인데 응답에 안 실어
+   * 어느 창고에서 오간 로트인지 보이지도 걸리지도 않았다. 안 정한 로트는 null.
+   */
+  warehouseId: number | null
+  warehouseName: string | null
   txDate: string
   type: LotTxType
   typeName: string
