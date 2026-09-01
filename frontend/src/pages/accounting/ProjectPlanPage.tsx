@@ -40,6 +40,17 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 
+/**
+ * 금액 구간 조건. 원본은 [판매계획]·[구매계획]·[노무비계획]·[경비계획] 넷을 다
+ * <b>[   ] ~ [   ]</b> 두 칸으로 받는다(2026-09-01 E040636 실측).
+ * 한쪽만 적어도 걸리게 둔다 — 원본도 한쪽만 채우면 그쪽만 건다.
+ */
+function inRange(v: number, from: string, to: string) {
+  if (from !== '' && v < Number(from)) return false
+  if (to !== '' && v > Number(to)) return false
+  return true
+}
+
 export default function ProjectPlanPage() {
   const [year, setYear] = useState<number>(thisYear())
   const [rows, setRows] = useState<ComparisonRow[]>([])
@@ -50,9 +61,28 @@ export default function ProjectPlanPage() {
    * 셋 다 값이 응답에 실려 오지도 않아 <b>볼 수도 거를 수도 없었다</b> — 서버에서 같이 싣고
    * 조건을 만든다. 가운데 네 계획은 우리 계획이 매출·이익 두 값이라 축 자체가 없다.
    */
-  const [startCond, setStartCond] = useState('')
-  const [endCond, setEndCond] = useState('')
+  /*
+   * 원본 조건 [시작일]·[종료일]은 <b>한 날짜가 아니라 구간</b>이다(2026-09-01 E040636 실측:
+   * [사용]을 켜면 2026/08/01 ~ 2026/08/31 처럼 두 칸이 열린다). 우리는 한 칸씩만 두고
+   * '그 날 이후'·'그 날 이전' 으로 걸러, <b>어느 달에 시작한 계획</b>만 보는 것을 못 했다.
+   */
+  const [startFrom, setStartFrom] = useState('')
+  const [startTo, setStartTo] = useState('')
+  const [endFrom, setEndFrom] = useState('')
+  const [endTo, setEndTo] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
+  /*
+   * 원본 조건 [판매계획]·[구매계획]·[노무비계획]·[경비계획] — 넷 다 <b>금액 구간</b>이다
+   * (2026-09-01 E040636 실측). 값이 생기기 전에는 "조건을 만들 축이 없다" 던 자리다.
+   */
+  const [saleFrom, setSaleFrom] = useState('')
+  const [saleTo, setSaleTo] = useState('')
+  const [purchaseFrom, setPurchaseFrom] = useState('')
+  const [purchaseTo, setPurchaseTo] = useState('')
+  const [laborFrom, setLaborFrom] = useState('')
+  const [laborTo, setLaborTo] = useState('')
+  const [expenseFrom, setExpenseFrom] = useState('')
+  const [expenseTo, setExpenseTo] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -106,9 +136,15 @@ export default function ProjectPlanPage() {
 
   const shown = rows
     .filter((r) => !projectCond || r.projectName === projectCond)
-    .filter((r) => !startCond || (r.startDate ?? '') >= startCond)
-    .filter((r) => !endCond || (r.endDate != null && r.endDate <= endCond))
+    .filter((r) => !startFrom || (r.startDate != null && r.startDate >= startFrom))
+    .filter((r) => !startTo || (r.startDate != null && r.startDate <= startTo))
+    .filter((r) => !endFrom || (r.endDate != null && r.endDate >= endFrom))
+    .filter((r) => !endTo || (r.endDate != null && r.endDate <= endTo))
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => inRange(r.planRevenue, saleFrom, saleTo))
+    .filter((r) => inRange(r.planPurchase, purchaseFrom, purchaseTo))
+    .filter((r) => inRange(r.planLabor, laborFrom, laborTo))
+    .filter((r) => inRange(r.planExpense, expenseFrom, expenseTo))
 
   /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
   const totals = shown.reduce((s, r) => ({
@@ -170,12 +206,51 @@ export default function ProjectPlanPage() {
         <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond}
                          items={projects.map((p) => ({ value: p.name, code: p.code, name: p.name }))} />
+        {/* 원본 [시작일]·[종료일] 은 구간이다 — 한 칸씩만 두어 어느 달에 시작한 계획인지 못 좁혔다. */}
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>시작일</span>
-        <input type="date" className={inputCls} value={startCond}
-               onChange={(e) => setStartCond(e.target.value)} style={{ width: 140 }} />
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>종료일</span>
-        <input type="date" className={inputCls} value={endCond}
-               onChange={(e) => setEndCond(e.target.value)} style={{ width: 140 }} />
+        <input type="date" className={inputCls} value={startFrom}
+               onChange={(e) => setStartFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className={inputCls} value={startTo}
+               onChange={(e) => setStartTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>종료일</span>
+        <input type="date" className={inputCls} value={endFrom}
+               onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className={inputCls} value={endTo}
+               onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
+      {/*
+        원본 조건 [판매계획]·[구매계획]·[노무비계획]·[경비계획] — 넷 다 금액 구간이다.
+        지난 판까지는 그 값 자체가 없어 <b>거를 축이 없었다</b>. V212 로 값을 만들면서 이제 건다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>판매계획</span>
+        <input className={`${inputCls} text-right`} type="number" step="any" placeholder="판매계획"
+               value={saleFrom} onChange={(e) => setSaleFrom(e.target.value)} style={{ width: 110 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input className={`${inputCls} text-right`} type="number" step="any"
+               value={saleTo} onChange={(e) => setSaleTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>구매계획</span>
+        <input className={`${inputCls} text-right`} type="number" step="any" placeholder="구매계획"
+               value={purchaseFrom} onChange={(e) => setPurchaseFrom(e.target.value)} style={{ width: 110 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input className={`${inputCls} text-right`} type="number" step="any"
+               value={purchaseTo} onChange={(e) => setPurchaseTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>노무비계획</span>
+        <input className={`${inputCls} text-right`} type="number" step="any" placeholder="노무비계획"
+               value={laborFrom} onChange={(e) => setLaborFrom(e.target.value)} style={{ width: 110 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input className={`${inputCls} text-right`} type="number" step="any"
+               value={laborTo} onChange={(e) => setLaborTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>경비계획</span>
+        <input className={`${inputCls} text-right`} type="number" step="any" placeholder="경비계획"
+               value={expenseFrom} onChange={(e) => setExpenseFrom(e.target.value)} style={{ width: 110 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input className={`${inputCls} text-right`} type="number" step="any"
+               value={expenseTo} onChange={(e) => setExpenseTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
+        {/* 원본 조건 차례에서 [적요] 는 네 금액 <b>다음</b>이다(2026-09-01 실측). */}
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>적요</span>
         <input className={inputCls} value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 150 }} />
