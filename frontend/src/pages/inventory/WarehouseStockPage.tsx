@@ -7,6 +7,7 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 창고별재고현황 (이카운트 E040711)
@@ -46,6 +47,12 @@ export default function WarehouseStockPage() {
     zeroWarehouse: false,
     inactiveItem: false,
     inactiveWarehouse: false,
+    /*
+     * 원본 [기타]의 <b>[수량관리제외품목포함]</b>(2026-09-02 E040711 실측).
+     * 우리에게만 없어서, 용역·수수료처럼 수량을 안 세는 품목이 창고표에 0 으로 줄을 차지했다.
+     * 재고현황·재고변동표에서도 같은 것이 빠져 있었다 — 세 화면이 같은 구멍이었다.
+     */
+    withUntracked: false,
     safety: false,
     /**
      * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
@@ -100,6 +107,9 @@ export default function WarehouseStockPage() {
       .filter((w) => cond.zeroWarehouse || used.has(w.id))
   }, [warehouses, stock, cond.inactiveWarehouse, cond.warehouseId, cond.zeroWarehouse])
 
+  /* 품목의 [수량관리] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
+  const { untracked } = useItemFlags()
+
   const shownItems = useMemo(() => {
     const wid = new Set(shownWarehouses.map((w) => w.id))
     const total = (id: number) => stock
@@ -108,6 +118,7 @@ export default function WarehouseStockPage() {
     return items
       /* 합산을 켜면 <b>대표만</b> 줄로 세운다 — 형제 줄은 대표 줄에 들어가 있다. */
       .filter((it) => !cond.rollUp || it.parentItemId == null)
+      .filter((it) => cond.withUntracked || !untracked.has(it.id))
       .filter((it) => cond.inactiveItem || it.active)
       .filter((it) => !cond.item || it.name.includes(cond.item) || it.code.includes(cond.item))
       .filter((it) => cond.zeroItem || total(it.id) !== 0)
@@ -126,7 +137,7 @@ export default function WarehouseStockPage() {
   const num = (n: number) => n.toLocaleString()
   const reset = () => {
     setMode('종')
-    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: false, inactiveWarehouse: false, safety: false, rollUp: false })
+    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: false, inactiveWarehouse: false, withUntracked: false, safety: false, rollUp: false })
   }
 
   const flatCols = 6 + (cond.safety ? 1 : 0)
@@ -175,12 +186,20 @@ export default function WarehouseStockPage() {
                            items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
+          {/*
+            원본 [기타] 차례 그대로다(2026-09-02 E040711 실측): 결재방표시 ·
+            수량관리제외품목포함 · 사용중단품목포함 · 재고수량0품목포함 · 재고수량0창고포함 ·
+            사용중단/삭제창고포함 · 창고별안전재고수량포함.
+            [결재방표시]는 인쇄 판이라 아직 없다. 뒤 둘은 <b>이름을 원본대로</b> 고쳤다 —
+            우리는 창고를 지우지 않고 내리기만 하므로 [삭제]에 해당하는 것이 없다는 것만 다르다.
+          */}
           {([
+            ['withUntracked', '수량관리제외품목포함'],
+            ['inactiveItem', '사용중단품목포함'],
             ['zeroItem', '재고수량0품목포함'],
             ['zeroWarehouse', '재고수량0창고포함'],
-            ['inactiveItem', '사용중단품목포함'],
-            ['inactiveWarehouse', '사용중단창고포함'],
-            ['safety', '안전재고표시'],
+            ['inactiveWarehouse', '사용중단/삭제창고포함'],
+            ['safety', '창고별안전재고수량포함'],
           ] as const).map(([k, label]) => (
             <label key={k} style={{ fontSize: 12, marginRight: 12 }}>
               <input type="checkbox" checked={cond[k]}
