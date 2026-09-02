@@ -62,11 +62,29 @@ public class AsService {
      */
     @Transactional(readOnly = true)
     public List<AsResponse> findAll(LocalDate from, LocalDate to) {
-        var found = (from == null && to == null)
-                ? asRepository.findAllWithRefs()
-                : asRepository.findWithRefsByPeriod(
-                        from != null ? from : LocalDate.of(1, 1, 1),
-                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return findAll(from, to, null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p><b>doneFrom·doneTo 는 수리한 날</b>이다. 원본 A/S수리현황(E040611)은 그것을
+     * <b>주 조건</b>으로 쓰고 접수일자를 보조로 둔다 — 우리는 접수일로만 걸러
+     * 이번 달에 고친 건을 서버에서 좁힐 수가 없었다. 안 고친 건은 그 날이 없으니 빠진다.
+     *
+     * <p>둘 다 주면 <b>수리일 쪽이 이긴다</b> — 원본이 그쪽을 주 조건으로 쓰기 때문이다.
+     */
+    @Transactional(readOnly = true)
+    public List<AsResponse> findAll(LocalDate from, LocalDate to, LocalDate doneFrom, LocalDate doneTo) {
+        var found = (doneFrom != null || doneTo != null)
+                ? asRepository.findWithRefsByDonePeriod(
+                        doneFrom != null ? doneFrom : LocalDate.of(1, 1, 1),
+                        doneTo != null ? doneTo : LocalDate.of(9999, 12, 31))
+                : (from == null && to == null)
+                        ? asRepository.findAllWithRefs()
+                        : asRepository.findWithRefsByPeriod(
+                                from != null ? from : LocalDate.of(1, 1, 1),
+                                to != null ? to : LocalDate.of(9999, 12, 31));
         return found.stream().map(AsResponse::from).toList();
     }
 

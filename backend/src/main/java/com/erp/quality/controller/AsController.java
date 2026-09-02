@@ -30,8 +30,11 @@ public class AsController {
     @GetMapping
     public List<AsResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return asService.findAll(from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            /* 원본 A/S수리현황(E040611)의 주 조건 [기준일자] — 수리한 날이다. */
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate doneFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate doneTo) {
+        return asService.findAll(from, to, doneFrom, doneTo);
     }
 
     @PostMapping

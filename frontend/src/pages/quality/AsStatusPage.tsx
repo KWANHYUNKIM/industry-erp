@@ -68,7 +68,16 @@ export default function AsStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<AsRow[]>('/as-requests', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
+      /*
+       * 원본 A/S수리현황(E040611)의 주 조건은 <b>수리한 날</b>이다 — 그것을 주면 서버가
+       * 그 축으로 좁혀 준다(안 고친 건은 그 날이 없어 빠진다). 안 주면 예전처럼 접수일로 건다.
+       */
+      const res = await api.get<AsRow[]>('/as-requests', {
+        params: {
+          from: filters.dateFrom || undefined, to: filters.dateTo || undefined,
+          doneFrom: filters.doneFrom || undefined, doneTo: filters.doneTo || undefined,
+        },
+      })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -80,7 +89,7 @@ export default function AsStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
    * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo, filters.doneFrom, filters.doneTo])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -89,7 +98,10 @@ export default function AsStatusPage() {
       if (kw && !r.partnerName.includes(kw) && !r.itemName.includes(kw) && !r.asNo.includes(kw)) return false
       if (f.dateFrom && r.receiptDate < f.dateFrom) return false
       if (f.dateTo && r.receiptDate > f.dateTo) return false
-      /* 원본 A/S수리현황의 [기준일자] — 수리한 날. 안 고친 건은 그 날이 없으니 빠진다. */
+      /*
+       * 원본 A/S수리현황의 [기준일자] — 수리한 날. 이제 <b>서버가</b> 그 축으로 좁혀 주지만,
+       * 받아 온 뒤 조건을 다시 만져도 표가 맞도록 화면에서도 같은 잣대로 한 번 더 거른다.
+       */
       if (f.doneFrom && (r.doneDate == null || r.doneDate < f.doneFrom)) return false
       if (f.doneTo && (r.doneDate == null || r.doneDate > f.doneTo)) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
