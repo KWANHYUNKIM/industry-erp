@@ -1355,6 +1355,8 @@ export interface LotTransaction {
    */
   warehouseId: number | null
   warehouseName: string | null
+  /** 원본 시리얼/로트No.내역현황의 [유효기한] 조건(거기서는 구간이다)이 쓰는 축. */
+  expireDate: string | null
   txDate: string
   type: LotTxType
   typeName: string

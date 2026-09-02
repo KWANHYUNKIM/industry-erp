@@ -71,6 +71,7 @@ const QualityStatusPage = lazy(() => import('./pages/quality/QualityStatusPage')
 const SerialLotPage = lazy(() => import('./pages/quality/SerialLotPage'))
 const LotStockComparePage = lazy(() => import('./pages/quality/LotStockComparePage'))
 const LotStockStatusPage = lazy(() => import('./pages/quality/LotStockStatusPage'))
+const LotTxStatusPage = lazy(() => import('./pages/quality/LotTxStatusPage'))
 const AsManagePage = lazy(() => import('./pages/quality/AsManagePage'))
 const AsStatusPage = lazy(() => import('./pages/quality/AsStatusPage'))
 const AsConsumptionPage = lazy(() => import('./pages/quality/AsConsumptionPage'))
@@ -413,6 +414,7 @@ export default function App() {
         <Route path="/quality/serial-lot" element={<SerialLotPage />} />
         <Route path="/quality/lot-compare" element={<LotStockComparePage />} />
         <Route path="/quality/lot-stock" element={<LotStockStatusPage />} />
+        <Route path="/quality/lot-tx-status" element={<LotTxStatusPage />} />
         <Route path="/quality/as" element={<AsManagePage />} />
         <Route path="/quality/as-status" element={<AsStatusPage />} />
         <Route path="/quality/as-consumption" element={<AsConsumptionPage />} />

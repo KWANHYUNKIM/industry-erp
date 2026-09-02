@@ -35,6 +35,12 @@ public final class LotDtos {
              * <b>보이지도 걸리지도</b> 않았다. 창고를 안 정한 로트는 null 이다.
              */
             Long warehouseId, String warehouseName,
+            /*
+             * 원본 시리얼/로트No.내역현황(E040639) 조건의 <b>[유효기한]</b> — 거기서는
+             * <b>구간</b>이다(2026-09-01 실측: ====/==/ ~ ====/==/ 두 칸).
+             * 로트가 들고 있는 값인데 내역 응답에 없어 그 축으로 거를 수가 없었다.
+             */
+            LocalDate expireDate,
             LocalDate txDate, LotTxType type, String typeName,
             BigDecimal quantityChange, BigDecimal balanceAfter,
             String note, String createdBy
@@ -46,6 +52,7 @@ public final class LotDtos {
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
                     l.getWarehouse() != null ? l.getWarehouse().getId() : null,
                     l.getWarehouse() != null ? l.getWarehouse().getName() : null,
+                    l.getExpireDate(),
                     t.getTxDate(), t.getType(), t.getType().getDisplayName(),
                     t.getQuantityChange(), t.getBalanceAfter(),
                     t.getNote(), t.getCreatedBy());

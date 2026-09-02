@@ -540,6 +540,10 @@
   "quality/LotStockStatusPage.tsx"
  ],
  [
+  "시리얼/로트No.내역현황",
+  "quality/LotTxStatusPage.tsx"
+ ],
+ [
   "매출계획",
   "trade/SalesPlanPage.tsx"
  ],
