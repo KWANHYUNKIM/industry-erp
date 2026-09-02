@@ -8,6 +8,7 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고현황 (이카운트 E040701)
@@ -37,11 +38,23 @@ export default function CurrentStockPage() {
     date: periodOf('금일')!.to,   // 원본 기준일자 기본값은 [금일] 이다(사본 실측)
     warehouse: '',
     item: '',
+    /*
+     * 원본 [기타]는 <b>셋</b>이다(2026-09-02 E040701 실측):
+     * [수량관리제외품목포함] · [사용중단품목포함] · [안전재고설정미만표시].
+     * 우리에겐 마지막 하나뿐이라, <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었다 —
+     * 용역·수수료처럼 수량을 안 세는 품목이 재고표에 0 으로 줄을 차지하고,
+     * 내린 품목도 그대로 남아 지금 파는 것이 무엇인지 눈으로 골라야 했다.
+     * 원본대로 <b>셋 다 꺼진 채</b> 열린다 — 켜야 보인다.
+     */
+    withUntracked: false,
+    withInactive: false,
     belowSafetyOnly: false,
     qtyFrom: '',
     qtyTo: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 들고 있다 — 재고 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
 
   function load() {
     setLoading(true)
@@ -58,6 +71,9 @@ export default function CurrentStockPage() {
     () => [...new Set(rows.map((r) => r.warehouseName))].sort(), [rows])
 
   const shownRows = rows
+    /* 안 켜면 뺀다 — 원본이 [포함] 이라 이름 지은 것은 기본이 '안 넣음' 이라는 뜻이다. */
+    .filter((r) => cond.withUntracked || !untracked.has(r.itemId))
+    .filter((r) => cond.withInactive || !inactive.has(r.itemId))
     .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
     .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
@@ -74,7 +90,7 @@ export default function CurrentStockPage() {
 
   const belowCount = rows.filter((r) => r.belowSafety).length
   const totalQty = shown.reduce((s, r) => s + r.quantity, 0)
-  const reset = () => setCond({ date: today, warehouse: '', item: '', belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
+  const reset = () => setCond({ date: today, warehouse: '', item: '', withUntracked: false, withInactive: false, belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
 
   return (
     <EcListShell
@@ -103,11 +119,22 @@ export default function CurrentStockPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/* 원본 [기타] 차례 그대로: 수량관리제외품목포함 · 사용중단품목포함 · 안전재고설정미만표시 */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={cond.belowSafetyOnly}
-                   onChange={(e) => setC({ belowSafetyOnly: e.target.checked })} /> 안전재고설정미만표시
-          </label>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={cond.withUntracked}
+                     onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={cond.withInactive}
+                     onChange={(e) => setC({ withInactive: e.target.checked })} /> 사용중단품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={cond.belowSafetyOnly}
+                     onChange={(e) => setC({ belowSafetyOnly: e.target.checked })} /> 안전재고설정미만표시
+            </label>
+          </div>
         </EcCond>
         <EcCond label="재고수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
