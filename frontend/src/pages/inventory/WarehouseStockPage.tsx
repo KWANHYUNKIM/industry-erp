@@ -190,22 +190,36 @@ export default function WarehouseStockPage() {
             원본 [기타] 차례 그대로다(2026-09-02 E040711 실측): 결재방표시 ·
             수량관리제외품목포함 · 사용중단품목포함 · 재고수량0품목포함 · 재고수량0창고포함 ·
             사용중단/삭제창고포함 · 창고별안전재고수량포함.
-            [결재방표시]는 인쇄 판이라 아직 없다. 뒤 둘은 <b>이름을 원본대로</b> 고쳤다 —
+            [결재방표시]는 인쇄 판이라 아직 없다. 뒤 둘은 이름을 원본대로 고쳤다 —
             우리는 창고를 지우지 않고 내리기만 하므로 [삭제]에 해당하는 것이 없다는 것만 다르다.
+
+            <b>배열로 돌려 그리지 않는다.</b> 그러면 이름이 글자로 안 남아 조건 검사가 못 본다 —
+            실제로 이 화면 여섯 칸이 통째로 '없다' 로 걸렸다.
           */}
-          {([
-            ['withUntracked', '수량관리제외품목포함'],
-            ['inactiveItem', '사용중단품목포함'],
-            ['zeroItem', '재고수량0품목포함'],
-            ['zeroWarehouse', '재고수량0창고포함'],
-            ['inactiveWarehouse', '사용중단/삭제창고포함'],
-            ['safety', '창고별안전재고수량포함'],
-          ] as const).map(([k, label]) => (
-            <label key={k} style={{ fontSize: 12, marginRight: 12 }}>
-              <input type="checkbox" checked={cond[k]}
-                     onChange={(e) => setC({ [k]: e.target.checked })} /> {label}
-            </label>
-          ))}
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.withUntracked}
+                   onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.inactiveItem}
+                   onChange={(e) => setC({ inactiveItem: e.target.checked })} /> 사용중단품목포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.zeroItem}
+                   onChange={(e) => setC({ zeroItem: e.target.checked })} /> 재고수량0품목포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.zeroWarehouse}
+                   onChange={(e) => setC({ zeroWarehouse: e.target.checked })} /> 재고수량0창고포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.inactiveWarehouse}
+                   onChange={(e) => setC({ inactiveWarehouse: e.target.checked })} /> 사용중단/삭제창고포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={cond.safety}
+                   onChange={(e) => setC({ safety: e.target.checked })} /> 창고별안전재고수량포함
+          </label>
         </EcCond>
         {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
         <EcCond label="대표품목으로 합산">

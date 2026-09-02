@@ -1402,5 +1402,21 @@
    "partner_id",
    "BusinessPartner"
   ]
+ },
+ "재고수불부|생산불출/창고이동포함": {
+  "claim": "우리 재고거래는 생산불출·창고이동을 따로 표시하지 않는다",
+  "absent": [
+   "ISSUE",
+   "TRANSFER"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
+ },
+ "재고변동표|생산불출/창고이동포함": {
+  "claim": "우리 재고거래는 생산불출·창고이동을 따로 표시하지 않는다",
+  "absent": [
+   "ISSUE",
+   "TRANSFER"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
  }
 }
