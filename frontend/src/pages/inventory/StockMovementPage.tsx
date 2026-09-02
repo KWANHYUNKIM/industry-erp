@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -55,6 +56,16 @@ export default function StockMovementPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [hideZero, setHideZero] = useState(false)
+  /*
+   * 원본 재고변동표(E040719) [기타]는 <b>일곱</b>이다(2026-09-02 실측):
+   * 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 · 생산불출/창고이동포함 ·
+   * 입출고수량0제외 · 품목명(정렬) · 개별창고기준. 우리에겐 [입출고수량0제외] 하나뿐이라,
+   * 재고현황과 똑같이 <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었고 차례도 못 바꿨다.
+   * 뜻이 분명한 셋을 만든다 — 나머지 넷은 아래 주석에 까닭을 적었다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  const [byItemName, setByItemName] = useState(false)
   /**
    * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
    * 모아 본다. 규격별로 갈린 표에서는 "이 물건이 이 달에 통틀어 얼마나 움직였나" 를
@@ -130,6 +141,9 @@ export default function StockMovementPage() {
     setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계'); setRollUp(false)
   }
 
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 변동표 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
     /*
@@ -155,12 +169,19 @@ export default function StockMovementPage() {
       }
       base = [...m.values()]
     }
-    return base.filter((r) => {
+    const filtered = base.filter((r) => {
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      if (!withUntracked && untracked.has(r.itemId)) return false
+      if (!withInactive && inactive.has(r.itemId)) return false
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
       if (hideZero && r.inQty === 0 && r.outQty === 0) return false
       return true
     })
-  }, [rows, keyword, hideZero, rollUp, items])
+    /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례 그대로. */
+    return byItemName
+      ? [...filtered].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
+      : filtered
+  }, [rows, keyword, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive])
 
   const totals = useMemo(() => shown.reduce((s, r) => ({
     opening: s.opening + r.opening, inQty: s.inQty + r.inQty, outQty: s.outQty + r.outQty, closing: s.closing + r.closing,
@@ -207,10 +228,30 @@ export default function StockMovementPage() {
                            items={pickers.items} />
         </EcCond>
         )}
+        {/*
+          원본 [기타] 일곱 중 넷은 아직 없다 — [결재방표시]는 인쇄 판이라 인쇄를 건드려야 하고,
+          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
+          [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
+        */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} /> 입출고수량0제외
-          </label>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withUntracked}
+                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withInactive}
+                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={hideZero}
+                     onChange={(e) => setHideZero(e.target.checked)} /> 입출고수량0제외
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={byItemName}
+                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
+            </label>
+          </div>
         </EcCond>
         {/*
           원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다).
