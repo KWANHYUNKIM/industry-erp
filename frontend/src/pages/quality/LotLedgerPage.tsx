@@ -51,6 +51,13 @@ export default function LotLedgerPage() {
    * 어느 로트가 얼마나 남았는지 알 수 있었다.
    */
   const [mode, setMode] = useState<'공통' | '시리얼/로트별집계'>('공통')
+  /*
+   * 원본 [기타] 넷 가운데 <b>뜻이 분명한 둘</b>(2026-09-01 E040620 실측, 넷 다 꺼진 채 열린다).
+   * [결재방표시]는 인쇄 판이라 아직 없고, [생산불출/창고이동포함]은 우리 로트 유형이
+   * 입고·출고·조정 셋뿐이라 그 둘을 가릴 축이 없다 — 지어내지 않는다.
+   */
+  const [withHeld, setWithHeld] = useState(false)
+  const [hideZero, setHideZero] = useState(false)
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
@@ -76,6 +83,10 @@ export default function LotLedgerPage() {
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return rows.filter((r) => {
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      if (!withHeld && r.held) return false
+      /* [입출고수량0제외] — 움직이지 않은 줄(조정으로 0 이 찍힌 것)을 뺀다. */
+      if (hideZero && r.quantityChange === 0) return false
       if (warehouse && r.warehouseName !== warehouse) return false
       if (item && r.itemName !== item) return false
       if (lotNo && r.lotNo !== lotNo) return false
@@ -83,7 +94,7 @@ export default function LotLedgerPage() {
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
-  }, [rows, warehouse, item, lotNo, typeFilter, keyword])
+  }, [rows, withHeld, hideZero, warehouse, item, lotNo, typeFilter, keyword])
 
   const totals = useMemo(() => shown.reduce((s, r) => {
     if (r.quantityChange >= 0) s.inQty += r.quantityChange
@@ -126,6 +137,7 @@ export default function LotLedgerPage() {
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
+        {/* 원본 [기타] — 넷 중 뜻이 분명한 둘만. 원본대로 꺼진 채 열린다. */}
         {/* 원본 조건 차례의 첫 줄 [구분]. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>구분</span>
@@ -147,6 +159,17 @@ export default function LotLedgerPage() {
                          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         </div>
         {/* 원본 조건 차례: 기준일자 · … · [창고] · [품목]. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={label}>기타</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={withHeld} onChange={(e) => setWithHeld(e.target.checked)} />
+            사용중단시리얼/로트포함
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
+            입출고수량0제외
+          </label>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>창고</span>
           <select className="ec-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }}>

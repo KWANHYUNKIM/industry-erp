@@ -1357,6 +1357,8 @@ export interface LotTransaction {
   warehouseName: string | null
   /** 원본 시리얼/로트No.내역현황의 [유효기한] 조건(거기서는 구간이다)이 쓰는 축. */
   expireDate: string | null
+  /** 원본 수불부 [기타]의 [사용중단시리얼/로트포함] 이 쓰는 축 — 우리 '사용중단' 은 보류다. */
+  held: boolean
   txDate: string
   type: LotTxType
   typeName: string

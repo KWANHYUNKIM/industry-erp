@@ -41,6 +41,12 @@ public final class LotDtos {
              * 로트가 들고 있는 값인데 내역 응답에 없어 그 축으로 거를 수가 없었다.
              */
             LocalDate expireDate,
+            /*
+             * 원본 수불부(E040620) [기타]의 <b>[사용중단시리얼/로트포함]</b> 이 쓰는 축.
+             * 우리 로트의 '사용중단' 은 <b>보류(held)</b> 다. 내역 응답에 없어 그 로트를
+             * 넣을지 뺄지를 화면이 가릴 수가 없었다.
+             */
+            boolean held,
             LocalDate txDate, LotTxType type, String typeName,
             BigDecimal quantityChange, BigDecimal balanceAfter,
             String note, String createdBy
@@ -53,6 +59,7 @@ public final class LotDtos {
                     l.getWarehouse() != null ? l.getWarehouse().getId() : null,
                     l.getWarehouse() != null ? l.getWarehouse().getName() : null,
                     l.getExpireDate(),
+                    l.isHeld(),
                     t.getTxDate(), t.getType(), t.getType().getDisplayName(),
                     t.getQuantityChange(), t.getBalanceAfter(),
                     t.getNote(), t.getCreatedBy());
