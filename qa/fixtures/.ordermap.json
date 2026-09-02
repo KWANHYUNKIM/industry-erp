@@ -536,6 +536,10 @@
   "quality/LotLedgerPage.tsx"
  ],
  [
+  "시리얼/로트No.재고현황",
+  "quality/LotStockStatusPage.tsx"
+ ],
+ [
   "매출계획",
   "trade/SalesPlanPage.tsx"
  ],

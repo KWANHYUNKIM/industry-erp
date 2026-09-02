@@ -296,7 +296,7 @@ const MENU: TopMenu[] = [
     label: '재고 II',
     tabs: [
       { label: 'A/S관리', nodes: [{ label: 'A/S관리', to: '/quality/as' }, { label: 'A/S현황', to: '/quality/as-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
-      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '로트 수불부', to: '/quality/lot-ledger' }, { label: '품목vs시리얼재고비교', to: '/quality/lot-compare' }] },
+      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '로트 수불부', to: '/quality/lot-ledger' }, { label: '품목vs시리얼재고비교', to: '/quality/lot-compare' }] },
       { label: '품질관리', nodes: [{ label: '품질검사요청', to: '/quality/inspection-request' }, { label: '품질관리', to: '/quality/inspection' }, { label: '품질검사현황', to: '/quality/inspection-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] },
       {
         label: '계획관리',
