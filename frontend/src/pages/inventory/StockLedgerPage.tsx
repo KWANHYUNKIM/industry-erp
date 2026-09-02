@@ -8,6 +8,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -78,6 +79,16 @@ export default function StockLedgerPage() {
   const [searchParams] = useSearchParams()
   const [keyword, setKeyword] = useState(searchParams.get('keyword') ?? '')
   /** 원본 '거래내역없는품목제외'. 조회 결과에 변동이 0 인 행이 섞이면 원장이 지저분해진다. */
+  /*
+   * 원본 재고수불부(E040702) [기타]는 <b>여섯</b>이다(2026-09-02 실측):
+   * 결재방표시 · <b>수량관리제외품목포함</b> · <b>사용중단품목포함</b> ·
+   * 생산불출/창고이동포함 · 거래내역없는품목제외 · <b>품목명(정렬)</b>.
+   * 우리에겐 [거래내역없는품목제외] 하나뿐이었다 — 재고현황·재고변동표·창고별재고현황·
+   * 재고잔량분석표에 이어 <b>다섯 번째 같은 구멍</b>이다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  const [byItemName, setByItemName] = useState(false)
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
   const reset = () => {
@@ -132,16 +143,26 @@ export default function StockLedgerPage() {
     return m
   }, [rows, opening])
 
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 원장 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
-    return rows.filter((r) => {
+    const out = rows.filter((r) => {
       if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
       if (kw && !r.itemName.includes(kw) && !r.warehouseName.includes(kw) && !(r.note ?? '').includes(kw)) return false
       // 원본 '거래내역없는품목제외' — 변동량이 0 인 행은 원장을 지저분하게만 한다.
       if (excludeNoTx && r.quantityChange === 0) return false
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      if (!withUntracked && untracked.has(r.itemId)) return false
+      if (!withInactive && inactive.has(r.itemId)) return false
       return true
     })
-  }, [rows, typeFilter, keyword, excludeNoTx])
+    /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례(일자순) 그대로. */
+    return byItemName
+      ? [...out].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
+      : out
+  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
@@ -197,11 +218,30 @@ export default function StockLedgerPage() {
                            onChange={(v) => setF({ itemId: v })}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </EcCond>
+        {/*
+          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 둘 —
+          [결재방표시]는 인쇄 판, [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로
+          표시하지 않아 가릴 축이 없다.
+        */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={excludeNoTx}
-                   onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
-          </label>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withUntracked}
+                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withInactive}
+                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={excludeNoTx}
+                     onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={byItemName}
+                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
+            </label>
+          </div>
         </EcCond>
         {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
         <EcCond label="대표품목으로 합산">
