@@ -42,6 +42,15 @@ export default function LotLedgerPage() {
    * 거를 수가 없었고, 창고는 아예 보이지도 않았다. 고를 후보는 <b>지금 걸린 자료</b>에서
    * 뽑는다 — 마스터를 통째로 받으면 조건을 안 쓰는 사람에게도 느려진다.
    */
+  /*
+   * 원본 조건 판의 <b>첫 줄 [구분]</b> — [공통]·[시리얼/로트별집계] 둘이고 [공통]이 기본이다
+   * (2026-09-01 E040620 실측). [공통]은 움직인 줄을 그대로 늘어놓고,
+   * [시리얼/로트별집계]는 <b>로트마다 한 줄</b>로 접어 들어온 것·나간 것·남은 것만 낸다.
+   *
+   * <p>우리에겐 그 자리가 없어 줄 목록뿐이었다 — 로트가 백 개면 백 줄을 눈으로 훑어야
+   * 어느 로트가 얼마나 남았는지 알 수 있었다.
+   */
+  const [mode, setMode] = useState<'공통' | '시리얼/로트별집계'>('공통')
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
@@ -81,6 +90,24 @@ export default function LotLedgerPage() {
     else s.outQty += -r.quantityChange
     return s
   }, { inQty: 0, outQty: 0 }), [shown])
+  /**
+   * 원본 [시리얼/로트별집계] — 로트마다 한 줄. 잔량은 <b>그 로트의 마지막 줄</b>의 잔량이다
+   * (더하면 안 된다 — 잔량은 누적값이라 더하는 순간 거짓말이 된다).
+   */
+  const byLot = useMemo(() => {
+    const map = new Map<string, { lotNo: string; itemName: string; inQty: number; outQty: number; balance: number; count: number }>()
+    for (const r of shown) {
+      const cur = map.get(r.lotNo) ?? { lotNo: r.lotNo, itemName: r.itemName, inQty: 0, outQty: 0, balance: 0, count: 0 }
+      if (r.quantityChange >= 0) cur.inQty += r.quantityChange
+      else cur.outQty += -r.quantityChange
+      cur.count += 1
+      /* shown 은 로트별 시간순이라 마지막에 본 줄의 잔량이 그 로트의 기말이다. */
+      cur.balance = r.balanceAfter
+      map.set(r.lotNo, cur)
+    }
+    return [...map.values()].sort((a, b) => a.lotNo.localeCompare(b.lotNo, 'ko'))
+  }, [shown])
+
   // 단일 로트 선택 시 기말 = 마지막 행 잔량
   const closing = lotNo && shown.length ? shown[shown.length - 1].balanceAfter : null
 
@@ -99,6 +126,16 @@ export default function LotLedgerPage() {
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
+        {/* 원본 조건 차례의 첫 줄 [구분]. */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>구분</span>
+          <div className="ec-pills">
+            {(['공통', '시리얼/로트별집계'] as const).map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                      onClick={() => setMode(m)}>{m}</button>
+            ))}
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={label}>기준일자</span>
           <input type="date" className="ec-input" value={from}
@@ -151,6 +188,38 @@ export default function LotLedgerPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {mode === '시리얼/로트별집계' ? (
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th style={{ width: 170 }}>로트No.</th>
+              <th>품목</th>
+              <th style={{ width: 80, textAlign: 'right' }}>줄 수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>입고</th>
+              <th style={{ width: 120, textAlign: 'right' }}>출고</th>
+              <th style={{ width: 120, textAlign: 'right' }}>기말잔량</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : byLot.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : byLot.map((g, i) => (
+              <tr key={g.lotNo}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{g.lotNo}</td>
+                <td>{g.itemName}</td>
+                <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.inQty)}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(g.outQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(g.balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -194,6 +263,7 @@ export default function LotLedgerPage() {
           })}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
