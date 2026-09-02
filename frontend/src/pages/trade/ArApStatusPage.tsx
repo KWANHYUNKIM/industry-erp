@@ -7,7 +7,8 @@ import { subtotalBy } from '../../utils/subtotalBy'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { periodOf, BALANCE_PICKS } from '../../components/EcPeriodPicks'
+import type { LedgerBasis } from '../../utils/partnerRollup'
 
 /**
  * 영업 > 채권/채무현황 (이카운트 E040703) · 채권현황 (E040721)
@@ -27,11 +28,11 @@ type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
 
 const won = (n: number) => n.toLocaleString()
-const iso = (d: Date) => ymd(d)
 
 export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?: Mode }) {
   const [mode, setMode] = useState<Mode>(defaultMode)
-  const [asOf, setAsOf] = useState(iso(new Date()))
+  /** 원본 기준일자는 <b>한 날짜</b>이고 [금월(~오늘)] 이 눌린 채로 열린다(2026-09-02 실측). */
+  const [asOf, setAsOf] = useState(periodOf('금월(~오늘)')!.to)
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   /*
@@ -56,9 +57,15 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   /**
    * 원본 조건 <b>[대표거래처로 합산]</b>. 지점·사업장으로 나눠 등록한 거래처를 <b>본사 한 줄</b>로
    * 모아 본다. 받을 돈을 어느 단위로 청구하느냐의 문제라 표를 눈으로 더해 될 일이 아니다.
-   * 원본과 같이 기본은 꺼 둔다 — 켜면 줄 수가 줄어드는데 말없이 그러면 빠진 줄 알게 된다.
+   *
+   * <p><b>체크박스가 아니다.</b> 2026-09-02 에 원본(E040721)을 열어 보니 이 줄은
+   * <b>라디오 두 알</b>이고 — [거래처관계기준] · [개별거래처기준] — 켜고 끄는 체크는 아예 없다.
+   * 우리는 체크박스로 만들어 놓고 "라디오는 같은 선택이라 안 그린다"고 검사 예외까지 적어 뒀는데,
+   * 그 바람에 <b>[개별거래처기준]이라는 말이 화면에 한 번도 안 나왔고</b> 기본값도 뒤집혀 있었다.
+   * 원본은 <b>[거래처관계기준]이 눌린 채로</b> 열린다.
    */
-  const [rollUp, setRollUp] = useState(false)
+  const [basis, setBasis] = useState<LedgerBasis>('거래처관계기준')
+  const rollUp = basis === '거래처관계기준'
 
   useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
@@ -168,11 +175,13 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           </select></label>
         <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기준일자</div>
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} /></label>
-        <div style={{ display: 'flex', gap: 3 }}>
-          <button className="ec-btn" onClick={() => setAsOf(iso(new Date()))}>금일</button>
-          <button className="ec-btn" onClick={() => { const d = new Date(); d.setDate(0); setAsOf(iso(d)) }}>전월말일</button>
-          <button className="ec-btn" onClick={() => { const d = new Date(); setAsOf(iso(new Date(d.getFullYear(), d.getMonth() + 1, 0))) }}>당월말일</button>
-        </div>
+        {/*
+          원본 기간 빠른선택 실측(2026-09-02):
+          금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·<b>말일</b>.
+          우리는 원본에 없는 [전월말일]·[당월말일]을 손으로 만들어 두고 나머지 다섯을 빼먹었었다.
+          한 날짜짜리 화면이라 고른 구간의 <b>끝날</b>만 받는다.
+        */}
+        <EcPeriodPicks labels={BALANCE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
         {/* 이카운트 원본은 거래처·거래처그룹·관리담당자가 드롭다운이 아니라 코드도움 팝업(code.openpopup)이다 */}
         <CodePickerField label="거래처" value={partnerCode} width={150}
                          onChange={(v, item) => { setPartnerCode(v); setKeyword(item ? item.name : '') }}
@@ -181,10 +190,22 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
                          onChange={(v) => setGroup(v || '전체')}
                          items={groups.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} />
-          대표거래처로 합산
-        </label>
+        <div style={{ fontSize: 12.5 }}>
+          <div style={{ color: '#5a626e', marginBottom: 3 }}>대표거래처로 합산</div>
+          {/* 배열로 돌리면 라벨이 <b>글자로 남지 않아</b> 검사가 못 본다 — 그대로 편다. */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="radio" name="arap-basis" checked={basis === '거래처관계기준'}
+                     onChange={() => setBasis('거래처관계기준')} />
+              거래처관계기준
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="radio" name="arap-basis" checked={basis === '개별거래처기준'}
+                     onChange={() => setBasis('개별거래처기준')} />
+              개별거래처기준
+            </label>
+          </div>
+        </div>
         <CodePickerField label="거래처관리담당자" value={manager === '전체' ? '' : manager} width={120}
                          onChange={(v) => setManager(v || '전체')}
                          items={managers.map((m) => ({ value: m, name: m }))} />
