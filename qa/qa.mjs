@@ -1658,8 +1658,16 @@ async function scenarioNote(f) {
   await must('POST', `/notes/${pay.id}/settle`, { bankAccountId: bank.id, settleDate: '2026-09-30' })
   eq('지급어음 결제로 계좌 잔액이 감소', await balanceOf(), beforePay - 150000)
 
-  // ── 요약: 보유 어음만 집계
-  const summary = await must('GET', '/notes')
+  /*
+   * ── 요약: 보유 어음만 집계
+   *
+   * <b>전체를 달라고 해서 잰다(all=true).</b> 어음이 5천 장을 넘으면 목록은 잘려 오지만
+   * 요약 넷은 <b>기간 전체</b>로 낸다 — 자른 몫만 더하면 화면 위의 잔액이 조용히 줄어들기
+   * 때문이다(원본 [오천건이상조회] 와 같은 자리다). 그래서 잘린 목록으로 합을 재면
+   * 합계와 안 맞는 것이 <b>정상</b>이다. 실제로 개발 DB 가 5천 장을 넘기면서 이 단언이
+   * 걸렸는데, 틀린 것은 서버가 아니라 <b>자른 것을 모르고 세던 이 검사</b>였다.
+   */
+  const summary = await must('GET', '/notes?all=true')
   const held = summary.notes.filter((n) => n.status === 'HELD')
   eq('보유 어음 합계 = 받을 + 지급 잔액',
     Number(summary.receivableHeld) + Number(summary.payableHeld),
