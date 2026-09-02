@@ -4,6 +4,8 @@ import com.erp.accounting.domain.AccountDivision;
 import com.erp.accounting.domain.JournalEntry;
 import com.erp.accounting.domain.JournalLine;
 import com.erp.accounting.domain.JournalSourceType;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -26,9 +28,11 @@ public final class JournalDtos {
     /** 일반전표 직접입력. 차변합=대변합이어야 저장된다. */
     public record CreateJournalRequest(
             LocalDate entryDate,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.")
             @NotBlank(message = "적요를 입력하세요.") String description,
             Long partnerId,
-            List<ManualLineInput> lines
+            /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
+            List<@jakarta.validation.Valid ManualLineInput> lines
     ) {}
 
     /** 현금거래 간편입력. 입금이면 차)현금·대)상대계정, 출금이면 차)상대계정·대)현금. */
@@ -36,8 +40,10 @@ public final class JournalDtos {
             LocalDate entryDate,
             @NotNull(message = "입출금 구분을 지정하세요.") Boolean deposit,
             @NotNull(message = "상대 계정을 선택하세요.") Long counterAccountId,
+            @Positive(message = "금액은 0보다 커야 합니다.")
             @NotNull(message = "금액을 입력하세요.") BigDecimal amount,
             Long partnerId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String description
     ) {}
 
@@ -53,6 +59,19 @@ public final class JournalDtos {
                     l.getDebit(), l.getCredit(), l.getDescription());
         }
     }
+
+    /**
+     * 회계전표조회 응답 — <b>줄이 너무 많으면 앞부분만</b> 준다.
+     *
+     * <p>이 화면은 연초부터를 기본으로 열어서, 재 보니 <b>2만 9천 줄·16MB</b> 를 받고 있었다.
+     * 원본도 큰 결과를 그냥 주지 않는다 — 조회 화면 139곳에 [오천건이상조회] 버튼을 두고
+     * 그 위로는 눌러야 가게 한다(사본 실측). 재고수불부와 같은 방식이다.
+     */
+    public record JournalListResponse(
+            List<JournalEntryResponse> rows,
+            long totalRows,
+            boolean truncated
+    ) {}
 
     public record JournalEntryResponse(
             Long id, String docNo, LocalDate entryDate, String description,

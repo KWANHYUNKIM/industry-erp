@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
+import CodePickerField from '../../components/CodePickerField'
+import { partnerCodeItems } from '../../utils/codeItems'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업관리 > 거래이력조회 (이카운트 E040716)
@@ -112,6 +116,12 @@ export default function TradeHistoryPage() {
   const saleCount = rows.filter((r) => r.kind === 'SALE').length
   const buyCount = rows.filter((r) => r.kind === 'PURCHASE').length
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title="거래이력조회"
@@ -126,13 +136,12 @@ export default function TradeHistoryPage() {
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-            <option value="">전체</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
+                           items={partnerCodeItems(partners)} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
+          {/* 원본 거래이력조회의 이름은 [기간]이 아니라 <b>[전표일자]</b> 다(사본 실측). */}
+          <span style={label}>전표일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
@@ -141,8 +150,12 @@ export default function TradeHistoryPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {/* 구분 탭 + 요약 */}
+      {/*
+        원본 거래이력조회 조건의 <b>[구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
+        무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
+      */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((k) => (
             <button key={k} onClick={() => setKindFilter(k)} className="no-ec" style={{
@@ -164,7 +177,7 @@ export default function TradeHistoryPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ textAlign: 'center', width: 54 }}>구분</th>
             <th>전표번호</th>
             <th>거래처</th>
@@ -184,12 +197,12 @@ export default function TradeHistoryPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
+          ) : sort.sorted.map((r, i) => {
             const c = KIND_COLOR[r.kind]
             return (
               <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{c.label}</span>
                 </td>
@@ -201,7 +214,7 @@ export default function TradeHistoryPage() {
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vat)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: c.fg }}>{won(r.total)}</td>
                 <td style={{ color: '#5a626e' }}>{r.warehouseName}</td>
-                <td style={{ color: '#5a626e' }}>{r.employeeName ?? '-'}</td>
+                <td style={{ color: '#5a626e' }}>{r.employeeName ?? ''}</td>
               </tr>
             )
           })}

@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockTransaction, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { dateText } from '../../utils/dateText'
+import { periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -21,34 +28,86 @@ const TYPE_COLOR: Record<TxType, { bg: string; fg: string }> = {
   ADJUST: { bg: '#f3eefb', fg: '#6b3fb0' },
 }
 
-interface LedgerResponse { opening: number | null; rows: StockTransaction[] }
+interface LedgerResponse {
+  opening: number | null
+  rows: StockTransaction[]
+  /** 조건에 걸린 전체 줄 수. 잘렸을 때 "몇 줄 중 몇 줄" 을 말하려고 받는다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
 
-interface ServerFilters { from: string; to: string; itemId: string; warehouseId: string }
+interface ServerFilters {
+  from: string; to: string; itemId: string; warehouseId: string
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>. 고른 품목을 <b>대표품목의 가족</b>으로 넓혀 본다.
+   * <b>서버 조건</b>이다 — 이 화면은 5천 줄에서 자르고 기초잔량을 따로 세므로, 화면에서
+   * 걸러 봐야 잘린 뒤에 거르는 것이라 수량이 조용히 모자란다.
+   */
+  rollUp: boolean
+}
+
+/*
+ * 원본 재고수불부는 <b>[전월+금월]</b> 로 열린다(사본 실측). 수불은 <b>지난달에서
+ * 넘어온 잔량</b>을 봐야 이번 달 움직임이 읽힌다 — 금월만 보면 기초가 어디서
+ * 왔는지 알 수 없다. 우리는 금월 1일~오늘이었다.
+ */
+const initP = periodOf('전월+금월')!
 
 export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<StockTransaction[]>([])
+  /** 조건에 걸린 전체 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
+  const [totalRows, setTotalRows] = useState(0)
+  const [truncated, setTruncated] = useState(false)
   const [opening, setOpening] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   // 서버 필터(조회 버튼으로 반영)
-  const [filters, setFilters] = useState<ServerFilters>({ from: firstOfMonth(), to: today(), itemId: '', warehouseId: '' })
+  const [filters, setFilters] = useState<ServerFilters>({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
-  const [keyword, setKeyword] = useState('')
+  /*
+   * <b>주소로 찾아 들어올 수 있게</b> 검색어를 URL 에서 받는다.
+   * A/S 접수의 [생성한 전표]가 이리로 건너온다 — 그 A/S 로 나간 부품 전표만 보여 주려면
+   * 화면을 열자마자 걸러져 있어야 한다. 열고 나서 사람이 다시 치게 하면 건너온 뜻이 없다.
+   */
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') ?? '')
+  /** 원본 '거래내역없는품목제외'. 조회 결과에 변동이 0 인 행이 섞이면 원장이 지저분해진다. */
+  /*
+   * 원본 재고수불부(E040702) [기타]는 <b>여섯</b>이다(2026-09-02 실측):
+   * 결재방표시 · <b>수량관리제외품목포함</b> · <b>사용중단품목포함</b> ·
+   * 생산불출/창고이동포함 · 거래내역없는품목제외 · <b>품목명(정렬)</b>.
+   * 우리에겐 [거래내역없는품목제외] 하나뿐이었다 — 재고현황·재고변동표·창고별재고현황·
+   * 재고잔량분석표에 이어 <b>다섯 번째 같은 구멍</b>이다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  const [byItemName, setByItemName] = useState(false)
+  const [excludeNoTx, setExcludeNoTx] = useState(false)
+
+  const reset = () => {
+    setFilters({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
+    setTypeFilter('ALL'); setKeyword(''); setExcludeNoTx(false)
+  }
 
   async function loadRefs() {
     const [i, w] = await Promise.all([api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses')])
     setItems(i.data); setWarehouses(w.data)
   }
 
-  async function loadLedger() {
+  /*
+   * <b>넓게 물으면 앞 5천 줄만 받는다.</b> 이 화면은 기본 기간(전월+금월)만으로도 6만 4천 줄이
+   * 나와서, 열 때마다 그만큼을 받아 그리다 멈췄다(전 기간이면 12만 줄·34MB).
+   * 원본도 큰 결과를 그냥 주지 않는다 — 조회 화면 139곳에 [오천건이상조회] 버튼을 두고
+   * 그 위로는 눌러야 가게 한다(사본 실측). 같은 방식으로 자르고, 자른 것을 숨기지 않는다.
+   */
+  async function loadLedger(all = false) {
     setLoading(true); setError('')
     try {
       const params: Record<string, string> = {}
@@ -56,11 +115,18 @@ export default function StockLedgerPage() {
       if (filters.to) params.to = filters.to
       if (filters.itemId) params.itemId = filters.itemId
       if (filters.warehouseId) params.warehouseId = filters.warehouseId
+      if (all) params.all = 'true'
+      /* 품목을 안 골랐으면 넓힐 것이 없다 — 보낼 것도 없다. */
+      if (filters.rollUp && filters.itemId) params.rollUp = 'true'
       const res = await api.get<LedgerResponse>('/stock/ledger', { params })
       setRows(res.data.rows)
       setOpening(res.data.opening)
-    } catch (err) { setError(extractErrorMessage(err)); setRows([]); setOpening(null) }
-    finally { setLoading(false) }
+      setTotalRows(res.data.totalRows)
+      setTruncated(res.data.truncated)
+    } catch (err) {
+      setError(extractErrorMessage(err)); setRows([]); setOpening(null)
+      setTotalRows(0); setTruncated(false)
+    } finally { setLoading(false) }
   }
 
   useEffect(() => { loadRefs(); loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
@@ -77,14 +143,26 @@ export default function StockLedgerPage() {
     return m
   }, [rows, opening])
 
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 원장 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
-    return rows.filter((r) => {
+    const out = rows.filter((r) => {
       if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
       if (kw && !r.itemName.includes(kw) && !r.warehouseName.includes(kw) && !(r.note ?? '').includes(kw)) return false
+      // 원본 '거래내역없는품목제외' — 변동량이 0 인 행은 원장을 지저분하게만 한다.
+      if (excludeNoTx && r.quantityChange === 0) return false
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      if (!withUntracked && untracked.has(r.itemId)) return false
+      if (!withInactive && inactive.has(r.itemId)) return false
       return true
     })
-  }, [rows, typeFilter, keyword])
+    /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례(일자순) 그대로. */
+    return byItemName
+      ? [...out].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
+      : out
+  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
@@ -100,49 +178,92 @@ export default function StockLedgerPage() {
   }, [shown, rows, opening, typeFilter])
 
   const setF = (patch: Partial<ServerFilters>) => setFilters((f) => ({ ...f, ...patch }))
-  const label: React.CSSProperties = { width: 64, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
       title="재고수불부"
       search={keyword}
       onSearchChange={setKeyword}
-      onSearch={loadLedger}
-      actions={[{ label: '조회', onClick: loadLedger }, { label: 'Excel' }, { label: '인쇄' }]}
+      /* 인자 없이 부른다 — onSearch 가 무엇을 넘기든 all 로 새면 안 된다. */
+      onSearch={() => void loadLedger()}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: () => void loadLedger() },
+        /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
+        { label: '오천건이상조회', onClick: () => void loadLedger(true), disabled: !truncated },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">
-        기간·창고·품목별 입출고 원장. 잔량은 기초재고에 변동량을 누적해 표시순으로 계산 — 기초/기말은 품목·창고를 함께 지정할 때만 표시됩니다.
-      </p>
-
-      {/* 조회 조건 */}
-      <div
-        onKeyDown={(e) => { if (e.key === 'Enter') loadLedger() }}
-        style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}
+      {/*
+        원본 재고수불부(E040702)의 조건 판. 기준일자는 구간이고 빠른선택은 여덟 개다
+        (금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일).
+        원본에는 '단가표시'가 있어 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
+        우리 재고이동은 단가를 하나만 들고 있어(전표에서 넘어온 그 값) 고를 대상이 없다.
+        그래서 그 조건은 넣지 않고 표에는 그 단가를 그대로 보여 준다.
+      */}
+      <EcStatusPanel
+        from={filters.from} to={filters.to}
+        onPeriod={(r) => setF({ from: r.from, to: r.to })}
+        picks={INQUIRY_FULL_PICKS}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
-          <input type="date" className="ec-input" value={filters.from} onChange={(e) => setF({ from: e.target.value })} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-          <input type="date" className="ec-input" value={filters.to} onChange={(e) => setF({ to: e.target.value })} style={{ width: 148 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <select className="ec-input" value={filters.warehouseId} onChange={(e) => setF({ warehouseId: e.target.value })} style={{ width: 180 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-          </select>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>품목</span>
-          <select className="ec-input" value={filters.itemId} onChange={(e) => setF({ itemId: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-          </select>
-        </div>
-        <button className="ec-btn ec-btn-primary" onClick={loadLedger}>조회</button>
-      </div>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={filters.warehouseId}
+                           onChange={(v) => setF({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={220} value={filters.itemId}
+                           onChange={(v) => setF({ itemId: v })}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
+        </EcCond>
+        {/*
+          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 둘 —
+          [결재방표시]는 인쇄 판, [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로
+          표시하지 않아 가릴 축이 없다.
+        */}
+        <EcCond label="기타">
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withUntracked}
+                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withInactive}
+                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={excludeNoTx}
+                     onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={byItemName}
+                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
+            </label>
+          </div>
+        </EcCond>
+        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
+                   onChange={(e) => setF({ rollUp: e.target.checked })} />
+            <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {/*
+        잘라서 받았으면 <b>반드시 말한다.</b> 말 없이 앞부분만 보여 주면 사람은 그것이 전부인 줄
+        알고 합계를 읽는다 — 틀린 숫자를 맞다고 믿게 하는 것이 안 보여 주는 것보다 나쁘다.
+      */}
+      {truncated && (
+        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+          모두 {num(totalRows)}줄 중 앞 {num(rows.length)}줄만 보고 있습니다.
+          기간을 좁히거나 품목·창고를 고르면 전부 볼 수 있고, 그대로 다 보려면 [오천건이상조회]를 누르세요.
+        </p>
+      )}
 
       {/* 유형 탭 + 요약 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
@@ -201,18 +322,18 @@ export default function StockLedgerPage() {
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.transactionDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.transactionDate)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : '-'}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : '-'}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? '-'}</td>
+                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
+                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>
             )
           })}

@@ -7,7 +7,9 @@ import com.erp.hr.domain.enums.AssignmentType;
 import com.erp.hr.dto.EmployeeDtos.AssignDepartmentRequest;
 import com.erp.hr.dto.EmployeeDtos.AssignmentResponse;
 import com.erp.hr.dto.EmployeeDtos.CreateAssignmentRequest;
+import com.erp.hr.dto.EmployeeDtos.CreateEmployeeRequest;
 import com.erp.hr.dto.EmployeeDtos.EmployeeResponse;
+import com.erp.hr.dto.EmployeeDtos.UpdateEmployeeRequest;
 import com.erp.hr.dto.EmployeeDtos.UpdateSalaryRequest;
 import com.erp.hr.repository.EmployeeAssignmentRepository;
 import com.erp.hr.repository.EmployeeRepository;
@@ -15,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.hr.dto.EmployeeDtos;
 
@@ -41,6 +45,82 @@ public class EmployeeService {
         return employeeRepository.findAllWithDepartment().stream()
                 .map(EmployeeResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public EmployeeResponse create(CreateEmployeeRequest req) {
+        String code = req.code().trim();
+        if (employeeRepository.existsByCode(code)) {
+            throw ApiException.conflict("이미 존재하는 사번입니다: " + code);
+        }
+        Employee e = Employee.builder()
+                .code(code)
+                .name(req.name().trim())
+                .department(req.departmentId() != null ? departmentService.get(req.departmentId()) : null)
+                .jobTitle(req.jobTitle())
+                .hireDate(req.hireDate() != null ? req.hireDate() : LocalDate.now())
+                .baseSalary(req.baseSalary() != null ? req.baseSalary() : BigDecimal.ZERO)
+                .phone(req.phone())
+                .email(req.email())
+                .searchKeyword(req.searchKeyword())
+                .remark(req.remark())
+                .active(true)
+                .build();
+        return EmployeeResponse.from(employeeRepository.save(e));
+    }
+
+    /**
+     * 사원 수정.
+     *
+     * <p><b>퇴사일을 넣으면 사용중단으로 함께 내린다.</b> 둘을 따로 두면 "퇴사일은 있는데
+     * 아직 담당자로 뜨는" 사원이 생긴다 — 실제로 그런 자료가 제일 헷갈린다.
+     * 되살릴 때(active=true)는 퇴사일을 지운다.
+     */
+    @Transactional
+    public EmployeeResponse update(Long id, UpdateEmployeeRequest req) {
+        Employee e = get(id);
+        e.setName(req.name().trim());
+        e.setDepartment(req.departmentId() != null ? departmentService.get(req.departmentId()) : null);
+        e.setJobTitle(req.jobTitle());
+        if (req.hireDate() != null) e.setHireDate(req.hireDate());
+        if (req.baseSalary() != null) {
+            if (req.baseSalary().signum() < 0) {
+                throw ApiException.badRequest("기본급은 0 이상이어야 합니다.");
+            }
+            e.setBaseSalary(req.baseSalary());
+        }
+
+        e.setPhone(req.phone());
+        e.setEmail(req.email());
+        e.setSearchKeyword(req.searchKeyword());
+        e.setRemark(req.remark());
+
+        boolean active = req.active() == null ? e.isActive() : req.active();
+        if (req.resignDate() != null) {
+            e.setResignDate(req.resignDate());
+            active = false;
+        }
+        if (active) {
+            e.setResignDate(null);
+        }
+        e.setActive(active);
+        return EmployeeResponse.from(e);
+    }
+
+    /**
+     * 새로 <b>고르는</b> 자리에서 쓴다. 퇴사·사용중지한 사원은 담당자로 못 고른다.
+     *
+     * <p>지난 전표가 물고 있는 사원을 읽는 자리에서는 쓰지 않는다 — 퇴사했다고 그 사람이
+     * 팔았던 전표의 담당자가 사라지면 안 된다.
+     */
+    @Transactional(readOnly = true)
+    public Employee getUsable(Long id) {
+        Employee e = get(id);
+        if (!e.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 사원입니다: " + e.getCode() + " " + e.getName());
+        }
+        return e;
     }
 
     @Transactional

@@ -19,6 +19,8 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const typeLabel: Record<SpecialPriceType, string> = { SALES: '판매', PURCHASE: '구매' }
 
 export default function SpecialPricePage() {
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
+  const [sortRecent, setSortRecent] = useState(false)
   const [rows, setRows] = useState<SpecialPrice[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -110,14 +112,57 @@ export default function SpecialPricePage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+  /*
+   * 원본 특별단가등록의 <b>[수정일자순]</b> 정렬. 최근에 고친 단가부터 보는 것이
+   * 실제 쓰임이다 — 어제 누가 무엇을 바꿨나를 맨 위에서 본다.
+   * 값은 BaseTimeEntity 가 이미 들고 있었는데 <b>응답에 안 실려</b> 쓸 수가 없었다.
+   */
   const visible = rows.filter((r) => tab === 'ALL' || r.tradeType === tab)
+    .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
+    .slice()
+    .sort((a, b) => (sortRecent
+      ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')
+      : 0))
   const inputCls = 'ec-input'
+
+  /*
+   * 원본 특별단가등록의 <b>[사용중단/재사용]</b> — 고른 단가를 한 번에 세운다.
+   * 줄마다 누르는 자리는 진작 있었지만, 단가는 <b>거래처를 옮기거나 품목을 접을 때</b>
+   * 열 줄 스무 줄이 한꺼번에 죽는다. 하나씩 누르라는 것은 안 접겠다는 말과 같다.
+   *
+   * <p>고른 것이 모두 중단이면 되살리고, 하나라도 살아 있으면 중단한다.
+   * 서버에 <code>PATCH …/active</code> 가 이미 있어 통째로 다시 보낼 일은 없다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function toggleActiveMany() {
+    const targets = visible.filter((r) => picked.has(r.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 단가를 고르세요.'); return }
+    const reviving = targets.every((r) => !r.active)
+    setError(''); setOk('')
+    try {
+      for (const r of targets) {
+        await api.patch(`/special-prices/${r.id}/active`, null, { params: { active: reviving } })
+      }
+      setPicked(new Set())
+      load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
 
   return (
     <EcListShell
       title="특별단가등록"
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
+        { label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActiveMany },
+        { label: 'Excel' },
+        { label: '인쇄' },
+      ]}
     >
       <p className="mb-2 text-xs text-slate-500">표준단가를 덮어쓰는 예외 단가. 적용범위는 거래처별 또는 특별단가그룹별 중 하나. 유효단가는 거래처별을 먼저, 없으면 거래처의 단가그룹을 적용.</p>
 
@@ -195,13 +240,33 @@ export default function SpecialPricePage() {
         </form>
       )}</Modal>
 
+      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>사용구분</span>
+        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중단</option>
+        </select>
+        {/* 원본 조건 [수정일자순(정렬)] — 최근에 고친 단가부터 본다. */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={sortRecent} onChange={(e) => setSortRecent(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
+      </div>
+
       <table className="w-full text-left">
         <thead>
           <tr>
+            <th style={{ width: 28, textAlign: 'center' }}></th>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 60 }}>구분</th>
             <th>품목</th>
-            <th>적용범위</th>
+            {/*
+              원본은 <b>[적용범위] 한 칸에 뭉치지 않고</b> 무엇으로 좁혔는지를 열로 나눈다
+              (특별단가그룹코드 · 특별단가그룹명 · 거래처설정 · 창고설정 · 품목설정 · 품목그룹설정).
+              우리가 가진 둘(그룹·거래처)을 갈라 낸다 — 뭉쳐 두면 그룹만 훑을 수가 없다.
+            */}
+            <th style={{ width: 130 }}>특별단가그룹명</th>
+            <th style={{ width: 130 }}>거래처설정</th>
             <th style={{ textAlign: 'right' }}>특별단가</th>
             <th>비고</th>
             <th style={{ textAlign: 'center', width: 90 }}>사용여부</th>
@@ -210,15 +275,19 @@ export default function SpecialPricePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : visible.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : visible.map((r, i) => (
             <tr key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
+              </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td>{typeLabel[r.tradeType]}</td>
               <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.itemCode}</span>{r.itemName}</td>
-              <td>{r.partnerName ? `거래처·${r.partnerName}` : `그룹·${r.priceGroup}`}</td>
+              <td style={{ color: '#5a626e' }}>{r.priceGroup ?? ''}</td>
+              <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.unitPrice)}</td>
               <td style={{ color: '#6b7280' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center' }}>

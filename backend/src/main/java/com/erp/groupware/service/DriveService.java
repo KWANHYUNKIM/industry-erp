@@ -1,6 +1,8 @@
 package com.erp.groupware.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.FileStorageService;
+import com.erp.common.StoredFile;
 import com.erp.groupware.domain.DriveDocument;
 import com.erp.groupware.dto.DriveDtos.CreateDocumentRequest;
 import com.erp.groupware.dto.DriveDtos.DocumentResponse;
@@ -9,6 +11,7 @@ import com.erp.groupware.repository.DriveDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import com.erp.groupware.dto.DriveDtos;
@@ -18,6 +21,7 @@ import com.erp.groupware.dto.DriveDtos;
 public class DriveService {
 
     private final DriveDocumentRepository documentRepository;
+    private final FileStorageService fileStorage;
 
     /** folder: my / shared / important / trash */
     @Transactional(readOnly = true)
@@ -61,9 +65,46 @@ public class DriveService {
         return DocumentResponse.from(doc);
     }
 
+    /**
+     * 실제 파일을 올려 문서를 만든다. 이름·크기는 올린 파일에서 가져오므로 따로 받지 않는다.
+     * (기존 {@link #create} 는 파일 없이 항목만 등록하는 경로로 남겨 둔다.)
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, String uploader) {
+        StoredFile stored = fileStorage.store(file, uploader);
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        stored.setOwnerCode("GROUPWARE");
+        DriveDocument doc = DriveDocument.builder()
+                .name(stored.getName())
+                .drive("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY")
+                .sizeBytes(stored.getSizeBytes())
+                .uploader(uploader)
+                .file(stored)
+                .important(false)
+                .trashed(false)
+                .build();
+        return DocumentResponse.from(documentRepository.save(doc));
+    }
+
+    /** 다운로드할 파일 id. 파일 없이 등록만 된 항목이면 400. */
+    @Transactional(readOnly = true)
+    public Long fileIdOf(Long id) {
+        DriveDocument doc = getDoc(id);
+        if (doc.getFile() == null) {
+            throw ApiException.badRequest("이 항목에는 실제 파일이 없습니다(메타데이터만 등록됨).");
+        }
+        return doc.getFile().getId();
+    }
+
+    /** 문서를 지우면 붙어 있던 파일도 함께 지운다 — 참조가 사라진 바이트를 남겨둘 이유가 없다. */
     @Transactional
     public void delete(Long id) {
-        documentRepository.delete(getDoc(id));
+        DriveDocument doc = getDoc(id);
+        Long fileId = doc.getFile() != null ? doc.getFile().getId() : null;
+        documentRepository.delete(doc);
+        if (fileId != null) {
+            fileStorage.delete(fileId);
+        }
     }
 
     private DriveDocument getDoc(Long id) {

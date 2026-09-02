@@ -1,6 +1,8 @@
 package com.erp.groupware.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.StoredFileRepository;
+import com.erp.common.StoredFile;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.groupware.domain.ApprovalDocument;
 import com.erp.groupware.domain.ApprovalDocumentVoucher;
@@ -28,6 +30,7 @@ import com.erp.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,11 +54,16 @@ public class ApprovalService {
     private final SalesRepository salesRepository;
     private final PurchaseRepository purchaseRepository;
     private final ExpenseRepository expenseRepository;
+    /** 결재 진행 상황을 기안자·다음 결재자에게 쪽지 자동알림으로 알린다. */
+    private final ShortMessageService shortMessageService;
+    // 첨부 파일 조회. 공용 파일 저장(V120)을 ECDrive·증빙센터와 함께 쓴다.
+    private final StoredFileRepository storedFileRepository;
 
     /**
      * 결재함 조회.
      * scope=drafted → 내가 기안한 문서, scope=pending → 내가 결재할 차례인 문서,
-     * scope=mine → 내가 기안했거나 결재선/참여자에 포함된 문서, 그 외 → 전체.
+     * scope=mine → 내가 기안했거나 결재선/참여자에 포함된 문서,
+     * scope=reference → 내가 수신참조로 지정된 문서, 그 외 → 전체.
      *
      * 삭제된 문서는 includeDeleted=true 일 때만 나온다(목록의 '삭제' 탭).
      */
@@ -77,6 +85,11 @@ public class ApprovalService {
                     && currentLine(d)
                     .map(l -> l.getApprover().getUsername().equals(username))
                     .orElse(false);
+        }
+        if ("reference".equals(scope)) {
+            return d.getParticipants().stream()
+                    .anyMatch(p -> p.getRole() == ApprovalParticipantRole.REFERENCE
+                            && p.getUser().getUsername().equals(username));
         }
         if ("mine".equals(scope)) {
             return d.getDrafter().getUsername().equals(username)
@@ -121,6 +134,11 @@ public class ApprovalService {
                 .department(req.department())
                 .project(resolveProject(req.projectId()))
                 .reference(req.reference())
+                .category(req.category())
+                .printFormat(req.printFormat())
+                .labelText(req.labelText())
+                // 첨부는 파일을 먼저 올려(공용 stored_files) 그 id 를 받는다 — ECDrive 와 같은 흐름이다.
+                .attachment(req.attachmentId() == null ? null : findStoredFile(req.attachmentId()))
                 .status(req.temporary() ? ApprovalStatus.DRAFTING : ApprovalStatus.IN_PROGRESS)
                 .currentStep(1)
                 .build();
@@ -136,7 +154,12 @@ public class ApprovalService {
         addParticipants(doc, req.referenceUserIds(), ApprovalParticipantRole.REFERENCE);
         addParticipants(doc, req.shareUserIds(), ApprovalParticipantRole.SHARE);
 
-        return ApprovalResponse.from(approvalRepository.save(doc));
+        ApprovalDocument saved = approvalRepository.save(doc);
+        // 임시저장이 아니면 생성과 동시에 상신된다(status=IN_PROGRESS) — 이때도 첫 결재자에게 알린다.
+        if (!req.temporary()) {
+            notifyCurrentApprover(saved);
+        }
+        return ApprovalResponse.from(saved);
     }
 
     private void addParticipants(ApprovalDocument doc, List<Long> userIds, ApprovalParticipantRole role) {
@@ -163,7 +186,23 @@ public class ApprovalService {
         doc.setStatus(ApprovalStatus.IN_PROGRESS);
         doc.setCurrentStep(1);
         linkedSales(doc).forEach(Sales::markInApproval);
+        notifyCurrentApprover(doc);
         return ApprovalResponse.from(doc);
+    }
+
+    /** 지금 결재할 차례인 사람에게 쪽지 자동알림. 결재선이 비면 아무 일도 하지 않는다. */
+    private void notifyCurrentApprover(ApprovalDocument doc) {
+        currentLine(doc).ifPresent(line -> shortMessageService.notify(
+                line.getApprover(),
+                "전자결재 > " + doc.getTitle() + "(" + doc.getDraftNo() + ") 결재 요청이 도착했습니다.",
+                "전자결재", doc.getDraftNo(), "/groupware/approval/my"));
+    }
+
+    /** 기안자에게 쪽지 자동알림(최종 완료·반려). */
+    private void notifyDrafter(ApprovalDocument doc, String message) {
+        shortMessageService.notify(doc.getDrafter(),
+                "전자결재 > " + doc.getTitle() + "(" + doc.getDraftNo() + ") " + message,
+                "전자결재", doc.getDraftNo(), "/groupware/approval/draft");
     }
 
     /** 이 기안서에 걸린 판매전표들 */
@@ -187,8 +226,10 @@ public class ApprovalService {
             doc.setStatus(ApprovalStatus.APPROVED);
             // 마지막 결재까지 끝났으므로 걸려 있던 판매전표를 '확인' 으로 넘긴다.
             linkedSales(doc).forEach(Sales::markConfirmed);
+            notifyDrafter(doc, "기안문서의 최종 결재가 완료 되었습니다.");
         } else {
             doc.setCurrentStep(doc.getCurrentStep() + 1);
+            notifyCurrentApprover(doc);
         }
         return ApprovalResponse.from(doc);
     }
@@ -204,6 +245,8 @@ public class ApprovalService {
         doc.setStatus(ApprovalStatus.REJECTED);
         // 반려되면 걸려 있던 판매전표는 미확인으로 되돌린다.
         linkedSales(doc).forEach(Sales::markUnconfirmed);
+        notifyDrafter(doc, "기안문서가 반려되었습니다."
+                + (req != null && StringUtils.hasText(req.comment()) ? " (사유: " + req.comment() + ")" : ""));
         return ApprovalResponse.from(doc);
     }
 
@@ -303,6 +346,29 @@ public class ApprovalService {
         if (projectId == null) return null;
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + projectId));
+    }
+
+    /**
+     * 라벨 변경 — 원본 내결재관리 하단의 [라벨변경].
+     * 라벨은 문서를 묶어 보는 꼬리표일 뿐이라 <b>결재 상태와 무관하게</b> 언제든 바꿀 수 있다.
+     * 다만 남의 문서를 손대지는 못한다 — 기안자만 바꾼다.
+     */
+    @Transactional
+    public ApprovalResponse changeLabel(Long id, String labelText, String username) {
+        ApprovalDocument doc = getDocument(id);
+        if (!doc.getDrafter().getUsername().equals(username)) {
+            throw ApiException.forbidden("기안자만 라벨을 바꿀 수 있습니다: " + doc.getDocNo());
+        }
+        doc.setLabelText(labelText == null || labelText.isBlank() ? null : labelText.trim());
+        return ApprovalResponse.from(doc);
+    }
+
+    private StoredFile findStoredFile(Long id) {
+        StoredFile f = storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        if (f.getOwnerCode() == null) f.setOwnerCode("GROUPWARE");
+        return f;
     }
 
     private User findUser(Long id, String what) {

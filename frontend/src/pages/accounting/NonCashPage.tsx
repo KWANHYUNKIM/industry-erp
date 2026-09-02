@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -37,6 +40,14 @@ export default function NonCashPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [filter, setFilter] = useState<NonCashType | '전체'>('전체')
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이제 이 구간만 준다(전에는 전 기간을 통째로 받았다).
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
+   * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
+   */
+  const [from2, setFrom2] = useState('')
+  const [to2, setTo2] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -48,7 +59,7 @@ export default function NonCashPage() {
     setLoading(true)
     try {
       const [t, a, p] = await Promise.all([
-        api.get<NonCashTxn[]>('/non-cash'),
+        api.get<NonCashTxn[]>('/non-cash', { params: { from: from2 || undefined, to: to2 || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
       ])
@@ -62,10 +73,16 @@ export default function NonCashPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   const shown = rows.filter((r) => filter === '전체' || r.type === filter)
   const count = (t: NonCashType | '전체') => rows.filter((r) => t === '전체' || r.type === t).length
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (t) => t.txnDate,
+  })
 
   return (
     <EcListShell
@@ -90,6 +107,19 @@ export default function NonCashPage() {
         </span>
       </div>
 
+      {/*
+        화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+        비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={from2}
+               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={to2}
+               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
+      </div>
+
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
@@ -105,7 +135,7 @@ export default function NonCashPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 120 }}>유형</th>
             <th style={{ width: 150 }}>차변</th>
             <th style={{ width: 150 }}>대변</th>
@@ -119,12 +149,12 @@ export default function NonCashPage() {
           {loading ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대체전표가 없습니다.</td></tr>
-          ) : shown.map((t, i) => (
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.txnNo}</td>
-              <td>{t.txnDate}</td>
+              <td>{dateText(t.txnDate)}</td>
               <td style={{ color: 'var(--ec-blue)' }}>{t.typeName}</td>
               <td>{t.debitAccountCode} {t.debitAccountName}</td>
               <td style={{ color: '#5a626e' }}>{t.creditAccountCode} {t.creditAccountName}</td>

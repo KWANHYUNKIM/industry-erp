@@ -8,6 +8,9 @@ import java.util.List;
 
 public interface PromissoryNoteRepository extends JpaRepository<PromissoryNote, Long> {
 
-    @Query("select n from PromissoryNote n join fetch n.partner order by n.dueDate asc, n.id desc")
-    List<PromissoryNote> findAllWithPartner();
+    @Query("select n from PromissoryNote n join fetch n.partner " +
+           "where n.issueDate >= :from and n.issueDate <= :to " +
+           "order by n.dueDate asc, n.id desc")
+    List<PromissoryNote> findAllWithPartner(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
+                                            @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
 }

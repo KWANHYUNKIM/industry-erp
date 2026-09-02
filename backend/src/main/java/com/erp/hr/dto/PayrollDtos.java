@@ -4,6 +4,7 @@ import com.erp.hr.domain.Payslip;
 import com.erp.hr.domain.PayslipLine;
 import com.erp.hr.domain.PayslipLineKind;
 import com.erp.hr.domain.PayslipStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -16,9 +17,9 @@ public final class PayrollDtos {
 
     /** 수당/공제 수동 항목 입력 */
     public record LineInput(
-            @NotNull PayslipLineKind kind,
-            @NotBlank String name,
-            @NotNull BigDecimal amount,
+            @NotNull(message = "지급·공제 구분을 선택하세요.") PayslipLineKind kind,
+            @NotBlank(message = "항목명을 입력하세요.") String name,
+            @NotNull(message = "금액을 입력하세요.") BigDecimal amount,
             /** 비과세 수당(식대 등)이면 false. 비우면 과세로 본다. */
             Boolean taxable
     ) {}
@@ -26,13 +27,18 @@ public final class PayrollDtos {
     /** 급여명세 생성/재계산 요청 */
     public record CreatePayslipRequest(
             @NotNull(message = "사원을 선택하세요.") Long employeeId,
-            @NotBlank(message = "귀속월(YYYY-MM)을 입력하세요.") String payMonth,
+            @NotBlank(message = "귀속월(YYYY-MM)을 입력하세요.")
+            @Size(max = 7, message = "귀속월은 7자까지 넣을 수 있습니다.") String payMonth,
             /** 미지정 시 사원 마스터의 기본급을 쓴다. */
             BigDecimal baseSalary,
             /** 수당/공제 그룹. 지정하면 그룹의 항목들이 명세 라인으로 들어간다. */
             Long payGroupId,
-            /** 그룹에 없는 이번 달만의 수당·수동공제. 4대보험은 서버가 자동 추가한다. */
-            List<LineInput> lines,
+            /**
+             * 그룹에 없는 이번 달만의 수당·수동공제. 4대보험은 서버가 자동 추가한다.
+             * 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다.
+             */
+            List<@jakarta.validation.Valid LineInput> lines,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

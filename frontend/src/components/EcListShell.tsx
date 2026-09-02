@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
-import { printTable, type PrintSignLine } from '../utils/print'
+import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
+import TableContextMenu from './TableContextMenu'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -19,16 +20,33 @@ async function defaultSignLine(): Promise<PrintSignLine | null> {
   }
 }
 
-export interface BottomAction { label: string; onClick?: () => void; primary?: boolean }
+export interface BottomAction {
+  label: string
+  onClick?: () => void
+  primary?: boolean
+  /**
+   * 지금은 누를 수 없는 버튼. 원본은 <b>고른 줄이 있어야 도는 버튼</b>
+   * ([선택삭제]·[진행상태변경]·[다른전표생성] 같은 것)을 아무것도 안 골랐을 때
+   * 회색으로 잠가 둔다(사본 실측). 우리는 누르게 두고 나서 "고르세요" 라고 되물었는데,
+   * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
+   */
+  disabled?: boolean
+}
 
 /** onClick이 없을 때 셸이 기본 동작을 붙여주는 액션 라벨 */
 const EXCEL_LABELS = ['Excel', '엑셀']
 const PRINT_LABELS = ['인쇄', '출력']
+/**
+ * 원본 [미리보기] — 인쇄와 <b>같은 종이</b>를 띄우되 인쇄 대화상자는 안 띄운다.
+ * 무엇이 나오는지 보려고 [인쇄]를 누르면 대화상자부터 떠서 <b>취소를 먼저</b> 눌러야 했다.
+ */
+const PREVIEW_LABELS = ['미리보기']
 
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
-  renderForm, formTitle, formWidth, actions = [], help, children,
+  renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
+  signLine = true, children,
 }: {
   title: string
   search?: string
@@ -44,9 +62,20 @@ export default function EcListShell({
   actions?: BottomAction[]
   /** 도움말 모달 본문. 없으면 화면 제목 기준 기본 안내가 나온다. */
   help?: ReactNode
+  /** 원본에 검색창이 없는 화면(예: 주요전달사항)은 false. Option·도움말만 남는다. */
+  searchable?: boolean
+  /** 원본에 [Option] 도 없는 화면(예: 익명게시판)은 false. 도움말만 남는다. */
+  option?: boolean
+  /**
+   * 출력물에 <b>결재란</b>을 찍을지. 원본 [결재방표시] 조건이 이것을 끈다
+   * (작업지시서효율현황). 끄면 결재란을 <b>가져오지도 않는다</b> — 안 찍을 것을
+   * 부르면 인쇄가 그만큼 늦어진다.
+   */
+  signLine?: boolean
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
   const [localSearch, setLocalSearch] = useState('')
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -73,7 +102,19 @@ export default function EcListShell({
   }
 
   const doExcel = withTable((t) => exportTableToXlsx(t, title))
-  const doPrint = withTable(async (t) => printTable(t, title, await defaultSignLine()))
+  // 결재란을 가져오기 전에 창부터 연다 — await 뒤에 window.open 을 부르면 사용자 제스처가 만료돼
+  // 팝업 차단에 걸리고, 인쇄 버튼을 눌러도 아무 일도 일어나지 않는다.
+  const doPrint = withTable(async (t) => {
+    const win = openPrintWindow()
+    if (!win) return true   // 차단 안내는 openPrintWindow 가 이미 띄웠다
+    return printTable(t, title, signLine ? await defaultSignLine() : null, win)
+  })
+
+  const doPreview = withTable(async (t) => {
+    const win = openPrintWindow()
+    if (!win) return true
+    return printTable(t, title, signLine ? await defaultSignLine() : null, win, false)
+  })
 
   const filterRows = (q: string) => {
     const table = findDataTable(bodyRef.current)
@@ -101,6 +142,70 @@ export default function EcListShell({
     else setLocalSearch(v)
   }
 
+  // 우클릭 메뉴의 '이 값으로 검색'. 페이지가 검색을 처리하는 경우 onSearchChange 로 값을 넣은 뒤
+  // 그 값이 실제로 반영된 렌더에서 onSearch 를 부른다 — 같은 틱에 부르면 페이지가 옛 값으로 조회한다.
+  const [pendingSearch, setPendingSearch] = useState<string | null>(null)
+  const applySearchValue = (v: string) => {
+    if (searchHandledByPage && onSearchChange) {
+      onSearchChange(v)
+      setPendingSearch(v)
+    } else {
+      setLocalSearch(v)
+      filterRows(v)
+    }
+  }
+  useEffect(() => {
+    if (pendingSearch === null) return
+    if (search !== pendingSearch) return
+    setPendingSearch(null)
+    onSearch?.()
+  }, [pendingSearch, search, onSearch])
+
+  // 하단 툴바와 우클릭 메뉴가 같은 동작을 쓰도록, Excel/인쇄 기본 핸들러를 여기서 한 번만 붙인다
+  const resolved = actions.map((a) => {
+    let handler = a.onClick
+    if (!handler && EXCEL_LABELS.some((l) => a.label.includes(l))) handler = doExcel
+    /* [미리보기]를 [인쇄]보다 <b>먼저</b> 본다 — '인쇄 미리보기' 는 둘 다 품는다. */
+    if (!handler && PREVIEW_LABELS.some((l) => a.label.includes(l))) handler = doPreview
+    if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
+    return { ...a, onClick: handler }
+  })
+
+  /**
+   * 검색(F8) — 원본 현황 화면의 단축키다. 우리 하단 버튼은 라벨만 `검색(F8)` 이었고
+   * 실제로는 아무 데도 F8 을 걸어 두지 않아, 없는 단축키를 광고하고 있었다.
+   *
+   * 조건 판의 입력칸 안에서 눌러도 먹어야 하므로(그게 이 단축키를 쓰는 이유다)
+   * window 에 건다. 대상은 라벨에 F8 이 적힌 버튼이고, 없으면 primary 버튼을 쓴다.
+   * 전표입력의 저장(F8)은 EcSlipShell 이 따로 잡으므로 서로 겹치지 않는다.
+   */
+  // 호출부가 actions 를 인라인 배열로 넘기므로 resolved 는 매 렌더 새 배열이다.
+  // 그걸 의존성으로 쓰면 렌더마다 리스너를 뗐다 붙인다 — 최신 핸들러만 ref 로 들고 한 번만 건다.
+  // 등록 모달이 열려 있으면 아무것도 안 먹는다 — 보이지도 않는 뒤쪽 화면이 바뀌면 안 된다.
+  const keyRef = useRef<Record<string, (() => void) | undefined>>({})
+  keyRef.current = formOpen ? {} : {
+    // 검색 — 라벨에 F8 이 적힌 버튼, 없으면 primary 버튼
+    F8: (resolved.find((a) => a.label.includes('F8') && a.onClick)
+      ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
+    // 신규 — 하단 좌측 버튼(모달 폼이 있으면 그걸 연다)
+    F2: (onNew || renderForm) ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined,
+    // Search — 목록 낱말 추리기. 검색상자를 숨긴 화면(searchable={false})에는 없다.
+    F3: searchable ? runSearch : undefined,
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const run = keyRef.current[e.key]
+      if (!run || e.repeat) return
+      e.preventDefault()
+      run()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* 상단: ☆제목 + 검색 */}
@@ -108,16 +213,18 @@ export default function EcListShell({
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
-          <input
-            className="ec-input"
-            placeholder="입력 후 [Enter]"
-            value={searchValue}
-            onChange={(e) => changeSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-            style={{ width: 160 }}
-          />
-          <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
-          <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+          {searchable && <>
+            <input
+              className="ec-input"
+              placeholder="입력 후 [Enter]"
+              value={searchValue}
+              onChange={(e) => changeSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+              style={{ width: 160 }}
+            />
+            <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
+          </>}
+          {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
           {optionOpen && (
@@ -167,8 +274,25 @@ export default function EcListShell({
       {/* 그리드 본문 */}
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
 
-      {/* 하단 액션 툴바 */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      {/* 표 우클릭 메뉴 — 등록·수정·삭제 + 행/열 기능 + 이 화면의 기능 */}
+      <TableContextMenu
+        containerRef={bodyRef}
+        toolbarRef={toolbarRef}
+        pageActions={resolved}
+        onNew={onNew || renderForm ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined}
+        newLabel={newLabel}
+        onSearchValue={applySearchValue}
+        onFlash={flash}
+      />
+
+      {/* 하단 액션 툴바. 버튼이 하나도 없으면 구분선만 남아 빈 띠로 보이므로 아예 그리지 않는다. */}
+      <div
+        ref={toolbarRef}
+        style={{
+          display: hasBottom ? 'flex' : 'none',
+          gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5',
+        }}
+      >
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
@@ -177,17 +301,13 @@ export default function EcListShell({
             {newLabel}
           </button>
         )}
-        {actions.map((a, i) => {
-          // 페이지가 onClick을 주지 않은 Excel/인쇄 버튼은 셸의 기본 동작으로 연결한다
-          let handler = a.onClick
-          if (!handler && EXCEL_LABELS.some((l) => a.label.includes(l))) handler = doExcel
-          if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
-          return (
-            <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`} onClick={handler}>
-              {a.label}
-            </button>
-          )
-        })}
+        {resolved.map((a, i) => (
+          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`}
+                  onClick={a.onClick} disabled={a.disabled}
+                  style={a.disabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
+            {a.label}
+          </button>
+        ))}
       </div>
 
       {renderForm && (
@@ -230,6 +350,10 @@ export default function EcListShell({
                   <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
                   <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
                   <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
+                  <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
+                    이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
+                    수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
+                    Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
                 </ul>
               )}
             </div>

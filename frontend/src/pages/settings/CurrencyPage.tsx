@@ -3,8 +3,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { Currency, CurrencyConversion, ExchangeRate } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 const rateText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 
@@ -45,12 +48,49 @@ export default function CurrencyPage() {
 
   useEffect(() => { load() }, [])
 
+  /*
+   * 원본 외화등록의 <b>[사용중단/재사용]</b> — 고른 통화를 한 번에 세운다.
+   * [사용구분] 칸은 진작 있었는데 바꾸는 자리가 <b>폼 안에만</b> 있었다.
+   *
+   * <p>고른 것이 모두 중지면 되살리고, 하나라도 살아 있으면 중단한다 — 품목·거래처와 같은 규칙이다.
+   * 통째로 다시 보낸다(수정은 통째로 덮는다).
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  async function toggleActive() {
+    const targets = currencies.filter((c) => picked.has(c.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 통화를 고르세요.'); return }
+    const reviving = targets.every((c) => !c.active)
+    setError('')
+    try {
+      for (const c of targets) {
+        await api.put(`/currencies/${c.id}`, {
+          code: c.code, name: c.name, symbol: c.symbol, unit: c.unit, active: reviving,
+        })
+      }
+      setPicked(new Set())
+      await load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   return (
     <EcListShell
       title="외화 (통화·고시환율)"
       newLabel={showForm ? '입력닫기' : `${tab === '통화등록' ? '통화 등록' : '환율 등록'}(F2)`}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
+        ...(tab === '통화등록'
+          ? [{ label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActive }]
+          : []),
+        { label: 'Excel' },
+      ]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => (
@@ -80,32 +120,77 @@ export default function CurrencyPage() {
       {tab === '고시환율' && <Converter currencies={currencies} onError={setError} />}
 
       {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        : tab === '통화등록' ? <CurrencyTable rows={currencies} />
+        : tab === '통화등록' ? <CurrencyTable rows={currencies} picked={picked} onPick={pick} />
         : <RateTable rows={rates} />}
     </EcListShell>
   )
 }
 
-function CurrencyTable({ rows }: { rows: Currency[] }) {
+function CurrencyTable({ rows, picked, onPick }: {
+  rows: Currency[]; picked: Set<number>; onPick: (id: number) => void
+}) {
+  /*
+   * 원본 외화등록의 조건은 <b>외화코드 · 외화명 · 환율 · 금액소수점 · 사용구분</b> 이다(사본 실측).
+   * 우리 화면에는 <b>조건이 하나도 없었다</b> — 통화가 늘면 눈으로 찾는 수밖에 없었다.
+   * [환율]은 사본이 비어 있어 한 칸인지 구간인지 모르고, [금액소수점]은 우리에게 그 값이 없다.
+   */
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [use, setUse] = useState<'전체' | '사용' | '중지'>('전체')
+  /*
+   * 원본 외화등록은 외화코드·외화명·환율·사용구분을 눌러 정렬한다(사본 실측).
+   * 환율은 <b>숫자로</b> 견준다 — 글자로 보면 1,100 이 900 앞에 선다.
+   * 아직 고시가 없는 줄(null)은 방향과 상관없이 뒤로 간다.
+   */
+  const sort = useTableSort(rows, {
+    통화코드: (c) => c.code,
+    통화명: (c) => c.name,
+    '최근 고시환율': (c) => c.latestRate,
+    사용: (c) => (c.active ? '사용' : '중지'),
+  })
+  const shown = sort.sorted.filter((c) => (!code || c.code.includes(code))
+    && (!name || c.name.includes(name))
+    && (use === '전체' || (c.active ? '사용' : '중지') === use))
   return (
+    <>
+      {/* 원본 조건 차례: 외화코드 · 외화명 · … · 사용구분 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>외화코드</span>
+        <input className="ec-input" value={code} onChange={(e) => setCode(e.target.value)} style={{ width: 110 }} />
+        <span>외화명</span>
+        <input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 140 }} />
+        <span>사용구분</span>
+        <select className="ec-input" value={use} onChange={(e) => setUse(e.target.value as '전체' | '사용' | '중지')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중지</option>
+        </select>
+      </div>
     <table className="w-full text-left">
       <thead>
         <tr>
+          <th style={{ width: 28, textAlign: 'center' }}></th>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 80 }}>통화코드</th>
-          <th style={{ width: 160 }}>통화명</th>
+          {/*
+            원본 외화등록의 열 이름은 <b>외화코드 · 외화명 · 환율 · 사용구분</b> 이다(사본 실측).
+            우리는 넷 다 [통화…] 로 부르고 있었다 — 같은 것을 두 이름으로 부르면
+            원본을 쓰던 사람이 매번 되짚어야 한다. 정렬 열쇠는 그대로 둔다(화면에 안 보인다).
+          */}
+          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화코드')}>외화코드 {sort.mark('통화코드')}</th>
+          <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>외화명 {sort.mark('통화명')}</th>
           <th style={{ width: 70, textAlign: 'center' }}>기호</th>
           <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 150, textAlign: 'right' }}>최근 고시환율</th>
+          <th style={{ width: 150, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('최근 고시환율')}>환율 {sort.mark('최근 고시환율')}</th>
           <th style={{ width: 110 }}>고시일</th>
-          <th style={{ width: 70, textAlign: 'center' }}>사용</th>
+          <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용구분 {sort.mark('사용')}</th>
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 통화가 없습니다.</td></tr>
-        ) : rows.map((c, i) => (
+        {shown.length === 0 ? (
+          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+        ) : shown.map((c, i) => (
           <tr key={c.id}>
+            <td style={{ textAlign: 'center' }}>
+              <input type="checkbox" checked={picked.has(c.id)} onChange={() => onPick(c.id)} />
+            </td>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{c.code}</td>
             <td>{c.name}</td>
@@ -114,37 +199,46 @@ function CurrencyTable({ rows }: { rows: Currency[] }) {
             <td style={{ textAlign: 'right', fontWeight: 700 }}>
               {c.latestRate === null ? <span style={{ color: '#c60a2e', fontWeight: 400 }}>미등록</span> : `${rateText(c.latestRate)}원`}
             </td>
-            <td style={{ color: '#5a626e' }}>{c.latestRateDate ?? ''}</td>
+            <td style={{ color: '#5a626e' }}>{dateText(c.latestRateDate) || ''}</td>
             <td style={{ textAlign: 'center', color: c.active ? '#1c7c3c' : '#8a929c' }}>{c.active ? '사용' : '중지'}</td>
           </tr>
         ))}
       </tbody>
     </table>
+    </>
   )
 }
 
 function RateTable({ rows }: { rows: ExchangeRate[] }) {
+  /* 고시일 머리에 ▼ 를 그려 놓고 정렬은 없었다. 통화·고시환율도 원본처럼 눌러 세운다. */
+  const sort = useTableSort(rows, {
+    고시일: (r) => r.rateDate,
+    통화: (r) => r.currencyCode,
+    통화명: (r) => r.currencyName,
+    고시환율: (r) => r.rate,
+  })
+  const shown = sort.sorted
   return (
     <table className="w-full text-left">
       <thead>
         <tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>고시일 ▼</th>
-          <th style={{ width: 80 }}>통화</th>
-          <th style={{ width: 140 }}>통화명</th>
+          <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('고시일')}>고시일 {sort.mark('고시일')}</th>
+          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화')}>통화 {sort.mark('통화')}</th>
+          <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
           <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 140, textAlign: 'right' }}>고시환율</th>
+          <th style={{ width: 140, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('고시환율')}>고시환율 {sort.mark('고시환율')}</th>
           <th style={{ width: 150, textAlign: 'right' }}>1통화당 원화</th>
           <th>등록자</th>
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 환율이 없습니다.</td></tr>
-        ) : rows.map((r, i) => (
+        {shown.length === 0 ? (
+          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+        ) : shown.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td>{r.rateDate}</td>
+            <td>{dateText(r.rateDate)}</td>
             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{r.currencyCode}</td>
             <td>{r.currencyName}</td>
             <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.unit}</td>

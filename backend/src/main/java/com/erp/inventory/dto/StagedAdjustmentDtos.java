@@ -2,6 +2,7 @@ package com.erp.inventory.dto;
 
 import com.erp.inventory.domain.StagedStockAdjustment;
 import com.erp.inventory.domain.enums.StagedStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -15,8 +16,9 @@ public final class StagedAdjustmentDtos {
     public record CreateStagedRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull @PositiveOrZero(message = "실사수량은 0 이상이어야 합니다.") BigDecimal actualQty,
+            @NotNull(message = "실사수량을 입력하세요.") @PositiveOrZero(message = "실사수량은 0 이상이어야 합니다.") BigDecimal actualQty,
             LocalDate requestDate,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String reason
     ) {}
 

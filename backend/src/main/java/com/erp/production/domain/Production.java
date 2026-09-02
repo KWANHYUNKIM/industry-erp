@@ -28,6 +28,16 @@ public class Production extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
+    /**
+     * 생산된공장 — 자재를 <b>소모한</b> 곳. 원본 생산입고조회의 [생산된공장명] 이다.
+     *
+     * <p>생산불출(창고 → 공장)과 짝이다. 자재는 공장에서 빠지고 완제품은 받는창고로 들어간다.
+     * 비워 두면 예전처럼 받는창고에서 자재도 빠진다 — 공장을 안 쓰는 회사도 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "from_warehouse_id")
+    private Warehouse fromWarehouse;
     /** 생산번호 (예: PR-20260706-0001) */
     @Column(nullable = false, unique = true, length = 30)
     private String prodNo;
@@ -51,8 +61,48 @@ public class Production extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDate productionDate;
 
+    /**
+     * 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트].
+     *
+     * <p>판매·구매·비용·출하·정산이 모두 프로젝트를 다는데 생산입고만 없었다.
+     * 프로젝트별 손익을 보려면 <b>그 프로젝트로 무엇을 만들었나</b>도 알아야 한다 —
+     * 팔린 것만 세면 아직 재고로 남은 생산분이 어느 프로젝트 것인지 잃는다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
+
+    /**
+     * 담당자(사원) id. 원본 생산입고 I·II·III 머리의 [담당자].
+     *
+     * <p>작업지시와 같이 <b>id 만</b> 든다 — production 은 hr 을 참조할 수 없다
+     * (hr → accounting → production 이 이미 있어 맞물리면 순환이다. CLAUDE.md 4.1).
+     * 이름은 화면이 사원 목록에서 붙인다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
     @Column(length = 50)
     private String createdBy;
+
+    /**
+     * 적요 — 원본 생산입고현황의 마지막 열이고 생산입고 III 그리드의 마지막 열이다.
+     * 판매·구매·생산불출 전표는 이미 다 들고 있는데 생산입고에만 없었다.
+     */
+    @Column(length = 255)
+    private String note;
+
+    /**
+     * 원본 생산입고 I·II 그리드의 <b>[노무시간]</b>. 분 단위다.
+     *
+     * <p>실제 노무비를 잴 유일한 근거다. 이 값이 없으면 원가생성은 실제노무비를
+     * 표준과 같게 깔아 둘 수밖에 없다 — 그러면 차이분석이 늘 0 이다.
+     *
+     * <p>시간이 아니라 <b>분</b>인 이유: 작업내역(WorkResult)의 작업시간도 분이고,
+     * 시간으로 들면 30분을 0.5 로 적어야 해서 현장에서 틀리기 쉽다.
+     */
+    @Column(name = "labor_minutes")
+    private Integer laborMinutes;
 
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)

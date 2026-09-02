@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster } from '../../api/types'
 
@@ -159,7 +160,7 @@ export default function OrgChartPage() {
             </thead>
             <tbody>
               {members.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>사원이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : members.map((e, i) => (
                 <tr key={e.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -267,10 +268,10 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>상위 부서</th>
                 <td>
-                  <select className="ec-input" value={parentId} onChange={(e) => setParentId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">(최상위)</option>
-                    {parents.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="상위 부서" hideLabel width={200} emptyLabel="(최상위)"
+                                   value={parentId} onChange={setParentId}
+                                   items={parents.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
               </tr>
               <tr>

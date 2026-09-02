@@ -3,6 +3,7 @@ package com.erp.settings.dto;
 import com.erp.settings.domain.CustomFieldDef;
 import com.erp.settings.domain.CustomFieldValue;
 import com.erp.settings.domain.enums.CustomFieldType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -15,18 +16,24 @@ public final class CustomFieldDtos {
 
     // ── 정의(def) ──
     public record CreateFieldDefRequest(
-            @NotBlank(message = "대상 화면(entityType)을 지정하세요.") String entityType,
+            @NotBlank(message = "이 항목을 어느 화면에 쓸지 고르세요.")
+            @Size(max = 40, message = "대상 화면은 40자까지 넣을 수 있습니다.") String entityType,
+            @Size(max = 50, message = "필드 키는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "필드 키를 입력하세요.") String fieldKey,
+            @Size(max = 100, message = "라벨은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "라벨을 입력하세요.") String label,
             @NotNull(message = "형식을 선택하세요.") CustomFieldType fieldType,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String options,
             Boolean required,
             Integer sortOrder
     ) {}
 
     public record UpdateFieldDefRequest(
+            @Size(max = 100, message = "라벨은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "라벨을 입력하세요.") String label,
             @NotNull(message = "형식을 선택하세요.") CustomFieldType fieldType,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String options,
             Boolean required,
             Integer sortOrder,
@@ -49,7 +56,7 @@ public final class CustomFieldDtos {
     // ── 값(value) ──
     /** 특정 전표의 사용자정의 값 저장: fieldKey → value 맵 */
     public record SaveValuesRequest(
-            @NotNull Map<String, String> values
+            @NotNull(message = "저장할 값을 넣으세요.") Map<String, String> values
     ) {}
 
     /** 활성 정의 + 해당 전표의 값 을 함께 반환(폼 렌더용) */

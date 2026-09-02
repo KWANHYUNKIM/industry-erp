@@ -1,9 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { subtotalBy } from '../../utils/subtotalBy'
+import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 
-/** 영업 > 결제내역자료비교 — 장부(결제전표) 금액과 통장(은행거래) 확인 금액 대사 (/api/settlements 연동)
- *  통장금액: 계좌이체/카드 등 은행 추적 가능한 결제수단은 통장에서 확인된 것으로, 현금/어음 등은 통장 미확인(0)으로 대사한다. */
+/**
+ * 영업 > 결제내역자료비교.
+ *
+ * <p>원본 결과 열 실측(사본): 왼쪽 <b>[결제내역]</b> 결제요청일시 · 거래처 · 공급가액 ·
+ * 부가세 · 합계, 오른쪽 <b>[판매전표II]</b> 일자-No. · 거래처명 · 공급가액합계 ·
+ * 부가세합계 · 금액합계, 그리고 <b>차이</b>. 즉 <b>받은 돈과 판 금액을 맞대는</b> 화면이다.
+ *
+ * <p>우리 화면은 "장부금액 대 통장금액" 을 비교했는데, 통장금액을 <b>결제수단 문자열로
+ * 추정</b>했다 — 계좌이체·카드면 통장에서 확인된 것으로 치고 현금·어음이면 0 으로 쳤다.
+ * 은행 거래 자료를 읽은 것이 아니라 글자만 보고 지어낸 값이라, 현금으로 받은 돈은
+ * 전부 '불일치' 로 찍혔다. 대사표가 늘 틀리면 아무도 안 본다.
+ *
+ * <p>이제 원본대로 <b>판매전표 금액과 결제(수금) 금액</b>을 맞댄다. 둘 다 우리가 실제로
+ * 가진 자료다. 한 줄은 (일자 × 거래처)이고, 차이는 판매 − 수금이다 — 양수면 아직 못 받은 돈.
+ */
 interface SettlementRow {
   id: number
   docNo: string
@@ -14,25 +32,72 @@ interface SettlementRow {
   method: string | null
 }
 
-const BANK_METHODS = ['계좌이체', '이체', '카드', '온라인', '자동이체']
-
-function bankTraceable(method: string | null): boolean {
-  if (!method) return false
-  return BANK_METHODS.some((m) => method.includes(m))
+interface SalesDoc {
+  id: number
+  docNo: string
+  partnerName: string
+  saleDate: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
 }
 
+/** 한 줄 = 일자 × 거래처. 판매와 수금을 같은 칸에 맞댄다. */
+interface CompareRow {
+  key: string
+  date: string
+  partnerName: string
+  saleDocNos: string[]
+  supplyAmount: number
+  vatAmount: number
+  saleTotal: number
+  payDocNos: string[]
+  payTotal: number
+}
+
+
+/**
+ * 원본 조건 판 실측(사본 · 결제내역자료비교):
+ *   기준일자(금월(~오늘)) · 거래처 · [자료기준] 전체 | 일치 | 불일치 ·
+ *   양식 · 정렬/소계기준
+ *   기간 빠른선택에 <b>이번기수(~전월)</b> 가 있다.
+ *
+ * <p>우리는 검색어 한 칸이 전부였다. 대사는 "안 맞는 것만 골라 보는" 화면인데
+ * 정작 불일치만 볼 방법이 없었다.
+ */
+type Basis = '전체' | '일치' | '불일치'
+
 export default function PaymentComparePage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners'])
   const [rows, setRows] = useState<SettlementRow[]>([])
+  const [sales, setSales] = useState<SalesDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
+  /*
+   * [이번기수(~전월)] 은 회계연도 시작월을 알아야 계산된다 — 모르면 periodOf 가 null 이다.
+   * 여기서 ! 로 눌러 두어서 <b>이 화면이 통째로 하얗게 떴다</b>(브라우저로 열어 보고 알았다).
+   * 시작월은 아래에서 회사 설정으로 받아 오는데 그건 <b>첫 그림 다음</b>이라 늦다.
+   * 그때까지는 [금월(~오늘)]로 열고, 받으면 그 기간으로 다시 건다.
+   */
+  const init = periodOf('이번기수(~전월)', new Date(), undefined) ?? periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [partner, setPartner] = useState('')
+  const [basis, setBasis] = useState<Basis>('전체')
+  // '이번기수(~전월)' 은 회사 회계연도 시작월을 알아야 계산된다. 1월로 넘겨짚지 않는다.
+  const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<SettlementRow[]>('/settlements')
+      const [res, sl] = await Promise.all([
+        api.get<SettlementRow[]>('/settlements'),
+        api.get<SalesDoc[]>('/sales'),
+      ])
       const list = [...res.data].sort((a, b) => (a.settleDate < b.settleDate ? 1 : a.settleDate > b.settleDate ? -1 : 0))
       setRows(list)
+      setSales(sl.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -42,49 +107,245 @@ export default function PaymentComparePage() {
 
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
-  const mismatchCount = useMemo(() => shown.filter((r) => !bankTraceable(r.method)).length, [shown])
+  useEffect(() => {
+    api.get<{ fiscalStart?: string } | null>('/preferences')
+      .then((r) => {
+        const m = Number(r.data?.fiscalStart)
+        if (m >= 1 && m <= 12) setFiscalStart(m)
+      })
+      .catch(() => { /* 못 받으면 기수 버튼만 안 눌린다 */ })
+  }, [])
+
+  /* 시작월을 받으면 원본 기본 기간([이번기수(~전월)])으로 한 번 다시 건다. */
+  const applied = useRef(false)
+  useEffect(() => {
+    if (applied.current || !fiscalStart) return
+    const r = periodOf('이번기수(~전월)', new Date(), fiscalStart)
+    if (r) { applied.current = true; setFrom(r.from); setTo(r.to) }
+  }, [fiscalStart])
+
+  /**
+   * 한 줄 = 일자 × 거래처. 판매전표 금액과 그날 받은 결제(수금)를 맞댄다.
+   *
+   * <p>수금만 있고 판매가 없는 날(선수금)도, 판매만 있고 수금이 없는 날(외상)도 한 줄로 낸다 —
+   * 한쪽만 있는 것이야말로 대사에서 봐야 할 것이다.
+   */
+  const compared = useMemo(() => {
+    const m = new Map<string, CompareRow>()
+    const at = (date: string, partnerName: string) => {
+      const key = `${date}|${partnerName}`
+      const cur = m.get(key) ?? {
+        key, date, partnerName,
+        saleDocNos: [], supplyAmount: 0, vatAmount: 0, saleTotal: 0,
+        payDocNos: [], payTotal: 0,
+      }
+      m.set(key, cur)
+      return cur
+    }
+    for (const d of sales) {
+      if (d.saleDate < from || d.saleDate > to) continue
+      const r = at(d.saleDate, d.partnerName)
+      r.saleDocNos.push(d.docNo)
+      r.supplyAmount += d.supplyAmount
+      r.vatAmount += d.vatAmount
+      r.saleTotal += d.totalAmount
+    }
+    for (const p of rows) {
+      if (p.settleDate < from || p.settleDate > to) continue
+      // 지급(구매 대금)은 판매와 맞댈 것이 아니다 — 수금만 본다.
+      if (p.typeName !== '수금') continue
+      const r = at(p.settleDate, p.partnerName)
+      r.payDocNos.push(p.docNo)
+      r.payTotal += p.amount
+    }
+    return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partnerName.localeCompare(b.partnerName)))
+  }, [sales, rows, from, to])
+
+  /*
+   * 원본 [정렬/소계기준]. 줄이 (일자 × 거래처)라 한 거래처가 여러 줄로 흩어진다 —
+   * <b>어느 거래처에서 매출과 수금이 얼마나 어긋났는지</b>를 눈으로 더해야 했다.
+   */
+  const SUBTOTALS = ['거래처', '일자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+
+  const shown = useMemo(() => compared.filter((r) => {
+    if (partner && !(r.partnerName.includes(partner)
+      || r.saleDocNos.some((n) => n.includes(partner))
+      || r.payDocNos.some((n) => n.includes(partner)))) return false
+    if (basis !== '전체') {
+      const same = Math.abs(r.saleTotal - r.payTotal) < 0.005
+      if (basis === '일치' ? !same : same) return false
+    }
+    return true
+  }), [compared, partner, basis])
+
+  const mismatchCount = useMemo(
+    () => shown.filter((r) => Math.abs(r.saleTotal - r.payTotal) >= 0.005).length, [shown])
+  const totals = useMemo(() => shown.reduce(
+    (a, r) => ({ sale: a.sale + r.saleTotal, pay: a.pay + r.payTotal }),
+    { sale: 0, pay: 0 },
+  ), [shown])
 
   return (
-    <EcListShell title="결제내역자료비교" search={keyword} onSearchChange={setKeyword} onSearch={load} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}>
+    <EcListShell
+      title="결제내역자료비교"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: () => {
+          setFrom(init.from); setTo(init.to); setPartner(''); setBasis('전체')
+        } },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={COMPARE_PICKS}
+        fiscalStart={fiscalStart}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+      >
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="자료기준">
+          <div className="ec-pills">
+            {(['전체', '일치', '불일치'] as const).map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                      onClick={() => setBasis(b)}>{b}</button>
+            ))}
+          </div>
+        </EcCond>
+      </EcStatusPanel>
+
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         불일치 <b style={{ color: '#c60a2e', fontSize: 14 }}>{mismatchCount}</b>건 / 전체 {shown.length}건
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        판매 <b>{totals.sale.toLocaleString('ko-KR')}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        결제 <b>{totals.pay.toLocaleString('ko-KR')}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        차이 <b style={{ color: totals.sale - totals.pay ? '#c60a2e' : '#1c7c3c' }}>
+          {(totals.sale - totals.pay).toLocaleString('ko-KR')}
+        </b>
       </div>
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th>일자</th><th>거래처</th><th>결제수단</th>
-            <th style={{ textAlign: 'right' }}>장부금액</th><th style={{ textAlign: 'right' }}>통장금액</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => {
-            const bankAmount = bankTraceable(r.method) ? r.amount : 0
-            const diff = r.amount - bankAmount
-            const status = diff === 0 ? '일치' : '불일치'
-            return (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.settleDate}</td>
-                <td>{r.partnerName}</td>
-                <td>{r.method ?? '-'}</td>
-                <td style={{ textAlign: 'right' }}>{r.amount.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{bankAmount.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: diff !== 0 ? '#c60a2e' : '#9aa1ab' }}>{diff.toLocaleString()}</td>
-                <td style={{ textAlign: 'center', fontWeight: 700, color: diff === 0 ? '#1c7c3c' : '#c60a2e' }}>{status}</td>
+      {/* 원본은 [결제내역] 과 [판매전표II] 를 좌우로 놓고 맨 끝에 차이를 둔다. */}
+      <div className="overflow-x-auto">
+        <table className="ec-grid w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th style={{ width: 100 }}>일자</th>
+              <th>거래처명</th>
+              <th>판매전표</th>
+              <th style={{ width: 120, textAlign: 'right' }}>공급가액합계</th>
+              <th style={{ width: 110, textAlign: 'right' }}>부가세합계</th>
+              <th style={{ width: 120, textAlign: 'right' }}>금액합계</th>
+              <th>결제내역</th>
+              <th style={{ width: 120, textAlign: 'right' }}>결제합계</th>
+              <th style={{ width: 120, textAlign: 'right' }}>차이</th>
+              <th style={{ width: 70, textAlign: 'center' }}>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : shown.slice(0, 300).map((r, i) => {
+              const diff = r.saleTotal - r.payTotal
+              const same = Math.abs(diff) < 0.005
+              return (
+                <tr key={r.key}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.date.replace(/-/g, '/')}</td>
+                  <td>{r.partnerName}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                    {r.saleDocNos.length === 0
+                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      : `${r.saleDocNos[0]}${r.saleDocNos.length > 1 ? ` 외 ${r.saleDocNos.length - 1}` : ''}`}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{r.supplyAmount.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right' }}>{r.vatAmount.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right' }}>{r.saleTotal.toLocaleString('ko-KR')}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                    {r.payDocNos.length === 0
+                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      : `${r.payDocNos[0]}${r.payDocNos.length > 1 ? ` 외 ${r.payDocNos.length - 1}` : ''}`}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{r.payTotal.toLocaleString('ko-KR')}</td>
+                  {/* 양수는 아직 못 받은 돈, 음수는 판 것보다 더 받은 돈(선수금) */}
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: same ? '#9aa1ab' : diff > 0 ? '#c60a2e' : '#c07a00' }}>
+                    {diff.toLocaleString('ko-KR')}
+                  </td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: same ? '#1c7c3c' : '#c60a2e' }}>
+                    {same ? '일치' : '불일치'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          {shown.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}줄)</td>
+                <td style={{ textAlign: 'right' }}>{totals.sale.toLocaleString('ko-KR')}</td>
+                <td></td>
+                <td style={{ textAlign: 'right' }}>{totals.pay.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  {(totals.sale - totals.pay).toLocaleString('ko-KR')}
+                </td>
+                <td></td>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </tfoot>
+          )}
+        </table>
+        {shown.length > 0 && (() => {
+          const groups = subtotalBy(shown, (r) => (subtotal === '일자' ? r.date : r.partnerName),
+            { sale: (r) => r.saleTotal, pay: (r) => r.payTotal })
+          return (
+            <>
+              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <table className="w-full text-left">
+                <thead><tr>
+                  <th>{subtotal}</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>매출</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>수금</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>차액</th>
+                </tr></thead>
+                <tbody>
+                  {groups.map((g) => {
+                    const gap = g.sums.sale - g.sums.pay
+                    return (
+                      <tr key={g.label}>
+                        <td style={{ fontWeight: 600 }}>{g.label}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.sale.toLocaleString('ko-KR')}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.pay.toLocaleString('ko-KR')}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
+                                     color: Math.abs(gap) < 0.005 ? '#9aa1ab' : '#c60a2e' }}>
+                          {gap.toLocaleString('ko-KR')}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
+          )
+        })()}
+        {shown.length > 300 && (
+          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+            * 앞의 300줄만 보여 줍니다({shown.length}줄 중). 기간이나 거래처를 좁혀 주세요.
+          </p>
+        )}
+      </div>
     </EcListShell>
   )
 }

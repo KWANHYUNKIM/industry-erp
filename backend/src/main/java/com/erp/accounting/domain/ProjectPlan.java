@@ -39,6 +39,24 @@ public class ProjectPlan extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal planCost = BigDecimal.ZERO;
 
+    /*
+     * 원본 프로젝트계획조회(E040636) 격자의 <b>[구매]·[노무비]·[경비]</b>(2026-09-01 실측).
+     * 원본은 계획을 판매·구매·노무비·경비 네 갈래로 적는다. 우리는 planRevenue(판매)와
+     * planCost(원가 합계) 둘뿐이라 <b>갈라 적을 데가 아예 없었다.</b> planCost 는 합계
+     * 그대로 둔다 — 달성률 계산이 그 값을 쓰고 있어 뜻을 바꾸면 지난 계획의 달성률이 달라진다.
+     */
+    @Column(name = "plan_purchase", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal planPurchase = BigDecimal.ZERO;
+
+    @Column(name = "plan_labor", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal planLabor = BigDecimal.ZERO;
+
+    @Column(name = "plan_expense", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal planExpense = BigDecimal.ZERO;
+
     @Column(length = 300)
     private String remark;
 

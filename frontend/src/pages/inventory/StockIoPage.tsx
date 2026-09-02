@@ -1,10 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useRef, useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { useShortcut } from '../../utils/useShortcut'
+import { dateText } from '../../utils/dateText'
 
 const inputCls = 'ec-input w-full'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
 
 export default function StockIoPage() {
@@ -83,8 +87,14 @@ export default function StockIoPage() {
       : t.type === 'OUTBOUND' ? { bg: '#fdf3ea', fg: '#a5561b' }
         : { bg: '#f3eefb', fg: '#6b3fb0' }
 
+  const formRef = useRef<HTMLFormElement>(null)
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. submit 버튼을 실제로 눌러
+  // form 의 검증·onSubmit 을 그대로 태운다(EcSlipShell 과 같은 방식).
+  useShortcut('F8', () => formRef.current
+    ?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
+
   return (
-    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* ☆ 제목 + 상단 툴바 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
@@ -121,17 +131,18 @@ export default function StockIoPage() {
               <tr>
                 <th style={th}>품목 *</th>
                 <td>
-                  <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)}>
-                    {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                  </select>
+                  <CodePickerField label="품목" hideLabel fill placeholder="품목을 선택하세요" emptyLabel="선택 해제"
+                                   value={form.itemId} onChange={(v) => set('itemId', v)}
+                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                 </td>
               </tr>
               <tr>
                 <th style={th}>창고 *</th>
                 <td>
-                  <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)}>
-                    {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="창고 *" hideLabel width={220} emptyLabel="선택"
+                                   value={form.warehouseId} onChange={(v) => set('warehouseId', v)}
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>
@@ -144,7 +155,7 @@ export default function StockIoPage() {
               </tr>
               <tr>
                 <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={form.transactionDate} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(form.transactionDate)} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>비고</th>
@@ -170,16 +181,19 @@ export default function StockIoPage() {
                 <th>품목</th>
                 <th>창고</th>
                 <th style={{ textAlign: 'right' }}>변동</th>
-                <th style={{ textAlign: 'right' }}>잔량</th>
+                {/* 저장된 잔량은 <b>입력 순서</b>로 매겨진다. 과거 일자 거래를 뒤늦게 넣으면
+                    일자순으로 읽을 때의 잔량과 어긋난다 — 실제로 거래 7,385건 중 7,224건이
+                    어긋난 채였다. 「잔량재집계」가 정규화한다. 칸 이름으로 그 성질을 밝힌다. */}
+                <th style={{ textAlign: 'right' }} title="입력 순서로 매겨진 잔량입니다. 과거 일자 거래를 넣은 뒤에는 「잔량재집계」를 돌려야 일자순 잔량과 맞습니다.">잔량(입력순)</th>
                 <th>비고</th>
               </tr>
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>이력이 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : history.map((t) => (
                 <tr key={t.id}>
-                  <td>{t.transactionDate}</td>
+                  <td>{dateText(t.transactionDate)}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span style={{ background: typeColor(t).bg, color: typeColor(t).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{t.typeName}</span>
                   </td>
@@ -189,7 +203,7 @@ export default function StockIoPage() {
                     {t.quantityChange > 0 ? '+' : ''}{t.quantityChange.toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right' }}>{t.balanceAfter.toLocaleString()}</td>
-                  <td style={{ color: '#8a929c' }}>{t.note ?? '-'}</td>
+                  <td style={{ color: '#8a929c' }}>{t.note ?? ''}</td>
                 </tr>
               ))}
             </tbody>

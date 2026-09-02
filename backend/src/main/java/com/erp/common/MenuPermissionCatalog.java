@@ -56,6 +56,14 @@ public final class MenuPermissionCatalog {
     /**
      * API base path → 관장 권한 코드. 최장 접두어 우선으로 매칭한다.
      * 여기에 없는 경로는 {@code null}(권한 불요, 인증만) 취급한다.
+     *
+     * <p><b>빠뜨리면 조용히 열린다.</b> 인터셉터가 매핑 없는 경로를 통과시키므로,
+     * 새 컨트롤러를 만들면 여기에도 넣어야 한다. 실제로 재고실사(staged-adjustments)·
+     * 매출계획·자금계획·품질검사요청이 매핑 없이 굴러가고 있었다 — 재고실사 반영은
+     * 실제 재고를 바꾸는데도 역할과 무관하게 통과했다.
+     *
+     * <p>의도적으로 비워 둔 것: {@code /api/workspace}(개인 메모·알림·통합검색).
+     * 자기 것만 보고 쓰는 개인 영역이라 역할로 막을 대상이 아니다.
      */
     private static final Map<String, String> PATH_TO_CODE = buildPathMap();
 
@@ -66,29 +74,36 @@ public final class MenuPermissionCatalog {
                 "/api/management-items", "/api/lots");
         put(m, "PARTNER", "/api/partners", "/api/partner-groups", "/api/business-cards",
                 "/api/crm-activities");
-        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/quotations", "/api/shipments",
+        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments",
                 "/api/price-bulk", "/api/special-prices", "/api/order-types", "/api/order-stages",
                 "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values");
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
                 "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
-                "/api/material-issues", "/api/supplies");
-        put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments");
-        put(m, "QUALITY", "/api/quality-inspections", "/api/as-requests");
+                "/api/bor", "/api/process-operations",
+                "/api/material-issues",
+                // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면
+                // 짝이 갈라지므로 둘을 붙여 둔다 — 옮길 거면 같이 옮긴다.
+                "/api/supplies", "/api/supply-usages");
+        put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments",
+                "/api/staged-adjustments");
+        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests");
         put(m, "WMS", "/api/wms");
         put(m, "EXPORT", "/api/exports");
         put(m, "MALL", "/api/mall-orders", "/api/mall-item-mappings", "/api/mall-accounts");
-        put(m, "PROFIT", "/api/profit", "/api/costs");
-        put(m, "PROJECT", "/api/projects");
+        put(m, "PROFIT", "/api/costs", "/api/process-expenses");
+        put(m, "PROJECT", "/api/projects", "/api/project-plans");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
-                "/api/vouchers", "/api/accounts", "/api/ledger");
+                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
-        put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses");
-        put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax");
+        put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
+                "/api/cash-plans");
+        put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
+                "/api/medical-device-reports");
         // 관리
         put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works");
         put(m, "HR", "/api/employees", "/api/hr", "/api/attendances", "/api/employment-contracts",
@@ -96,7 +111,9 @@ public final class MenuPermissionCatalog {
         // 그룹웨어
         put(m, "GROUPWARE", "/api/approvals", "/api/approval-settings", "/api/approval-form-templates",
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
-                "/api/drive-documents", "/api/mails", "/api/schedule-events", "/api/field-works");
+                "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
+                "/api/chat",
+                "/api/field-works");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
@@ -115,6 +132,10 @@ public final class MenuPermissionCatalog {
      * 요청 경로를 관장하는 권한 코드. 매핑이 없으면 {@code null}(권한 불요).
      * {@code /api/auth}, {@code /api/health}, {@code /api/meta}, {@code /api/workspace},
      * {@code /api/me} 등 공통/참조 경로는 매핑하지 않아 인증만 되면 통과한다.
+     *
+     * <p>{@code /api/chat}(메신저)도 일부러 매핑하지 않았다. 앱바 도구(알림·E Note·메신저)는 메뉴가 아니라
+     * 전 사용자 공용이고, 그룹웨어 권한이 없는 현장 사용자에게 말을 못 거는 메신저는 쓸모가 없다.
+     * 대화 내용 보호는 권한 코드가 아니라 "참여자만 읽고 쓴다"는 서비스 규칙이 한다.
      */
     public static String requiredCode(String path) {
         String best = null;

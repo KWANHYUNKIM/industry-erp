@@ -39,22 +39,4 @@ public final class AccountingDtos {
             BigDecimal grossProfit,    // 매출총이익
             BigDecimal marginRate      // 매출총이익률(%)
     ) {}
-
-    /** 월별 이익현황 (매출 - 매입) */
-    public record MonthlyProfitResponse(
-            String month,              // yyyy-MM
-            BigDecimal revenue,        // 매출액(공급가 합계)
-            BigDecimal cost,           // 매입액(공급가 합계)
-            BigDecimal profit,         // 이익 = 매출 - 매입
-            BigDecimal marginRate      // 이익률(%)
-    ) {}
-
-    /** 일별 이익현황 (매출 - 매입) */
-    public record DailyProfitResponse(
-            String date,               // yyyy-MM-dd
-            BigDecimal revenue,
-            BigDecimal cost,
-            BigDecimal profit,
-            BigDecimal marginRate
-    ) {}
 }

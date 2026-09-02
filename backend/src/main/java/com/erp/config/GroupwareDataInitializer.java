@@ -2,7 +2,9 @@ package com.erp.config;
 
 import com.erp.groupware.domain.BoardPost;
 import com.erp.groupware.domain.Survey;
+import com.erp.groupware.domain.SurveyQuestion;
 import com.erp.groupware.domain.SurveyStatus;
+import com.erp.groupware.domain.enums.SurveyQuestionType;
 import com.erp.groupware.domain.SupplyItem;
 import com.erp.groupware.repository.BoardRepository;
 import com.erp.groupware.repository.SupplyRepository;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 최초 기동 시 그룹웨어(설문조사·공용품·게시판) 데모 데이터를 생성한다.
@@ -39,20 +42,56 @@ public class GroupwareDataInitializer implements CommandLineRunner {
         seedBoard();
     }
 
+    /**
+     * 데모 설문. 제목 단위로 확인하므로 여러 번 돌아도 안전하고, 예전에 문항 없이 만들어진
+     * 데모 설문에는 문항을 채워 넣는다 — 문항 없는 설문은 설문이 아니라서 화면 확인이 안 된다.
+     */
     private void seedSurveys() {
-        if (surveyRepository.count() > 0) {
-            return;
+        survey("2026 직원만족도조사", LocalDateTime.of(2026, 7, 31, 23, 59, 59), SurveyStatus.OPEN,
+                q(1, SurveyQuestionType.SCALE, "전반적인 직무 만족도는?", true),
+                q(2, SurveyQuestionType.SINGLE, "가장 개선이 필요한 것은?", true,
+                        "업무량", "보상", "성장기회", "소통", "근무환경"),
+                q(3, SurveyQuestionType.LONG_TEXT, "자유 의견", false));
+
+        survey("사내식당 메뉴조사", LocalDateTime.of(2026, 6, 10, 23, 59, 59), SurveyStatus.CLOSED,
+                q(1, SurveyQuestionType.MULTI, "먹고 싶은 메뉴를 모두 고르세요", true,
+                        "한식", "중식", "일식", "양식", "분식"),
+                q(2, SurveyQuestionType.SHORT_TEXT, "추가하고 싶은 메뉴", false));
+
+        survey("재택근무 선호도조사", LocalDateTime.of(2026, 7, 20, 23, 59, 59), SurveyStatus.OPEN,
+                q(1, SurveyQuestionType.SINGLE, "주당 희망 재택 일수", true,
+                        "0일", "1일", "2일", "3일", "5일"),
+                q(2, SurveyQuestionType.SINGLE_ETC, "재택근무의 가장 큰 걸림돌", false,
+                        "협업", "장비", "집중", "보안"));
+        log.info("데모 설문 3건 확인 (문항 포함)");
+    }
+
+    private void survey(String title, LocalDateTime endAt, SurveyStatus status, SurveyQuestion... questions) {
+        Survey s = surveyRepository.findAll().stream()
+                .filter(x -> title.equals(x.getTitle()))
+                .findFirst()
+                .orElse(null);
+        if (s == null) {
+            s = Survey.builder()
+                    .postNo(surveyRepository.maxPostNo() + 1)
+                    .title(title).endAt(endAt).status(status).createdBy("admin")
+                    .build();
+        } else if (!s.getQuestions().isEmpty()) {
+            return;   // 이미 문항이 있으면 손대지 않는다
         }
-        surveyRepository.save(Survey.builder()
-                .title("2026 직원만족도조사").startDate(LocalDate.of(2026, 6, 1)).endDate(LocalDate.of(2026, 7, 31))
-                .target(240).responses(186).status(SurveyStatus.OPEN).createdBy("admin").build());
-        surveyRepository.save(Survey.builder()
-                .title("사내식당 메뉴조사").startDate(LocalDate.of(2026, 5, 10)).endDate(LocalDate.of(2026, 6, 10))
-                .target(240).responses(240).status(SurveyStatus.CLOSED).createdBy("admin").build());
-        surveyRepository.save(Survey.builder()
-                .title("재택근무 선호도조사").startDate(LocalDate.of(2026, 6, 20)).endDate(LocalDate.of(2026, 7, 20))
-                .target(180).responses(92).status(SurveyStatus.OPEN).createdBy("admin").build());
-        log.info("데모 설문 3건 생성");
+        for (SurveyQuestion q : questions) s.addQuestion(q);
+        surveyRepository.save(s);
+    }
+
+    private SurveyQuestion q(int seq, SurveyQuestionType type, String content, boolean required, String... options) {
+        SurveyQuestion.SurveyQuestionBuilder b = SurveyQuestion.builder()
+                .seq(seq).type(type).content(content).required(required);
+        if (options.length > 0) b.option1(options[0]);
+        if (options.length > 1) b.option2(options[1]);
+        if (options.length > 2) b.option3(options[2]);
+        if (options.length > 3) b.option4(options[3]);
+        if (options.length > 4) b.option5(options[4]);
+        return b.build();
     }
 
     private void seedSupplies() {

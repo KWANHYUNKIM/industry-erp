@@ -11,7 +11,29 @@ import type { CustomFieldDef, CustomFieldType } from '../../api/types'
  */
 const TYPE_LABEL: Record<CustomFieldType, string> = { TEXT: '문자', NUMBER: '숫자', DATE: '일자', CODE: '코드' }
 // 대상 화면 목록(현재는 판매전표. 확장 시 추가)
-const ENTITY_TYPES = [{ key: 'SALES', label: '판매전표(판매입력 II)' }]
+/*
+ * 만들 수 있는 대상. <b>화면이 읽는 만큼 만들 수 있어야 한다.</b>
+ *
+ * <p>예전에는 [판매전표] 하나뿐이었다. 그런데 판매·구매 입력 화면은 이미 네 가지를 읽는다 —
+ * 전표 머리(SALES·PURCHASE)와 <b>격자 줄</b>(SALES_LINE·PURCHASE_LINE). 서버도 대상 이름을
+ * 가리지 않는다. 그래서 줄 추가항목은 <b>화면이 읽을 준비는 됐는데 만들 길이 없어</b>
+ * 아무도 못 쓰고 있었다. 읽는 만큼 열어 둔다.
+ */
+const ENTITY_TYPES = [
+  { key: 'SALES', label: '판매전표 머리(판매입력 II)' },
+  { key: 'SALES_LINE', label: '판매전표 줄(격자 열)' },
+  { key: 'PURCHASE', label: '구매전표 머리(구매입력 II)' },
+  { key: 'PURCHASE_LINE', label: '구매전표 줄(격자 열)' },
+  /*
+   * <b>마스터에도 추가항목을 붙인다.</b> 원본 품목등록·거래처등록·사원등록에는
+   * [문자형추가항목1~6]·[숫자형추가항목1~10] 이 <b>칸 이름째로 박혀</b> 있다(사본 실측).
+   * 우리는 반대로 간다 — 여기서 <b>필요한 만큼 이름을 지어</b> 정의하면 그 마스터 수정
+   * 화면에 그대로 뜬다. 정의가 없으면 아무것도 안 그린다.
+   */
+  { key: 'ITEM', label: '품목등록' },
+  { key: 'PARTNER', label: '거래처등록' },
+  { key: 'EMPLOYEE', label: '사원등록' },
+]
 const emptyForm = { fieldKey: '', label: '', fieldType: 'TEXT' as CustomFieldType, options: '', required: false, sortOrder: '0' }
 
 export default function CustomFieldPage() {
@@ -119,7 +141,7 @@ export default function CustomFieldPage() {
       <table className="w-full text-left">
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 60 }}>정렬</th>
+          <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
           <th style={{ width: 140 }}>필드 키</th>
           <th>라벨</th>
           <th style={{ width: 70 }}>형식</th>
@@ -132,7 +154,7 @@ export default function CustomFieldPage() {
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>정의된 사용자정의필드가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((d) => (
             <tr key={d.id} style={{ opacity: d.active ? 1 : 0.5 }}>
               <td></td>

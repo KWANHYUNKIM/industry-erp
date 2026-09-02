@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const STATUS_TABS = ['전체', '작성', '발행', '전송', '승인'] as const
 type Tab = (typeof STATUS_TABS)[number]
@@ -68,31 +72,42 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
   const totals = shown.reduce((a, r) => ({ supply: a.supply + r.supplyAmount, vat: a.vat + r.vatAmount, total: a.total + r.totalAmount }), { supply: 0, vat: 0, total: 0 })
 
+  const reset = () => { setFrom(firstOfYear()); setTo(today()) }
+
   return (
-    <EcListShell title={title} actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>
-          {type === 'SALES' ? '판매조회 화면에서 발행합니다.' : '구매조회 화면에서 발행합니다.'}
-        </span>
-      </div>
+    <EcListShell
+      title={title}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      />
+
+      <p style={{ marginBottom: 8, fontSize: 12, color: '#9aa1ab' }}>
+        {type === 'SALES' ? '판매조회 화면에서 발행합니다.' : '구매조회 화면에서 발행합니다.'}
+      </p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
         {STATUS_TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent',
-            color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400,
-            borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({tabCount(t)})</button>
+          <button
+            key={t} type="button" onClick={() => setTab(t)}
+            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+          >
+            {t} ({tabCount(t)})
+          </button>
         ))}
       </div>
 
@@ -107,12 +122,12 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>세금계산서가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{r.invoiceNo}</td>
-              <td>{r.issueDate}</td>
+              <td>{dateText(r.issueDate)}</td>
               <td>{r.partnerName}</td>
               <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{r.sourceDocNo}</td>
               <td style={{ textAlign: 'right' }}>{won(r.supplyAmount)}</td>

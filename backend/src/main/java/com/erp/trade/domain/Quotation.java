@@ -1,5 +1,7 @@
 package com.erp.trade.domain;
 
+import com.erp.inventory.domain.Warehouse;
+import com.erp.inventory.domain.Project;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,6 +42,20 @@ public class Quotation extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner partner;
+
+    /**
+     * 원본 견적서의 [창고]. 판매전표는 이미 물고 있는데 견적만 없어서,
+     * 견적 → 수주 → 판매로 이어질 때 <b>맨 앞에서 정한 창고가 중간에 끊겼다.</b>
+     * 견적 시점에는 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    /** 원본 견적서의 [프로젝트]. 위와 같은 까닭으로 nullable 이다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -1,11 +1,14 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['계좌간이동', '법인카드 대금결제'] as const
@@ -17,6 +20,12 @@ type Tab = (typeof TABS)[number]
  *   카드대금 결제 — 카드사용 때 잡아 둔 미지급금을 결제계좌에서 갚는다.
  */
 export default function CashDetailPage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>비워</b> 둔다: 카드결제는 <b>미결제 건이 오래된 것도 살아 있다</b> — 잘라 놓으면 아직 안 낸 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [tab, setTab] = useState<Tab>('계좌간이동')
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [cards, setCards] = useState<CreditCardRow[]>([])
@@ -34,8 +43,8 @@ export default function CashDetailPage() {
       const [b, c, t, p] = await Promise.all([
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<CreditCardRow[]>('/bank-cards/cards'),
-        api.get<AccountTransfer[]>('/cash-details/account-transfers'),
-        api.get<CardPayment[]>('/cash-details/card-payments'),
+        api.get<AccountTransfer[]>('/cash-details/account-transfers', { params: { from: pFrom || undefined, to: pTo || undefined } }),
+        api.get<CardPayment[]>('/cash-details/card-payments', { params: { from: pFrom || undefined, to: pTo || undefined } }),
       ])
       setBanks(b.data)
       setCards(c.data)
@@ -48,7 +57,7 @@ export default function CashDetailPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   return (
     <EcListShell
@@ -65,6 +74,16 @@ export default function CashDetailPage() {
           }}>{t} ({t === '계좌간이동' ? transfers.length : payments.length})</button>
         ))}
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
@@ -118,6 +137,10 @@ function TransferTab({ banks, rows, onError, onDone }: {
     }
   }
 
+
+  /* [일자] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 표가 둘이라 정렬도 표마다 따로 든다. */
+  const sort = useTableSort(rows, { 일자: (t) => t.transferDate })
+
   return (
     <>
       <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
@@ -158,7 +181,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>이동번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 200 }}>출금 계좌</th>
             <th style={{ width: 200 }}>입금 계좌</th>
             <th style={{ width: 130, textAlign: 'right' }}>금액</th>
@@ -168,12 +191,12 @@ function TransferTab({ banks, rows, onError, onDone }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>계좌간이동 내역이 없습니다.</td></tr>
-          ) : rows.map((t, i) => (
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.transferNo}</td>
-              <td>{t.transferDate}</td>
+              <td>{dateText(t.transferDate)}</td>
               <td style={{ color: '#c60a2e' }}>{t.fromAccountName}</td>
               <td style={{ color: '#1c7c3c' }}>{t.toAccountName}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
@@ -239,6 +262,10 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
     }
   }
 
+
+  /* [결제일] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 결제일: (p) => p.paymentDate })
+
   return (
     <>
       <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
@@ -288,7 +315,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
               <tr key={u.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{u.usageNo}</td>
-                <td>{u.usageDate}</td>
+                <td>{dateText(u.usageDate)}</td>
                 <td style={{ fontWeight: 600 }}>{u.merchant}</td>
                 <td style={{ color: '#5a626e' }}>{u.expenseAccountName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(u.totalAmount)}</td>
@@ -310,7 +337,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>결제번호</th>
-            <th style={{ width: 100 }}>결제일 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('결제일')}>결제일 {sort.mark('결제일')}</th>
             <th style={{ width: 180 }}>카드</th>
             <th style={{ width: 200 }}>결제계좌</th>
             <th style={{ width: 70, textAlign: 'center' }}>건수</th>
@@ -320,15 +347,15 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>결제 내역이 없습니다.</td></tr>
-          ) : rows.map((p, i) => (
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((p, i) => (
             <Fragment key={p.id}>
               <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === p.id ? '▾ ' : '▸ '}{p.paymentNo}
                 </td>
-                <td>{p.paymentDate}</td>
+                <td>{dateText(p.paymentDate)}</td>
                 <td>{p.cardCompany} {p.cardName}</td>
                 <td style={{ color: '#5a626e' }}>{p.bankAccountName}</td>
                 <td style={{ textAlign: 'center' }}>{p.lines.length}건</td>
@@ -354,7 +381,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                           <tr key={l.cardUsageId}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.usageNo}</td>
-                            <td>{l.usageDate}</td>
+                            <td>{dateText(l.usageDate)}</td>
                             <td>{l.merchant}</td>
                             <td style={{ color: '#5a626e' }}>{l.expenseAccountName}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.amount)}</td>

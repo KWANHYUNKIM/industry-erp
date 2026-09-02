@@ -37,6 +37,40 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "process_id")
     private ProductionProcess processMaster;
 
+    /**
+     * 투입자원 — 이 작업에 쓴 설비. 원본 작업내역입력 그리드의 [투입자원] 열.
+     *
+     * <p>자원등록의 [대상작업](공정)과 짝이다. 설비를 적어 두면 "이 공정을 어느 설비로
+     * 얼마나 돌렸나" 를 되짚을 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resource_id")
+    private ProductionResource resource;
+
+    /**
+     * 생산공장 — 이 작업이 이뤄진 곳. 원본 작업내역입력의 머리 항목이고
+     * 작업내역조회·작업내역현황 두 화면의 열이기도 하다.
+     *
+     * <p>창고 마스터의 [구분]이 공장인 행을 가리킨다. 안 정하면 null 이다 —
+     * 예전에 적어 둔 작업내역은 어느 공장인지 알 길이 없고, 공장을 안 쓰는 회사도 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private com.erp.inventory.domain.Warehouse warehouse;
+
+    /**
+     * 원본 작업내역입력 그리드의 <b>[작업품목]</b> — 이 작업이 실제로 다루는 품목.
+     *
+     * <p><b>생산품목과 다르다.</b> 작업지시서의 생산품목이 AQD 여도 그 안의 한 작업은
+     * 'AQD 몸체' 를 다룬다. 우리는 그 자리에 공정명을 대신 넣어 화면에 '작업품목(공정)' 이라고
+     * 적어 두고 있었다 — 품목별로 작업량을 셀 수가 없었다.
+     *
+     * <p>안 정할 수 있다. 예전에 적은 작업내역에는 이 값이 없다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_item_id")
+    private com.erp.inventory.domain.Item workItem;
+
     /** 작업자 */
     @Column(length = 50)
     private String worker;
@@ -61,4 +95,11 @@ public class WorkResult extends BaseTimeEntity {
 
     @Column(length = 300)
     private String note;
+
+    /**
+     * 귀속 프로젝트. 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
 }

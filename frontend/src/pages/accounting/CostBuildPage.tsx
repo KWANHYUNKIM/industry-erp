@@ -1,9 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import ProcessExpenseModal from './ProcessExpenseModal'
 
-/** 회계 > 원가생성/수정 (실제 연동: /api/costs) */
+/**
+ * 회계 > 원가생성/수정.
+ *
+ * <p>원본(이카운트)의 버튼 묶음 실측(사본): [사전작업] 노무비/경비등록 ·
+ * [원가계산] 표준원가생성 · 생성 · 수정 · [원가현황] 조회 · 수량비교 · 전월금액비교 ·
+ * [기타] 삭제 · 회계반영 · 이력.
+ *
+ * <p>원본 조건 실측(사본): 기준년월 · 원가계산방법 · <b>[계산기준] 선입선출법 · 총평균법</b> ·
+ * [기타] 기말금액재계산.
+ *
+ * <p>우리 표준원가는 자재 단가를 늘 <b>최종매입가</b> 하나로만 잡았다. 그러면 마지막 한 번의
+ * 거래에 휘둘린다 — 같은 자재를 100개는 1,000원에, 마지막 1개만 5,000원에 샀다면
+ * 표준원가가 5배로 뛴다. [계산기준]에 총평균법을 두어 그 달 전체(금액 합 ÷ 수량 합)로 잴 수 있게 했다.
+ *
+ * <p>선입선출법은 못 한다. 입고 레이어(어느 입고분이 얼마에 들어와 아직 남았나)를 남기지 않아
+ * 계산할 근거가 없다 — 일별재고현황·이익현황에서도 같은 이유로 빠져 있다.
+ * [기말금액재계산]도 그 레이어가 있어야 해서 아직이다.
+ *
+ * <p>핵심은 <b>표준원가생성과 원가계산(생성)이 다른 버튼</b>이라는 것이다.
+ * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록에
+ * 적힌 실제 발생액에서 나온다. 우리는 표준만 있었고 실제원가는 사람이 손으로 넣어야 했다.
+ */
 interface Item { id: number; code: string; name: string }
 interface Cost {
   id: number
@@ -21,20 +45,35 @@ interface Cost {
   actualTotal: number
 }
 
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const emptyForm = () => ({
   itemId: '', period: thisMonth(),
   materialCost: '', laborCost: '', overheadCost: '',
   actualMaterial: '', actualLabor: '', actualOverhead: '',
 })
 
+/**
+ * 원본 [계산기준]. 선입선출법은 입고 레이어가 없어 못 한다 —
+ * 고를 수 있게 두면 눌렀을 때 아무 일이 없거나 거짓 숫자가 나온다.
+ */
+const BASES = ['최종매입가', '총평균법'] as const
+type Basis = typeof BASES[number]
+
 export default function CostBuildPage() {
   const [rows, setRows] = useState<Cost[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [keyword, setKeyword] = useState('')
+  /** 원본 [계산기준]. 표준원가생성이 자재 단가를 어떻게 잴지 정한다. */
+  /*
+   * 원본 원가생성 조건 차례의 맨 앞 <b>[기준년월]</b>. 원가는 달마다 새로 잡히는데
+   * 목록이 <b>모든 달을 한꺼번에</b> 보여 줘서, 이번 달 원가만 보려 해도 눈으로 골라야 했다.
+   */
+  const [periodCond, setPeriodCond] = useState('')
+  const [basis, setBasis] = useState<Basis>('최종매입가')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [checkOpen, setCheckOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm())
 
@@ -111,22 +150,90 @@ export default function CostBuildPage() {
     const period = window.prompt('표준원가를 자동 생성할 기간을 입력하세요 (예: 2026-06)', thisMonth())
     if (!period) return
     try {
-      const res = await api.post<Cost[]>(`/costs/build?period=${encodeURIComponent(period)}`)
-      alert(`${res.data.length}건의 표준원가를 생성했습니다.`)
+      const res = await api.post<Cost[]>(
+        `/costs/build?period=${encodeURIComponent(period)}&basis=${basis === '총평균법' ? 'WEIGHTED_AVG' : 'LAST_PURCHASE'}`)
+      alert(`${res.data.length}건의 표준원가를 ${basis} 으로 생성했습니다.`)
       load()
     } catch (err) {
       alert(extractErrorMessage(err))
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
+  const shown = rows
+    .filter((r) => !periodCond || r.period === periodCond)
+    .filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
+  
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
   const editItemName = editId ? rows.find((r) => r.id === editId)?.itemName : ''
+
+  /** 사전작업(노무비/경비등록)을 여는 기준년월. 실제원가 계산이 이 달을 본다. */
+  const [expensePeriod, setExpensePeriod] = useState<string | null>(null)
+
+  /**
+   * 실제원가 계산 — 원본의 [생성].
+   * 그 달 생산실적(실제 투입 자재)과 노무비/경비등록(공정별 실제 발생액)에서 낸다.
+   */
+  async function calcActual() {
+    const period = window.prompt('실제원가를 계산할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    if (!period) return
+    try {
+      const res = await api.post<Cost[]>(`/costs/actual?period=${encodeURIComponent(period)}`)
+      alert(res.data.length === 0
+        ? `${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`
+        : `${res.data.length}건의 실제원가를 계산했습니다.`)
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
 
   return (
     <EcListShell title="원가생성/수정" search={keyword} onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '원가등록(F2)'} onNew={() => (showForm ? setShowForm(false) : openNew())}
-      actions={[{ label: '표준원가 자동생성', onClick: build }, { label: '새로고침', onClick: load }, { label: 'Excel' }]}>
+      actions={[
+        { label: '노무비/경비등록', onClick: () => setExpensePeriod(window.prompt('기준년월 (예: 2026-06)', thisMonth()) || null) },
+        /*
+         * 원본에도 같은 이름의 버튼이 있다. 원가생성은 <b>되돌리기 어려운</b> 일이라
+         * 무엇이 갖춰져 있어야 하는지 누르기 전에 볼 자리가 필요하다.
+         * 원본 안내문을 옮긴 것이 아니라 우리 생성 규칙을 적은 것이다.
+         */
+        { label: '표준원가생성', onClick: build },
+        { label: '실제원가 계산', onClick: calcActual },
+        { label: '새로고침', onClick: load },
+        /*
+         * [인쇄] — '원가생성은 실행 화면이라 찍을 표가 없다' 고 적고 뺐는데,
+         * <b>이 화면에는 원가 표가 있다</b>(품목·기간·재료비·노무비·경비·표준원가).
+         * 셸이 그려진 표를 그대로 찍어 주므로 붙이기만 하면 된다 —
+         * 원가를 뽑아 놓고 종이로 남길 길이 없었다.
+         */
+        { label: '인쇄' },
+        // 원본 차례: … Excel · 원가생성전 점검사항 (사본 실측)
+        { label: 'Excel' },
+        { label: '원가생성전 점검사항', onClick: () => setCheckOpen(true) },
+      ]}>
+      {/* 원본 [계산기준] — 표준원가생성이 자재 단가를 어떻게 잴지. */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준년월">
+          <input type="month" className="ec-input" value={periodCond}
+                 onChange={(e) => setPeriodCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="계산기준">
+          <div className="ec-pills">
+            {BASES.map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                      onClick={() => setBasis(b)}>{b}</button>
+            ))}
+          </div>
+          <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
+            총평균법은 그 달 매입 전체(금액 합 ÷ 수량 합)로 잽니다.
+            선입선출법은 입고 레이어를 남기지 않아 아직 못 합니다.
+          </span>
+        </EcCond>
+      </ul>
+
+      {expensePeriod && (
+        <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
+      )}
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
@@ -187,7 +294,7 @@ export default function CostBuildPage() {
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -206,6 +313,19 @@ export default function CostBuildPage() {
           ))}
         </tbody>
       </table>
+      <Modal open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
+        <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
+          표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
+          원가가 0 이거나 일부 품목만 생깁니다.
+          <ol style={{ margin: '10px 0 0 20px', listStyleType: 'decimal' }}>
+            <li>완제품에 <b>BOM</b>이 있어야 합니다 — 자재비는 BOM 을 펼쳐 계산합니다.</li>
+            <li>자재의 <b>구매단가</b>가 있어야 합니다(품목등록 또는 그 달의 매입 전표).</li>
+            <li>노무비·경비는 [노무비/경비등록]에서 그 기준월로 넣어 둡니다 —
+                안 넣으면 재료비만으로 원가가 잡힙니다.</li>
+            <li>이미 만든 기준월을 다시 만들면 <b>그 달 값이 덮어써집니다.</b></li>
+          </ol>
+        </div>
+      )}</Modal>
     </EcListShell>
   )
 }

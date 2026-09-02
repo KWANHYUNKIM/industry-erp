@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AllocationRow, Item, LocationStock, Warehouse, WarehouseLocation, WmsOverview } from '../../api/types'
@@ -119,7 +120,7 @@ export default function WmsPage() {
             </thead>
             <tbody>
               {allocations.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>재고가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : allocations.map((a: AllocationRow, i) => (
                 <tr key={`${a.itemId}-${a.warehouseId}`}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -183,16 +184,16 @@ export default function WmsPage() {
           </thead>
           <tbody>
             {locations.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>로케이션이 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : locations.map((l, i) => (
               <tr key={l.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{l.warehouseName}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{l.code}</td>
-                <td>{l.zone ?? '-'}</td>
-                <td>{l.rack ?? '-'}</td>
-                <td>{l.level ?? '-'}</td>
-                <td style={{ color: '#5a626e' }}>{l.description ?? '-'}</td>
+                <td>{l.zone ?? ''}</td>
+                <td>{l.rack ?? ''}</td>
+                <td>{l.level ?? ''}</td>
+                <td style={{ color: '#5a626e' }}>{l.description ?? ''}</td>
                 <td style={{ textAlign: 'center', color: l.active ? '#1c7c3c' : '#8a929c' }}>{l.active ? '사용' : '미사용'}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => removeLocation(l)}>×</button>
@@ -364,10 +365,9 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
           <tr>
             <th style={{ width: 110, background: '#f5f7fa' }}>품목<span style={{ color: '#c60a2e' }}>*</span></th>
             <td>
-              <select className="ec-input" value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: 240 }}>
-                <option value="">품목 선택</option>
-                {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-              </select>
+              <CodePickerField label="품목" hideLabel width={240} placeholder="품목 선택" emptyLabel="선택 해제"
+                               value={itemId} onChange={setItemId}
+                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
               {hint && <div style={{ marginTop: 4, fontSize: 11.5, color: '#2b5b91' }}>{hint}</div>}
             </td>
           </tr>

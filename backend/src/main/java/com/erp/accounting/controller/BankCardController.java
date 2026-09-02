@@ -57,8 +57,19 @@ public class BankCardController {
     }
 
     @GetMapping("/transactions")
-    public List<BankTxnResponse> transactions() {
-        return service.findTxns();
+    public com.erp.accounting.dto.BankCardDtos.BankTxnListResponse transactions(
+            /* 원본 [오천건이상조회] — 문턱 위로는 눌러야 간다. */
+            @RequestParam(defaultValue = "false") boolean all,
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findTxns(all, from, to);
     }
 
     @PostMapping("/transactions")
@@ -68,8 +79,17 @@ public class BankCardController {
     }
 
     @GetMapping("/usages")
-    public List<CardUsageResponse> usages() {
-        return service.findUsages();
+    public List<CardUsageResponse> usages(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findUsages(from, to);
     }
 
     @PostMapping("/usages")

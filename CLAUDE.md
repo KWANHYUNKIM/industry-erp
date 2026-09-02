@@ -91,15 +91,19 @@ controller  →  service  →  repository  →  domain
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
 | `trade` | `inventory` |
-| `production` | `inventory` |
+| `production` | `inventory`, `trade` (작업지시서의 납품처가 `PartnerService` 를 참조) |
 | `quality` | `inventory`, `trade` |
-| `accounting` | `inventory`, `trade` |
+| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
 
 - `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
   (`trade` → `groupware`) `groupware → trade` 와 맞물려 순환이 되므로 기초 마스터(`inventory`)로 옮겼습니다.
   프로젝트별 손익은 이 연결을 집계합니다. 진척관리 화면은 그대로 그룹웨어에 있습니다.
+- **`production` 은 `hr` 을 참조할 수 없습니다.** `hr → accounting → production` 이 이미 있어서
+  맞물리면 순환이 됩니다. 작업지시서의 [담당자]가 그래서 `@ManyToOne` 이 아니라 평범한 `Long employeeId` 입니다.
+  `inventory.Warehouse` 의 공정·외주거래처, `auth.User` 의 사원도 같은 이유로 id 만 듭니다.
+  이름은 화면이 각자 목록에서 붙입니다.
 - `inventory`와 `auth`는 **아무 모듈에도 의존하지 않는 기반층입니다.**
   여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
 - `common`은 모두가 의존하고 아무것도 의존하지 않습니다.
@@ -254,6 +258,44 @@ docker compose down -v && docker compose up -d
 
 새 빈 DB에서는 `V1`이 실제로 실행되어 전체 스키마를 만들고, 이어서 `V2`부터 순서대로 적용됩니다.
 
+### 7.4 스키마를 바꾸면 **본사와 테넌트 양쪽에** 넣습니다
+
+회사별 스키마 멀티테넌시라 마이그레이션 위치가 둘입니다.
+
+| 위치 | 대상 | 언제 실행되나 |
+|------|------|----------------|
+| `db/migration/V*.sql` | 본사(`public`) | Spring Boot 기동 시 Flyway 자동 |
+| `db/tenant/V*.sql` | 회사별 스키마(`co_0002` …) | 회사를 만들 때 + **기동할 때마다** `TenantMigrationRunner` |
+
+`ddl-auto: validate` 는 **기본 스키마만** 검사합니다. 테넌트 스키마가 뒤처져도 앱은 멀쩡히 뜨고,
+그 회사로 로그인해 해당 화면을 열 때 `column does not exist` 로 터집니다.
+실제로 이 규칙이 없어서 테넌트에 **테이블 15개·컬럼 25개**가 빠진 채로 굴러갔습니다
+(`short_messages` 통째, `schedule_events.location/attendees`, `sales_lines.lot_no` …).
+`db/tenant/V2__catch_up_with_public.sql` 이 그때 밀린 것을 한 번에 따라잡습니다.
+
+- **`db/tenant/V1__tenant_baseline.sql` 은 고치지 마세요.** 이미 만들어진 테넌트에 '적용됨'으로
+  박혀 있어서, 고치면 체크섬이 어긋나 그 회사의 마이그레이션이 통째로 멈춥니다.
+  과거에 이 파일을 여러 번 고쳐서 지금은 `TenantMigrationRunner` 가 `repair()` 로 한 번
+  맞춰 주고 있습니다. 새 변경은 `V2`, `V3` … 으로 추가하세요.
+- **어긋났는지 한 번에 확인:**
+  ```bash
+  node qa/schema-check.mjs
+  ```
+  자바 enum 상수 vs CHECK 제약 허용값, 본사 vs 회사 스키마의 테이블·컬럼·CHECK 를 대조한다.
+  `ddl-auto: validate` 는 기본 스키마만 보고 CHECK 내용은 아예 안 보기 때문에,
+  enum 에 값을 하나 늘리고 마이그레이션을 잊으면 기동은 멀쩡하고 그 값을 처음 저장할 때
+  23514 로 터진다. 그걸 미리 잡는다.
+
+- 직접 SQL 로 확인하려면:
+  ```sql
+  select p.table_name, p.column_name from information_schema.columns p
+  left join information_schema.columns t
+    on t.table_schema='co_0002' and t.table_name=p.table_name and t.column_name=p.column_name
+  where p.table_schema='public' and t.column_name is null
+    and p.table_name in (select table_name from information_schema.tables where table_schema='co_0002');
+  ```
+  `companies`(테넌트 레지스트리)는 본사에만 있는 것이 정상입니다.
+
 ---
 
 ## 8. DTO
@@ -282,6 +324,46 @@ rm -rf target && ./mvnw -o compile     # 전체 재컴파일
 **증분 빌드가 유령 오류를 냅니다.** `target/`에 옛 클래스가 남아 있으면
 존재하는 클래스를 `cannot find symbol`이라고 보고합니다. 설명 안 되는 컴파일 오류를 만나면
 먼저 `rm -rf target`을 하세요.
+
+### 프론트엔드 타입체크 — `npx tsc --noEmit` 을 쓰지 마세요
+
+```bash
+cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
+```
+
+순수 로직은 Node 내장 러너로 못 박습니다(의존성 없음):
+
+```bash
+cd frontend && npm run test:unit    # node --test, src/**/*.test.ts
+```
+
+기간 계산(`components/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
+정하는데 여기가 하루 밀리면 **모든 현황 화면이 조용히 틀린 기간을 봅니다.**
+테스트 파일은 `tsconfig.app.json` 의 `exclude` 로 앱 빌드에서 빼 뒀습니다(node 타입이 없어
+넣어 두면 typecheck·build 가 깨집니다).
+
+타입체크가 통과해도 화면에서 어긋나는 것들은 따로 봅니다:
+
+```bash
+node qa/ui-check.mjs     # 표 헤더 ↔ 합계행 열 수, 메뉴 ↔ 라우트
+node qa/dto-check.mjs    # 응답에는 있는데 등록·수정 요청에 빠진 필드
+```
+
+`dto-check` 는 **볼 수는 있는데 정할 수 없는 값**을 잡습니다. 엔티티에 필드를 만들고 응답 DTO 에도
+실었는데 `Create…Request`·`Update…Request` 에만 빠뜨리면, 화면이 값을 보내도 **서버가 조용히 버립니다.**
+record 에 없는 필드는 JSON 에서 그냥 무시되므로 컴파일도 타입체크도 통과합니다.
+같은 실수를 세 번 했습니다 — 거래처그룹(채권/채무현황의 그룹 소계가 늘 '(미지정)' 하나였음),
+판매단가그룹·구매단가그룹(특별단가의 '그룹별' 이 걸릴 일이 없었음). 셋 다 사람이 우연히 발견했습니다.
+서버가 매기는 값이면 `SERVER_OWNED` 에 **이유와 함께** 넣으세요.
+
+합계행 `colSpan` 을 잘못 잡으면 합계 칸이 밀려 엉뚱한 열 아래 붙는데 타입체크는 아무 말도 안 합니다.
+이 저장소에서 가장 자주 낸 실수라 못 박아 뒀습니다. 메뉴가 없는 경로를 가리키면 눌렀을 때
+빈 화면이 뜨는 것도 같이 봅니다.
+
+`frontend/tsconfig.json` 은 `"files": []` + `references` 만 있는 **솔루션 스타일 설정**입니다.
+그래서 `npx tsc --noEmit` 은 **아무 파일도 검사하지 않고 조용히 성공합니다.** 통과했다고 안심하면
+정의되지 않은 식별자 같은 오류가 그대로 빠져나가 런타임에서 화면이 하얗게 뜹니다(실제로 겪었습니다).
+반드시 `npm run typecheck` 로 확인하세요.
 
 ---
 

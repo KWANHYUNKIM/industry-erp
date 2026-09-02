@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -18,13 +21,31 @@ const COLOR: Record<AsStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; symptom: string | null; charge: string | null
+  warehouseName: string | null; projectName: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
 }
 
 interface Filters {
-  dateFrom: string; dateTo: string; partner: string; item: string; charge: string; status: '' | AsStatus
+  dateFrom: string; dateTo: string
+  /*
+   * 원본 A/S수리현황(E040611)의 <b>[기준일자]</b> — 그 화면은 수리한 날로 거르고
+   * [접수일자]를 따로 둔다(2026-09-01 실측, 접수일자 기본은 [사용안함]).
+   * 우리는 한 화면이 접수현황·수리현황을 겸하는데 <b>접수일로만</b> 걸러,
+   * 이번 달에 <b>고친</b> 건이 몇 건인지를 볼 수가 없었다 — 접수는 지난달인데
+   * 수리가 이번 달인 건이 통째로 빠진다.
+   */
+  doneFrom: string; doneTo: string
+  warehouse: string; project: string
+  partner: string; item: string; charge: string; status: '' | AsStatus
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', partner: '', item: '', charge: '', status: '' }
+/*
+ * 원본 A/S접수현황은 <b>금월</b>을 보고 열리고, 기간 단추에 <b>직전분기·직전반기</b>가
+ * 더 있다(사본 실측). A/S 는 분기·반기로 접수량을 견주는 일이 흔해서다.
+ * 우리는 기간을 비워 두고 단추도 없어서, 열면 접수가 통째로 쏟아졌다.
+ */
+const init = periodOf('금월(~오늘)')!
+
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, doneFrom: '', doneTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
 
 /** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
 function daysBetween(from: string, to: string | null): number | null {
@@ -47,7 +68,16 @@ export default function AsStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<AsRow[]>('/as-requests')
+      /*
+       * 원본 A/S수리현황(E040611)의 주 조건은 <b>수리한 날</b>이다 — 그것을 주면 서버가
+       * 그 축으로 좁혀 준다(안 고친 건은 그 날이 없어 빠진다). 안 주면 예전처럼 접수일로 건다.
+       */
+      const res = await api.get<AsRow[]>('/as-requests', {
+        params: {
+          from: filters.dateFrom || undefined, to: filters.dateTo || undefined,
+          doneFrom: filters.doneFrom || undefined, doneTo: filters.doneTo || undefined,
+        },
+      })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -55,7 +85,11 @@ export default function AsStatusPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
+   * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo, filters.doneFrom, filters.doneTo])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -64,8 +98,16 @@ export default function AsStatusPage() {
       if (kw && !r.partnerName.includes(kw) && !r.itemName.includes(kw) && !r.asNo.includes(kw)) return false
       if (f.dateFrom && r.receiptDate < f.dateFrom) return false
       if (f.dateTo && r.receiptDate > f.dateTo) return false
+      /*
+       * 원본 A/S수리현황의 [기준일자] — 수리한 날. 이제 <b>서버가</b> 그 축으로 좁혀 주지만,
+       * 받아 온 뒤 조건을 다시 만져도 표가 맞도록 화면에서도 같은 잣대로 한 번 더 거른다.
+       */
+      if (f.doneFrom && (r.doneDate == null || r.doneDate < f.doneFrom)) return false
+      if (f.doneTo && (r.doneDate == null || r.doneDate > f.doneTo)) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
+      if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.charge && !(r.charge ?? '').includes(f.charge)) return false
       if (f.status && r.status !== f.status) return false
       return true
@@ -88,6 +130,7 @@ export default function AsStatusPage() {
   const activeCount = useMemo(() => {
     let n = 0
     if (filters.dateFrom || filters.dateTo) n++
+    if (filters.doneFrom || filters.doneTo) n++
     if (filters.partner) n++
     if (filters.item) n++
     if (filters.charge) n++
@@ -99,13 +142,19 @@ export default function AsStatusPage() {
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    접수일: (r) => r.receiptDate,
+  })
+
   return (
     <EcListShell
       title="A/S현황"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -140,7 +189,7 @@ export default function AsStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>접수일 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th>
             <th>접수번호</th>
             <th>거래처</th>
             <th>품목</th>
@@ -159,23 +208,23 @@ export default function AsStatusPage() {
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
+          ) : sort.sorted.map((r, i) => {
             const days = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.receiptDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.receiptDate)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || '-'}</td>
-                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || '-'}</td>
+                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
+                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{r.doneDate ?? '-'}</td>
+                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || ''}</td>
                 <td style={{ textAlign: 'right', color: days === null ? '#c5cbd3' : '#3c4553' }}>{days === null ? '-' : `${days}일`}</td>
-                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || '-'}</td>
+                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
               </tr>
             )
           })}
@@ -213,6 +262,51 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
+              onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+          </span>
+      </div>
+      {/*
+        원본 A/S수리현황(E040611)의 <b>[기준일자]</b> 자리다 — 그 화면은 <b>수리한 날</b>로
+        거르고 접수일자를 따로 둔다. 우리는 한 화면이 접수현황·수리현황을 겸하면서
+        접수일 하나뿐이라, 이번 달에 <b>고친</b> 건을 볼 수가 없었다.
+        (원본은 이쪽이 주 조건이고 접수일자가 보조인데, 우리는 서버가 접수일로 기간을 받아
+         차례가 반대다. 접수일로 좁힌 안에서 수리일을 다시 거른다.)
+      */}
+      <div style={rowStyle}>
+        <span style={label}>수리일자</span>
+        <input type="date" className="ec-input" value={draft.doneFrom}
+          onChange={(e) => onChange({ doneFrom: e.target.value })} style={{ width: 150 }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input type="date" className="ec-input" value={draft.doneTo}
+          onChange={(e) => onChange({ doneTo: e.target.value })} style={{ width: 150 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 A/S접수현황 차례: <b>창고 · 프로젝트</b> · 담당자 · 접수진행상태 · 거래처 · 품목 */}
+        <span style={label}>창고</span>
+        <input className="ec-input" placeholder="창고명" value={draft.warehouse}
+          onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>프로젝트</span>
+        <input className="ec-input" placeholder="프로젝트명" value={draft.project}
+          onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 A/S접수현황의 이름은 [담당]이 아니라 <b>[담당자]</b> 다(사본 실측). */}
+        <span style={label}>담당자</span>
+        <input className="ec-input" placeholder="담당자명 일부" value={draft.charge}
+          onChange={(e) => onChange({ charge: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        {/* 원본 A/S접수현황의 이름은 [상태]가 아니라 <b>[접수진행상태]</b> 다(사본 실측). */}
+        <span style={label}>접수진행상태</span>
+        <select className="ec-input" value={draft.status}
+          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
+        </select>
       </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>
@@ -223,19 +317,6 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={rowStyle}>
-        <span style={label}>담당</span>
-        <input className="ec-input" placeholder="담당자명 일부" value={draft.charge}
-          onChange={(e) => onChange({ charge: e.target.value })} style={{ width: 220 }} />
-      </div>
-      <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>상태</span>
-        <select className="ec-input" value={draft.status}
-          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
-        </select>
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <button className="ec-btn" onClick={onReset}>초기화</button>

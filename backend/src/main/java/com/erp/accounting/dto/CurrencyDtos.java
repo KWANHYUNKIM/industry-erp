@@ -2,6 +2,7 @@ package com.erp.accounting.dto;
 
 import com.erp.accounting.domain.Currency;
 import com.erp.accounting.domain.ExchangeRate;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -14,8 +15,11 @@ public final class CurrencyDtos {
     private CurrencyDtos() {}
 
     public record CurrencyRequest(
+            @Size(max = 3, message = "통화코드는 3자까지 넣을 수 있습니다.")
             @NotBlank(message = "통화코드를 입력하세요.") String code,
+            @Size(max = 50, message = "통화명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "통화명을 입력하세요.") String name,
+            @Size(max = 5, message = "입력한 글자가 너무 깁니다. 5자까지 넣을 수 있습니다.")
             String symbol,
             /** 고시 단위. 엔화처럼 100단위로 고시하면 100 */
             @Positive(message = "고시 단위는 0보다 커야 합니다.") Integer unit,
@@ -38,7 +42,7 @@ public final class CurrencyDtos {
     public record RateRequest(
             @NotNull(message = "통화를 선택하세요.") Long currencyId,
             @NotNull(message = "고시일자를 입력하세요.") LocalDate rateDate,
-            @NotNull @Positive(message = "환율은 0보다 커야 합니다.") BigDecimal rate
+            @NotNull(message = "환율을 입력하세요.") @Positive(message = "환율은 0보다 커야 합니다.") BigDecimal rate
     ) {}
 
     public record RateResponse(

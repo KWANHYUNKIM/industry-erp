@@ -14,8 +14,10 @@ import com.erp.trade.dto.SalesOrderDtos.CreateSalesOrderRequest;
 import com.erp.trade.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.trade.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.QuotationRepository;
+import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,21 +37,40 @@ public class QuotationService {
 
     private final QuotationRepository quotationRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
+    /* 다른 모듈의 값은 그 모듈이 공개한 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<QuotationResponse> findAll() {
-        return quotationRepository.findAllWithRefs().stream()
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<QuotationResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? quotationRepository.findAllWithRefs()
+                : quotationRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream()
                 .map(QuotationResponse::from)
                 .toList();
     }
 
     @Transactional
     public QuotationResponse create(CreateQuotationRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 견적을 낼 수 없습니다: " + partner.getName());
         }
@@ -61,6 +82,8 @@ public class QuotationService {
                 .quoteDate(quoteDate)
                 .validUntil(req.validUntil())
                 .partner(partner)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .status(QuotationStatus.DRAFT)
                 .remark(req.remark())
                 .createdBy(username)
@@ -69,8 +92,7 @@ public class QuotationService {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
         for (QuoteLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE) : BigDecimal.ZERO;
             q.addLine(QuotationLine.builder()
@@ -121,14 +143,41 @@ public class QuotationService {
         List<OrderLineRequest> orderLines = q.getLines().stream()
                 .map(l -> new OrderLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice()))
                 .toList();
+        /*
+         * <b>견적에서 정한 창고·프로젝트를 수주로 넘긴다.</b> 이것이 이 두 칸을 만든 까닭이다 —
+         * 견적 → 수주 → 판매로 이어질 때 맨 앞에서 정한 것이 <b>중간에 끊기면</b>
+         * 같은 것을 다시 골라야 하고, 프로젝트별 손익에서도 수주 단계가 빠진다.
+         */
         CreateSalesOrderRequest orderReq = new CreateSalesOrderRequest(
-                q.getPartner().getId(), q.getQuoteDate(), q.getValidUntil(), taxable,
-                "견적 " + q.getQuoteNo() + " 전환", orderLines);
+                q.getPartner().getId(), q.getQuoteDate(), q.getValidUntil(),
+                q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                q.getProject() != null ? q.getProject().getId() : null,
+                null,
+                taxable, "견적 " + q.getQuoteNo() + " 전환", orderLines);
 
         SalesOrderResponse order = salesOrderService.create(orderReq, username);
         q.setStatus(QuotationStatus.CONVERTED);
         q.setConvertedOrderId(order.id());
         return order;
+    }
+
+    /**
+     * 견적서 삭제.
+     *
+     * <p>지금까지 삭제가 아예 없었다. 거래처나 단가를 잘못 넣은 견적서를 지울 방법이 없어
+     * 취소로 덮어 두는 수밖에 없었고, 목록이 죽은 문서로 계속 불어났다.
+     *
+     * <p>수주로 전환된 견적서는 막는다 — 수주가 그 견적서를 출처로 가리키고 있어서
+     * 지우면 수주의 근거가 사라진다. 그 경우 수주를 먼저 지워야 한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Quotation q = get(id);
+        if (q.getConvertedOrderId() != null) {
+            throw ApiException.conflict(
+                    "수주로 전환된 견적서는 지울 수 없습니다. 먼저 수주를 지우세요: " + q.getQuoteNo());
+        }
+        quotationRepository.delete(q);
     }
 
     private String generateQuoteNo(LocalDate date) {

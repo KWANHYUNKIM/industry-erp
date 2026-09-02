@@ -2,14 +2,23 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AccountLedger } from '../../api/types'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { dateText } from '../../utils/dateText'
 
 interface AccountOpt { id: number; code: string; name: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
-/** 계정별원장 — 한 계정의 기간 내 분개 이력과 계정구분별 누적 잔액. */
+/**
+ * 회계 > 계정별원장 — 한 계정의 기간 내 분개 이력과 누적 잔액.
+ *
+ * 조건이 날짜 칸 두 개짜리 한 줄이었다. 원본 현황 화면들은 전부 같은 모양의 조건 판을 쓰고
+ * 기간 빠른선택([금월(~오늘)][전월] …)이 붙어 있다 — 원장은 "지난달 것"을 보는 일이 잦아
+ * 빠른선택이 없으면 매번 날짜를 두 번 고쳐야 한다. 실측한 EcStatusPanel 로 맞춘다.
+ */
 export default function AccountLedgerPage() {
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [accountId, setAccountId] = useState<number | null>(null)
@@ -41,19 +50,36 @@ export default function AccountLedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
 
+  // 계정은 이 화면의 핵심 조건이다. 기간만 되돌리면 '다시 작성'이 절반만 한 셈이 된다.
+  const reset = () => {
+    setFrom(firstOfYear()); setTo(today())
+    setAccountId(accounts.length ? accounts[0].id : null)
+  }
+
   return (
-    <EcListShell title="계정별원장" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
-        <span>계정</span>
-        <select className="ec-input" value={accountId ?? ''} onChange={(e) => setAccountId(Number(e.target.value))} style={{ width: 220 }}>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-        </select>
-        <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-      </div>
+    <EcListShell
+      title="계정별원장"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="계정" pick>
+          <select className="ec-input" value={accountId ?? ''}
+                  onChange={(e) => setAccountId(Number(e.target.value))} style={{ width: 260 }}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+          </select>
+        </EcCond>
+      </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -74,15 +100,15 @@ export default function AccountLedgerPage() {
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>해당 기간 거래가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : data.rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.entryDate}</td>
+                  <td>{dateText(r.entryDate)}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
                   <td>{r.description}</td>
                   <td>{r.partnerName ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: r.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{r.debit > 0 ? won(r.debit) : '-'}</td>
-                  <td style={{ textAlign: 'right', color: r.credit > 0 ? '#a5561b' : '#c9ced6' }}>{r.credit > 0 ? won(r.credit) : '-'}</td>
+                  <td style={{ textAlign: 'right', color: r.debit > 0 ? '#1a4d8f' : '#c9ced6' }}>{r.debit > 0 ? won(r.debit) : ''}</td>
+                  <td style={{ textAlign: 'right', color: r.credit > 0 ? '#a5561b' : '#c9ced6' }}>{r.credit > 0 ? won(r.credit) : ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.balance)}</td>
                 </tr>
               ))}

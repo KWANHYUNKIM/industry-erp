@@ -3,10 +3,12 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
-const today = () => new Date().toISOString().slice(0, 10)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
+const today = () => ymd(new Date())
 
 /**
  * 관리 > 일용근로급여관리 — 출역(근무일) 단위 등록과 월별 급여대장.
@@ -116,16 +118,16 @@ export default function DailyWagePage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{month} 출역 기록이 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id} style={{ background: selected.includes(r.id) ? '#eef5ff' : undefined }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} disabled={r.paid} />
               </td>
-              <td>{r.workDate}</td>
+              <td>{dateText(r.workDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.employeeCode}</td>
               <td style={{ fontWeight: 600 }}>{r.employeeName}</td>
-              <td>{r.department || '-'}</td>
+              <td>{r.department || ''}</td>
               <td style={{ textAlign: 'center' }}>{r.workHours}h</td>
               <td style={{ textAlign: 'right' }}>{won(r.dailyWage)}</td>
               <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? '#c60a2e' : '#c3c8cf' }}>{won(r.incomeTax)}</td>
@@ -240,7 +242,7 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>근무일</th>
-                <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(workDate)} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>근무시간</th>
                 <td><input className="ec-input" type="number" value={workHours} onChange={(e) => setWorkHours(e.target.value)} style={{ width: 70, textAlign: 'right' }} /></td>
               </tr>

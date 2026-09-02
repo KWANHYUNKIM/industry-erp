@@ -11,12 +11,20 @@ const ItemsPage = lazy(() => import('./pages/inventory/ItemsPage'))
 const WarehousesPage = lazy(() => import('./pages/inventory/WarehousesPage'))
 const StockIoPage = lazy(() => import('./pages/inventory/StockIoPage'))
 const StockLedgerPage = lazy(() => import('./pages/inventory/StockLedgerPage'))
+const StockRecalcPage = lazy(() => import('./pages/inventory/StockRecalcPage'))
 const StockMovementPage = lazy(() => import('./pages/inventory/StockMovementPage'))
 const DailyReportPage = lazy(() => import('./pages/inventory/DailyReportPage'))
 const StagedAdjustmentPage = lazy(() => import('./pages/inventory/StagedAdjustmentPage'))
 const StockAnalysisPage = lazy(() => import('./pages/inventory/StockAnalysisPage'))
 const ExecutiveReportPage = lazy(() => import('./pages/inventory/ExecutiveReportPage'))
 const CurrentStockPage = lazy(() => import('./pages/inventory/CurrentStockPage'))
+const WarehouseStockPage = lazy(() => import('./pages/inventory/WarehouseStockPage'))
+const BomStockPage = lazy(() => import('./pages/inventory/BomStockPage'))
+const TransferStatusPage = lazy(() => import('./pages/inventory/TransferStatusPage'))
+const DailyStockPage = lazy(() => import('./pages/inventory/DailyStockPage'))
+const StocktakeStatusPage = lazy(() => import('./pages/inventory/StocktakeStatusPage'))
+const ProductionIssueStatusPage = lazy(() => import('./pages/production/ProductionIssueStatusPage'))
+const StockMoveStatusPage = lazy(() => import('./pages/inventory/StockMoveStatusPage'))
 const ManageItemsPage = lazy(() => import('./pages/inventory/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('./pages/inventory/PriceOrderPage'))
 const SpecialPriceGroupPage = lazy(() => import('./pages/inventory/SpecialPriceGroupPage'))
@@ -62,6 +70,8 @@ const LotLedgerPage = lazy(() => import('./pages/quality/LotLedgerPage'))
 const QualityStatusPage = lazy(() => import('./pages/quality/QualityStatusPage'))
 const SerialLotPage = lazy(() => import('./pages/quality/SerialLotPage'))
 const LotStockComparePage = lazy(() => import('./pages/quality/LotStockComparePage'))
+const LotStockStatusPage = lazy(() => import('./pages/quality/LotStockStatusPage'))
+const LotTxStatusPage = lazy(() => import('./pages/quality/LotTxStatusPage'))
 const AsManagePage = lazy(() => import('./pages/quality/AsManagePage'))
 const AsStatusPage = lazy(() => import('./pages/quality/AsStatusPage'))
 const AsConsumptionPage = lazy(() => import('./pages/quality/AsConsumptionPage'))
@@ -75,7 +85,6 @@ const MyApprovalPage = lazy(() => import('./pages/groupware/MyApprovalPage'))
 const ApprovalAllPage = lazy(() => import('./pages/groupware/ApprovalAllPage'))
 const ApprovalSettingPage = lazy(() => import('./pages/groupware/ApprovalSettingPage'))
 const EcDrivePage = lazy(() => import('./pages/groupware/EcDrivePage'))
-const BoardPage = lazy(() => import('./pages/groupware/BoardPage'))
 const AnonymousBoardPage = lazy(() => import('./pages/groupware/AnonymousBoardPage'))
 const FieldWorkPage = lazy(() => import('./pages/groupware/FieldWorkPage'))
 const WorkPage = lazy(() => import('./pages/groupware/WorkPage'))
@@ -87,9 +96,9 @@ const ProjectPage = lazy(() => import('./pages/groupware/ProjectPage'))
 const ProjectProfitPage = lazy(() => import('./pages/accounting/ProjectProfitPage'))
 const ProjectPlanPage = lazy(() => import('./pages/accounting/ProjectPlanPage'))
 const PaymentMastersPage = lazy(() => import('./pages/accounting/PaymentMastersPage'))
-const SharedInfoPage = lazy(() => import('./pages/groupware/SharedInfoPage'))
 const KeyNoticePage = lazy(() => import('./pages/groupware/KeyNoticePage'))
 const MailPage = lazy(() => import('./pages/groupware/MailPage'))
+const ShortMessagePage = lazy(() => import('./pages/groupware/ShortMessagePage'))
 const OrgChartPage = lazy(() => import('./pages/groupware/OrgChartPage'))
 const SalesOrderPage = lazy(() => import('./pages/trade/SalesOrderPage'))
 const QuotationPage = lazy(() => import('./pages/trade/QuotationPage'))
@@ -117,6 +126,7 @@ const WoStatusPage = lazy(() => import('./pages/production/WoStatusPage'))
 const WoEfficiencyPage = lazy(() => import('./pages/production/WoEfficiencyPage'))
 const IssuePage = lazy(() => import('./pages/production/IssuePage'))
 const WorkResultPage = lazy(() => import('./pages/production/WorkResultPage'))
+const WorkProcessPage = lazy(() => import('./pages/production/WorkProcessPage'))
 const CostBuildPage = lazy(() => import('./pages/accounting/CostBuildPage'))
 const StandardCostPage = lazy(() => import('./pages/accounting/StandardCostPage'))
 const ActualCostPage = lazy(() => import('./pages/accounting/ActualCostPage'))
@@ -141,16 +151,22 @@ const SalesDiscountPage = lazy(() => import('./pages/trade/SalesDiscountPage'))
 const PurchaseStatusPage = lazy(() => import('./pages/trade/PurchaseStatusPage'))
 const PurchaseDiscountPage = lazy(() => import('./pages/trade/PurchaseDiscountPage'))
 const ShipmentOrderPage = lazy(() => import('./pages/trade/ShipmentOrderPage'))
+const ShipmentOrderStatusPage = lazy(() => import('./pages/trade/ShipmentOrderStatusPage'))
 const ShipmentPage = lazy(() => import('./pages/trade/ShipmentPage'))
 const ShipmentInquiryPage = lazy(() => import('./pages/trade/ShipmentInquiryPage'))
 const PriceRequestProgressPage = lazy(() => import('./pages/trade/PriceRequestProgressPage'))
 const UnshippedPage = lazy(() => import('./pages/trade/UnshippedPage'))
+const UnsoldStatusPage = lazy(() => import('./pages/trade/UnsoldStatusPage'))
 const CollectionPage = lazy(() => import('./pages/trade/CollectionPage'))
 const PaymentPage = lazy(() => import('./pages/trade/PaymentPage'))
 const PartnerLedgerPage = lazy(() => import('./pages/trade/PartnerLedgerPage'))
+const ArApStatusPage = lazy(() => import('./pages/trade/ArApStatusPage'))
 const AttendanceInputPage = lazy(() => import('./pages/hr/AttendanceInputPage'))
+const LeaveInputPage = lazy(() => import('./pages/hr/LeaveInputPage'))
+const LeaveListPage = lazy(() => import('./pages/hr/LeaveListPage'))
 const AttendanceListPage = lazy(() => import('./pages/hr/AttendanceListPage'))
 const AttendanceStatusPage = lazy(() => import('./pages/hr/AttendanceStatusPage'))
+const AttendanceKindStatusPage = lazy(() => import('./pages/hr/AttendanceKindStatusPage'))
 const LateArrivalPage = lazy(() => import('./pages/hr/LateArrivalPage'))
 const DailyWorkHoursPage = lazy(() => import('./pages/hr/DailyWorkHoursPage'))
 const WorkIntegratedPage = lazy(() => import('./pages/hr/WorkIntegratedPage'))
@@ -165,15 +181,17 @@ const LaborContractPage = lazy(() => import('./pages/hr/ContractPage'))
 const DailyWagePage = lazy(() => import('./pages/hr/DailyWagePage'))
 const NoticePage = lazy(() => import('./pages/groupware/NoticePage'))
 const SchedulePage = lazy(() => import('./pages/groupware/SchedulePage'))
-const ScheduleSearchPage = lazy(() => import('./pages/groupware/ScheduleSearchPage'))
 const SurveyPage = lazy(() => import('./pages/groupware/SurveyPage'))
 const AccountingReflectionPage = lazy(() => import('./pages/trade/AccountingReflectionPage'))
+const EvidenceCenterPage = lazy(() => import('./pages/accounting/EvidenceCenterPage'))
+const MedicalDeviceReportPage = lazy(() => import('./pages/datacenter/MedicalDeviceReportPage'))
 const OutsourcingDiscountPage = lazy(() => import('./pages/trade/OutsourcingDiscountPage'))
 const SuppliesPage = lazy(() => import('./pages/groupware/SuppliesPage'))
 const TimeCalcPage = lazy(() => import('./pages/production/TimeCalcPage'))
 const ReceiptStatusPage = lazy(() => import('./pages/production/ReceiptStatusPage'))
 const IssueStatusPage = lazy(() => import('./pages/production/IssueStatusPage'))
 const WorkResultListPage = lazy(() => import('./pages/production/WorkResultListPage'))
+const WorkResultInquiryPage = lazy(() => import('./pages/production/WorkResultInquiryPage'))
 const WoProgressPage = lazy(() => import('./pages/production/WoProgressPage'))
 const ExpenseDetailPage = lazy(() => import('./pages/accounting/ExpenseDetailPage'))
 const SwSchedulePage = lazy(() => import('./pages/groupware/SwSchedulePage'))
@@ -192,9 +210,7 @@ const ConditionSearchPage = lazy(() => import('./pages/trade/ConditionSearchPage
 const PurchasePriceBulkPage = lazy(() => import('./pages/trade/PurchasePriceBulkPage'))
 const OrderTypePage = lazy(() => import('./pages/trade/OrderTypePage'))
 const OrderStagePage = lazy(() => import('./pages/trade/OrderStagePage'))
-const BomConsumeReceiptPage = lazy(() => import('./pages/production/BomConsumeReceiptPage'))
 const ManualConsumeReceiptPage = lazy(() => import('./pages/production/ManualConsumeReceiptPage'))
-const ConsumeStatusPage = lazy(() => import('./pages/production/ConsumeStatusPage'))
 const ReceiptInquiryPage = lazy(() => import('./pages/production/ReceiptInquiryPage'))
 
 /** 좌측 사이드바는 EcountLayout이 활성 탭 기준으로 그린다.
@@ -223,12 +239,24 @@ export default function App() {
         <Route path="/inventory/special-price-group" element={<SpecialPriceGroupPage />} />
         <Route path="/inventory/stock-io" element={<StockIoPage />} />
         <Route path="/inventory/ledger" element={<StockLedgerPage />} />
+        <Route path="/inventory/recalc" element={<StockRecalcPage />} />
         <Route path="/inventory/movement" element={<StockMovementPage />} />
         <Route path="/inventory/daily-report" element={<DailyReportPage />} />
         <Route path="/inventory/stock-analysis" element={<StockAnalysisPage />} />
         <Route path="/inventory/staged-adjustment" element={<StagedAdjustmentPage />} />
         <Route path="/inventory/executive-report" element={<ExecutiveReportPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
+        <Route path="/inventory/warehouse-stock" element={<WarehouseStockPage />} />
+        <Route path="/inventory/bom-stock" element={<BomStockPage />} />
+        <Route path="/inventory/transfer-status" element={<TransferStatusPage />} />
+        <Route path="/inventory/daily-stock" element={<DailyStockPage />} />
+        <Route path="/inventory/stocktake-status" element={<StocktakeStatusPage />} />
+        <Route path="/production/receipt-issue-status" element={<ProductionIssueStatusPage />} />
+        <Route path="/inventory/self-use-status" element={<StockMoveStatusPage kind="SELF_USE" />} />
+        <Route path="/inventory/defect-status" element={<StockMoveStatusPage kind="DEFECT" />} />
+        <Route path="/inventory/substitute-status" element={<StockMoveStatusPage kind="SUBSTITUTE" />} />
+        <Route path="/inventory/disposal-status" element={<StockMoveStatusPage kind="DISPOSAL" />} />
+        <Route path="/inventory/adjust-status" element={<StockMoveStatusPage kind="ADJUST" />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
@@ -238,6 +266,10 @@ export default function App() {
         <Route path="/production" element={<Navigate to="/production/bom" replace />} />
         <Route path="/production/bom" element={<BomPage />} />
         <Route path="/production/work-orders" element={<WorkOrderPage />} />
+        {/*
+          옛 경로. 메뉴에서는 [생산입고 I(BOM기준소모)] 로 부른다 — 원본에 [생산실적] 이라는
+          이름이 없다. 북마크·바로가기가 남아 있을 수 있어 경로는 살려 둔다.
+        */}
         <Route path="/production/result" element={<ProductionResultPage />} />
         <Route path="/production/planning" element={<PlanningPage />} />
         <Route path="/production/mrp" element={<MrpPage />} />
@@ -249,14 +281,19 @@ export default function App() {
         <Route path="/production/issue" element={<IssuePage />} />
         <Route path="/production/issue-status" element={<IssueStatusPage />} />
         <Route path="/production/work-result" element={<WorkResultPage />} />
+        <Route path="/production/work-result-list" element={<WorkResultInquiryPage />} />
         <Route path="/production/work-result-status" element={<WorkResultListPage />} />
         <Route path="/production/time-calc" element={<TimeCalcPage />} />
         <Route path="/production/receipt-status" element={<ReceiptStatusPage />} />
+        <Route path="/production/wo-work" element={<WorkProcessPage />} />
         <Route path="/production/wo-progress" element={<WoProgressPage />} />
-        <Route path="/production/receipt-bom" element={<BomConsumeReceiptPage />} />
+        {/* 원본 [생산입고 I(BOM기준소모)] 는 입력 화면이다 — 소모품목을 고르지 않고 BOM 대로 자동소모한다. */}
+        <Route path="/production/receipt-bom" element={<ProductionResultPage />} />
         <Route path="/production/receipt-manual" element={<ManualConsumeReceiptPage />} />
+        <Route path="/production/receipt-qr" element={<ManualConsumeReceiptPage withQualityRequest />} />
         <Route path="/production/receipt-inquiry" element={<ReceiptInquiryPage />} />
-        <Route path="/production/consume-status" element={<ConsumeStatusPage />} />
+        {/* 옛 경로. 원본 화면은 [생산입고/소모현황 I] 하나다 — 북마크가 남아 있을 수 있어 살려 둔다. */}
+        <Route path="/production/consume-status" element={<ProductionIssueStatusPage />} />
 
         {/* 판매/구매 */}
         <Route path="/sales" element={<Navigate to="/sales/partners" replace />} />
@@ -267,11 +304,14 @@ export default function App() {
         <Route path="/sales/purchase-list" element={<TradeInquiryPage mode="purchase" />} />
         <Route path="/sales/settlement" element={<SettlementPage />} />
         <Route path="/sales/ledger" element={<LedgerPage />} />
+        <Route path="/sales/ledger-receivable" element={<LedgerPage side="AR" />} />
+        <Route path="/sales/ledger-payable" element={<LedgerPage side="AP" />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
         <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
         <Route path="/sales/trade-history" element={<TradeHistoryPage />} />
         <Route path="/sales/sales-purchase-summary" element={<SalesPurchaseSummaryPage />} />
         <Route path="/sales/monthly-ar-ap" element={<MonthlyArApPage />} />
+        <Route path="/sales/monthly-ap" element={<MonthlyArApPage defaultMode="AP" />} />
         <Route path="/sales/price-movement" element={<PriceMovementPage />} />
         <Route path="/sales/item-entry" element={<ItemEntryPage />} />
         <Route path="/sales/monthly-cumulative" element={<MonthlyCumulativePage />} />
@@ -297,12 +337,19 @@ export default function App() {
         <Route path="/sales/price-request-progress" element={<PriceRequestProgressPage />} />
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />
+        <Route path="/sales/shipment-order-status" element={<ShipmentOrderStatusPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
         <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
         <Route path="/sales/unshipped" element={<UnshippedPage />} />
+        <Route path="/sales/unsold" element={<UnsoldStatusPage />} />
         <Route path="/sales/collection" element={<CollectionPage />} />
         <Route path="/sales/payment" element={<PaymentPage />} />
         <Route path="/sales/partner-ledger" element={<PartnerLedgerPage />} />
+        <Route path="/sales/partner-ledger-receivable" element={<PartnerLedgerPage side="AR" />} />
+        <Route path="/sales/partner-ledger-payable" element={<PartnerLedgerPage side="AP" />} />
+        <Route path="/sales/ar-ap-status" element={<ArApStatusPage />} />
+        <Route path="/sales/receivable-status" element={<ArApStatusPage defaultMode="RECEIVABLE" />} />
+        <Route path="/sales/payable-status" element={<ArApStatusPage defaultMode="PAYABLE" />} />
         <Route path="/sales/accounting-reflection" element={<AccountingReflectionPage />} />
         <Route path="/sales/outsourcing-discount" element={<OutsourcingDiscountPage />} />
         <Route path="/sales/order-types" element={<OrderTypePage />} />
@@ -320,6 +367,8 @@ export default function App() {
         <Route path="/accounting/profit" element={<ProfitSummaryPage />} />
         <Route path="/accounting/item-cost" element={<ItemCostPage />} />
         <Route path="/accounting/vat" element={<VatSummaryPage />} />
+        <Route path="/accounting/evidence-center" element={<EvidenceCenterPage />} />
+        <Route path="/datacenter/medical-device-report" element={<MedicalDeviceReportPage />} />
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
@@ -364,6 +413,8 @@ export default function App() {
         <Route path="/quality/lot-ledger" element={<LotLedgerPage />} />
         <Route path="/quality/serial-lot" element={<SerialLotPage />} />
         <Route path="/quality/lot-compare" element={<LotStockComparePage />} />
+        <Route path="/quality/lot-stock" element={<LotStockStatusPage />} />
+        <Route path="/quality/lot-tx-status" element={<LotTxStatusPage />} />
         <Route path="/quality/as" element={<AsManagePage />} />
         <Route path="/quality/as-status" element={<AsStatusPage />} />
         <Route path="/quality/as-consumption" element={<AsConsumptionPage />} />
@@ -386,7 +437,6 @@ export default function App() {
         <Route path="/groupware/approval/all" element={<ApprovalAllPage />} />
         <Route path="/groupware/approval/settings" element={<ApprovalSettingPage />} />
         <Route path="/groupware/drive" element={<EcDrivePage />} />
-        <Route path="/groupware/board" element={<BoardPage />} />
         <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
         <Route path="/groupware/field-works" element={<FieldWorkPage />} />
         <Route path="/groupware/work" element={<WorkPage />} />
@@ -399,13 +449,12 @@ export default function App() {
         <Route path="/accounting/project-plan" element={<ProjectPlanPage />} />
         <Route path="/accounting/card-issuers" element={<PaymentMastersPage defaultTab="card" />} />
         <Route path="/accounting/payment-agencies" element={<PaymentMastersPage defaultTab="agency" />} />
-        <Route path="/groupware/shared" element={<SharedInfoPage />} />
         <Route path="/groupware/key-notice" element={<KeyNoticePage />} />
         <Route path="/groupware/mail" element={<MailPage />} />
+        <Route path="/groupware/messages" element={<ShortMessagePage />} />
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
-        <Route path="/groupware/schedule-search" element={<ScheduleSearchPage />} />
         <Route path="/groupware/survey" element={<SurveyPage />} />
         <Route path="/groupware/supplies" element={<SuppliesPage />} />
         <Route path="/groupware/dev-schedule" element={<SwSchedulePage />} />
@@ -421,9 +470,13 @@ export default function App() {
 
         {/* 관리(근태) */}
         <Route path="/hr" element={<Navigate to="/hr/attendance-input" replace />} />
+        {/* 원본에서 '근태'는 연차·반차 같은 근태 기록이고, 출퇴근 시각은 [출/퇴근기록부(ID)] 가 맡는다. */}
+        <Route path="/hr/leave-input" element={<LeaveInputPage />} />
+        <Route path="/hr/leave-list" element={<LeaveListPage />} />
         <Route path="/hr/attendance-input" element={<AttendanceInputPage />} />
         <Route path="/hr/attendance-list" element={<AttendanceListPage />} />
         <Route path="/hr/attendance-status" element={<AttendanceStatusPage />} />
+        <Route path="/hr/attendance-kind-status" element={<AttendanceKindStatusPage />} />
         <Route path="/hr/attendance-late" element={<LateArrivalPage />} />
         <Route path="/hr/daily-hours" element={<DailyWorkHoursPage />} />
         <Route path="/hr/work-integrated" element={<WorkIntegratedPage />} />

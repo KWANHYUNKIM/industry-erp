@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../api/types'
 
-const TABS = ['공통양식등록', '결재선 설정'] as const
+// 원본 전자결재 > 기초자료등록 아래의 두 화면 이름 그대로다(공통양식등록 · 결재설정).
+const TABS = ['공통양식등록', '결재설정'] as const
 type Tab = (typeof TABS)[number]
+
+const tabOf = (q: string | null): Tab => (TABS.includes(q as Tab) ? (q as Tab) : '공통양식등록')
 
 /** 편집기가 다루는 입력 타입. table 은 컬럼 정의가 필요해 편집 대상에서 뺀다(기존 정의는 그대로 보존). */
 const EDITABLE_TYPES: ApprovalFieldType[] = ['text', 'textarea', 'date', 'datetime', 'number']
@@ -19,7 +24,13 @@ const TYPE_LABEL: Record<string, string> = {
  * 양식의 입력항목(fieldSchema)을 여기서 정의하면 기안서 작성 화면이 그대로 폼을 그린다.
  */
 export default function ApprovalSettingPage() {
-  const [tab, setTab] = useState<Tab>('공통양식등록')
+  // 메뉴가 ?tab= 으로 어느 화면인지 정해서 들어온다(원본은 두 메뉴가 각각 별도 화면이다).
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(() => tabOf(params.get('tab')))
+
+  // 두 메뉴가 같은 경로를 가리키므로 서로 오갈 때 컴포넌트가 다시 만들어지지 않는다.
+  // 초기값만 읽으면 메뉴를 눌러도 탭이 그대로다 — 쿼리가 바뀌면 따라가게 한다.
+  useEffect(() => { setTab(tabOf(params.get('tab'))) }, [params])
   const [templates, setTemplates] = useState<ApprovalFormTemplateAdmin[]>([])
   const [presets, setPresets] = useState<ApprovalPreset[]>([])
   const [members, setMembers] = useState<MemberOption[]>([])
@@ -69,9 +80,14 @@ export default function ApprovalSettingPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '결재선 설정', [])
+
   return (
     <EcListShell
-      title="전자결재 설정 (공통양식·결재선)"
+      title={tab}
       newLabel={tab === '공통양식등록' ? '양식 추가(F2)' : '결재선 추가(F2)'}
       onNew={() => (tab === '공통양식등록' ? setEditing('new') : setEditingPreset('new'))}
       actions={[{ label: '새로고침', onClick: load }]}
@@ -101,7 +117,7 @@ export default function ApprovalSettingPage() {
                 onSaved={(name) => { setEditing(null); flash(`${name} 양식을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   <th style={{ width: 34 }}></th>
@@ -116,7 +132,7 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {templates.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 양식이 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : templates.map((t, i) => (
                   <tr key={t.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -170,7 +186,7 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {presets.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 결재선이 없습니다.</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : presets.map((p, i) => (
                   <tr key={p.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

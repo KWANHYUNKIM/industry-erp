@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { dateText } from '../../utils/dateText'
 
 /** 관리 > 근태조회 — 기간별 사원 출퇴근 및 근태 상태 조회 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -63,7 +64,7 @@ export default function AttendanceListPage() {
             <th>부서</th>
             <th>출근</th>
             <th>퇴근</th>
-            <th>상태</th>
+            <th style={{ textAlign: 'center' }}>상태</th>
             <th>비고</th>
           </tr>
         </thead>
@@ -71,15 +72,15 @@ export default function AttendanceListPage() {
           {loading ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={mono}>{r.date}</td>
+              <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={mono}>{r.clockIn ?? '-'}</td>
-              <td style={mono}>{r.clockOut ?? '-'}</td>
+              <td style={mono}>{r.clockIn ?? ''}</td>
+              <td style={mono}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
               <td>{r.note ?? ''}</td>
             </tr>

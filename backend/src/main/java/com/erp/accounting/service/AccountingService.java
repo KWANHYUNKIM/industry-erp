@@ -4,9 +4,7 @@ import com.erp.production.domain.Bom;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
-import com.erp.accounting.dto.AccountingDtos.DailyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.ItemProfitResponse;
-import com.erp.accounting.dto.AccountingDtos.MonthlyProfitResponse;
 import com.erp.accounting.dto.AccountingDtos.ProfitSummaryResponse;
 import com.erp.accounting.dto.AccountingDtos.VatSummaryResponse;
 import com.erp.production.repository.BomRepository;
@@ -94,65 +92,6 @@ public class AccountingService {
         return new ProfitSummaryResponse(totalSales, totalCost, gross, margin);
     }
 
-    // ===== 이익현황 (매출 - 매입, 공급가 기준) =====
-
-    /** 월별 이익현황 (연도별). revenue=매출 공급가, cost=매입 공급가 */
-    @Transactional(readOnly = true)
-    public List<MonthlyProfitResponse> monthlyProfit(int year) {
-        LocalDate from = LocalDate.of(year, 1, 1);
-        LocalDate to = LocalDate.of(year, 12, 31);
-
-        Map<String, BigDecimal> revenueByMonth = new TreeMap<>();
-        Map<String, BigDecimal> costByMonth = new TreeMap<>();
-        for (Sales s : salesRepository.findBySaleDateBetween(from, to)) {
-            String key = String.format("%d-%02d", year, s.getSaleDate().getMonthValue());
-            revenueByMonth.merge(key, nz(s.getSupplyAmount()), BigDecimal::add);
-        }
-        for (Purchase p : purchaseRepository.findByPurchaseDateBetween(from, to)) {
-            String key = String.format("%d-%02d", year, p.getPurchaseDate().getMonthValue());
-            costByMonth.merge(key, nz(p.getSupplyAmount()), BigDecimal::add);
-        }
-
-        Set<String> months = new TreeSet<>();
-        months.addAll(revenueByMonth.keySet());
-        months.addAll(costByMonth.keySet());
-
-        List<MonthlyProfitResponse> result = new ArrayList<>();
-        for (String month : months) {
-            BigDecimal revenue = revenueByMonth.getOrDefault(month, BigDecimal.ZERO);
-            BigDecimal cost = costByMonth.getOrDefault(month, BigDecimal.ZERO);
-            BigDecimal profit = revenue.subtract(cost);
-            result.add(new MonthlyProfitResponse(month, revenue, cost, profit, marginRate(profit, revenue)));
-        }
-        return result;
-    }
-
-    /** 일별 이익현황 (기간). revenue=매출 공급가, cost=매입 공급가 */
-    @Transactional(readOnly = true)
-    public List<DailyProfitResponse> dailyProfit(LocalDate from, LocalDate to) {
-        Map<String, BigDecimal> revenueByDay = new TreeMap<>();
-        Map<String, BigDecimal> costByDay = new TreeMap<>();
-        for (Sales s : salesRepository.findBySaleDateBetween(from, to)) {
-            revenueByDay.merge(s.getSaleDate().toString(), nz(s.getSupplyAmount()), BigDecimal::add);
-        }
-        for (Purchase p : purchaseRepository.findByPurchaseDateBetween(from, to)) {
-            costByDay.merge(p.getPurchaseDate().toString(), nz(p.getSupplyAmount()), BigDecimal::add);
-        }
-
-        Set<String> days = new TreeSet<>();
-        days.addAll(revenueByDay.keySet());
-        days.addAll(costByDay.keySet());
-
-        List<DailyProfitResponse> result = new ArrayList<>();
-        for (String day : days) {
-            BigDecimal revenue = revenueByDay.getOrDefault(day, BigDecimal.ZERO);
-            BigDecimal cost = costByDay.getOrDefault(day, BigDecimal.ZERO);
-            BigDecimal profit = revenue.subtract(cost);
-            result.add(new DailyProfitResponse(day, revenue, cost, profit, marginRate(profit, revenue)));
-        }
-        return result;
-    }
-
     private static BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
     }
@@ -172,6 +111,18 @@ public class AccountingService {
         Map<Long, Bom> bomByProduct;
         Map<Long, Cost> memo = new HashMap<>();
 
+        /**
+         * 매입평균도 BOM 도 없을 때 쓰는 원가 — 품목의 <b>구매단가</b>.
+         *
+         * <p>예전에는 판매단가(unitPrice)를 썼다. 원가에 판매가를 넣으면 이익이 0 근처로
+         * 나오는데 숫자가 그럴듯해서 눈으로는 안 걸린다. 구매단가를 안 정한 품목은 0 을
+         * 돌려주고 이름을 '미상' 으로 남긴다 — 판매가를 원가라고 우기는 것보다 낫다.
+         */
+        private BigDecimal fallbackCost(Item item) {
+            BigDecimal pp = item.getPurchasePrice();
+            return pp != null && pp.signum() > 0 ? pp : BigDecimal.ZERO;
+        }
+
         Cost costOf(Long itemId) {
             return resolve(itemId, new HashSet<>());
         }
@@ -181,8 +132,8 @@ public class AccountingService {
             Item item = items.get(itemId);
             if (item == null) return new Cost(BigDecimal.ZERO, "미상");
             if (!visiting.add(itemId)) {
-                // 순환 방지: 기준단가로 대체
-                return new Cost(item.getUnitPrice(), "기준단가");
+                // 순환 방지: 품목 구매단가로 대체
+                return new Cost(fallbackCost(item), "구매단가");
             }
 
             Cost cost;
@@ -198,7 +149,7 @@ public class AccountingService {
                 }
                 cost = new Cost(sum.setScale(MONEY_SCALE, RoundingMode.HALF_UP), "제조원가");
             } else {
-                cost = new Cost(item.getUnitPrice(), "기준단가");
+                cost = new Cost(fallbackCost(item), "구매단가");
             }
 
             visiting.remove(itemId);

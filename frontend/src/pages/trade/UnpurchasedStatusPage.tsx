@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
+import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 구매관리 > 미구매현황 (이카운트 E040307)
@@ -53,14 +57,32 @@ interface Filters {
   sortByDoc: boolean
 }
 
+/*
+ * 원본 미구매현황은 기간 단추가 <b>금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·
+ * 종료일</b>이고 열면 <b>금월</b>을 보고 있다(사본 실측 — 달 스핀박스가 2026·07 하나다).
+ *
+ * <p>우리는 <b>기간 단추가 아예 없고 기준일자도 비어</b> 있었다. 그래서 열면 몇 해치 발주가
+ * 통째로 쏟아졌다 — 판매현황·구매현황에서 이미 한 번 고친 그 문제다.
+ */
+const initPeriod = periodOf('금월(~오늘)')!
+
 const EMPTY_FILTERS: Filters = {
-  dateFrom: '', dateTo: '', partner: '', employee: '', orderNo: '', warehouse: '', item: '', status: '', sortByDoc: false,
+  dateFrom: initPeriod.from, dateTo: initPeriod.to, partner: '', employee: '', orderNo: '', warehouse: '', item: '', status: '', sortByDoc: false,
 }
 
 export default function UnpurchasedStatusPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /*
+   * 원본 미구매현황의 <b>[구분]</b>은 [품목별]·[라인별] 이고 열 때는 <b>라인별</b>이다
+   * (사본 실측). 라인별은 발주 줄을 그대로 펴는 것이고, 품목별은 <b>같은 품목을 한 줄로</b>
+   * 모아 "이 품목이 아직 몇 개 안 들어왔나" 를 바로 보여 준다.
+   *
+   * <p>우리는 라인별만 있어서, 같은 품목을 여러 발주로 나눠 넣으면 그 품목의 미입고
+   * 수량을 <b>눈으로 더해야</b> 했다.
+   */
+  const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
   const [keyword, setKeyword] = useState('')
 
   const [panelOpen, setPanelOpen] = useState(false)
@@ -122,6 +144,20 @@ export default function UnpurchasedStatusPage() {
     return out
   }, [rows, keyword, filters])
 
+  /** 품목별 — 같은 품목을 한 줄로 모아 수량·금액을 더한다. */
+  const byItem = useMemo(() => {
+    if (mode !== '품목별') return []
+    const m = new Map<string, { itemName: string; count: number; qty: number; supply: number; vat: number }>()
+    for (const r of shown) {
+      const cur = m.get(r.itemName) ?? { itemName: r.itemName, count: 0, qty: 0, supply: 0, vat: 0 }
+      cur.count += 1; cur.qty += r.qty; cur.supply += r.supply; cur.vat += r.vat
+      m.set(r.itemName, cur)
+    }
+    return [...m.values()].sort((a, b) => b.qty - a.qty)
+  }, [shown, mode])
+  const itemRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(itemRef, '미구매현황 품목별', [byItem.length])
+
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.qty, supply: s.supply + r.supply, vat: s.vat + r.vat }),
     { qty: 0, supply: 0, vat: 0 },
@@ -144,17 +180,36 @@ export default function UnpurchasedStatusPage() {
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    발주일자: (r) => r.date,
+  })
+
   return (
     <EcListShell
       title="미구매현황"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 [다시 작성] — 조건을 처음 상태로 되돌린다. 하나씩 지우게 두지 않는다. */
+        { label: '다시 작성', onClick: () => setKeyword('') },
+        { label: 'Excel' },
+      ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        {/* 원본 조건 판 첫째 <b>[구분]</b> — 품목별·라인별(사본 실측, 기본 라인별). */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
+        <div className="ec-pills">
+          {(['품목별', '라인별'] as const).map((m) => (
+            <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                    onClick={() => setMode(m)}>{m}</button>
+          ))}
+        </div>
         <button className="ec-btn" onClick={openPanel}>
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
@@ -186,11 +241,48 @@ export default function UnpurchasedStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+      {mode === '품목별' ? (
+        <table ref={itemRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>품목명</th>
+              <th style={{ width: 90, textAlign: 'right' }}>발주건수</th>
+              <th style={{ width: 120, textAlign: 'right' }}>미입고수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byItem.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : byItem.map((g, i) => (
+              <tr key={g.itemName}>
+                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td>{g.itemName}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{g.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byItem.length}개 품목)</td>
+              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>발주일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>발주일자 {sort.mark('발주일자')}</th>
             <th>납기</th>
             <th>발주번호</th>
             <th>매입처</th>
@@ -211,15 +303,15 @@ export default function UnpurchasedStatusPage() {
             <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '미구매(미입고) 발주가 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{r.dueDate ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
               <td>{r.partner}</td>
-              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || '-'}</td>
-              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || '-'}</td>
+              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
+              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>{r.statusName}</span>
               </td>
@@ -232,6 +324,7 @@ export default function UnpurchasedStatusPage() {
           ))}
         </tbody>
       </table>
+    )}
     </EcListShell>
   )
 }
@@ -267,6 +360,11 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        {/* 원본 기간 단추(사본 실측): 금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일 */}
+        <span style={{ marginLeft: 8 }}>
+          <EcPeriodPicks labels={INQUIRY_FULL_PICKS} currentFrom={draft.dateFrom}
+            onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+        </span>
       </div>
       <div style={rowStyle}>
         <span style={label}>거래처</span>

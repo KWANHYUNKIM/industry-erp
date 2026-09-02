@@ -4,6 +4,7 @@ import com.erp.hr.domain.Attendance;
 import com.erp.auth.domain.User;
 import com.erp.hr.domain.VacationRequest;
 import com.erp.hr.domain.enums.VacationStatus;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -113,37 +114,75 @@ public final class HrDtos {
 
     public record AttendanceInputRequest(
             Long userId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String username,
             @NotNull(message = "일자를 입력하세요.") LocalDate date,
             String clockIn,
             String clockOut,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String note
     ) {}
 
     // -------------------------------------------------------------- 휴가
 
+    /**
+     * 근태(휴가) 한 줄.
+     *
+     * <p>원본 근태현황의 열 실측(사본): <b>전표일자</b> · 근태일자 · 부서명 ·
+     * <b>직급</b> · <b>사원번호</b> · 사원명 · 근태종류 · 적요.
+     *
+     * <p>직급·사원번호는 사원 마스터(Employee)에 있다. 계정이 사원과 이어져 있으면
+     * 거기서 가져오고, 안 이어져 있으면 null 이다 — 지어내지 않는다.
+     * 부서명도 이어져 있으면 <b>부서 마스터</b>의 이름을 쓴다. 계정의 자유입력 부서는
+     * 부서 마스터와 맞는다는 보장이 없다.
+     */
     public record VacationRow(
             Long id,
+            /** 근태번호. 원본 근태조회의 첫 열이다. */
+            String docNo,
+            /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
+            LocalDate docDate,
             String empName,
+            /** 사원번호. 계정이 사원과 안 이어져 있으면 null. */
+            String empCode,
+            /** 직급. 계정이 사원과 안 이어져 있으면 null. */
+            String jobTitle,
             String department,
             String type,
             LocalDate startDate,
             LocalDate endDate,
             BigDecimal days,
             String reason,
+            /**
+             * 사원이 재직 중인가. 원본 휴가사용실적현황·근태조회의 [재직구분] 조건이 이 값을 본다.
+             * 퇴사자의 사용실적은 정산 대상이라 봐야 하는데, 없어서 걸러 볼 수가 없었다.
+             */
+            boolean active,
             VacationStatus status,
             String statusName
     ) {
         public static VacationRow from(VacationRequest v) {
+            return from(v, null);
+        }
+
+        /** {@code emp} 는 계정에 이어진 사원. 안 이어져 있으면 null 을 넘긴다. */
+        public static VacationRow from(VacationRequest v, com.erp.hr.domain.Employee emp) {
             return new VacationRow(
                     v.getId(),
+                    v.getDocNo(),
+                    v.getCreatedAt() != null ? v.getCreatedAt().toLocalDate() : v.getStartDate(),
                     v.getUser().getName(),
-                    v.getUser().getDepartment(),
+                    emp != null ? emp.getCode() : null,
+                    emp != null ? emp.getJobTitle() : null,
+                    emp != null && emp.getDepartment() != null
+                            ? emp.getDepartment().getName()
+                            : v.getUser().getDepartment(),
                     v.getType(),
                     v.getStartDate(),
                     v.getEndDate(),
                     v.getDays(),
                     v.getReason(),
+                    v.getUser().isEnabled(),
                     v.getStatus(),
                     v.getStatus().getDisplayName());
         }
@@ -151,11 +190,14 @@ public final class HrDtos {
 
     public record CreateVacationRequest(
             Long userId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String username,
+            @Size(max = 20, message = "휴가 종류는 20자까지 넣을 수 있습니다.")
             @NotBlank(message = "휴가 종류를 입력하세요.") String type,
             @NotNull(message = "시작일을 입력하세요.") LocalDate startDate,
             @NotNull(message = "종료일을 입력하세요.") LocalDate endDate,
             @NotNull(message = "사용일수를 입력하세요.") BigDecimal days,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String reason
     ) {}
 
@@ -165,20 +207,53 @@ public final class HrDtos {
 
     /** 사원별 휴가 잔여 (휴가잔여일수현황) */
     public record VacationSummaryRow(
+            /**
+             * 휴가명 — 원본 휴가잔여일수현황의 <b>첫 열</b>이다. 값이 '연차(2026년)' 이다.
+             *
+             * <p>이 화면은 원래부터 <b>연도별</b>로 센다(그 해에 시작한 휴가만 사용일수에 넣는다).
+             * 그런데 그 연도가 응답에도 화면에도 없어서, 지금 보는 숫자가 몇 년치인지
+             * 알 방법이 없었다. 원본의 이 열이 바로 그 값이다.
+             *
+             * <p>휴가 항목 마스터를 만든 것이 아니다 — 우리에겐 연차 하나뿐이라
+             * 계산에 쓴 연도를 그대로 적는다. 종류가 늘면 그때 마스터를 둔다.
+             */
+            String leaveName,
             String empName,
             String department,
+            /** 재직 여부. 원본의 [재직구분] 조건이 이 값을 본다. */
+            boolean active,
             BigDecimal totalDays,
             BigDecimal usedDays,
             BigDecimal remainingDays
     ) {
-        public static VacationSummaryRow of(User u, BigDecimal totalDays, BigDecimal usedDays) {
+        /**
+         * 소수 <b>3자리</b>로 낸다. 예전에는 1자리로 반올림해서, 시간 단위 휴가(0.125일=1시간)를
+         * 쓰면 사용일수가 0.1 로 뭉개지고 잔여가 14.9 로 나왔다 — 더하면 15가 안 된다.
+         * 원본도 15.000 · 9.375 처럼 3자리로 보여 준다. 표시 자릿수는 화면의 [소수점]이 정한다.
+         */
+        public static VacationSummaryRow of(User u, BigDecimal usedDays) {
+            return of(u, usedDays, java.time.Year.now().getValue(), null);
+        }
+
+        /**
+         * {@code emp} 는 계정에 이어진 사원. 이어져 있으면 <b>부서 마스터</b>의 이름을 쓴다 —
+         * 계정의 자유입력 부서는 부서 마스터와 맞는다는 보장이 없어 같은 부서가
+         * 두 이름으로 갈릴 수 있다. 근태현황이 이미 같은 방식이다.
+         */
+        public static VacationSummaryRow of(User u, BigDecimal usedDays, int year,
+                                            com.erp.hr.domain.Employee emp) {
             BigDecimal used = usedDays == null ? BigDecimal.ZERO : usedDays;
+            BigDecimal total = u.getAnnualLeaveDays() == null ? BigDecimal.ZERO : u.getAnnualLeaveDays();
             return new VacationSummaryRow(
+                    "연차(" + year + "년)",
                     u.getName(),
-                    u.getDepartment(),
-                    totalDays.setScale(1, RoundingMode.HALF_UP),
-                    used.setScale(1, RoundingMode.HALF_UP),
-                    totalDays.subtract(used).setScale(1, RoundingMode.HALF_UP));
+                    emp != null && emp.getDepartment() != null
+                            ? emp.getDepartment().getName()
+                            : u.getDepartment(),
+                    u.isEnabled(),
+                    total.setScale(3, RoundingMode.HALF_UP),
+                    used.setScale(3, RoundingMode.HALF_UP),
+                    total.subtract(used).setScale(3, RoundingMode.HALF_UP));
         }
     }
 }

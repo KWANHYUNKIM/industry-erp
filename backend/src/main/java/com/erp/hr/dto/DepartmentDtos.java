@@ -1,18 +1,22 @@
 package com.erp.hr.dto;
 
 import com.erp.hr.domain.Department;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 public class DepartmentDtos {
 
     public record CreateDepartmentRequest(
+            @Size(max = 100, message = "부서명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "부서명을 입력하세요.") String name,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String code,
             Long parentId,
             Integer sortOrder
     ) {}
 
     public record UpdateDepartmentRequest(
+            @Size(max = 100, message = "부서명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "부서명을 입력하세요.") String name,
             Long parentId,
             Integer sortOrder,

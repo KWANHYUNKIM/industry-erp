@@ -55,7 +55,20 @@ public class CashDetailService {
 
     @Transactional(readOnly = true)
     public List<AccountTransferResponse> findTransfers() {
-        return transferRepository.findAllWithRefs().stream().map(AccountTransferResponse::from).toList();
+        return findTransfers(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<AccountTransferResponse> findTransfers(java.time.LocalDate from, java.time.LocalDate to) {
+        return transferRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(AccountTransferResponse::from).toList();
     }
 
     @Transactional
@@ -93,7 +106,20 @@ public class CashDetailService {
 
     @Transactional(readOnly = true)
     public List<CardPaymentResponse> findPayments() {
-        return paymentRepository.findAllWithRefs().stream().map(CardPaymentResponse::from).toList();
+        return findPayments(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<CardPaymentResponse> findPayments(java.time.LocalDate from, java.time.LocalDate to) {
+        return paymentRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(CardPaymentResponse::from).toList();
     }
 
     /** 아직 결제하지 않은 카드사용 (결제 화면의 대상 목록) */

@@ -1,12 +1,15 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   BankAccountRow, PayGroup, PayItem, Payslip, PayrollTransfer, PayslipLineKind,
 } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const today = () => ymd(new Date())
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['수당/공제 항목', '수당/공제 그룹', '급여이체'] as const
@@ -59,6 +62,11 @@ export default function PaySettingPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '급여설정', [])
+
   return (
     <EcListShell
       title="급여 설정 · 급여이체"
@@ -102,7 +110,7 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 항목이 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : items.map((i, idx) => (
                   <tr key={i.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
@@ -134,7 +142,7 @@ export default function PaySettingPage() {
                 onSaved={(name) => { setEditingGroup(null); flash(`${name} 그룹을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   <th style={{ width: 34 }}></th>
@@ -148,7 +156,7 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {groups.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 그룹이 없습니다.</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : groups.map((g, i) => (
                   <tr key={g.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -517,7 +525,7 @@ function TransferTab({ transfers, onError, onDone }: {
         </thead>
         <tbody>
           {transfers.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>이체 내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : transfers.map((t, i) => (
             <Fragment key={t.id}>
               <tr onClick={() => setOpenId(openId === t.id ? null : t.id)} style={{ cursor: 'pointer' }}>
@@ -526,7 +534,7 @@ function TransferTab({ transfers, onError, onDone }: {
                   {openId === t.id ? '▾ ' : '▸ '}{t.transferNo}
                 </td>
                 <td>{t.payMonth}</td>
-                <td>{t.transferDate}</td>
+                <td>{dateText(t.transferDate)}</td>
                 <td style={{ color: '#5a626e' }}>{t.bankAccountName}</td>
                 <td style={{ textAlign: 'center' }}>{t.lines.length}명</td>
                 <td style={{ textAlign: 'right' }}>{won(t.totalPay)}</td>

@@ -49,14 +49,37 @@ public class FixedAssetService {
 
     @Transactional(readOnly = true)
     public List<AssetResponse> findAll() {
-        return assetRepository.findAllWithAccount().stream().map(AssetResponse::from).toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     * 안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 는 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<AssetResponse> findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        return assetRepository.findAllWithAccount(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(AssetResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     public List<DepreciationResponse> findDepreciations(String period) {
+        return findDepreciations(period, null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     * 안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 는 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<DepreciationResponse> findDepreciations(String period,
+                                                        java.time.LocalDate from, java.time.LocalDate to) {
         List<Depreciation> rows = period != null && !period.isBlank()
                 ? depreciationRepository.findByPeriodWithRefs(period)
-                : depreciationRepository.findAllWithRefs();
+                : depreciationRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
         return rows.stream().map(DepreciationResponse::from).toList();
     }
 

@@ -46,7 +46,19 @@ public class NonCashService {
 
     @Transactional(readOnly = true)
     public List<NonCashResponse> findAll() {
-        return txnRepository.findAllWithRefs().stream().map(NonCashResponse::from).toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 안 주면 <b>넓은 경계</b>로 채운다 —
+     * <code>:from is null or …</code> 로 쓰면 PostgreSQL 이 파라미터 타입을 못 정해
+     * 42P18 로 터진다(기타이동 기간 조건에서 겪은 함정이다).
+     */
+    @Transactional(readOnly = true)
+    public List<NonCashResponse> findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        return txnRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(NonCashResponse::from).toList();
     }
 
     @Transactional

@@ -16,6 +16,21 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findAllWithRefs();
 
+    /**
+     * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
+     * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
+     */
+    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "where p.purchaseDate between :from and :to " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표 + 라인 + 품목까지 한 번에(회계미반영현황의 품목 줄). N+1 방지. */
+    @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "left join fetch p.lines l left join fetch l.item " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findAllWithRefsAndLines();
+
     /** 기간 내 구매 전표 (이익현황 집계용) */
     List<Purchase> findByPurchaseDateBetween(LocalDate from, LocalDate to);
 
@@ -30,6 +45,16 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
             "from Purchase p group by p.partner.id")
     List<PartnerAmount> sumTotalByPartner();
+
+    /** 거래처별 매입 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p where p.purchaseDate <= :asOf group by p.partner.id")
+    List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
+
+    /** 거래처별 매입 합계 — 기간 내(거래처별채무의 [재고매입]). */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p where p.purchaseDate between :from and :to group by p.partner.id")
+    List<PartnerAmount> sumTotalByPartnerBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     interface PartnerAmount {
         Long getPartnerId();

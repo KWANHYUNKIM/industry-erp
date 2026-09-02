@@ -1,0 +1,1422 @@
+{
+ "품목등록 리스트|관계설정": {
+  "claim": "품목 사이 관계(대체품·세트) 개념이 없다",
+  "absent": [
+   "substituteItem",
+   "setComponent"
+  ],
+  "in": "backend"
+ },
+ "거래처리스트|SMS": {
+  "claim": "문자 발송을 붙이지 않았다",
+  "absent": [
+   "SmsService",
+   "/api/sms"
+  ],
+  "in": "backend"
+ },
+ "결제내역조회|승인번호": {
+  "claim": "PG 연동에서 들어오는 자료라 값이 안 생긴다",
+  "absent": [
+   "approvalNo",
+   "PgPayment"
+  ],
+  "in": "backend"
+ },
+ "생산입고조회|진행상태변경": {
+  "claim": "생산입고에 진행상태가 없다",
+  "absent": [
+   "ProductionStatus"
+  ],
+  "in": "backend"
+ },
+ "단가요청진행단계|수취금액": {
+  "claim": "단가요청에 받은 금액을 적는 칸이 없다",
+  "absent": [
+   "receivedAmount",
+   "quotedAmount"
+  ],
+  "in": "backend"
+ },
+ "구매단가일괄변경|환율": {
+  "claim": "매입 전표에 통화 칸이 없다",
+  "absent": [
+   "currency",
+   "Currency"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "내결재관리|My도장/서명": {
+  "claim": "결재 도장 이미지를 만들지 않는다",
+  "absent": [
+   "stampImage",
+   "signatureImage"
+  ],
+  "in": "backend"
+ },
+ "거래처리스트|H": {
+  "claim": "거래처 마스터의 변경이력을 남기지 않는다",
+  "absent": [
+   "PartnerHistory",
+   "BusinessPartnerHistory"
+  ],
+  "in": "backend"
+ },
+ "단가적용순서설정|H": {
+  "claim": "그 화면의 변경이력을 남기지 않는다",
+  "absent": [
+   "PriceOrderHistory"
+  ],
+  "in": "backend"
+ },
+ "공용품관리|라벨변경": {
+  "claim": "여러 건의 라벨을 한꺼번에 바꾸는 기능이 없다",
+  "absent": [
+   "bulkLabel"
+  ],
+  "in": "both"
+ },
+ "SW개발일정관리|공용메일설정": {
+  "claim": "사내 공용메일 설정 화면이 없다",
+  "absent": [
+   "SharedMailSetting",
+   "shared-mail"
+  ],
+  "in": "both"
+ },
+ "공지사항|업무지원AI": {
+  "claim": "업무지원 AI 를 붙이지 않았다",
+  "absent": [
+   "AssistantService",
+   "/api/assistant"
+  ],
+  "in": "backend"
+ },
+ "작업내역조회|바코드(품목)": {
+  "claim": "바코드를 찍지 않는다",
+  "absent": [
+   "printBarcode",
+   "BarcodeLabel"
+  ],
+  "in": "both"
+ },
+ "공정등록|작업코드등록": {
+  "claim": "줄마다가 아니라 화면 위 버튼 하나로 연다",
+  "present": [
+   "작업코드등록"
+  ],
+  "file": "production/ProcessPage.tsx"
+ },
+ "거래처관리대장 I|사용중단포함": {
+  "claim": "조건 판의 체크박스로 둔다 — 버튼이 아니다",
+  "present": [
+   "사용중단거래처포함"
+  ]
+ },
+ "구매일괄회계반영|일부반영": {
+  "claim": "버튼이 아니라 열로 보여 준다",
+  "present": [
+   "일부반영"
+  ]
+ },
+ "출하조회|진행상태변경": {
+  "claim": "보기만 하는 화면이라 상태를 바꾸지 않는다",
+  "absent": [
+   "/status`"
+  ],
+  "in": "frontend/src/pages/trade/ShipmentInquiryPage.tsx"
+ },
+ "근태입력|출/퇴근": {
+  "claim": "출퇴근 시각은 [출/퇴근기록부(ID)]가 맡는다",
+  "present": [
+   "출근"
+  ],
+  "file": "hr/AttendanceInputPage.tsx"
+ },
+ "매출계획|금액": {
+  "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다",
+  "present": [
+   "계획금액",
+   "실적금액"
+  ]
+ },
+ "생산불출조회|불러온 전표No.": {
+  "claim": "작업지시서에서만 불러온다 — [작업지시서] 열과 같은 값이다",
+  "present": [
+   "작업지시서"
+  ]
+ },
+ "생산입고조회|생산입고I": {
+  "claim": "입력 화면을 [신규(F2)]로 연다",
+  "present": [
+   "onNew"
+  ]
+ },
+ "소요시간계산|주문": {
+  "claim": "수주에서 불러오지 않는다 — 작업지시에서 불러온다",
+  "present": [
+   "작업지시서"
+  ]
+ },
+ "구매조회|발주": {
+  "claim": "발주는 발주서 화면에서 만든다",
+  "present": [
+   "발주서"
+  ],
+  "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "작업지시서효율현황|닫기": {
+  "claim": "화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다",
+  "absent": [
+   "label: '닫기'"
+  ],
+  "in": "frontend/src/pages"
+ },
+ "공용품관리|라벨": {
+  "claim": "우리 [라벨]은 표의 열이다",
+  "present": [
+   "라벨"
+  ]
+ },
+ "설문조사조회|저장": {
+  "claim": "그 격자와 [저장]은 설문조사입력에 있다",
+  "present": [
+   "저장"
+  ],
+  "file": "groupware/SurveyInputPage.tsx"
+ },
+ "생산계획_MRP리스트|저장(F8)": {
+  "claim": "생성 팝업을 안 만든다 — 그 팝업의 버튼이다",
+  "absent": [
+   "Modal open={genOpen"
+  ],
+  "in": "frontend/src/pages/production/MrpPage.tsx"
+ },
+ "판매조회|통화": {
+  "claim": "판매·구매 전표에 통화 칸이 없다",
+  "absent": [
+   "private String currency"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "외화등록|환율": {
+  "claim": "환율은 날짜별 고시라 [고시환율] 탭에서 따로 든다",
+  "present": [
+   "고시환율"
+  ],
+  "file": "settings/CurrencyPage.tsx"
+ },
+ "창고등록|창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "private Warehouse parent"
+  ],
+  "in": "backend"
+ },
+ "근태조회|휴가항목": {
+  "claim": "휴가코드 마스터가 없어 근태코드 하나로 쓴다",
+  "absent": [
+   "VacationType",
+   "LeaveCode"
+  ],
+  "in": "backend"
+ },
+ "A/S소모현황|수리유형": {
+  "claim": "A/S 전표에 수리 갈래를 적는 칸이 없다",
+  "absent": [
+   "repairType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "거래이력조회|메뉴": {
+  "claim": "우리 화면은 그 거래처의 거래 내역이라 감사 기록의 값이 없다",
+  "absent": [
+   "AuditLog"
+  ],
+  "in": "backend"
+ },
+ "일보|종류": {
+  "claim": "이 화면이 합치는 매출·매입 전표에 그 갈래를 적는 칸이 없다",
+  "absent": [
+   "dailyKind"
+  ],
+  "in": "backend"
+ },
+ "거래처관리대장 II|대표거래처로 합산": {
+  "claim": "거래처 목록이라 합칠 금액이 없다 — 잔액을 보는 화면에는 만들었다",
+  "present": [
+   "대표거래처로 합산"
+  ],
+  "file": "trade/LedgerPage.tsx"
+ },
+ "특별단가등록|창고설정": {
+  "claim": "창고로 좁히는 특별단가를 만들지 않는다",
+  "absent": [
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|품목그룹설정": {
+  "claim": "품목그룹으로 좁히는 특별단가를 만들지 않는다",
+  "absent": [
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|특별단가그룹코드": {
+  "claim": "단가그룹은 이름만 든다 — 코드 마스터가 아니다",
+  "absent": [
+   "PriceGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "외화등록|금액소수점": {
+  "claim": "통화별 소수점 자릿수를 우리 마스터가 안 든다",
+  "absent": [
+   "decimal",
+   "Scale"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/Currency.java"
+ },
+ "계좌등록|검색창내용": {
+  "claim": "계좌 마스터에 찾기용 별칭 칸이 없다",
+  "absent": [
+   "alias",
+   "Alias",
+   "searchKey"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
+ },
+ "A/S소모현황|수리담당자": {
+  "claim": "A/S 전표의 담당자가 하나라 접수·수리로 가를 수 없다",
+  "absent": [
+   "repairCharge",
+   "repairEmployee",
+   "receiptCharge"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "생산공정": {
+  "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
+  "absent": [
+   "process",
+   "Process"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "발주서|발송여부": {
+  "claim": "전표를 거래처에 내보내는 기능이 없다",
+  "absent": [
+   "sentAt",
+   "sentDate",
+   "sendMail"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서입력|전체수량": {
+  "claim": "주문하면서 지금 재고를 같이 보여 주는 기능이 없다",
+  "absent": [
+   "stock",
+   "Stock"
+  ],
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
+ },
+ "발주서입력|창고수량": {
+  "claim": "그 창고의 재고를 발주 화면에 붙이지 않는다",
+  "absent": [
+   "stock",
+   "Stock"
+  ],
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
+ },
+ "건설예정공정표|업무지원AI": {
+  "claim": "업무지원 AI 를 붙이지 않았다",
+  "absent": [
+   "AI",
+   "업무지원"
+  ],
+  "in": "frontend/src/pages/groupware/ConstructionSchedulePage.tsx"
+ },
+ "생산계획/MRP생성|MRP계산": {
+  "claim": "소요량 전개(BOM 역산) 엔진이 없다",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "생산계획_MRP리스트|MRP계산": {
+  "claim": "위와 같음",
+  "absent": [
+   "MrpService",
+   "explodeBom",
+   "MrpRun"
+  ],
+  "in": "backend"
+ },
+ "품목등록 리스트|파일관리": {
+  "claim": "파일은 품목 팝업의 [이미지] 칸에서 붙이고 뗀다",
+  "present": [
+   "image"
+  ],
+  "file": "inventory/ItemsPage.tsx"
+ },
+ "거래처리스트|이체정보": {
+  "claim": "이체정보는 거래처 팝업 안에서 본다 — 따로 여는 화면이 없다",
+  "present": [
+   "accountNo",
+   "bankName"
+  ],
+  "file": "trade/PartnersPage.tsx"
+ },
+ "거래처관계기준": {
+  "claim": "[대표거래처로 합산] 체크가 곧 그 선택이다",
+  "present": [
+   "byParent"
+  ],
+  "file": "trade/LedgerPage.tsx"
+ },
+ "개별거래처기준": {
+  "claim": "위와 같음",
+  "present": [
+   "byParent"
+  ],
+  "file": "trade/LedgerPage.tsx"
+ },
+ "작업지시서입력": {
+  "claim": "우리 작업지시서는 품목 하나짜리 폼이라 더할 줄이 없다",
+  "absent": [
+   "WorkOrderLine"
+  ],
+  "in": "backend"
+ },
+ "구매단가일괄변경|환율변경": {
+  "claim": "위와 같음",
+  "absent": [
+   "currency",
+   "Currency"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "생산계획/MRP생성|생성일자": {
+  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
+  "present": [
+   "생성일자"
+  ],
+  "file": "production/MrpPage.tsx"
+ },
+ "생산계획_MRP리스트|생성일자": {
+  "claim": "위와 같음",
+  "present": [
+   "생성일자"
+  ],
+  "file": "production/MrpPage.tsx"
+ },
+ "생산계획/MRP생성|생산계획계산": {
+  "claim": "우리는 미판매 잔량으로 계획을 만든다",
+  "present": [
+   "production-plans"
+  ],
+  "file": "production/MrpPage.tsx"
+ },
+ "품목등록|부가정보": {
+  "claim": "우리 품목에 숫자형추가항목 칸이 없다",
+  "absent": [
+   "extraNum",
+   "attrNum",
+   "userNum"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "입고단가(VAT포함)": {
+  "claim": "생산실적에 단가 칸이 없다",
+  "absent": [
+   "unitPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "입고단가": {
+  "claim": "위와 같음",
+  "absent": [
+   "unitPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "선입선출(판매)": {
+  "claim": "입고 레이어를 남기지 않아 선입선출로 못 센다",
+  "absent": [
+   "StockLayer",
+   "CostLayer",
+   "InboundLayer"
+  ],
+  "in": "backend"
+ },
+ "원가생성_수정|공정명": {
+  "claim": "원가를 공정 단위로 쌓지 않는다",
+  "absent": [
+   "process",
+   "Process"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "원가생성_수정|창고코드": {
+  "claim": "원가를 창고 단위로 쌓지 않는다",
+  "absent": [
+   "warehouse",
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "원가생성_수정|창고명": {
+  "claim": "위와 같음",
+  "absent": [
+   "warehouse",
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+ },
+ "발주서|결재중": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서|미확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서|확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|결재중": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|미확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "발주서조회|확인": {
+  "claim": "발주 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "A/S접수|전체": {
+  "claim": "A/S 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "A/S접수|확인": {
+  "claim": "A/S 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "창고이동조회|전체": {
+  "claim": "창고이동 전표에 결재·확인 상태가 없다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "발주서입력|관리항목": {
+  "claim": "발주 줄에 관리항목을 달지 않는다",
+  "absent": [
+   "managementItem",
+   "ManagementItem"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "품질검사현황|출처(요청)구분": {
+  "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
+  "absent": [
+   "sourceType",
+   "SourceType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "거래처관리대장 II|거래처계층그룹": {
+  "claim": "거래처그룹이 평면이다 — 그룹 위에 그룹이 없다",
+  "absent": [
+   "parent",
+   "Parent"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PartnerGroup.java"
+ },
+ "출하현황|시리얼/로트No.": {
+  "claim": "출하 라인에 로트를 달지 않는다",
+  "absent": [
+   "lot",
+   "Lot"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/ShipmentLine.java"
+ },
+ "작업지시서입력|첨부": {
+  "claim": "작업지시에 붙임 파일을 달지 않는다",
+  "absent": [
+   "attachment",
+   "Attachment",
+   "StoredFile"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+ },
+ "구매단가일괄변경|프로젝트": {
+  "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PriceBulkDtos.java"
+ },
+ "창고등록|추가사업장": {
+  "claim": "한 회사 안에 사업장이 여럿일 수 없다",
+  "absent": [
+   "businessPlace",
+   "BusinessPlace"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Warehouse.java"
+ },
+ "거래이력조회|작업자": {
+  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 기록이 없다",
+  "absent": [
+   "AuditLog",
+   "audit_log"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|실제완료일": {
+  "claim": "실제로 끝난 날을 적는 칸이 없다",
+  "absent": [
+   "actualEndDate"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|태스크구분": {
+  "claim": "일을 갈래로 나누지 않는다",
+  "absent": [
+   "taskType"
+  ],
+  "in": "backend"
+ },
+ "건설예정공정표|게시일": {
+  "claim": "프로젝트는 게시글이 아니라 올린 날이 없다",
+  "absent": [
+   "postedAt"
+  ],
+  "in": "backend"
+ },
+ "거래처관리대장 II|기준일자": {
+  "claim": "거래처 목록에 잔액을 싣지 않는다 — 자를 값이 없다",
+  "absent": [
+   "balance",
+   "outstanding"
+  ],
+  "in": "trade/dto/PartnerDtos.java"
+ },
+ "매출계획비교표|기준일자": {
+  "claim": "계획이 연·월 단위라 날짜 구간으로 자를 것이 없다",
+  "present": [
+   "계획연도"
+  ],
+  "file": "trade/SalesPlanPage.tsx"
+ },
+ "거래처그룹1": {
+  "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
+  "absent": [
+   "partnerGroup2",
+   "partnerGroup1"
+  ],
+  "in": "backend"
+ },
+ "거래처그룹2": {
+  "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
+  "absent": [
+   "partnerGroup2",
+   "partnerGroup1"
+  ],
+  "in": "backend"
+ },
+ "거래처계층그룹": {
+  "claim": "그룹 위에 그룹을 두지 않는다",
+  "absent": [
+   "parentGroup",
+   "PartnerGroupTree"
+  ],
+  "in": "backend"
+ },
+ "품목그룹1": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목그룹2": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목그룹3": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "품목계층그룹": {
+  "claim": "그룹 위에 그룹을 두지 않는다",
+  "absent": [
+   "ItemGroupTree",
+   "parentItemGroup"
+  ],
+  "in": "backend"
+ },
+ "프로젝트그룹1": {
+  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
+  "absent": [
+   "ProjectGroup",
+   "projectGroupId"
+  ],
+  "in": "backend"
+ },
+ "프로젝트그룹2": {
+  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
+  "absent": [
+   "ProjectGroup",
+   "projectGroupId"
+  ],
+  "in": "backend"
+ },
+ "부서계층그룹": {
+  "claim": "부서를 계층으로 묶지 않는다",
+  "absent": [
+   "parentDepartment",
+   "DepartmentTree"
+  ],
+  "in": "backend"
+ },
+ "월별채권증감내역|정렬/소계기준": {
+  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "present": [
+   "전월이월",
+   "당월잔액"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "월별채무증감내역|정렬/소계기준": {
+  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "present": [
+   "전월이월",
+   "당월잔액"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "자가사용현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "불량처리현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "폐기현황|진행상태": {
+  "claim": "기타이동에는 상태 칸이 없다",
+  "absent": [
+   "adjustStatus",
+   "StockAdjustmentStatus"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "단가요청현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "발주계획현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "자가사용현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "불량처리현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "대체사용현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "폐기현황|오더관리번호": {
+  "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
+  "absent": [
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "자가사용현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "불량처리현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "폐기현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "재고조정현황|거래처": {
+  "claim": "기타이동에는 거래처가 없다",
+  "absent": [
+   "adjustPartner",
+   "partner_id"
+  ],
+  "in": "inventory/domain/StockAdjustment.java"
+ },
+ "출/퇴근현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "출/퇴근현황(ID)|업무일/휴일구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "지각현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "지각현황(ID)|업무일/휴일구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "출퇴근/근태/일정현황(ID)|내/외근구분": {
+  "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
+  "absent": [
+   "fieldWork",
+   "holidayKind",
+   "workType"
+  ],
+  "in": "hr/domain/Attendance.java"
+ },
+ "월별채권증감내역|기준일자": {
+  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
+  "present": [
+   "연도"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "월별채무증감내역|기준일자": {
+  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
+  "present": [
+   "연도"
+  ],
+  "file": "trade/MonthlyArApPage.tsx"
+ },
+ "문자형추가항목1": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목2": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "문자형추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목1": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목2": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목7": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목8": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목9": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "숫자형추가항목10": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목3": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목4": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목5": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "추가항목6": {
+  "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
+  "file": "settings/CustomFieldPage.tsx",
+  "present": [
+   "ITEM",
+   "PARTNER",
+   "EMPLOYEE"
+  ]
+ },
+ "단가A": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가B": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가C": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가D": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가E": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가F": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가G": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가H": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가I": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "단가J": {
+  "claim": "품목 단가는 판매·구매 둘이다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "priceA",
+   "priceGrade"
+  ]
+ },
+ "안전재고관리-주문서": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-판매": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-생산불출": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-생산입고": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-창고이동": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-자가사용": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "안전재고관리-불량처리": {
+  "claim": "안전재고는 숫자 하나다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "safetyStockCheck",
+   "safetyStockUse"
+  ]
+ },
+ "재료비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "노무비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "경비표준원가": {
+  "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ]
+ },
+ "외주비표준원가": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "경비가중치": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "표준노무시간(노무비가중치)": {
+  "claim": "외주비·배부 가중치를 원가 요소로 두지 않는다",
+  "in": "backend",
+  "absent": [
+   "subcontractCost",
+   "laborWeight",
+   "overheadWeight"
+  ]
+ },
+ "C-Portal최소주문수량체크": {
+  "claim": "고객이 직접 주문을 넣는 웹 포털이 없다",
+  "in": "backend",
+  "absent": [
+   "minOrderQty"
+  ]
+ },
+ "C-Portal최소주문수량": {
+  "claim": "고객이 직접 주문을 넣는 웹 포털이 없다",
+  "in": "backend",
+  "absent": [
+   "minOrderQty"
+  ]
+ },
+ "카드사그룹1": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "카드사그룹2": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "결제대행사그룹1": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "결제대행사그룹2": {
+  "claim": "카드사·결제대행사를 그룹으로 묶지 않는다",
+  "in": "backend/src/main/java/com/erp/accounting",
+  "absent": [
+   "agencyGroup",
+   "issuerGroup"
+  ]
+ },
+ "단가요청현황|참조": {
+  "claim": "발주 전표에 다른 문서를 가리키는 칸이 없다",
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
+  "absent": [
+   "reference",
+   "refNo",
+   "refDocument"
+  ]
+ },
+ "발주계획현황|참조": {
+  "claim": "발주 전표에 다른 문서를 가리키는 칸이 없다",
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
+  "absent": [
+   "reference",
+   "refNo",
+   "refDocument"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태항목": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태그룹": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근태구분": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|근무구분": {
+  "claim": "근태를 항목으로 등록하지 않는다",
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "absent": [
+   "attendanceType",
+   "workKind",
+   "attendanceItem"
+  ]
+ },
+ "출퇴근/근태/일정현황(ID)|휴가항목": {
+  "claim": "이 화면은 근태와 일정만 합친다",
+  "file": "hr/WorkIntegratedPage.tsx",
+  "present": [
+   "/hr/attendance",
+   "/schedule-events"
+  ]
+ },
+ "자가사용현황|거래처관리담당자": {
+  "claim": "전표에 거래처가 없어 그 거래처의 담당자도 없다",
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java",
+  "absent": [
+   "adjustPartner",
+   "partner_id",
+   "BusinessPartner"
+  ]
+ },
+ "재고수불부|생산불출/창고이동포함": {
+  "claim": "우리 재고거래는 생산불출·창고이동을 따로 표시하지 않는다",
+  "absent": [
+   "ISSUE",
+   "TRANSFER"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
+ },
+ "재고변동표|생산불출/창고이동포함": {
+  "claim": "우리 재고거래는 생산불출·창고이동을 따로 표시하지 않는다",
+  "absent": [
+   "ISSUE",
+   "TRANSFER"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
+ }
+}

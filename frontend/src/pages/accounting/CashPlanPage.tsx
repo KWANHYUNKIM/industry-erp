@@ -3,9 +3,10 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CashFlowType, CashPlanStatus } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const signed = (n: number) => (n > 0 ? `+${won(n)}` : won(n))
 
 /** 자금계획 — 월별 수입·지출 계획 대비 실적(그 달의 계좌 입출금 집계). */
@@ -121,7 +122,7 @@ function PlanTable({ title, rows, onRemove }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>계획이 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

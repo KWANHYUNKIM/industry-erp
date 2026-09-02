@@ -22,5 +22,13 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+
+  /*
+   * 테스트 파일은 앱 빌드에서 뺀다. Node 내장 러너(node --test)로 돌리는 파일이라
+   * node:test / node:assert 를 import 하는데, 앱 tsconfig 에는 node 타입이 없어서
+   * 넣어 두면 typecheck 와 build 가 둘 다 깨진다.
+   * 검사는 `npm run test:unit` 이 실행 시점에 한다.
+   */
+  "exclude": ["src/**/*.test.ts"]
 }

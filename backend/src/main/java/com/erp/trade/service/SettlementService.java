@@ -22,6 +22,7 @@ import com.erp.trade.dto.SettlementDtos;
 public class SettlementService {
 
     private final SettlementRepository settlementRepository;
+    private final com.erp.inventory.service.ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -46,11 +47,33 @@ public class SettlementService {
                 .settleDate(date)
                 .amount(req.amount())
                 .method(req.method())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
                 .createdBy(username)
                 .build();
 
         return SettlementResponse.from(settlementRepository.save(s));
+    }
+
+    /**
+     * 정산 전표 삭제.
+     *
+     * <p>없어서 잘못 넣은 수금·지급을 지울 방법이 아예 없었다. 정산은 거래처 채권·채무 잔액에
+     * 그대로 반영되므로, 못 지우면 오타 하나가 잔액을 영구히 틀리게 만든다.
+     *
+     * <p>재고처럼 되돌릴 것이 없다(정산은 금액만 남긴다). 잔액은 정산 목록을 합쳐서 내므로
+     * 행을 지우면 그대로 맞아 들어간다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Settlement s = settlementRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("정산 전표를 찾을 수 없습니다. id=" + id));
+        // 판매·구매와 같은 규칙이다. 지우면 분개만 남아 원장이 전표를 잃는다.
+        if (s.isAccountingReflected()) {
+            throw ApiException.badRequest(
+                    "회계반영된 결제전표는 삭제할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
+        settlementRepository.delete(s);
     }
 
     private String generateDocNo(SettlementType type, LocalDate date) {

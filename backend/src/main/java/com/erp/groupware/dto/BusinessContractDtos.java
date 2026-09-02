@@ -3,6 +3,7 @@ package com.erp.groupware.dto;
 import com.erp.groupware.domain.BusinessContract;
 import com.erp.groupware.domain.enums.BusinessContractStatus;
 import com.erp.groupware.domain.enums.BusinessContractType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -17,19 +18,23 @@ public final class BusinessContractDtos {
     private BusinessContractDtos() {}
 
     public record CreateContractRequest(
+            @Size(max = 200, message = "계약명은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "계약명을 입력하세요.") String title,
             @NotNull(message = "계약 종류를 선택하세요.") BusinessContractType type,
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "계약 시작일을 입력하세요.") LocalDate startDate,
             @NotNull(message = "계약 종료일을 입력하세요.") LocalDate endDate,
-            @NotNull @PositiveOrZero(message = "계약금액은 0보다 작을 수 없습니다.") BigDecimal amount,
+            @NotNull(message = "계약금액을 입력하세요.") @PositiveOrZero(message = "계약금액은 0보다 작을 수 없습니다.") BigDecimal amount,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String paymentTerms,
             String content
     ) {}
 
     /** 전자서명: 서명자 이름과 동의문구를 남긴다 */
     public record SignRequest(
+            @Size(max = 50, message = "서명자 이름은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "서명자 이름을 입력하세요.") String signerName,
+            @Size(max = 300, message = "동의문구는 300자까지 넣을 수 있습니다.")
             @NotBlank(message = "동의문구를 입력하세요.") String agreement
     ) {}
 

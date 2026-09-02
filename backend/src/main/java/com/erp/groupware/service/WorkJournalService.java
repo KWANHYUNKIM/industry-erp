@@ -9,6 +9,7 @@ import com.erp.groupware.dto.WorkJournalDtos.WorkJournalResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.auth.repository.UserRepository;
 import com.erp.groupware.repository.WorkJournalRepository;
+import com.erp.inventory.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +25,23 @@ public class WorkJournalService {
     private final WorkJournalRepository workJournalRepository;
     private final UserRepository userRepository;
     private final BusinessPartnerRepository partnerRepository;
+    // 프로젝트는 inventory 가 소유한다. 리포지토리를 직접 주입하지 않고 그 모듈의 서비스를 거친다.
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
-        return workJournalRepository.findAllWithRefs().stream()
-                .map(WorkJournalResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /** 업무일지 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
+    @Transactional(readOnly = true)
+    public List<WorkJournalResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? workJournalRepository.findAllWithRefs()
+                : workJournalRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(WorkJournalResponse::from).toList();
     }
 
     @Transactional
@@ -43,6 +55,7 @@ public class WorkJournalService {
                 .department(req.department() != null ? req.department() : author.getDepartment())
                 .partnerName(req.partnerName())
                 .partner(matchPartner(req.partnerName()))
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .title(req.title())
                 .content(req.content())
                 .build();

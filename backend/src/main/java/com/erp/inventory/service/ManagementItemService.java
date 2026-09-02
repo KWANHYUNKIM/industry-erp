@@ -21,11 +21,29 @@ public class ManagementItemService {
 
     private final ManagementItemRepository managementItemRepository;
 
+    /** 새로 고르는 자리에서 쓴다. 사용중지한 관리항목을 품목에 새로 붙일 수는 없다. */
+    @Transactional(readOnly = true)
+    public ManagementItem getUsable(Long id) {
+        ManagementItem m = get(id);
+        if (!m.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 관리항목입니다: " + m.getCode() + " " + m.getName());
+        }
+        return m;
+    }
+
     @Transactional(readOnly = true)
     public List<ManagementItemResponse> findAll() {
         return managementItemRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()
                 .map(ManagementItemResponse::from)
                 .toList();
+    }
+
+    /** 다른 서비스가 관리항목 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public ManagementItem get(Long id) {
+        return managementItemRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("관리항목을 찾을 수 없습니다. id=" + id));
     }
 
     @Transactional

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS: { label: string; type: CheckType }[] = [
@@ -29,6 +32,14 @@ export default function CheckPage() {
   const [rows, setRows] = useState<BankCheck[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이제 이 구간만 준다(전에는 전 기간을 통째로 받았다).
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
+   * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
+   */
+  const [from2, setFrom2] = useState('')
+  const [to2, setTo2] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -40,7 +51,7 @@ export default function CheckPage() {
     setLoading(true)
     try {
       const [c, b, p] = await Promise.all([
-        api.get<BankCheck[]>('/checks'),
+        api.get<BankCheck[]>('/checks', { params: { from: from2 || undefined, to: to2 || undefined } }),
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Partner[]>('/partners'),
       ])
@@ -54,7 +65,7 @@ export default function CheckPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   async function deposit(c: BankCheck) {
     const usable = banks.filter((b) => b.active)
@@ -89,6 +100,15 @@ export default function CheckPage() {
   const held = shown.filter((r) => r.status === 'HELD')
   const heldTotal = held.reduce((s, r) => s + r.amount, 0)
 
+
+  /*
+   * 이 칸의 이름은 탭에 따라 [수취일]/[발행일]로 바뀌지만 <b>같은 칸</b>이다(issueDate).
+   * 그래서 정렬 열쇠는 하나로 둔다 — 탭을 옮겼다고 정렬이 풀리면 이상하다.
+   */
+  const sort = useTableSort(shown, {
+    일자: (c) => c.issueDate,
+  })
+
   return (
     <EcListShell
       title="수표관리"
@@ -110,6 +130,19 @@ export default function CheckPage() {
         </span>
       </div>
 
+      {/*
+        화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+        비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={from2}
+               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={to2}
+               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
+      </div>
+
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
@@ -125,7 +158,7 @@ export default function CheckPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>수표번호</th>
-            <th style={{ width: 100 }}>{type === 'RECEIVED' ? '수취일' : '발행일'} ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>{type === 'RECEIVED' ? '수취일' : '발행일'} {sort.mark('일자')}</th>
             <th style={{ width: 120, textAlign: 'right' }}>금액</th>
             <th style={{ width: 110 }}>은행</th>
             <th style={{ width: 130 }}>거래처</th>
@@ -140,18 +173,18 @@ export default function CheckPage() {
           {loading ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수표가 없습니다.</td></tr>
-          ) : shown.map((c, i) => (
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((c, i) => (
             <tr key={c.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.checkNo}</td>
-              <td>{c.issueDate}</td>
+              <td>{dateText(c.issueDate)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? '-'}</td>
+              <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
-              <td>{c.settledDate ?? ''}</td>
+              <td>{dateText(c.settledDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 {c.status === 'HELD' && (
                   <div style={{ display: 'inline-flex', gap: 3 }}>

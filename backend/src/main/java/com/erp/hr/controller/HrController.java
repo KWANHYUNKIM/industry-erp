@@ -76,8 +76,17 @@ public class HrController {
         return hrService.updateVacationStatus(id, req.status());
     }
 
+    @DeleteMapping("/vacations/{id}")
+    public ResponseEntity<Void> deleteVacation(@PathVariable Long id) {
+        hrService.deleteVacation(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/vacations/summary")
-    public List<VacationSummaryRow> vacationSummary(@RequestParam(required = false) Integer year) {
-        return hrService.vacationSummary(year);
+    public List<VacationSummaryRow> vacationSummary(
+            @RequestParam(required = false) Integer year,
+            /** 재직구분: ACTIVE(기본) | RESIGNED | ALL */
+            @RequestParam(required = false) String employment) {
+        return hrService.vacationSummary(year, employment);
     }
 }

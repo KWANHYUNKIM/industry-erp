@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.hr.domain.Employee;
+import com.erp.inventory.service.ProjectService;
 import com.erp.inventory.domain.Item;
 import com.erp.trade.domain.PurchaseOrder;
 import com.erp.trade.domain.PurchaseOrderLine;
@@ -21,9 +22,10 @@ import com.erp.trade.dto.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.erp.trade.dto.PurchaseOrderDtos.ReceiveRequest;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.hr.repository.EmployeeRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.PurchaseOrderRepository;
-import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.WarehouseService;
+import com.erp.trade.repository.PurchaseLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,16 +48,36 @@ public class PurchaseOrderService {
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
     private final PurchaseOrderRepository orderRepository;
+    private final com.erp.trade.repository.PurchaseOrderHistoryRepository historyRepository;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final EmployeeRepository employeeRepository;
-    private final WarehouseRepository warehouseRepository;
+    private final WarehouseService warehouseService;
     private final PurchaseService purchaseService;
+    private final PurchaseLineRepository purchaseLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderResponse> findAll() {
-        return orderRepository.findAllWithRefs().stream()
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? orderRepository.findAllWithRefs()
+                : orderRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream()
                 .map(PurchaseOrderResponse::from)
                 .toList();
     }
@@ -99,8 +121,8 @@ public class PurchaseOrderService {
     /** 발주요청 등록. 단가 미입력 라인은 품목 기준단가로 채운다. */
     @Transactional
     public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canBuy()) {
             throw ApiException.badRequest("매입처가 아닌 거래처에는 발주할 수 없습니다: " + partner.getName());
         }
@@ -108,17 +130,18 @@ public class PurchaseOrderService {
 
         Employee employee = req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
                 .orElseThrow(() -> ApiException.notFound("담당자를 찾을 수 없습니다. id=" + req.employeeId()));
-        Warehouse warehouse = req.warehouseId() == null ? null : warehouseRepository.findById(req.warehouseId())
-                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        Warehouse warehouse = req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId());
         String currency = (req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim();
 
         PurchaseOrder po = PurchaseOrder.builder()
                 .orderNo(docNoGenerator.next("PR-", "purchase_orders", "order_no", "order_date", orderDate))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
+                .priceValidUntil(req.priceValidUntil())
                 .partner(partner)
                 .employee(employee)
                 .warehouse(warehouse)
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .currency(currency)
                 .status(PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())
@@ -127,11 +150,11 @@ public class PurchaseOrderService {
                 .build();
 
         for (OrderLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
-            BusinessPartner linePartner = lr.partnerId() == null ? null : partnerRepository.findById(lr.partnerId())
-                    .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId()));
+            BusinessPartner linePartner = lr.partnerId() == null ? null
+                    : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
+                            .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
             po.addLine(PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
@@ -139,24 +162,29 @@ public class PurchaseOrderService {
         }
         recalculate(po);
 
-        return PurchaseOrderResponse.from(orderRepository.save(po));
+        PurchaseOrder saved = orderRepository.save(po);
+        /* 첫 줄은 <b>만들어진 것</b>이다. 넘어오기 전 상태가 없으니 from 은 비운다. */
+        trace(saved, null, saved.getStatus(), username, null);
+        return PurchaseOrderResponse.from(saved);
     }
 
     /** 발주계획 확정 (발주요청 → 발주계획). 납기일을 여기서 정한다. */
     @Transactional
-    public PurchaseOrderResponse plan(Long id, PlanRequest req) {
+    public PurchaseOrderResponse plan(Long id, PlanRequest req, String username) {
         PurchaseOrder po = get(id);
         expect(po, PurchaseOrderStatus.REQUESTED, "발주요청 상태의 발주서만 계획할 수 있습니다.");
         if (req != null && req.dueDate() != null) {
             po.setDueDate(req.dueDate());
         }
+        trace(po, po.getStatus(), PurchaseOrderStatus.PLANNED, username,
+                po.getDueDate() != null ? "납기일 " + po.getDueDate() : null);
         po.setStatus(PurchaseOrderStatus.PLANNED);
         return PurchaseOrderResponse.from(po);
     }
 
     /** 단가요청 회신 반영 (발주계획 → 단가확정). 확정된 단가로 금액·부가세를 다시 계산한다. */
     @Transactional
-    public PurchaseOrderResponse applyPrices(Long id, ApplyPricesRequest req) {
+    public PurchaseOrderResponse applyPrices(Long id, ApplyPricesRequest req, String username) {
         PurchaseOrder po = get(id);
         if (po.getStatus() != PurchaseOrderStatus.PLANNED && po.getStatus() != PurchaseOrderStatus.PRICED) {
             throw ApiException.badRequest("발주계획 상태의 발주서만 단가를 확정할 수 있습니다.");
@@ -169,26 +197,53 @@ public class PurchaseOrderService {
                             "발주서 " + po.getOrderNo() + " 에 없는 라인입니다. lineId=" + lp.lineId()));
             line.setUnitPrice(lp.unitPrice());
         }
+        /* 매입처는 단가와 함께 <b>언제까지 유효한지</b>를 준다. 안 주면 그대로 둔다. */
+        if (req.priceValidUntil() != null) {
+            po.setPriceValidUntil(req.priceValidUntil());
+        }
         recalculate(po);
+        trace(po, po.getStatus(), PurchaseOrderStatus.PRICED, username,
+                po.getPriceValidUntil() != null ? "유효기간 " + po.getPriceValidUntil() : null);
         po.setStatus(PurchaseOrderStatus.PRICED);
         return PurchaseOrderResponse.from(po);
     }
 
     /** 발주 확정 (단가확정 → 발주확정). 이 시점의 발주서를 매입처에 보낸다. */
     @Transactional
-    public PurchaseOrderResponse confirm(Long id) {
+    public PurchaseOrderResponse confirm(Long id, String username) {
         PurchaseOrder po = get(id);
         expect(po, PurchaseOrderStatus.PRICED, "단가가 확정된 발주서만 발주할 수 있습니다.");
+        /*
+         * <b>지난 단가로는 발주하지 않는다.</b> 유효기간을 적어 두고도 그냥 통과시키면
+         * 그 칸은 아무 일도 안 하는 장식이 된다 — 물건이 들어오고 청구서가 와서야
+         * 값이 다른 것을 안다. 늦었으면 매입처에 다시 물어 기간을 고치고 발주한다.
+         */
+        if (po.getPriceValidUntil() != null && po.getPriceValidUntil().isBefore(LocalDate.now())) {
+            throw ApiException.badRequest(
+                    "단가 유효기간이 지났습니다(" + po.getPriceValidUntil() + "). "
+                    + "매입처에 다시 확인해 유효기간을 고친 뒤 발주하세요.");
+        }
+        trace(po, po.getStatus(), PurchaseOrderStatus.ORDERED, username, null);
         po.setStatus(PurchaseOrderStatus.ORDERED);
         return PurchaseOrderResponse.from(po);
     }
 
     @Transactional
-    public PurchaseOrderResponse cancel(Long id) {
+    public PurchaseOrderResponse cancel(Long id, String username) {
         PurchaseOrder po = get(id);
         if (po.getStatus() == PurchaseOrderStatus.RECEIVED) {
             throw ApiException.badRequest("이미 입고된 발주서는 취소할 수 없습니다.");
         }
+        /*
+         * <b>이미 취소된 것을 또 취소하지 않는다.</b> 예전에는 그냥 통과해서, 화면이 느릴 때
+         * [취소]를 두 번 누르면 발주서 이력에 <b>"취소 → 취소"</b> 가 누른 만큼 쌓였다.
+         * 일어나지도 않은 전이가 이력에 남으면, 나중에 그 발주서에 무슨 일이 있었는지
+         * 읽는 사람이 잘못 읽는다. 형제 자리(입고전환·견적 수주전환)가 쓰는 말투를 따른다.
+         */
+        if (po.getStatus() == PurchaseOrderStatus.CANCELLED) {
+            throw ApiException.conflict("이미 취소된 발주서입니다: " + po.getOrderNo());
+        }
+        trace(po, po.getStatus(), PurchaseOrderStatus.CANCELLED, username, null);
         po.setStatus(PurchaseOrderStatus.CANCELLED);
         return PurchaseOrderResponse.from(po);
     }
@@ -211,14 +266,19 @@ public class PurchaseOrderService {
         }
 
         List<PurchaseLineRequest> lines = po.getLines().stream()
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark()))
+                // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
                 po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
-                "발주 " + po.getOrderNo() + " 입고", null, null, lines);
+                Boolean.FALSE,  // 발주서 입고전환은 늘 일반 구매다
+                "발주 " + po.getOrderNo() + " 입고", null, null,
+                null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
+                lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
+        trace(po, po.getStatus(), PurchaseOrderStatus.RECEIVED, username, "구매전표 " + purchase.docNo());
         po.setStatus(PurchaseOrderStatus.RECEIVED);
         po.setConvertedPurchaseId(purchase.id());
         return purchase;
@@ -248,8 +308,50 @@ public class PurchaseOrderService {
         }
     }
 
+    /**
+     * 발주 삭제.
+     *
+     * <p>입고로 전환돼 구매전표가 생겼으면 막는다 — 구매전표가 이 발주를 출처로 가리키고 있어서
+     * 발주만 사라지면 그 전표의 근거가 없어진다. 구매전표를 먼저 지워야 한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        PurchaseOrder order = get(id);
+        if (purchaseLineRepository.existsBySourceOrderId(id)) {
+            throw ApiException.conflict(
+                    "입고된 구매전표가 있어 지울 수 없습니다. 먼저 구매전표를 지우세요: " + order.getOrderNo());
+        }
+        orderRepository.delete(order);
+    }
+
     private PurchaseOrder get(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("발주서를 찾을 수 없습니다. id=" + id));
+    }
+
+    /**
+     * 단계가 넘어간 자취를 남긴다. <b>상태를 바꾸는 자리마다</b> 부른다 —
+     * 한 군데라도 빠뜨리면 이력에 구멍이 나고, 구멍 난 이력은 없는 것보다 나쁘다
+     * (있는 줄 알고 믿게 된다).
+     */
+    private void trace(PurchaseOrder po, PurchaseOrderStatus from, PurchaseOrderStatus to,
+                       String username, String note) {
+        historyRepository.save(com.erp.trade.domain.PurchaseOrderHistory.builder()
+                .order(po)
+                .changedAt(java.time.LocalDateTime.now())
+                .fromStatus(from)
+                .toStatus(to)
+                .changedBy(username)
+                .note(note)
+                .build());
+    }
+
+    /** 한 발주가 밟아 온 자취. 화면이 [이력]을 펼칠 때 가져간다. */
+    @Transactional(readOnly = true)
+    public List<com.erp.trade.dto.PurchaseOrderDtos.HistoryRow> history(Long id) {
+        get(id);   // 없는 발주면 404
+        return historyRepository.findByOrderIdOrderByChangedAtAscIdAsc(id).stream()
+                .map(com.erp.trade.dto.PurchaseOrderDtos.HistoryRow::from)
+                .toList();
     }
 }

@@ -1,13 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { Item, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
- * 품목별 기간 기초·입고·출고·기말을 한 줄로 요약(재고수불부의 집계판).
- * 데이터는 GET /api/stock/movement (StockMovementRow[]) — 백엔드가 기초(before from)와
- * 기간 입출고를 집계해준다. 기말 = 기초 + 입고 − 출고.
+ *
+ * 원본에는 [구분]이 <b>집계 / 일별 / 월별</b> 셋이다. 우리는 집계(품목별 한 줄)만 있었다.
+ * "이번 달에 재고가 어떻게 움직였나"를 보려면 날짜 축이 있어야 하는데 그게 없었다.
+ *
+ *   집계 — 품목별 기초·입고·출고·기말 한 줄. GET /api/stock/movement 가 계산해 준다.
+ *   일별·월별 — 기간의 재고이동을 날짜/월로 묶는다. GET /api/stock/ledger 로 이동 내역을 받고,
+ *               기초는 movement 의 품목별 기초를 합친 값에서 시작해 앞 구간의 기말을 다음 구간의
+ *               기초로 굴린다. 그래야 구간끼리 이어진다(기말 = 기초 + 입고 − 출고).
+ *
+ * 원본 조건 중 '입출고표시방법(표시/상세표시)'·'개별창고기준'·'결재방표시'는 우리 데이터에
+ * 대응하는 개념이 없어 넣지 않았다.
  */
 
 interface MovementRow {
@@ -15,11 +28,24 @@ interface MovementRow {
   opening: number; inQty: number; outQty: number; closing: number
 }
 
+/** 일별·월별 보기의 한 줄. 구간(날짜 또는 월)마다 기초·입고·출고·기말을 낸다. */
+interface BucketRow {
+  key: string
+  opening: number; inQty: number; outQty: number; closing: number; count: number
+}
+
+interface LedgerTx {
+  transactionDate: string
+  quantityChange: number
+}
+
 const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 export default function StockMovementPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<MovementRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,10 +56,35 @@ export default function StockMovementPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [hideZero, setHideZero] = useState(false)
+  /*
+   * 원본 재고변동표(E040719) [기타]는 <b>일곱</b>이다(2026-09-02 실측):
+   * 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 · 생산불출/창고이동포함 ·
+   * 입출고수량0제외 · 품목명(정렬) · 개별창고기준. 우리에겐 [입출고수량0제외] 하나뿐이라,
+   * 재고현황과 똑같이 <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었고 차례도 못 바꿨다.
+   * 뜻이 분명한 셋을 만든다 — 나머지 넷은 아래 주석에 까닭을 적었다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  const [byItemName, setByItemName] = useState(false)
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
+   * 모아 본다. 규격별로 갈린 표에서는 "이 물건이 이 달에 통틀어 얼마나 움직였나" 를
+   * 눈으로 더해야 한다. 원본과 같이 기본은 꺼 둔다.
+   */
+  const [rollUp, setRollUp] = useState(false)
+  /** 대표품목을 알려면 품목 마스터가 필요하다 — 변동표 응답에는 품목 id 만 온다. */
+  const [items, setItems] = useState<Item[]>([])
+  /** 원본 [구분] — 집계·일별·월별. */
+  const [mode, setMode] = useState<'집계' | '일별' | '월별'>('집계')
+  const [buckets, setBuckets] = useState<BucketRow[]>([])
 
   async function loadRefs() {
-    const w = await api.get<Warehouse[]>('/warehouses')
+    const [w, i] = await Promise.all([
+      api.get<Warehouse[]>('/warehouses'),
+      api.get<Item[]>('/items'),
+    ])
     setWarehouses(w.data)
+    setItems(i.data)
   }
   async function load() {
     setLoading(true); setError('')
@@ -44,25 +95,98 @@ export default function StockMovementPage() {
       if (warehouseId) params.warehouseId = warehouseId
       const res = await api.get<MovementRow[]>('/stock/movement', { params })
       setRows(res.data)
-    } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
+
+      if (mode === '집계') {
+        setBuckets([])
+      } else {
+        // 구간별 기초는 '기간 전체의 기초'에서 시작해 앞 구간의 기말을 다음 구간의 기초로 굴린다.
+        // 그래야 구간끼리 이어지고 마지막 구간의 기말이 집계 보기의 기말과 맞는다.
+        const openingTotal = res.data.reduce((n, r) => n + r.opening, 0)
+        const led = await api.get<{ rows: LedgerTx[] }>('/stock/ledger', { params })
+        const bucketOf = (d: string) => (mode === '월별' ? d.slice(0, 7) : d.slice(0, 10))
+
+        const map = new Map<string, { inQty: number; outQty: number; count: number }>()
+        led.data.rows.forEach((t) => {
+          const k = bucketOf(t.transactionDate)
+          const b = map.get(k) ?? { inQty: 0, outQty: 0, count: 0 }
+          if (t.quantityChange >= 0) b.inQty += t.quantityChange
+          else b.outQty += -t.quantityChange
+          b.count += 1
+          map.set(k, b)
+        })
+
+        let running = openingTotal
+        setBuckets([...map.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([key, b]) => {
+          const opening = running
+          const closing = opening + b.inQty - b.outQty
+          running = closing
+          return { key, opening, inQty: b.inQty, outQty: b.outQty, closing, count: b.count }
+        }))
+      }
+    } catch (err) { setError(extractErrorMessage(err)); setRows([]); setBuckets([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { loadRefs(); load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+  useEffect(() => { loadRefs() }, [])
+  // 보기 구분이 바뀌면 계산 근거가 달라지므로 다시 조회한다.
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mode])
+
+  /** 일별·월별 보기에서 '입출고수량0제외' 를 걸면 움직임이 없는 날은 뺀다. */
+  const shownBuckets = useMemo(
+    () => buckets.filter((b) => !hideZero || b.inQty !== 0 || b.outQty !== 0),
+    [buckets, hideZero],
+  )
+
+  const reset = () => {
+    setFrom(firstOfMonth()); setTo(today())
+    setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계'); setRollUp(false)
+  }
+
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 변동표 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
-    return rows.filter((r) => {
+    /*
+     * 대표로 모을 때는 <b>더한 뒤에 거른다.</b> 먼저 거르면 형제 하나가 검색어에 안 걸려
+     * 빠지고, 그러면 대표 줄의 수량이 조용히 모자란다.
+     */
+    let base = rows
+    if (rollUp) {
+      const head = new Map(items.map((it) => [it.id, it.parentItemId ?? it.id]))
+      const names = new Map(items.map((it) => [it.id, it]))
+      const m = new Map<number, MovementRow>()
+      for (const r of rows) {
+        const id = head.get(r.itemId) ?? r.itemId
+        const h = names.get(id)
+        const cur = m.get(id) ?? {
+          ...r, itemId: id,
+          itemCode: h?.code ?? r.itemCode, itemName: h?.name ?? r.itemName,
+          opening: 0, inQty: 0, outQty: 0, closing: 0,
+        }
+        cur.opening += r.opening; cur.inQty += r.inQty
+        cur.outQty += r.outQty; cur.closing += r.closing
+        m.set(id, cur)
+      }
+      base = [...m.values()]
+    }
+    const filtered = base.filter((r) => {
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      if (!withUntracked && untracked.has(r.itemId)) return false
+      if (!withInactive && inactive.has(r.itemId)) return false
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
       if (hideZero && r.inQty === 0 && r.outQty === 0) return false
       return true
     })
-  }, [rows, keyword, hideZero])
+    /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례 그대로. */
+    return byItemName
+      ? [...filtered].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
+      : filtered
+  }, [rows, keyword, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive])
 
   const totals = useMemo(() => shown.reduce((s, r) => ({
     opening: s.opening + r.opening, inQty: s.inQty + r.inQty, outQty: s.outQty + r.outQty, closing: s.closing + r.closing,
   }), { opening: 0, inQty: 0, outQty: 0, closing: 0 }), [shown])
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -70,44 +194,140 @@ export default function StockMovementPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '조회', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">품목별 기간 기초·입고·출고·기말 요약. 기말 = 기초 + 입고 − 출고. 창고 미지정 시 전 창고 합산.</p>
-
-      <div
-        onKeyDown={(e) => { if (e.key === 'Enter') load() }}
-        style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 180 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-          </select>
-        </div>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
-          변동있는 품목만
-        </label>
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
-      </div>
+        <EcCond label="구분">
+          <div className="ec-pills">
+            {(['집계', '일별', '월별'] as const).map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                      onClick={() => setMode(m)}>
+                {m}
+              </button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
+        </EcCond>
+        {mode === '집계' && (
+          <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
+        </EcCond>
+        )}
+        {/*
+          원본 [기타] 일곱 중 넷은 아직 없다 — [결재방표시]는 인쇄 판이라 인쇄를 건드려야 하고,
+          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
+          [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
+        */}
+        <EcCond label="기타">
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withUntracked}
+                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={withInactive}
+                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={hideZero}
+                     onChange={(e) => setHideZero(e.target.checked)} /> 입출고수량0제외
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={byItemName}
+                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
+            </label>
+          </div>
+        </EcCond>
+        {/*
+          원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다).
+          집계 보기에서만 뜻이 있다 — 일별·월별은 이미 품목을 한 덩어리로 굴린 표다.
+        */}
+        {mode === '집계' && (
+          <EcCond label="대표품목으로 합산">
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={rollUp}
+                     onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
+            </label>
+          </EcCond>
+        )}
+      </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        품목 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
+        {mode === '집계' ? '품목' : mode === '일별' ? '일수' : '월수'}{' '}
+        <b style={{ color: '#3c4553' }}>{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
+      {mode !== '집계' ? (
+        <table className="w-full text-left">
+          <colgroup>
+            <col style={{ width: '5%' }} /><col /><col style={{ width: '11%' }} />
+            <col style={{ width: '15%' }} /><col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} /><col style={{ width: '15%' }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th></th>
+              <th>{mode === '일별' ? '일자' : '월'}</th>
+              <th style={{ textAlign: 'right' }}>건수</th>
+              <th style={{ textAlign: 'right' }}>기초</th>
+              <th style={{ textAlign: 'right' }}>입고</th>
+              <th style={{ textAlign: 'right' }}>출고</th>
+              <th style={{ textAlign: 'right' }}>기말</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            ) : shownBuckets.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            ) : shownBuckets.map((b, i) => (
+              <tr key={b.key}>
+                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td>{b.key.replace(/-/g, '/')}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(b.count)}</td>
+                <td style={{ textAlign: 'right' }}>{num(b.opening)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(b.inQty)}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(b.outQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(b.closing)}</td>
+              </tr>
+            ))}
+          </tbody>
+          {shownBuckets.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(shownBuckets[0].opening)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.inQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.outQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+                  {num(shownBuckets[shownBuckets.length - 1].closing)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -135,8 +355,8 @@ export default function StockMovementPage() {
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : '-'}</td>
-              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : '#c5cbd3', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : '-'}</td>
+              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : '#c5cbd3', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(r.closing)}</td>
             </tr>
           ))}
@@ -153,6 +373,7 @@ export default function StockMovementPage() {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }

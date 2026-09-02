@@ -3,6 +3,8 @@ package com.erp.quality.dto;
 import com.erp.quality.domain.AsPart;
 import com.erp.quality.domain.AsRequest;
 import com.erp.quality.domain.AsStatus;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -17,8 +19,9 @@ public final class AsDtos {
     public record CreateAsPartRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            BigDecimal unitPrice,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -50,13 +53,26 @@ public final class AsDtos {
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             LocalDate receiptDate,
+            /* 원본 조건의 [창고]·[프로젝트]. 접수 시점에 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String title,
+            LocalDate scheduledDate,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String symptom,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String charge
     ) {}
 
     public record UpdateAsRequest(
             AsStatus status,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String charge,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String title,
+            LocalDate scheduledDate,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String repairNote,
             LocalDate doneDate
     ) {}
@@ -66,6 +82,9 @@ public final class AsDtos {
             Long partnerId, String partnerName,
             Long itemId, String itemName,
             LocalDate receiptDate,
+            String title, LocalDate scheduledDate,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
             String symptom, String charge,
             AsStatus status, String statusName,
             LocalDate doneDate, String repairNote
@@ -76,6 +95,11 @@ public final class AsDtos {
                     a.getPartner().getId(), a.getPartner().getName(),
                     a.getItem().getId(), a.getItem().getName(),
                     a.getReceiptDate(),
+                    a.getTitle(), a.getScheduledDate(),
+                    a.getWarehouse() != null ? a.getWarehouse().getId() : null,
+                    a.getWarehouse() != null ? a.getWarehouse().getName() : null,
+                    a.getProject() != null ? a.getProject().getId() : null,
+                    a.getProject() != null ? a.getProject().getName() : null,
                     a.getSymptom(), a.getCharge(),
                     a.getStatus(), a.getStatus().getDisplayName(),
                     a.getDoneDate(), a.getRepairNote());

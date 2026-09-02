@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc } from '../../api/types'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 영업 > 품목중심입력 (이카운트 E040633)
@@ -117,11 +118,11 @@ export default function ItemEntryPage() {
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>거래 내역이 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.date}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : '#c07a00' }}>{r.gubun}</td>
               <td>{r.partner}</td>

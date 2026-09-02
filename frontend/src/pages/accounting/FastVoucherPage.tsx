@@ -1,10 +1,15 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -44,7 +49,20 @@ const emptyLine = (): LineForm => ({ accountId: '', amount: '', description: '' 
 
 /** 회계 I > FastEntry — 지출결의서 · 입금보고서 · 가지급금정산서 (저장 즉시 복식부기 분개) */
 export default function FastVoucherPage() {
-  const [type, setType] = useState<FastVoucherType>('EXPENSE_REPORT')
+  /*
+   * 메뉴에 [지출결의서]·[입금보고서]·[가지급금정산서] 세 항목이 있는데 셋 다 이 화면을
+   * 가리켰다. 그래서 <b>무엇을 누르든 지출결의서가 떴다.</b> 메뉴가 ?type= 으로 지목한다.
+   */
+  const [params] = useSearchParams()
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 전표는 열자마자 최근 것을 찾는 일이 많지만, 지난 분기를 맞춰 보는 일도 잦다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
+  const [type, setType] = useState<FastVoucherType>(
+    (TABS.find((v) => v.type === params.get('type'))?.type) ?? 'EXPENSE_REPORT')
   const [rows, setRows] = useState<FastVoucher[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
@@ -61,7 +79,7 @@ export default function FastVoucherPage() {
     setLoading(true)
     try {
       const [v, a, b, p] = await Promise.all([
-        api.get<FastVoucher[]>('/vouchers'),
+        api.get<FastVoucher[]>('/vouchers', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Partner[]>('/partners'),
@@ -77,11 +95,22 @@ export default function FastVoucherPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const shown = rows.filter((r) => r.type === type)
   const count = (t: FastVoucherType) => rows.filter((r) => r.type === t).length
   const label = TABS.find((t) => t.type === type)!.label
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    일자: (v) => v.voucherDate,
+  })
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '빠른전표입력', [])
 
   return (
     <EcListShell
@@ -100,6 +129,16 @@ export default function FastVoucherPage() {
           }}>{t.label} ({count(t.type)})</button>
         ))}
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
@@ -112,12 +151,12 @@ export default function FastVoucherPage() {
         />
       )}</Modal>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100 }}>일자 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
             <th style={{ width: 110, textAlign: 'center' }}>결제수단</th>
             <th style={{ width: 170 }}>계좌</th>
             <th style={{ width: 120 }}>거래처</th>
@@ -132,17 +171,17 @@ export default function FastVoucherPage() {
           {loading ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{label}가 없습니다.</td></tr>
-          ) : shown.map((v, i) => (
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((v, i) => (
             <Fragment key={v.id}>
               <tr onClick={() => setOpenId(openId === v.id ? null : v.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === v.id ? '▾ ' : '▸ '}{v.voucherNo}
                 </td>
-                <td>{v.voucherDate}</td>
+                <td>{dateText(v.voucherDate)}</td>
                 <td style={{ textAlign: 'center' }}>{v.methodName}</td>
-                <td style={{ color: '#5a626e' }}>{v.bankAccountName ?? '-'}</td>
+                <td style={{ color: '#5a626e' }}>{v.bankAccountName ?? ''}</td>
                 <td>{v.partnerName ?? ''}</td>
                 {type === 'ADVANCE_SETTLEMENT' && (
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(v.advanceAmount ?? 0)}</td>

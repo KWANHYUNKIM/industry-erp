@@ -1,9 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-/** 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동) */
+/**
+ * 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동)
+ *
+ * {@code withQualityRequest} 를 켜면 이카운트 <b>생산입고 III(E040416)</b> 가 된다. 원본에서 III 가
+ * II 와 다른 점은 소모품목 선택이 아니라(그건 II 와 같다) 입고와 동시에 <b>품질검사요청을 생성</b>하는 것이다.
+ * 우리는 품질검사요청(QualityInspectionRequest)이 이미 있으므로, 입고 저장 뒤 그 품목·수량으로
+ * 요청을 만들어 잇는다(POST /quality-inspection-requests). 요청번호는 등록 직후 알려준다.
+ */
 interface ProductionMaterial {
   componentId: number
   componentCode: string
@@ -22,13 +32,17 @@ interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
   producedQty: number
   productionDate: string
   createdBy: string
   materials: ProductionMaterial[]
 }
-interface WorkOrder { id: number; orderNo: string; productName: string; remainingQty: number }
-interface Item { id: number; code: string; name: string; unit: string }
+interface WorkOrder { id: number; orderNo: string; productName: string; remainingQty: number; warehouseName: string }
+interface Warehouse { id: number; name: string; kind: string; active: boolean }
+/** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
+interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
 interface MaterialLine { itemId: string; quantity: string }
 
 interface FlatRow {
@@ -40,17 +54,38 @@ interface FlatRow {
   productionDate: string
   materialName: string
   consumeQty: number | null
+  fromWarehouseName: string
   warehouseName: string
 }
 
 const inputCls = 'ec-input w-full'
-const today = () => new Date().toISOString().slice(0, 10)
-const emptyForm = { workOrderId: '', producedQty: '', productionDate: today() }
+const today = () => ymd(new Date())
+/**
+ * 원본 생산입고 II·III 의 머리 항목에 [생산된공장] · [받는창고] 가 있다.
+ *
+ * 자재는 생산된공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
+ * 비워 두면 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있어 강제하지 않는다.
+ */
+const emptyForm = {
+  workOrderId: '', producedQty: '', productionDate: today(),
+  fromWarehouseId: '', toWarehouseId: '', note: '', projectId: '',
+  /** 원본 생산입고 II·III 머리의 [담당자]. 전표 하나에 한 사람이다. */
+  employeeId: '',
+}
 
-export default function ManualConsumeReceiptPage() {
+export default function ManualConsumeReceiptPage({ withQualityRequest = false }: { withQualityRequest?: boolean }) {
+  const title = withQualityRequest ? '생산입고 III - 소모품목 선택(품질검사요청)' : '생산입고 II - 소모품목 선택'
+  const [makeQr, setMakeQr] = useState(withQualityRequest)
+  const [qrType, setQrType] = useState<'PROCESS' | 'INCOMING' | 'SHIPMENT'>('PROCESS')
+  const [notice, setNotice] = useState('')
   const [rows, setRows] = useState<Production[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
+  /** 원본 머리의 [담당자] 후보. 전표에는 id 만 남고 이름은 화면이 붙인다. */
+  const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -72,12 +107,18 @@ export default function ManualConsumeReceiptPage() {
 
   async function loadRefs() {
     try {
-      const [wo, it] = await Promise.all([
+      const [wo, it, wh, pj, em] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Item[]>('/items'),
+        api.get<Warehouse[]>('/warehouses'),
+        api.get<{ id: number; code: string; name: string }[]>('/projects'),
+        api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees'),
       ])
       setWorkOrders(wo.data)
       setItems(it.data)
+      setWarehouses(wh.data.filter((w) => w.active))
+      setProjects(pj.data)
+      setEmployees(em.data.filter((e) => e.active !== false))
     } catch {
       /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
     }
@@ -112,12 +153,37 @@ export default function ManualConsumeReceiptPage() {
       .filter((l) => l.itemId !== '' && l.quantity !== '')
       .map((l) => ({ componentId: Number(l.itemId), quantity: Number(l.quantity) }))
     try {
-      await api.post('/productions', {
+      const res = await api.post<Production>('/productions', {
         workOrderId: Number(form.workOrderId),
         producedQty: form.producedQty === '' ? 0 : Number(form.producedQty),
         productionDate: form.productionDate || null,
+        fromWarehouseId: form.fromWarehouseId ? Number(form.fromWarehouseId) : null,
+        warehouseId: form.toWarehouseId ? Number(form.toWarehouseId) : null,
+        note: form.note || null,
+        projectId: form.projectId ? Number(form.projectId) : null,
+        employeeId: form.employeeId ? Number(form.employeeId) : null,
         materials,
       })
+      let msg = `생산입고 ${res.data.prodNo} 등록`
+      // 생산입고 III: 입고한 완제품·수량 그대로 품질검사요청을 만든다.
+      // 요청 생성이 실패해도 입고는 이미 끝난 일이라 되돌리지 않고 사유만 알린다.
+      if (withQualityRequest && makeQr) {
+        try {
+          const qr = await api.post<{ requestNo: string }>('/quality-inspection-requests', {
+            requestDate: form.productionDate || today(),
+            type: qrType,
+            itemId: res.data.productId,
+            requestQty: res.data.producedQty,
+            requester: res.data.createdBy,
+            remark: `생산입고 ${res.data.prodNo} 연계`,
+          })
+          msg += ` · 품질검사요청 ${qr.data.requestNo} 생성`
+        } catch (qrErr) {
+          msg += ` (품질검사요청 생성 실패: ${extractErrorMessage(qrErr)})`
+        }
+      }
+      setNotice(msg)
+      window.setTimeout(() => setNotice(''), 4000)
       setForm(emptyForm)
       setLines([])
       setShowForm(false)
@@ -127,17 +193,22 @@ export default function ManualConsumeReceiptPage() {
     }
   }
 
+  // 비워 두면 작업지시의 창고를 쓴다 — 어디로 가는지 빈칸에 미리 적어 준다.
+  const formWarehouse = workOrders.find((w) => String(w.id) === form.workOrderId)?.warehouseName ?? ''
+
   const flat: FlatRow[] = rows.flatMap((p): FlatRow[] =>
     p.materials.length === 0
       ? [{
           key: `${p.id}`, prodNo: p.prodNo, workOrderNo: p.workOrderNo, productName: p.productName,
           receiptQty: p.producedQty, productionDate: p.productionDate,
-          materialName: '-', consumeQty: null, warehouseName: p.warehouseName,
+          materialName: '-', consumeQty: null,
+          fromWarehouseName: p.fromWarehouseName ?? p.warehouseName, warehouseName: p.warehouseName,
         }]
       : p.materials.map((m, i) => ({
           key: `${p.id}-${m.componentId}-${i}`, prodNo: p.prodNo, workOrderNo: p.workOrderNo, productName: p.productName,
           receiptQty: p.producedQty, productionDate: p.productionDate,
-          materialName: `[${m.componentCode}] ${m.componentName}`, consumeQty: m.quantity, warehouseName: p.warehouseName,
+          materialName: `[${m.componentCode}] ${m.componentName}`, consumeQty: m.quantity,
+          fromWarehouseName: p.fromWarehouseName ?? p.warehouseName, warehouseName: p.warehouseName,
         })),
   )
 
@@ -145,7 +216,7 @@ export default function ManualConsumeReceiptPage() {
 
   return (
     <EcListShell
-      title="생산입고 II - 소모품목 선택"
+      title={title}
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -153,8 +224,9 @@ export default function ManualConsumeReceiptPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <Modal open={showForm} title="생산입고 II - 소모품목 선택 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={`${title} 등록`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>생산입고 등록 (소모품목 직접 선택)</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -170,10 +242,65 @@ export default function ManualConsumeReceiptPage() {
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.producedQty} onChange={(e) => setForm({ ...form, producedQty: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산일자</label>
+              <label className="mb-1 block text-sm text-slate-600">일자</label>
               <input type="date" className={inputCls} value={form.productionDate} onChange={(e) => setForm({ ...form, productionDate: e.target.value })} />
             </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="담당자" hideLabel fill placeholder="담당자"
+                               emptyLabel="선택 안 함"
+                               value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
+                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">생산된공장</label>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="생산된공장" hideLabel fill placeholder="생산된공장"
+                               emptyLabel={formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}
+                               value={form.fromWarehouseId} onChange={(v) => setForm({ ...form, fromWarehouseId: v })}
+                               items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
+              <span style={{ fontSize: 11, color: '#8a929c' }}>자재가 빠지는 곳</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">받는창고</label>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="받는창고" hideLabel fill placeholder="받는창고"
+                               emptyLabel={formWarehouse ? `${formWarehouse} (작업지시)` : '작업지시의 창고'}
+                               value={form.toWarehouseId} onChange={(v) => setForm({ ...form, toWarehouseId: v })}
+                               items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
+              <span style={{ fontSize: 11, color: '#8a929c' }}>완제품이 들어가는 곳</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="프로젝트" hideLabel fill placeholder="프로젝트"
+                               emptyLabel="선택 안 함"
+                               value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
+                               items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <input className={inputCls} value={form.note} placeholder="원본 그리드의 마지막 열"
+                     onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </div>
           </div>
+
+          {withQualityRequest && (
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: '#f7f9fb', border: '1px solid var(--ec-border)', padding: '8px 10px' }}>
+              <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={makeQr} onChange={(e) => setMakeQr(e.target.checked)} />
+                품질검사요청 생성
+              </label>
+              <select className="ec-input" value={qrType} disabled={!makeQr}
+                      onChange={(e) => setQrType(e.target.value as typeof qrType)} style={{ width: 130 }}>
+                <option value="PROCESS">공정검사</option>
+                <option value="INCOMING">수입검사</option>
+                <option value="SHIPMENT">출하검사</option>
+              </select>
+              <span style={{ fontSize: 12, color: '#8a929c' }}>※ 입고한 완제품·수량으로 검사요청이 생성됩니다(품질관리 &gt; 품질검사요청).</span>
+            </div>
+          )}
 
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>소모자재 선택</span>
@@ -196,10 +323,9 @@ export default function ManualConsumeReceiptPage() {
                   <tr key={idx}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                     <td>
-                      <select className={inputCls} value={l.itemId} onChange={(e) => updateLine(idx, { itemId: e.target.value })}>
-                        <option value="">선택</option>
-                        {items.map((i) => <option key={i.id} value={i.id}>{i.code} {i.name} ({i.unit})</option>)}
-                      </select>
+                      <CodePickerField label="소모자재" hideLabel fill emptyLabel="선택 해제"
+                                       value={l.itemId} onChange={(v) => updateLine(idx, { itemId: v })}
+                                       items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
                     </td>
                     <td>
                       <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} />
@@ -210,6 +336,15 @@ export default function ManualConsumeReceiptPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0).toLocaleString()}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           )}
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
@@ -228,15 +363,16 @@ export default function ManualConsumeReceiptPage() {
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th>소모자재</th>
             <th style={{ textAlign: 'right' }}>소모수량</th>
-            <th>창고</th>
+            <th>생산된공장</th>
+            <th>받는창고</th>
             <th>생산일자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>생산입고 내역이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -245,9 +381,10 @@ export default function ManualConsumeReceiptPage() {
               <td>{r.productName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.receiptQty.toLocaleString()}</td>
               <td>{r.materialName}</td>
-              <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : '-'}</td>
+              <td style={{ textAlign: 'right' }}>{r.consumeQty !== null ? r.consumeQty.toLocaleString() : ''}</td>
+              <td>{r.fromWarehouseName}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.productionDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>
             </tr>
           ))}
         </tbody>

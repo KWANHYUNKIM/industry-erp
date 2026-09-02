@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReceipt, WithholdingStatement } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 type Tab = '이행상황신고서' | '원천징수영수증'
 
 /** 원천징수 — 급여에서 뗀 소득세·지방소득세를 신고 단위로 집계. 확정된 급여명세만 대상. */
 export default function WithholdingPage() {
-  const [tab, setTab] = useState<Tab>('이행상황신고서')
+  /*
+   * 메뉴에 [원천징수이행상황신고서]와 [근로소득원천징수영수증] 두 항목이 있는데 둘 다
+   * 이 화면을 가리켰다. 그래서 <b>영수증을 누르든 신고서를 누르든 신고서 탭이 떴다.</b>
+   * 둘은 전혀 다른 서류다 — 신고서는 매월 세무서에 내는 것이고, 영수증은 연말정산 뒤
+   * 근로자에게 주는 것이다. 메뉴가 ?tab= 으로 지목한다.
+   */
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(
+    params.get('tab') === '영수증' ? '원천징수영수증' : '이행상황신고서')
   const [month, setMonth] = useState(thisMonth())
   const [year, setYear] = useState(new Date().getFullYear())
   const [stmt, setStmt] = useState<WithholdingStatement | null>(null)

@@ -77,6 +77,15 @@ public class Mail extends BaseTimeEntity {
     @Builder.Default
     private boolean draft = false;
 
+    /** 스팸 메일함으로 분류됨. 수신함·공용메일함에서 빠지고 스팸함에만 보인다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean spam = false;
+
+    /** 어떤 규칙에 걸려 스팸이 됐는지(수동 지정이면 '수동 지정'). 왜 사라졌는지 설명할 수 있어야 한다. */
+    @Column(name = "spam_reason", length = 200)
+    private String spamReason;
+
     /** 소프트삭제(지운함): null 이면 정상, 값이 있으면 휴지통. 다른 함에서 제외. */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;

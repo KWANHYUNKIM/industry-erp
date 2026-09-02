@@ -4,6 +4,7 @@ import com.erp.trade.domain.ExportOrder;
 import com.erp.trade.domain.ExportOrderLine;
 import com.erp.trade.domain.enums.ExportStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,8 +19,8 @@ public final class ExportDtos {
 
     public record ExportLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull @Positive(message = "외화 단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "외화 단가를 입력하세요.") @Positive(message = "외화 단가를 입력하세요.") BigDecimal unitPrice
     ) {}
 
     /** 수출 인보이스 발행. 원화 환산은 발행일 고시환율로 서버가 고정한다. */
@@ -27,19 +28,24 @@ public final class ExportDtos {
             @NotNull(message = "수입자를 선택하세요.") Long partnerId,
             @NotNull(message = "통화를 선택하세요.") Long currencyId,
             LocalDate invoiceDate,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String incoterms,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String destination,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ExportLineRequest> lines
     ) {}
 
     /** 통관진행: 수출신고번호를 받는다. */
     public record CustomsRequest(
+            @Size(max = 50, message = "수출신고번호는 50자까지 넣을 수 있습니다.")
             @NotNull(message = "수출신고번호를 입력하세요.") String declarationNo
     ) {}
 
     /** 선적완료: B/L 번호와 선적일. */
     public record ShipRequest(
+            @Size(max = 50, message = "B/L 번호는 50자까지 넣을 수 있습니다.")
             @NotNull(message = "B/L 번호를 입력하세요.") String blNo,
             LocalDate shippedDate
     ) {}
@@ -70,6 +76,12 @@ public final class ExportDtos {
             String declarationNo, String blNo,
             LocalDate shippedDate, LocalDate paidDate,
             String remark, String createdBy,
+            /*
+             * 원본 Invoice / Packing List(C000652) 조건 [기타]의 <b>[수정일자순(정렬)]</b> 이
+             * 쓰는 축(2026-09-02 실측). BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다 —
+             * 프로젝트계획·매출계획·오더관리에 이어 네 번째 같은 자리다.
+             */
+            java.time.LocalDateTime updatedAt,
             List<ExportLineResponse> lines
     ) {
         public static ExportResponse from(ExportOrder e) {
@@ -83,6 +95,7 @@ public final class ExportDtos {
                     e.getDeclarationNo(), e.getBlNo(),
                     e.getShippedDate(), e.getPaidDate(),
                     e.getRemark(), e.getCreatedBy(),
+                    e.getUpdatedAt(),
                     e.getLines().stream().map(ExportLineResponse::from).toList());
         }
     }

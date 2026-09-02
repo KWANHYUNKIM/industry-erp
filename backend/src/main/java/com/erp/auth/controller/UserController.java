@@ -42,6 +42,13 @@ public class UserController {
         return userService.update(id, request);
     }
 
+    /** 사용여부만 바꾼다 — 목록의 토글이 쓴다. */
+    @PatchMapping("/{id}")
+    public UserResponse setEnabled(@PathVariable Long id,
+                                   @Valid @RequestBody UserDtos.ToggleEnabledRequest request) {
+        return userService.setEnabled(id, request.enabled());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.delete(id);

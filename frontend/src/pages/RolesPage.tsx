@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { Permission, Role } from '../api/types'
 import EcListShell from '../components/EcListShell'
+import { useTableSort } from '../utils/useTableSort'
 import Modal from '../components/Modal'
 
 /** 역할·권한 관리: 역할을 만들고, 역할이 접근할 메뉴(권한)를 체크박스로 부여한다.
@@ -43,6 +44,12 @@ export default function RolesPage() {
     }
   }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(roles, {
+    코드: (r) => r.name,
+  })
+
   return (
     <EcListShell
       title="역할·권한관리 리스트"
@@ -75,7 +82,7 @@ export default function RolesPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>코드 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
             <th>역할명</th>
             <th>설명</th>
             <th style={{ textAlign: 'center' }}>사용자</th>
@@ -87,9 +94,9 @@ export default function RolesPage() {
           {loading ? (
             <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : roles.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 역할이 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
-            roles.map((r, idx) => {
+            sort.sorted.map((r, idx) => {
               const isAdmin = r.name === 'ADMIN'
               return (
                 <tr key={r.id}>
@@ -99,7 +106,7 @@ export default function RolesPage() {
                     {r.system && <span style={{ marginLeft: 6, fontSize: 10.5, color: '#9aa1ab' }}>기본</span>}
                   </td>
                   <td>{r.displayName}</td>
-                  <td style={{ color: '#6b7280' }}>{r.description ?? '-'}</td>
+                  <td style={{ color: '#6b7280' }}>{r.description ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>{r.userCount ?? 0}</td>
                   <td style={{ textAlign: 'center' }}>
                     {isAdmin

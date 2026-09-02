@@ -3,6 +3,9 @@ package com.erp.hr.dto;
 import com.erp.hr.domain.EmploymentContract;
 import com.erp.hr.domain.enums.ContractStatus;
 import com.erp.hr.domain.enums.ContractType;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -17,16 +20,22 @@ public class EmploymentContractDtos {
             @NotNull(message = "계약 시작일을 입력하세요.") LocalDate startDate,
             LocalDate endDate,
             Long departmentId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
             BigDecimal monthlySalary,
-            Integer weeklyHours,
+            @PositiveOrZero(message = "주 소정근로시간은 0~168 입니다.")
+            @Max(value = 168, message = "주 소정근로시간은 0~168 입니다.") Integer weeklyHours,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String workPlace,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String duty,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
     /** 서명. 사원 본인 확인용 서명자명을 남긴다. */
     public record SignContractRequest(
+            @Size(max = 100, message = "서명자명은 100자까지 넣을 수 있습니다.")
             @NotNull(message = "서명자명을 입력하세요.") String signedBy
     ) {}
 

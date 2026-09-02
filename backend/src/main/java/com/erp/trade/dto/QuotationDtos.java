@@ -4,6 +4,7 @@ import com.erp.trade.domain.Quotation;
 import com.erp.trade.domain.QuotationLine;
 import com.erp.trade.domain.QuotationStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,15 +19,19 @@ public final class QuotationDtos {
 
     public record QuoteLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
     ) {}
 
     public record CreateQuotationRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
             LocalDate quoteDate,
             LocalDate validUntil,
             Boolean taxable,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<QuoteLineRequest> lines
     ) {}
@@ -47,6 +52,8 @@ public final class QuotationDtos {
     public record QuotationResponse(
             Long id, String quoteNo, LocalDate quoteDate, LocalDate validUntil,
             Long partnerId, String partnerName,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
             QuotationStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Long convertedOrderId, String remark, String createdBy,
@@ -56,6 +63,10 @@ public final class QuotationDtos {
             return new QuotationResponse(
                     q.getId(), q.getQuoteNo(), q.getQuoteDate(), q.getValidUntil(),
                     q.getPartner().getId(), q.getPartner().getName(),
+                    q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                    q.getWarehouse() != null ? q.getWarehouse().getName() : null,
+                    q.getProject() != null ? q.getProject().getId() : null,
+                    q.getProject() != null ? q.getProject().getName() : null,
                     q.getStatus(), q.getStatus().getDisplayName(),
                     q.getSupplyAmount(), q.getVatAmount(), q.getTotalAmount(),
                     q.getConvertedOrderId(), q.getRemark(), q.getCreatedBy(),

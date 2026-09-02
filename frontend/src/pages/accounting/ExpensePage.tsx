@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { CommonCode, Project } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 // 결제수단은 공통코드(PAYMENT_METHOD)에서 가져온다. 화면에 하드코딩하면 항목 하나 늘릴 때마다 배포해야 한다.
 
 interface Account { id: number; code: string; name: string; division: string }
@@ -96,6 +99,15 @@ export default function ExpensePage() {
   const shown = rows
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
     .filter((r) => !keyword || (r.content ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
+  /*
+   * 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 정렬은 <b>표에만</b> 건다 —
+   * 아래 합계는 <code>shown</code> 을 그대로 더하므로 차례와 무관하다.
+   */
+  const sort = useTableSort(shown, {
+    지출일: (r) => r.expenseDate,
+    계정과목: (r) => r.accountName,
+  })
+
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -156,8 +168,8 @@ export default function ExpensePage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>지출일 ▼</th>
-            <th style={{ width: 120 }}>계정과목 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('지출일')}>지출일 {sort.mark('지출일')}</th>
+            <th style={{ width: 120, cursor: 'pointer' }} onClick={() => sort.toggle('계정과목')}>계정과목 {sort.mark('계정과목')}</th>
             <th>적요</th>
             <th style={{ width: 120 }}>거래처</th>
             <th style={{ width: 110, textAlign: 'right' }}>금액</th>
@@ -170,11 +182,11 @@ export default function ExpensePage() {
           {loading ? (
             <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>지출 내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.expenseDate}</td>
+              <td>{dateText(r.expenseDate)}</td>
               <td>{r.accountName}</td>
               <td>{r.content ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>

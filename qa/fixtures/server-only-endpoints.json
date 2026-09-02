@@ -1,0 +1,6 @@
+{
+ "GET /meta/stock-transaction-types": "재고 이동 종류 목록 — 화면은 응답에 실려 오는 이름(typeName)을 그대로 찍는다. 고르게 하는 자리가 아직 없다",
+ "GET /purchases/discounts": "라인별 기준단가 대비 할인. 원본 구매할인현황은 전표의 차액을 보는 다른 화면이라 여기에 붙이면 그 화면의 뜻이 바뀐다(컨트롤러에 적어 뒀다). QA 가 기준단가 처리를 여기서 잰다",
+ "GET /sales/discounts": "위와 같음 — 판매 쪽",
+ "GET /shipments/unshipped": "출하지시(READY) 상태의 출하 전표. 미출하현황 화면이 묻는 것은 <b>주문 대비 안 나간 수량</b>(/sales-orders/unshipped)이라 서로 다른 질문이다"
+}

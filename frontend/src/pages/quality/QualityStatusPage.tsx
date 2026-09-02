@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import { dateText } from '../../utils/dateText'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -25,13 +28,22 @@ const resultColor = (r: QualityResult | null) =>
 
 interface Filters {
   dateFrom: string
+  /** 원본 품질검사현황 조건의 [창고]·[프로젝트]. 검사에 그 칸이 없어 못 걸렀다. */
+  warehouse: string
+  project: string
   dateTo: string
   type: '' | QualityInspectionType
   item: string
   result: '' | QualityResult
   inspector: string
 }
-const EMPTY_FILTERS: Filters = { dateFrom: '', dateTo: '', type: '', item: '', result: '', inspector: '' }
+/*
+ * 원본 품질검사현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
+ * 우리는 기간을 비워 두고 단추도 없었다.
+ */
+const init = periodOf('금월(~오늘)')!
+
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', inspector: '' }
 
 const pct = (n: number) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
 
@@ -48,7 +60,7 @@ export default function QualityStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<QualityInspection[]>('/quality-inspections')
+      const res = await api.get<QualityInspection[]>('/quality-inspections', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -56,7 +68,11 @@ export default function QualityStatusPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /*
+   * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
+   * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
+   */
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -64,6 +80,8 @@ export default function QualityStatusPage() {
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.inspectionNo.includes(kw) && !(r.lotNo ?? '').includes(kw)) return false
       if (f.dateFrom && r.inspectionDate < f.dateFrom) return false
+      if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
+      if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.dateTo && r.inspectionDate > f.dateTo) return false
       if (f.type && r.type !== f.type) return false
       if (f.item && !r.itemName.includes(f.item)) return false
@@ -99,13 +117,19 @@ export default function QualityStatusPage() {
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    검사일자: (r) => r.inspectionDate,
+  })
+
   return (
     <EcListShell
       title="품질검사현황"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -138,7 +162,7 @@ export default function QualityStatusPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>검사일자 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
             <th>검사번호</th>
             <th style={{ textAlign: 'center' }}>검사구분</th>
             <th>품목명</th>
@@ -158,20 +182,20 @@ export default function QualityStatusPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.inspectionDate}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.inspectionDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
               <td>{r.itemName}</td>
-              <td style={{ fontFamily: 'monospace', color: r.lotNo ? '#5a626e' : '#c5cbd3' }}>{r.lotNo ?? '-'}</td>
+              <td style={{ fontFamily: 'monospace', color: r.lotNo ? '#5a626e' : '#c5cbd3' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate > 0 ? '#c60a2e' : '#8a929c' }}>{pct(r.defectRate)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName || '미판정'}</td>
-              <td style={{ color: r.inspector ? undefined : '#c5cbd3' }}>{r.inspector || '-'}</td>
+              <td style={{ color: r.inspector ? undefined : '#c5cbd3' }}>{r.inspector || ''}</td>
             </tr>
           ))}
         </tbody>
@@ -208,6 +232,10 @@ function SearchPanel({
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={draft.dateFrom}
+              onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+          </span>
       </div>
       <div style={rowStyle}>
         <span style={label}>검사유형</span>
@@ -221,6 +249,17 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        {/* 원본 품질검사현황 차례: 품목 · <b>창고 · 프로젝트</b> · 출처(요청)구분 */}
+        <span style={label}>창고</span>
+        <input className="ec-input" placeholder="창고명" value={draft.warehouse}
+          onChange={(e) => onChange({ warehouse: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>프로젝트</span>
+        <input className="ec-input" placeholder="프로젝트명" value={draft.project}
+          onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>판정결과</span>
