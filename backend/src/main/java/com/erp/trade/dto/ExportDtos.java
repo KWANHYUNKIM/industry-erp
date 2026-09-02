@@ -76,6 +76,12 @@ public final class ExportDtos {
             String declarationNo, String blNo,
             LocalDate shippedDate, LocalDate paidDate,
             String remark, String createdBy,
+            /*
+             * 원본 Invoice / Packing List(C000652) 조건 [기타]의 <b>[수정일자순(정렬)]</b> 이
+             * 쓰는 축(2026-09-02 실측). BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다 —
+             * 프로젝트계획·매출계획·오더관리에 이어 네 번째 같은 자리다.
+             */
+            java.time.LocalDateTime updatedAt,
             List<ExportLineResponse> lines
     ) {
         public static ExportResponse from(ExportOrder e) {
@@ -89,6 +95,7 @@ public final class ExportDtos {
                     e.getDeclarationNo(), e.getBlNo(),
                     e.getShippedDate(), e.getPaidDate(),
                     e.getRemark(), e.getCreatedBy(),
+                    e.getUpdatedAt(),
                     e.getLines().stream().map(ExportLineResponse::from).toList());
         }
     }

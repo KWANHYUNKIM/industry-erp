@@ -2304,6 +2304,8 @@ export interface ExportOrder {
   paidDate: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
+  updatedAt: string | null
   lines: ExportOrderLine[]
 }
 

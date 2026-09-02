@@ -4,7 +4,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -30,13 +30,26 @@ const esc = (v: unknown) =>
  * 수출관리 — 인보이스 발행 → 통관진행 → 선적완료 → 입금완료.
  * 금액은 외화가 원본이고, 원화는 발행일 고시환율로 환산해 인보이스에 고정된다.
  */
+/* 원본 C000652 는 [최근30일(+1개월)] 을 보고 열린다(2026-09-02 실측). */
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function ExportPage() {
   /**
-   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 원본 조건 판 첫 줄 <b>[기준일자]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>최근30일(+1개월)</b> 이다(2026-09-02 원본 실측: 2026/08/03 ~ 2026/10/02).
+   * 비워 두면 여태 발행한 인보이스가 통째로 쏟아진다.
    * 기본은 <b>비워</b> 둔다: 수출은 인보이스를 끊고 <b>대금이 몇 달 뒤에</b> 들어온다 — 잘라 놓으면 미수 건이 사라진다.
    */
-  const [pFrom, setPFrom] = useState('')
-  const [pTo, setPTo] = useState('')
+  const [pFrom, setPFrom] = useState(initP.from)
+  const [pTo, setPTo] = useState(initP.to)
+  /*
+   * 원본 조건 [거래처]·[품목](2026-09-02 C000652 실측). 표에 Buyer 가 찍히는데 그 값으로
+   * 거를 수가 없었고, 품목은 줄을 펴야만 보였다. 고를 후보는 지금 걸린 자료에서 뽑는다.
+   */
+  const [buyerCond, setBuyerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  /* 원본 조건 [기타] — [수정일자순(정렬)] 하나이고 꺼진 것이 기본이다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
   const [summary, setSummary] = useState<ExportSummary | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
@@ -65,7 +78,17 @@ export default function ExportPage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const rows = summary?.exports ?? []
-  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  const shown = useMemo(() => rows
+    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !buyerCond || r.buyerName === buyerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName === itemCond))
+    /* 원본 [수정일자순(정렬)] — 켜면 나중에 고친 인보이스가 위다. */
+    .slice()
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  [rows, tab, buyerCond, itemCond, byUpdated])
+  const buyerNames = useMemo(() => [...new Set(rows.map((r) => r.buyerName))].sort(), [rows])
+  const itemNames = useMemo(
+    () => [...new Set(rows.flatMap((r) => r.lines.map((l) => l.itemName)))].sort(), [rows])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function customs(e: ExportOrder) {
@@ -142,14 +165,36 @@ export default function ExportPage() {
           오더 → 통관진행(신고번호) → 선적완료(B/L) → 입금완료. 원화는 발행일 고시환율로 고정됩니다.
         </span>
       </div>
-      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기간</span>
+      {/*
+        원본 조건 차례: <b>[기준일자]</b> · Invoice 일자 · 거래처 · 품목 · 최종수정자 · 기타 · 발송여부.
+        [최종수정자]는 우리 수출에 updated_by 가 없어, [발송여부]는 보낸 기록 자체가 없어 못 만든다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+        <span>기준일자</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={pTo}
                onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcPeriodPicks labels={EXPORT_PICKS} currentFrom={pFrom}
+                       onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
+        <span style={{ marginLeft: 6 }}>거래처</span>
+        <select className="ec-input" value={buyerCond}
+                onChange={(e) => setBuyerCond(e.target.value)} style={{ width: 160 }}>
+          <option value="">전체</option>
+          {buyerNames.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <span style={{ marginLeft: 6 }}>품목</span>
+        <select className="ec-input" value={itemCond}
+                onChange={(e) => setItemCond(e.target.value)} style={{ width: 180 }}>
+          <option value="">전체</option>
+          {itemNames.map((i) => <option key={i} value={i}>{i}</option>)}
+        </select>
+        <span style={{ marginLeft: 6 }}>기타</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
       </div>
 
 

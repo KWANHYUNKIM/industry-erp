@@ -267,6 +267,13 @@ export const AS_CONSUMPTION_PICKS = QUOTATION_PICKS
  */
 export const ORDER_STAGE_PICKS = QUOTATION_PICKS
 
+/**
+ * Invoice / Packing List(C000652) — 조회 묶음이 <b>[종료일] 다음에 [최근30일(+1개월)]</b> 이고
+ * 기본도 <b>최근30일(+1개월)</b> 이다(2026-09-02 원본 실측: 2026/08/03 ~ 2026/10/02).
+ * 수출은 <b>선적 예정일이 앞에</b> 있는 일이라 아직 안 온 날짜까지 본다.
+ */
+export const EXPORT_PICKS = QUOTATION_PICKS
+
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
 /**
