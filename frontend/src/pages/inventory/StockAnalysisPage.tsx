@@ -8,6 +8,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
@@ -52,6 +53,16 @@ export default function StockAnalysisPage() {
   /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
   const [includeZero, setIncludeZero] = useState(false)
   /** 재고 평가에 쓸 구매전표. 마지막 입고단가를 여기서 뽑는다. */
+  /*
+   * 원본 재고잔량분석표(E040727) [기타]는 <b>넷</b>이다(2026-09-02 실측):
+   * 재고수량0포함 · <b>수량관리제외품목포함</b> · <b>사용중단품목포함</b> ·
+   * 품목별안전재고설정미만표시. 우리에겐 첫째와 넷째뿐이었다 —
+   * 재고현황·재고변동표·창고별재고현황에 이어 <b>네 번째 같은 구멍</b>이다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
   const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
   /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
   const [date, setDate] = useState(periodOf('금일')!.to)
@@ -92,15 +103,19 @@ export default function StockAnalysisPage() {
     const out = [...m.values()]
     for (const a of out) a.value = a.quantity * a.unitPrice
     return out
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      .filter((a) => withUntracked || !untracked.has(a.itemId))
+      .filter((a) => withInactive || !inactive.has(a.itemId))
       .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
       .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
       // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
       .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero])
+  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
 
   const reset = () => {
-    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false); setDate(today)
+    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
+    setWithUntracked(false); setWithInactive(false); setDate(today)
   }
 
   const totals = useMemo(() => ({
@@ -139,10 +154,19 @@ export default function StockAnalysisPage() {
           <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
                            items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
         </EcCond>
+        {/* 원본 [기타] 차례 그대로다(2026-09-02 E040727 실측). [결재방표시]는 인쇄 판이라 아직 없다. */}
         <EcCond label="기타">
           <label style={{ fontSize: 12, marginRight: 12 }}>
             <input type="checkbox" checked={includeZero}
                    onChange={(e) => setIncludeZero(e.target.checked)} /> 재고수량0포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={withUntracked}
+                   onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={withInactive}
+                   onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
           </label>
           <label style={{ fontSize: 12 }}>
             <input type="checkbox" checked={shortageOnly}
