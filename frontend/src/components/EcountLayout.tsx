@@ -342,7 +342,7 @@ const MENU: TopMenu[] = [
           { label: '오더관리진행단계', to: '/sales/order-stages' },
         ],
       },
-      { label: '수출관리', nodes: [{ label: '수출관리', to: '/sales/export' }] },
+      { label: '수출관리', nodes: [{ label: 'Invoice / Packing List', to: '/sales/export' }] },
       { label: 'WMS', nodes: [{ label: 'WMS 로케이션', to: '/inventory/wms' }] },
     ],
   },

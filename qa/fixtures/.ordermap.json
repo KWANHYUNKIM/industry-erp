@@ -750,5 +750,9 @@
  [
   "품질검사요청조회",
   "quality/QualityRequestPage.tsx"
+ ],
+ [
+  "Invoice / Packing List",
+  "trade/ExportPage.tsx"
  ]
 ]

@@ -130,7 +130,11 @@ export default function ExportPage() {
   }
 
   return (
-    <EcListShell title="수출관리" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    /*
+     * 원본 화면 이름 그대로다 — 재고 II &gt; 수출관리 메뉴의 화면 제목은 <b>[Invoice / Packing List]</b>
+     * 이다(2026-09-02 원본 C000652 실측). [수출관리] 는 <b>메뉴 탭</b> 이름이지 화면 제목이 아니다.
+     */
+    <EcListShell title="Invoice / Packing List" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 인보이스 발행(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
