@@ -36,7 +36,13 @@ export default function BomStockPage() {
 
   const today = ymd(new Date())
   /* 원본 BOM환산재고현황의 기준일자 기본값은 [금일] 이다(사본 실측). 검사가 읽을 수 있게 periodOf 로 적는다 — 값은 오늘 그대로다. */
-  const [cond, setCond] = useState({ date: periodOf('금일')!.to, warehouseId: '', product: '', shortageOnly: false })
+  /*
+   * 원본 BOM환산재고현황(E040726) 조건은 <b>넷뿐</b>이다(2026-09-02 원본 직접 실측):
+   * 기준일자(단일, 기본 [금일]) · 창고 · 품목코드 · 양식(양식구분·결재방표시).
+   * <b>[기타] 줄이 없다</b> — 사본 대조표도 같다. 우리가 [환산가능수량0만표시] 를 하나 더
+   * 만들어 두었었는데, 원본에 없는 조건을 우리만 두면 같은 화면을 서로 다르게 쓰게 된다.
+   */
+  const [cond, setCond] = useState({ date: periodOf('금일')!.to, warehouseId: '', product: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -77,12 +83,11 @@ export default function BomStockPage() {
       const buildable = limits.length ? Math.min(...limits.map((l) => l.buildable as number)) : 0
       const bottleneck = limits.filter((l) => l.buildable === buildable).map((l) => l.componentName)
       return { bom: b, lines, buildable, bottleneck }
-    })
-    .filter((r) => !cond.shortageOnly || r.buildable === 0),
-    [boms, stockOf, cond.product, cond.shortageOnly])
+    }),
+    [boms, stockOf, cond.product])
 
   const num = (n: number) => n.toLocaleString()
-  const reset = () => setCond({ date: periodOf('금일')!.to, warehouseId: '', product: '', shortageOnly: false })
+  const reset = () => setCond({ date: periodOf('금일')!.to, warehouseId: '', product: '' })
   const totalBuildable = rows.reduce((n, r) => n + r.buildable, 0)
   const blocked = rows.filter((r) => r.buildable === 0).length
 
@@ -111,12 +116,6 @@ export default function BomStockPage() {
         <EcCond label="품목코드" pick>
           <input className="ec-input" placeholder="모품목명·코드 일부" value={cond.product}
                  onChange={(e) => setC({ product: e.target.value })} style={{ width: 220 }} />
-        </EcCond>
-        <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={cond.shortageOnly}
-                   onChange={(e) => setC({ shortageOnly: e.target.checked })} /> 환산가능수량0만표시
-          </label>
         </EcCond>
       </EcStatusPanel>
 
