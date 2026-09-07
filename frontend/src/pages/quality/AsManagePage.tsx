@@ -337,11 +337,16 @@ export default function AsManagePage() {
           {partError && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
           <table className="w-full text-left">
             <thead>
-              <tr><th style={{ width: 34 }}></th><th>부품</th><th>창고</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th><th style={{ textAlign: 'center' }}></th></tr>
+              {/*
+                원본 부품 격자에 [적요]가 있다. AsPart.remark 도 AsPartResponse.remark 도
+                진작 있었는데 <b>격자에만 그 칸이 없었다</b> — 부품마다 왜 갈았는지를 적어 두고도
+                볼 수가 없었다.
+              */}
+              <tr><th style={{ width: 34 }}></th><th>부품</th><th>창고</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th><th style={{ width: 140 }}>적요</th><th style={{ textAlign: 'center' }}></th></tr>
             </thead>
             <tbody>
               {parts.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>소모부품 없음</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>소모부품 없음</td></tr>
               ) : parts.map((p, i) => (
                 <tr key={p.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -350,6 +355,7 @@ export default function AsManagePage() {
                   <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
                   <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : ''}</td>
+                  <td style={{ color: '#5a626e' }}>{p.remark ?? ''}</td>
                   <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
                 </tr>
               ))}
@@ -468,6 +474,7 @@ export default function AsManagePage() {
                         <th style={{ width: 80, textAlign: 'right' }}>수량</th>
                         <th style={{ width: 100, textAlign: 'right' }}>단가</th>
                         <th style={{ width: 110, textAlign: 'right' }}>금액</th>
+                        <th style={{ width: 140 }}>적요</th>
                       </tr></thead>
                       <tbody>
                         {detailParts.map((pt, k) => (
@@ -478,6 +485,7 @@ export default function AsManagePage() {
                             <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
                             <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : ''}</td>
+                            <td style={{ color: '#5a626e' }}>{pt.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>
