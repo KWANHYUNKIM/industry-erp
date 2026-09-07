@@ -186,7 +186,14 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         <CodePickerField label="거래처" value={partnerCode} width={150}
                          onChange={(v, item) => { setPartnerCode(v); setKeyword(item ? item.name : '') }}
                          items={rows.map((r) => ({ value: r.code, code: r.code, name: r.name, sub: r.partnerGroupName }))} />
-        <CodePickerField label="거래처그룹" value={group === '전체' ? '' : group} width={130}
+        {/*
+          원본 이름은 <b>[거래처그룹1]</b> 이다. 우리 거래처그룹은 하나뿐이고, 하나뿐인 그룹에
+          원본의 '1' 을 붙이는 것이 이 저장소의 방식이다(거래처등록·품목등록이 그렇게 적는다).
+          없는 것은 2·3 이지 1 이 아니다 — 이름을 '거래처그룹' 으로만 적어 두어
+          검사가 원본의 [거래처그룹1] 을 <b>없다</b> 로 세고 있었다.
+          아래 [정렬/소계기준]의 후보 이름 '거래처그룹' 은 이것과 다른 값이라 그대로 둔다.
+        */}
+        <CodePickerField label="거래처그룹1" value={group === '전체' ? '' : group} width={130}
                          onChange={(v) => setGroup(v || '전체')}
                          items={groups.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}

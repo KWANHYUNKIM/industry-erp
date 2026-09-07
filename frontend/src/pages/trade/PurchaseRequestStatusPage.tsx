@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { INQUIRY_PICKS, PRICE_REQUEST_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { CodeOption, Partner, PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -131,6 +132,8 @@ export default function PurchaseRequestStatusPage({
     qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
     /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
     itemGroup: '',
+    /* 원본 [거래처그룹1] — 위와 같다. 거래처그룹도 하나뿐이다. */
+    partnerGroup: '',
     /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
     createdBy: '',
   })
@@ -215,6 +218,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.category || r.category === c.category)
     /* 원본 조건 [품목그룹1]. 품목 마스터에 붙는 값이라 발주 응답에는 없다 — 마스터에서 잇는다. */
     && (!c.itemGroup || mgmt.groupOf(r.itemId) === c.itemGroup)
+    /* 원본 조건 [거래처그룹1]. 거래처 마스터에 붙는 값이라 같은 길로 잇는다. */
+    && (!c.partnerGroup || pgroups.groupOfName(r.partner) === c.partnerGroup)
     /* 원본 조건 [거래처관리담당자]. 그 거래처를 맡은 사람 — 전표의 담당자와 다르다. */
     && (!c.partnerManager || 담당거래처(c.partnerManager).has(r.partner))
     /* 원본 조건 [외화종류]. 안 정한 건은 원화라 '(원화)' 로 고른다. */
@@ -257,6 +262,8 @@ export default function PurchaseRequestStatusPage({
    */
   /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
   const mgmt = useItemMgmt()
+  /** 원본 [거래처그룹1] — 거래처 마스터에서 잇는다(품목그룹과 같은 길). */
+  const pgroups = usePartnerGroups()
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   const shown = useMemo(() => {
@@ -310,6 +317,8 @@ export default function PurchaseRequestStatusPage({
       qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
     /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
     itemGroup: '',
+    /* 원본 [거래처그룹1] — 위와 같다. 거래처그룹도 하나뿐이다. */
+    partnerGroup: '',
     /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
     createdBy: '',
     })
@@ -438,6 +447,12 @@ export default function PurchaseRequestStatusPage({
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
+        </EcCond>
+        {/* 원본 차례: [거래처] 다음이 [거래처그룹1] 이다(사본 실측). */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
