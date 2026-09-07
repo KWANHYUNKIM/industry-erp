@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -73,6 +74,19 @@ export default function QualityStatusPage() {
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
   useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
+   * 품목 · 창고 · 프로젝트 · 출처(요청)구분 · 적용양식 · 양식구분 · 데이터 보기형식).
+   * 이 화면은 조건 판을 손으로 짰으므로 SearchPanel 안, 마지막 줄에 직접 단다 —
+   * 검사는 라벨의 <b>글자 차례</b>로 재는데 조건 판이 아래쪽 컴포넌트라 본문에 달면 앞에 선다.
+   *
+   * <p>무엇을 그리나 — 검사는 <b>품목마다 몇 건이 어떻게 판정됐나</b> 를 보는 표다.
+   * 품목으로 묶어 <b>불합격 건수</b>를 그린다. 전체 건수를 그리면 많이 검사한 품목이 늘 위에
+   * 서서 '자주 걸리는 품목' 이 묻힌다 — 불량률파악보고서에서 겪은 것과 같은 함정이다.
+   * 불합격이 하나도 없는 품목은 뺀다(막대 없는 줄이 늘어서면 걸린 것을 못 찾는다).
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -143,7 +157,8 @@ export default function QualityStatusPage() {
       </div>
 
       {panelOpen && (
-        <SearchPanel draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} onApply={applyDraft} onReset={resetDraft} />
+        <SearchPanel draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} onApply={applyDraft} onReset={resetDraft}
+                     view={view} onViewChange={setView} />
       )}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
@@ -158,6 +173,17 @@ export default function QualityStatusPage() {
         합격 <b style={{ color: '#1c7c3c' }}>{totals.pass}</b> / 불합격 <b style={{ color: '#c60a2e' }}>{totals.fail}</b>
       </div>
 
+      {view === '그래프' ? (
+        <EcBarChart unit=" 건" emptyText="불합격 판정이 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) {
+                        if (r.result !== 'FAIL') continue
+                        m.set(r.itemName, (m.get(r.itemName) ?? 0) + 1)
+                      }
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -200,18 +226,22 @@ export default function QualityStatusPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
 
 /** 이카운트 Search 패널 — 검사일자/검사유형/품목/판정결과/검사자 */
 function SearchPanel({
-  draft, onChange, onApply, onReset,
+  draft, onChange, onApply, onReset, view, onViewChange,
 }: {
   draft: Filters
   onChange: (patch: Partial<Filters>) => void
   onApply: () => void
   onReset: () => void
+  /** 원본 [데이터 보기형식] — 조건 판 맨 끝이다. 셸을 안 쓰는 화면이라 여기 직접 그린다. */
+  view: '표' | '그래프'
+  onViewChange: (v: '표' | '그래프') => void
 }) {
   const label: React.CSSProperties = {
     width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
@@ -273,6 +303,15 @@ function SearchPanel({
         <span style={label}>검사자</span>
         <input className="ec-input" placeholder="검사자명 일부" value={draft.inspector}
           onChange={(e) => onChange({ inspector: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        <span style={label}>데이터 보기형식</span>
+        <div className="ec-pills">
+          {(['표', '그래프'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                    onClick={() => onViewChange(v)}>{v}</button>
+          ))}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <button className="ec-btn" onClick={onReset}>초기화</button>
