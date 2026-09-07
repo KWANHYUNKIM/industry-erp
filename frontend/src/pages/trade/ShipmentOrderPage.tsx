@@ -11,12 +11,14 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
 
-interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; amount: number; remark: string | null }
+/** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
+interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; spec: string | null; quantity: number; unitPrice: number; amount: number; remark: string | null }
 interface Shipment {
   id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
   /** 미출하현황에서 생성한 출하면 근거 주문이 실려온다. 직접 등록한 출하는 null. */
@@ -29,7 +31,10 @@ interface Shipment {
   employeeId: number | null; employeeName: string | null
   contact: string | null; postalCode: string | null; address: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
-  remark: string | null; createdBy: string | null; lines: ShipLine[]
+  remark: string | null; createdBy: string | null
+  /** 원본 [기타]의 <b>수정일자순(정렬)</b>. 이번에 응답에 실었다. */
+  createdAt: string | null; updatedAt: string | null
+  lines: ShipLine[]
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -191,6 +196,27 @@ export default function ShipmentOrderPage() {
   /** 원본 [관리항목]. 이 화면은 품목 마스터를 진작 통째로 받아 두고 있다. */
   const mgmt = useItemMgmt(items)
   const [mgmtCond, setMgmtCond] = useState('')
+  /*
+   * 2026-09-07 에 원본(C000120)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(서른셋).
+   * 사본에는 열뿐이었다 — 조건 판 아래 '···' 줄을 안 펼친 채로 사본을 떴기 때문이다.
+   * 그중 우리 응답이 <b>이미 싣고 있던 여덟</b>을 만든다: 출하예정일 · 규격 · 담당자 ·
+   * 거래처관리담당자 · 연락처 · 주소 · 적요 · 작성자.
+   * 여덟 다 값이 오는데 거를 자리가 없었다 — 출하지시서입력이 <b>받아서 저장까지 하는</b>
+   * 배송지(연락처·주소)를 조회에서 못 물었다.
+   */
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  /** 원본 [거래처관리담당자]. 전표 [담당자](맡은 사원)와 <b>다른 사람</b>이다. */
+  const pmgr = usePartnerManagers(partners)
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [contactCond, setContactCond] = useState('')
+  const [addressCond, setAddressCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  /** 원본 [기타]는 이 화면에서 <b>수정일자순(정렬)</b> 하나다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
   const shownRows = shipments
     .filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
     .filter((s) => !condFrom || s.shipDate >= condFrom)
@@ -202,9 +228,29 @@ export default function ShipmentOrderPage() {
     .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((s) => mgmt.hits(s.lines.map((l) => l.itemId), mgmtCond))
     .filter((s) => !sendCond || s.status === sendCond)
+    /* 원본 [출하예정일] — 기준일자(출하지시일)와 다른 날이다. */
+    .filter((s) => !dueFrom || (s.dueDate ?? '') >= dueFrom)
+    .filter((s) => !dueTo || ((s.dueDate ?? '') !== '' && (s.dueDate as string) <= dueTo))
+    /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    .filter((s) => !specCond || s.lines.some((l) => (l.spec ?? '') === specCond))
+    .filter((s) => !empCond || (s.employeeName ?? '') === empCond)
+    .filter((s) => !pmgrCond || pmgr.managerOfName(s.partnerName) === pmgrCond)
+    .filter((s) => !contactCond || (s.contact ?? '').includes(contactCond))
+    .filter((s) => !addressCond || (s.address ?? '').includes(addressCond))
+    .filter((s) => !remarkCond || (s.remark ?? '').includes(remarkCond))
+    .filter((s) => !authorCond || (s.createdBy ?? '') === authorCond)
+
+  /*
+   * 원본 [기타]의 <b>수정일자순(정렬)</b>. 켜면 <b>마지막에 고친 건이 위</b>로 온다 —
+   * 오늘 누가 무엇을 손댔는지 보는 차례다. 안 켜면 이제까지의 차례를 그대로 쓴다.
+   * 머리를 눌러 정렬하면 그쪽이 이긴다(눌러 고른 차례가 더 세다).
+   */
+  const orderedRows = byUpdated
+    ? [...shownRows].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    : shownRows
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
-  const sort = useTableSort(shownRows, {
+  const sort = useTableSort(orderedRows, {
     출하번호: (s) => s.shipNo,
     출하일: (s) => s.shipDate,
     거래처: (s) => s.partnerName,
@@ -286,6 +332,60 @@ export default function ShipmentOrderPage() {
                       onClick={() => setSendCond(v)}>{l}</button>
             ))}
           </div>
+        </EcCond>
+        {/*
+          원본 차례(2026-09-07 실측, 접힌 줄을 펼쳐 서른셋):
+          … 발송여부 · 출하예정일 · (오더관리번호) · 규격 · 담당자 · 거래처관리담당자 ·
+          연락처 · 주소 · 적요 · (문자형식1~5 · 장문형식1) · 작성자 · (최종수정자 ·
+          최초작성일자 · 최종작업일자 · 입력경로 · 삭제구분 · 제목) · 기타 · 적용양식.
+          괄호 안은 아직 못 만든 것이고, 이유는 검사 예외에 화면별로 적어 두었다.
+        */}
+        <EcCond label="출하예정일">
+          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(shipments.flatMap((s) => s.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [담당자] — 출하를 맡은 사원. 전표를 친 [작성자]와 다르다. */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((e) => ({ value: e.name, name: e.name }))} />
+        </EcCond>
+        {/* 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 거래처 마스터에 붙어 있다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [연락처]·[주소] — 배송지다. 입력에서 받아 저장까지 하면서 못 묻고 있었다. */}
+        <EcCond label="연락처">
+          <input className="ec-input" value={contactCond} onChange={(e) => setContactCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="주소">
+          <input className="ec-input" value={addressCond} onChange={(e) => setAddressCond(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={170} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(shipments.map((s) => s.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다(실측). 없는 것을 지어내지 않는다. */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

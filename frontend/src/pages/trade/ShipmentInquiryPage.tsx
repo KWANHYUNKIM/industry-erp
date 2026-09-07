@@ -8,6 +8,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -42,7 +43,16 @@ interface Shipment {
    */
   employeeName: string | null
   status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
-  remark: string | null; createdBy: string | null; lines: ShipLine[]
+  /**
+   * 배송지 연락처·주소. 원본 조건 [연락처]·[주소] 다. 여기에 '전표를 내보내는 기능이
+   * 없어 못 만든다' 고 적어 두었는데 <b>틀렸다</b> — 출하지시서입력이 받아서 저장하는
+   * 배송지고, 응답도 진작 싣고 있었다. 이 화면이 받아 두지 않았을 뿐이다.
+   */
+  contact: string | null; address: string | null
+  remark: string | null; createdBy: string | null
+  /** 원본 [최초작성일자]·[최종수정일시]. 이번에 응답에 실었다. */
+  createdAt: string | null; updatedAt: string | null
+  lines: ShipLine[]
 }
 
 // 이카운트 출하조회 '발송여부' 필터 = 우리 상태로 매핑.
@@ -105,6 +115,24 @@ export default function ShipmentInquiryPage() {
   const [empCond, setEmpCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
+  /*
+   * 여기 남아 있던 예외 셋이 <b>사실이 아니었다</b>. [연락처]·[주소]는 '[보내기]에 딸린
+   * 칸이라 전표를 내보내는 기능이 없다' 고 적혀 있었으나, 둘 다 <b>배송지</b>고
+   * 출하지시서입력이 받아 저장하며 응답에도 실려 온다. [거래처관리담당자]는 '거래처
+   * 마스터를 따로 받아 이어야 한다' 고 적혀 있었는데 — 그건 <b>이유가 아니라 할 일</b>이었다
+   * (관리항목·품목그룹1을 이미 그렇게 이어 놓고 있다).
+   * [최초작성일자]·[최종수정일시]는 응답이 안 실었던 것이 맞아서, 이번에 실었다.
+   */
+  const pmgr = usePartnerManagers()
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [contactCond, setContactCond] = useState('')
+  const [addressCond, setAddressCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다. */
+  const [byUpdated, setByUpdated] = useState(false)
 
   const shownRows = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
@@ -123,9 +151,25 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !empCond || (r.employeeName ?? '') === empCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
-    .sort((a, b) => b.shipDate.localeCompare(a.shipDate) || b.id - a.id),
+    .filter((r) => !pmgrCond || pmgr.managerOfName(r.partnerName) === pmgrCond)
+    .filter((r) => !contactCond || (r.contact ?? '').includes(contactCond))
+    .filter((r) => !addressCond || (r.address ?? '').includes(addressCond))
+    /* 만든 때·고친 때는 날짜만 견준다 — 값은 초까지 오지만 조건은 하루 단위다. */
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    /*
+     * 원본 [기타]의 <b>수정일자순(정렬)</b>. 켜면 마지막에 고친 건이 위로 온다 —
+     * 안 켜면 이제까지의 차례(출하일 내림차순)를 그대로 쓴다.
+     */
+    .sort((a, b) => (byUpdated
+      ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')
+      : 0) || b.shipDate.localeCompare(a.shipDate) || b.id - a.id),
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options, specCond, empCond, remarkCond, authorCond])
+  [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options,
+   specCond, empCond, remarkCond, authorCond, pmgrCond, pmgr.options, contactCond, addressCond,
+   madeFrom, madeTo, editedFrom, editedTo, byUpdated])
 
   /*
    * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -199,6 +243,19 @@ export default function ShipmentInquiryPage() {
                            items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
+        {/* 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 위의 [담당자]와 다른 사람이다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={140} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [연락처]·[주소] — 배송지다. 응답에 오는데 이 화면이 안 받아 두고 있었다. */}
+        <EcCond label="연락처">
+          <input className="ec-input" value={contactCond} onChange={(e) => setContactCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="주소">
+          <input className="ec-input" value={addressCond} onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={remarkCond}
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 160 }} />
@@ -208,6 +265,24 @@ export default function ShipmentInquiryPage() {
                            value={authorCond} onChange={setAuthorCond}
                            items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종수정일시">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다. 없는 것을 지어내지 않는다. */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

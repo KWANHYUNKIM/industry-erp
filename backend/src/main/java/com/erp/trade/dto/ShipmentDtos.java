@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class ShipmentDtos {
@@ -89,6 +90,14 @@ public final class ShipmentDtos {
             /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
             Long projectId, String projectName,
             String remark, String createdBy,
+            /**
+             * 만든 때 · 고친 때. 원본 출하조회·출하지시서조회의 조건 [최초작성일자] ·
+             * [최종수정일시] 와 [기타] 의 <b>수정일자순(정렬)</b> 이 이 두 값을 본다.
+             * <b>이미 지고 있던 값이다</b> — Shipment 는 BaseTimeEntity 를 물려받아
+             * 두 칸을 진작 채우고 있는데 응답이 안 실어 화면이 볼 수가 없었다.
+             * 판매·구매·견적에는 앞 바퀴에 실었고 출하만 남아 있었다.
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt,
             List<ShipLineResponse> lines
     ) {
         public static ShipmentResponse from(Shipment s) {
@@ -110,6 +119,7 @@ public final class ShipmentDtos {
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getRemark(), s.getCreatedBy(),
+                    s.getCreatedAt(), s.getUpdatedAt(),
                     s.getLines().stream().map(ShipLineResponse::from).toList());
         }
     }
