@@ -1342,24 +1342,6 @@
       "issuerGroup"
     ]
   },
-  "단가요청현황|참조": {
-    "claim": "발주 전표에 다른 문서를 가리키는 칸이 없다",
-    "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
-    "absent": [
-      "reference",
-      "refNo",
-      "refDocument"
-    ]
-  },
-  "발주계획현황|참조": {
-    "claim": "발주 전표에 다른 문서를 가리키는 칸이 없다",
-    "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
-    "absent": [
-      "reference",
-      "refNo",
-      "refDocument"
-    ]
-  },
   "출퇴근/근태/일정현황(ID)|근태항목": {
     "claim": "근태를 항목으로 등록하지 않는다",
     "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",

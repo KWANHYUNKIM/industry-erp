@@ -69,6 +69,14 @@ interface Row {
   /** 원본 조건 [규격]·[적요]. 서버는 진작 보내는데 화면이 안 받아 뒀다. */
   spec: string
   remark: string
+  /**
+   * 원본 조건 <b>[참조]</b>. 예외에 '발주 전표에 다른 문서를 가리키는 칸이 없다' 고
+   * 적어 두었는데 <b>틀렸다</b> — 발주서입력의 [참조] 가 바로 그 칸이고
+   * <code>PurchaseOrder.remark</code> 로 저장돼 응답에도 실려 온다.
+   * 바로 위 [적요]와 헷갈렸던 것이다: <b>적요는 줄</b>(<code>line.remark</code>)에 붙고
+   * <b>참조는 전표 머리</b>에 붙는다. 발주서조회에서 이 둘을 갈라 놓고도 여기는 안 고쳤다.
+   */
+  ref: string
   /** 원본 조건 [외화종류]. 안 정했으면 빈 값 — 원화 거래다. */
   currency: string
   /** 원본 조건 [최초작성자]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
@@ -125,6 +133,8 @@ export default function PurchaseRequestStatusPage({
   const [cond, setCond] = useState({
     from: init.from, to: init.to, dueFrom: '', dueTo: '',
     orderNo: '', partner: '', item: '', warehouse: '', project: '', employee: '', spec: '', remark: '',
+    /* 원본 [참조] — 전표 머리의 메모다. 위의 [적요](줄)와 다른 칸이다. */
+    ref: '',
     /* 원본 [품목구분]·[거래처관리담당자]·[외화종류]·[유효기간]. */
     category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
     /* 원본 [거래유형]·[단가]. */
@@ -171,6 +181,7 @@ export default function PurchaseRequestStatusPage({
           validUntil: o.priceValidUntil ?? '',
           spec: l.spec ?? '',
           remark: l.remark ?? '',
+          ref: o.remark ?? '',
           qty: l.quantity,
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
@@ -210,6 +221,7 @@ export default function PurchaseRequestStatusPage({
     /* 원본 조건 [규격]·[적요]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */
     && (!c.spec || r.spec.includes(c.spec))
     && (!c.remark || r.remark.includes(c.remark))
+    && (!c.ref || r.ref.includes(c.ref))
     /* 원본 조건 [담당자]. 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.employee || r.employee.includes(c.employee))
     /* 원본 조건 [최초작성자]. 담당자와 다르다 — 전표를 <b>넣은</b> 사람이다. */
@@ -311,7 +323,7 @@ export default function PurchaseRequestStatusPage({
   const reset = () => {
     setCond({
       from: init.from, to: init.to, dueFrom: '', dueTo: '', orderNo: '', partner: '', item: '',
-      warehouse: '', project: '', employee: '', spec: '', remark: '',
+      warehouse: '', project: '', employee: '', spec: '', remark: '', ref: '',
       category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
       taxKind: '', priceFrom: '', priceTo: '',
       qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
@@ -507,6 +519,14 @@ export default function PurchaseRequestStatusPage({
           고르게만 해 두어서, 조건 판만 보는 사람은 <b>지금 어느 단계를 보고 있는지</b>도
           모르고 다른 단계로 옮길 수도 없었다. 카드와 <b>같은 값</b>을 쓴다.
         */}
+        {/*
+          원본 차례: 거래유형 · <b>참조</b> · 규격(발주계획현황). 단가요청현황도
+          외화종류 · 참조 · 규격이라 두 화면이 이 자리에서는 같다.
+        */}
+        <EcCond label="참조">
+          <input className="ec-input" value={cond.ref}
+                 onChange={(e) => setC({ ref: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
         {/*
           원본 차례: 담당자 · <b>규격 · 적요</b> · 진행상태(발주계획현황) 인데,
           단가요청현황은 적요 · 규격 순이다 — 조건이 더 많은 발주계획현황에 맞춘다.
