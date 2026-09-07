@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import EcBarChart from '../../components/EcBarChart'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -70,6 +71,16 @@ export default function PivotSummaryPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다([거래구분] 뒤).
+   * 이 화면은 조건 판을 손으로 짰으므로 알약도 직접 그린다.
+   *
+   * <p>이 표는 <b>거래처(또는 품목) × 12개월</b> 피벗이다. 그림은 <b>줄 합계</b>를 그린다 —
+   * 달마다 막대를 그리면 열두 배로 늘어서서 '누가 큰가' 가 안 보인다. 표에서 맨 오른쪽
+   * 합계 칸을 눈으로 훑던 일을 그림이 대신한다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
 
   const rows = useMemo<PivotRow[]>(() => {
     const docs = mode === 'SALE'
@@ -177,11 +188,23 @@ export default function PivotSummaryPage() {
                 onChange={(e) => setKindCond(e.target.value as '전체' | '일반' | '반품')}>
           <option>전체</option><option>일반</option><option>반품</option>
         </select>
+        {/* 원본 조건 차례의 맨 끝 — [거래구분] 다음이다(사본 실측). */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>데이터 보기형식</span>
+        <div className="ec-pills">
+          {(['표', '그래프'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                    onClick={() => setView(v)}>{v}</button>
+          ))}
+        </div>
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 자료가 없습니다."
+                    rows={rows.map((r) => ({ label: r.name, value: r.total }))} />
+      ) : (
       <div style={{ overflowX: 'auto' }}>
         <table ref={tableRef} className="w-full text-left" style={{ minWidth: 900 }}>
           <thead>
@@ -215,6 +238,7 @@ export default function PivotSummaryPage() {
           )}
         </table>
       </div>
+      )}
     </EcListShell>
   )
 }
