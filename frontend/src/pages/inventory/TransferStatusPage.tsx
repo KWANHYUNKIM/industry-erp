@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { printDocuments } from '../../utils/printDocument'
@@ -119,6 +120,22 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기].
+   * 창고이동은 <b>어디서 어디로</b> 가 이 화면의 축이다 — 품목으로 묶으면 같은 품목이
+   * 어느 창고에서 어느 창고로 갔는지가 사라진다. 보내는창고 → 받는창고 짝으로 묶는다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) {
+      const label = `${r.fromWarehouseName} → ${r.toWarehouseName}`
+      m.set(label, (m.get(label) ?? 0) + r.quantity)
+    }
+    return [...m].map(([label, value]) => ({ label, value }))
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [rows, cond])
+
   const summary = useMemo(() => {
     const m = new Map<string, { from: string; to: string; itemCode: string; itemName: string; unit: string; qty: number; count: number }>()
     shown.forEach((r) => {
@@ -178,6 +195,7 @@ export default function TransferStatusPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         dateLabel="일자"
+        view={view} onViewChange={setView}
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -225,7 +243,9 @@ export default function TransferStatusPage() {
       </div>
 
       <div className="overflow-x-auto">
-        {mode === '내역' ? (
+        {view === '그래프' ? (
+          <EcBarChart rows={chartRows} unit="" emptyText="조회된 이동 내역이 없습니다." />
+        ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
               <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />

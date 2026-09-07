@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { STOCKTAKE_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -94,6 +95,24 @@ export default function StocktakeStatusPage() {
     .filter((r) => !cond.status || r.status === cond.status)
     .filter((r) => !cond.diffOnly || r.diff !== 0)
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기].
+   * 실사는 <b>차이</b>를 보는 화면이다 — 실사수량이 아니라 장부와 어긋난 양을 그린다.
+   * 차이가 0 인 품목은 그림에서 뺀다(막대가 없는 줄이 늘어서면 어긋난 것을 못 찾는다).
+   * 차이는 남기도 모자라기도 하므로 <b>절댓값</b>으로 더한다 — 서로 지워지면 안 된다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) {
+      if (r.diff === 0) continue
+      const label = `${r.warehouseName} · ${r.itemName}`
+      m.set(label, (m.get(label) ?? 0) + Math.abs(r.diff))
+    }
+    return [...m].map(([label, value]) => ({ label, value }))
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [rows, cond])
+
   /** 집계 — 창고 × 품목. 실사를 여러 번 했으면 차이가 누적된다. */
   const summary = useMemo(() => {
     const m = new Map<string, { k: string; warehouseName: string; itemCode: string; itemName: string; unit: string; book: number; actual: number; diff: number; count: number }>()
@@ -134,6 +153,7 @@ export default function StocktakeStatusPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={STOCKTAKE_PICKS}
         dateLabel="일자"
+        view={view} onViewChange={setView}
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -199,7 +219,9 @@ export default function StocktakeStatusPage() {
       </div>
 
       <div className="overflow-x-auto">
-        {mode === '내역' ? (
+        {view === '그래프' ? (
+          <EcBarChart rows={chartRows} unit="" emptyText="장부와 어긋난 품목이 없습니다." />
+        ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
               <col style={{ width: '4%' }} /><col style={{ width: '13%' }} /><col style={{ width: '9%' }} />
