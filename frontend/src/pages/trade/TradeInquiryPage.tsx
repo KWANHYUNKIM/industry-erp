@@ -226,6 +226,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]. 원본도 기본은 꺼짐이다(실측). */
   const [byUpdated, setByUpdated] = useState(false)
+  /*
+   * 2026-09-07 에 원본(E040206) 조건 판의 <b>접힌 줄까지 펼쳐</b> 전부 쟀다. 스물넷이다.
+   * 그중 <b>우리 자료로 지금 거를 수 있는 셋</b>을 만든다 — 셋 다 응답에 진작 실려 오는데
+   * 거를 자리가 없었다(표에는 [회계반영여부]가 열로 찍히고 있었다).
+   */
+  const [specCond, setSpecCond] = useState('')
+  const [reflectedCond, setReflectedCond] = useState<'전체' | '반영' | '미반영'>('전체')
+  const [remarkCond, setRemarkCond] = useState('')
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
@@ -235,6 +243,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
     .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
+    /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    .filter((d) => !specCond || d.lines.some((l) => (l.spec ?? '') === specCond))
+    /* 원본 [회계반영여부]. 표에는 진작 열로 찍고 있었는데 그것으로 거를 수가 없었다. */
+    .filter((d) => reflectedCond === '전체' || (reflectedCond === '반영') === d.accountingReflected)
+    /* 원본 [적요]. 응답에 진작 실려 오는데 거를 자리가 없었다. */
+    .filter((d) => !remarkCond || (d.remark ?? '').includes(remarkCond))
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
@@ -242,7 +256,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -408,11 +422,26 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={itemCond} onChange={setItemCond}
                            items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.itemName)).filter(Boolean))].sort()
                              .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 차례: [품목] 다음이 [발송여부]·[오더관리번호]·<b>[규격]</b>, 그다음이 [담당자] 다. */}
+          <CodePickerField label="규격" width={110} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
           {/* 원본 구매조회에만 있는 [담당자]. */}
           <CodePickerField label="담당자" width={120} emptyLabel="전체"
                            value={managerCond} onChange={setManagerCond}
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 차례: [담당자]·[거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>회계반영여부</span>
+          <select className="ec-input" value={reflectedCond} style={{ width: 90 }}
+                  onChange={(e) => setReflectedCond(e.target.value as '전체' | '반영' | '미반영')}>
+            <option>전체</option><option>반영</option><option>미반영</option>
+          </select>
+          {/* 원본 차례: [판매구분] 다음이 <b>[적요]</b> 다. 전표 적요로 좁힌다. */}
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>적요</span>
+          <input className="ec-input" value={remarkCond} placeholder="적요 일부" style={{ width: 130 }}
+                 onChange={(e) => setRemarkCond(e.target.value)} />
           {/*
             원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
             재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
