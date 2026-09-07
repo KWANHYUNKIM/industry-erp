@@ -301,6 +301,36 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 구매전표라면 발주서도 '발주확정' 으로 풀린다(백엔드가 처리한다).
    * 지울 수 없는 전표(회계반영·세금계산서 발행·확인됨 등)는 서버가 사유를 준다 — 그대로 보여 준다.
    */
+  /**
+   * 원본 하단 버튼줄의 <b>[회계반영]</b>. 고른 전표를 회계로 넘긴다.
+   *
+   * <p>버튼 예외에 '원본은 조회에서 바로 고치지만 우리는 입력 화면을 따로 둔다' 고
+   * 적혀 있었는데, 그 이유는 <b>편집</b>에 대한 말이지 회계반영에는 안 맞는다.
+   * 반영은 고치는 일이 아니라 <b>넘기는</b> 일이고, 서버에 진작 자리가 있었다
+   * (POST /api/accounting-reflection/reflect — 구분과 전표 id 목록을 받는다).
+   * 이 화면은 고른 줄(selected)과 일괄 동작이 이미 배선돼 있어 잇기만 하면 됐다.
+   *
+   * <p>이미 반영된 전표는 <b>보내지 않는다</b> — 서버가 걸러 주더라도 사람이 고른
+   * 건수와 넘어간 건수가 어긋나면 무엇이 빠졌는지 알 수 없다. 여기서 미리 갈라 알린다.
+   */
+  async function reflectSelected() {
+    const picked = shown.filter((d) => selected.has(d.id))
+    if (picked.length === 0) { setError('회계로 넘길 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
+    const targets = picked.filter((d) => !d.accountingReflected)
+    const already = picked.length - targets.length
+    if (targets.length === 0) { setError(`고른 ${picked.length}건이 이미 회계에 반영돼 있습니다.`); return }
+    if (!confirm(`전표 ${targets.length}건을 회계로 넘길까요?${already ? ` (이미 반영된 ${already}건은 뺍니다)` : ''}`)) return
+    try {
+      const r = await api.post<{ reflectedCount: number }>('/accounting-reflection/reflect',
+        { kind: isSales ? 'SALES' : 'PURCHASE', ids: targets.map((d) => d.id) })
+      setSelected(new Set())
+      load()
+      setError(`회계로 ${r.data.reflectedCount}건을 넘겼습니다.${already ? ` 이미 반영된 ${already}건은 뺐습니다.` : ''}`)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   async function deleteSelected() {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
@@ -372,6 +402,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
        */
       actions={[
         ...(isSales ? [{ label: `진행상태변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => void confirmSelected() }] : []),
+        /* 원본 버튼줄 차례: … 선택삭제 앞이 <b>[회계반영]</b> 이다. */
+        { label: `회계반영${selected.size ? ` (${selected.size})` : ''}`,
+          onClick: () => void reflectSelected(), disabled: selected.size === 0 },
         { label: '선택삭제', onClick: () => void deleteSelected(), disabled: selected.size === 0 },
         /*
          * 원본 [거래내역보기(구매)] — 지금 고른 거래처의 거래만 남긴다.
