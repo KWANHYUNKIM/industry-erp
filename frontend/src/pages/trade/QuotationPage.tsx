@@ -8,6 +8,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -105,6 +106,10 @@ export default function QuotationPage() {
    * 그 품목이 든 견적을 찾으려면 한 줄씩 펼쳐 봐야 했다. 요약에는 첫 줄만 보이므로
    * <b>모든 줄</b>을 훑는다(요약만 보고 거르면 둘째 줄부터가 안 걸린다).
    */
+  /** 원본 [관리항목]. 이 화면은 품목 마스터를 진작 통째로 받아 두고 있다. */
+  const mgmt = useItemMgmt(items)
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
@@ -112,9 +117,11 @@ export default function QuotationPage() {
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
       || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
-    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -262,6 +269,17 @@ export default function QuotationPage() {
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
                            items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        {/*
+          원본 [관리항목] — 차례는 [프로젝트] 다음, [거래처] 앞이다(사본 실측).
+          관리항목은 <b>품목 마스터에 붙는 값</b>이라 전표 응답에 실려 오지 않는다.
+          그래서 오래도록 '못 만든다' 고 적어 뒀는데, 판매현황이 이미 다른 길로 만들어 두었다 —
+          품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>.
+        */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"

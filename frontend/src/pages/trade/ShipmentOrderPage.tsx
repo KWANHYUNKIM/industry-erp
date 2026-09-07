@@ -10,6 +10,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
@@ -183,8 +184,13 @@ export default function ShipmentOrderPage() {
    * 우리는 <b>조건 판이 아예 없었다</b> — 검색상자 하나로 거래처와 번호만 걸렀다.
    * 출하지시가 쌓이면 "저 창고 것만", "아직 안 나간 것만" 을 물을 방법이 없다.
    *
-   * <p>[관리항목]은 품목 마스터에 붙는 값이라 출하 전표에는 없다(다른 화면과 같은 이유).
+   * <p>[관리항목]은 품목 마스터에 붙는 값이라 출하 전표 응답에는 실려 오지 않는다.
+ * 그래도 만들 수 있다 — 품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>
+ * (판매현황이 먼저 그렇게 만들었고, utils/itemMgmtItems 로 나눠 갖는다).
    */
+  /** 원본 [관리항목]. 이 화면은 품목 마스터를 진작 통째로 받아 두고 있다. */
+  const mgmt = useItemMgmt(items)
+  const [mgmtCond, setMgmtCond] = useState('')
   const shownRows = shipments
     .filter((s) => !keyword || s.partnerName.includes(keyword) || s.shipNo.includes(keyword))
     .filter((s) => !condFrom || s.shipDate >= condFrom)
@@ -194,6 +200,7 @@ export default function ShipmentOrderPage() {
     .filter((s) => !projectCond || (s.projectName ?? '').includes(projectCond))
     .filter((s) => !partnerCond || s.partnerName.includes(partnerCond))
     .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((s) => mgmt.hits(s.lines.map((l) => l.itemId), mgmtCond))
     .filter((s) => !sendCond || s.status === sendCond)
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
@@ -249,6 +256,17 @@ export default function ShipmentOrderPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond} items={pickers.projects} />
+        </EcCond>
+        {/*
+          원본 [관리항목] — 차례는 [프로젝트] 다음, [거래처] 앞이다(사본 실측).
+          관리항목은 <b>품목 마스터에 붙는 값</b>이라 전표 응답에 실려 오지 않는다.
+          그래서 오래도록 '못 만든다' 고 적어 뒀는데, 판매현황이 이미 다른 길로 만들어 두었다 —
+          품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>.
+        */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
