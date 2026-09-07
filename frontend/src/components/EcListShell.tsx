@@ -46,7 +46,7 @@ const PREVIEW_LABELS = ['미리보기']
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = true, children,
+  signLine = false, children,
 }: {
   title: string
   search?: string
@@ -67,9 +67,13 @@ export default function EcListShell({
   /** 원본에 [Option] 도 없는 화면(예: 익명게시판)은 false. 도움말만 남는다. */
   option?: boolean
   /**
-   * 출력물에 <b>결재란</b>을 찍을지. 원본 [결재방표시] 조건이 이것을 끈다
-   * (작업지시서효율현황). 끄면 결재란을 <b>가져오지도 않는다</b> — 안 찍을 것을
-   * 부르면 인쇄가 그만큼 늦어진다.
+   * 출력물에 <b>결재란</b>을 찍을지. 원본 [결재방표시] 조건이 이것을 <b>켠다</b>.
+   * 끄면 결재란을 <b>가져오지도 않는다</b> — 안 찍을 것을 부르면 인쇄가 그만큼 늦어진다.
+   *
+   * <p><b>기본값은 꺼짐이다.</b> 원본 [결재방표시]가 25개 화면에서 전부 꺼짐으로 시작한다
+   * (qa/fixtures/ecount-checkbox-default.json). 예전에는 이 기본값이 <b>켜짐</b>이라,
+   * 조건을 안 단 목록 화면 전부가 <b>묻지도 않고 결재란을 찍고 있었다</b> — 조건이 없으니
+   * 끌 방법도 없었다. 화면에 조건을 다는 것보다 이 한 줄이 먼저다.
    */
   signLine?: boolean
   children: ReactNode

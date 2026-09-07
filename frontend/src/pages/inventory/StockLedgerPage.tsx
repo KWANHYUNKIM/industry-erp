@@ -86,6 +86,13 @@ export default function StockLedgerPage() {
    * 우리에겐 [거래내역없는품목제외] 하나뿐이었다 — 재고현황·재고변동표·창고별재고현황·
    * 재고잔량분석표에 이어 <b>다섯 번째 같은 구멍</b>이다.
    */
+  /**
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(E040702 실측). 결재란 자체는 이미 있었다
+   * (utils/print.ts 의 signLineHtml · GET /api/print-sign-lines/default) —
+   * 이 화면이 그 스위치를 안 달고 있었을 뿐이다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
   const [withInactive, setWithInactive] = useState(false)
   const [byItemName, setByItemName] = useState(false)
@@ -182,6 +189,7 @@ export default function StockLedgerPage() {
   return (
     <EcListShell
       title="재고수불부"
+      signLine={signBox}
       search={keyword}
       onSearchChange={setKeyword}
       /* 인자 없이 부른다 — onSearch 가 무엇을 넘기든 all 로 새면 안 된다. */
@@ -219,12 +227,15 @@ export default function StockLedgerPage() {
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </EcCond>
         {/*
-          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 둘 —
-          [결재방표시]는 인쇄 판, [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로
-          표시하지 않아 가릴 축이 없다.
+          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
+          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
         */}
         <EcCond label="기타">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={signBox}
+                     onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+            </label>
             <label style={{ fontSize: 12 }}>
               <input type="checkbox" checked={withUntracked}
                      onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함

@@ -63,6 +63,13 @@ export default function StockMovementPage() {
    * 재고현황과 똑같이 <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었고 차례도 못 바꿨다.
    * 뜻이 분명한 셋을 만든다 — 나머지 넷은 아래 주석에 까닭을 적었다.
    */
+  /**
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(E040719 실측). 결재란 자체는 이미 있었다
+   * (utils/print.ts 의 signLineHtml · GET /api/print-sign-lines/default) —
+   * 이 화면이 그 스위치를 안 달고 있었을 뿐이다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
   const [withInactive, setWithInactive] = useState(false)
   const [byItemName, setByItemName] = useState(false)
@@ -191,6 +198,7 @@ export default function StockMovementPage() {
   return (
     <EcListShell
       title="재고변동표"
+      signLine={signBox}
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -229,12 +237,16 @@ export default function StockMovementPage() {
         </EcCond>
         )}
         {/*
-          원본 [기타] 일곱 중 넷은 아직 없다 — [결재방표시]는 인쇄 판이라 인쇄를 건드려야 하고,
+          원본 [기타] 일곱 중 셋은 아직 없다 —
           [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
           [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
         */}
         <EcCond label="기타">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={signBox}
+                     onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+            </label>
             <label style={{ fontSize: 12 }}>
               <input type="checkbox" checked={withUntracked}
                      onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함

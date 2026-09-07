@@ -20,7 +20,7 @@ import { useItemFlags } from '../../utils/useInactiveItems'
  *   횡 — 창고를 <b>열</b>로 돌린다. "이 품목이 어느 창고에 얼마나 있나"를 한 줄에서 본다.
  *
  * 원본 조건: 기준일자(한 날짜) · 창고 · 품목 · 기타 7종.
- * 기타 중 '결재방표시'는 우리에게 개념이 없고, '수량관리제외품목포함'도 품목에 그 구분이 없다.
+ * 기타 중 '수량관리제외품목포함'은 품목에 그 구분이 없다.
  * '창고별안전재고수량포함'은 우리 안전재고가 <b>품목 단위</b>라서(창고별이 아니다) 뜻이 다르므로
  * 라벨을 '안전재고표시'로 적고 품목 안전재고를 보여 준다.
  *
@@ -38,6 +38,13 @@ export default function WarehouseStockPage() {
   const [error, setError] = useState('')
 
   const today = ymd(new Date())
+  /**
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(E040711 실측). 결재란 자체는 이미 있었다
+   * (utils/print.ts 의 signLineHtml · GET /api/print-sign-lines/default) —
+   * 이 화면이 그 스위치를 안 달고 있었을 뿐이다.
+   */
+  const [signBox, setSignBox] = useState(false)
   const [mode, setMode] = useState<'종' | '횡'>('종')
   const [cond, setCond] = useState({
     date: today,
@@ -152,6 +159,7 @@ export default function WarehouseStockPage() {
     <EcListShell
       title="창고별재고현황"
       searchable={false}
+      signLine={signBox}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
@@ -190,12 +198,16 @@ export default function WarehouseStockPage() {
             원본 [기타] 차례 그대로다(2026-09-02 E040711 실측): 결재방표시 ·
             수량관리제외품목포함 · 사용중단품목포함 · 재고수량0품목포함 · 재고수량0창고포함 ·
             사용중단/삭제창고포함 · 창고별안전재고수량포함.
-            [결재방표시]는 인쇄 판이라 아직 없다. 뒤 둘은 이름을 원본대로 고쳤다 —
+            뒤 둘은 이름을 원본대로 고쳤다 —
             우리는 창고를 지우지 않고 내리기만 하므로 [삭제]에 해당하는 것이 없다는 것만 다르다.
 
             <b>배열로 돌려 그리지 않는다.</b> 그러면 이름이 글자로 안 남아 조건 검사가 못 본다 —
             실제로 이 화면 여섯 칸이 통째로 '없다' 로 걸렸다.
           */}
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={signBox}
+                   onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
           <label style={{ fontSize: 12, marginRight: 12 }}>
             <input type="checkbox" checked={cond.withUntracked}
                    onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
