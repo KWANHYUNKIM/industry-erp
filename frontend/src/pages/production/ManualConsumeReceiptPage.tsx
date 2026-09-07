@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 
 /**
  * 생산관리 > 생산입고 II - 소모품목 선택 — 완제품 입고 시 소모자재 직접 선택 (백엔드 /api/productions 연동)
@@ -92,6 +93,18 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [lines, setLines] = useState<MaterialLine[]>([])
+  /**
+   * 원본 격자 툴바의 [My품목]. 이 화면의 소모자재 격자는 줄마다 품목을 고르므로
+   * 그대로 부을 수 있다 — 묶음 예외 이유('우리 폼에는 [등록] 하나뿐이다')가
+   * 이 화면에는 해당하지 않는다(발주서입력·생산불출입력 때와 같다).
+   *
+   * <p>소모수량은 My품목의 기본수량을 그대로 쓴다. [BOM 소요 불러오기]가 채우는
+   * 소요량과는 다른 값이다 — 그쪽은 생산수량에서 계산한 것이고 이쪽은 사람이 담아 둔 것이다.
+   */
+  const myItems = useMyItemsPick((picked) => setLines((ls) => {
+    const kept = ls.filter((l) => l.itemId)
+    return [...kept, ...picked.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty) }))]
+  }))
 
   async function load() {
     setLoading(true)
@@ -305,6 +318,9 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>소모자재 선택</span>
             <button type="button" className="ec-btn" onClick={() => setLines([...lines, { itemId: '', quantity: '' }])}>자재행 추가</button>
+            {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
+            <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <MyItemsNote note={myItems.note} />
             <button type="button" className="ec-btn" onClick={loadBomPreview}>BOM 소요 불러오기</button>
             <span style={{ fontSize: 12, color: '#8a929c' }}>※ 자재를 선택하지 않으면 BOM대로 자동 소모됩니다.</span>
           </div>
