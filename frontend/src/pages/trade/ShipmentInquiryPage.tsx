@@ -24,7 +24,8 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
 
-interface ShipLine { itemCode: string; itemName: string; unit: string; quantity: number; unitPrice: number; amount: number }
+/** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
+interface ShipLine { itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
 interface Shipment {
   id: number; shipNo: string; partnerName: string; shipDate: string
   salesOrderNo: string | null
@@ -95,6 +96,16 @@ export default function ShipmentInquiryPage() {
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
 
+  /*
+   * 2026-09-07 에 원본(C000138)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(스물넷).
+   * 사본에는 열뿐이었다. 그중 우리 응답이 진작 싣고 있던 넷을 만든다 —
+   * 규격 · 담당자 · 적요 · 작성자. 넷 다 값이 오는데 거를 자리가 없었다.
+   */
+  const [specCond, setSpecCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+
   const shownRows = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.shipNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
@@ -106,9 +117,15 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond) || l.itemCode.includes(itemCond)))
     .filter((r) => !mgmtCond || r.lines.some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
+    /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '') === specCond))
+    /* 원본 [담당자] — 출하를 맡은 사원. 작성자와 다르다. */
+    .filter((r) => !empCond || (r.employeeName ?? '') === empCond)
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
     .sort((a, b) => b.shipDate.localeCompare(a.shipDate) || b.id - a.id),
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options])
+  [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options, specCond, empCond, remarkCond, authorCond])
 
   /*
    * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
@@ -167,6 +184,30 @@ export default function ShipmentInquiryPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        {/* 원본 차례(실측): 품목 · 발송여부 · (오더관리번호) · 규격 · 담당자 · (거래처관리담당자
+            · 연락처 · 주소) · 적요 · 작성자 · … 괄호 안은 아직 못 만든 것이다. */}
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
       </ul>
 
