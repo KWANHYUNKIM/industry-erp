@@ -25,6 +25,8 @@ interface NormalDoc {
   employeeName: string | null
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. 서버가 이제 싣는다. */
   updatedAt: string | null
+  /** 원본 조건 [최초작성일자]. 예외에 '응답이 안 싣는다' 고 적혀 있던 값을 이번에 실었다. */
+  createdAt: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
   accountingReflected: boolean
   /** 원본 구매조회에만 있는 열. 판매 전표에도 프로젝트는 붙지만 원본 판매조회는 안 보여 준다. */
@@ -89,6 +91,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 시각으로 가르는 일이 없다). 잰 것보다 좁게 만들었다는 것을 여기 적어 둔다.
    */
   const [updFrom, setUpdFrom] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
   const [updTo, setUpdTo] = useState('')
   const [whCond, setWhCond] = useState('')
   const [typeCond, setTypeCond] = useState('')
@@ -117,7 +121,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
-        createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt,
+        createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt, createdAt: d.createdAt,
         employeeName: d.employeeName,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
@@ -271,6 +275,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     /* 원본 [최종수정일시]. updatedAt 은 ISO 라 앞 열 글자가 곧 날짜다. */
     .filter((d) => !updFrom || (d.updatedAt ?? '').slice(0, 10) >= updFrom)
     .filter((d) => !updTo || (d.updatedAt ?? '').slice(0, 10) <= updTo)
+    /*
+     * 원본 [최초작성일자] — 전표를 <b>처음 넣은</b> 날이다. 위의 [최종수정일시]와 다르다.
+     * 어제 넣은 것을 오늘 고쳤으면 이 둘이 갈린다. 예외에 '응답이 안 싣는다' 고 적어
+     * 두었던 것이 맞아서 서버에 실었다.
+     */
+    .filter((d) => !madeFrom || (d.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((d) => !madeTo || (d.createdAt ?? '').slice(0, 10) <= madeTo)
     .filter((d) => !whCond || d.warehouseName === whCond)
     .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
@@ -288,7 +299,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, partnerMgrCond, partners])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -519,7 +530,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={authorCond} onChange={setAuthorCond}
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {/* 원본 차례: [작성자]·[최종수정자]·[최초작성일자] 다음이 <b>[최종수정일시]</b> 다. */}
+          {/* 원본 차례: [작성자]·[최종수정자] 다음이 <b>[최초작성일자]</b>, 그다음이 [최종수정일시] 다. */}
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최초작성일자</span>
+          <input type="date" className="ec-input" value={madeFrom} style={{ width: 130 }}
+                 onChange={(e) => setMadeFrom(e.target.value)} />
+          <span style={{ color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} style={{ width: 130 }}
+                 onChange={(e) => setMadeTo(e.target.value)} />
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최종수정일시</span>
           <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
                  onChange={(e) => setUpdFrom(e.target.value)} />

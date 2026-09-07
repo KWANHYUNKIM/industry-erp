@@ -320,6 +320,8 @@ export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
 export interface SalesDoc {
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
   updatedAt: string | null
+  /** 원본 조건 [최초작성일자]. 앞 바퀴에 updatedAt 만 싣고 두고 온 값이다. */
+  createdAt: string | null
   id: number
   docNo: string
   partnerId: number
@@ -355,6 +357,8 @@ export interface SalesDoc {
 export interface PurchaseDoc {
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
   updatedAt: string | null
+  /** 원본 조건 [최초작성일자]. 앞 바퀴에 updatedAt 만 싣고 두고 온 값이다. */
+  createdAt: string | null
   id: number
   docNo: string
   partnerId: number

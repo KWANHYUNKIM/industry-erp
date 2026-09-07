@@ -129,6 +129,12 @@ public final class SalesDtos {
              * 값이라 싣기만 하면 된다(매출계획조회 ComparisonRow.updatedAt 과 같은 자리다).
              */
             LocalDateTime updatedAt,
+            /**
+             * 원본 조건 [최초작성일자]. 예외에 '<b>BaseTimeEntity 는 들지만 응답이 안 싣는다</b>'
+             * 고 적어 두었던 값이다 — 맞는 말이었으므로 싣는다. 앞 바퀴에 [최종수정일시]를
+             * 실으면서 이것만 두고 온 것인데, 원본은 둘을 나란히 묻는다.
+             */
+            LocalDateTime createdAt,
             Long employeeId, String employeeName,
             List<SalesLineResponse> lines
     ) {
@@ -148,6 +154,7 @@ public final class SalesDtos {
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getUpdatedAt(),
+                    s.getCreatedAt(),
                     s.getEmployee() != null ? s.getEmployee().getId() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getLines().stream().map(SalesLineResponse::from).toList());

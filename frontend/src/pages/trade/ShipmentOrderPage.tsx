@@ -215,6 +215,15 @@ export default function ShipmentOrderPage() {
   const [addressCond, setAddressCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
+  /*
+   * 두 바퀴 전에 [최초작성일자]·[최종작업일자]를 '조건 줄이 이미 아홉이라 출하조회에서
+   * 본다' 고 적고 뺐다. <b>그건 이유가 아니라 게으름이었다</b> — 같은 응답이 두 값을
+   * 싣고 있고, 원본은 이 화면에서도 둘 다 묻는다. 줄이 길다는 것은 원본도 마찬가지다.
+   */
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
   /** 원본 [기타]는 이 화면에서 <b>수정일자순(정렬)</b> 하나다(실측). */
   const [byUpdated, setByUpdated] = useState(false)
   const shownRows = shipments
@@ -239,6 +248,11 @@ export default function ShipmentOrderPage() {
     .filter((s) => !addressCond || (s.address ?? '').includes(addressCond))
     .filter((s) => !remarkCond || (s.remark ?? '').includes(remarkCond))
     .filter((s) => !authorCond || (s.createdBy ?? '') === authorCond)
+    /* 만든 때·고친 때는 날짜만 견준다 — 값은 초까지 오지만 조건은 하루 단위다. */
+    .filter((s) => !madeFrom || (s.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((s) => !madeTo || ((s.createdAt ?? '') !== '' && s.createdAt!.slice(0, 10) <= madeTo))
+    .filter((s) => !editedFrom || (s.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((s) => !editedTo || ((s.updatedAt ?? '') !== '' && s.updatedAt!.slice(0, 10) <= editedTo))
 
   /*
    * 원본 [기타]의 <b>수정일자순(정렬)</b>. 켜면 <b>마지막에 고친 건이 위</b>로 온다 —
@@ -379,6 +393,17 @@ export default function ShipmentOrderPage() {
                            value={authorCond} onChange={setAuthorCond}
                            items={[...new Set(shipments.map((s) => s.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [최초작성일자]·[최종작업일자] — 출하조회의 [최종수정일시]와 같은 값이다. */}
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다(실측). 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">
