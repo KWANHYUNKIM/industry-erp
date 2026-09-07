@@ -76,6 +76,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [managerCond, setManagerCond] = useState('')
   /** 원본 [작성자] — 전표를 넣은 사람. 원본은 [담당자]와 <b>따로</b> 둔다(2026-09-07 실측). */
   const [authorCond, setAuthorCond] = useState('')
+  /**
+   * 원본 [최종수정일시] — 차례는 [최초작성일자] 다음, [입력경로] 앞이다(2026-09-07 실측).
+   * 축(updatedAt)은 앞 커밋에서 응답에 실었다. <b>날짜만</b> 받는다 — 원본은 시분까지
+   * 적을 수 있으나 우리 자료로는 그 눈금이 쓸모가 없다(하루에 여러 번 고친 전표를
+   * 시각으로 가르는 일이 없다). 잰 것보다 좁게 만들었다는 것을 여기 적어 둔다.
+   */
+  const [updFrom, setUpdFrom] = useState('')
+  const [updTo, setUpdTo] = useState('')
   const [whCond, setWhCond] = useState('')
   const [typeCond, setTypeCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
@@ -251,6 +259,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !managerCond || (d.employeeName ?? '') === managerCond)
     /* 원본 [작성자] — 차례는 [적요] 다음, [최종수정자] 앞이다. */
     .filter((d) => !authorCond || (d.createdBy ?? '') === authorCond)
+    /* 원본 [최종수정일시]. updatedAt 은 ISO 라 앞 열 글자가 곧 날짜다. */
+    .filter((d) => !updFrom || (d.updatedAt ?? '').slice(0, 10) >= updFrom)
+    .filter((d) => !updTo || (d.updatedAt ?? '').slice(0, 10) <= updTo)
     .filter((d) => !whCond || d.warehouseName === whCond)
     .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
@@ -268,7 +279,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -462,6 +473,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={authorCond} onChange={setAuthorCond}
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 차례: [작성자]·[최종수정자]·[최초작성일자] 다음이 <b>[최종수정일시]</b> 다. */}
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최종수정일시</span>
+          <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
+                 onChange={(e) => setUpdFrom(e.target.value)} />
+          <span style={{ color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={updTo} style={{ width: 130 }}
+                 onChange={(e) => setUpdTo(e.target.value)} />
           {/*
             원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
             재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
