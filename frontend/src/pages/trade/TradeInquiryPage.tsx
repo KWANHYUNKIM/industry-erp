@@ -77,6 +77,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   /** 원본 [작성자] — 전표를 넣은 사람. 원본은 [담당자]와 <b>따로</b> 둔다(2026-09-07 실측). */
   const [authorCond, setAuthorCond] = useState('')
   /**
+   * 원본 [거래처관리담당자] — 그 <b>거래처를 맡은</b> 사람이다. 전표의 [담당자]와 다르다.
+   * 거래처 마스터에 붙는 값이라 전표 응답에는 없다 — 이 화면은 /partners 를 진작 받아
+   * 두고 있으므로(명세서 인쇄용) 거기서 거래처명으로 잇는다.
+   */
+  const [partnerMgrCond, setPartnerMgrCond] = useState('')
+  /**
    * 원본 [최종수정일시] — 차례는 [최초작성일자] 다음, [입력경로] 앞이다(2026-09-07 실측).
    * 축(updatedAt)은 앞 커밋에서 응답에 실었다. <b>날짜만</b> 받는다 — 원본은 시분까지
    * 적을 수 있으나 우리 자료로는 그 눈금이 쓸모가 없다(하루에 여러 번 고친 전표를
@@ -259,6 +265,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !managerCond || (d.employeeName ?? '') === managerCond)
     /* 원본 [작성자] — 차례는 [적요] 다음, [최종수정자] 앞이다. */
     .filter((d) => !authorCond || (d.createdBy ?? '') === authorCond)
+    /* 원본 [거래처관리담당자]. 차례는 [담당자] 다음, [회계반영여부] 앞이다. */
+    .filter((d) => !partnerMgrCond
+      || (partners.find((p) => p.id === d.partnerId)?.manager ?? '') === partnerMgrCond)
     /* 원본 [최종수정일시]. updatedAt 은 ISO 라 앞 열 글자가 곧 날짜다. */
     .filter((d) => !updFrom || (d.updatedAt ?? '').slice(0, 10) >= updFrom)
     .filter((d) => !updTo || (d.updatedAt ?? '').slice(0, 10) <= updTo)
@@ -279,7 +288,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, partnerMgrCond, partners])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -458,7 +467,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={managerCond} onChange={setManagerCond}
                            items={[...new Set(docs.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {/* 원본 차례: [담당자]·[거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
+          {/* 원본 차례: [담당자] 다음이 <b>[거래처관리담당자]</b> 다. */}
+          <CodePickerField label="거래처관리담당자" width={140} emptyLabel="전체"
+                           value={partnerMgrCond} onChange={setPartnerMgrCond}
+                           items={[...new Set(partners.map((p) => p.manager).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+          {/* 원본 차례: [거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>회계반영여부</span>
           <select className="ec-input" value={reflectedCond} style={{ width: 90 }}
                   onChange={(e) => setReflectedCond(e.target.value as '전체' | '반영' | '미반영')}>
