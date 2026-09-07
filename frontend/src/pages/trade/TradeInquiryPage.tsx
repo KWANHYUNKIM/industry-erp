@@ -17,6 +17,12 @@ interface NormalDoc {
   id: number; docNo: string; partnerId: number; partnerName: string; warehouseName: string
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
+  /**
+   * 원본 조건 [담당자]. <b>작성자와 다른 값</b>이다 — 전표를 <b>맡은</b> 사람이고,
+   * createdBy 는 전표를 <b>넣은</b> 사람이다. 응답이 진작 실어 주는데 이 화면이 안 받아
+   * 두어, [담당자] 칸이 엉뚱하게 createdBy 로 걸리고 있었다.
+   */
+  employeeName: string | null
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. 서버가 이제 싣는다. */
   updatedAt: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
@@ -66,7 +72,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 검색창 하나로는 '이 담당자가 이 달에 친 구매' 를 뽑지 못한다.
    */
   const [partnerCond, setPartnerCond] = useState('')
+  /** 원본 [담당자] — 전표를 맡은 사원. 예전에는 이 칸이 createdBy(작성자)로 걸렸다. */
   const [managerCond, setManagerCond] = useState('')
+  /** 원본 [작성자] — 전표를 넣은 사람. 원본은 [담당자]와 <b>따로</b> 둔다(2026-09-07 실측). */
+  const [authorCond, setAuthorCond] = useState('')
   const [whCond, setWhCond] = useState('')
   const [typeCond, setTypeCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
@@ -95,6 +104,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
         createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt,
+        employeeName: d.employeeName,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
         accountingReflected: d.accountingReflected,
@@ -238,7 +248,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
     .filter((d) => !partnerCond || d.partnerName === partnerCond)
-    .filter((d) => !managerCond || (d.createdBy ?? '') === managerCond)
+    .filter((d) => !managerCond || (d.employeeName ?? '') === managerCond)
+    /* 원본 [작성자] — 차례는 [적요] 다음, [최종수정자] 앞이다. */
+    .filter((d) => !authorCond || (d.createdBy ?? '') === authorCond)
     .filter((d) => !whCond || d.warehouseName === whCond)
     .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
@@ -256,7 +268,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -427,10 +439,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={specCond} onChange={setSpecCond}
                            items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {/* 원본 구매조회에만 있는 [담당자]. */}
+          {/*
+            원본 [담당자] — 전표를 <b>맡은</b> 사원이다. 예전에는 이 칸이 createdBy 로 걸려
+            <b>작성자를 담당자라고 부르고</b> 있었다. 원본은 둘을 따로 둔다(실측).
+          */}
           <CodePickerField label="담당자" width={120} emptyLabel="전체"
                            value={managerCond} onChange={setManagerCond}
-                           items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
+                           items={[...new Set(docs.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
           {/* 원본 차례: [담당자]·[거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>회계반영여부</span>
@@ -442,6 +457,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>적요</span>
           <input className="ec-input" value={remarkCond} placeholder="적요 일부" style={{ width: 130 }}
                  onChange={(e) => setRemarkCond(e.target.value)} />
+          {/* 원본 차례: [적요] 다음이 <b>[작성자]</b>, 그다음이 [최종수정자] 다. */}
+          <CodePickerField label="작성자" width={120} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
           {/*
             원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
             재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
