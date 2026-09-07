@@ -1304,6 +1304,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['의료기기공급내역보고', 'datacenter/MedicalDeviceReportPage.tsx'],
     ['비용내역현황', 'accounting/ExpenseDetailPage.tsx'],
     ['기타이동현황', 'inventory/TransferPage.tsx'],
+    /* 창고이동조회는 2026-09-07 에 원본(C000033)을 열어 간편검색 칸에서 직접 쟀다. */
+    ['창고이동조회', 'inventory/TransferStatusPage.tsx'],
     /* 할인현황 셋은 얇은 껍데기가 DiscountStatusPage 를 부른다 — 기간은 그 안에서 정한다. */
     ['판매할인현황', 'trade/DiscountStatusPage.tsx'],
     ['외주비할인현황', 'trade/DiscountStatusPage.tsx'],
