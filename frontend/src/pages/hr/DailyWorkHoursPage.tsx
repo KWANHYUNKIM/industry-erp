@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useDeptGroups } from '../../utils/deptGroups'
 
 /**
  * 관리 > 일별근무시간 (이카운트 E070309 일별근무시간(ID))
@@ -36,6 +37,12 @@ export default function DailyWorkHoursPage() {
    * "김" 을 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다 — 부서로만 좁힐 수가 없었다.
    */
   const [deptCond, setDeptCond] = useState('')
+  /**
+   * 원본 [부서계층그룹] — [부서]가 그 부서 하나라면 이쪽은 <b>그 부서와 그 아래 전부</b>다.
+   * 예외에 '부서를 계층으로 묶지 않는다 — 평면이다' 라고 적혀 있었으나 사실이 아니었다.
+   */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const [deptGroup, setDeptGroup] = useState('')
   /*
    * 원본 조건 <b>[정렬/소계기준]</b> — 줄을 무엇으로 묶을지 고른다(사본 실측).
    * 표는 사람마다 한 줄이라, 부서가 그 달에 <b>몇 시간을 썼나</b> 는 눈으로 더해야 했다.
@@ -77,6 +84,7 @@ export default function DailyWorkHoursPage() {
     const 걸린것 = rows
       .filter((r) => !keyword || r.empName.includes(keyword))
       .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
+      .filter((r) => inGroup(r.department, deptGroup))
     for (const r of 걸린것) {
       const day = Number(r.date.slice(8, 10))
       /* 부서가 안 적힌 줄을 빈 이름으로 묶으면 누구 것인지 모르는 덩어리가 된다. */
@@ -125,6 +133,13 @@ export default function DailyWorkHoursPage() {
         <span style={{ marginLeft: 8 }}>부서</span>
         <input className="ec-input" placeholder="부서 일부" value={deptCond}
                onChange={(e) => setDeptCond(e.target.value)} style={{ width: 120 }} />
+        {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
+        <span style={{ marginLeft: 8 }}>부서계층그룹</span>
+        <select className="ec-input" value={deptGroup} style={{ width: 130 }}
+                onChange={(e) => setDeptGroup(e.target.value)}>
+          <option value="">전체</option>
+          {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
         <span style={{ marginLeft: 8 }}>정렬/소계기준</span>
         <div className="ec-pills">

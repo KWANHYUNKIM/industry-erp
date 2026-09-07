@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useDeptGroups } from '../../utils/deptGroups'
 
 /**
  * 관리 > 근태관리 > 근태현황 (= 이카운트 출/퇴근현황(ID), E070306)
@@ -40,6 +41,12 @@ export default function AttendanceStatusPage() {
   const [allDates, setAllDates] = useState(false)
   const [empName, setEmpName] = useState('')
   const [department, setDepartment] = useState('')
+  /**
+   * 원본 [부서계층그룹] — [부서]가 그 부서 하나라면 이쪽은 <b>그 부서와 그 아래 전부</b>다.
+   * 예외에 '부서를 계층으로 묶지 않는다 — 평면이다' 라고 적혀 있었으나 사실이 아니었다.
+   */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const [deptGroup, setDeptGroup] = useState('')
   /*
    * 원본 조건 <b>[정렬/소계기준]</b> — 소계를 무엇으로 묶을지 고른다(사본 실측).
    * 표는 사람마다 한 줄인데, 결근·지각이 <b>어느 부서에 몰려 있나</b>는 눈으로 더해야 했다.
@@ -66,7 +73,7 @@ export default function AttendanceStatusPage() {
   function reset() {
     setFrom(ymd(new Date(today.getFullYear(), today.getMonth(), 1)))
     setTo(ymd(today))
-    setAllDates(false); setEmpName(''); setDepartment('')
+    setAllDates(false); setEmpName(''); setDepartment(''); setDeptGroup('')
   }
 
   // 사원·부서 목록은 조회된 결과에서 뽑는다. 이 화면만 쓰자고 별도 요청을 늘리지 않는다.
@@ -77,6 +84,7 @@ export default function AttendanceStatusPage() {
   const shown = rows
     .filter((r) => !empName || r.empName === empName)
     .filter((r) => !department || r.department === department)
+    .filter((r) => inGroup(r.department, deptGroup))
 
   const totals = shown.reduce((t, r) => ({
     workDays: t.workDays + r.workDays,
@@ -148,6 +156,14 @@ export default function AttendanceStatusPage() {
             <td>
               <CodePickerField label="부서" hideLabel value={department} onChange={setDepartment}
                                items={departments.map((d) => ({ value: d, name: d }))} />
+            </td>
+          </tr>
+          {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
+          <tr>
+            <th style={th}>부서계층그룹</th>
+            <td colSpan={3}>
+              <CodePickerField label="부서계층그룹" hideLabel value={deptGroup} onChange={setDeptGroup}
+                               items={deptGroups.map((d) => ({ value: d, name: d }))} />
             </td>
           </tr>
           {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}

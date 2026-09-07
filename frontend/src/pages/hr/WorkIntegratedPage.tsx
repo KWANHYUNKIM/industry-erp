@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useAuth } from '../../auth/AuthContext'
 import { dateText } from '../../utils/dateText'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useDeptGroups } from '../../utils/deptGroups'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -58,6 +59,12 @@ export default function WorkIntegratedPage() {
    */
   const [nameCond, setNameCond] = useState('')
   const [deptCond, setDeptCond] = useState('')
+  /**
+   * 원본 [부서계층그룹] — [부서]가 그 부서 하나라면 이쪽은 <b>그 부서와 그 아래 전부</b>다.
+   * 예외에 '부서를 계층으로 묶지 않는다 — 평면이다' 라고 적혀 있었으나 사실이 아니었다.
+   */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const [deptGroup, setDeptGroup] = useState('')
   const [statusCond, setStatusCond] = useState('')
   const [catCond, setCatCond] = useState('')
   /** 원본 조건 [공유여부]·[프로젝트]. 서버가 이제 실어 준다. */
@@ -124,6 +131,7 @@ export default function WorkIntegratedPage() {
       .filter((r) => !noteCond || (r.note ?? '').includes(noteCond))
       .filter((r) => !nameCond || r.name.includes(nameCond))
       .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
+      .filter((r) => inGroup(r.department, deptGroup))
       .filter((r) => !statusCond || (r.status ?? '') === statusCond)
       /*
        * 원본 조건 <b>[공유여부]</b>. 한 줄에 일정이 여럿일 수 있어 <b>그 줄에 하나라도</b>
@@ -195,6 +203,13 @@ export default function WorkIntegratedPage() {
         <span style={{ marginLeft: 8 }}>부서</span>
         <input className="ec-input" value={deptCond}
                onChange={(e) => setDeptCond(e.target.value)} style={{ width: 110 }} />
+        {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
+        <span style={{ marginLeft: 8 }}>부서계층그룹</span>
+        <select className="ec-input" value={deptGroup} style={{ width: 130 }}
+                onChange={(e) => setDeptGroup(e.target.value)}>
+          <option value="">전체</option>
+          {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
         {/* 원본 차례: 사원명 · 부서 · <b>프로젝트</b> · 적요 (사본 실측). */}
         <span style={{ marginLeft: 8 }}>프로젝트</span>
         <select className="ec-input" value={projectCond} style={{ width: 130 }}

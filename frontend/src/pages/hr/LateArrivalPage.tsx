@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useDeptGroups } from '../../utils/deptGroups'
 
 /**
  * 관리 > 지각현황 (이카운트 E070307 지각현황(ID))
@@ -48,6 +49,12 @@ export default function LateArrivalPage() {
    * "김" 을 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다 — 부서로만 좁힐 수가 없었다.
    */
   const [deptCond, setDeptCond] = useState('')
+  /**
+   * 원본 [부서계층그룹] — [부서]가 그 부서 하나라면 이쪽은 <b>그 부서와 그 아래 전부</b>다.
+   * 예외에 '부서를 계층으로 묶지 않는다 — 평면이다' 라고 적혀 있었으나 사실이 아니었다.
+   */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const [deptGroup, setDeptGroup] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -69,6 +76,7 @@ export default function LateArrivalPage() {
     .filter((r) => r.status === '지각')
     .filter((r) => !keyword || r.empName.includes(keyword))
     .filter((r) => !deptCond || (r.department ?? '').includes(deptCond))
+    .filter((r) => inGroup(r.department, deptGroup))
     .map((r) => {
       const cin = toMinutes(r.clockIn)
       return { ...r, lateMin: cin != null ? Math.max(0, cin - START_MIN) : 0 }
@@ -132,6 +140,14 @@ export default function LateArrivalPage() {
         <EcCond label="부서">
           <input className="ec-input" placeholder="부서 일부" value={deptCond}
                  onChange={(e) => setDeptCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
+        <EcCond label="부서계층그룹">
+          <select className="ec-input" value={deptGroup} style={{ width: 160 }}
+                  onChange={(e) => setDeptGroup(e.target.value)}>
+            <option value="">전체</option>
+            {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </EcCond>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
         <EcCond label="정렬/소계기준">

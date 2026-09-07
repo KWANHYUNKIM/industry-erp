@@ -699,14 +699,6 @@
     ],
     "in": "backend"
   },
-  "부서계층그룹": {
-    "claim": "부서를 계층으로 묶지 않는다",
-    "absent": [
-      "parentDepartment",
-      "DepartmentTree"
-    ],
-    "in": "backend"
-  },
   "월별채권증감내역|정렬/소계기준": {
     "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
     "present": [
