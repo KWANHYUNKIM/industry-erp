@@ -4,6 +4,7 @@ import type { CommonCode, QualityInspection, StockAdjustment } from '../../api/t
 import EcListShell from '../../components/EcListShell'
 import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -79,6 +80,18 @@ export default function DefectReportPage() {
   /* 기간이 바뀌면 다시 물어본다 — 예전에는 전 기간을 받아 브라우저에서 걸렀다. */
   useEffect(() => { load() }, [from, to])
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기].
+   *
+   * <p>이 화면은 <b>불량률</b>을 보는 표다(제목이 그렇고 정렬도 불량률 높은 순이다).
+   * 그러니 수량이 아니라 <b>율</b>을 그린다 — 수량으로 그리면 많이 만든 품목이 늘 위에
+   * 서서 '많이 만드니까 많이 틀린' 것과 '자주 틀리는' 것을 가릴 수가 없다.
+   *
+   * <p>검사를 한 번도 안 한 품목(검사수량 0)은 뺀다. 불량률이 0 으로 잡혀 <b>멀쩡한 품목</b>
+   * 처럼 줄을 서는데, 실은 <b>모르는 품목</b>이다. 둘을 같은 막대로 그리면 안 된다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const rows = useMemo<Row[]>(() => {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
     const map = new Map<number, Row>()
@@ -147,6 +160,7 @@ export default function DefectReportPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={INQUIRY_FULL_PICKS}
         dateLabel="기간"
+        view={view} onViewChange={setView}
       >
         {/* 원본 차례: <b>창고 · 프로젝트</b> · 담당자 · 불량유형 · 처리방법 */}
         <EcCond label="창고" pick>
@@ -197,6 +211,11 @@ export default function DefectReportPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {view === '그래프' ? (
+        <EcBarChart unit=" %" emptyText="검사한 품목이 없습니다."
+                    rows={rows.filter((r) => r.inspectedQty > 0)
+                      .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -243,6 +262,7 @@ export default function DefectReportPage() {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }
