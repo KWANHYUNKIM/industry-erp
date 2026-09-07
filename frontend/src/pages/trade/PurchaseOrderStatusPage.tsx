@@ -7,6 +7,7 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { aggregate, GROUP_KEYS, type GroupKey } from '../../utils/statusAggregate'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 구매관리 > 발주서현황 (이카운트 E040306)
@@ -125,6 +126,17 @@ export default function PurchaseOrderStatusPage() {
    */
   useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기].
+   *
+   * <p>이 화면은 EcStatusPanel 을 안 쓴다(조건 판을 손으로 짰다) — 그래서 <b>글자와
+   * 알약을 화면이 직접 그린다</b>. 라벨이 글자로 안 남으면 조건 검사가 못 본다.
+   *
+   * <p>발주는 <b>거래처에 얼마를 냈나</b> 를 보는 화면이라 거래처로 묶어 공급가액을 그린다.
+   * 줄 하나씩 그리면 같은 매입처가 흩어져 '이 거래처에 이번 달 얼마' 를 못 읽는다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
     const f = filters
@@ -231,6 +243,7 @@ export default function PurchaseOrderStatusPage() {
           onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
           onApply={applyDraft}
           onReset={resetDraft}
+          view={view} onViewChange={setView}
         />
       )}
 
@@ -243,7 +256,14 @@ export default function PurchaseOrderStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 발주가 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partner, (m.get(r.partner) ?? 0) + r.supply)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : mode === '집계' ? (
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
@@ -340,12 +360,20 @@ export default function PurchaseOrderStatusPage() {
 
 /** 이카운트 Search 패널 — 기준일자/거래처/담당자/발주No./창고/품목/진행상태 */
 function SearchPanel({
-  draft, onChange, onApply, onReset,
+  draft, onChange, onApply, onReset, view, onViewChange,
 }: {
   draft: Filters
   onChange: (patch: Partial<Filters>) => void
   onApply: () => void
   onReset: () => void
+  /**
+   * 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 안 쓰고 조건 판을 손으로 짰다 —
+   * 그래서 셸이 그려 주지 않는다. <b>조건 판 맨 끝</b>이 원본 차례다(사본 실측:
+   * 발주No. · 창고 · 프로젝트 · 거래처 · 품목 · 데이터 보기형식).
+   * 처음에 화면 위 [구분] 옆에 달았더니 차례 검사가 바로 잡았다 — 라벨의 <b>글자 차례</b>로 잰다.
+   */
+  view: '표' | '그래프'
+  onViewChange: (v: '표' | '그래프') => void
 }) {
   const label: React.CSSProperties = {
     width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
@@ -420,6 +448,15 @@ function SearchPanel({
             onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
           발주번호순(정렬)
         </label>
+      </div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        <span style={label}>데이터 보기형식</span>
+        <div className="ec-pills">
+          {(['표', '그래프'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                    onClick={() => onViewChange(v)}>{v}</button>
+          ))}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <button className="ec-btn" onClick={onReset}>초기화</button>
