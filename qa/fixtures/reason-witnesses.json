@@ -297,7 +297,31 @@
     ],
     "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
   },
-  "생산공정": {
+  "품목등록|생산공정": {
+  "claim": "품목 마스터에 공정을 매어 두지 않는다 — 공정은 작업지시가 든다",
+  "absent": [
+   "process",
+   "Process"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+  "실제원가현황|생산공정": {
+    "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
+    "absent": [
+      "process",
+      "Process"
+    ],
+    "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  },
+  "표준원가현황|생산공정": {
+    "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
+    "absent": [
+      "process",
+      "Process"
+    ],
+    "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  },
+  "차이분석|생산공정": {
     "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
     "absent": [
       "process",
