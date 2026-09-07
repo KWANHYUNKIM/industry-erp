@@ -4,6 +4,7 @@ import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -48,16 +49,24 @@ export default function MonthlyCumulativePage() {
   }
   useEffect(() => { load() }, [])
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
+   * 품목 마스터를 받아 줄로 잇는다(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const rows = useMemo<MonthRow[]>(() => {
     const saleByM = new Array(13).fill(0)
     const buyByM = new Array(13).fill(0)
     /* 품목은 전표가 아니라 <b>라인</b>에 있다 — 그 품목이 든 전표만 센다. */
     const keep = (d: { warehouseName: string; partnerName: string; projectName: string | null;
-                      lines: { itemName: string }[] }) =>
+                      lines: { itemName: string; itemId: number }[] }) =>
       (!warehouse || d.warehouseName.includes(warehouse))
       && (!partner || d.partnerName.includes(partner))
       && (!project || (d.projectName ?? '').includes(project))
       && (!item || d.lines.some((l) => l.itemName.includes(item)))
+      && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
     for (const d of sales) {
       if (d.saleDate.slice(0, 4) !== String(year)) continue
       if (!keep(d)) continue
@@ -102,8 +111,12 @@ export default function MonthlyCumulativePage() {
             주석에는 넷을 다 적어 놓고 셋만 만들어 두었다. */}
         <CodePickerField label="품목" width={150} emptyLabel="전체"
                          value={item} onChange={setItem} items={pickers.items} />
+        {/* 원본 차례: [품목] · [프로젝트] · <b>[관리항목]</b> (사본 실측 — 이 화면에서는 맨 뒤다). */}
         <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
                          value={project} onChange={setProject} items={pickers.projects} />
+        <CodePickerField label="관리항목" width={150} emptyLabel="전체"
+                         value={mgmtCond} onChange={setMgmtCond}
+                         items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         {yTotal && (
           <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
             연매출 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(yTotal.saleCum)}</b>

@@ -5,6 +5,7 @@ import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -63,6 +64,13 @@ export default function PivotSummaryPage() {
   }
   useEffect(() => { load() }, [])
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
+   * 품목 마스터를 받아 줄의 itemId 로 잇는다(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const rows = useMemo<PivotRow[]>(() => {
     const docs = mode === 'SALE'
       ? sales.filter((d) => d.saleDate.slice(0, 4) === String(year)).map((d) => ({ date: d.saleDate, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName, warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName, lines: d.lines }))
@@ -81,6 +89,7 @@ export default function PivotSummaryPage() {
       if (warehouseCond && !d.warehouseName.includes(warehouseCond)) continue
       if (projectCond && !(d.projectName ?? '').includes(projectCond)) continue
       if (itemCond && !d.lines.some((l) => l.itemName.includes(itemCond))) continue
+      if (!mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)) continue
       const m = Number(d.date.slice(5, 7)) - 1
       if (groupBy === 'partner') {
         const supply = d.lines.reduce((a, l) => a + l.supplyAmount, 0)
@@ -154,6 +163,10 @@ export default function PivotSummaryPage() {
                          value={warehouseCond} onChange={setWarehouseCond} items={condPick.warehouses} />
         <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={condPick.projects} />
+        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
+        <CodePickerField label="관리항목" width={150} emptyLabel="전체"
+                         value={mgmtCond} onChange={setMgmtCond}
+                         items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         <CodePickerField label="거래처" width={150} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond} items={condPick.partners} />
         <CodePickerField label="품목" width={150} emptyLabel="전체"

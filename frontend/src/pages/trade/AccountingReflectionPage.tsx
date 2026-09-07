@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
@@ -159,6 +160,13 @@ export default function AccountingReflectionPage() {
     setOk('')
   }, [kind])
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
+   * 품목 마스터를 받아 줄로 잇는다(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const shownRows = slips
     .filter((s) => !onlyUnreflected || !s.reflected)
     .filter((s) => !cond.from || s.slipDate >= cond.from)
@@ -175,6 +183,8 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
     .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
     .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
+    /* 이 화면의 줄은 itemCode 만 든다(itemId 가 없다) — 코드로 잇는다. */
+    .filter((s) => !mgmtCond || (s.lines ?? []).some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
 
   /*
    * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [회계반영]은 안쪽 참/거짓이 아니라
@@ -395,6 +405,12 @@ export default function AccountingReflectionPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: [품목] · [프로젝트] · <b>[관리항목]</b> · [담당자] (사본 실측). */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
