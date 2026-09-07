@@ -1405,48 +1405,6 @@
     ],
     "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
   },
-  "거래처관리대장 I|거래처관계기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
-  "거래처관리대장 I|개별거래처기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
-  "거래처별채권|거래처관계기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
-  "거래처별채권|개별거래처기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
-  "거래처별채무|거래처관계기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
-  "거래처별채무|개별거래처기준": {
-    "claim": "아직 원본을 안 열어 본 화면이다 — 지금은 [대표거래처로 합산] 체크 하나가 그 선택을 겸한다",
-    "present": [
-      "byParent"
-    ],
-    "file": "trade/LedgerPage.tsx"
-  },
   "거래처관리대장 II|거래처관계기준": {
     "claim": "거래처등록 화면이라 합칠 잔액 자체가 없다",
     "absent": [

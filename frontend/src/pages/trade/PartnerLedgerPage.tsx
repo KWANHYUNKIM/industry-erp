@@ -95,9 +95,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [group, setGroup] = useState<Group>('전표별')
   /**
    * 원본 [대표거래처로 합산] — '거래처관계기준' 이면 지점·사업장 채권채무를 대표 밑으로 모은다.
-   * 기본은 원본과 같이 개별거래처기준이다.
+   *
+   * <p>기본은 <b>거래처관계기준</b>이다. "원본과 같이 개별거래처기준" 이라 적혀 있었으나
+   * 대조표는 반대로 적고 있다 — qa/fixtures/ecount-radio-options.json 의
+   * `거래처관리대장 I.MainCustFlag` 가 <b>["*거래처관계기준", "개별거래처기준"]</b> 이고
+   * `*` 가 원본에서 눌린 채로 열리는 쪽이다. 채권현황·거래처별채권도 같은 값이다.
    */
-  const [basis, setBasis] = useState<LedgerBasis>('개별거래처기준')
+  const [basis, setBasis] = useState<LedgerBasis>('거래처관계기준')
   /**
  * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
  * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,

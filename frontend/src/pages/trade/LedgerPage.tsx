@@ -9,6 +9,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
+import type { LedgerBasis } from '../../utils/partnerRollup'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -48,9 +49,13 @@ const TITLE: Record<LedgerSide, string> = {
  * <p>우리 화면은 조건이 <b>하나도 없었다</b> — 거래처 잔액을 통째로 뿌리기만 했다.
  * 특히 [구분] 담당자별이 없어 "이 담당자가 걷어야 할 돈이 얼마인가"를 볼 수가 없었다.
  *
- * <p>[대표거래처로 합산]은 대표거래처가 생긴 뒤 만들었다. 원본이 그 옆에 따로 둔
- * <b>거래처관계기준/개별거래처기준</b> 라디오는 <b>그 체크와 같은 선택</b>이라 그리지 않는다 —
- * 같은 것을 두 칸으로 두면 서로 어긋날 수 있다.
+ * <p>[대표거래처로 합산]은 <b>체크박스가 아니라 라디오 두 알</b>이다 —
+ * [거래처관계기준] · [개별거래처기준]. 켜고 끄는 체크는 원본에 아예 없다
+ * (qa/fixtures/ecount-radio-options.json 의 MainCustFlag, 채권현황과 글자까지 같다).
+ * 예전에는 "그 체크와 같은 선택이라 안 그린다" 고 적고 검사 예외까지 달아 뒀는데,
+ * 그 바람에 <b>[개별거래처기준]이라는 말이 화면에 한 번도 안 나왔고</b> 기본값도 뒤집혀 있었다.
+ * 원본은 <b>[거래처관계기준]이 눌린 채로</b> 열린다(대조표의 `*`). 채권현황(cc77445)에서
+ * 같은 것을 고쳤는데 이 화면이 남아 있었다.
  *
  * <p><b>원본 결과 열 실측(사본)</b>:
  * 채권 — 거래처명 · 기초채권 · 재고매출 · 회계매출 · 수금합계 · 기타할인등차액 · 잔액,
@@ -136,7 +141,9 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
    * 지점이 다섯이면 채권이 다섯 줄로 흩어져, 그 회사에 얼마를 받을지 눈으로 더해야 했다.
    */
   const [parentOf, setParentOf] = useState<Map<number, { id: number; name: string }>>(new Map())
-  const [byParent, setByParent] = useState(false)
+  /** 원본은 [거래처관계기준]이 눌린 채로 열린다(대조표 MainCustFlag 의 `*`). */
+  const [basis, setBasis] = useState<LedgerBasis>('거래처관계기준')
+  const byParent = basis === '거래처관계기준'
   useEffect(() => {
     api.get<{ id: number; searchKeyword: string | null; parentId: number | null; parentName: string | null }[]>('/partners')
       .then((r) => {
@@ -261,7 +268,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
     거래처명: (r) => r.name,
   })
 
-  useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shownRolled.length, group, byParent])
+  useTableColumnCheck(tableRef, '거래처별 채권·채무', [side, shownRolled.length, group, basis])
   // 담당자별 표도 채권/채무 열이 조건부라 정적으로 셀 수 없다 — 같은 방식으로 못 박는다.
   const mgrTableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(mgrTableRef, '담당자별 채권·채무', [side, byManager.length, group])
@@ -343,10 +350,19 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           원본은 이것을 <b>[기타]에 섞지 않고 제 줄로</b> 둔다 — [거래처] 바로 다음이다(실측).
         */}
         <EcCond label="대표거래처로 합산">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={byParent} onChange={(e) => setByParent(e.target.checked)} />
-            지점을 대표거래처로 묶어 본다
-          </label>
+          {/* 배열로 돌리면 라벨이 <b>글자로 남지 않아</b> 검사가 못 본다 — 그대로 편다. */}
+          <div style={{ display: 'flex', gap: 10, fontSize: 12.5 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="radio" name="ledger-basis" checked={basis === '거래처관계기준'}
+                     onChange={() => setBasis('거래처관계기준')} />
+              거래처관계기준
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="radio" name="ledger-basis" checked={basis === '개별거래처기준'}
+                     onChange={() => setBasis('개별거래처기준')} />
+              개별거래처기준
+            </label>
+          </div>
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
