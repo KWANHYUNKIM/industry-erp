@@ -7,7 +7,6 @@ import CodePickerField from '../../components/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../api/types'
@@ -225,12 +224,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     }])
   }
 
-  /**
-   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
-   * 품목 마스터를 받아 줄의 itemId 로 잇는다(판매현황이 먼저 그렇게 했다).
-   */
-  const mgmt = useItemMgmt()
-  const [mgmtCond, setMgmtCond] = useState('')
   /** 원본 조건 판 [기타]의 [수정일자순(정렬)]. 원본도 기본은 꺼짐이다(실측). */
   const [byUpdated, setByUpdated] = useState(false)
 
@@ -240,7 +233,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !managerCond || (d.createdBy ?? '') === managerCond)
     .filter((d) => !whCond || d.warehouseName === whCond)
     .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
-    .filter((d) => mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
     .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
     .filter((d) => !from || d.date >= from)
@@ -250,7 +242,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, mgmtCond, mgmt.options, byUpdated])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -403,13 +395,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                              items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
                                .map((n) => ({ value: n, name: n }))} />
           )}
-          {/*
-            원본 차례: 기준일자 · 거래유형 · <b>창고 · [관리항목] · 프로젝트</b> · 거래처 · 품목.
-            열다섯 화면 가운데 <b>이 화면만</b> [관리항목]이 [프로젝트]보다 앞이다(사본 실측).
-          */}
-          <CodePickerField label="관리항목" width={130} emptyLabel="전체"
-                           value={mgmtCond} onChange={setMgmtCond}
-                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
           <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond}
                            items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
