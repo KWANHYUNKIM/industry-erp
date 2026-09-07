@@ -8,6 +8,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
@@ -116,6 +117,12 @@ export default function IssuePage() {
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
   const setLine = (key: number, patch: Partial<FormLine>) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+  /** 원본 격자 툴바의 [My품목]. 불출은 <b>단가를 안 든다</b> — 품목과 수량만 붓는다. */
+  const myItems = useMyItemsPick((picked) => setLines((ls) => {
+    const kept = ls.filter((l) => l.itemId)
+    const added = picked.map((m) => ({ ...emptyLine(), itemId: String(m.itemId), qty: String(m.defaultQty) }))
+    return [...kept, ...added, emptyLine()]
+  }))
 
   async function load() {
     setLoading(true)
@@ -327,6 +334,9 @@ export default function IssuePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>자재</span>
             <button type="button" className="ec-btn" onClick={() => setLines([...lines, emptyLine()])}>줄 추가</button>
+            {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
+            <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <MyItemsNote note={myItems.note} />
           </div>
           <table className="w-full text-left">
             <thead>

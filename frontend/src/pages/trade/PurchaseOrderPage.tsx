@@ -10,6 +10,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -556,6 +557,19 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
   const [taxable, setTaxable] = useState(true)   // 거래유형: 부가세율 적용 / 면세
   const [remark, setRemark] = useState('')       // 참조
   const [lines, setLines] = useState<LineForm[]>([emptyLine()])
+  /**
+   * 원본 격자 툴바의 [My품목]. <b>단가는 My품목이 들고 온 값을 쓰지 않는다</b> —
+   * 그 값은 품목의 판매단가다. 발주는 사는 쪽이라 구매단가를 채워야 한다
+   * (아래 pickItem 과 같은 규칙). 판매가를 채우면 그게 발주단가로 굳는다.
+   */
+  const myItems = useMyItemsPick((picked) => setLines((ls) => {
+    const kept = ls.filter((l) => l.itemId)
+    const added = picked.map((m) => {
+      const pp = items.find((x) => x.id === m.itemId)?.purchasePrice ?? 0
+      return { ...emptyLine(), itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: pp > 0 ? String(pp) : '' }
+    })
+    return [...kept, ...added, emptyLine()]
+  }))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const specOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.spec ?? ''
@@ -730,7 +744,12 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
               </tr>
             </tfoot>
           </table>
-          <button className="ec-btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <button className="ec-btn" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
+            {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
+            <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <MyItemsNote note={myItems.note} />
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
