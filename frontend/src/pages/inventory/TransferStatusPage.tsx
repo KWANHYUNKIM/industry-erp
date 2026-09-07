@@ -8,6 +8,7 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { printDocuments } from '../../utils/printDocument'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 > 창고이동현황 (이카운트 E040505)
@@ -38,8 +39,13 @@ interface Transfer {
   toWarehouseId: number
   toWarehouseName: string
   quantity: number
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategoryName: string | null
   reason: string | null
   createdBy: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -83,12 +89,35 @@ export default function TransferStatusPage() {
 
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   // 원본 기본값이 금월(~오늘)이다.
-  const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
+  /*
+   * 원본 창고이동조회(C000033)는 <b>최근30일(+1개월)</b> 로 열린다(2026-09-07 실측 —
+   * 간편검색 칸에 그 이름이 적혀 있다). '금월(~오늘)' 이라 적어 두었던 것은 근거가 없었다.
+   * 이동은 <b>앞으로 옮길 것</b>도 잡아야 해서 미래가 한 달 들어간다.
+   */
+  const init = periodOf('최근30일(+1개월)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   /*
    * 원본 창고이동조회 조건 차례: … 창고 · <b>프로젝트</b> · 품목 · <b>담당자</b> · 적요.
    * 이동 전표에 그 칸이 없어 <b>[적요]에 손으로 적고</b> 있었다 — 칸을 만들고 조건을 세운다.
    */
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '' })
+  const [cond, setCond] = useState({
+    from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '',
+    /*
+     * 2026-09-07 에 원본(C000033)을 열어 조건을 전부 쟀다 — <b>스물아홉</b>이다.
+     * 사본에는 아홉뿐이었고 <b>[기준일자]도 [보내는창고]·[받는창고]도 빠져 있었다</b>.
+     * 이동 화면에서 어디서 어디로가 빠진 사본이라니 — 여섯 번째 같은 구멍이다.
+     *
+     * <p>[창고]는 <b>어느 쪽이든</b> 걸리는 칸이고, [보내는창고]·[받는창고]는 <b>한쪽만</b>
+     * 건다. 셋이 나란히 있는 까닭이 그것이다 — "저 창고가 낀 이동" 과 "저 창고에서 나간
+     * 이동" 은 다른 물음이다.
+     */
+    fromWarehouseId: '', toWarehouseId: '',
+    category: '', itemGroup: '', author: '',
+    madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+  })
+  /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
+  /** 원본 [품목그룹1]. 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
+  const mgmt = useItemMgmt()
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -119,6 +148,18 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
+    /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
+    .filter((r) => !cond.fromWarehouseId || String(r.fromWarehouseId) === cond.fromWarehouseId)
+    .filter((r) => !cond.toWarehouseId || String(r.toWarehouseId) === cond.toWarehouseId)
+    .filter((r) => !cond.category || (r.itemCategoryName ?? '') === cond.category)
+    .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
+    .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    .filter((r) => !cond.madeFrom || (r.createdAt ?? '').slice(0, 10) >= cond.madeFrom)
+    .filter((r) => !cond.madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= cond.madeTo))
+    .filter((r) => !cond.editedFrom || (r.updatedAt ?? '').slice(0, 10) >= cond.editedFrom)
+    .filter((r) => !cond.editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= cond.editedTo))
+    /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 이동이 위로 온다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   /**
    * 원본 [데이터 보기형식] · [그래프로 보기].
@@ -152,7 +193,12 @@ export default function TransferStatusPage() {
   const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
   const reset = () => {
     setMode('내역')
-    setCond({ from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '' })
+    setCond({
+      from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '',
+      fromWarehouseId: '', toWarehouseId: '', category: '', itemGroup: '', author: '',
+      madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+    })
+    setByUpdated(false)
   }
 
   /*
@@ -194,7 +240,7 @@ export default function TransferStatusPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
-        dateLabel="일자"
+        dateLabel="기준일자"
         view={view} onViewChange={setView}
       >
         <EcCond label="구분">
@@ -212,15 +258,44 @@ export default function TransferStatusPage() {
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
-                           value={cond.project} onChange={(v) => setCond((c) => ({ ...c, project: v }))}
-                           items={pickers.projects} />
+        {/* 원본 차례: 창고 · (창고계층그룹) · 보내는창고 · 받는창고 · 품목 · 품목구분 · 품목그룹1 · 프로젝트 … */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={200} emptyLabel="전체"
+                           value={cond.fromWarehouseId} onChange={(v) => setC({ fromWarehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={200} emptyLabel="전체"
+                           value={cond.toWarehouseId} onChange={(v) => setC({ toWarehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={cond.category} onChange={(v) => setC({ category: v })}
+                           items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setCond((c) => ({ ...c, project: v }))}
+                           items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: 프로젝트 · (프로젝트그룹1·2) · 기타 · 담당자 · 적요 … */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
@@ -230,6 +305,23 @@ export default function TransferStatusPage() {
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호) · 최초작성자 · 최초작성일자 · 최종작업일자 */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setC({ madeFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setC({ madeTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={cond.editedFrom} onChange={(e) => setC({ editedFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={cond.editedTo} onChange={(e) => setC({ editedTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
