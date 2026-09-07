@@ -110,6 +110,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     reason: '', employee: '', spec: '', project: '',
     /* 원본 [불량유형]/[사용유형] · [처리방법] · [수량]. */
     kind: '', handling: '', qtyFrom: '', qtyTo: '',
+    /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
+    createdBy: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -146,6 +148,13 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     (codeGroups.find((g) => g.name === groupName)?.codes ?? []).map((c) => c.name)
   const kindOptions = codesOf(kind === 'SELF_USE' ? '사용유형' : '불량유형')
   const handlingOptions = codesOf('처리방법')
+  /**
+   * 원본 [최초작성자] 후보. <b>이 화면에 실제로 있는 이름</b>만 낸다 —
+   * 사용자 마스터를 부르면 이 구분(자가사용·폐기 …)에 한 건도 없는 사람까지 목록에 선다.
+   * 그래서 기간을 바꾸면 고를 수 있는 이름도 같이 달라진다.
+   */
+  const authors = [...new Set(rows.filter((r) => r.type === kind)
+    .map((r) => r.createdBy).filter((v): v is string => !!v))].sort()
 
   const shown = rows
     .filter((r) => r.type === kind)
@@ -176,6 +185,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
      */
     .filter((r) => !cond.qtyFrom || Math.abs(r.quantityChange) >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || Math.abs(r.quantityChange) <= Number(cond.qtyTo))
+    .filter((r) => !cond.createdBy || (r.createdBy ?? '') === cond.createdBy)
 
   /*
    * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -226,6 +236,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       from: init.from, to: init.to, warehouseId: '', item: '', category: '',
       reason: '', employee: '', spec: '', project: '',
       kind: '', handling: '', qtyFrom: '', qtyTo: '',
+    /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
+    createdBy: '',
     })
   }
 
@@ -334,6 +346,19 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        {/*
+          원본 [최초작성자] — 다섯 화면 모두 [적요]·[진행상태] 뒤, [최종수정자] 앞이다
+          (qa/fixtures/ecount-form-fields.json). 응답은 createdBy 를 <b>진작 싣고 있었는데</b>
+          그걸로 거를 자리가 없었다. 고를 값은 지금 받아 온 줄에서 모은다 — 사용자 마스터를
+          따로 부르면 이 화면에 안 나오는 사람까지 목록에 선다.
+        */}
+        <EcCond label="최초작성자">
+          <select className="ec-input" value={cond.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setC({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {authors.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
         </EcCond>
       </EcStatusPanel>
 
