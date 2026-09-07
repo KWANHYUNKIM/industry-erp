@@ -12,6 +12,9 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -86,6 +89,36 @@ export default function PurchaseOrderPage() {
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const condPickers = useCondPickers(['warehouses', 'partners', 'items'])
+  /*
+   * 2026-09-07 에 원본(C000077)을 열어 조건을 <b>전부</b> 쟀다 — 서른넷이다.
+   * 사본에는 여덟뿐이었고 <b>[기준일자]조차 빠져 있었다</b>(우리는 앞 바퀴에 그걸 만들었다).
+   * 판매조회·구매조회·출하조회·출하지시서조회에 이어 다섯 번째 같은 구멍이다.
+   *
+   * <p>이번에 만드는 열둘은 <b>값이 이미 있는데 거를 자리만 없던 것</b>들이다.
+   * 특히 [규격]·[품목구분]·[적요]는 응답 record 에 "원본 조건" 이라고 주석까지 달아 두고
+   * 조건 판에는 안 만들어 두었다 — 실어 놓고 쓰지 않았다.
+   */
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [refCond, setRefCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
+  /** 품목 마스터에 붙는 [품목그룹1]. 이 화면은 /items 를 진작 통째로 받아 두고 있다. */
+  const mgmt = useItemMgmt(items)
+  const pgroups = usePartnerGroups()
+  const pmgr = usePartnerManagers(partners)
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [pricing, setPricing] = useState<PurchaseOrder | null>(null)
@@ -109,10 +142,14 @@ export default function PurchaseOrderPage() {
   }, [])
 
   /*
-   * 원본 발주서의 조건 차례는 <b>발주No. · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 ·
-   * 발송여부</b> 다(사본 실측). 우리 목록에는 <b>알약(진행 단계)뿐</b>이라
-   * 발주번호를 알아도 눈으로 찾아야 했다. 넷을 만든다 —
-   * [프로젝트]는 발주 응답에 그 값이 없고, [내.외자구분]·[발송여부]는 우리 전표에 없다.
+   * 원본 발주서조회의 조건은 <b>서른넷</b>이다(2026-09-07 실측). 사본에는 여덟뿐이었고
+   * [기준일자]조차 빠져 있었다. 앞 바퀴에 여섯을 만들었고, 이번에 열둘을 더 만든다 —
+   * 품목구분 · 품목그룹1 · 거래처그룹1 · 납기일자 · 규격 · 담당자 · 거래처관리담당자 ·
+   * 적요 · 참조 · 최초작성자 · 최초작성일자 · 최종작업일자 (+ [기타] 수정일자순(정렬)).
+   * 열둘 다 값이 이미 있는데 거를 자리만 없던 것이다.
+   *
+   * <p>[프로젝트]는 '발주 응답에 그 값이 없다' 고 여기 적혀 있었으나 <b>지금은 있다</b> —
+   * 위에서 이미 걸고 있다. [내.외자구분]·[발송여부]만 여전히 우리 전표에 없다.
    */
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
@@ -121,8 +158,31 @@ export default function PurchaseOrderPage() {
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond))),
-    [rows, tab, from, to, orderNoCond, whCond, projCond, partnerCond, itemCond])
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    /* 줄이 여럿이면 <b>한 줄이라도 걸리면</b> 그 발주를 남긴다 — 품목 조건과 같은 규칙이다. */
+    .filter((r) => !categoryCond || r.lines.some((l) => (l.itemCategoryName ?? '') === categoryCond))
+    .filter((r) => mgmt.groupHits(r.lines.map((l) => l.itemId), itemGroupCond))
+    .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
+    .filter((r) => !dueFrom || (r.dueDate ?? '') >= dueFrom)
+    .filter((r) => !dueTo || ((r.dueDate ?? '') !== '' && (r.dueDate as string) <= dueTo))
+    .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '') === specCond))
+    .filter((r) => !empCond || (r.employeeName ?? '') === empCond)
+    .filter((r) => !pmgrCond || pmgr.managerOfName(r.partnerName) === pmgrCond)
+    /* 원본 [적요]는 <b>줄</b>에 붙는 메모고, [참조]는 전표 머리에 붙는다 — 다른 칸이다. */
+    .filter((r) => !remarkCond || r.lines.some((l) => (l.remark ?? '').includes(remarkCond)))
+    .filter((r) => !refCond || (r.remark ?? '').includes(refCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 발주가 위로 온다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [rows, tab, from, to, orderNoCond, whCond, projCond, partnerCond, itemCond,
+     categoryCond, itemGroupCond, mgmt.groupOptions, partnerGroupCond, pgroups.groupOptions,
+     dueFrom, dueTo, specCond, empCond, pmgrCond, pmgr.options, remarkCond, refCond,
+     authorCond, madeFrom, madeTo, editedFrom, editedTo, byUpdated])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -311,9 +371,88 @@ export default function PurchaseOrderPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />
         </EcCond>
+        {/* 원본 [거래처그룹1] — 거래처 마스터에 붙는 값이라 마스터를 받아 이름으로 잇는다. */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroupCond} onChange={setPartnerGroupCond}
+                           items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-07 실측, 서른넷):
+          … 품목 · 품목구분 · 품목그룹1 · (품목그룹2·3 · 품목계층그룹) · (발송여부) ·
+          납기일자 · (오더관리번호) · 규격 · 담당자 · 거래처관리담당자 · 적요 · 참조 ·
+          최초작성자 · (최종수정자) · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) ·
+          기타 · (양식 · 적용양식). 괄호 안은 못 만든 것이고 이유는 검사 예외에 적었다.
+          [거래처그룹1]은 원본에서 [거래처] 바로 다음이라 그 자리에 두었다.
+        */}
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={170} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.itemCategoryName)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="납기일자">
+          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [담당자] — 발주를 맡은 사원. 전표를 친 [최초작성자]와 다르다. */}
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((e) => ({ value: e.name, name: e.name }))} />
+        </EcCond>
+        {/* 원본 [거래처관리담당자] — 그 거래처를 맡은 사람. 거래처 마스터에 붙어 있다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [적요]는 <b>줄</b>의 메모, [참조]는 전표 머리다 — 다른 칸이다. */}
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="줄 적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="참조">
+          <input className="ec-input" placeholder="참조 일부" value={refCond}
+                 onChange={(e) => setRefCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

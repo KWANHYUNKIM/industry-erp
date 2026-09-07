@@ -1792,6 +1792,9 @@ export interface PurchaseOrder {
   convertedPurchaseId: number | null
   remark: string | null
   createdBy: string | null
+  /** 원본 발주서조회 조건의 [최초작성일자]·[최종작업일자], 그리고 [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
   lines: PurchaseOrderLine[]
 }
 
