@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -30,7 +33,7 @@ function statusColor(s: string) {
   return '#c07a00'
 }
 
-const today = new Date().toISOString().slice(0, 10)
+const today = ymd(new Date())
 const emptyForm = { userId: '', date: today, clockIn: '09:00', clockOut: '18:00', note: '' }
 
 export default function AttendanceInputPage() {
@@ -102,12 +105,11 @@ export default function AttendanceInputPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
               <label className="mb-1 block text-sm text-slate-600">사원 *</label>
-              <select className={inputCls} value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
-                <option value="">선택</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>{emp.name}{emp.department ? ` (${emp.department})` : ''}</option>
-                ))}
-              </select>
+              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
+              <CodePickerField label="사원 *" hideLabel fill placeholder="사원"
+                               emptyLabel="선택"
+                               value={form.userId} onChange={(v) => setForm({ ...form, userId: v })}
+                               items={employees.map((x) => ({ value: String(x.id), name: x.name, sub: x.department }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">일자 *</label>
@@ -141,21 +143,21 @@ export default function AttendanceInputPage() {
             <th>출근</th>
             <th>퇴근</th>
             <th style={{ textAlign: 'right' }}>근무시간</th>
-            <th>상태</th>
+            <th style={{ textAlign: 'center' }}>상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={mono}>{r.date}</td>
+              <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
-              <td style={mono}>{r.clockIn ?? '-'}</td>
-              <td style={mono}>{r.clockOut ?? '-'}</td>
+              <td style={mono}>{r.clockIn ?? ''}</td>
+              <td style={mono}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString()}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
             </tr>

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '작성', '발송', '서명완료', '해지'] as const
 type Tab = (typeof TABS)[number]
@@ -94,13 +97,15 @@ export default function ContractPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({tabCount(t)})</button>
+          <button
+            key={t} type="button" onClick={() => setTab(t)}
+            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+          >
+            {t} ({tabCount(t)})
+          </button>
         ))}
       </div>
 
@@ -122,16 +127,16 @@ export default function ContractPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>근로계약이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((c, i) => (
             <tr key={c.id} onClick={() => setViewing(c)} style={{ cursor: 'pointer' }}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{c.contractNo}</td>
               <td>{c.employeeName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{c.employeeCode}</span></td>
               <td>{c.typeName}</td>
-              <td>{c.startDate} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
-              <td>{c.department || '-'}</td>
-              <td>{c.jobTitle || '-'}</td>
+              <td>{dateText(c.startDate)} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
+              <td>{c.department || ''}</td>
+              <td>{c.jobTitle || ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(c.monthlySalary)}</td>
               <td style={{ textAlign: 'center' }}>{c.weeklyHours}h</td>
               <td style={{ textAlign: 'center' }}>
@@ -301,7 +306,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>계약 시작일</th>
-                <td><input type="date" className="ec-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ background: '#f5f7fa' }}>종료일</th>
                 <td>
                   <input type="date" className="ec-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} disabled={type === 'PERMANENT'} />
@@ -311,10 +316,10 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>소속 부서</th>
                 <td>
-                  <select className="ec-input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} style={{ width: 220 }}>
-                    <option value="">(미배치)</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="소속 부서" hideLabel width={220} emptyLabel="(미배치)"
+                                   value={departmentId} onChange={setDepartmentId}
+                                   items={departments.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
                 <th style={{ background: '#f5f7fa' }}>직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={{ width: 150 }} /></td>

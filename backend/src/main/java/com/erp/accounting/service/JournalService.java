@@ -10,6 +10,8 @@ import com.erp.accounting.domain.JournalLine;
 import com.erp.accounting.domain.JournalSourceType;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.Sales;
+import com.erp.trade.domain.Settlement;
+import com.erp.trade.domain.SettlementType;
 import com.erp.accounting.dto.JournalDtos.CashTxnRequest;
 import com.erp.accounting.dto.JournalDtos.CreateJournalRequest;
 import com.erp.accounting.dto.JournalDtos.ManualLineInput;
@@ -54,6 +56,7 @@ public class JournalService {
     private final DocumentNoGenerator docNoGenerator;
     private final JournalEntryRepository entryRepository;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final BusinessPartnerRepository partnerRepository;
 
     /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
@@ -163,6 +166,43 @@ public class JournalService {
         }
         addCredit(e, "251", p.getTotalAmount(), "외상매입금");
         return save(e);
+    }
+
+    /**
+     * 수금·지급(결제) → 분개.
+     *
+     * <p>수금  차)현금·예금 / 대)외상매출금 — 판매로 잡힌 채권을 받아서 지운다.
+     * <p>지급  차)외상매입금 / 대)현금·예금 — 구매로 잡힌 채무를 갚아서 지운다.
+     *
+     * <p>받는·주는 자리는 [결제방법]으로 가른다. '계좌'·'이체'·'예금'·'통장'이 들어 있으면
+     * 보통예금(103), 아니면 현금(101)이다. 카드·어음은 각자 자기 화면에서 이미 분개를
+     * 만들고 있어 여기로 오지 않는다 — 오면 두 번 잡힌다.
+     */
+    @Transactional
+    public JournalEntry createFromSettlement(Settlement st) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SETTLEMENT, st.getId())) {
+            throw ApiException.conflict("이미 회계반영된 결제전표입니다: " + st.getDocNo());
+        }
+        String cash = isBankMethod(st.getMethod()) ? "103" : "101";
+        String cashName = "103".equals(cash) ? "보통예금" : "현금";
+        JournalEntry e = newEntry(JournalSourceType.SETTLEMENT, st.getId(), st.getSettleDate(),
+                st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
+
+        if (st.getType() == SettlementType.RECEIPT) {
+            addDebit(e, cash, st.getAmount(), cashName);
+            addCredit(e, "108", st.getAmount(), "외상매출금");
+        } else {
+            addDebit(e, "251", st.getAmount(), "외상매입금");
+            addCredit(e, cash, st.getAmount(), cashName);
+        }
+        return save(e);
+    }
+
+    /** 통장으로 오간 것인가. 안 적었으면 현금으로 본다. */
+    private static boolean isBankMethod(String method) {
+        if (method == null) return false;
+        String m = method.replace(" ", "");
+        return m.contains("계좌") || m.contains("이체") || m.contains("예금") || m.contains("통장");
     }
 
     /** 지출 → 분개. 차)비용계정 / 대)현금 (paymentMethod 가 '외상/미지급'이면 미지급금) */
@@ -526,9 +566,12 @@ public class JournalService {
                 .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + code + " (계정과목등록 필요)"));
     }
 
+    /**
+     * <b>사람이 고른</b> 계정. 일반전표입력과 현금거래 간편입력이 쓴다.
+     * 위의 account(String code) 는 자동 분개가 쓰는 기준계정이라 검사하지 않는다.
+     */
     private Account account(Long id) {
-        return accountRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + id));
+        return accountService.getUsable(id);
     }
 
     private static boolean isPositive(BigDecimal v) {

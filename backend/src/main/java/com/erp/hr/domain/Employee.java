@@ -55,4 +55,23 @@ public class Employee extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * 원본 <b>[담당자연락처]</b>·<b>[담당자Email]</b>. 사원등록이 곧 <b>담당자 등록</b>이라
+     * (원본 이름이 '사원(담당)등록' 이다) 전표의 담당자에게 연락할 길이 여기 있어야 한다.
+     * 전에는 이름만 있어서, 어느 건을 누가 맡았는지는 알아도 <b>연락할 데는 없었다.</b>
+     */
+    @Column(length = 30)
+    private String phone;
+
+    @Column(length = 100)
+    private String email;
+
+    /** 원본 <b>[검색창내용]</b>. 부르는 이름으로 찾는다(거래처·품목과 같다). */
+    @Column(name = "search_keyword", length = 100)
+    private String searchKeyword;
+
+    /** 원본 <b>[적요]</b>. 사원에 남기는 메모. */
+    @Column(length = 200)
+    private String remark;
 }

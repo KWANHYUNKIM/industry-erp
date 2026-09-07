@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 /** 데이터센터 > 데이터내보내기 — 실제 API 데이터를 CSV/Excel/JSON 으로 추출 */
@@ -180,6 +181,13 @@ export default function DataExportPage() {
     }
   }
 
+
+  /* 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(DATASETS, {
+    모듈: (d) => d.module,
+    데이터셋: (d) => d.name,
+  })
+
   return (
     <EcListShell
       title="데이터내보내기"
@@ -209,14 +217,14 @@ export default function DataExportPage() {
             <th style={{ width: 34, textAlign: 'center' }}>
               <input type="checkbox" checked={allChecked} onChange={toggleAll} />
             </th>
-            <th style={{ width: 90 }}>모듈 ▼</th>
-            <th>데이터셋 ▼</th>
+            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('데이터셋')}>데이터셋 {sort.mark('데이터셋')}</th>
             <th style={{ width: 160 }}>유형</th>
             <th style={{ width: 110, textAlign: 'right' }}>건수</th>
           </tr>
         </thead>
         <tbody>
-          {DATASETS.map((d) => {
+          {sort.sorted.map((d) => {
             const c = counts[d.id]
             return (
               <tr key={d.id}>

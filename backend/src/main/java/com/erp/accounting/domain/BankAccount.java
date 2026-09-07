@@ -27,6 +27,18 @@ public class BankAccount extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String bankName;
 
+    /**
+     * 원본 계좌등록의 [계좌코드]. 이 저장소의 다른 마스터는 <b>모두 코드로 식별</b>되는데
+     * 계좌만 없어서, 코드도움에서도 은행·계좌번호를 통째로 외워야 골랐다.
+     * 이미 있는 계좌에는 코드가 없으므로 nullable 이다.
+     */
+    @Column(length = 20)
+    private String code;
+
+    /** 원본 계좌등록의 [계좌명] — '주거래통장' 처럼 <b>사람이 부르는 이름</b>이다. */
+    @Column(length = 100)
+    private String name;
+
     @Column(nullable = false, unique = true, length = 50)
     private String accountNo;
 
@@ -37,6 +49,16 @@ public class BankAccount extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "gl_account_id", nullable = false)
     private Account glAccount;
+
+    /**
+     * 원본 계좌등록의 <b>[외화통장환종]</b> — 이 통장이 어느 돈으로 담기는가.
+     *
+     * <p>안 정하면 원화 통장이다(대부분이 그렇다). 정해 두지 않으면 원화통장과 외화통장이
+     * <b>잔액 숫자만으로 나란히 서서</b>, 1,000,000 이 원인지 달러인지 알 수가 없다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "currency_id")
+    private Currency currency;
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal balance;

@@ -22,6 +22,10 @@ public class CollectSource extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 원본 수집데이터등록의 [데이터코드]. 이미 있는 행에는 없으므로 nullable 이다. */
+    @Column(length = 20)
+    private String code;
+
     /** 소스명 */
     @Column(nullable = false, length = 100)
     private String name;

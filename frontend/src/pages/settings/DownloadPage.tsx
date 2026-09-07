@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
+import { dateText } from '../../utils/dateText'
 
 /** Self-Customizing > 다운로드 — 프로그램/양식/매뉴얼 자료실 */
 // 실제 내려받을 파일/저장소가 아직 없어 목록은 표본 데이터다. (백엔드 미연동)
@@ -30,6 +32,17 @@ export default function DownloadPage() {
     window.setTimeout(() => setNotice(''), 4000)
   }
 
+  /*
+   * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [크기]는 '2.4 MB' 처럼 단위가 붙은
+   * 글자라 그대로 세우면 <b>900 KB 가 2 MB 보다 커진다</b> — 원본도 크기에는 정렬
+   * 표시를 안 달았으므로 그 칸은 걸지 않았다.
+   */
+  const sort = useTableSort(FILES, {
+    분류: (f) => f.category,
+    자료명: (f) => f.name,
+    등록일: (f) => f.date,
+  })
+
   return (
     <>
       <EcListShell
@@ -48,23 +61,23 @@ export default function DownloadPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 100 }}>분류 ▼</th>
-              <th>자료명 ▼</th>
+              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('분류')}>분류 {sort.mark('분류')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자료명')}>자료명 {sort.mark('자료명')}</th>
               <th style={{ width: 90 }}>버전</th>
               <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-              <th style={{ width: 110 }}>등록일 ▼</th>
+              <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('등록일')}>등록일 {sort.mark('등록일')}</th>
               <th style={{ width: 90, textAlign: 'center' }}>다운로드</th>
             </tr>
           </thead>
           <tbody>
-            {FILES.map((f, i) => (
+            {sort.sorted.map((f, i) => (
               <tr key={f.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ color: catColor(f.category), fontWeight: 700 }}>{f.category}</td>
                 <td>{f.name}</td>
                 <td style={{ fontFamily: 'monospace' }}>{f.version}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{f.size}</td>
-                <td>{f.date}</td>
+                <td>{dateText(f.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => openGuide(f)}>⬇ 받기</button>
                 </td>

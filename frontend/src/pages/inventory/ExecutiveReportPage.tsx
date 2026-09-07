@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { stockCostMap, sumStockValue } from '../../utils/stockValue'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel from '../../components/EcStatusPanel'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -14,7 +17,7 @@ import EcListShell from '../../components/EcListShell'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 interface NameAmt { key: string; name: string; amount: number }
 
@@ -54,8 +57,18 @@ export default function ExecutiveReportPage() {
     const saleAmt = salesP.reduce((a, d) => a + d.supplyAmount, 0)
     const buyAmt = buyP.reduce((a, d) => a + d.supplyAmount, 0)
 
-    const priceById = new Map(items.map((i) => [i.id, i.unitPrice]))
-    const stockValue = stocks.reduce((a, s) => a + s.quantity * (priceById.get(s.itemId) ?? 0), 0)
+    /*
+     * 재고 평가는 <b>취득원가</b>로 한다 — 실제 입고단가가 있으면 그것, 없으면 품목 구매단가.
+     * 예전에는 판매단가로 평가해서 아직 팔지도 않은 이익이 재고에 얹혔다
+     * (개발 자료에서 1억 8,457만 vs 3,490만, 5배). 기준이 없는 칸은 합계에서 뺀다.
+     * 기간을 자르지 않은 <b>전체</b> 구매전표를 본다 — 이번 달에 안 샀다고 평가단가가
+     * 사라지면 안 되기 때문이다.
+     */
+    const costById = stockCostMap(items, purchases)
+    const stockEval = sumStockValue(stocks.map((s) => ({
+      quantity: s.quantity, unitCost: costById.get(s.itemId) ?? null,
+    })))
+    const stockValue = stockEval.value
     const receivable = balances.reduce((a, b) => a + b.receivable, 0)
     const payable = balances.reduce((a, b) => a + b.payable, 0)
 
@@ -78,11 +91,11 @@ export default function ExecutiveReportPage() {
     for (const s of stocks) {
       const k = `I${s.itemId}`
       const e = stockByItem.get(k) ?? { key: k, name: s.itemName, amount: 0 }
-      e.amount += s.quantity * (priceById.get(s.itemId) ?? 0); stockByItem.set(k, e)
+      e.amount += s.quantity * (costById.get(s.itemId) ?? 0); stockByItem.set(k, e)
     }
 
     return {
-      saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, receivable, payable,
+      saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, stockUnknown: stockEval.unknown, receivable, payable,
       saleCount: salesP.length, buyCount: buyP.length,
       topSale: top(saleByPartner), topBuy: top(buyByPartner), topStock: top(stockByItem),
     }
@@ -90,20 +103,47 @@ export default function ExecutiveReportPage() {
 
   const margin = report.saleAmt > 0 ? (report.grossProfit / report.saleAmt) * 100 : 0
 
+  const reset = () => { setFrom(firstOfMonth()); setTo(today()) }
+
   return (
     <EcListShell
       title="경영자보고서"
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.</p>
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      />
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 40, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
-        <span style={{ marginLeft: 12, fontSize: 12, color: '#8a929c' }}>매출 {report.saleCount}건 · 매입 {report.buyCount}건</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        매출 <b style={{ color: '#3c4553' }}>{report.saleCount}</b>건
+        <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
+        매입 <b style={{ color: '#3c4553' }}>{report.buyCount}</b>건
       </div>
+
+      {/*
+        매출총이익을 (기간 매출 − 기간 매입)으로 잡는다. 일별·월별이익현황에서 이 계산을
+        고쳤지만 여기는 그대로 뒀다 — 화면이 '추정치'라고 말하고 있고, 경영자보고서는
+        기간 현금흐름에 가까운 요약이라서다. 정확한 이익은 일별이익현황(원가 기준 선택)을 본다.
+      */}
+      <p className="mb-2 text-xs text-slate-500">
+        기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.
+        재고자산은 <b>취득원가</b>(실제 입고단가 → 없으면 품목 구매단가)로 평가합니다.
+        {report.stockUnknown > 0 && (
+          <span style={{ color: '#c60a2e' }}>
+            {' '}※ 평가단가를 못 찾은 재고 <b>{report.stockUnknown}</b>칸은 재고자산에서 빠져 있습니다
+            (품목등록의 구매단가를 정하거나 입고 이력이 있어야 합니다).
+          </span>
+        )}
+      </p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

@@ -8,6 +8,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.erp.common.BaseTimeEntity;
+import com.erp.inventory.domain.Warehouse;
+import com.erp.inventory.domain.Project;
+import com.erp.hr.domain.Employee;
 
 /**
  * 주문서(수주). 매출처로부터 받은 주문. 판매입력의 전 단계(미판매 관리).
@@ -39,6 +42,27 @@ public class SalesOrder extends BaseTimeEntity {
 
     /** 납기일자 */
     private LocalDate dueDate;
+
+    /**
+     * 원본 수주·미출하현황의 [창고]·[프로젝트]·[담당자].
+     *
+     * <p>견적과 판매는 창고·프로젝트를 무는데 <b>그 사이의 수주만</b> 없어서,
+     * 견적 → 수주 → 판매로 이어질 때 <b>가운데 토막에서 끊겼다.</b>
+     * 담당자는 <b>발주서(PurchaseOrder)와 같은 방식</b>으로 Employee 를 직접 문다 —
+     * 같은 종류의 전표를 서로 다르게 매핑하면 다음 사람이 헷갈린다.
+     * 셋 다 수주 시점에 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

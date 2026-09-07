@@ -1,13 +1,16 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
+import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const fx = (n: number, symbol?: string | null) =>
   `${symbol ?? ''}${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '오더', '통관진행', '선적완료', '입금완료'] as const
 type Tab = (typeof TABS)[number]
@@ -27,7 +30,26 @@ const esc = (v: unknown) =>
  * 수출관리 — 인보이스 발행 → 통관진행 → 선적완료 → 입금완료.
  * 금액은 외화가 원본이고, 원화는 발행일 고시환율로 환산해 인보이스에 고정된다.
  */
+/* 원본 C000652 는 [최근30일(+1개월)] 을 보고 열린다(2026-09-02 실측). */
+const initP = periodOf('최근30일(+1개월)')!
+
 export default function ExportPage() {
+  /**
+   * 원본 조건 판 첫 줄 <b>[기준일자]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   * 기본은 <b>최근30일(+1개월)</b> 이다(2026-09-02 원본 실측: 2026/08/03 ~ 2026/10/02).
+   * 비워 두면 여태 발행한 인보이스가 통째로 쏟아진다.
+   * 기본은 <b>비워</b> 둔다: 수출은 인보이스를 끊고 <b>대금이 몇 달 뒤에</b> 들어온다 — 잘라 놓으면 미수 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState(initP.from)
+  const [pTo, setPTo] = useState(initP.to)
+  /*
+   * 원본 조건 [거래처]·[품목](2026-09-02 C000652 실측). 표에 Buyer 가 찍히는데 그 값으로
+   * 거를 수가 없었고, 품목은 줄을 펴야만 보였다. 고를 후보는 지금 걸린 자료에서 뽑는다.
+   */
+  const [buyerCond, setBuyerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  /* 원본 조건 [기타] — [수정일자순(정렬)] 하나이고 꺼진 것이 기본이다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
   const [summary, setSummary] = useState<ExportSummary | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
@@ -42,7 +64,7 @@ export default function ExportPage() {
 
   function load() {
     setError('')
-    api.get<ExportSummary>('/exports').then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<ExportSummary>('/exports', { params: { from: pFrom || undefined, to: pTo || undefined } }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   useEffect(() => {
@@ -52,8 +74,21 @@ export default function ExportPage() {
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
   }, [])
 
+  /* 기간을 바꾸면 수출 목록만 다시 물어본다 — 거래처·통화·품목은 기간과 상관없다. */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
+
   const rows = summary?.exports ?? []
-  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  const shown = useMemo(() => rows
+    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !buyerCond || r.buyerName === buyerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => l.itemName === itemCond))
+    /* 원본 [수정일자순(정렬)] — 켜면 나중에 고친 인보이스가 위다. */
+    .slice()
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  [rows, tab, buyerCond, itemCond, byUpdated])
+  const buyerNames = useMemo(() => [...new Set(rows.map((r) => r.buyerName))].sort(), [rows])
+  const itemNames = useMemo(
+    () => [...new Set(rows.flatMap((r) => r.lines.map((l) => l.itemName)))].sort(), [rows])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function customs(e: ExportOrder) {
@@ -105,10 +140,10 @@ export default function ExportPage() {
         <tr><td style="width:120px"><b>Invoice No.</b></td><td>${esc(e.invoiceNo)}</td>
             <td style="width:120px"><b>Date</b></td><td>${esc(e.invoiceDate)}</td></tr>
         <tr><td><b>Buyer</b></td><td>${esc(e.buyerName)}</td>
-            <td><b>Destination</b></td><td>${esc(e.destination ?? '-')}</td></tr>
-        <tr><td><b>Terms</b></td><td>${esc(e.incoterms ?? '-')}</td>
-            <td><b>B/L No.</b></td><td>${esc(e.blNo ?? '-')}</td></tr>
-        <tr><td><b>수출신고번호</b></td><td colspan="3">${esc(e.declarationNo ?? '-')}</td></tr>
+            <td><b>Destination</b></td><td>${esc(e.destination ?? '')}</td></tr>
+        <tr><td><b>Terms</b></td><td>${esc(e.incoterms ?? '')}</td>
+            <td><b>B/L No.</b></td><td>${esc(e.blNo ?? '')}</td></tr>
+        <tr><td><b>수출신고번호</b></td><td colspan="3">${esc(e.declarationNo ?? '')}</td></tr>
       </table>
       <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
       ${money ? `<div class="foot"><b>Total: ${esc(e.currencyCode)} ${fx(e.foreignAmount, e.currencySymbol)}</b>
@@ -118,7 +153,11 @@ export default function ExportPage() {
   }
 
   return (
-    <EcListShell title="수출관리" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    /*
+     * 원본 화면 이름 그대로다 — 재고 II &gt; 수출관리 메뉴의 화면 제목은 <b>[Invoice / Packing List]</b>
+     * 이다(2026-09-02 원본 C000652 실측). [수출관리] 는 <b>메뉴 탭</b> 이름이지 화면 제목이 아니다.
+     */
+    <EcListShell title="Invoice / Packing List" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 인보이스 발행(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
@@ -126,6 +165,38 @@ export default function ExportPage() {
           오더 → 통관진행(신고번호) → 선적완료(B/L) → 입금완료. 원화는 발행일 고시환율로 고정됩니다.
         </span>
       </div>
+      {/*
+        원본 조건 차례: <b>[기준일자]</b> · Invoice 일자 · 거래처 · 품목 · 최종수정자 · 기타 · 발송여부.
+        [최종수정자]는 우리 수출에 updated_by 가 없어, [발송여부]는 보낸 기록 자체가 없어 못 만든다.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+        <span>기준일자</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcPeriodPicks labels={EXPORT_PICKS} currentFrom={pFrom}
+                       onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
+        <span style={{ marginLeft: 6 }}>거래처</span>
+        <select className="ec-input" value={buyerCond}
+                onChange={(e) => setBuyerCond(e.target.value)} style={{ width: 160 }}>
+          <option value="">전체</option>
+          {buyerNames.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <span style={{ marginLeft: 6 }}>품목</span>
+        <select className="ec-input" value={itemCond}
+                onChange={(e) => setItemCond(e.target.value)} style={{ width: 180 }}>
+          <option value="">전체</option>
+          {itemNames.map((i) => <option key={i} value={i}>{i}</option>)}
+        </select>
+        <span style={{ marginLeft: 6 }}>기타</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
+      </div>
+
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
@@ -139,13 +210,15 @@ export default function ExportPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({tabCount(t)})</button>
+          <button
+            key={t} type="button" onClick={() => setTab(t)}
+            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+          >
+            {t} ({tabCount(t)})
+          </button>
         ))}
       </div>
 
@@ -163,7 +236,7 @@ export default function ExportPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>수출 인보이스가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((e, i) => (
             <Fragment key={e.id}>
               <tr onClick={() => setOpenId(openId === e.id ? null : e.id)} style={{ cursor: 'pointer' }}>
@@ -171,7 +244,7 @@ export default function ExportPage() {
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === e.id ? '▾ ' : '▸ '}{e.invoiceNo}
                 </td>
-                <td>{e.invoiceDate}</td>
+                <td>{dateText(e.invoiceDate)}</td>
                 <td>{e.buyerName}</td>
                 <td>{e.destination ?? ''}</td>
                 <td>{e.incoterms ?? ''}</td>
@@ -296,6 +369,11 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
     }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '수출관리', [])
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 760, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
@@ -316,7 +394,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
                   </select>
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(invoiceDate)} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>통화<span style={{ color: '#c60a2e' }}>*</span></th>
@@ -346,7 +424,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
             </tbody>
           </table>
 
-          <table className="w-full text-left">
+          <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th><th>품목</th>

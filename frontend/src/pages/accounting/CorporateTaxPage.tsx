@@ -88,7 +88,7 @@ export default function CorporateTaxPage() {
         </thead>
         <tbody>
           {returns.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>신고서가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : returns.map((r, i) => (
             <tr
               key={r.id}
@@ -175,7 +175,7 @@ export default function CorporateTaxPage() {
               </thead>
               <tbody>
                 {selected.adjustments.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>조정 항목이 없습니다.</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : selected.adjustments.map((a, i) => (
                   <tr key={a.id}>
                     <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

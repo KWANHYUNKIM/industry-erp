@@ -16,6 +16,24 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
             "order by s.saleDate desc, s.id desc")
     List<Sales> findAllWithRefs();
 
+    /**
+     * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
+     * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
+     */
+    @Query("select s from Sales s join fetch s.partner join fetch s.warehouse " +
+            "where s.saleDate between :from and :to " +
+            "order by s.saleDate desc, s.id desc")
+    List<Sales> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * 전표 + 라인 + 품목까지 한 번에. 회계미반영현황이 <b>품목 줄</b>을 보여 주기 때문에
+     * 라인을 건드리는데, fetch 없이 하면 전표 수만큼 쿼리가 더 나간다(N+1).
+     */
+    @Query("select distinct s from Sales s join fetch s.partner join fetch s.warehouse " +
+            "left join fetch s.lines l left join fetch l.item " +
+            "order by s.saleDate desc, s.id desc")
+    List<Sales> findAllWithRefsAndLines();
+
     /** 기간 내 판매 전표 (이익현황 집계용) */
     List<Sales> findBySaleDateBetween(LocalDate from, LocalDate to);
 
@@ -30,6 +48,16 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
     @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
             "from Sales s group by s.partner.id")
     List<PartnerAmount> sumTotalByPartner();
+
+    /** 거래처별 매출 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
+    @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
+            "from Sales s where s.saleDate <= :asOf group by s.partner.id")
+    List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
+
+    /** 거래처별 매출 합계 — 기간 내(거래처별채권의 [재고매출]). */
+    @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
+            "from Sales s where s.saleDate between :from and :to group by s.partner.id")
+    List<PartnerAmount> sumTotalByPartnerBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     interface PartnerAmount {
         Long getPartnerId();

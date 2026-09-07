@@ -36,6 +36,7 @@ public class MailService {
 
     private final MailRepository mailRepository;
     private final UserRepository userRepository;
+    private final SpamRuleService spamRuleService;
 
     @Transactional(readOnly = true)
     public List<MailResponse> inbox(String username) {
@@ -189,7 +190,10 @@ public class MailService {
         return m;
     }
 
-    /** 공용메일 수신 등록 */
+    /**
+     * 공용메일 수신 등록. <b>여기가 외부에서 메일이 들어오는 유일한 지점</b>이라, 스팸 규칙도 여기서 적용한다.
+     * (메일서버 연동이 붙으면 그 수신 훅이 이 메서드 자리에 들어온다.)
+     */
     @Transactional
     public MailResponse receiveShared(ReceiveSharedMailRequest req) {
         Mail m = Mail.builder()
@@ -200,7 +204,31 @@ public class MailService {
                 .sentAt(req.receivedAt() != null ? req.receivedAt() : LocalDateTime.now())
                 .status(MailStatus.UNREAD)
                 .build();
+
+        String reason = spamRuleService.firstMatch(m);
+        if (reason != null) {
+            m.setSpam(true);
+            m.setSpamReason(reason);
+        }
         return MailResponse.from(mailRepository.save(m));
+    }
+
+    /** 스팸 메일함 */
+    @Transactional(readOnly = true)
+    public List<MailResponse> spam(String username) {
+        return mailRepository.findSpam(me(username).getId()).stream().map(MailResponse::from).toList();
+    }
+
+    /** 스팸으로 지정 / 해제. 공용메일은 누구나, 사내메일은 당사자만. */
+    @Transactional
+    public MailResponse markSpam(Long id, boolean spam, String username) {
+        Mail m = get(id);
+        if (m.getType() == MailType.INTERNAL) {
+            myMail(id, username);
+        }
+        m.setSpam(spam);
+        m.setSpamReason(spam ? "수동 지정" : null);
+        return MailResponse.from(m);
     }
 
     /** 읽음 처리. 사내메일은 수신자 본인만 읽음으로 바꿀 수 있다. */

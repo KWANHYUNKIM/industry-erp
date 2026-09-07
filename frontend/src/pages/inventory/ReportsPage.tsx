@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 /** 재고 II > 출력물 — 실제 데이터 기반 장표 미리보기/인쇄
@@ -134,15 +136,26 @@ export default function ReportsPage() {
     setTimeout(() => window.print(), 100)
   }
 
+  /* 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(reports, {
+    분류: (r) => r.category,
+    장표명: (r) => r.name,
+  })
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '재고 보고서', [])
+
   return (
-    <EcListShell title="출력물 (장표)" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
+    <EcListShell title="출력물" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 90 }}>분류 ▼</th>
-            <th style={{ width: 200 }}>장표명 ▼</th>
+            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('분류')}>분류 {sort.mark('분류')}</th>
+            <th style={{ width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('장표명')}>장표명 {sort.mark('장표명')}</th>
             <th>설명</th>
             <th style={{ width: 90, textAlign: 'right' }}>대상건수</th>
             <th style={{ width: 160, textAlign: 'center' }}>출력</th>
@@ -151,7 +164,7 @@ export default function ReportsPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : reports.map((r, i) => (
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ color: catColor(r.category), fontWeight: 700 }}>{r.category}</td>
@@ -178,7 +191,7 @@ export default function ReportsPage() {
             </div>
           </div>
           <div style={{ maxHeight: 320, overflow: 'auto', padding: 8 }}>
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   {preview.data.header.map((h, ci) => (
@@ -188,7 +201,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {preview.data.rows.length === 0 ? (
-                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>출력할 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : preview.data.rows.slice(0, 30).map((row, ri) => (
                   <tr key={ri}>
                     {row.map((c, ci) => (
@@ -212,7 +225,7 @@ export default function ReportsPage() {
             <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
               <p style={{ margin: '0 0 8px', color: '#5a626e' }}>이 화면에서 제공하는 장표(출력 양식) <b>{reports.length}</b>종입니다. 분류별로 어떤 양식이 있고 현재 출력 가능한 대상 건수가 얼마인지 확인할 수 있습니다.</p>
               <table className="w-full text-left">
-                <thead><tr><th style={{ width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
+                <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
                 <tbody>
                   {reports.map((r, i) => (
                     <tr key={r.id}>

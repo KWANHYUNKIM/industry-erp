@@ -3,6 +3,8 @@ package com.erp.quality.service;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.Lot;
 import com.erp.quality.domain.QualityInspection;
 import com.erp.quality.domain.QualityResult;
@@ -28,12 +30,29 @@ public class QualityInspectionService {
     private final ItemRepository itemRepository;
     private final LotRepository lotRepository;
     private final DocumentNoGenerator docNoGenerator;
+    /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<InspectionResponse> findAll() {
-        return inspectionRepository.findAllWithRefs().stream()
-                .map(InspectionResponse::from)
-                .toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다.
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어서,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다. 기간만 받는다.
+     */
+    @Transactional(readOnly = true)
+    public List<InspectionResponse> findAll(LocalDate from, LocalDate to) {
+        List<QualityInspection> found = (from == null && to == null)
+                ? inspectionRepository.findAllWithRefs()
+                : inspectionRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(InspectionResponse::from).toList();
     }
 
     @Transactional
@@ -62,10 +81,14 @@ public class QualityInspectionService {
                 .item(item)
                 .lotNo(req.lotNo())
                 .lot(lot)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .inspectedQty(req.inspectedQty())
                 .defectQty(defect)
                 .result(result)
                 .inspector(inspector)
+                /* 불량이 없으면 유형도 없다 — 전량 양품인데 '치수불량' 이 붙어 있으면 헷갈린다. */
+                .defectType(defect.signum() > 0 ? blankToNull(req.defectType()) : null)
                 .remark(req.remark())
                 .build();
 
@@ -89,5 +112,9 @@ public class QualityInspectionService {
 
     private String generateNo(LocalDate date) {
         return docNoGenerator.next("QC-", "quality_inspections", "inspection_no", "inspection_date", date);
+    }
+
+    private static String blankToNull(String v) {
+        return (v == null || v.isBlank()) ? null : v;
     }
 }

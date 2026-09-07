@@ -76,6 +76,42 @@ public class Purchase extends BaseTimeEntity {
     @Builder.Default
     private boolean accountingReflected = false;
 
+    /**
+     * 부가세를 <b>전표 단위</b>로 계산했는가. 이카운트 판매·구매입력의 [거래별부가세계산]
+     * ({@code calcbySlip}) 이다. false 면 라인별로 반올림한다 — 잔돈이 1원 단위로 달라진다.
+     *
+     * <p>버튼을 누른 결과가 아니라 <b>전표의 성질</b>로 저장한다. 저장하지 않으면 같은 전표를
+     * 수정할 때 조용히 라인별 계산으로 되돌아가 합계가 바뀐다.
+     */
+    @Column(name = "vat_by_slip", nullable = false)
+    @Builder.Default
+    private boolean vatBySlip = false;
+
+    /**
+     * 과세 전표인가. 원본 판매·구매일괄회계반영의 <b>[부가세유형]</b> (과세 · 면세).
+     *
+     * <p><b>전표에 저장한다.</b> 예전에는 입력할 때 계산에만 쓰고 버려서, 필요할 때마다
+     * '부가세가 0이면 면세' 로 되짚었다. 부가세는 반올림하므로 <b>과세인데 부가세가 0 인
+     * 전표</b>가 나온다(공급가액 4원 → 부가세 0.4원 → 0원). 그 전표의 단가를 올리면
+     * 면세로 오인해 부가세가 0 으로 남았다 — 실측했다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean taxable = true;
+
+    /**
+     * 원본 [거래구분] — <b>일반 · 반품</b>. 네 화면이 이 구분을 조건으로 든다
+     * (판매·구매일괄회계반영, 구매단가일괄변경, 일별이익현황의 [반품만]·[반품제외]).
+     *
+     * <p>반품은 그 거래의 <b>반대</b>다. 그래서 저장할 때 라인 수량과 전표 금액을
+     * <b>음수로 뒤집어</b> 둔다 — 재고·채권·이익을 읽는 쪽이 아무것도 안 바꿔도 맞는다.
+     * 화면에서는 되돌려받는 수량을 양수로 적는다(원본도 그렇다).
+     */
+    @Column(name = "return_slip", nullable = false)
+    @Builder.Default
+    private boolean returnSlip = false;
+
+
     @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PurchaseLine> lines = new ArrayList<>();

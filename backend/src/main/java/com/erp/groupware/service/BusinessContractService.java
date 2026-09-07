@@ -34,8 +34,21 @@ public class BusinessContractService {
 
     @Transactional(readOnly = true)
     public List<ContractResponse> findAll() {
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<ContractResponse> findAll(LocalDate from, LocalDate to) {
         LocalDate today = LocalDate.now();
-        return contractRepository.findAllWithPartner().stream()
+        return contractRepository.findAllWithPartner(
+                from != null ? from : LocalDate.of(1900, 1, 1),
+                to != null ? to : LocalDate.of(9999, 12, 31)).stream()
                 .map(c -> ContractResponse.from(c, today))
                 .toList();
     }

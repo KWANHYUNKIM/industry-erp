@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayGroup, Payslip } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /** 급여계산/대장 — 귀속월의 사원별 급여명세. 미작성 사원은 계산, 작성분은 상세/확정. */
 export default function PayrollPage() {
@@ -100,7 +101,7 @@ export default function PayrollPage() {
         </thead>
         <tbody>
           {employees.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>사원이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : employees.map((e, i) => {
             const p = byEmp.get(e.id)
             return (
@@ -110,10 +111,10 @@ export default function PayrollPage() {
                 <td>{p ? <a onClick={() => setDetail(p)} style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}>{e.name}</a> : e.name}</td>
                 <td>{e.department}</td>
                 <td style={{ textAlign: 'right' }}>{won(p ? p.baseSalary : e.baseSalary)}</td>
-                <td style={{ textAlign: 'right' }}>{p ? won(p.allowanceTotal) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{p ? won(p.grossPay) : '-'}</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{p ? won(p.netPay) : '-'}</td>
+                <td style={{ textAlign: 'right' }}>{p ? won(p.allowanceTotal) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{p ? won(p.grossPay) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{p ? won(p.netPay) : ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   {p ? <span style={{ color: p.status === 'CONFIRMED' ? '#1c7c3c' : '#8a929c' }}>{p.statusName}</span> : <span style={{ color: '#c9ced6' }}>미작성</span>}
                 </td>

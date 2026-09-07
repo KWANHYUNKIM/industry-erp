@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import { useSearchParams } from 'react-router-dom'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -10,7 +17,7 @@ import Modal from '../../components/Modal'
  * 반영 시 일반 재고조정(ADJUST)을 생성해 실제 재고에 반영한다. 백엔드 신설: /api/staged-adjustments.
  */
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 type Tab = 'ALL' | StagedStatus
 const TABS: { v: Tab; label: string }[] = [
   { v: 'ALL', label: '전체' },
@@ -27,16 +34,40 @@ export default function StagedAdjustmentPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [tab, setTab] = useState<Tab>('ALL')
   const [keyword, setKeyword] = useState('')
+  /* 원본 단계별재고조정 조건에 <b>[적요]</b> 가 있다(사본 실측). 사유는 이미 목록에 온다. */
+  const [reasonCond, setReasonCond] = useState('')
+  /* 원본 조건 [창고]. 창고는 목록에 찍히는데 그것으로 거를 수가 없었다. */
+  const [whCond, setWhCond] = useState('')
+  /*
+   * 원본 단계별재고조정 조건 첫째는 <b>[기준일자]</b> 다(사본 실측). 우리 화면에는
+   * 기간 칸이 아예 없어서 전 기간을 통째로 받아 왔다 — 757줄·235KB.
+   *
+   * <p><b>기본값은 비워 둔다.</b> 사본에 이 화면의 기본 기간이 안 찍혀 있어서, 금월 같은
+   * 값을 골라 두면 <b>지금 보이던 줄이 소리 없이 사라진다.</b> 비워 두면 예전 그대로 전
+   * 기간이고, 좁히는 것은 사람이 정한다.
+   */
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ itemId: '', warehouseId: '', actualQty: '', requestDate: today(), reason: '' })
+  /*
+   * 품목등록에서 <b>고른 품목을 물고</b> 넘어온다(?item=id). 원본 품목등록의 [재고조정]이
+   * 그 자리에서 조정 화면을 여는데, 우리는 메뉴로 옮겨 가 품목을 다시 찾아야 했다.
+   */
+  const [searchParams] = useSearchParams()
+  const [form, setForm] = useState({
+    itemId: searchParams.get('item') ?? '', warehouseId: '', actualQty: '',
+    requestDate: today(), reason: '',
+  })
+  /** 품목을 물고 왔으면 조정 폼을 바로 연다 — 한 번 더 누르게 하지 않는다. */
+  const [showForm, setShowForm] = useState(Boolean(searchParams.get('item')))
 
   async function load() {
     setLoading(true)
     try {
       const [s, i, w] = await Promise.all([
-        api.get<StagedAdjustment[]>('/staged-adjustments'),
+        api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
       ])
@@ -44,7 +75,8 @@ export default function StagedAdjustmentPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기준일자를 바꾸면 서버에 다시 물어본다 — 브라우저에서 거르지 않는다. */
+  useEffect(() => { load() }, [from, to])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -76,10 +108,18 @@ export default function StagedAdjustmentPage() {
 
   const shown = useMemo(() => rows
     .filter((r) => tab === 'ALL' || r.status === tab)
-    .filter((r) => !keyword || r.itemName.includes(keyword) || r.adjustNo.includes(keyword) || r.warehouseName.includes(keyword)),
-  [rows, tab, keyword])
+    .filter((r) => !keyword || r.itemName.includes(keyword) || r.adjustNo.includes(keyword) || r.warehouseName.includes(keyword))
+    .filter((r) => !whCond || r.warehouseName === whCond)
+    .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond)),
+  [rows, tab, keyword, reasonCond, whCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    요청일: (r) => r.requestDate,
+  })
 
   return (
     <EcListShell
@@ -98,10 +138,9 @@ export default function StagedAdjustmentPage() {
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청일자</div>
               <input className={inputCls} type="date" value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} style={{ width: 140 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
-              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select></label>
+              <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
+                           value={form.itemId} onChange={(v) => set('itemId', v)}
+                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>창고 *</div>
               <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 160 }}>
                 <option value="">선택하세요</option>
@@ -115,6 +154,26 @@ export default function StagedAdjustmentPage() {
           </div>
         </div>
       )}</Modal>
+
+      {/* 원본 단계별재고조정 조건의 <b>[적요]</b>. 사유는 목록에 이미 찍히는데 그것으로 거를 수가 없었다. */}
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from}
+                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={to}
+                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="창고">
+          {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={reasonCond}
+                 onChange={(e) => setReasonCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+      </ul>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {TABS.map((t) => (
@@ -130,7 +189,7 @@ export default function StagedAdjustmentPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th style={{ width: 130 }}>조정번호</th>
-            <th style={{ width: 100 }}>요청일 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
             <th>품목</th>
             <th>창고</th>
             <th style={{ textAlign: 'right' }}>장부수량</th>
@@ -144,12 +203,12 @@ export default function StagedAdjustmentPage() {
           {loading ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>단계별조정 내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
-              <td>{r.requestDate}</td>
+              <td>{dateText(r.requestDate)}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.bookQty)}</td>

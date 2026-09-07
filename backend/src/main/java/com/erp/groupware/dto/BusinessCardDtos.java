@@ -1,6 +1,7 @@
 package com.erp.groupware.dto;
 
 import com.erp.groupware.domain.BusinessCard;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -8,17 +9,26 @@ import java.util.List;
 public class BusinessCardDtos {
 
     public record CreateCardRequest(
+            @Size(max = 100, message = "이름은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "이름을 입력하세요.") String name,
             Long partnerId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String companyName,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String department,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String phone,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String mobile,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String email,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String address,
             Long ownerUserId,
             List<String> tags,
+            @Size(max = 1000, message = "입력한 글자가 너무 깁니다. 1000자까지 넣을 수 있습니다.")
             String memo
     ) {}
 

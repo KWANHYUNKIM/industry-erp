@@ -103,6 +103,24 @@ public class MailController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── 스팸 메일함 ──
+    @GetMapping("/spam")
+    public List<MailResponse> spam(@AuthenticationPrincipal UserPrincipal principal) {
+        return service.spam(principal.getUsername());
+    }
+
+    /** 스팸으로 지정 */
+    @PostMapping("/{id}/spam")
+    public MailResponse markSpam(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.markSpam(id, true, principal.getUsername());
+    }
+
+    /** 스팸 해제 */
+    @PostMapping("/{id}/not-spam")
+    public MailResponse unmarkSpam(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.markSpam(id, false, principal.getUsername());
+    }
+
     @PostMapping("/{id}/read")
     public MailResponse markRead(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return service.markRead(id, principal.getUsername());

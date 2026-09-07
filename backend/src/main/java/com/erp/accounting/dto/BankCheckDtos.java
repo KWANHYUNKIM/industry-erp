@@ -3,6 +3,7 @@ package com.erp.accounting.dto;
 import com.erp.accounting.domain.BankCheck;
 import com.erp.accounting.domain.enums.CheckStatus;
 import com.erp.accounting.domain.enums.CheckType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -16,13 +17,16 @@ public final class BankCheckDtos {
 
     public record CreateCheckRequest(
             @NotNull(message = "수표 종류를 선택하세요.") CheckType type,
+            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.")
             @NotBlank(message = "수표번호를 입력하세요.") String checkNo,
-            @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             LocalDate issueDate,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String bankName,
             Long partnerId,
             /** 발행수표는 끊어 줄 당좌계좌가 필수 */
             Long bankAccountId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark
     ) {}
 

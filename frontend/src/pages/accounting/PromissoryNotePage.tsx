@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '보유', '결제완료', '할인', '부도'] as const
 type Tab = (typeof TABS)[number]
@@ -16,6 +18,13 @@ const statusColor = (s: NoteStatus) =>
 
 /** 어음거래 — 받을어음 수취 / 지급어음 발행 → 만기결제·할인·부도. 모든 단계가 분개를 남긴다. */
 export default function PromissoryNotePage() {
+  /**
+   * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
+   *
+   * <p>기본은 <b>비워</b> 둔다 — 미결제 어음은 <b>오래된 것이 살아 있다</b> — 기본으로 자르면 지난달에 받아 아직 안 돌아온 건이 사라진다.
+   */
+  const [pFrom, setPFrom] = useState('')
+  const [pTo, setPTo] = useState('')
   const [summary, setSummary] = useState<NoteSummary | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
@@ -26,16 +35,31 @@ export default function PromissoryNotePage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
-  function load() {
+  /*
+   * <b>넓게 물으면 앞 5천 장만 받는다.</b> 어음이 쌓이면 목록이 통째로 내려와 몇 MB 가 된다 —
+   * 실제로 5,006장에서 걸렸다. 원본도 큰 결과를 그냥 주지 않는다: 조회 화면에
+   * <b>[오천건이상조회]</b> 를 두고 그 위로는 눌러야 가게 한다. 자른 것은 숨기지 않는다.
+   *
+   * <p>화면 위의 <b>잔액 넷은 자르기 전 기간 전체</b>로 낸다 — 서버가 그렇게 준다.
+   * 자른 몫만 더하면 보유잔액이 조용히 줄어든다.
+   */
+  function load(all = false) {
     setError('')
-    api.get<NoteSummary>('/notes').then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    const params: Record<string, string | boolean> = {}
+    if (pFrom) params.from = pFrom
+    if (pTo) params.to = pTo
+    if (all) params.all = true
+    api.get<NoteSummary>('/notes', { params }).then((r) => setSummary(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   useEffect(() => {
     load()
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
     api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setAccounts(r.data)).catch(() => {})
+    /* 기간을 바꾸면 어음만 다시 물어본다 — 거래처·계좌는 기간과 상관없다. */
   }, [])
+
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const notes = summary?.notes ?? []
   const shown = useMemo(() => notes.filter((n) => tab === '전체' || n.status === TAB_STATUS[tab]), [notes, tab])
@@ -87,14 +111,28 @@ export default function PromissoryNotePage() {
   }
 
   return (
-    <EcListShell title="어음거래" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="어음거래" actions={[
+      /* 원본 [오천건이상조회] — 잘려 왔을 때만 눌린다. 안 잘렸는데 붙여 두면 흉내일 뿐이다. */
+      { label: '오천건이상조회', onClick: () => load(true), disabled: !summary?.truncated },
+      { label: 'Excel' }, { label: '인쇄' },
+    ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 어음등록(F2)</button>
-        <button className="ec-btn" onClick={load}>새로고침</button>
+        <button className="ec-btn" onClick={() => load()}>새로고침</button>
         <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
           수취/발행 → 만기결제 · 할인 · 부도. 결제·할인은 계좌 잔액이 함께 움직입니다.
         </span>
       </div>
+      {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>기간</span>
+        <input type="date" className="ec-input" value={pFrom}
+               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <input type="date" className="ec-input" value={pTo}
+               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+      </div>
+
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
@@ -108,13 +146,15 @@ export default function PromissoryNotePage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({tabCount(t)})</button>
+          <button
+            key={t} type="button" onClick={() => setTab(t)}
+            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+          >
+            {t} ({tabCount(t)})
+          </button>
         ))}
       </div>
 
@@ -129,15 +169,15 @@ export default function PromissoryNotePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>어음이 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((n, i) => (
             <tr key={n.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{n.noteNo}</td>
               <td>{n.typeName}</td>
               <td>{n.partnerName}</td>
-              <td>{n.issueDate}</td>
-              <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? '#c60a2e' : undefined }}>{n.dueDate}</td>
+              <td>{dateText(n.issueDate)}</td>
+              <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? '#c60a2e' : undefined }}>{dateText(n.dueDate)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(n.amount)}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{n.discountFee ? won(n.discountFee) : ''}</td>
               <td>{n.bankName ?? ''}</td>
@@ -238,9 +278,9 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(issueDate)} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>만기일<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>금액<span style={{ color: '#c60a2e' }}>*</span></th>

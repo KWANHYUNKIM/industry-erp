@@ -26,10 +26,15 @@ public class SalesPlanController {
         return service.findAll(year);
     }
 
-    /** 매출계획비교표: 계획 vs 실적(판매 집계) + 달성률. */
+    /**
+     * 매출계획비교표: 계획 vs 실적(판매 집계) + 달성률.
+     *
+     * @param saleFlag 원본 [반품구분] — 전체 · 일반 · 반품. 안 주면 전체(반품까지 센다).
+     */
     @GetMapping("/comparison")
-    public List<ComparisonRow> comparison(@RequestParam int year) {
-        return service.comparison(year);
+    public List<ComparisonRow> comparison(@RequestParam int year,
+                                          @RequestParam(required = false) String saleFlag) {
+        return service.comparison(year, saleFlag);
     }
 
     @PostMapping

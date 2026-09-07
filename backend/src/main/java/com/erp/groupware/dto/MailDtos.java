@@ -3,6 +3,7 @@ package com.erp.groupware.dto;
 import com.erp.groupware.domain.Mail;
 import com.erp.groupware.domain.enums.MailStatus;
 import com.erp.groupware.domain.enums.MailType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -16,13 +17,16 @@ public final class MailDtos {
     /** 사내메일 발송 */
     public record SendMailRequest(
             @NotNull(message = "받는 사람을 선택하세요.") Long recipientId,
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String subject,
             String body
     ) {}
 
     /** 공용메일 수신 등록. 외부 메일 서버 연동이 없어 사람이 등록한다. */
     public record ReceiveSharedMailRequest(
+            @Size(max = 200, message = "보낸 사람 주소는 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "보낸 사람 주소를 입력하세요.") String fromAddress,
+            @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String subject,
             String body,
             LocalDateTime receivedAt
@@ -39,6 +43,7 @@ public final class MailDtos {
     /** 임시보관(초안) 저장/수정. 초안은 받는사람·제목 없이도 저장할 수 있다(발송 시 검증). */
     public record SaveDraftRequest(
             Long recipientId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String subject,
             String body
     ) {}
@@ -53,7 +58,8 @@ public final class MailDtos {
             MailStatus status, String statusName,
             Long assigneeId, String assigneeName,
             LocalDateTime handledAt, String handleNote,
-            boolean draft, LocalDateTime deletedAt
+            boolean draft, LocalDateTime deletedAt,
+            boolean spam, String spamReason
     ) {
         public static MailResponse from(Mail m) {
             return new MailResponse(
@@ -69,7 +75,8 @@ public final class MailDtos {
                     m.getAssignee() != null ? m.getAssignee().getId() : null,
                     m.getAssignee() != null ? m.getAssignee().getName() : null,
                     m.getHandledAt(), m.getHandleNote(),
-                    m.isDraft(), m.getDeletedAt());
+                    m.isDraft(), m.getDeletedAt(),
+                    m.isSpam(), m.getSpamReason());
         }
     }
 

@@ -18,13 +18,13 @@ public final class BudgetDtos {
     public record BudgetRequest(
             @NotBlank(message = "귀속월(YYYY-MM)을 입력하세요.") String period,
             @NotNull(message = "계정과목을 선택하세요.") Long accountId,
-            @NotNull @Positive(message = "예산액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "예산액을 입력하세요.") @Positive(message = "예산액은 0보다 커야 합니다.") BigDecimal amount,
             String remark
     ) {}
 
     /** 편성액 수정. 귀속월·계정은 바꾸지 않는다(바꿔야 하면 지우고 다시 편성한다). */
     public record UpdateBudgetRequest(
-            @NotNull @Positive(message = "예산액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "예산액을 입력하세요.") @Positive(message = "예산액은 0보다 커야 합니다.") BigDecimal amount,
             String remark
     ) {}
 
@@ -55,7 +55,7 @@ public final class BudgetDtos {
             @NotBlank(message = "귀속월(YYYY-MM)을 입력하세요.") String period,
             @NotNull(message = "수입/지출을 선택하세요.") CashFlowType type,
             @NotBlank(message = "자금 항목을 입력하세요.") String category,
-            @NotNull @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             String remark
     ) {}
 

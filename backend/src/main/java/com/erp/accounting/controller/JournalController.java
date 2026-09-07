@@ -59,10 +59,12 @@ public class JournalController {
     }
 
     @GetMapping
-    public List<JournalEntryResponse> entries(
+    public com.erp.accounting.dto.JournalDtos.JournalListResponse entries(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.entries(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            /* 원본 [오천건이상조회] — 문턱 위로는 눌러야 간다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        return service.entries(from, to, all);
     }
 
     @GetMapping("/{id}")

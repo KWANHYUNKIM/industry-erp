@@ -35,9 +35,24 @@ public class StagedStockAdjustmentService {
 
     @Transactional(readOnly = true)
     public List<StagedResponse> findAll(StagedStatus status) {
+        return findAll(status, null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<StagedResponse> findAll(StagedStatus status, LocalDate from, LocalDate to) {
         List<StagedStockAdjustment> rows = status != null
                 ? stagedRepository.findByStatusWithRefs(status)
-                : stagedRepository.findAllWithRefs();
+                : (from == null && to == null
+                        ? stagedRepository.findAllWithRefs()
+                        : stagedRepository.findWithRefsByPeriod(
+                                from != null ? from : LocalDate.of(1, 1, 1),
+                                to != null ? to : LocalDate.of(9999, 12, 31)));
         return rows.stream().map(StagedResponse::from).toList();
     }
 
@@ -80,8 +95,12 @@ public class StagedStockAdjustmentService {
                 null,
                 staged.getActualQty(),
                 LocalDate.now(),
+                /* 단계별조정은 프로젝트·담당자를 따로 받지 않는다 — 실사 결과를 그대로 맞추는 자리다. */
+                null, null,
                 "단계별조정 " + staged.getAdjustNo()
-                        + (staged.getReason() != null && !staged.getReason().isBlank() ? " (" + staged.getReason() + ")" : "")
+                        + (staged.getReason() != null && !staged.getReason().isBlank() ? " (" + staged.getReason() + ")" : ""),
+                /* 재고조정에는 [불량유형]·[처리방법]이 없다 — 그 둘은 불량처리·자가사용 쪽 칸이다. */
+                null, null
         ), username);
         staged.setStatus(StagedStatus.APPLIED);
         staged.setHandler(username);

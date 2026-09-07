@@ -86,7 +86,7 @@ public class ProjectService {
             projectRepository.delete(p);
             projectRepository.flush();   // FK 위반을 이 시점에 발생시켜 잡는다
         } catch (DataIntegrityViolationException e) {
-            throw ApiException.badRequest("이 프로젝트를 참조하는 전표·계획이 있어 삭제할 수 없습니다. 먼저 연결을 해제하세요.");
+            throw ApiException.badRequest("이 프로젝트를 참조하는 전표·계획·업무일지가 있어 삭제할 수 없습니다. 먼저 연결을 해제하세요.");
         }
     }
 

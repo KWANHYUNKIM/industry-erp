@@ -1,34 +1,88 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { FLAT_MENU } from '../../components/EcountLayout'
+import CodePickerField from '../../components/CodePickerField'
 
-/** 영업 > 오더관리유형리스트 — 수주 오더 유형 코드 관리 (/api/order-types 연동) */
+/**
+ * 영업 > 오더관리유형등록.
+ *
+ * <p>원본 열 실측(사본 열 id TYPE_CD·TYPE_NM·STEPS·USE_YN·INP_USE_TF):
+ *   유형코드 · 유형명 · <b>1단계 ~ 10단계</b> · 사용구분 · 입력메뉴에서 사용 · 담당자.
+ * '기본형' 유형의 단계가 주문서 · 발주서 · 구매 · 판매 · 출하지시서 · 출하다 —
+ * 즉 유형은 <b>그 오더가 밟아 갈 단계의 순서</b>를 담는 템플릿이다.
+ *
+ * <p>우리 유형에는 코드·이름·설명뿐이라 "이 유형은 어떤 단계를 밟나" 를 적을 자리가 없었다.
+ * 그래서 오더관리진행단계 화면도 단계 마스터를 나열할 뿐 진행을 보여 주지 못했다.
+ */
+interface Step {
+  seq: number; stageId: number; stageCode: string; stageName: string
+  /** 원본 격자가 단계 열 <b>아래</b>에 적는 [담당자]. 안 정했으면 null. */
+  charge: string | null
+}
+
 interface OrderType {
   id: number
   code: string
   name: string
   description: string | null
+  steps: Step[]
+  useInInput: boolean
+  /** 원본 [처리메뉴] — 이 유형을 고를 수 있는 입력 화면의 경로. 안 정했으면 null. */
+  procMenu: string | null
+  manager: string | null
   active: boolean
 }
 
+interface Stage { id: number; code: string; name: string; sortOrder: number }
+
+/** 원본 열이 [1단계]~[10단계] 라 10 이 상한이다. */
+const MAX_STEPS = 10
+/** 원본 격자의 [1단계]~[10단계] 열. */
+const STEP_COLS = Array.from({ length: MAX_STEPS }, (_, i) => i + 1)
+
 const inputCls = 'ec-input w-full'
-const emptyForm = { code: '', name: '', description: '', active: true }
+const emptyForm = { code: '', name: '', description: '', manager: '', procMenu: '', useInInput: true, active: true }
 
 export default function OrderTypePage() {
   const [rows, setRows] = useState<OrderType[]>([])
+  /** 원본 오더관리유형리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
+  /*
+   * 단계 열이 <b>자료 따라 늘어난다</b>(1~10단계). 그래서 정적 검사는 이 표를 못 세고,
+   * 그동안 <b>아무도 안 보는 표</b>였다 — 실제로 머리 8칸·본문 6칸으로 돌아간 적이 있다.
+   * 렌더된 표를 직접 재는 훅을 단다.
+   */
+  const tableRef = useRef<HTMLTableElement>(null)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
+  /*
+   * 원본 [처리메뉴] — 이 유형을 <b>어느 입력 화면에서</b> 고를 수 있나(사본 실측, 코드도움).
+   * [입력메뉴에서 사용]은 쓰나 안 쓰나일 뿐 <b>어디서</b> 쓰는지는 말하지 않는다.
+   */
+  const [menuCond, setMenuCond] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
+  const [stages, setStages] = useState<Stage[]>([])
+  /** 1단계~10단계 칸. 빈 칸은 그 단계를 안 쓴다는 뜻이다. */
+  const [stepIds, setStepIds] = useState<string[]>(Array(MAX_STEPS).fill(''))
+  /* 단계마다의 담당자 — 원본 격자가 단계 열 아래에 적는 [담당자] 다. stepIds 와 같은 자리. */
+  const [stepCharges, setStepCharges] = useState<string[]>(Array(MAX_STEPS).fill(''))
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<OrderType[]>('/order-types')
+      const [res, st] = await Promise.all([
+        api.get<OrderType[]>('/order-types'),
+        api.get<Stage[]>('/order-stages'),
+      ])
       setRows(res.data)
+      setStages(st.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -41,12 +95,28 @@ export default function OrderTypePage() {
   function openCreate() {
     setEditId(null)
     setForm({ ...emptyForm })
+    setStepIds(Array(MAX_STEPS).fill(''))
+    setStepCharges(Array(MAX_STEPS).fill(''))
     setShowForm(true)
   }
 
   function openEdit(t: OrderType) {
     setEditId(t.id)
-    setForm({ code: t.code, name: t.name, description: t.description ?? '', active: t.active })
+    setForm({
+      code: t.code, name: t.name, description: t.description ?? '',
+      manager: t.manager ?? '', procMenu: t.procMenu ?? '',
+      useInInput: t.useInInput, active: t.active,
+    })
+    const next = Array(MAX_STEPS).fill('')
+    const charges = Array(MAX_STEPS).fill('')
+    t.steps.forEach((s) => {
+      if (s.seq >= 1 && s.seq <= MAX_STEPS) {
+        next[s.seq - 1] = String(s.stageId)
+        charges[s.seq - 1] = s.charge ?? ''
+      }
+    })
+    setStepIds(next)
+    setStepCharges(charges)
     setShowForm(true)
   }
 
@@ -54,10 +124,24 @@ export default function OrderTypePage() {
     e.preventDefault()
     setError('')
     try {
+      // 빈 칸은 빼고 앞에서부터 순서대로 보낸다 — 가운데를 비워도 순번이 밀리지 않는다.
+      const stageIds = stepIds.filter(Boolean).map(Number)
+      /* 담당자도 <b>같은 차례</b>로 추린다 — 빈 단계를 뺀 뒤의 자리에 맞춰야 짝이 안 어긋난다. */
+      const stageCharges = stepIds
+        .map((v, i) => (v ? (stepCharges[i] || null) : null))
+        .filter((_, i) => Boolean(stepIds[i]))
       if (editId) {
-        await api.put(`/order-types/${editId}`, { name: form.name, description: form.description, active: form.active })
+        await api.put(`/order-types/${editId}`, {
+          name: form.name, description: form.description, stageIds, stageCharges,
+          useInInput: form.useInInput, procMenu: form.procMenu || null,
+          manager: form.manager || null, active: form.active,
+        })
       } else {
-        await api.post('/order-types', { code: form.code, name: form.name, description: form.description })
+        await api.post('/order-types', {
+          code: form.code, name: form.name, description: form.description, stageIds, stageCharges,
+          useInInput: form.useInInput, procMenu: form.procMenu || null,
+          manager: form.manager || null,
+        })
       }
       setShowForm(false)
       load()
@@ -76,7 +160,36 @@ export default function OrderTypePage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
+  /**
+   * 원본 오더관리유형리스트의 [사용중단/재사용]. 고른 유형을 한 번에 세운다.
+   *
+   * <p>단계(stageIds)까지 함께 보낸다 — 수정은 <b>통째로 갈아 끼우므로</b> 빼고 보내면
+   * 그 유형의 [1단계]~[10단계]가 사용중단 한 번에 사라진다.
+   */
+  async function toggleActive() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (targets.length === 0) { setError('사용중단하거나 되살릴 유형을 고르세요.'); return }
+    const reviving = targets.every((r) => !r.active)
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.put(`/order-types/${r.id}`, {
+      name: r.name, description: r.description,
+      stageIds: [...r.steps].sort((a, b) => a.seq - b.seq).map((st) => st.stageId),
+      useInInput: r.useInInput, procMenu: r.procMenu ?? '', manager: r.manager, active: reviving,
+    })))
+    const failed = results.filter((x) => x.status === 'rejected').length
+    setChecked(new Set())
+    await load()
+    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+  }
+
+  const shown = rows
+    .filter((r) => !keyword || r.name.includes(keyword) || r.code.toLowerCase().includes(keyword.toLowerCase()))
+    /* 안 정한 유형은 어느 화면에서나 쓴다는 뜻이라 <b>어느 메뉴로 물어도 걸린다.</b> */
+    .filter((r) => !menuCond || !r.procMenu || r.procMenu === menuCond)
+    .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
+
+
+  useTableColumnCheck(tableRef, '오더관리유형등록', [rows.length, loading])
 
   return (
     <EcListShell
@@ -85,10 +198,23 @@ export default function OrderTypePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={showForm ? () => setShowForm(false) : openCreate}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      actions={[{ label: '새로고침', onClick: load },
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+                { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/* 원본 조건 차례: <b>처리메뉴 · 사용구분</b>. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+        <span>처리메뉴</span>
+        <CodePickerField label="처리메뉴" hideLabel width={190} emptyLabel="전체"
+                         value={menuCond} onChange={setMenuCond}
+                         items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
+        <span style={{ marginLeft: 10 }}>사용구분</span>
+        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
+          <option>전체</option><option>사용</option><option>중단</option>
+        </select>
+      </div>
       <Modal open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
@@ -113,33 +239,164 @@ export default function OrderTypePage() {
               </select>
             </div>
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '200px 160px', gap: 10, marginTop: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>담당자</label>
+              <input className={inputCls} value={form.manager} onChange={(e) => setForm((f) => ({ ...f, manager: e.target.value }))} />
+            </div>
+            {/*
+              원본 [처리메뉴]. 후보는 <b>우리 메뉴 목록 그대로</b>다 — 따로 적어 두면
+              메뉴를 옮길 때 둘이 갈린다. 안 고르면 어느 화면에서나 쓴다.
+            */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>처리메뉴</label>
+              <CodePickerField label="처리메뉴" hideLabel fill emptyLabel="어느 화면에서나"
+                               value={form.procMenu}
+                               onChange={(v) => setForm((f) => ({ ...f, procMenu: v }))}
+                               items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>입력메뉴에서 사용</label>
+              <select className={inputCls} value={form.useInInput ? 'Y' : 'N'}
+                      onChange={(e) => setForm((f) => ({ ...f, useInInput: e.target.value === 'Y' }))}>
+                <option value="Y">사용</option>
+                <option value="N">미사용</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 원본의 [1단계]~[10단계]. 이 유형의 오더가 밟아 갈 순서다. */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
+              진행단계 <span style={{ color: '#8a929c' }}>— 앞에서부터 순서대로. 빈 칸은 건너뜁니다.</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {stepIds.map((v, i) => (
+                <label key={i} style={{ fontSize: 11.5 }}>
+                  <div style={{ color: '#8a929c', marginBottom: 3 }}>{i + 1}단계</div>
+                  <select className={inputCls} value={v} onChange={(e) => setStepIds((prev) => {
+                    const next = [...prev]
+                    next[i] = e.target.value
+                    return next
+                  })}>
+                    <option value="">(없음)</option>
+                    {stages.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+                  </select>
+                  {/* 원본은 단계마다 담당자를 적는다 — 단계를 안 고르면 적을 자리도 없다. */}
+                  <input className={inputCls} placeholder="담당자" value={stepCharges[i]}
+                         disabled={!v}
+                         onChange={(e) => setStepCharges((prev) => {
+                           const next = [...prev]
+                           next[i] = e.target.value
+                           return next
+                         })}
+                         style={{ marginTop: 3 }} />
+                </label>
+              ))}
+            </div>
+          </div>
           <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
         </form>
       )}</Modal>
 
-      <table className="w-full text-left">
+      {/* 단계 열이 열 개라 표가 넓다 — 페이지가 가로로 밀리지 않게 표 안에서만 스크롤한다. */}
+      <div className="overflow-x-auto">
+
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>유형코드</th><th>유형명</th><th>설명</th>
-            <th style={{ textAlign: 'center' }}>사용여부</th>
-            <th style={{ width: 90 }}>관리</th>
+            <th rowSpan={2} style={{ width: 34, textAlign: 'center' }}>
+              <input type="checkbox"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(
+                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
+                     )} />
+            </th>
+            <th rowSpan={2} style={{ width: 90 }}>유형코드</th>
+            <th rowSpan={2} style={{ width: 130 }}>유형명</th>
+            {/*
+              원본은 단계를 <b>[1단계] ~ [10단계] 열 열 개</b>로 편다(열 id STEPS∬S1…S10).
+              우리는 '진행단계 (1 → n)' 한 칸에 몰아넣고 있었는데, 그 칸에 실제로 그려지던
+              값은 단계가 아니라 <b>설명(description)</b> 이었다 — 헤더가 약속한 것과
+              본문이 다른 상태였고, 뒤따르는 담당자·입력메뉴에서 사용은 아예 안 그려졌다.
+            */}
+            {/*
+              원본은 단계 열마다 <b>[담당자]</b> 를 머리 둘째 줄로 붙인다(2026-09-01 E040901 실측).
+              우리는 담당자를 <b>표 끝에 한 열</b>로 두어, 그 사람이 <b>어느 단계</b> 담당인지
+              알 수가 없었다. 한 단계에 한 칸을 지키려고 머리를 두 줄로 가르지 않고
+              칸 안에 위아래로 적는다 — 머리는 [n단계] 한 줄로 두고(열 대조 검사가 머리 글자를
+              그대로 읽는다) 사람 이름은 <b>줄 칸 안 둘째 줄</b>에 낸다.
+            */}
+            {STEP_COLS.map((n) => (
+              <th key={n} style={{ width: 96 }}>{n}단계</th>
+            ))}
+            <th rowSpan={2} style={{ width: 80, textAlign: 'center' }}>사용구분</th>
+            <th rowSpan={2} style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            {/* 안 정한 유형은 '어느 화면에서나' 다 — 빈칸으로 두면 안 정한 것과 못 쓰는 것이 같아 보인다. */}
+            <th rowSpan={2} style={{ width: 130 }}>처리메뉴</th>
+            <th rowSpan={2} style={{ width: 90 }}>관리</th>
+          </tr>
+          {/*
+            원본 머리는 <b>두 줄</b>이다 — 단계 열 아래에 [담당자] 가 한 줄 더 붙는다
+            (2026-09-01 E040901 실측). 그 줄을 그대로 낸다. 줄 칸은 한 단계에 하나이고,
+            그 안에 단계 이름과 담당자를 위아래로 적는다.
+          */}
+          <tr>
+            {STEP_COLS.map((n) => (
+              <th key={`c${n}`} style={{ fontWeight: 400, fontSize: 11.5, color: '#5a626e' }}>담당자</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td>{r.name}</td>
-              <td>{r.description ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                  return next
+                })} />
+              </td>
+              {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
+              <td style={{ fontFamily: 'monospace' }}>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                  {r.code}
+                </button>
+              </td>
+              <td>
+                <button type="button" onClick={() => openEdit(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+                  {r.name}
+                </button>
+              </td>
+              {STEP_COLS.map((n) => {
+                const st = r.steps.find((x) => x.seq === n)
+                return (
+                  <td key={n} style={{ color: st ? undefined : '#e2e6ea' }}>
+                    {st ? st.stageName : '·'}
+                    {st && (
+                      <div style={{ fontSize: 11, color: st.charge ? '#5a626e' : '#c9ced6' }}>
+                        {st.charge ?? '·'}
+                      </div>
+                    )}
+                  </td>
+                )
+              })}
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
+              <td style={{ textAlign: 'center', color: r.useInInput ? '#1c7c3c' : '#9aa1ab' }}>
+                {r.useInInput ? 'YES' : 'NO'}
+              </td>
+              <td style={{ color: r.procMenu ? undefined : '#9aa1ab', fontSize: 11.5 }}>
+                {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
+              </td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                 <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
@@ -148,6 +405,7 @@ export default function OrderTypePage() {
           ))}
         </tbody>
       </table>
+      </div>
     </EcListShell>
   )
 }

@@ -19,7 +19,7 @@ import com.erp.trade.dto.ExportDtos.ShipRequest;
 import com.erp.trade.repository.BusinessPartnerRepository;
 import com.erp.accounting.repository.CurrencyRepository;
 import com.erp.trade.repository.ExportOrderRepository;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.service.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,13 +47,26 @@ public class ExportService {
     private final ExportOrderRepository exportRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final CurrencyRepository currencyRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final CurrencyService currencyService;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public ExportSummary findAll() {
-        List<ExportOrder> all = exportRepository.findAllWithRefs();
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public ExportSummary findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        List<ExportOrder> all = exportRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
 
         BigDecimal totalKrw = BigDecimal.ZERO;
         BigDecimal unpaidKrw = BigDecimal.ZERO;
@@ -78,8 +91,8 @@ public class ExportService {
     /** 인보이스 발행. 외화 합계를 발행일 고시환율로 원화 환산해 고정한다. */
     @Transactional
     public ExportResponse create(CreateExportRequest req, String username) {
-        BusinessPartner buyer = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner buyer = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!buyer.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 수출할 수 없습니다: " + buyer.getName());
         }
@@ -101,8 +114,7 @@ public class ExportService {
 
         BigDecimal foreignTotal = BigDecimal.ZERO;
         for (ExportLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal amount = lr.quantity().multiply(lr.unitPrice());
             e.addLine(ExportOrderLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice()).amount(amount).build());

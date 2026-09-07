@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import { api } from '../../api/client'
 import type { CollectSource } from '../../api/types'
 
@@ -66,7 +67,20 @@ export default function DataCollectPage() {
     }).catch(() => setRows([]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shown = rows.filter((r) => !keyword || r.source.includes(keyword) || r.type.includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.source.includes(keyword) || r.type.includes(keyword))
+
+  /*
+   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [최근 실행]은 아직 안 돈 줄이 '-' 라
+   * 빈 값이 아니다 — 그대로 두면 '-' 가 날짜 사이에 섞인다. 안 돈 줄은 빈 값으로 넘겨
+   * 방향과 상관없이 뒤로 보낸다.
+   */
+  const sort = useTableSort(shownRows, {
+    수집소스: (r) => r.source,
+    모듈: (r) => r.type,
+    '최근 실행': (r) => (r.lastRun === '-' ? '' : r.lastRun),
+    상태: (r) => r.status,
+  })
+  const shown = sort.sorted
   const totalRows = rows.reduce((s, r) => s + r.rows, 0)
   const failCount = rows.filter((r) => r.status === '실패').length
 
@@ -88,17 +102,17 @@ export default function DataCollectPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th>수집소스 ▼</th>
-            <th style={{ width: 100, textAlign: 'center' }}>모듈 ▼</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수집소스')}>수집소스 {sort.mark('수집소스')}</th>
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
             <th style={{ width: 220 }}>엔드포인트</th>
-            <th style={{ width: 140 }}>최근 실행 ▼</th>
+            <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('최근 실행')}>최근 실행 {sort.mark('최근 실행')}</th>
             <th style={{ width: 100, textAlign: 'right' }}>수집건수</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 수집 소스가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -126,7 +140,7 @@ export default function DataCollectPage() {
               <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
                 <p style={{ margin: '0 0 8px', color: '#5a626e' }}>현재 세션에서 실행된 수집 결과입니다. 실행 <b>{executed.length}</b>건 · 실패 <b style={{ color: failCount > 0 ? '#c60a2e' : '#1c7c3c' }}>{failCount}</b>건.</p>
                 <table className="w-full text-left">
-                  <thead><tr><th style={{ width: 34 }}>No</th><th>수집소스</th><th style={{ width: 130 }}>실행시각</th><th style={{ width: 90, textAlign: 'right' }}>건수</th><th style={{ width: 70, textAlign: 'center' }}>결과</th></tr></thead>
+                  <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th>수집소스</th><th style={{ width: 130 }}>실행시각</th><th style={{ width: 90, textAlign: 'right' }}>건수</th><th style={{ width: 70, textAlign: 'center' }}>결과</th></tr></thead>
                   <tbody>
                     {executed.length === 0 ? (
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>아직 실행된 수집이 없습니다. [전체 수집 실행]을 눌러주세요.</td></tr>

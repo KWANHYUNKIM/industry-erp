@@ -2,10 +2,13 @@ package com.erp.trade.dto;
 
 import com.erp.trade.domain.SpecialPrice;
 import com.erp.trade.domain.enums.SpecialPriceType;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
+
+import java.time.LocalDateTime;
 
 public final class SpecialPriceDtos {
 
@@ -19,8 +22,10 @@ public final class SpecialPriceDtos {
             @NotNull(message = "판매/구매 구분을 선택하세요.") SpecialPriceType tradeType,
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             Long partnerId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String priceGroup,
-            @NotNull @PositiveOrZero(message = "특별단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @NotNull(message = "특별단가를 입력하세요.") @PositiveOrZero(message = "특별단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
     ) {}
 
@@ -32,7 +37,12 @@ public final class SpecialPriceDtos {
             String priceGroup,
             BigDecimal unitPrice,
             boolean active,
-            String remark, String createdBy
+            String remark, String createdBy,
+            /*
+             * 원본 특별단가등록의 <b>[수정일자순]</b> 정렬이 쓰는 값. BaseTimeEntity 가 이미
+             * 들고 있는데 응답에 안 실려서 <b>정렬 기준으로 쓸 수가 없었다.</b>
+             */
+            LocalDateTime updatedAt
     ) {
         public static SpecialPriceResponse from(SpecialPrice sp) {
             return new SpecialPriceResponse(
@@ -44,7 +54,7 @@ public final class SpecialPriceDtos {
                     sp.getPriceGroup(),
                     sp.getUnitPrice(),
                     sp.isActive(),
-                    sp.getRemark(), sp.getCreatedBy());
+                    sp.getRemark(), sp.getCreatedBy(), sp.getUpdatedAt());
         }
     }
 

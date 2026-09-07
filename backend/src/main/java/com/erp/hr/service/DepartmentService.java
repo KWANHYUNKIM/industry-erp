@@ -1,6 +1,7 @@
 package com.erp.hr.service;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.domain.Department;
 import com.erp.hr.dto.DepartmentDtos.CreateDepartmentRequest;
 import com.erp.hr.dto.DepartmentDtos.DepartmentResponse;
@@ -21,6 +22,7 @@ public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<DepartmentResponse> findAll() {
@@ -90,7 +92,17 @@ public class DepartmentService {
         }
     }
 
+    /**
+     * 다음 부서코드. <b>번호 공간을 먼저 잠근다.</b>
+     *
+     * <p>잠그지 않으면 두 요청이 같은 count 를 읽어 같은 코드를 만들고, 뒤에 커밋한 쪽이
+     * departments.code UNIQUE 제약에 걸려 500 으로 죽는다. 쓰는 사람은 이유를 알 수 없다.
+     *
+     * <p>count + 1 로 시작해 빈 번호를 찾을 때까지 올린다 — 중간 부서를 지우면 count 가
+     * 줄어 이미 쓰는 번호를 가리키기 때문이다(그래서 probe 루프가 필요하다).
+     */
     private String nextCode() {
+        docNoGenerator.lockNumberSpace("DEPT");
         long n = departmentRepository.count() + 1;
         String code = String.format("DEPT-%04d", n);
         while (departmentRepository.existsByCode(code)) {

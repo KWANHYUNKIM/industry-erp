@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import com.erp.auth.domain.User;
 import com.erp.common.BaseTimeEntity;
+import com.erp.common.StoredFile;
 import com.erp.inventory.domain.Project;
 
 /**
@@ -88,6 +89,29 @@ public class ApprovalDocument extends BaseTimeEntity {
     /** 수신참조(콤마구분 이름) — 자유입력 잔재. 실제 참여자는 participants 를 쓴다. */
     @Column(length = 300)
     private String reference;
+
+    /**
+     * 구분 — 이카운트 기안서작성 폼의 `구분` 칸(코드도움).
+     * 문서를 갈래로 나누는 분류다. 우리는 공통코드를 그대로 쓰므로 코드 문자열을 담는다.
+     */
+    @Column(length = 50)
+    private String category;
+
+    /** 출력양식 — 인쇄할 때 쓰는 서식 이름. 원본은 [기안No.] 등을 고르는 드롭다운이다. */
+    @Column(name = "print_format", length = 50)
+    private String printFormat;
+
+    /** 라벨 — 원본 폼 맨 아래 [라벨]. 문서를 묶어 보는 꼬리표다. */
+    @Column(name = "label_text", length = 100)
+    private String labelText;
+
+    /**
+     * 첨부 파일. 원본 폼의 [첨부] 자리다.
+     * 파일 저장은 공용 {@link StoredFile}(V120) 을 그대로 쓴다 — ECDrive·증빙센터와 같은 인프라다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private StoredFile attachment;
 
     /** 소프트 삭제. 목록의 '삭제' 탭이 이 값을 본다. */
     @Column(nullable = false)

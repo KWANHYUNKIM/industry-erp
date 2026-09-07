@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TABS = ['전체', '수집', '확인', '판매전환', '배송', '반품', '교환', '취소'] as const
 type Tab = (typeof TABS)[number]
@@ -82,6 +86,11 @@ export default function MallPage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '쇼핑몰', [])
+
   return (
     <EcListShell title="쇼핑몰관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -129,17 +138,19 @@ export default function MallPage() {
         </>
       )}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({tabCount(t)})</button>
+          <button
+            key={t} type="button" onClick={() => setTab(t)}
+            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+          >
+            {t} ({tabCount(t)})
+          </button>
         ))}
       </div>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
@@ -158,7 +169,7 @@ export default function MallPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>주문이 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => {
             const open = o.status === 'RECEIVED' || o.status === 'CONFIRMED'
             return (
@@ -166,7 +177,7 @@ export default function MallPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td>{o.mall}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{o.mallOrderNo}</td>
-                <td>{o.orderDate}</td>
+                <td>{dateText(o.orderDate)}</td>
                 <td>{o.buyerName}</td>
                 <td style={{ color: '#5a626e' }}>{o.productName}</td>
                 <td>
@@ -311,7 +322,7 @@ function FulfillForm({ order, action, onClose, onSaved }: {
             )}
             <tr>
               <th style={{ background: '#f5f7fa' }}>{isShip ? '배송일' : '처리일'}</th>
-              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+              <td><input className="ec-input" type="date" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
             </tr>
           </tbody></table>
         </div>
@@ -396,7 +407,7 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
           </tr>
           <tr>
             <th style={{ background: '#f5f7fa' }}>주문일</th>
-            <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
+            <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
             <th style={{ background: '#f5f7fa' }}>구매자<span style={{ color: '#c60a2e' }}>*</span></th>
             <td><input className="ec-input" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} style={{ width: 160 }} /></td>
           </tr>
@@ -420,10 +431,10 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
           <tr>
             <th style={{ background: '#f5f7fa' }}>품목 매핑</th>
             <td colSpan={3}>
-              <select className="ec-input" value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: 280 }}>
-                <option value="">(비우면 몰품목코드로 자동연결 시도)</option>
-                {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-              </select>
+            {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+            <CodePickerField label="품목 매핑" hideLabel width={280} emptyLabel="(비우면 몰품목코드로 자동연결 시도)"
+                             value={itemId} onChange={setItemId}
+                             items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>매핑해야 판매전환할 수 있습니다.</span>
             </td>
           </tr>

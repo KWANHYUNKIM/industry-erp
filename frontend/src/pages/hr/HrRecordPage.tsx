@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const TYPES: { value: AssignmentType; label: string; hint: string }[] = [
   { value: 'TRANSFER', label: '전보', hint: '부서를 지정하세요.' },
@@ -95,7 +98,7 @@ export default function HrRecordPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>사원이 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((e, i) => {
             const days = tenureDays(e)
             return (
@@ -109,8 +112,8 @@ export default function HrRecordPage() {
                 <td style={{ fontWeight: 600 }}>{e.name}</td>
                 <td>{e.department || <span style={{ color: '#c60a2e' }}>미배치</span>}</td>
                 <td>{e.jobTitle || <span style={{ color: '#c3c8cf' }}>-</span>}</td>
-                <td>{e.hireDate ?? ''}</td>
-                <td style={{ color: e.resignDate ? '#c60a2e' : undefined }}>{e.resignDate ?? ''}</td>
+                <td>{dateText(e.hireDate) || ''}</td>
+                <td style={{ color: e.resignDate ? '#c60a2e' : undefined }}>{dateText(e.resignDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{days == null ? '-' : `${days.toLocaleString('ko-KR')}일`}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: e.active ? '#1c7c3c' : '#8a929c' }}>{e.active ? '재직' : '퇴사'}</span>
@@ -143,14 +146,14 @@ export default function HrRecordPage() {
             </thead>
             <tbody>
               {assignments.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>발령이력이 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : assignments.map((a, i) => (
                 <tr key={a.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td>{a.assignDate}</td>
+                  <td>{dateText(a.assignDate)}</td>
                   <td style={{ color: a.type === 'RESIGN' ? '#c60a2e' : a.type === 'PROMOTION' ? '#1c7c3c' : 'var(--ec-blue)' }}>{a.typeName}</td>
-                  <td>{a.department || '-'}</td>
-                  <td>{a.jobTitle || '-'}</td>
+                  <td>{a.department || ''}</td>
+                  <td>{a.jobTitle || ''}</td>
                   <td style={{ color: '#5a626e' }}>{a.remark ?? ''}</td>
                   <td style={{ color: '#8a929c' }}>{a.createdBy ?? ''}</td>
                 </tr>
@@ -229,15 +232,15 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>발령일</th>
-                <td><input type="date" className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(assignDate)} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>부서</th>
                 <td>
-                  <select className="ec-input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} style={{ width: 200 }} disabled={type === 'RESIGN'}>
-                    <option value="">(변경 없음)</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+            {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+            <CodePickerField label="부서" hideLabel width={200} emptyLabel="(변경 없음)"
+                             value={departmentId} onChange={setDepartmentId}
+                             items={departments.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
               </tr>
               <tr>

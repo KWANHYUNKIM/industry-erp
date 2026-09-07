@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import com.erp.groupware.dto.BoardDtos;
@@ -35,12 +36,25 @@ public class BoardService {
         return PostDetail.from(p);
     }
 
+    /**
+     * 제목이 없으면 본문 첫 줄을 제목으로 쓴다. 원본 익명게시판은 제목 칸이 없는 글상자 하나라서
+     * 그렇게 올라오는데, 목록에서 뭐라도 보여줄 것은 있어야 한다.
+     */
+    private String titleOf(CreatePostRequest req) {
+        if (StringUtils.hasText(req.title())) return req.title().trim();
+        if (!StringUtils.hasText(req.content())) {
+            throw ApiException.badRequest("내용을 입력하세요.");
+        }
+        String first = req.content().strip().lines().findFirst().orElse("").strip();
+        return first.length() > 200 ? first.substring(0, 200) : first;
+    }
+
     @Transactional
     public PostDetail create(CreatePostRequest req, String author) {
         // 익명 글도 작성자는 남긴다. 본인 확인 없이 삭제를 허용할 수 없고, 문제가 생기면
         // 추적할 수 있어야 한다. 가리는 것은 응답(BoardDtos)이다.
         BoardPost p = BoardPost.builder()
-                .title(req.title())
+                .title(titleOf(req))
                 .content(req.content())
                 .category(req.category() != null ? req.category() : "자유")
                 .author(author)

@@ -6,6 +6,8 @@ import lombok.*;
 import java.time.LocalDate;
 import com.erp.common.BaseTimeEntity;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.domain.Project;
+import com.erp.inventory.domain.Warehouse;
 import com.erp.trade.domain.BusinessPartner;
 
 /**
@@ -36,8 +38,30 @@ public class AsRequest extends BaseTimeEntity {
     @JoinColumn(name = "item_id", nullable = false)
     private Item item;
 
+    /**
+     * 원본 조건의 [창고]. 같은 품목이 창고 셋에 있으면 <b>어느 창고 것을 본 검사인지</b>
+     * 알 수가 없었고, 불량률파악보고서에서 창고로 거를 수도 없었다.
+     * 검사 시점에 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    /** 원본 조건의 [프로젝트]. 위와 같은 까닭으로 nullable 이다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
+
     @Column(nullable = false)
     private LocalDate receiptDate;
+
+    /** 원본 A/S접수입력 [제목]. 목록에서 한 건이 무슨 일인지 증상 전문을 읽지 않고 알게 한다. */
+    @Column(length = 200)
+    private String title;
+
+    /** 원본 A/S접수입력 [수리예정일자]. 언제까지 고쳐 주기로 했나 — 완료일은 끝난 뒤에야 생긴다. */
+    private LocalDate scheduledDate;
 
     /** 고장 증상 */
     @Column(length = 500)

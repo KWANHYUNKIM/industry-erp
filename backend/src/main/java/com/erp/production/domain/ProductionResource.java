@@ -49,6 +49,22 @@ public class ProductionResource extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal costPerHr = BigDecimal.ZERO;
 
+    /**
+     * 위치 — 그 설비가 있는 창고. 원본 자원등록의 [위치] 열(MT0_WH).
+     * 비워 둘 수 있다(아직 자리를 안 정한 설비).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private com.erp.inventory.domain.Warehouse warehouse;
+
+    /**
+     * 대상작업 — 이 설비로 하는 공정. 원본 [대상작업] 열(MT0_JOB).
+     * BOR 의 작업이 그 공정을 가리키므로, 이 값이 있어야 "이 작업은 어느 설비로 하나" 에 답한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "process_id")
+    private ProductionProcess process;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

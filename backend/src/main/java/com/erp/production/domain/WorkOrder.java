@@ -58,6 +58,27 @@ public class WorkOrder extends BaseTimeEntity {
 
     private LocalDate dueDate;
 
+    /**
+     * 납품처 — 원본 작업지시서입력 머리의 항목이고 작업지시서조회의 [거래처명] 열이다.
+     *
+     * <p>production → trade 는 새로 생기는 의존이지만 순환이 아니다.
+     * trade 는 inventory 만 참조한다(CLAUDE.md 4.1 표를 함께 갱신했다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.domain.BusinessPartner partner;
+
+    /**
+     * 담당자(hr.Employee)의 id. <b>@ManyToOne 을 쓰지 않는다.</b>
+     *
+     * <p>production 이 hr 을 참조하면 <b>hr → accounting → production</b> 과 맞물려
+     * 순환이 된다(급여의 원천징수가 accounting 을, 표준원가가 production 의 BomService 를 본다).
+     * 그래서 id 만 들고 이름은 화면이 사원 목록에서 붙인다 —
+     * inventory.Warehouse 가 공정을, auth.User 가 사원을 드는 방식과 같다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
     @Column(length = 300)
     private String remark;
 

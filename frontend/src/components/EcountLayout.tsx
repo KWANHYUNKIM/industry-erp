@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../api/client'
 import AppBarPanel, { type PanelKind } from './AppBarPanel'
+import TableContextMenu from './TableContextMenu'
 import type { NotificationResponse } from '../api/types'
 
 /** 이카운트 v5 실제 레이아웃 재현:
@@ -52,73 +53,96 @@ const MENU: TopMenu[] = [
           { label: '부서등록', to: '/groupware/org' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
           { label: '단가적용순서설정', to: '/inventory/price-order' },
-          { label: '거래처특별단가그룹', to: '/inventory/special-price-group' },
+          { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' },
           { label: '특별단가등록', to: '/sales/special-price' },
-          { label: '외화(통화·환율)', to: '/settings/currencies' },
+          { label: '외화등록', to: '/settings/currencies' },
         ],
       },
       {
+        // 원본 영업관리는 평평한 목록이 아니라 전표 단위 묶음이다
+        // (견적서·주문서·판매·판매일괄회계반영·출하지시서·출하). 현황류는 여기가 아니라 출력물 탭에 있다.
+        // 우리 화면 하나가 원본의 조회·입력을 겸하는 경우가 많아, 없는 이름은 만들지 않고 있는 것만 건다.
         label: '영업관리',
         nodes: [
-          { label: '견적서', to: '/sales/quotations' },
-          { label: '판매입력', to: '/sales/sell' },
-          { label: '판매조회', to: '/sales/sales-list' },
-          { label: '주문서현황', to: '/sales/order-status' },
-          { label: '미주문현황', to: '/sales/unordered' },
-          { label: '판매현황', to: '/sales/sales-status' },
-          { label: '거래이력조회', to: '/sales/trade-history' },
-          { label: '판매구매집계표', to: '/sales/sales-purchase-summary' },
-          { label: '월별채권/채무증감', to: '/sales/monthly-ar-ap' },
-          { label: '단가변동표', to: '/sales/price-movement' },
-          { label: '현황누계표', to: '/sales/monthly-cumulative' },
-          { label: '집계표', to: '/sales/pivot-summary' },
-          { label: '판매할인현황', to: '/sales/sales-discount' },
-          { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
-          { label: '거래처중심입력', to: '/sales/partner-entry' },
-          { label: '품목중심입력', to: '/sales/item-entry' },
-          { label: '거래명세서인쇄', to: '/sales/statement' },
-          { label: '출하지시서', to: '/sales/shipment-order' },
-          { label: '출하조회', to: '/sales/shipment-inquiry' },
-          { label: '출하현황', to: '/sales/shipment' },
-          { label: '미출하현황', to: '/sales/unshipped' },
-          { label: '수금현황', to: '/sales/collection' },
-          { label: '수금/지급', to: '/sales/settlement' },
-          { label: '결제내역조회', to: '/sales/payment-history' },
-          { label: '결제내역자료비교', to: '/sales/payment-compare' },
-          { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
-          { label: '채권·채무현황', to: '/sales/ledger' },
-          { label: '거래처관리대장', to: '/sales/partner-ledger' },
+          { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }] },
+          { label: '주문서', children: [{ label: '주문서현황', to: '/sales/order-status' }] },
+          {
+            label: '판매',
+            children: [
+              { label: '판매조회', to: '/sales/sales-list' },
+              { label: '판매입력', to: '/sales/sell' },
+              { label: '거래처중심입력', to: '/sales/partner-entry' },
+              { label: '품목중심입력', to: '/sales/item-entry' },
+              { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
+              /*
+               * 원본 영업관리 탭 실측(사본 '판매현황' 의 메뉴트리): 판매조회 · 판매입력 ·
+               * 판매입력 II · 판매단가일괄변경 · <b>판매현황 · 수금현황 · 판매할인현황 ·
+               * 회계미반영현황 (판매) · 거래처별채권</b> · 거래명세서인쇄 · 결제내역조회 ·
+               * 결제내역자료비교 · 판매일괄회계반영.
+               *
+               * <p>이 다섯이 우리에겐 <b>출력물 탭에만</b> 있었다. 구매관리 탭에는 짝이 되는
+               * 다섯(구매현황·지급현황·구매할인현황·회계미반영현황 (구매)·거래처별채무)이
+               * 이미 들어 있어서, <b>같은 자리인데 영업만 비어 있었다</b> —
+               * 구매에서 되던 일이 판매에서 안 되면 사람은 자기가 잘못 찾는 줄 안다.
+               * 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다).
+               */
+              { label: '판매현황', to: '/sales/sales-status' },
+              { label: '수금현황', to: '/sales/collection' },
+              { label: '판매할인현황', to: '/sales/sales-discount' },
+              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales' },
+              { label: '거래처별채권', to: '/sales/ledger-receivable' },
+              { label: '거래명세서인쇄', to: '/sales/statement' },
+              { label: '결제내역조회', to: '/sales/payment-history' },
+              { label: '결제내역자료비교', to: '/sales/payment-compare' },
+              { label: '수금/지급', to: '/sales/settlement' },
+            ],
+          },
+          { label: '판매일괄회계반영', children: [{ label: '회계반영/미반영', to: '/sales/accounting-reflection' }] },
+          { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }] },
+          {
+            label: '출하',
+            children: [
+              { label: '출하조회', to: '/sales/shipment-inquiry' },
+            ],
+          },
+          { label: '특별단가등록', to: '/sales/special-price' },
         ],
       },
       {
+        // 원본 구매관리도 묶음이다(발주요청·발주계획·단가요청·발주서·구매·구매일괄회계반영).
         label: '구매관리',
         nodes: [
-          { label: '발주서', to: '/sales/purchase-orders' },
-          { label: '발주서현황', to: '/sales/purchase-order-status' },
-          { label: '발주요청현황', to: '/sales/purchase-request-status' },
-          { label: '발주계획현황', to: '/sales/purchase-plan-status' },
-          { label: '단가요청현황', to: '/sales/price-request-status' },
-          { label: '단가요청진행단계', to: '/sales/price-request-progress' },
-          { label: '구매입력', to: '/sales/buy' },
-          { label: '구매조회', to: '/sales/purchase-list' },
-          { label: '구매현황', to: '/sales/purchase-status' },
-          { label: '미구매현황', to: '/sales/unpurchased' },
-          { label: '구매할인현황', to: '/sales/purchase-discount' },
-          { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
-          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+          { label: '발주요청', children: [{ label: '발주요청현황', to: '/sales/purchase-request-status' }] },
+          { label: '발주계획', children: [{ label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
+          {
+            label: '단가요청',
+            children: [
+              { label: '단가요청현황', to: '/sales/price-request-status' },
+              { label: '단가요청진행단계', to: '/sales/price-request-progress' },
+            ],
+          },
+          {
+            label: '발주서',
+            children: [
+              { label: '발주서', to: '/sales/purchase-orders' },
+              { label: '발주서현황', to: '/sales/purchase-order-status' },
+            ],
+          },
+          {
+            label: '구매',
+            children: [
+              { label: '구매조회', to: '/sales/purchase-list' },
+              { label: '구매입력', to: '/sales/buy' },
+              { label: '구매현황', to: '/sales/purchase-status' },
+              { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
+            ],
+          },
+          // 원본은 이 넷을 '구매' 묶음 밖, 구매관리 바로 아래에 둔다(출력물 쪽에도 같은 메뉴가 또 있다).
           { label: '지급현황', to: '/sales/payment' },
-          { label: '미지급현황', to: '/sales/payable' },
-        ],
-      },
-      {
-        label: '재고관리',
-        nodes: [
-          { label: '재고현황', to: '/inventory/current' },
-          { label: '입출고', to: '/inventory/stock-io' },
-          { label: '재고수불부', to: '/inventory/ledger' },
-          { label: '재고변동표', to: '/inventory/movement' },
-          { label: '재고잔량분석표', to: '/inventory/stock-analysis' },
-          { label: '일보', to: '/inventory/daily-report' },
+          { label: '구매할인현황', to: '/sales/purchase-discount' },
+          { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase' },
+          { label: '거래처별채무', to: '/sales/ledger-payable' },
+          { label: '구매일괄회계반영', children: [{ label: '회계반영/미반영', to: '/sales/accounting-reflection?kind=purchase' }] },
         ],
       },
       {
@@ -127,41 +151,160 @@ const MENU: TopMenu[] = [
           { label: 'BOM(소요량)등록', to: '/production/bom' },
           { label: '공정등록', to: '/production/process' },
           { label: '자원등록', to: '/production/resource' },
-          { label: '작업소요시간(BOR)', to: '/production/bor' },
+          { label: 'BOR(작업소요시간)', to: '/production/bor' },
           { label: '소요시간계산', to: '/production/time-calc' },
           { label: '작업지시', to: '/production/work-orders' },
           { label: '작업지시서현황', to: '/production/wo-status' },
+          { label: '작업지시서작업처리', to: '/production/wo-work' },
           { label: '작업지시서별진행현황', to: '/production/wo-progress' },
           { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
           { label: '생산불출', to: '/production/issue' },
           { label: '생산불출현황', to: '/production/issue-status' },
           { label: '작업내역입력', to: '/production/work-result' },
+          { label: '작업내역조회', to: '/production/work-result-list' },
           { label: '작업내역현황', to: '/production/work-result-status' },
-          { label: '생산실적', to: '/production/result' },
-          { label: '생산입고 I(BOM기준소모)', to: '/production/receipt-bom' },
-          { label: '생산입고 II(소모품목선택)', to: '/production/receipt-manual' },
+          { label: '생산입고 I', to: '/production/receipt-bom' },
+          { label: '생산입고 II', to: '/production/receipt-manual' },
+          { label: '생산입고 III', to: '/production/receipt-qr' },
           { label: '생산입고조회', to: '/production/receipt-inquiry' },
           { label: '생산입고현황', to: '/production/receipt-status' },
-          { label: '생산입고 소모현황', to: '/production/consume-status' },
+          { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+          /*
+           * 원본 생산/외주 탭 실측(사본 좌측 메뉴): … 생산입고/소모현황 I ·
+           * <b>지급현황 · 외주비할인현황 · 거래처별채무 · 외주비회계반영</b>.
+           *
+           * <p>외주는 남에게 맡겨 만드는 것이라 <b>사고 나서 돈을 주는</b> 흐름이 따라붙는다.
+           * 그 셋이 우리에겐 구매관리·출력물 탭에만 있어서, 외주를 보다가 "얼마 줬나" 를
+           * 보려면 탭을 옮겨야 했다. 원본처럼 여기에도 둔다.
+           *
+           * <p>[외주비회계반영]은 안 만든다 — 외주가공비를 전표로 받는 자리가 없어
+           * 반영할 것이 없다. 화면 사본도 없어 무엇을 그릴지 잴 수가 없다.
+           */
+          { label: '지급현황', to: '/sales/payment' },
+          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+          { label: '거래처별채무', to: '/sales/ledger-payable' },
         ],
       },
       { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }] },
       { label: '쇼핑몰관리', nodes: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰관리', to: '/sales/mall' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
-      { label: '출력물', nodes: [{ label: '출력물', to: '/inventory/reports' }, { label: '경영자보고서', to: '/inventory/executive-report' }] },
+      {
+        // 원본 출력물 탭은 커뮤니케이션센터·증빙센터 + 재고현황·영업관리현황·구매관리현황 묶음이다.
+        // 우리가 영업관리·구매관리·재고관리에 흩어 두었던 '현황' 화면들이 원본에서는 전부 여기 모인다.
+        label: '출력물',
+        nodes: [
+          { label: '증빙센터', to: '/accounting/evidence-center' },
+          {
+            label: '재고현황',
+            children: [
+              { label: '재고현황', to: '/inventory/current' },
+              { label: '창고별재고현황', to: '/inventory/warehouse-stock' },
+              { label: 'BOM환산재고현황', to: '/inventory/bom-stock' },
+              { label: '입출고', to: '/inventory/stock-io' },
+              { label: '재고잔량분석표', to: '/inventory/stock-analysis' },
+              { label: '재고수불부', to: '/inventory/ledger' },
+              { label: '재고변동표', to: '/inventory/movement' },
+              { label: '잔량재집계', to: '/inventory/recalc' },
+              { label: '일보', to: '/inventory/daily-report' },
+            ],
+          },
+          {
+            label: '영업관리현황',
+            children: [
+              { label: '판매현황', to: '/sales/sales-status' },
+              { label: '견적서현황', to: '/sales/quotations' },
+              { label: '주문서현황', to: '/sales/order-status' },
+              { label: '출하지시서현황', to: '/sales/shipment-order-status' },
+              { label: '출하현황', to: '/sales/shipment' },
+              { label: '거래명세서인쇄', to: '/sales/statement' },
+              { label: '미주문현황', to: '/sales/unordered' },
+              { label: '미판매현황', to: '/sales/unsold' },
+              { label: '미출하현황', to: '/sales/unshipped' },
+              { label: '거래처별채권', to: '/sales/ledger-receivable' },
+              { label: '채권현황', to: '/sales/receivable-status' },
+              { label: '거래처관리대장1(채권)', to: '/sales/partner-ledger-receivable' },
+              { label: '수금현황', to: '/sales/collection' },
+              { label: '판매할인현황', to: '/sales/sales-discount' },
+              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales' },
+              { label: '월별채권증감내역', to: '/sales/monthly-ar-ap' },
+            ],
+          },
+          {
+            label: '구매관리현황',
+            children: [
+              { label: '구매현황', to: '/sales/purchase-status' },
+              { label: '발주요청현황', to: '/sales/purchase-request-status' },
+              { label: '발주계획현황', to: '/sales/purchase-plan-status' },
+              { label: '발주서현황', to: '/sales/purchase-order-status' },
+              { label: '미구매현황', to: '/sales/unpurchased' },
+              { label: '거래처별채무', to: '/sales/ledger-payable' },
+              { label: '채무현황', to: '/sales/payable-status' },
+              { label: '거래처관리대장1(채무)', to: '/sales/partner-ledger-payable' },
+              { label: '지급현황', to: '/sales/payment' },
+              { label: '미지급현황', to: '/sales/payable' },
+              { label: '구매할인현황', to: '/sales/purchase-discount' },
+              { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase' },
+              { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+              { label: '월별채무증감내역', to: '/sales/monthly-ap' },
+            ],
+          },
+          {
+            // 원본 출력물은 재고현황·영업관리현황·구매관리현황 다음에 이 둘을 둔다.
+            // 화면은 있었는데 출력물 아래에 묶여 있지 않아 원본 순서를 따라 넣는다.
+            label: '생산/외주현황',
+            children: [
+              { label: '작업지시서현황', to: '/production/wo-status' },
+              { label: '작업지시서별진행현황', to: '/production/wo-progress' },
+              { label: '생산불출현황', to: '/production/issue-status' },
+              { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
+              { label: '작업내역현황', to: '/production/work-result-status' },
+              { label: '생산입고현황', to: '/production/receipt-status' },
+              { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+            ],
+          },
+          {
+            label: '기타이동현황',
+            children: [
+              { label: '창고이동현황', to: '/inventory/transfer-status' },
+              { label: '자가사용현황', to: '/inventory/self-use-status' },
+              { label: '불량처리현황', to: '/inventory/defect-status' },
+              { label: '대체사용현황', to: '/inventory/substitute-status' },
+              { label: '폐기현황', to: '/inventory/disposal-status' },
+              { label: '불량률파악보고서', to: '/quality/defect-report' },
+              { label: '재고실사현황', to: '/inventory/stocktake-status' },
+              { label: '재고조정현황', to: '/inventory/adjust-status' },
+            ],
+          },
+          {
+            label: '기타',
+            children: [
+              { label: '일별재고현황', to: '/inventory/daily-stock' },
+              { label: '거래이력조회', to: '/sales/trade-history' },
+              { label: '판매구매집계표', to: '/sales/sales-purchase-summary' },
+              { label: '단가변동표', to: '/sales/price-movement' },
+              { label: '현황누계표', to: '/sales/monthly-cumulative' },
+              { label: '집계표', to: '/sales/pivot-summary' },
+              { label: '거래처관리대장', to: '/sales/partner-ledger' },
+              { label: '출력물', to: '/inventory/reports' },
+              { label: '경영자보고서', to: '/inventory/executive-report' },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
     label: '재고 II',
     tabs: [
       { label: 'A/S관리', nodes: [{ label: 'A/S관리', to: '/quality/as' }, { label: 'A/S현황', to: '/quality/as-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
-      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '로트 수불부', to: '/quality/lot-ledger' }, { label: '품목vs시리얼재고비교', to: '/quality/lot-compare' }] },
+      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '로트 수불부', to: '/quality/lot-ledger' }, { label: '품목vs시리얼재고비교', to: '/quality/lot-compare' }] },
       { label: '품질관리', nodes: [{ label: '품질검사요청', to: '/quality/inspection-request' }, { label: '품질관리', to: '/quality/inspection' }, { label: '품질검사현황', to: '/quality/inspection-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] },
       {
         label: '계획관리',
         nodes: [
           { label: '매출계획', to: '/sales/sales-plan' },
           { label: '생산계획(MPS)', to: '/production/planning' },
-          { label: '생산계획(MRP)리스트', to: '/production/mrp' },
+          /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
+          { label: '생산계획/MRP생성', to: '/production/mrp' },
         ],
       },
       {
@@ -175,22 +318,31 @@ const MENU: TopMenu[] = [
               { label: '원가생성/수정', to: '/accounting/cost-build' },
               { label: '표준원가현황', to: '/accounting/standard-cost' },
               { label: '실제원가현황', to: '/accounting/actual-cost' },
-              { label: '원가차이분석', to: '/accounting/variance' },
+              { label: '차이분석', to: '/accounting/variance' },
               { label: '월별이익현황', to: '/accounting/monthly-profit' },
             ],
           },
-          { label: '일별이익', children: [{ label: '일별이익현황', to: '/accounting/daily-profit' }] },
+          {
+            // 원본은 일별재고현황을 여기(이익관리 > 일별이익)에 둔다 — 재고 평가와 이익 계산이
+            // 같은 원가 기준을 쓰기 때문이다. 출력물 > 기타에도 그대로 남겨 둔다.
+            label: '일별이익',
+            children: [
+              { label: '일별재고현황', to: '/inventory/daily-stock' },
+              { label: '일별이익현황', to: '/accounting/daily-profit' },
+            ],
+          },
         ],
       },
       {
         label: '오더관리',
         nodes: [
           { label: '오더관리(수주)', to: '/sales/orders' },
-          { label: '오더관리유형리스트', to: '/sales/order-types' },
+          /* 원본 오더관리 탭의 표기는 [오더관리유형등록] 이다(사본 좌측 메뉴 실측). */
+          { label: '오더관리유형등록', to: '/sales/order-types' },
           { label: '오더관리진행단계', to: '/sales/order-stages' },
         ],
       },
-      { label: '수출관리', nodes: [{ label: '수출관리', to: '/sales/export' }] },
+      { label: '수출관리', nodes: [{ label: 'Invoice / Packing List', to: '/sales/export' }] },
       { label: 'WMS', nodes: [{ label: 'WMS 로케이션', to: '/inventory/wms' }] },
     ],
   },
@@ -205,7 +357,7 @@ const MENU: TopMenu[] = [
           { label: '계좌/카드', to: '/accounting/bank-cards' },
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
-          { label: '외화(통화·환율)', to: '/settings/currencies' },
+          { label: '외화등록', to: '/settings/currencies' },
         ],
       },
       {
@@ -216,8 +368,8 @@ const MENU: TopMenu[] = [
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
           { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
           { label: '지출결의서', to: '/accounting/vouchers' },
-          { label: '입금보고서', to: '/accounting/vouchers' },
-          { label: '가지급금정산서', to: '/accounting/vouchers' },
+          { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+          { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
           { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
         ],
       },
@@ -244,6 +396,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '회계전표조회', to: '/accounting/journals' },
           { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
+          { label: '증빙센터', to: '/accounting/evidence-center' },
         ],
       },
       {
@@ -274,6 +427,8 @@ const MENU: TopMenu[] = [
         label: '채권관리',
         nodes: [
           { label: '채권·채무현황', to: '/sales/ledger' },
+          { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
+          { label: '채권현황', to: '/sales/receivable-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
         ],
       },
@@ -331,7 +486,7 @@ const MENU: TopMenu[] = [
         label: '급여관리',
         nodes: [
           { label: '기본사항등록', children: [
-            { label: '사원등록', to: '/hr/employees' },
+            { label: '사원(담당)등록', to: '/hr/employees' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
@@ -358,9 +513,9 @@ const MENU: TopMenu[] = [
           {
             label: '근태',
             children: [
-              { label: '근태입력', to: '/hr/attendance-input' },
-              { label: '근태조회', to: '/hr/attendance-list' },
-              { label: '근태현황', to: '/hr/attendance-status' },
+              { label: '근태입력', to: '/hr/leave-input' },
+              { label: '근태조회', to: '/hr/leave-list' },
+              { label: '근태현황', to: '/hr/attendance-kind-status' },
               { label: '지각현황', to: '/hr/attendance-late' },
               { label: '일별근무시간', to: '/hr/daily-hours' },
               { label: '출퇴근/근태/일정 통합현황', to: '/hr/work-integrated' },
@@ -385,7 +540,7 @@ const MENU: TopMenu[] = [
         label: '원천징수',
         nodes: [
           { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
-          { label: '근로소득원천징수영수증', to: '/accounting/withholding' },
+          { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
         ],
       },
       {
@@ -412,23 +567,23 @@ const MENU: TopMenu[] = [
       {
         label: '공유정보',
         nodes: [
+          // 순서·묶음은 원본 공유정보 메뉴 트리 그대로다.
+          // 원본에 있으나 우리에게 없는 항목(사원연락처·조직도현황·외근현황)은 원본에서도
+          // '권한없음'이라 화면을 볼 수 없어 근거가 없다. 근거가 생기면 그 자리에 넣는다.
           { label: '주요전달사항', to: '/groupware/key-notice' },
-          { label: '공유정보', to: '/groupware/shared' },
-          { label: '조건별검색', to: '/sales/condition-search' },
-          { label: '조직도관리', to: '/groupware/org' },
           { label: '게시판', children: [
             { label: '공지사항', to: '/groupware/notice' },
-            { label: '익명게시판', to: '/groupware/anonymous-board' },
           ] },
-          { label: '외근조회', to: '/groupware/field-works' },
           {
             label: '사내관리',
             children: [
               { label: '일정관리', to: '/groupware/schedule' },
-              { label: '일정검색', to: '/groupware/schedule-search' },
               { label: '공용품관리', to: '/groupware/supplies' },
             ],
           },
+          { label: '조직도관리', children: [
+            { label: '조직도등록', to: '/groupware/org' },
+          ] },
           {
             label: '설문조사',
             children: [
@@ -437,6 +592,11 @@ const MENU: TopMenu[] = [
               { label: '설문조사현황', to: '/groupware/survey-status' },
             ],
           },
+          { label: '조건별검색', to: '/sales/condition-search' },
+          { label: '익명게시판', to: '/groupware/anonymous-board' },
+          { label: '외근조회', children: [
+            { label: '외근조회', to: '/groupware/field-works' },
+          ] },
         ],
       },
       {
@@ -445,51 +605,78 @@ const MENU: TopMenu[] = [
           { label: '기안서작성', to: '/groupware/approval/draft' },
           { label: '내결재관리', to: '/groupware/approval/my' },
           { label: '기안서통합관리', to: '/groupware/approval/all' },
-          { label: '공통양식·결재선 설정', to: '/groupware/approval/settings' },
+          // 원본은 '기초자료등록' 묶음 아래 공통양식등록·결재설정 둘이다. 우리 설정 화면이
+          // 그 둘을 탭으로 갖고 있어서 같은 화면을 가리키고, 탭만 미리 골라 준다.
+          {
+            label: '기초자료등록',
+            children: [
+              { label: '공통양식등록', to: '/groupware/approval/settings?tab=공통양식등록' },
+              { label: '결재설정', to: '/groupware/approval/settings?tab=결재설정' },
+            ],
+          },
         ],
       },
       {
         label: '업무관리',
         nodes: [
           { label: 'ECDrive', to: '/groupware/drive' },
+          // 원본에서 '업무관리게시판'은 묶음이고 그 안에 게시판('WORK')이 있다.
+          // 우리가 따로 두던 '업무관리게시판' 화면은 WORK 와 같은 것이라 지웠다.
           {
             label: '업무관리게시판',
             children: [
-              { label: '업무관리게시판', to: '/groupware/board' },
               { label: 'WORK', to: '/groupware/work' },
             ],
           },
           { label: '업무일지', to: '/groupware/worklog' },
-          { label: '출/퇴근', children: [{ label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+          // 원본 그룹웨어의 출/퇴근 묶음은 다섯 개다. 우리 화면은 관리 > 근태관리에 있어서
+          // 새로 만들지 않고 같은 화면을 가리킨다.
+          {
+            label: '출/퇴근',
+            children: [
+              { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' },
+              { label: '출/퇴근입력', to: '/hr/attendance-input' },
+              { label: '출/퇴근조회', to: '/hr/attendance-list' },
+              { label: '출/퇴근현황(ID)', to: '/hr/attendance-status' },
+              { label: '지각현황(ID)', to: '/hr/attendance-late' },
+              { label: '일별근무시간(ID)', to: '/hr/daily-hours' },
+              { label: '출퇴근/근태/일정현황(ID)', to: '/hr/work-integrated' },
+            ],
+          },
         ],
       },
       {
         label: '고객관리',
         nodes: [
+          // 원본 순서·묶음 그대로. '고객관리게시판'은 묶음이고 그 안에 게시판이 둘 있다
+          // (영업활동관리·상담이력관리). 상담이력관리는 원본에서도 권한없음이라 근거가 없어 넣지 않았다.
           { label: '거래처등록', to: '/sales/partners' },
-          { label: '고객관리', to: '/groupware/crm' },
           { label: '명함관리', to: '/groupware/cards' },
+          {
+            label: '고객관리게시판',
+            children: [
+              { label: '영업활동관리', to: '/groupware/crm' },
+            ],
+          },
           { label: '거래처중심입력', to: '/sales/partner-entry' },
           { label: '품목중심입력', to: '/sales/item-entry' },
         ],
       },
       {
+        // 원본 프로젝트 탭은 묶음 없이 두 개다. '프로젝트' 항목은 여기에 없다
+        // (프로젝트 등록은 회계 II > 프로젝트에 있다).
         label: '프로젝트',
         nodes: [
-          { label: '프로젝트', to: '/groupware/project' },
-          {
-            label: '진척관리',
-            children: [
-              { label: '건설예정공정표', to: '/groupware/construction-schedule' },
-              { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
-            ],
-          },
+          { label: '건설예정공정표', to: '/groupware/construction-schedule' },
+          { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
         ],
       },
       {
         label: '공용메일',
         nodes: [
           { label: '메일함(사내·공용)', to: '/groupware/mail' },
+          { label: '쪽지(수발신내역)', to: '/groupware/messages' },
+          { label: '커뮤니케이션센터', to: '/groupware/messages' },
         ],
       },
     ],
@@ -498,37 +685,49 @@ const MENU: TopMenu[] = [
     label: '데이터센터',
     tabs: [
       { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
-      { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }] },
+      { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }, { label: '의료기기공급내역보고', to: '/datacenter/medical-device-report' }] },
     ],
   },
 ]
 
-const BOOKMARKS: { label: string; to: string }[] = [
-  { label: '품목등록', to: '/inventory/items' },
-  { label: '거래처등록', to: '/sales/partners' },
-  { label: '구매입력', to: '/sales/buy' },
-  { label: '판매입력', to: '/sales/sell' },
-  { label: '채권·채무현황', to: '/sales/ledger' },
-  { label: '거래처관리대장', to: '/sales/partner-ledger' },
-]
+/**
+ * 상단 북마크바 한 칸. 원본은 [즐겨찾기]로 지금 화면을 담거나 뺀다 — 사람마다 매일 여는
+ * 화면이 다르다. 우리는 코드에 6개를 박아 둬서 아무도 자기 화면을 담을 수 없었고,
+ * 담을 수 없으니 쓸 이유도 없었다. 이제 서버가 사용자별로 들고 있다.
+ *
+ * <p>브라우저에 저장하지 않은 이유: 그러면 집 PC 와 회사 PC 의 북마크가 달라진다.
+ */
+interface Bookmark { id: number | null; label: string; path: string; sortOrder: number }
 
-// 우측 세로 앱바 아이콘. to가 있으면 라우트 이동, print면 화면 인쇄, 나머지는 안내 문구
-interface AppIcon { icon: string; title: string; to?: string; print?: boolean; panel?: PanelKind }
+/*
+ * 우측 세로 앱바 아이콘. 이름은 <b>원본 그대로</b> 쓴다(사본 172장 전부의 상단바에 있다).
+ * to 면 라우트 이동, print 면 화면 인쇄, newWindow 면 지금 화면을 새 창으로, 나머지는 안내.
+ *
+ * <p>다크모드로보기·업무지원AI·원격지원은 아직 안내만 띄운다.
+ * 다크모드는 색이 화면마다 인라인으로 박혀 있어(토큰 사용 1,069곳 vs 하드코딩 4,716곳)
+ * 토큰만 바꾸면 <b>절반만 어두워진다.</b> 흰 배경에 흰 글씨가 되는 화면이 생기느니
+ * 안내를 띄우는 편이 낫다. 색을 토큰으로 모으는 것이 먼저다.
+ */
+interface AppIcon { icon: string; title: string; to?: string; print?: boolean; newWindow?: boolean; panel?: PanelKind }
 const APPS: AppIcon[] = [
-  { icon: '🌙', title: '테마' },
-  { icon: '🤖', title: 'AI 도우미' },
+  { icon: '🌙', title: '다크모드로보기' },
+  { icon: '🤖', title: '업무지원AI' },
   { icon: '🔍', title: '통합검색', panel: 'search' },
-  { icon: '🎧', title: '고객지원' },
+  { icon: '🎧', title: '원격지원' },
   { icon: '➕', title: '빠른등록' },
   { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
   { icon: '🔔', title: '알림', panel: 'notifications' },
-  { icon: '💬', title: '메신저' },
-  { icon: '📨', title: '쪽지' },
+  { icon: '💬', title: '메신저', panel: 'messenger' },
+  /*
+   * 원본 앱바의 [쪽지]. 우리는 아이콘만 두고 <b>아무 데도 안 갔다</b> — 눌러도 아무 일이
+   * 없는 아이콘은 고장으로 읽힌다. 쪽지 화면은 진작 있다(그룹웨어 > 쪽지(수발신내역)).
+   */
+  { icon: '📨', title: '쪽지', to: '/groupware/messages' },
   { icon: '📝', title: 'E Note', panel: 'notes' },
   { icon: '🖨️', title: '화면 인쇄', print: true },
-  { icon: '🔖', title: '즐겨찾기' },
+  { icon: '🗗', title: '새창열기', newWindow: true },
   { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
-  { icon: '🕒', title: '최근 사용' },
+  { icon: '🕒', title: '타임라인' },
   { icon: '📌', title: '화면 고정' },
   { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
 ]
@@ -560,9 +759,14 @@ function resolveActive(pathname: string): [number, number] {
   return found
 }
 
-// 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록
-interface FlatItem { label: string; to: string; path: string }
-const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
+/*
+ * 메뉴검색·사이트맵에서 함께 쓰는, to가 있는 전체 메뉴 항목의 평면 목록.
+ *
+ * <p>밖으로도 낸다 — 오더관리유형의 [처리메뉴]처럼 <b>화면을 가리키는 값</b>을 고르는 칸이
+ * 여기 목록을 그대로 써야 한다. 따로 적어 두면 메뉴를 옮길 때 둘이 갈린다.
+ */
+export interface FlatItem { label: string; to: string; path: string }
+export const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
   m.tabs.flatMap((tab) =>
     tab.nodes.flatMap((n) =>
       isGroup(n)
@@ -580,12 +784,16 @@ export default function EcountLayout() {
   const location = useLocation()
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
   const [menuQuery, setMenuQuery] = useState('')                // 메뉴검색 입력값
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])    // 상단 북마크바 (사용자별)
   const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
   const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
   const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
+  const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
+  const [noteCount, setNoteCount] = useState(0)                 // 쪽지 안 읽은 수
+  const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
   useEffect(() => {
@@ -593,6 +801,72 @@ export default function EcountLayout() {
       .then((r) => setAlertCount(r.data.total))
       .catch(() => setAlertCount(0))
   }, [panel])
+
+  // 메신저 미읽음. 패널을 열지 않아도 새 메시지를 알아야 하므로 주기적으로 센다.
+  // 패널이 열려 있을 때는 패널 자신이 폴링하므로 여기서는 닫힌 동안만 돈다.
+  useEffect(() => {
+    const count = () => api.get<{ unread: number }>('/chat/unread-count')
+      .then((r) => setChatCount(r.data.unread))
+      .catch(() => setChatCount(0))
+    count()
+    if (panel === 'messenger') return
+    const t = window.setInterval(count, 30000)
+    return () => window.clearInterval(t)
+  }, [panel])
+
+  /*
+   * 쪽지 안 읽은 수. 서버가 세어 주는데(/short-messages/unread-count) 아무도 안 물어봐서
+   * <b>새 쪽지가 와도 아이콘이 그대로였다.</b> 메신저와 같은 주기로 센다.
+   */
+  useEffect(() => {
+    const count = () => api.get<{ unread: number }>('/short-messages/unread-count')
+      .then((r) => setNoteCount(r.data.unread))
+      .catch(() => setNoteCount(0))
+    count()
+    const t = window.setInterval(count, 30000)
+    return () => window.clearInterval(t)
+  }, [location.pathname])
+
+  /* 화면 안의 버튼(근태조회 [메신저]·설문조사조회 [대화방])이 <b>같은 창을</b> 열어 달라고 알린다. */
+  useEffect(() => {
+    const open = (e: Event) => setPanel((e as CustomEvent<PanelKind>).detail)
+    window.addEventListener('ec:open-panel', open)
+    return () => window.removeEventListener('ec:open-panel', open)
+  }, [])
+
+  // 상단 북마크바. 아무것도 담지 않은 사람에게는 서버가 기본 여섯을 내려 준다.
+  useEffect(() => {
+    api.get<Bookmark[]>('/bookmarks')
+      .then((r) => setBookmarks(r.data))
+      .catch(() => setBookmarks([]))
+  }, [])
+
+  /*
+   * 지금 화면이 메뉴의 어느 항목인가. <b>가장 구체적인 것</b>을 고른다 —
+   * '/sales' 가 '/sales/partners' 를 삼키면 북마크 이름이 엉뚱해진다.
+   * 메뉴에 없는 화면(상세·모달 경로)은 이름을 붙일 수 없어 담지 않는다.
+   */
+  const currentLeaf = useMemo(() => {
+    let best: FlatItem | null = null
+    for (const f of FLAT_MENU) {
+      if (matchLength(f.to, location.pathname) > 0
+          && (!best || f.to.length > best.to.length)) best = f
+    }
+    return best
+  }, [location.pathname])
+  const bookmarked = !!currentLeaf && bookmarks.some((b) => b.path === currentLeaf.to)
+
+  async function toggleBookmark() {
+    if (!currentLeaf) return
+    try {
+      const res = bookmarked
+        ? await api.delete<Bookmark[]>(`/bookmarks?path=${encodeURIComponent(currentLeaf.to)}`)
+        : await api.post<Bookmark[]>('/bookmarks', { label: currentLeaf.label, path: currentLeaf.to })
+      setBookmarks(res.data)
+    } catch {
+      /* 북마크는 곁다리다 — 실패해도 화면을 막지 않는다. */
+    }
+  }
 
   const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
   const activeTop = MENU[topIdx]
@@ -633,6 +907,11 @@ export default function EcountLayout() {
     if (app.panel) return setPanel(app.panel)
     if (app.to) return navigate(app.to)
     if (app.print) return window.print()
+    // 원본 [새창열기] — 지금 화면을 그대로 새 창에. 두 화면을 나란히 놓고 보라는 것이다.
+    if (app.newWindow) {
+      window.open(window.location.href, '_blank', 'noopener,noreferrer')
+      return
+    }
     setAppNotice(`${app.title} 기능은 준비 중입니다.`)
     window.setTimeout(() => setAppNotice(''), 2200)
   }
@@ -730,14 +1009,24 @@ export default function EcountLayout() {
           )}
         </div>
         <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
-        {BOOKMARKS.map((b, i) => (
-          <NavLink key={i} to={b.to} style={({ isActive }) => ({
+        {bookmarks.map((b, i) => (
+          <NavLink key={b.path + i} to={b.path} style={({ isActive }) => ({
             padding: '0 10px', height: 24, display: 'flex', alignItems: 'center', textDecoration: 'none',
             color: isActive ? 'var(--ec-blue)' : '#4a5260', fontWeight: isActive ? 700 : 400,
           })}>
             {b.label}
           </NavLink>
         ))}
+        {/* 지금 화면을 담거나 뺀다. 메뉴에 없는 화면은 이름을 붙일 수 없어 담지 않는다. */}
+        <button className="ec-btn no-ec" title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
+                onClick={toggleBookmark} disabled={!currentLeaf}
+                style={{
+                  marginLeft: 6, height: 22, border: 'none', background: 'none',
+                  cursor: currentLeaf ? 'pointer' : 'default',
+                  color: bookmarked ? '#e8a33d' : '#c9ced6', fontSize: 13,
+                }}>
+          {bookmarked ? '★' : '☆'}
+        </button>
         <span style={{ marginLeft: 'auto', color: '#b6bcc4' }}>📌</span>
       </div>
 
@@ -829,7 +1118,10 @@ export default function EcountLayout() {
               })}
             </aside>
 
-            <div style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
+            <div ref={contentRef} style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
+              {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
+                  셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
+              <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
               {canRoute(location.pathname) ? (
                 <Outlet />
               ) : (
@@ -852,12 +1144,16 @@ export default function EcountLayout() {
           {APPS.map((a, i) => (
             <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer', position: 'relative' }}>
               {a.icon}
-              {a.panel === 'notifications' && alertCount > 0 && (
+              {((a.panel === 'notifications' && alertCount > 0)
+                || (a.panel === 'messenger' && chatCount > 0)
+                || (a.title === '쪽지' && noteCount > 0)) && (
                 <span style={{
                   position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, padding: '0 3px',
                   borderRadius: 7, background: '#c60a2e', color: '#fff', fontSize: 9, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{alertCount}</span>
+                }}>{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
+                  : a.title === '쪽지' ? (noteCount > 99 ? '99+' : noteCount)
+                    : alertCount}</span>
               )}
             </span>
           ))}

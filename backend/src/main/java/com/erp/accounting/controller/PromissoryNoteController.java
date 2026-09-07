@@ -24,8 +24,19 @@ public class PromissoryNoteController {
     private final PromissoryNoteService service;
 
     @GetMapping
-    public NoteSummary list() {
-        return service.findAll();
+    public NoteSummary list(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to,
+            /* 원본 [오천건이상조회] — 눌러야 문턱 위를 준다. */
+            @RequestParam(required = false, defaultValue = "false") boolean all) {
+        return service.findAll(from, to, all);
     }
 
     @PostMapping

@@ -35,18 +35,56 @@ public class MaterialIssue extends BaseTimeEntity {
     @JoinColumn(name = "warehouse_id")
     private Warehouse warehouse;
 
+    /**
+     * 받는공장 — 자재가 도착하는 창고(구분이 '공장' 인 창고). 원본 [받는공장] 이다.
+     *
+     * <p>보내는창고에서 빼고 여기에 넣는다. 예전에는 이 칸이 없어 어디로 갔는지 알 수 없었고,
+     * 재고도 아예 안 움직였다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "to_warehouse_id")
+    private Warehouse toWarehouse;
+
     /** 연결 작업지시 (선택) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_order_id")
     private WorkOrder workOrder;
 
     /** 불출수량 */
+    /**
+     * 불출 전표번호. 원본 생산불출·생산불출조회의 첫 열 <b>[일자-No.]</b> 의 뒷부분이다.
+     *
+     * <p>없었다. 날짜만 있으니 같은 날 여러 건을 <b>가리킬 말이 없고</b>, 불출증을 찍어도
+     * 무엇을 찍은 종이인지 적히지 않았다. 다른 전표는 다 번호를 다는데 여기만 없었다.
+     */
+    @Column(name = "issue_no", nullable = false, unique = true, length = 30)
+    private String issueNo;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal qty;
 
     @Column(nullable = false)
     private LocalDate issueDate;
 
+    /**
+     * 담당자(hr.Employee)의 id. <b>@ManyToOne 을 쓰지 않는다.</b>
+     *
+     * <p>production 이 hr 을 참조하면 hr → accounting → production 과 맞물려 순환이 된다
+     * (CLAUDE.md 4.1). 작업지시의 담당자와 같은 이유다 — 이름은 화면이 사원 목록에서 붙인다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
     @Column(length = 300)
     private String note;
+
+    /**
+     * 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트].
+     *
+     * <p>생산입고(Production)에는 이미 있었는데 여기만 없어서, 같은 작업에서 나온
+     * 불출이 <b>프로젝트별 집계에 안 잡혔다.</b> 안 정할 수 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.domain.Project project;
 }

@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import com.erp.inventory.dto.LotDtos;
 
@@ -36,15 +38,45 @@ public class LotService {
 
     @Transactional(readOnly = true)
     public List<LotTransactionResponse> transactions() {
-        return lotTxRepository.findAllWithRefs().stream()
+        return transactions(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기준일자]</b>. 서버가 이 구간만 준다 — 전에는 여태 쌓인 움직임을
+     * 통째로 주었다(원본 E040620 은 [전월+금월] 을 보고 열린다).
+     */
+    @Transactional(readOnly = true)
+    public List<LotTransactionResponse> transactions(java.time.LocalDate from, java.time.LocalDate to) {
+        return lotTxRepository.findByPeriodWithRefs(
+                        from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                        to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream()
                 .map(LotTransactionResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<LotResponse> findAll() {
-        return lotRepository.findAllWithRefs().stream()
-                .map(LotResponse::from)
+        return findAll(null);
+    }
+
+    /**
+     * 로트 목록. <code>asOf</code> 를 주면 <b>그 날 시점의 잔량</b>으로 되돌린다
+     * (원본 품목vs시리얼재고수량비교의 [기준일자]).
+     *
+     * <p>품목 재고를 asOf 로 되돌리는 방식과 같다 — <b>지금 잔량에서 그 뒤의 움직임을 뺀다.</b>
+     * 품목 쪽만 되돌리고 로트는 오늘 것을 쓰면, 있지도 않은 차이가 표에 가득 찬다.
+     */
+    @Transactional(readOnly = true)
+    public List<LotResponse> findAll(java.time.LocalDate asOf) {
+        List<Lot> lots = lotRepository.findAllWithRefs();
+        if (asOf == null) return lots.stream().map(LotResponse::from).toList();
+        Map<Long, BigDecimal> after = new HashMap<>();
+        for (Object[] r : lotTxRepository.sumChangeAfter(asOf)) {
+            after.put((Long) r[0], (BigDecimal) r[1]);
+        }
+        return lots.stream()
+                .map((l) -> LotResponse.from(l).withStockQty(
+                        l.getStockQty().subtract(after.getOrDefault(l.getId(), BigDecimal.ZERO))))
                 .toList();
     }
 

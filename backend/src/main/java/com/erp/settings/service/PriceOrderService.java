@@ -59,10 +59,10 @@ public class PriceOrderService {
     }
 
     private String normalize(String category) {
-        if (category == null) throw ApiException.badRequest("구분(category)을 지정하세요.");
+        if (category == null) throw ApiException.badRequest("영업관리·구매관리 중 어느 쪽인지 고르세요.");
         String c = category.trim().toUpperCase();
         if (!c.equals("SALES") && !c.equals("PURCHASE")) {
-            throw ApiException.badRequest("구분은 SALES 또는 PURCHASE 여야 합니다: " + category);
+            throw ApiException.badRequest("구분은 영업관리·구매관리 중 하나여야 합니다.");
         }
         return c;
     }

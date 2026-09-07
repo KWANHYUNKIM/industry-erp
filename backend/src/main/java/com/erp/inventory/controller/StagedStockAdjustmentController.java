@@ -7,10 +7,12 @@ import com.erp.inventory.service.StagedStockAdjustmentService;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -20,9 +22,13 @@ public class StagedStockAdjustmentController {
 
     private final StagedStockAdjustmentService service;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<StagedResponse> list(@RequestParam(required = false) StagedStatus status) {
-        return service.findAll(status);
+    public List<StagedResponse> list(
+            @RequestParam(required = false) StagedStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findAll(status, from, to);
     }
 
     @PostMapping

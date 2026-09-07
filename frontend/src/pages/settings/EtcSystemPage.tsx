@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 
 /** Self-Customizing > 기타관리시스템 — 부가 관리 기능 바로가기 */
 // 실제 외부 연동/저장 백엔드가 아직 없어 목록은 표본 데이터다. (백엔드 미연동)
@@ -35,6 +36,13 @@ export default function EtcSystemPage() {
     setSaved('입력값은 이 화면에만 유지됩니다. 연동 설정 저장 백엔드가 아직 없습니다. (백엔드 미연동)')
   }
 
+
+  /* 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(SYSTEMS, {
+    기능: (x) => x.name,
+    상태: (x) => x.state,
+  })
+
   return (
     <>
       <EcListShell
@@ -48,14 +56,14 @@ export default function EtcSystemPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 200 }}>기능 ▼</th>
+              <th style={{ width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('기능')}>기능 {sort.mark('기능')}</th>
               <th>설명</th>
-              <th style={{ width: 90, textAlign: 'center' }}>상태 ▼</th>
+              <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
               <th style={{ width: 100, textAlign: 'center' }}>설정</th>
             </tr>
           </thead>
           <tbody>
-            {SYSTEMS.map((s, i) => (
+            {sort.sorted.map((s, i) => (
               <tr key={s.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontWeight: 600 }}>{s.name}</td>

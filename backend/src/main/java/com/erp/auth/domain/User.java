@@ -42,6 +42,28 @@ public class User extends BaseTimeEntity {
     @Column(length = 50)
     private String department;
 
+    /**
+     * 연결된 사원(hr.Employee)의 id. <b>@ManyToOne 을 쓰지 않는다.</b>
+     *
+     * <p>auth 는 아무 모듈에도 의존하지 않는 기반층이다(CLAUDE.md 4.1).
+     * hr 이 이미 auth 를 참조하므로 여기서 hr 을 참조하면 순환이 된다.
+     * 그래서 id 만 들고, 사원번호·직급·부서명은 <b>hr 쪽에서</b> 붙인다.
+     * inventory.Warehouse 가 공정·외주거래처를 드는 방식과 같다.
+     *
+     * <p>안 이은 계정(시스템 관리자 등)은 null 이고, 그때는 예전처럼
+     * 자유입력 {@code department} 를 쓴다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
+    /**
+     * 연간 휴가 부여일수. 휴가잔여일수현황의 '휴가일수' 열.
+     * 소수 3자리 — 시간 단위 휴가가 0.125일(1시간) 단위로 쌓인다.
+     */
+    @Column(name = "annual_leave_days", nullable = false, precision = 6, scale = 3)
+    @Builder.Default
+    private java.math.BigDecimal annualLeaveDays = java.math.BigDecimal.valueOf(15);
+
     /** 계정 활성화 여부 */
     @Column(nullable = false)
     @Builder.Default

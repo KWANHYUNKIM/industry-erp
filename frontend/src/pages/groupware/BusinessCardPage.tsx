@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BusinessCard, Partner, User } from '../../api/types'
 
@@ -56,6 +58,11 @@ export default function BusinessCardPage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '명함관리', [])
+
   return (
     <EcListShell
       title="명함관리"
@@ -90,7 +97,7 @@ export default function BusinessCardPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
@@ -121,15 +128,15 @@ export default function BusinessCardPage() {
               <td style={{ color: '#5a626e' }}>
                 {[c.department, c.jobTitle].filter(Boolean).join(' / ') || '-'}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? '-'}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? '-'}</td>
-              <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : '-'}</td>
+              <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? ''}</td>
+              <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : ''}</td>
               <td>
                 {c.tags.map((t) => (
                   <span key={t} style={{ marginRight: 3, fontSize: 11, padding: '1px 5px', background: '#eef5ff', border: '1px solid #cfe0f5', borderRadius: 8, color: '#2b5b91' }}>#{t}</span>
                 ))}
               </td>
-              <td style={{ color: '#8a929c' }}>{c.ownerName ?? '-'}</td>
+              <td style={{ color: '#8a929c' }}>{c.ownerName ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(c)}>수정</button>
@@ -235,10 +242,11 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
               <tr>
                 <th style={{ background: '#f5f7fa' }}>거래처</th>
                 <td colSpan={3}>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">(등록된 거래처 아님 — 회사명 직접 입력)</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
+                    거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
+                <CodePickerField label="거래처" hideLabel width={240} emptyLabel="(등록된 거래처 아님 — 회사명 직접 입력)"
+                                 value={partnerId} onChange={setPartnerId}
+                                 items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               {!partnerId && (

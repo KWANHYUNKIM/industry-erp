@@ -5,12 +5,15 @@ import com.erp.trade.domain.Shipment;
 import com.erp.trade.domain.ShipmentLine;
 import com.erp.trade.domain.ShipmentStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class ShipmentDtos {
@@ -19,31 +22,54 @@ public final class ShipmentDtos {
 
     public record ShipLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            BigDecimal unitPrice
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.")
+            BigDecimal unitPrice,
+            /** 줄 적요. 원본 출하지시서입력 그리드의 마지막 열. */
+            @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
+            String remark
     ) {}
 
     public record CreateShipmentRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
             LocalDate shipDate,
+            /** 출하예정일. 미출하현황이 이 값으로 거른다. */
+            LocalDate dueDate,
+            Long warehouseId,
+            Long employeeId,
+            /** 배송지 — 거래처 주소와 다른 곳으로 보낼 수 있다. */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String contact,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
+            String postalCode,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
+            String address,
+            /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. 안 정할 수 있다. */
+            Long projectId,
+            @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines
     ) {}
 
     public record UpdateStatusRequest(
-            @NotNull ShipmentStatus status
+            @NotNull(message = "출하상태를 선택하세요.") ShipmentStatus status
     ) {}
 
     public record ShipLineResponse(
             Long itemId, String itemCode, String itemName, String unit,
+            /** 규격. 원본 출하지시서현황·출하현황의 결과 열이 [품목명(규격)] 이다. */
+            String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
+            /** 줄 적요. 원본 출하현황·출하지시서현황의 결과 열. */
+            String remark,
             /** 근거 주문 라인. 직접 등록한 출하면 null. */
             Long orderLineId
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getQuantity(), l.getUnitPrice(), l.getAmount(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+                    l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
                     l.getOrderLine() != null ? l.getOrderLine().getId() : null);
         }
     }
@@ -54,9 +80,24 @@ public final class ShipmentDtos {
             /** 근거 주문. 직접 등록한 출하면 null. */
             Long salesOrderId, String salesOrderNo,
             LocalDate shipDate,
+            /** 출하예정일 · 출하창고 · 담당자 · 배송지. 원본 출하지시서입력의 머리 항목들이다. */
+            LocalDate dueDate,
+            Long warehouseId, String warehouseName,
+            Long employeeId, String employeeName,
+            String contact, String postalCode, String address,
             ShipmentStatus status, String statusName,
             BigDecimal totalQuantity, BigDecimal totalAmount,
+            /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
+            Long projectId, String projectName,
             String remark, String createdBy,
+            /**
+             * 만든 때 · 고친 때. 원본 출하조회·출하지시서조회의 조건 [최초작성일자] ·
+             * [최종수정일시] 와 [기타] 의 <b>수정일자순(정렬)</b> 이 이 두 값을 본다.
+             * <b>이미 지고 있던 값이다</b> — Shipment 는 BaseTimeEntity 를 물려받아
+             * 두 칸을 진작 채우고 있는데 응답이 안 실어 화면이 볼 수가 없었다.
+             * 판매·구매·견적에는 앞 바퀴에 실었고 출하만 남아 있었다.
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt,
             List<ShipLineResponse> lines
     ) {
         public static ShipmentResponse from(Shipment s) {
@@ -67,9 +108,18 @@ public final class ShipmentDtos {
                     order != null ? order.getId() : null,
                     order != null ? order.getOrderNo() : null,
                     s.getShipDate(),
+                    s.getDueDate(),
+                    s.getWarehouse() != null ? s.getWarehouse().getId() : null,
+                    s.getWarehouse() != null ? s.getWarehouse().getName() : null,
+                    s.getEmployee() != null ? s.getEmployee().getId() : null,
+                    s.getEmployee() != null ? s.getEmployee().getName() : null,
+                    s.getContact(), s.getPostalCode(), s.getAddress(),
                     s.getStatus(), s.getStatus().getDisplayName(),
                     s.getTotalQuantity(), s.getTotalAmount(),
+                    s.getProject() != null ? s.getProject().getId() : null,
+                    s.getProject() != null ? s.getProject().getName() : null,
                     s.getRemark(), s.getCreatedBy(),
+                    s.getCreatedAt(), s.getUpdatedAt(),
                     s.getLines().stream().map(ShipLineResponse::from).toList());
         }
     }

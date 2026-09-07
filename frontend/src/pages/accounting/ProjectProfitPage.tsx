@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ProjectProfitSummary } from '../../api/types'
+import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const firstOfMonth = () => new Date().toISOString().slice(0, 8) + '01'
-const today = () => new Date().toISOString().slice(0, 10)
+const firstOfMonth = () => ymd(new Date()).slice(0, 8) + '01'
+const today = () => ymd(new Date())
 
 /**
  * 회계 II > 프로젝트별 손익 — 전표에 붙은 프로젝트를 집계한다.
@@ -36,21 +38,36 @@ export default function ProjectProfitPage() {
   const rows = (data?.rows ?? []).filter((r) =>
     !onlyActive || r.revenue !== 0 || r.purchaseCost !== 0 || r.expense !== 0)
 
+  const reset = () => { setFrom(firstOfMonth()); setTo(today()); setOnlyActive(true) }
+
   return (
-    <EcListShell title="프로젝트별 손익" actions={[{ label: '조회', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 6 }}>
-          <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-          거래가 있는 프로젝트만
-        </label>
-        <span style={{ marginLeft: 4, fontSize: 12, color: '#9aa1ab' }}>
-          매출·원가는 공급가액 기준(부가세 제외). 판매·구매·비용 입력 시 프로젝트를 지정하면 여기 잡힙니다.
-        </span>
-      </div>
+    <EcListShell
+      title="프로젝트별 손익"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={INQUIRY_FULL_PICKS}
+        dateLabel="기간"
+      >
+        <EcCond label="기타">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={onlyActive}
+                   onChange={(e) => setOnlyActive(e.target.checked)} /> 거래가 있는 프로젝트만
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      <p style={{ marginBottom: 8, fontSize: 12, color: '#9aa1ab' }}>
+        매출·원가는 공급가액 기준(부가세 제외). 판매·구매·비용 입력 시 프로젝트를 지정하면 여기 잡힙니다.
+      </p>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
@@ -98,7 +115,7 @@ export default function ProjectProfitPage() {
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.projectCode}</td>
               <td style={{ fontWeight: 600 }}>{r.projectName}</td>
-              <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.status ?? '-'}</td>
+              <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.status ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.revenue)}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.purchaseCost)}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.expense)}</td>

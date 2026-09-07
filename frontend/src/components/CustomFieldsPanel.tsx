@@ -61,7 +61,12 @@ export default function CustomFieldsPanel({ entityType, entityId }: { entityType
             )}
           </label>
         ))}
-        <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '추가항목 저장'}</button>
+        {/*
+          <b>type 을 안 적으면 submit 이다.</b> 이 패널을 등록 폼 안에 넣는 순간
+          [추가항목 저장] 을 누르면 <b>바깥 폼이 대신 넘어간다</b> — 값은 안 저장되고
+          엉뚱하게 품목이 수정된다. 폼 밖(전표조회)에서만 쓰던 때는 안 보이던 함정이다.
+        */}
+        <button type="button" className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '추가항목 저장'}</button>
       </div>
     </div>
   )

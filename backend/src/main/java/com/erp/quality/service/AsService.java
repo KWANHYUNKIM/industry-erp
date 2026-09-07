@@ -7,6 +7,8 @@ import com.erp.quality.domain.AsRequest;
 import com.erp.quality.domain.AsStatus;
 import com.erp.trade.domain.BusinessPartner;
 import com.erp.inventory.domain.Item;
+import com.erp.inventory.service.ProjectService;
+import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
 import com.erp.quality.dto.AsDtos.AsConsumptionRow;
@@ -38,6 +40,8 @@ import com.erp.quality.dto.AsDtos;
 public class AsService {
 
     private final AsRequestRepository asRepository;
+    private final WarehouseService warehouseService;
+    private final ProjectService projectService;
     private final AsPartRepository asPartRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemRepository itemRepository;
@@ -47,7 +51,41 @@ public class AsService {
 
     @Transactional(readOnly = true)
     public List<AsResponse> findAll() {
-        return asRepository.findAllWithRefs().stream().map(AsResponse::from).toList();
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<AsResponse> findAll(LocalDate from, LocalDate to) {
+        return findAll(from, to, null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p><b>doneFrom·doneTo 는 수리한 날</b>이다. 원본 A/S수리현황(E040611)은 그것을
+     * <b>주 조건</b>으로 쓰고 접수일자를 보조로 둔다 — 우리는 접수일로만 걸러
+     * 이번 달에 고친 건을 서버에서 좁힐 수가 없었다. 안 고친 건은 그 날이 없으니 빠진다.
+     *
+     * <p>둘 다 주면 <b>수리일 쪽이 이긴다</b> — 원본이 그쪽을 주 조건으로 쓰기 때문이다.
+     */
+    @Transactional(readOnly = true)
+    public List<AsResponse> findAll(LocalDate from, LocalDate to, LocalDate doneFrom, LocalDate doneTo) {
+        var found = (doneFrom != null || doneTo != null)
+                ? asRepository.findWithRefsByDonePeriod(
+                        doneFrom != null ? doneFrom : LocalDate.of(1, 1, 1),
+                        doneTo != null ? doneTo : LocalDate.of(9999, 12, 31))
+                : (from == null && to == null)
+                        ? asRepository.findAllWithRefs()
+                        : asRepository.findWithRefsByPeriod(
+                                from != null ? from : LocalDate.of(1, 1, 1),
+                                to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream().map(AsResponse::from).toList();
     }
 
     @Transactional
@@ -64,6 +102,10 @@ public class AsService {
                 .partner(partner)
                 .item(item)
                 .receiptDate(date)
+                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .title(req.title())
+                .scheduledDate(req.scheduledDate())
                 .symptom(req.symptom())
                 .charge(req.charge())
                 .status(AsStatus.RECEIVED)
@@ -85,6 +127,8 @@ public class AsService {
             }
         }
         if (req.charge() != null) as.setCharge(req.charge());
+        if (req.title() != null) as.setTitle(req.title());
+        if (req.scheduledDate() != null) as.setScheduledDate(req.scheduledDate());
         if (req.repairNote() != null) as.setRepairNote(req.repairNote());
         if (req.doneDate() != null) as.setDoneDate(req.doneDate());
         return AsResponse.from(as);
@@ -96,8 +140,17 @@ public class AsService {
 
     // ------------------------------------------------------------ 소모부품
 
+    /**
+     * <p>없는 접수 번호로 물으면 <b>빈 목록이 아니라 404</b> 다. 빈 목록을 주면 화면은
+     * "이 A/S 는 부품을 안 썼다" 로 그린다 — 실제로는 그 접수 자체가 없는 것이라
+     * 사람은 지워진 줄 모르고 부품을 붙이려 든다. 바로 아래 {@link #addPart} 는
+     * 같은 번호에 이미 404 를 내고 있었다. 읽을 때와 쓸 때가 달랐다.
+     */
     @Transactional(readOnly = true)
     public List<AsPartResponse> findParts(Long asId) {
+        if (!asRepository.existsById(asId)) {
+            throw ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + asId);
+        }
         return asPartRepository.findByAsRequestIdWithRefs(asId).stream().map(AsPartResponse::from).toList();
     }
 
@@ -139,11 +192,28 @@ public class AsService {
         asPartRepository.delete(part);
     }
 
-    /** A/S소모현황 — 품목별 소모 수량·금액·A/S 건수 집계. */
+    /**
+     * A/S소모현황 — 품목별 소모 수량·금액·A/S 건수 집계.
+     *
+     * <p>원본 조건 실측(사본): 접수일자 · 창고 · 프로젝트 · 수리담당자 · 접수담당자 ·
+     * 수리유형 · 거래처 · 수리품목. 이 가운데 우리가 가진 넷(접수일자·창고·거래처·수리품목)을
+     * 받는다. <b>합친 뒤에는 못 거르므로</b> 화면이 아니라 여기서 걸러야 한다.
+     */
     @Transactional(readOnly = true)
-    public List<AsConsumptionRow> consumption() {
+    public List<AsConsumptionRow> consumption(LocalDate from, LocalDate to,
+                                              Long warehouseId, Long partnerId, Long repairItemId,
+                                              Long projectId) {
         Map<Long, Acc> byItem = new LinkedHashMap<>();
         for (AsPart p : asPartRepository.findAllWithRefs()) {
+            AsRequest as = p.getAsRequest();
+            if (from != null && as.getReceiptDate().isBefore(from)) continue;
+            if (to != null && as.getReceiptDate().isAfter(to)) continue;
+            if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
+            if (partnerId != null && !partnerId.equals(as.getPartner().getId())) continue;
+            if (repairItemId != null && !repairItemId.equals(as.getItem().getId())) continue;
+            /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
+            if (projectId != null && (as.getProject() == null
+                    || !projectId.equals(as.getProject().getId()))) continue;
             Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
                     k -> new Acc(p.getItem().getName()));
             acc.totalQty = acc.totalQty.add(p.getQuantity());

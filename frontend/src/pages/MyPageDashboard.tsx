@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import type { PartnerBalance, ProfitSummary, PurchaseDoc, SalesDoc, StockRow, VatSummary } from '../api/types'
+import { dateText } from '../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const STORAGE_KEY = 'mypage-widgets-v1'
@@ -145,8 +146,10 @@ const REGISTRY: WidgetDef[] = [
             <tr key={b.partnerId}>
               <td>{b.name}</td>
               <td>{b.typeName}</td>
-              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : '#bbb' }}>{won(b.receivable)}</td>
-              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : '#bbb' }}>{won(b.payable)}</td>
+              {/* 음수는 0 이 아니다 — 채권 음수는 선수금, 채무 음수는 선급금이다.
+                  회색으로 죽이면 잔액 0 과 구분이 안 된다. */}
+              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : b.receivable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.receivable)}</td>
+              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : b.payable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.payable)}</td>
             </tr>
           ))}
         </tbody>
@@ -171,7 +174,7 @@ const REGISTRY: WidgetDef[] = [
           ) : d.sales.slice(0, 6).map((s) => (
             <tr key={s.id}>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
-              <td>{s.saleDate}</td>
+              <td>{dateText(s.saleDate)}</td>
               <td>{s.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
             </tr>
@@ -191,7 +194,7 @@ const REGISTRY: WidgetDef[] = [
           ) : d.purchases.slice(0, 6).map((p) => (
             <tr key={p.id}>
               <td style={{ fontFamily: 'monospace' }}>{p.docNo}</td>
-              <td>{p.purchaseDate}</td>
+              <td>{dateText(p.purchaseDate)}</td>
               <td>{p.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#2f8401' }}>{won(p.totalAmount)}</td>
             </tr>
@@ -242,7 +245,7 @@ const REGISTRY: WidgetDef[] = [
           { icon: '🧾', label: '판매입력', to: '/sales/sell' },
           { icon: '🛒', label: '구매입력', to: '/sales/buy' },
           { icon: '🏭', label: '작업지시', to: '/production/work-orders' },
-          { icon: '⚙️', label: '생산입고', to: '/production/result' },
+          { icon: '⚙️', label: '생산입고', to: '/production/receipt-bom' },
           { icon: '📝', label: '기안서작성', to: '/groupware/approval/draft' },
           { icon: '🕐', label: '출퇴근', to: '/groupware/attendance' },
         ].map((q) => (

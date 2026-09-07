@@ -3,9 +3,11 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const monthStart = () => today().slice(0, 8) + '01'
 
 type Tab = '수입등록' | '수입비용현황'
@@ -86,11 +88,11 @@ export default function IncomePage() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 수입이 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((i, idx) => (
               <tr key={i.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td>{i.incomeDate}</td>
+                <td>{dateText(i.incomeDate)}</td>
                 <td>{i.accountCode} {i.accountName}</td>
                 <td>{i.content}</td>
                 <td>{i.partnerName ?? ''}</td>
@@ -149,12 +151,12 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
         <thead>
           <tr>
             <th style={{ width: 34 }}></th><th>계정</th>
-            <th style={{ textAlign: 'right' }}>금액</th><th style={{ width: 130 }}>구성비</th>
+            <th style={{ textAlign: 'right' }}>금액</th><th style={{ textAlign: 'right', width: 130 }}>구성비</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>내역이 없습니다.</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.accountId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -232,7 +234,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>수입일</th>
-                <td><input type="date" className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(incomeDate)} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 130 }} /></td>
               </tr>

@@ -1,6 +1,7 @@
 package com.erp.settings.dto;
 
 import com.erp.settings.domain.SecurityPolicy;
+import jakarta.validation.constraints.PositiveOrZero;
 
 public final class SecurityPolicyDtos {
 
@@ -8,6 +9,7 @@ public final class SecurityPolicyDtos {
 
     public record SecurityPolicyRequest(
             Integer pwLength,
+            @PositiveOrZero(message = "비밀번호 변경주기는 0 이상이어야 합니다.")
             Integer pwCycleDays,
             Integer loginFailLimit,
             Integer sessionTimeout,

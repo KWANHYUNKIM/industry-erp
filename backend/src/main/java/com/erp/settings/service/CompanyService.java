@@ -104,13 +104,23 @@ public class CompanyService {
         try {
             String adminName = (req.adminName() == null || req.adminName().isBlank())
                     ? "관리자" : req.adminName();
-            tenantSeeder.seed(req.adminUsername(), req.adminPassword(), adminName);
+            tenantSeeder.seed(req.name(), req.adminUsername(), req.adminPassword(), adminName);
         } finally {
             TenantContext.set(prev);
         }
     }
 
-    /** 다음 회사코드: 숫자 코드 중 최댓값 + 1 (본사 0001 → 0002, 0003 …). */
+    /**
+     * 다음 회사코드: 숫자 코드 중 최댓값 + 1 (본사 0001 → 0002, 0003 …).
+     *
+     * <p>부서코드와 달리 여기서는 {@code DocumentNoGenerator.lockNumberSpace} 를 쓰지 않는다 —
+     * {@link #create} 는 스키마 DDL·Flyway 때문에 <b>일부러 트랜잭션 밖</b>이고, 그 락은
+     * {@code MANDATORY} 라 트랜잭션이 없으면 예외가 난다.
+     *
+     * <p>동시에 두 회사를 만들면 같은 코드를 잡을 수 있지만, 뒤엣것은
+     * companies.code / schema_name UNIQUE 에 걸려 실패한다(조용히 겹치지는 않는다).
+     * 회사 생성은 관리자가 어쩌다 한 번 하는 일이라 이 정도로 둔다.
+     */
     private String nextCode() {
         int max = companyRepository.findAll().stream()
                 .map(Company::getCode)

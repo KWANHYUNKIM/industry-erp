@@ -1,120 +1,186 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useAuth } from '../../auth/AuthContext'
 import EcListShell from '../../components/EcListShell'
+import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
+import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../api/types'
 
 /**
- * 그룹웨어 > 주요전달사항 (이카운트 E070205)
- * 로그인 사용자가 지금 처리해야 할 결재를 모아 보는 개인 전달함.
- *  1. 결재할 문서   — 내 결재 차례인 문서(scope=pending)
- *  2. 상신 진행중   — 내가 올려 아직 진행중인 문서(scope=drafted, IN_PROGRESS)
- * 백엔드 무변경(GET /api/approvals?scope=pending|drafted).
- * 원본의 '미확인 쪽지' 섹션은 쪽지(단문 메시지) 엔티티가 없어 제외(사내메일=MailPage로 대체).
+ * 그룹웨어 > 공유정보 > 주요전달사항 (이카운트 E070205)
+ *
+ * 원본은 검색 조건 없이 세 구획을 번호 붙여 쌓아 놓은 개인 전달함이다.
+ *   1. 미확인쪽지보기 — 아직 확인하지 않은 쪽지(사람이 보낸 것 + 시스템 자동알림)
+ *   2. 결재할문서     — 내 결재 차례인 기안서
+ *   3. 수신참조문서   — 내가 수신참조로 지정된 기안서
+ * 상단에는 [Option]·[도움말]뿐이고 검색창도 하단 버튼줄도 없다.
+ *
+ * 컬럼 폭은 원본 실측(컨테이너 2266px 기준)을 비율로 옮겼다.
  */
-type ApprovalStatus = 'DRAFTING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED'
-interface ApprovalDoc {
-  id: number; docNo: string | null; draftNo: string | null
-  formTypeName: string; title: string
-  drafterName: string; draftDate: string
-  status: ApprovalStatus; statusName: string
-  currentApproverName: string | null; voucherCount: number
+
+interface ShortMessage {
+  id: number
+  senderName: string
+  content: string
+  sentAt: string
+  readAt: string | null
+  linkSource: string | null
+  linkRef: string | null
+  linkPath: string | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
-const statusColor = (s: ApprovalStatus) =>
-  s === 'APPROVED' ? '#1c7c3c' : s === 'REJECTED' ? '#c60a2e' : s === 'IN_PROGRESS' ? 'var(--ec-blue)' : '#8a929c'
+const dateOf = (iso: string) => iso.slice(0, 10).replace(/-/g, '/')
 
-function Section({ title, accent, rows, emptyText, onOpen, showApprover }: {
-  title: string; accent: string; rows: ApprovalDoc[]; emptyText: string
-  onOpen: () => void; showApprover?: boolean
-}) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ width: 4, height: 15, background: accent, borderRadius: 2, marginRight: 7 }} />
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: '#3c4553' }}>{title}</span>
-        <span style={{ marginLeft: 7, fontSize: 12, fontWeight: 700, color: accent }}>{rows.length}</span>
-        <button className="ec-btn" style={{ marginLeft: 'auto', height: 22 }} onClick={onOpen}>전체보기</button>
-      </div>
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 120 }}>기안일</th><th>제목</th><th style={{ width: 130 }}>구분</th>
-            <th style={{ width: 100 }}>기안자</th>
-            {showApprover && <th style={{ width: 110 }}>현재결재자</th>}
-            <th style={{ width: 90, textAlign: 'center' }}>ERP전표</th>
-            <th style={{ width: 90, textAlign: 'center' }}>진행상태</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr><td colSpan={showApprover ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>{emptyText}</td></tr>
-          ) : rows.map((d, i) => (
-            <tr key={d.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{d.draftDate}</td>
-              <td style={{ fontWeight: 600 }}>{d.title}</td>
-              <td style={{ color: '#5a626e' }}>{d.formTypeName}</td>
-              <td>{d.drafterName}</td>
-              {showApprover && <td style={{ color: 'var(--ec-blue-dark)' }}>{d.currentApproverName ?? '-'}</td>}
-              <td style={{ textAlign: 'center', color: d.voucherCount ? 'var(--ec-blue)' : '#c5cbd3' }}>{d.voucherCount ? `${d.voucherCount}건` : '-'}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(d.status) }}>{d.statusName}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+/** 원본 실측 폭 → 비율. 합이 100%가 되게 맞춰 두었다. */
+const NOTE_COLS = ['5.3%', '83.7%', '6.6%', '4.4%']
+const DOC_COLS = ['10.4%', '23.3%', '11.6%', '13.9%', '11.6%', '11.6%', '7%', '7%', '3.5%']
+const DOC_HEADS = ['기안일자', '제목', 'ERP전표(건)', '구분', '기안자', '결재자', '진행상태', '결재', '조회']
+
+function SectionTitle({ children }: { children: string }) {
+  return <div style={{ fontSize: 12, color: 'var(--ec-text-grid)', marginBottom: 4 }}>{children}</div>
 }
 
 export default function KeyNoticePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [notes, setNotes] = useState<ShortMessage[]>([])
   const [pending, setPending] = useState<ApprovalDoc[]>([])
-  const [drafted, setDrafted] = useState<ApprovalDoc[]>([])
-  const [loading, setLoading] = useState(true)
+  const [referenced, setReferenced] = useState<ApprovalDoc[]>([])
   const [error, setError] = useState('')
+  /** 상세 팝업. approve=true 면 승인·반려 버튼이 나온다(내 결재 차례일 때만). */
+  const [detail, setDetail] = useState<{ doc: ApprovalDoc; approve: boolean } | null>(null)
+  const [schemas, setSchemas] = useState<Record<number, ApprovalField[]>>({})
 
   async function load() {
-    setLoading(true); setError('')
+    setError('')
     try {
-      const [p, d] = await Promise.all([
+      const [n, p, r] = await Promise.all([
+        api.get<ShortMessage[]>('/short-messages', { params: { box: 'unread' } }),
         api.get<ApprovalDoc[]>('/approvals', { params: { scope: 'pending' } }),
-        api.get<ApprovalDoc[]>('/approvals', { params: { scope: 'drafted' } }),
+        api.get<ApprovalDoc[]>('/approvals', { params: { scope: 'reference' } }),
       ])
+      setNotes(n.data)
       setPending(p.data)
-      setDrafted(d.data.filter((x) => x.status === 'IN_PROGRESS'))
-    } catch (err) { setError(extractErrorMessage(err)); setPending([]); setDrafted([]) }
-    finally { setLoading(false) }
+      setReferenced(r.data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+      setNotes([]); setPending([]); setReferenced([])
+    }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { void load() }, [])
 
-  const voucherTotal = useMemo(() => [...pending, ...drafted].reduce((s, d) => s + d.voucherCount, 0), [pending, drafted])
+  // 상세에서 formData 키를 사람이 읽는 라벨로 바꾸려면 양식 스키마가 필요하다.
+  useEffect(() => {
+    api.get<ApprovalFormTemplate[]>('/approval-form-templates')
+      .then((r) => setSchemas(Object.fromEntries(r.data.map((t) => [t.id, t.fieldSchema]))))
+      .catch(() => {})
+  }, [])
+
+  async function act(d: ApprovalDoc, kind: 'approve' | 'reject') {
+    const comment = kind === 'reject' ? window.prompt('반려 사유를 입력하세요.', '') : window.prompt('결재 의견(선택).', '')
+    if (kind === 'reject' && comment === null) return
+    try {
+      await api.post(`/approvals/${d.id}/${kind}`, { comment: comment || undefined })
+      setDetail(null)
+      void load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
+  /** 쪽지를 열면 확인 처리하고 목록에서 빠진다 — '미확인'만 모으는 구획이기 때문이다. */
+  async function readNote(m: ShortMessage) {
+    try {
+      await api.post(`/short-messages/${m.id}/read`)
+    } catch { /* 읽음 처리 실패가 이동을 막을 이유는 없다 */ }
+    if (m.linkPath) navigate(m.linkPath)
+    else void load()
+  }
+
+  const isMyTurn = (d: ApprovalDoc) =>
+    !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
+
+  const docRows = (rows: ApprovalDoc[]) =>
+    rows.length === 0 ? (
+      <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+    ) : rows.map((d) => (
+      <tr key={d.id}>
+        <td style={{ textAlign: 'center' }}>{d.draftDate?.replace(/-/g, '/')}</td>
+        <td>
+          <span onClick={() => setDetail({ doc: d, approve: isMyTurn(d) })} style={{ cursor: 'pointer', color: 'var(--ec-blue-dark)' }}>{d.title}</span>
+        </td>
+        <td style={{ textAlign: 'center' }}>{d.voucherCount || ''}</td>
+        <td style={{ textAlign: 'center' }}>{d.formTypeName}</td>
+        <td style={{ textAlign: 'center' }}>{d.drafterName}</td>
+        <td style={{ textAlign: 'center' }}>{d.currentApproverName ?? ''}</td>
+        <td style={{ textAlign: 'center', color: statusColor(d.status) }}>{STATUS_LABEL[d.status]}</td>
+        <td style={{ textAlign: 'center' }}>
+          {isMyTurn(d) && <button className="ec-btn ec-btn-sm" onClick={() => setDetail({ doc: d, approve: true })}>결재</button>}
+        </td>
+        <td style={{ textAlign: 'center' }}>
+          <button className="ec-btn ec-btn-sm" onClick={() => setDetail({ doc: d, approve: false })}>조회</button>
+        </td>
+      </tr>
+    ))
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '주요공지', [])
 
   return (
-    <EcListShell title="주요전달사항" actions={[{ label: '새로고침', onClick: load }]}>
-      <div style={{ marginBottom: 12, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#9aa1ab' }}>내가 지금 처리해야 할 결재를 모았습니다.</span>
-        <span style={{ marginLeft: 'auto' }}>
-          결재대기 <b style={{ color: '#c60a2e', fontSize: 14 }}>{pending.length}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          상신진행 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{drafted.length}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          연결전표 <b>{won(voucherTotal)}</b>건
-        </span>
-      </div>
-
+    <EcListShell title="주요전달사항" searchable={false}>
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-      ) : (
-        <>
-          <Section title="결재할 문서" accent="#c60a2e" rows={pending} showApprover={false}
-            emptyText="결재할 문서가 없습니다." onOpen={() => navigate('/groupware/approval/my')} />
-          <Section title="상신 진행중 문서" accent="var(--ec-blue)" rows={drafted} showApprover
-            emptyText="진행중인 상신 문서가 없습니다." onOpen={() => navigate('/groupware/approval/my')} />
-        </>
+      <SectionTitle>1. 미확인쪽지보기</SectionTitle>
+      <table className="w-full text-left" style={{ marginBottom: 12 }}>
+        <colgroup>{NOTE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+        <thead>
+          <tr><th style={{ textAlign: 'center' }}>보낸사람</th><th>내용</th><th style={{ textAlign: 'center' }}>발송일자</th><th style={{ textAlign: 'center' }}>연결전표</th></tr>
+        </thead>
+        <tbody>
+          {notes.length === 0 ? (
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+          ) : notes.map((m) => (
+            <tr key={m.id}>
+              <td style={{ textAlign: 'center' }}>{m.senderName}</td>
+              <td>
+                {/* 자동알림 본문은 이미 '전자결재 > …' 처럼 출처를 달고 오므로 linkSource 를 덧붙이지 않는다. */}
+                <span onClick={() => void readNote(m)} style={{ cursor: 'pointer' }}>{m.content}</span>
+              </td>
+              <td style={{ textAlign: 'center' }}>{dateOf(m.sentAt)}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{m.linkRef || m.linkPath ? '✓' : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <SectionTitle>2. 결재할문서</SectionTitle>
+      <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 12 }}>
+        <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+        <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+        <tbody>{docRows(pending)}</tbody>
+      </table>
+
+      <SectionTitle>3. 수신참조문서</SectionTitle>
+      <table className="w-full text-left">
+        <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+        <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+        <tbody>{docRows(referenced)}</tbody>
+      </table>
+
+      {detail && (
+        <ApprovalDetailModal
+          doc={detail.doc}
+          fields={schemas[detail.doc.formTemplateId] ?? []}
+          isMyTurn={detail.approve}
+          canDelete={false}
+          onClose={() => setDetail(null)}
+          onAct={act}
+          onCopy={(d) => navigate('/groupware/approval/draft', { state: { copyFrom: d } })}
+          onDelete={() => { /* 이 화면에서는 삭제하지 않는다 */ }}
+        />
       )}
     </EcListShell>
   )

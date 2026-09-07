@@ -22,8 +22,17 @@ public class FastVoucherController {
     private final FastVoucherService service;
 
     @GetMapping
-    public List<VoucherResponse> list(@RequestParam(required = false) FastVoucherType type) {
-        return service.findAll(type);
+    public List<VoucherResponse> list(@RequestParam(required = false) FastVoucherType type,
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findAll(type, from, to);
     }
 
     @PostMapping

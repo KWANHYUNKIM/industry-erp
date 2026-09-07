@@ -2,18 +2,32 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../api/client'
 import type { NotificationResponse, UserNote, WorkspaceSearch } from '../api/types'
+import MessengerPanel from './MessengerPanel'
 
-export type PanelKind = 'search' | 'notifications' | 'notes'
+export type PanelKind = 'search' | 'notifications' | 'notes' | 'messenger'
+
+/**
+ * 앱바 패널(메신저·알림 …)을 <b>화면 안에서</b> 연다.
+ *
+ * <p>패널은 EcountLayout 이 들고 있어 페이지가 손댈 수 없었다. 그런데 원본에는
+ * 근태조회의 [메신저]·설문조사조회의 [대화방] 처럼 <b>그 화면에서 말을 거는</b> 버튼이 있다.
+ * 창을 페이지마다 새로 만들면 앱바의 것과 둘이 되므로, <b>같은 창을 열어 달라고</b> 알린다.
+ */
+export function openAppBarPanel(kind: PanelKind) {
+  window.dispatchEvent(new CustomEvent<PanelKind>('ec:open-panel', { detail: kind }))
+}
 
 const TITLE: Record<PanelKind, string> = {
   search: '통합검색',
   notifications: '알림',
   notes: 'E Note (개인 메모)',
+  messenger: '메신저',
 }
 
 /**
  * 우측 앱바에서 여는 슬라이드 패널.
  * 통합검색·알림은 조회 결과에서 바로 해당 화면으로 이동하고, E Note 는 개인 메모를 관리한다.
+ * 메신저는 스스로 목록/대화 영역을 나눠 쓰므로 공용 여백·스크롤을 두지 않는다.
  */
 export default function AppBarPanel({ kind, onClose }: { kind: PanelKind; onClose: () => void }) {
   return (
@@ -30,9 +44,12 @@ export default function AppBarPanel({ kind, onClose }: { kind: PanelKind; onClos
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{TITLE[kind]}</span>
           <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
         </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
+        <div style={kind === 'messenger'
+          ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }
+          : { flex: 1, overflow: 'auto', padding: 14 }}>
           {kind === 'search' ? <SearchPanel onClose={onClose} />
             : kind === 'notifications' ? <NotificationPanel onClose={onClose} />
+            : kind === 'messenger' ? <MessengerPanel />
             : <NotePanel />}
         </div>
       </div>

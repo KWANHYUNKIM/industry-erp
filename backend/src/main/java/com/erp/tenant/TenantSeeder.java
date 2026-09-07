@@ -1,6 +1,11 @@
 package com.erp.tenant;
 
+import com.erp.accounting.StandardAccounts;
+import com.erp.accounting.domain.Account;
+import com.erp.accounting.repository.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
+import com.erp.settings.domain.CompanyInfo;
+import com.erp.settings.repository.CompanyInfoRepository;
 import com.erp.auth.domain.Permission;
 import com.erp.auth.domain.Role;
 import com.erp.auth.domain.User;
@@ -32,10 +37,12 @@ public class TenantSeeder {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final CompanyInfoRepository companyInfoRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void seed(String adminUsername, String adminRawPassword, String adminName) {
+    public void seed(String companyName, String adminUsername, String adminRawPassword, String adminName) {
         Role admin = ensureRole("ADMIN", "관리자", "모든 기능 및 사용자 관리 권한");
         Role manager = ensureRole("MANAGER", "매니저", "모듈 관리 및 승인 권한");
         Role staff = ensureRole("STAFF", "사원", "일반 업무 처리 권한");
@@ -62,7 +69,49 @@ public class TenantSeeder {
                     .roles(Set.of(admin))
                     .build());
         }
+        ensureReferenceData(companyName);
         log.info("테넌트 시드 완료 → 관리자 {}", adminUsername);
+    }
+
+    /**
+     * 회사가 쓰려면 <b>반드시 있어야 하는</b> 기준자료를 채운다. 이미 있으면 건드리지 않는다.
+     *
+     * <p>계정과목이 그렇다. 회계반영은 108·255·251·135 를, 급여이체는 801·254 를
+     * <b>코드값으로 찾아</b> 쓰기 때문에, 없으면 "계정과목이 없습니다" 로 기능이 막힌다.
+     * 예전에는 목록이 본사 시더 안에만 있어서 새 회사는 계정과목 0개로 시작했다.
+     *
+     * <p>새 회사(TenantSeeder)와 이미 만들어진 회사(TenantMigrationRunner) 양쪽에서 부른다.
+     * 그래서 여러 번 불려도 안전해야 한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void ensureReferenceData(String companyName) {
+        int added = 0;
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {
+            if (accountRepository.existsByCode(a.code())) continue;
+            accountRepository.save(Account.builder()
+                    .code(a.code()).name(a.name()).division(a.division())
+                    .detailCategory(a.detail()).active(true)
+                    .build());
+            added++;
+        }
+        ensureCompanyInfo(companyName);
+        if (added > 0) {
+            log.info("테넌트 기준자료 보충 → 계정과목 {}개", added);
+        }
+    }
+
+    /**
+     * 회사정보에 <b>상호만이라도</b> 넣어 둔다.
+     *
+     * <p>거래명세서·견적서·발주서는 공급자란을 회사정보에서 읽는다. 비어 있으면
+     * 인쇄물에 "(회사정보 미등록)" 이 찍힌다 — 거래처에 건네는 문서라 그대로 나가면 곤란하다.
+     * 회사를 만들 때 상호를 이미 받았으므로 그것만이라도 채운다.
+     * 사업자등록번호·대표자 같은 나머지는 업체가 회사정보 화면에서 채운다.
+     */
+    private void ensureCompanyInfo(String companyName) {
+        if (companyName == null || companyName.isBlank()) return;
+        if (companyInfoRepository.findFirstByOrderByIdAsc().isPresent()) return;
+        companyInfoRepository.save(CompanyInfo.builder().name(companyName.trim()).build());
     }
 
     private Role ensureRole(String name, String displayName, String description) {

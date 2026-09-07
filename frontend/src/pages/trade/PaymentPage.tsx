@@ -1,79 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import EcListShell from '../../components/EcListShell'
-import { api, extractErrorMessage } from '../../api/client'
+import { SettlementStatusPage } from './CollectionPage'
 
-/** 구매 > 지급현황 — 정산(지급) 내역 실데이터 (/api/settlements, type=PAYMENT) */
-interface Settlement {
-  id: number
-  docNo: string
-  type: 'RECEIPT' | 'PAYMENT'
-  typeName: string
-  partnerName: string
-  settleDate: string
-  amount: number
-  method: string | null
-  note: string | null
-}
-
+/**
+ * 구매관리 > 지급현황 (이카운트).
+ *
+ * 수금현황과 조건·컬럼이 같고 정산 종류만 다르다(RECEIPT / PAYMENT).
+ * 같은 화면을 두 벌 만들면 조건 하나 고칠 때 한쪽만 고치게 된다 — 실제로 두 화면이
+ * 서로 다르게 흘러가 있었다.
+ */
 export default function PaymentPage() {
-  const [rows, setRows] = useState<Settlement[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
-
-  async function load() {
-    setLoading(true)
-    try {
-      const res = await api.get<Settlement[]>('/settlements')
-      setRows(res.data.filter((s) => s.type === 'PAYMENT'))
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
-
-  const shown = rows.filter((r) => !keyword || r.partnerName.includes(keyword))
-  const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
-
-  return (
-    <EcListShell title="지급현황" search={keyword} onSearchChange={setKeyword} onSearch={load} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        지급 합계 <b style={{ color: '#1c6b32', fontSize: 14 }}>{total.toLocaleString()}</b>
-      </div>
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th>일자 ▼</th>
-            <th>전표번호</th>
-            <th>매입처</th>
-            <th style={{ textAlign: 'right' }}>지급액</th>
-            <th style={{ textAlign: 'center' }}>지급방법</th>
-            <th>비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>지급 내역이 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.settleDate}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-              <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.amount.toLocaleString()}</td>
-              <td style={{ textAlign: 'center' }}>{r.method ?? ''}</td>
-              <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </EcListShell>
-  )
+  return <SettlementStatusPage type="PAYMENT" title="지급현황" moneyLabel="지급" />
 }

@@ -3,6 +3,7 @@ package com.erp.production.dto;
 import com.erp.production.domain.Bom;
 import com.erp.production.domain.BomLine;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -16,12 +17,13 @@ public final class BomDtos {
 
     public record BomLineRequest(
             @NotNull(message = "자재를 선택하세요.") Long componentId,
-            @NotNull @Positive(message = "소요량은 0보다 커야 합니다.") BigDecimal quantity
+            @NotNull(message = "소요량을 입력하세요.") @Positive(message = "소요량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     /** BOM 생성/수정 (제품 기준으로 upsert) */
     public record SaveBomRequest(
             @NotNull(message = "제품을 선택하세요.") Long productId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "자재를 1개 이상 입력하세요.") @Valid List<BomLineRequest> lines
     ) {}

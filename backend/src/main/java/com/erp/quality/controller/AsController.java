@@ -12,8 +12,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.quality.dto.AsDtos;
 
@@ -24,9 +26,15 @@ public class AsController {
 
     private final AsService asService;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<AsResponse> list() {
-        return asService.findAll();
+    public List<AsResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            /* 원본 A/S수리현황(E040611)의 주 조건 [기준일자] — 수리한 날이다. */
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate doneFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate doneTo) {
+        return asService.findAll(from, to, doneFrom, doneTo);
     }
 
     @PostMapping
@@ -43,10 +51,16 @@ public class AsController {
 
     // 소모부품 -------------------------------------------------------------
 
-    /** A/S소모현황 — 품목별 소모 집계 */
+    /** A/S소모현황 — 품목별 소모 집계. 원본 조건 접수일자·창고·거래처·수리품목으로 거른다. */
     @GetMapping("/parts/consumption")
-    public List<AsConsumptionRow> consumption() {
-        return asService.consumption();
+    public List<AsConsumptionRow> consumption(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long repairItemId,
+            @RequestParam(required = false) Long projectId) {
+        return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId);
     }
 
     @GetMapping("/{id}/parts")

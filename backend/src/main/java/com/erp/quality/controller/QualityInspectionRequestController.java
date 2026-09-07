@@ -23,8 +23,17 @@ public class QualityInspectionRequestController {
 
     /** status 파라미터 생략 시 전체, 지정 시 해당 상태만(미검사현황 = REQUESTED). */
     @GetMapping
-    public List<RequestResponse> list(@RequestParam(required = false) QualityRequestStatus status) {
-        return requestService.findAll(status);
+    public List<RequestResponse> list(@RequestParam(required = false) QualityRequestStatus status,
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return requestService.findAll(status, from, to);
     }
 
     @PostMapping

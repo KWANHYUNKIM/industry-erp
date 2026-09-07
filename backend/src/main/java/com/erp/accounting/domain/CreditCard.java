@@ -25,6 +25,10 @@ public class CreditCard extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String cardName;
 
+    /** 원본 카드등록의 [카드코드]. 계좌와 같은 까닭으로 nullable 이다. */
+    @Column(length = 20)
+    private String code;
+
     /** 카드사 (예: 신한카드) */
     @Column(nullable = false, length = 50)
     private String cardCompany;

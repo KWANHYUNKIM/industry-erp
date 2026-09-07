@@ -12,6 +12,7 @@ public final class CompanyDtos {
 
     /** 회사 생성 요청. 회사코드는 서버가 자동 발급하고, 첫 관리자 계정을 함께 만든다. */
     public record CreateCompanyRequest(
+            @Size(max = 100, message = "회사명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "회사명을 입력하세요.") String name,
             @NotBlank(message = "관리자 아이디를 입력하세요.")
             @Size(min = 3, max = 50, message = "아이디는 3~50자여야 합니다.") String adminUsername,

@@ -25,8 +25,17 @@ public class FixedAssetController {
     private final FixedAssetService service;
 
     @GetMapping
-    public List<AssetResponse> list() {
-        return service.findAll();
+    public List<AssetResponse> list(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findAll(from, to);
     }
 
     @PostMapping
@@ -43,8 +52,17 @@ public class FixedAssetController {
     }
 
     @GetMapping("/depreciations")
-    public List<DepreciationResponse> depreciations(@RequestParam(required = false) String period) {
-        return service.findDepreciations(period);
+    public List<DepreciationResponse> depreciations(@RequestParam(required = false) String period,
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findDepreciations(period, from, to);
     }
 
     @PostMapping("/{id}/dispose")

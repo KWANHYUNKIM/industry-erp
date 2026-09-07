@@ -11,12 +11,15 @@ import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
 import com.erp.production.domain.WorkOrder;
 import com.erp.production.domain.WorkOrderStatus;
+import com.erp.production.dto.ProductionDtos.CreateProductionBatchRequest;
+import com.erp.production.dto.ProductionDtos.ProductionLine;
 import com.erp.production.dto.ProductionDtos.CreateProductionRequest;
 import com.erp.production.dto.ProductionDtos.ManualConsumeLine;
 import com.erp.production.dto.ProductionDtos.ProductionMaterialResponse;
 import com.erp.production.dto.ProductionDtos.ProductionResponse;
 import com.erp.production.repository.BomRepository;
 import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.repository.WarehouseRepository;
 import com.erp.production.repository.ProductionRepository;
 import com.erp.production.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +40,31 @@ public class ProductionService {
     private final WorkOrderRepository workOrderRepository;
     private final BomRepository bomRepository;
     private final ItemRepository itemRepository;
+    private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    /** 프로젝트는 inventory 의 공개 service 를 거친다(리포지토리 직접 주입 금지, 4.2). */
+    private final com.erp.inventory.service.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<ProductionResponse> findAll() {
-        return productionRepository.findAllWithRefs().stream()
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? productionRepository.findAllWithRefs()
+                : productionRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream()
                 .map(ProductionResponse::from)
                 .toList();
     }
@@ -60,6 +82,23 @@ public class ProductionService {
     }
 
     /** 생산실적 등록: 자재 출고(수동 소모목록 있으면 그대로, 없으면 BOM 자동소모) + 완제품 입고 */
+    /**
+     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다(원본 생산입고 II·III).
+     * 한 줄이라도 막히면 전부 되돌린다 — 반쪽 입고가 남으면 재고와 실적이
+     * 서로 다른 말을 한다.
+     */
+    @Transactional
+    public java.util.List<ProductionResponse> createBatch(CreateProductionBatchRequest req, String username) {
+        java.util.List<ProductionResponse> out = new java.util.ArrayList<>();
+        for (ProductionLine line : req.lines()) {
+            out.add(create(new CreateProductionRequest(
+                    line.workOrderId(), line.producedQty(), req.productionDate(),
+                    req.fromWarehouseId(), req.warehouseId(), req.projectId(),
+                    line.note(), line.laborMinutes(), req.employeeId(), line.materials()), username));
+        }
+        return out;
+    }
+
     @Transactional
     public ProductionResponse create(CreateProductionRequest req, String username) {
         WorkOrder wo = getWorkOrder(req.workOrderId());
@@ -74,13 +113,32 @@ public class ProductionService {
         }
 
         LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
-        Warehouse warehouse = wo.getWarehouse();
+
+        /*
+         * 원본은 [생산된공장] → [받는창고] 로 옮기는 전표다(생산입고조회의 두 열).
+         * 자재는 공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
+         *
+         * <p>둘 다 안 주면 예전처럼 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있다.
+         */
+        Warehouse warehouse = req.warehouseId() != null
+                ? warehouseRepository.findById(req.warehouseId())
+                        .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.warehouseId()))
+                : wo.getWarehouse();
+        Warehouse from = req.fromWarehouseId() != null
+                ? warehouseRepository.findById(req.fromWarehouseId())
+                        .orElseThrow(() -> ApiException.notFound("생산된공장을 찾을 수 없습니다. id=" + req.fromWarehouseId()))
+                : warehouse;
 
         Production production = Production.builder()
                 .prodNo(generateProdNo(date))
                 .workOrder(wo)
                 .product(wo.getProduct())
                 .warehouse(warehouse)
+                .fromWarehouse(req.fromWarehouseId() != null ? from : null)
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
+                .note(req.note())
+                .laborMinutes(req.laborMinutes())
+                .employeeId(req.employeeId())
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)
@@ -95,7 +153,7 @@ public class ProductionService {
                 if (component.getId().equals(wo.getProduct().getId())) {
                     throw ApiException.badRequest("완제품 자신을 소모자재로 선택할 수 없습니다: " + component.getName());
                 }
-                stockService.applyDelta(component, warehouse, line.quantity().negate(),
+                stockService.applyDelta(component, from, line.quantity().negate(),
                         StockTransactionType.OUTBOUND, null, date,
                         "생산소요(수동) " + production.getProdNo(), username);
                 production.addMaterial(ProductionMaterial.builder()
@@ -107,7 +165,7 @@ public class ProductionService {
             for (BomLine line : bom.getLines()) {
                 Item component = line.getComponent();
                 BigDecimal consume = line.getQuantity().multiply(qty);
-                stockService.applyDelta(component, warehouse, consume.negate(),
+                stockService.applyDelta(component, from, consume.negate(),
                         StockTransactionType.OUTBOUND, null, date,
                         "생산소요 " + production.getProdNo(), username);
                 production.addMaterial(ProductionMaterial.builder()
@@ -126,6 +184,53 @@ public class ProductionService {
                 ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS);
 
         return ProductionResponse.from(productionRepository.save(production));
+    }
+
+    /**
+     * 생산실적 삭제. 원본(이카운트) 생산입고조회의 [선택삭제] 에 해당한다.
+     *
+     * <p>삭제가 아예 없었다. 수량을 잘못 넣은 생산실적은 되돌릴 방법이 없어서
+     * 완제품 재고와 자재 재고가 그대로 틀린 채 남았고, 작업지시는 영영 '완료' 였다.
+     * 판매·구매·견적·수주에서 같은 것을 이미 한 번 고쳤다.
+     *
+     * <p>재고는 <b>지우지 않고 반대 거래를 남긴다</b> — 완제품을 출고하고 자재를 되돌린다.
+     * 이력을 지우면 왜 재고가 움직였는지 아무도 설명할 수 없게 된다.
+     */
+    @Transactional
+    public void delete(Long id, String username) {
+        Production p = productionRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("생산실적을 찾을 수 없습니다. id=" + id));
+
+        LocalDate date = p.getProductionDate();
+        Warehouse warehouse = p.getWarehouse();
+
+        // 1) 완제품을 도로 뺀다. 이미 팔려 나가 재고가 모자라면 여기서 막힌다 —
+        //    그 편이 맞다. 없는 물건을 지워서 재고를 음수로 만들면 안 된다.
+        stockService.applyDelta(p.getProduct(), warehouse, p.getProducedQty().negate(),
+                StockTransactionType.OUTBOUND, null, date,
+                "생산입고취소 " + p.getProdNo(), username);
+
+        // 2) 소모했던 자재를 되돌린다 — 뺐던 곳(생산된공장)으로 돌려놓는다.
+        //    받는창고로 돌려놓으면 공장 재고가 영영 모자란 채로 남는다.
+        Warehouse consumedAt = p.getFromWarehouse() != null ? p.getFromWarehouse() : warehouse;
+        for (ProductionMaterial m : p.getMaterials()) {
+            stockService.applyDelta(m.getComponent(), consumedAt, m.getQuantity(),
+                    StockTransactionType.INBOUND, null, date,
+                    "생산소요취소 " + p.getProdNo(), username);
+        }
+
+        // 3) 작업지시 진척을 되돌린다. 완료였던 것이 다시 진행중/계획으로 돌아간다.
+        WorkOrder wo = p.getWorkOrder();
+        if (wo != null) {
+            BigDecimal left = wo.getProducedQty().subtract(p.getProducedQty());
+            wo.setProducedQty(left.signum() < 0 ? BigDecimal.ZERO : left);
+            wo.setStatus(wo.getProducedQty().signum() == 0
+                    ? WorkOrderStatus.PLANNED
+                    : (wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
+                            ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS));
+        }
+
+        productionRepository.delete(p);
     }
 
     private WorkOrder getWorkOrder(Long id) {

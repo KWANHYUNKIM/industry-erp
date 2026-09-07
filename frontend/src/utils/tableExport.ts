@@ -62,22 +62,52 @@ export function findDataTable(root: HTMLElement | null): HTMLTableElement | null
   )
 }
 
+/** 표의 실제 컬럼명 행(그룹 헤더가 있으면 마지막 행)을 돌려준다. */
+export function headerCells(table: HTMLTableElement): HTMLTableCellElement[] {
+  const headRows = Array.from(table.querySelectorAll('thead tr'))
+  if (headRows.length === 0) return []
+  return Array.from(headRows[headRows.length - 1].querySelectorAll('th, td')) as HTMLTableCellElement[]
+}
+
+/**
+ * 행 하나를 "컬럼명 : 값" 쌍으로 바꾼다. 우클릭 메뉴의 '행 상세 보기'와 행 복사가 쓴다.
+ * 내보내기와 같은 규칙을 따른다 — data-export-skip 열은 빼고, 셀 안의 버튼은 값에서 지운다.
+ */
+export function rowToPairs(
+  table: HTMLTableElement,
+  row: HTMLTableRowElement,
+): { label: string; value: string }[] {
+  const heads = headerCells(table)
+  const cells = Array.from(row.querySelectorAll('td')) as HTMLTableCellElement[]
+  const pairs: { label: string; value: string }[] = []
+
+  cells.forEach((td, i) => {
+    const th = heads[i]
+    if (th?.dataset.exportSkip === 'true') return
+    const label = (th?.textContent ?? '').replace(SORT_MARKS, '').replace(/\s+/g, ' ').trim()
+    const value = extractCell(td)
+    // 값이 없는 조작 칸(행 선택 체크박스, 수정·삭제 버튼 칸)은 상세에서 뺀다
+    if (!value && td.querySelector('button, a, input')) return
+    if (!label && !value) return
+    pairs.push({ label: label || `열 ${i + 1}`, value })
+  })
+
+  return pairs
+}
+
 export function tableToMatrix(table: HTMLTableElement): TableMatrix {
   // 그룹 헤더가 있는 경우 마지막 행이 실제 컬럼명이다
-  const headRows = Array.from(table.querySelectorAll('thead tr'))
-  const headerCells = headRows.length
-    ? (Array.from(headRows[headRows.length - 1].querySelectorAll('th, td')) as HTMLTableCellElement[])
-    : []
+  const heads = headerCells(table)
 
   // 헤더에 data-export-skip="true"가 붙은 열은 통째로 제외한다(행 선택 체크박스 열 등)
   const skipped = new Set<number>()
-  headerCells.forEach((th, i) => {
+  heads.forEach((th, i) => {
     if (th.dataset.exportSkip === 'true') skipped.add(i)
   })
 
   const keep = <T,>(arr: T[]) => arr.filter((_, i) => !skipped.has(i))
 
-  const headers = keep(headerCells).map((th) =>
+  const headers = keep(heads).map((th) =>
     (th.textContent ?? '').replace(SORT_MARKS, '').replace(/\s+/g, ' ').trim(),
   )
 

@@ -2,12 +2,32 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { stockCostMap } from '../../utils/stockValue'
+import CodePickerField from '../../components/CodePickerField'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
  * 현재고를 품목별로 집계해 안전재고 대비 과부족·상태와 재고금액(수량×단가)을 분석한다.
  * 데이터는 GET /api/stock(현재고) + GET /api/items(단가) 를 조인(백엔드 무변경).
- * 재고금액은 품목 표준단가(Item.unitPrice) 기준 — 실제 입고단가 평가가 아닌 참고 평가액이다.
+ * 재고금액은 <b>취득원가</b>로 평가한다 — 실제 입고단가가 있으면 그것, 없으면 품목 구매단가.
+ * 예전에는 판매단가(Item.unitPrice)로 평가해서 아직 팔지도 않은 이익이 재고에 얹혔다
+ * (개발 자료에서 1억 8,457만 vs 3,490만, 5배 차이). 기준이 없으면 0 이 아니라 평가에서 뺀다.
+ *
+ * 원본 조건: 기준일자(한 날짜) · 품목 · 기타(재고수량0포함 / 수량관리제외품목포함 /
+ * 사용중단품목포함 / 품목별안전재고설정미만표시).
+ * 재고현황과 같이 <b>기준일자가 한 날짜</b>다 — 재고는 시점을 보는 것이라서 빠른선택도 금일·전일뿐이다.
+ *
+ * 원본에는 창고 조건이 없다(품목별로 전 창고를 합쳐 보는 분석표라서). 우리는 창고 조건이
+ * 이미 있고 실제로 동작하므로 남긴다 — 원본에 없다고 되는 기능을 빼지는 않는다.
+ *
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
  */
 
 interface AnalysisRow {
@@ -19,6 +39,8 @@ interface AnalysisRow {
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function StockAnalysisPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -28,22 +50,40 @@ export default function StockAnalysisPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [shortageOnly, setShortageOnly] = useState(false)
+  /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
+  const [includeZero, setIncludeZero] = useState(false)
+  /** 재고 평가에 쓸 구매전표. 마지막 입고단가를 여기서 뽑는다. */
+  /*
+   * 원본 재고잔량분석표(E040727) [기타]는 <b>넷</b>이다(2026-09-02 실측):
+   * 재고수량0포함 · <b>수량관리제외품목포함</b> · <b>사용중단품목포함</b> ·
+   * 품목별안전재고설정미만표시. 우리에겐 첫째와 넷째뿐이었다 —
+   * 재고현황·재고변동표·창고별재고현황에 이어 <b>네 번째 같은 구멍</b>이다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const [withInactive, setWithInactive] = useState(false)
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
+  const { inactive, untracked } = useItemFlags()
+  const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
+  /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
+  const [date, setDate] = useState(periodOf('금일')!.to)
+  const today = ymd(new Date())
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, i, w] = await Promise.all([
-        api.get<StockRow[]>('/stock'),
+      const [s, i, w, b] = await Promise.all([
+        api.get<StockRow[]>('/stock', { params: { asOf: date } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
+        api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
       ])
-      setStocks(s.data); setItems(i.data); setWarehouses(w.data)
+      setStocks(s.data); setItems(i.data); setWarehouses(w.data); setBuys(b.data)
     } catch (err) { setError(extractErrorMessage(err)); setStocks([]) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
-  const priceById = useMemo(() => new Map(items.map((it) => [it.id, it.unitPrice])), [items])
+  const priceById = useMemo(() => stockCostMap(items, buys), [items, buys])
 
   const rows = useMemo(() => {
     const wid = warehouseId ? Number(warehouseId) : null
@@ -63,10 +103,20 @@ export default function StockAnalysisPage() {
     const out = [...m.values()]
     for (const a of out) a.value = a.quantity * a.unitPrice
     return out
+      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+      .filter((a) => withUntracked || !untracked.has(a.itemId))
+      .filter((a) => withInactive || !inactive.has(a.itemId))
       .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
       .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
+      // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
+      .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, shortageOnly])
+  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
+
+  const reset = () => {
+    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
+    setWithUntracked(false); setWithInactive(false); setDate(today)
+  }
 
   const totals = useMemo(() => ({
     count: rows.length,
@@ -74,7 +124,6 @@ export default function StockAnalysisPage() {
     shortage: rows.filter((r) => r.quantity < r.safetyStock).length,
   }), [rows])
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -82,29 +131,63 @@ export default function StockAnalysisPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">품목별 현재고를 안전재고와 대비 + 재고금액(수량×표준단가) 분석. 창고 미지정 시 전 창고 합산.</p>
+      <EcStatusPanel
+        single
+        from={date} to={date}
+        onPeriod={(r) => setDate(r.from)}
+        picks={STOCK_PICKS}
+      >
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
+        </EcCond>
+        {/* 원본 [기타] 차례 그대로다(2026-09-02 E040727 실측). [결재방표시]는 인쇄 판이라 아직 없다. */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={includeZero}
+                   onChange={(e) => setIncludeZero(e.target.checked)} /> 재고수량0포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={withUntracked}
+                   onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+          </label>
+          <label style={{ fontSize: 12, marginRight: 12 }}>
+            <input type="checkbox" checked={withInactive}
+                   onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+          </label>
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={shortageOnly}
+                   onChange={(e) => setShortageOnly(e.target.checked)} /> 품목별안전재고설정미만표시
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 180 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-          </select>
-        </div>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={shortageOnly} onChange={(e) => setShortageOnly(e.target.checked)} />
-          안전재고 미달만
-        </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
-        </div>
+      {date !== today && (
+        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
+          숫자가 달라지지 않습니다.
+        </p>
+      )}
+
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+        품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
+        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
@@ -140,7 +223,7 @@ export default function StockAnalysisPage() {
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? '-'}</td>
+                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.quantity)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.safetyStock)}</td>

@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
+import { ymd } from '../../components/EcPeriodPicks'
 import type { Attendance } from '../../api/types'
+import { useShortcut } from '../../utils/useShortcut'
 
 const TITLE = '출/퇴근기록부(ID)'
+const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 const fmtMin = (m: number | null) => {
   if (m == null) return ''
@@ -14,12 +18,24 @@ const fmtMin = (m: number | null) => {
   return `${h}시간 ${mm}분`
 }
 
-/** 그룹웨어 > 근태관리 > 출/퇴근기록부 — 출근/퇴근 처리 + 현황 */
+/**
+ * 그룹웨어 > 업무관리 > 출/퇴근 > 출/퇴근기록부(ID) (이카운트 E070305)
+ *
+ * 원본은 표가 아니라 <b>화면을 가득 채우는 월 달력</b>이다. 위에 [사용자] 필터와 연/월 선택이
+ * 있고, 날짜 칸마다 그날의 출퇴근 기록이 들어간다(실측: 요일 칸 324px x 7 = 2268).
+ * 우리는 일자·사용자·출근·퇴근·근무시간·지각 6컬럼 표였다 — 한 달을 한눈에 볼 수가 없었다.
+ *
+ * '오늘 근무' 카드(출근하기·퇴근하기)는 원본 이 화면에 없지만 남겨 둔다.
+ * 우리 앱에서 출퇴근을 찍는 유일한 자리라, 없애면 기록을 만들 방법이 사라진다.
+ */
 export default function AttendancePage() {
   const [rows, setRows] = useState<Attendance[]>([])
   const [today, setToday] = useState<Attendance | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cursor, setCursor] = useState(() => new Date())
+  /** 사용자 필터. 빈 값이면 전체 — 원본 [사용자] 조건의 기본값이 '전체'다. */
+  const [userFilter, setUserFilter] = useState('')
 
   // 표 내보내기/인쇄/검색 직접 배선
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -27,6 +43,9 @@ export default function AttendancePage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키
+  useShortcut('F3', () => filterRows(search))
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -79,6 +98,34 @@ export default function AttendancePage() {
 
   useEffect(() => { load() }, [])
 
+  const moveMonth = (d: number) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + d, 1))
+
+  /** 화면에 보이는 사용자 목록 — 조회된 기록에서 뽑는다(별도 요청 없음). */
+  const userNames = [...new Set(rows.map((r) => r.userName))].sort()
+
+  const shown = rows.filter((r) => !userFilter || r.userName === userFilter)
+
+  /** 날짜 → 그날 기록. 달력 칸마다 훑지 않도록 한 번만 묶는다. */
+  const byDate = new Map<string, Attendance[]>()
+  shown.forEach((r) => {
+    const list = byDate.get(r.workDate)
+    if (list) list.push(r); else byDate.set(r.workDate, [r])
+  })
+
+  /** 그 달을 감싸는 일요일 시작 6주 격자 — 원본 달력도 일~토다. */
+  const weeks = (() => {
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+    const start = new Date(first)
+    start.setDate(1 - first.getDay())
+    return Array.from({ length: 6 }, (_, w) =>
+      Array.from({ length: 7 }, (_, d) => {
+        const x = new Date(start)
+        x.setDate(start.getDate() + w * 7 + d)
+        return x
+      }))
+  })()
+  const todayKey = ymd(new Date())
+
   async function punch(kind: 'clock-in' | 'clock-out') {
     setError('')
     try {
@@ -88,6 +135,11 @@ export default function AttendancePage() {
       setError(extractErrorMessage(err))
     }
   }
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '출퇴근', [])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -143,37 +195,70 @@ export default function AttendancePage() {
         </div>
       </div>
 
+      {/* 조회 조건 — 원본은 [사용자] 와 연/월이 달력 위에 있다 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>사용자</span>
+        <select className="ec-input" value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <span style={{ marginLeft: 12 }}>
+          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(-1)} aria-label="이전 달">‹</button>
+          <span style={{ margin: '0 10px', fontSize: 12 }}>
+            {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
+          </span>
+          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(1)} aria-label="다음 달">›</button>
+          <button className="ec-btn ec-btn-sm" style={{ marginLeft: 6 }} onClick={() => setCursor(new Date())}>이번 달</button>
+        </span>
+      </div>
+
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
+          <colgroup>{DOW.map((d) => <col key={d} style={{ width: '14.28%' }} />)}</colgroup>
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th>일자 ▼</th>
-              <th>사용자</th>
-              <th style={{ textAlign: 'center' }}>출근</th>
-              <th style={{ textAlign: 'center' }}>퇴근</th>
-              <th style={{ textAlign: 'center' }}>근무시간</th>
-              <th style={{ textAlign: 'center' }}>지각</th>
+              {DOW.map((d, i) => (
+                <th key={d} style={{ textAlign: 'center', color: i === 0 ? '#c60a2e' : i === 6 ? 'var(--ec-blue)' : undefined }}>{d}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>출퇴근 기록이 없습니다.</td></tr>
-            ) : rows.map((r, i) => (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.workDate}</td>
-                <td>{r.userName}</td>
-                <td style={{ textAlign: 'center' }}>{r.clockIn ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>{r.clockOut ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>{fmtMin(r.workMinutes)}</td>
-                <td style={{ textAlign: 'center' }}>{r.late ? <span style={{ color: '#c60a2e' }}>지각</span> : ''}</td>
+            {weeks.map((week, wi) => (
+              <tr key={wi}>
+                {week.map((day) => {
+                  const key = ymd(day)
+                  const otherMonth = day.getMonth() !== cursor.getMonth()
+                  const list = byDate.get(key) ?? []
+                  return (
+                    <td key={key} style={{ verticalAlign: 'top', height: 92, padding: 4, background: otherMonth ? '#fafbfc' : undefined }}>
+                      <div style={{
+                        fontSize: 12, marginBottom: 3,
+                        color: otherMonth ? '#c8ced6'
+                          : day.getDay() === 0 ? '#c60a2e'
+                          : day.getDay() === 6 ? 'var(--ec-blue)' : 'var(--ec-text-grid)',
+                        fontWeight: key === todayKey ? 700 : 400,
+                      }}>
+                        {day.getDate()}
+                      </div>
+                      {list.map((r) => (
+                        <div key={r.id} style={{ fontSize: 11.5, lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ color: 'var(--ec-label)' }}>{r.userName}</span>{' '}
+                          <span style={{ color: r.late ? '#c60a2e' : undefined }}>{r.clockIn ?? '--:--'}</span>
+                          <span style={{ color: '#c8ced6' }}>~</span>
+                          <span>{r.clockOut ?? '--:--'}</span>
+                          {r.workMinutes != null && (
+                            <span style={{ color: 'var(--ec-label)' }}> ({fmtMin(r.workMinutes)})</span>
+                          )}
+                        </div>
+                      ))}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>
         </table>
+        {loading && <p style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 10 }}>불러오는 중…</p>}
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>

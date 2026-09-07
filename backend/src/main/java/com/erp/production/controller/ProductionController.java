@@ -1,5 +1,6 @@
 package com.erp.production.controller;
 
+import com.erp.production.dto.ProductionDtos.CreateProductionBatchRequest;
 import com.erp.production.dto.ProductionDtos.CreateProductionRequest;
 import com.erp.production.dto.ProductionDtos.ProductionMaterialResponse;
 import com.erp.production.dto.ProductionDtos.ProductionResponse;
@@ -7,11 +8,13 @@ import com.erp.security.UserPrincipal;
 import com.erp.production.service.ProductionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import com.erp.production.dto.ProductionDtos;
 
@@ -22,9 +25,12 @@ public class ProductionController {
 
     private final ProductionService productionService;
 
+    /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
     @GetMapping
-    public List<ProductionResponse> list() {
-        return productionService.findAll();
+    public List<ProductionResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return productionService.findAll(from, to);
     }
 
     /** 생산수량에 대한 예상 소요자재 */
@@ -33,6 +39,21 @@ public class ProductionController {
             @RequestParam Long workOrderId,
             @RequestParam BigDecimal qty) {
         return productionService.materialPreview(workOrderId, qty);
+    }
+
+    /** 생산실적 삭제. 재고와 작업지시 진척을 함께 되돌린다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, java.security.Principal principal) {
+        productionService.delete(id, principal != null ? principal.getName() : null);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 생산입고 II·III 의 격자 — 한 번에 여러 줄. 한 줄이라도 막히면 전부 되돌린다. */
+    @PostMapping("/batch")
+    public ResponseEntity<java.util.List<ProductionResponse>> createBatch(
+            @Valid @RequestBody CreateProductionBatchRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(productionService.createBatch(req, principal.getUsername()));
     }
 
     @PostMapping

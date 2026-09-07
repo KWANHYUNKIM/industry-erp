@@ -44,6 +44,16 @@ public class ProductionProcess extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal costPerHr = BigDecimal.ZERO;
 
+    /**
+     * 순번. 원본 공정등록의 [순번] 열.
+     *
+     * <p>공정은 흐름이라 <b>순서대로</b> 보여야 고르기 쉽다 — 반제품공정 → 완제품공정 →
+     * 설치공정. 순번이 없으면 공정을 고르는 자리마다 코드순으로만 나온다.
+     */
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private Integer sortOrder = 0;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

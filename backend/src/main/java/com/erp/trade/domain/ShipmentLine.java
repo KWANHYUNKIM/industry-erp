@@ -41,4 +41,14 @@ public class ShipmentLine {
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
+
+    /**
+     * 줄 적요 — 원본 출하지시서입력 그리드의 마지막 열이고,
+     * 출하지시서현황·출하현황의 결과 열이기도 하다.
+     *
+     * <p>전표 적요만으로는 "이 품목만 왜 따로 보내는지" 를 적을 자리가 없다.
+     * 판매·구매·생산불출 라인은 이미 다 들고 있다.
+     */
+    @Column(length = 255)
+    private String remark;
 }

@@ -53,6 +53,7 @@ public class IncomeService {
     private final IncomeRepository incomeRepository;
     private final ExpenseRepository expenseRepository;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final BankAccountRepository bankAccountRepository;
     private final JournalEntryRepository journalEntryRepository;
     private final JournalService journalService;
@@ -66,8 +67,7 @@ public class IncomeService {
 
     @Transactional
     public IncomeResponse create(CreateIncomeRequest req, String username) {
-        Account account = accountRepository.findById(req.accountId())
-                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + req.accountId()));
+        Account account = accountService.getUsable(req.accountId());
         if (account.getDivision() != AccountDivision.REVENUE) {
             throw ApiException.badRequest("수입은 수익 계정에만 잡을 수 있습니다: "
                     + account.getName() + " (" + account.getDivision().getDisplayName() + ")");

@@ -3,6 +3,7 @@ package com.erp.accounting.domain;
 import com.erp.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 /**
  * 결제대행사(PG) 마스터(E010114). 온라인 결제대행사(대표자·연락처 포함) 기초등록.
@@ -44,4 +45,73 @@ public class PaymentAgency extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * 원본 <b>[계정]</b> — 이 곳에서 나가는 수수료를 다는 계정. 회계반영이 이 값을 본다.
+     * 안 정할 수 있다(정하지 않으면 반영할 때 사람이 고른다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
+    private Account account;
+
+    /** 원본 <b>[입금계좌]</b> — 정산 금액이 들어오는 우리 계좌. */
+    @Column(name = "deposit_account", length = 100)
+    private String depositAccount;
+
+    /** 원본 <b>[검색창내용]</b>. 부르는 이름으로 찾는다(거래처와 같다). */
+    @Column(name = "search_keyword", length = 100)
+    private String searchKeyword;
+
+    /** 원본 <b>[수수료율]</b> (%). 카드사와 같은 자리다. */
+    @Column(name = "fee_rate", precision = 6, scale = 3)
+    @Builder.Default
+    private BigDecimal feeRate = BigDecimal.ZERO;
+
+    /** 원본 <b>[결제대행사코드구분]</b> — 사업자등록번호 · 주민등록번호 · 외국인. 거래처와 같은 값이다. */
+    @Column(name = "reg_no_kind", nullable = false, length = 20)
+    @Builder.Default
+    private String regNoKind = "사업자등록번호";
+
+    /**
+     * 원본 <b>[외화거래처]</b>.
+     *
+     * <p><b>#281 에서 잘못 만들었다.</b> 이것을 [업종별구분](일반·관세사·외화거래처)으로
+     * 보고 세 값짜리 칸을 두었는데, 사본을 다시 재 보니 이 화면의 id 는
+     * <code>ddlForeignFlag</code> 로 <b>깃발</b>이고 결제대행사등록에는 [업종별구분]이
+     * <b>아예 없다</b>(거래처등록에만 <code>ddlSgubun</code> 으로 따로 있다).
+     * 이름만 맞고 뜻이 다른 칸을 만들어 둔 셈이라 바로잡는다.
+     */
+    @Column(name = "foreign_currency", nullable = false)
+    @Builder.Default
+    private boolean foreignCurrency = false;
+
+    /** 원본 <b>[업태]</b>·<b>[종목]</b>. 세금계산서에 찍힌다. */
+    @Column(name = "biz_type", length = 100)
+    private String bizType;
+
+    @Column(name = "biz_item", length = 100)
+    private String bizItem;
+
+    /** 원본 <b>[담당자]</b> — 그 대행사 쪽 사람이다(우리 사원이 아니다). */
+    @Column(length = 50)
+    private String manager;
+
+    /** 원본 <b>[세무신고거래처]</b>. 끄면 신고 자료에서 뺀다. */
+    @Column(name = "tax_report", nullable = false)
+    @Builder.Default
+    private boolean taxReport = true;
+
+    /** 원본 <b>[우편번호1]</b>·<b>[주소1]</b>. */
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    @Column(length = 300)
+    private String address;
+
+    /** 원본 <b>[우편번호2]</b>·<b>[주소2]</b>. 주소1과 따로 둔다. */
+    @Column(name = "postal_code2", length = 20)
+    private String postalCode2;
+
+    @Column(length = 300)
+    private String address2;
 }

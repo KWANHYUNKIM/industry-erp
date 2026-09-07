@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, SalesDoc, PurchaseDoc } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../api/types'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 그룹웨어 > 공유정보 > 조건별검색 (이카운트 E070203)
@@ -16,34 +19,36 @@ const BASIS_LABEL: Record<Basis, string> = {
   INDIVIDUAL: '개별거래처기준', GROUP: '연결거래처합산', SELECTED: '선택거래처합산',
 }
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const iso = (d: Date) => d.toISOString().slice(0, 10)
 
 export default function ConditionSearchPage() {
   const [partners, setPartners] = useState<Partner[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const today = iso(new Date())
+  const today = ymd(new Date())
   const monthStart = today.slice(0, 8) + '01'
   const [from, setFrom] = useState(monthStart)
   const [to, setTo] = useState(today)
   const [basis, setBasis] = useState<Basis>('INDIVIDUAL')
   const [partnerId, setPartnerId] = useState('')
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [projectId, setProjectId] = useState('')
   const [ran, setRan] = useState(false)
 
   async function loadBase() {
     setLoading(true); setError('')
     try {
-      const [p, s, pu] = await Promise.all([
+      const [p, s, pu, pr] = await Promise.all([
         api.get<Partner[]>('/partners'),
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
+        api.get<Project[]>('/projects'),
       ])
       setPartners(p.data)
-      setSales(s.data); setPurchases(pu.data)
+      setSales(s.data); setPurchases(pu.data); setProjects(pr.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -66,11 +71,16 @@ export default function ConditionSearchPage() {
     const inRange = (d: string) => d >= from && d <= to
     const agg: Record<number, { name: string; sale: number; purchase: number }> = {}
     targetPartners.forEach((p) => { agg[p.id] = { name: p.name, sale: 0, purchase: 0 } })
-    sales.forEach((s) => { if (ids.has(s.partnerId) && inRange(s.saleDate)) agg[s.partnerId].sale += s.supplyAmount })
-    purchases.forEach((pu) => { if (ids.has(pu.partnerId) && inRange(pu.purchaseDate)) agg[pu.partnerId].purchase += pu.supplyAmount })
+    const inProject = (id: number | null) => !projectId || String(id) === projectId
+    sales.forEach((s) => {
+      if (ids.has(s.partnerId) && inRange(s.saleDate) && inProject(s.projectId)) agg[s.partnerId].sale += s.supplyAmount
+    })
+    purchases.forEach((pu) => {
+      if (ids.has(pu.partnerId) && inRange(pu.purchaseDate) && inProject(pu.projectId)) agg[pu.partnerId].purchase += pu.supplyAmount
+    })
     return Object.entries(agg).map(([id, v]) => ({ id: Number(id), ...v, net: v.sale - v.purchase }))
       .sort((a, b) => (b.sale + b.purchase) - (a.sale + a.purchase))
-  }, [ran, targetPartners, sales, purchases, from, to])
+  }, [ran, targetPartners, sales, purchases, from, to, projectId])
 
   const totals = rows.reduce((t, r) => ({ sale: t.sale + r.sale, purchase: t.purchase + r.purchase, net: t.net + r.net }), { sale: 0, purchase: 0, net: 0 })
 
@@ -83,50 +93,85 @@ export default function ConditionSearchPage() {
 
   const preset = (days: number, mode: 'range' | 'month') => {
     const t = new Date()
-    if (mode === 'month') { setFrom(iso(t).slice(0, 8) + '01'); setTo(iso(t)); return }
+    if (mode === 'month') { setFrom(ymd(t).slice(0, 8) + '01'); setTo(ymd(t)); return }
     const f = new Date(); f.setDate(f.getDate() - days)
-    setFrom(iso(f)); setTo(iso(t))
+    setFrom(ymd(f)); setTo(ymd(t))
   }
 
   const inputCls = 'ec-input'
+  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+
+  function reset() {
+    setFrom(monthStart); setTo(today)
+    setBasis('INDIVIDUAL'); setPartnerId(''); setSelectedIds([]); setProjectId('')
+    setRan(false); setError('')
+  }
 
   return (
-    <EcListShell title="조건별검색" actions={[{ label: '새로고침', onClick: loadBase }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <p className="mb-2 text-xs text-slate-500">거래처 관계기준(개별/연결그룹합산/선택합산)으로 기간 매출·매입을 집계합니다. 연결거래처합산은 거래처그룹 전체를 묶습니다.</p>
-
+    <EcListShell
+      title="조건별검색"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: () => { if (!loading) run() } },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기준일자</div>
-          <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
-          <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-        </label>
-        <div style={{ display: 'flex', gap: 3 }}>
-          <button className="ec-btn" onClick={() => preset(0, 'range')}>금일</button>
-          <button className="ec-btn" onClick={() => preset(7, 'range')}>최근7일</button>
-          <button className="ec-btn" onClick={() => preset(0, 'month')}>금월</button>
-        </div>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처관계기준</div>
-          <select className={inputCls} value={basis} onChange={(e) => { setBasis(e.target.value as Basis); setRan(false) }} style={{ width: 150 }}>
-            <option value="INDIVIDUAL">개별거래처기준</option>
-            <option value="GROUP">연결거래처합산</option>
-            <option value="SELECTED">선택거래처합산</option>
-          </select></label>
-        {basis !== 'SELECTED' ? (
-          <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처</div>
-            <select className={inputCls} value={partnerId} onChange={(e) => { setPartnerId(e.target.value); setRan(false) }} style={{ width: 200 }}>
-              <option value="">선택하세요</option>
-              {partners.map((p) => <option key={p.id} value={p.id}>{p.name}{p.partnerGroupName ? ` [${p.partnerGroupName}]` : ''}</option>)}
-            </select></label>
-        ) : (
-          <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처(다중 · Ctrl)</div>
-            <select multiple className={inputCls} value={selectedIds.map(String)} onChange={(e) => { setSelectedIds(Array.from(e.target.selectedOptions).map((o) => Number(o.value))); setRan(false) }} style={{ width: 220, height: 90 }}>
-              {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select></label>
-        )}
-        <button className="ec-btn ec-btn-primary" onClick={run} disabled={loading}>검색(F8)</button>
-      </div>
+      {/* 원본은 조건을 라벨 표로 세로로 쌓는다: 기준일자 / 거래처 / 프로젝트 / 종류 */}
+      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+        <tbody>
+          <tr>
+            <th style={th}>기준일자</th>
+            <td colSpan={3}>
+              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <span style={{ marginLeft: 8 }}>
+                <button className="ec-btn ec-btn-sm" onClick={() => preset(0, 'range')}>금일</button>
+                <button className="ec-btn ec-btn-sm" style={{ marginLeft: 3 }} onClick={() => preset(7, 'range')}>최근7일</button>
+                <button className="ec-btn ec-btn-sm" style={{ marginLeft: 3 }} onClick={() => preset(0, 'month')}>금월</button>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>거래처</th>
+            <td>
+              {basis !== 'SELECTED' ? (
+                <CodePickerField label="거래처" hideLabel width={210} placeholder="선택하세요"
+                                 value={partnerId} onChange={(v) => { setPartnerId(v); setRan(false) }}
+                                 items={partnerCodeItems(partners)} />
+              ) : (
+                <CodePickerField label="거래처(다중)" hideLabel multiple width={230} placeholder="거래처를 고르세요"
+                                 values={selectedIds.map(String)}
+                                 onChangeMulti={(vals) => { setSelectedIds(vals.map(Number)); setRan(false) }}
+                                 items={partnerCodeItems(partners)} />
+              )}
+            </td>
+            <th style={th}>프로젝트</th>
+            <td>
+              <CodePickerField label="프로젝트" hideLabel width={210}
+                               value={projectId} onChange={(v) => { setProjectId(v); setRan(false) }}
+                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+            </td>
+          </tr>
+          <tr>
+            <th style={th}>종류</th>
+            <td colSpan={3}>
+              {/* 원본 라벨 그대로 — 거래처관계기준 */}
+              <select className={inputCls} value={basis}
+                      onChange={(e) => { setBasis(e.target.value as Basis); setRan(false) }} style={{ width: 170 }}>
+                <option value="INDIVIDUAL">개별거래처기준</option>
+                <option value="GROUP">연결거래처합산</option>
+                <option value="SELECTED">선택거래처합산</option>
+              </select>
+              <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-label)' }}>거래처관계기준</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       {ran && basis === 'GROUP' && (
         <p style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
@@ -147,7 +192,7 @@ export default function ConditionSearchPage() {
           {!ran ? (
             <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조건을 정하고 검색하세요.</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>대상 거래처가 없거나 기간 내 거래가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

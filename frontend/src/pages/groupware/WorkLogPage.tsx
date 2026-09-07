@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
+import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableSort } from '../../utils/useTableSort'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { WorkJournal } from '../../api/types'
+import type { Project, WorkJournal } from '../../api/types'
+import { useShortcut } from '../../utils/useShortcut'
+import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
+import { dateText } from '../../utils/dateText'
 
 const TITLE = '업무일지'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const dow = (d: string) => (d ? DOW[new Date(d).getDay()] : '')
 
@@ -18,7 +24,7 @@ export default function WorkLogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ reportDate: today(), department: '', partnerName: '', title: '', content: '' })
+  const [form, setForm] = useState({ reportDate: today(), department: '', projectId: '', partnerName: '', title: '', content: '' })
 
   // 표 내보내기/인쇄/검색 직접 배선
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -26,6 +32,42 @@ export default function WorkLogPage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
+
+  /*
+   * 조회 조건. 원본 업무일지는 목록이 아니라 **조건 화면**이고, [검색(F8)] 을 눌러야 결과가 나온다.
+   * 조건은 업무보고일(기간) · 요일 · 부서 · 프로젝트 · 거래처 · 제목 · 내용 · 최초작성자다.
+   * 우리는 조건 없이 전부 뿌리고 있었다 — 일지가 쌓이면 못 쓴다.
+   */
+  const [cond, setCond] = useState(() => {
+    const m = periodOf('최근3일+7일')!
+    return { from: m.from, to: m.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' }
+  })
+  const setC = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
+  /**
+   * 원본 조건 [기타]의 <b>[사용중단부서포함]</b>. 원본과 같이 기본은 꺼져 있다 —
+   * 없어진 부서의 일지가 기본 화면에 계속 섞여 나오고 있었다.
+   */
+  const [withInactiveDept, setWithInactiveDept] = useState(false)
+  const [inactiveDepts, setInactiveDepts] = useState<Set<string>>(new Set())
+  /** 부서 코드도움 후보. 원본 조건의 [부서]도 자유입력이 아니라 [선택]이다. */
+  const [depts, setDepts] = useState<DeptRow[]>([])
+
+  /** 조건에 맞는 일지만. 문자열 조건은 부분일치 — 원본도 코드도움에서 고르되 부분일치로 찾는다. */
+  const has = (v: string | null | undefined, q: string) => !q || (v ?? '').includes(q)
+  const shown = rows.filter((r) =>
+    (!cond.from || r.reportDate >= cond.from)
+    && (!cond.to || r.reportDate <= cond.to)
+    && (!cond.dow || dow(r.reportDate) === cond.dow)
+    && has(r.department, cond.department)
+    && (!cond.projectId || String(r.projectId ?? '') === cond.projectId)
+    && has(r.partnerName, cond.partnerName)
+    && has(r.title, cond.title)
+    && has(r.content, cond.content)
+    && has(r.authorName, cond.author)
+    // 원본 조건 [기타]의 [사용중단부서포함]. 규칙은 utils/inactiveDept 에 있다 —
+    // '마스터에 없으면 뺀다' 로 만들면 옛 부서명으로 적힌 일지가 통째로 사라진다.
+    && showsJournal(r.department, inactiveDepts, withInactiveDept))
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -48,6 +90,12 @@ export default function WorkLogPage() {
     if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
   }
 
+  // Search(F3) — 버튼 라벨이 약속한 단축키.
+  // 훅은 반드시 컴포넌트 본문 최상위에서 부른다. 예전에 이 줄이 useState 초기화 함수
+  // 안에 들어가 있었다 — 초기화는 첫 렌더에만 돌아서 두 번째 렌더에 훅 개수가 달라지고,
+  // React 가 "Rendered fewer hooks than expected" 로 화면을 통째로 죽인다.
+  useShortcut('F3', () => filterRows(search))
+
   async function doExcel() {
     const table = findDataTable(bodyRef.current)
     if (!table) return flash('이 화면에는 내보낼 표가 없습니다.')
@@ -63,7 +111,7 @@ export default function WorkLogPage() {
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<WorkJournal[]>('/work-journals')
+      const r = await api.get<WorkJournal[]>('/work-journals', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(r.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -72,7 +120,20 @@ export default function WorkLogPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
+  useEffect(() => { load() }, [cond.from, cond.to])
+
+  useEffect(() => {
+    let alive = true
+    api.get<DeptRow[]>('/departments')
+      .then((r) => { if (alive) { setDepts(r.data); setInactiveDepts(inactiveDeptNames(r.data)) } })
+      .catch(() => { /* 못 받으면 아무것도 숨기지 않는다 */ })
+    return () => { alive = false }
+  }, [])
+
+  useEffect(() => {
+    api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
+  }, [])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -84,17 +145,24 @@ export default function WorkLogPage() {
       await api.post('/work-journals', {
         reportDate: form.reportDate,
         department: form.department || undefined,
+        projectId: form.projectId ? Number(form.projectId) : undefined,
         partnerName: form.partnerName || undefined,
         title: form.title,
         content: form.content,
       })
-      setForm({ reportDate: today(), department: '', partnerName: '', title: '', content: '' })
+      setForm({ reportDate: today(), department: '', projectId: '', partnerName: '', title: '', content: '' })
       setShowForm(false)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
+
+
+  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  const sort = useTableSort(shown, {
+    업무보고일: (r) => r.reportDate,
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -142,13 +210,19 @@ export default function WorkLogPage() {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>업무보고일</th>
-                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
+                <td><input className="ec-input" type="date" value={dateText(form.reportDate)} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
                 <th style={{ width: 90, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>
               <tr>
+                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <td>
+                  <CodePickerField label="프로젝트" hideLabel width={200} value={form.projectId}
+                                   onChange={(v) => set('projectId', v)}
+                                   items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+                </td>
                 <th style={{ background: '#f5f7fa' }}>거래처</th>
-                <td colSpan={3}><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 320 }} /></td>
+                <td><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 200 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>제목 *</th>
@@ -167,14 +241,106 @@ export default function WorkLogPage() {
         </div>
       )}</Modal>
 
+      {/*
+        원본 조회 조건 — 업무보고일(기간) · 요일 · 부서 · 프로젝트 · 거래처 · 제목 · 내용 · 최초작성자.
+        그 아래에 [검색(F8)] 과 기간 빠른선택 버튼줄이 붙는다.
+      */}
+      <ul className="ec-form" style={{ marginBottom: 8 }}>
+        <li className="wide">
+          <div className="title">업무보고일</div>
+          <div className="form" style={{ gap: 6 }}>
+            <input type="date" className="ec-input" value={cond.from} onChange={(e) => setC('from', e.target.value)} style={{ width: 150 }} />
+            <span>~</span>
+            <input type="date" className="ec-input" value={cond.to} onChange={(e) => setC('to', e.target.value)} style={{ width: 150 }} />
+          </div>
+        </li>
+        <li>
+          <div className="title">요일</div>
+          <div className="form">
+            <select className="ec-input" value={cond.dow} onChange={(e) => setC('dow', e.target.value)} style={{ width: 120 }}>
+              <option value="">전체</option>
+              {DOW.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        </li>
+        {/*
+          원본 조건의 [부서]는 자유입력이 아니라 [선택](코드도움)이다.
+          [사용중단부서포함]을 끄면 후보에서도 빠진다 — 목록에서 고를 수 있는데
+          고르면 아무것도 안 나오는 부서를 남겨 두면 사람이 화면을 의심한다.
+          값은 id 가 아니라 <b>부서명</b>이다. 업무일지가 부서를 이름으로 들고 있어서다.
+        */}
+        <li>
+          <div className="title">부서</div>
+          <div className="form">
+            <CodePickerField
+              label="부서" hideLabel fill value={cond.department}
+              onChange={(v) => setC('department', v)}
+              items={depts.filter((d) => withInactiveDept || d.active)
+                .map((d) => ({ value: d.name, code: d.code ?? '', name: d.name }))}
+            />
+          </div>
+        </li>
+        <li>
+          <div className="title">프로젝트</div>
+          <div className="form">
+            <CodePickerField label="프로젝트" hideLabel fill value={cond.projectId}
+                             onChange={(v) => setC('projectId', v)}
+                             items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+          </div>
+        </li>
+        <li>
+          <div className="title">거래처</div>
+          <div className="form"><input className="ec-input" value={cond.partnerName} onChange={(e) => setC('partnerName', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">제목</div>
+          <div className="form"><input className="ec-input" value={cond.title} onChange={(e) => setC('title', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">내용</div>
+          <div className="form"><input className="ec-input" value={cond.content} onChange={(e) => setC('content', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        <li>
+          <div className="title">최초작성자</div>
+          <div className="form"><input className="ec-input" value={cond.author} onChange={(e) => setC('author', e.target.value)} style={{ width: '100%' }} /></div>
+        </li>
+        {/* 원본 조건 판의 [기타] 칸. 원본도 기본은 꺼져 있다. */}
+        <li>
+          <div className="title">기타</div>
+          <div className="form">
+            <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <input type="checkbox" checked={withInactiveDept}
+                     onChange={(e) => setWithInactiveDept(e.target.checked)} />
+              사용중단부서포함
+            </label>
+          </div>
+        </li>
+      </ul>
+
+      {/* 원본 하단: 검색(F8) + 기간 빠른선택 + 다시 작성 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', marginBottom: 10 }}>
+        <button className="ec-btn ec-btn-primary" onClick={() => flash(`조회 결과 ${shown.length}건`)}>검색(F8)</button>
+        <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
+        <button
+          className="ec-btn"
+          onClick={() => {
+            setCond({ from: periodOf('최근3일+7일')!.from, to: periodOf('최근3일+7일')!.to, dow: '', department: '', projectId: '', partnerName: '', title: '', content: '', author: '' })
+            setWithInactiveDept(false)
+          }}
+        >
+          다시 작성
+        </button>
+      </div>
+
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
         <table className="w-full text-left">
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>업무보고일 ▼</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('업무보고일')}>업무보고일 {sort.mark('업무보고일')}</th>
               <th style={{ width: 44, textAlign: 'center' }}>요일</th>
               <th>부서</th>
+              <th>프로젝트</th>
               <th>거래처</th>
               <th>제목</th>
               <th>작성자</th>
@@ -182,15 +348,16 @@ export default function WorkLogPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>작성된 업무일지가 없습니다.</td></tr>
-            ) : rows.map((r, i) => (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : sort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.reportDate}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.reportDate)}</td>
                 <td style={{ textAlign: 'center' }}>{dow(r.reportDate)}</td>
                 <td>{r.department ?? ''}</td>
+                <td>{r.projectName ?? ''}</td>
                 <td>{r.partnerName ?? ''}</td>
                 <td>{r.title}</td>
                 <td>{r.authorName}</td>

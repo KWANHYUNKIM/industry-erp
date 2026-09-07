@@ -151,10 +151,12 @@ public class MallOrderService {
                 req.warehouseId(),
                 o.getOrderDate(),
                 req.taxable() != null ? req.taxable() : Boolean.TRUE,
+                Boolean.FALSE,  // 몰 주문 전환은 늘 일반 판매다. 몰 반품은 MallOrder 쪽에서 따로 다룬다.
                 o.getMall() + " 주문 " + o.getMallOrderNo() + " (" + o.getBuyerName() + ")",
                 null,   // 몰 주문에는 프로젝트 개념이 없다
                 null,   // 담당 사원도 없다 — 몰이 판 것이지 누가 판 게 아니다
-                List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice(), o.getRemark()))
+                null,   // 거래별부가세계산: 몰 주문은 한 줄짜리라 라인별/거래별 결과가 같다
+                List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice(), o.getRemark(), null, null, null))
         ), username);
 
         o.setStatus(MallOrderStatus.CONVERTED);

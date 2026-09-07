@@ -10,8 +10,10 @@ public interface CardUsageRepository extends JpaRepository<CardUsage, Long> {
 
     @Query("select u from CardUsage u " +
            "join fetch u.card join fetch u.expenseAccount left join fetch u.journalEntry " +
+           "where u.usageDate >= :from and u.usageDate <= :to " +
            "order by u.usageDate desc, u.id desc")
-    List<CardUsage> findAllWithRefs();
+    List<CardUsage> findAllWithRefs(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
+                             @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
 
     /** 특정 카드의 사용내역 (대금결제 대상 후보) */
     @Query("select u from CardUsage u " +

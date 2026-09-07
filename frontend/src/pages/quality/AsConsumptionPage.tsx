@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { AS_CONSUMPTION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
@@ -11,15 +15,52 @@ import EcListShell from '../../components/EcListShell'
 interface Row { itemId: number; itemName: string; asCount: number; totalQty: number; totalAmount: number }
 const won = (n: number) => n.toLocaleString('ko-KR')
 
+const initP = periodOf('금월(~오늘)')!
+
 export default function AsConsumptionPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 A/S소모현황(E040641) 조건 <b>실측(2026-09-01 원본 직접 확인)</b>:
+   * 구분(내역/집계+단위) · <b>기준일자</b> · <b>접수일자(기본 [사용안함])</b> · 창고 ·
+   * 프로젝트 · 수리담당자 · 접수담당자 · 수리유형 · 거래처 · 수리품목.
+   *
+   * <p>사본에서 옮겨 적을 때 첫 조건을 [접수일자] 로 적어 두었는데, 원본을 열어 보니
+   * <b>[기준일자]가 먼저고 [접수일자]는 따로</b> 있는 보조 조건이다(끄고 열린다).
+   * 우리 기간은 접수일로 거르므로 라벨은 [접수일자] 가 맞다 — 다만 <b>원본이 주 조건으로
+   * 쓰는 기준일자(수리·소모한 날)로는 아직 못 거른다.</b> 서버가 품목별로 합쳐 주기 때문에
+   * 그 축을 넣으려면 집계를 고쳐야 한다.
+   *
+   * <p>기간 빠른선택도 달랐다 — 우리는 [전월+금월] 을 달아 두었는데 원본에는 없고,
+   * 원본이 주는 [최근30일(+1개월)] 이 우리에게 없었다. AS_CONSUMPTION_PICKS 로 맞췄다.
+   *
+   * <p>우리 화면은 <b>조건이 하나도 없었다</b> — 서버가 전체를 품목별로 합쳐 주는 것을
+   * 그대로 받아 품목명 검색만 했다. 언제 쓴 부품인지, 어느 창고에서 나갔는지로
+   * 좁힐 수가 없었다. 우리가 가진 넷을 서버에 넘긴다 — <b>합친 뒤에는 못 거른다.</b>
+   * [프로젝트]·[수리유형]은 A/S 전표에 그 값이 없고, 담당자는 우리 쪽이 하나뿐이라
+   * 원본의 수리·접수 둘로 가를 수 없다.
+   */
+  /* 원본 A/S소모현황은 <b>금월</b>을 보고 열린다(사본 실측). 우리는 <b>올해 1월 1일</b>부터라 */
+  /* 한 해치 소모가 한 화면에 뭉쳐 이번 달 소모가 얼마인지 읽히지 않았다. */
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
+  const [warehouseId, setWarehouseId] = useState('')
+  const [partnerId, setPartnerId] = useState('')
+  const [repairItemId, setRepairItemId] = useState('')
+  /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
+  const [projectId, setProjectId] = useState('')
+  const pickers = useCondPickers(['warehouses', 'partners', 'items', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   async function load() {
     setLoading(true); setError('')
-    try { setRows((await api.get<Row[]>('/as-requests/parts/consumption')).data) }
+    try {
+      const params = { from, to, warehouseId: warehouseId || undefined,
+        partnerId: partnerId || undefined, repairItemId: repairItemId || undefined,
+        projectId: projectId || undefined }
+      setRows((await api.get<Row[]>('/as-requests/parts/consumption', { params })).data)
+    }
     catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
@@ -31,6 +72,27 @@ export default function AsConsumptionPage() {
   return (
     <EcListShell title="A/S소모현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
+      <EcStatusPanel from={from} to={to} onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={AS_CONSUMPTION_PICKS} dateLabel="접수일자">
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouseId} onChange={setWarehouseId} items={pickers.warehouses} />
+        </EcCond>
+        {/* 원본 A/S소모현황 차례: 접수일자 · 창고 · <b>프로젝트</b> · … · 거래처 · 수리품목 */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectId} onChange={setProjectId} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
+                           value={partnerId} onChange={setPartnerId} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="수리품목" pick>
+          <CodePickerField label="수리품목" hideLabel width={170} emptyLabel="전체"
+                           value={repairItemId} onChange={setRepairItemId} items={pickers.items} />
+        </EcCond>
+      </EcStatusPanel>
+
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#9aa1ab' }}>A/S 수리에 소모된 부품을 품목별로 집계. 소모부품은 A/S 관리에서 등록합니다.</span>
         <span style={{ marginLeft: 'auto' }}>
@@ -58,7 +120,7 @@ export default function AsConsumptionPage() {
           {loading ? (
             <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>A/S 소모부품 내역이 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>

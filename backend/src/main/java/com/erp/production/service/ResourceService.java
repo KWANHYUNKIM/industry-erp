@@ -5,6 +5,9 @@ import com.erp.production.domain.ProductionResource;
 import com.erp.production.dto.ResourceDtos.CreateResourceRequest;
 import com.erp.production.dto.ResourceDtos.ResourceResponse;
 import com.erp.production.dto.ResourceDtos.UpdateResourceRequest;
+import com.erp.inventory.service.WarehouseService;
+import com.erp.production.domain.ProductionProcess;
+import com.erp.production.repository.ProcessRepository;
 import com.erp.production.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -20,6 +23,9 @@ import com.erp.production.dto.ResourceDtos;
 public class ResourceService {
 
     private final ResourceRepository resourceRepository;
+    private final ProcessRepository processRepository;
+    private final ProcessService processService;
+    private final WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
     public List<ResourceResponse> findAll() {
@@ -40,6 +46,8 @@ public class ResourceService {
                 .capacity(req.capacity() != null ? req.capacity() : BigDecimal.ZERO)
                 .unit(req.unit())
                 .costPerHr(req.costPerHr() != null ? req.costPerHr() : BigDecimal.ZERO)
+                .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
+                .process(processOf(req.processId()))
                 .active(true)
                 .build();
         return ResourceResponse.from(resourceRepository.save(r));
@@ -59,15 +67,36 @@ public class ResourceService {
         if (req.costPerHr() != null) {
             r.setCostPerHr(req.costPerHr());
         }
+        // 위치·대상작업은 null 로 지울 수 있어야 한다(자리를 비우거나 작업을 뗀다).
+        r.setWarehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null);
+        r.setProcess(processOf(req.processId()));
         if (req.active() != null) {
             r.setActive(req.active());
         }
         return ResourceResponse.from(r);
     }
 
+    /** 대상작업(공정). 없는 id 를 주면 조용히 무시하지 않고 알린다. */
+    /** 사용중지한 공정에 설비를 새로 붙일 수는 없다. 안 정할 수는 있다. */
+    private ProductionProcess processOf(Long processId) {
+        if (processId == null) return null;
+        return processService.getUsable(processId);
+    }
+
     @Transactional
     public void delete(Long id) {
         resourceRepository.delete(getResource(id));
+    }
+
+    /** 새로 고르는 자리에서 쓴다. 사용중지한 설비로 새 작업을 올릴 수는 없다. */
+    @Transactional(readOnly = true)
+    public ProductionResource getUsable(Long id) {
+        ProductionResource r = getResource(id);
+        if (!r.isActive()) {
+            throw ApiException.badRequest(
+                    "사용중지된 자원입니다: " + r.getCode() + " " + r.getName());
+        }
+        return r;
     }
 
     private ProductionResource getResource(Long id) {

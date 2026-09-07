@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useShortcut } from '../../utils/useShortcut'
 
 /** Self-Customizing > 환경설정 — 시스템 전반 사용 옵션 (실제 연동, 단일 레코드 upsert) */
 interface Toggle { key: BoolKey; label: string; desc: string }
@@ -35,6 +36,9 @@ export default function PreferencesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
+  useShortcut('F8', save, !saving)
 
   async function load() {
     setLoading(true)

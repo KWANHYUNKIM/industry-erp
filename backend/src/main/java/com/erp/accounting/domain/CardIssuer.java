@@ -42,4 +42,20 @@ public class CardIssuer extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * 원본 <b>[계정]</b> — 이 곳에서 나가는 수수료를 다는 계정. 회계반영이 이 값을 본다.
+     * 안 정할 수 있다(정하지 않으면 반영할 때 사람이 고른다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
+    private Account account;
+
+    /** 원본 <b>[입금계좌]</b> — 정산 금액이 들어오는 우리 계좌. */
+    @Column(name = "deposit_account", length = 100)
+    private String depositAccount;
+
+    /** 원본 <b>[검색창내용]</b>. 부르는 이름으로 찾는다(거래처와 같다). */
+    @Column(name = "search_keyword", length = 100)
+    private String searchKeyword;
 }

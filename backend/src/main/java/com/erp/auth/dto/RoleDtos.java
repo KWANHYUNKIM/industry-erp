@@ -2,6 +2,7 @@ package com.erp.auth.dto;
 
 import com.erp.auth.domain.Permission;
 import com.erp.auth.domain.Role;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -42,14 +43,19 @@ public final class RoleDtos {
     }
 
     public record CreateRoleRequest(
+            @Size(max = 50, message = "역할 코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "역할 코드를 입력하세요.") String name,
+            @Size(max = 100, message = "표시 이름은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "표시 이름을 입력하세요.") String displayName,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String description,
             Set<String> permissionCodes
     ) {}
 
     public record UpdateRoleRequest(
+            @Size(max = 100, message = "표시 이름은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "표시 이름을 입력하세요.") String displayName,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
             String description,
             Set<String> permissionCodes
     ) {}

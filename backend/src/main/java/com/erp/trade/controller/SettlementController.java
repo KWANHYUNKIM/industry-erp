@@ -31,4 +31,10 @@ public class SettlementController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(settlementService.create(req, principal.getUsername()));
     }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        settlementService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

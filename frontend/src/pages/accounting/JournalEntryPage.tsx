@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { ymd } from '../../components/EcPeriodPicks'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Row { accountId: string; debit: string; credit: string; description: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyRow = (): Row => ({ accountId: '', debit: '', credit: '', description: '' })
 
 /** 일반전표 입력 — 차변/대변 라인을 직접 입력해 회계전표를 만든다. 차변합=대변합이어야 저장된다. */
@@ -56,6 +58,11 @@ export default function JournalEntryPage() {
     }
   }
 
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '일반전표입력', [])
+
   return (
     <EcListShell title="일반전표입력" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
@@ -67,7 +74,7 @@ export default function JournalEntryPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <table className="w-full text-left" style={{ maxWidth: 900 }}>
+      <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 900 }}>
         <thead>
           <tr>
             <th style={{ width: 34 }}></th><th>계정과목</th>

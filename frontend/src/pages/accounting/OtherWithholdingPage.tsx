@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeType, OtherWithholding, OtherWithholdingSummary, Partner } from '../../api/types'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
-const today = () => new Date().toISOString().slice(0, 10)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
+const today = () => ymd(new Date())
 
 /** 소득구분별 세율. 화면 미리보기용 — 확정 계산은 서버가 한다. */
 const TYPES: { value: IncomeType; label: string; rate: number; expenseRate: number; hint: string }[] = [
@@ -128,15 +131,15 @@ export default function OtherWithholdingPage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{month} 지급 기록이 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.docNo}</td>
-              <td>{r.payDate}</td>
+              <td>{dateText(r.payDate)}</td>
               <td>{r.incomeTypeName}</td>
               <td style={{ fontWeight: 600 }}>{r.payeeName}</td>
-              <td style={{ color: '#8a929c' }}>{r.payeeRegNo ?? '-'}</td>
+              <td style={{ color: '#8a929c' }}>{r.payeeRegNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.grossAmount)}</td>
               <td style={{ textAlign: 'right', color: r.expenseAmount > 0 ? '#5a626e' : '#c3c8cf' }}>{won(r.expenseAmount)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.taxableAmount)}</td>
@@ -248,17 +251,18 @@ function WithholdingForm({ partners, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>지급일</th>
-                <td><input type="date" className="ec-input" value={payDate} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dateText(payDate)} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>지급액<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td><input className="ec-input" type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>거래처</th>
                 <td colSpan={3}>
-                  <select className="ec-input" value={partnerId} onChange={(e) => pickPartner(e.target.value)} style={{ width: 240 }}>
-                    <option value="">(거래처 없이 개인에게 지급)</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
+                    거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
+                <CodePickerField label="거래처" hideLabel width={240} emptyLabel="(거래처 없이 개인에게 지급)"
+                                 value={partnerId} onChange={pickPartner}
+                                 items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
                 </td>
               </tr>
               <tr>

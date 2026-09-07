@@ -16,10 +16,12 @@ import com.erp.trade.dto.ShipmentDtos.CreateShipmentRequest;
 import com.erp.trade.dto.ShipmentDtos.ShipLineRequest;
 import com.erp.trade.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
 import com.erp.trade.repository.SalesOrderRepository;
 import com.erp.trade.repository.ShipmentLineRepository;
 import com.erp.trade.repository.ShipmentRepository;
+import com.erp.inventory.service.ItemService;
+import com.erp.inventory.service.WarehouseService;
+import com.erp.hr.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,12 +45,31 @@ public class ShipmentService {
     private final ShipmentLineRepository shipmentLineRepository;
     private final SalesOrderRepository salesOrderRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
+    private final ItemService itemService;
+    private final WarehouseService warehouseService;
+    private final EmployeeService employeeService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.inventory.service.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<ShipmentResponse> findAll() {
-        return shipmentRepository.findAllWithLines().stream()
+        return findAll(null, null);
+    }
+
+    /**
+     * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
+     * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<ShipmentResponse> findAll(LocalDate from, LocalDate to) {
+        var found = (from == null && to == null)
+                ? shipmentRepository.findAllWithLines()
+                : shipmentRepository.findWithLinesByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        return found.stream()
                 .map(ShipmentResponse::from)
                 .toList();
     }
@@ -63,8 +84,8 @@ public class ShipmentService {
 
     @Transactional
     public ShipmentResponse create(CreateShipmentRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처로는 출하할 수 없습니다: " + partner.getName());
         }
@@ -75,7 +96,19 @@ public class ShipmentService {
                 .shipNo(generateShipNo(shipDate))
                 .partner(partner)
                 .shipDate(shipDate)
+                // 출하예정일을 안 주면 출하일자로 본다 — 미출하현황이 그 값으로 거르므로
+                // 비워 두면 그 화면에서 통째로 빠진다.
+                .dueDate(req.dueDate() != null ? req.dueDate() : shipDate)
+                .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
+                .employee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null)
+                .contact(req.contact())
+                .postalCode(req.postalCode())
+                // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,
+                // 다른 곳이면 사람이 고친다.
+                .address(req.address() != null && !req.address().isBlank()
+                        ? req.address() : partner.getAddress())
                 .status(ShipmentStatus.READY)
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
@@ -84,8 +117,7 @@ public class ShipmentService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (ShipLineRequest lr : req.lines()) {
-            Item item = itemRepository.findById(lr.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + lr.itemId()));
+            Item item = itemService.getUsable(lr.itemId());
             BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
             BigDecimal amount = lr.quantity().multiply(unitPrice);
 
@@ -94,6 +126,7 @@ public class ShipmentService {
                     .quantity(lr.quantity())
                     .unitPrice(unitPrice)
                     .amount(amount)
+                    .remark(lr.remark())
                     .build());
 
             totalQty = totalQty.add(lr.quantity());
@@ -142,6 +175,8 @@ public class ShipmentService {
                 .salesOrder(order)
                 .shipDate(shipDate)
                 .status(ShipmentStatus.READY)
+                // 주문에서 만든 출하는 프로젝트가 비어 나간다 — 주문서에 프로젝트 칸이 없어
+                // 이어받을 것이 없다. 지어내지 않고 출하 화면에서 고르게 둔다.
                 .remark("주문 " + order.getOrderNo() + " 출하")
                 .createdBy(username)
                 .build();
@@ -168,6 +203,8 @@ public class ShipmentService {
                     .quantity(t.qty())
                     .unitPrice(line.getUnitPrice())
                     .amount(amount)
+                    // 주문에서 만든 출하는 줄 적요가 비어 나간다 — 주문 라인에
+                    // 적요 칸이 없어 이어받을 것이 없다. 출하 화면에서 직접 적는다.
                     .build());
 
             totalQty = totalQty.add(t.qty());
@@ -229,6 +266,19 @@ public class ShipmentService {
             map.put((Long) row[0], (BigDecimal) row[1]);
         }
         return map;
+    }
+
+    /**
+     * 출하 삭제.
+     *
+     * <p>출하는 재고를 건드리지 않으므로(재고는 판매전표가 움직인다) 되돌릴 것이 없다.
+     * 지우면 그 라인이 근거로 삼던 수주 라인의 미출하수량이 다시 살아난다 — 그게 맞는 동작이다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Shipment shipment = shipmentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("출하를 찾을 수 없습니다. id=" + id));
+        shipmentRepository.delete(shipment);
     }
 
     private String generateShipNo(LocalDate date) {

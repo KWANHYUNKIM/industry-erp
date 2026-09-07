@@ -1,7 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -22,7 +26,7 @@ interface Project {
   createdBy: string | null
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 /** 그룹웨어 > 프로젝트 — 프로젝트 진행/진척 관리 (실제 연동) */
 export default function ProjectPage() {
@@ -82,12 +86,25 @@ export default function ProjectPage() {
     catch (err) { alert(extractErrorMessage(err)) }  // 전표·계획 참조 시 서버가 막는다(400)
   }
 
-  const shown = rows
+  const shownRows = rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword) || (r.manager ?? '').includes(keyword))
 
+  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [상태]는 화면에 찍히는 이름으로 세운다. */
+  const sort = useTableSort(shownRows, {
+    코드: (r) => r.code,
+    프로젝트명: (r) => r.name,
+    상태: (r) => r.statusName,
+  })
+  const shown = sort.sorted
+
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '프로젝트 진척', [])
 
   return (
     <EcListShell
@@ -112,9 +129,9 @@ export default function ProjectPage() {
               </tr>
               <tr>
                 <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>종료(예정)</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>상태</th>
@@ -145,31 +162,31 @@ export default function ProjectPage() {
         ))}
       </div>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>코드 ▼</th>
-            <th>프로젝트명 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
             <th style={{ width: 90 }}>PM</th>
             <th style={{ width: 100 }}>시작일</th>
             <th style={{ width: 100 }}>종료(예정)</th>
-            <th style={{ width: 170 }}>진척률</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태 ▼</th>
+            <th style={{ textAlign: 'right', width: 170 }}>진척률</th>
+            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 120, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>프로젝트가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
-              <td>{r.startDate}</td>
-              <td>{r.endDate ?? ''}</td>
+              <td>{dateText(r.startDate)}</td>
+              <td>{dateText(r.endDate) || ''}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
                   <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>

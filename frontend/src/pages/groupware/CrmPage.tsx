@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { CrmActivity, CrmStage, Partner } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
+import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import { ymd } from '../../components/EcPeriodPicks'
+import { dateText } from '../../utils/dateText'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 
 const STAGES: { v: CrmStage; label: string; color: string }[] = [
   { v: 'LEAD', label: '리드', color: '#8a929c' },
@@ -15,7 +19,14 @@ const STAGES: { v: CrmStage; label: string; color: string }[] = [
 ]
 const stageColor = (v: CrmStage) => STAGES.find((s) => s.v === v)?.color ?? '#5a626e'
 
-/** 그룹웨어 > 고객관리 — 영업활동/상담 이력 (실연동) */
+/**
+ * 그룹웨어 > 고객관리 > 고객관리게시판 > 영업활동관리 (이카운트 E200319)
+ *
+ * 원본에서 '고객관리'는 단독 화면이 아니라 <b>고객관리게시판</b> 묶음이고, 그 안에
+ * 영업활동관리·상담이력관리 두 게시판이 있다. 우리 화면은 영업활동에 해당한다.
+ * 원본 두 화면은 이 계정에서 '권한없음'이라 컬럼을 대조하지 못했다 —
+ * 근거가 생기면 그때 맞춘다.
+ */
 export default function CrmPage() {
   const [rows, setRows] = useState<CrmActivity[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -75,11 +86,27 @@ export default function CrmPage() {
     }
   }
 
-  const shown = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || (r.activity ?? '').includes(keyword))
+  const shownRows = rows.filter((r) => !keyword || r.partnerName.includes(keyword) || (r.activity ?? '').includes(keyword))
+
+  /*
+   * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [단계]는 칸 안이 고르는 자리(select)라
+   * 값 자체로 세운다 — 화면에 보이는 것이 곧 그 값이다.
+   */
+  const sort = useTableSort(shownRows, {
+    일자: (r) => r.activityDate,
+    고객사: (r) => r.partnerName,
+    단계: (r) => r.stage,
+  })
+  const shown = sort.sorted
+
+
+  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, 'CRM', [])
 
   return (
     <EcListShell
-      title="고객관리 (영업활동)"
+      title="영업활동관리"
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '활동등록(F2)'}
@@ -88,7 +115,7 @@ export default function CrmPage() {
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <Modal open={showForm} title="고객관리 (영업활동) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title="영업활동 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>영업활동 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -124,16 +151,16 @@ export default function CrmPage() {
           </span>
         ))}
       </div>
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>일자 ▼</th>
-            <th>고객사 ▼</th>
+            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('고객사')}>고객사 {sort.mark('고객사')}</th>
             <th style={{ width: 90 }}>담당연락처</th>
             <th style={{ width: 80 }}>영업담당</th>
             <th>활동내용</th>
-            <th style={{ width: 100, textAlign: 'center' }}>단계 ▼</th>
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('단계')}>단계 {sort.mark('단계')}</th>
             <th>다음 액션</th>
           </tr>
         </thead>
@@ -141,11 +168,11 @@ export default function CrmPage() {
           {loading ? (
             <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>영업활동 내역이 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{r.activityDate}</td>
+              <td>{dateText(r.activityDate)}</td>
               <td>{r.partnerName}</td>
               <td>{r.contactName ?? ''}</td>
               <td>{r.charge ?? ''}</td>

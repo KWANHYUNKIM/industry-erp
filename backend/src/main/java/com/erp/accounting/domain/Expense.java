@@ -37,6 +37,15 @@ public class Expense extends BaseTimeEntity {
     @Column(length = 300)
     private String content;
 
+    /**
+     * 비용 전표번호 (EX-yyyyMMdd-####).
+     *
+     * <p>원본 비용내역현황의 첫 열이 [일자-No.] 다. 번호가 없으면 "그 비용 건" 을 지목할
+     * 방법이 없어, 증빙을 붙이거나 회계반영을 되짚을 때 일자와 금액으로 더듬어야 한다.
+     */
+    @Column(name = "doc_no", nullable = false, unique = true, length = 30)
+    private String docNo;
+
     /** 거래처(자유입력) */
     @Column(length = 200)
     private String partnerName;
