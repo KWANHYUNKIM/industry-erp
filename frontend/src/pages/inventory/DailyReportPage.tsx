@@ -6,6 +6,7 @@ import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 > 일보 (이카운트 E040708)
@@ -59,17 +60,26 @@ export default function DailyReportPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [from, to])
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 판매 전표 응답에는 없다 —
+   * 품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   /** 조건(거래처·품목)은 두 표에 같은 규칙으로 걸려야 한다 — 한 곳에 적는다. */
   const hitSales = (d: SalesDoc) =>
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
     && (!warehouse || d.warehouseName.includes(warehouse))
     && (!project || (d.projectName ?? '').includes(project))
+    && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
   const hitPurch = (d: PurchaseDoc) =>
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
     && (!warehouse || d.warehouseName.includes(warehouse))
     && (!project || (d.projectName ?? '').includes(project))
+    && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
 
   const inRange = (d: string) => (!from || d >= from) && (!to || d <= to)
 
@@ -160,6 +170,12 @@ export default function DailyReportPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: [프로젝트] 다음 — 이 화면에서는 조건 판 맨 뒤다(사본 실측). */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
       </EcStatusPanel>
 

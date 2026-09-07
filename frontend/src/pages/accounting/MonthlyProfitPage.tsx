@@ -9,6 +9,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 이익관리 > 월별이익현황
@@ -133,6 +134,13 @@ export default function MonthlyProfitPage() {
     itemPurchasePrice: unitPrices.get(itemId) ?? null,
   })
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 판매 전표 응답에는 없다 —
+   * 품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
     // 원본 조건 [기준월] — 연도 안에서 볼 달을 좁힌다.
@@ -146,6 +154,7 @@ export default function MonthlyProfitPage() {
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
       .filter((l) => withUntracked || !untracked.has(l.itemId))
+      .filter((l) => !mgmtCond || mgmt.nameOf(l.itemId) === mgmtCond)
       .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
       const price = costPrice(l.itemId, d.saleDate)
@@ -294,6 +303,12 @@ export default function MonthlyProfitPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
