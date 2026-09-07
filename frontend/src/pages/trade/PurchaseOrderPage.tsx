@@ -7,7 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
+import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
@@ -38,8 +38,14 @@ interface HistoryRow {
   note: string | null
 }
 
-interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string }
-const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '' })
+/**
+ * 줄 하나. <code>custom</code> 은 <b>줄 추가항목</b>(사용자정의)이다 —
+ * 원본 발주서입력 격자는 회사가 추가문자·추가숫자·추가일자·추가코드로 칸을 늘린다.
+ * 우리는 반대로 Self-Customizing 에서 <b>이름을 지어</b> 정의하면 그만큼 열이 생긴다.
+ * 정의가 없으면 열이 하나도 안 생긴다(안 쓰는 회사의 격자는 그대로다).
+ */
+interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string; custom: Record<string, string> }
+const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '', custom: {} })
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */
 /*
@@ -723,6 +729,22 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
     })
     return [...kept, ...added, emptyLine()]
   }))
+  /**
+   * 줄 추가항목의 <b>정의</b>. 열 예외에 "발주서 화면이 아직 안 읽는다" 고 적혀 있던
+   * 그 나머지 반쪽이다(머리는 앞 커밋에 이었다). 판매·구매 입력이 쓰는 것과 같은 길이다 —
+   * <code>/custom-fields/defs?entityType=PURCHASE_ORDER_LINE</code>.
+   */
+  const [lineDefs, setLineDefs] = useState<CustomFieldDef[]>([])
+  useEffect(() => {
+    api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: 'PURCHASE_ORDER_LINE' } })
+      .then((r) => setLineDefs(r.data.filter((d) => d.active !== false)))
+      /* 추가항목은 곁가지다 — 못 불러와도 입력을 막지 않는다. */
+      .catch(() => setLineDefs([]))
+  }, [])
+  /** 줄 추가항목 한 칸을 고친다. */
+  const setLineCustom = (idx: number, key: string, value: string) =>
+    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, custom: { ...l.custom, [key]: value } } : l)))
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const specOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.spec ?? ''
@@ -755,9 +777,11 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
         remark: l.remark || undefined,
       }))
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
+    /* 보낸 줄과 <b>같은 차례로</b> 돌아온다 — 추가항목을 새 줄 id 에 붙일 때 이 짝을 쓴다. */
+    const kept = lines.filter((l) => l.itemId && Number(l.quantity) > 0)
     setSaving(true)
     try {
-      await api.post('/purchase-orders', {
+      const res = await api.post<PurchaseOrder>('/purchase-orders', {
         partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
         employeeId: employeeId ? Number(employeeId) : undefined,
         warehouseId: warehouseId ? Number(warehouseId) : undefined,
@@ -765,6 +789,24 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
         currency,
         taxable, remark: remark || undefined, lines: payload,
       })
+      /*
+       * 줄 추가항목은 <b>줄 id 가 생긴 뒤에야</b> 붙일 수 있어서 저장을 두 번 한다.
+       * 값을 하나도 안 채운 줄은 부르지 않는다 — 안 쓰는 회사에 헛요청이 줄 수만큼 나간다.
+       * 여기서 실패해도 발주는 이미 저장됐으므로 <b>그 사실을 알리고</b> 닫는다.
+       */
+      if (lineDefs.length > 0) {
+        const newLines = res.data.lines ?? []
+        const puts = kept.map((l, i) => {
+          const id = newLines[i]?.id
+          if (id == null || !Object.values(l.custom ?? {}).some((v) => v?.trim())) return null
+          return api.put('/custom-fields/values', { values: l.custom },
+            { params: { entityType: 'PURCHASE_ORDER_LINE', entityId: id } })
+        }).filter(Boolean) as Promise<unknown>[]
+        if (puts.length > 0) {
+          try { await Promise.all(puts) }
+          catch { setError('발주는 저장했지만 줄 추가항목 저장에 실패했습니다.') }
+        }
+      }
       onSaved()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -862,7 +904,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
               안 보여 "3" 이 세 개인지 세 박스인지 알 수 없었다. 부가세 포함 단가는 <b>매입처가 부르는 값</b>이라
               머릿속으로 곱해 보고 있었다.
             */}
-            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
+            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th>{/* 줄 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 격자가 그대로다. */}{lineDefs.map((d) => (<th key={d.fieldKey} style={{ width: 120 }}>{d.label}</th>))}<th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -883,6 +925,28 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
                   <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
+                  {/*
+                    머리의 추가항목과 <b>같은 잣대로</b> 그린다 — [코드] 형식이면 고르는 칸,
+                    나머지는 치는 칸이다. 판매·구매 격자가 예전에 이 둘을 다르게 그려
+                    같은 필드가 위아래에서 다르게 굴었던 적이 있다.
+                  */}
+                  {lineDefs.map((d) => (
+                    <td key={d.fieldKey}>
+                      {d.fieldType === 'CODE' ? (
+                        <select className="ec-input" value={l.custom[d.fieldKey] ?? ''} disabled={!l.itemId}
+                                onChange={(e) => setLineCustom(i, d.fieldKey, e.target.value)} style={{ width: '100%' }}>
+                          <option value=""></option>
+                          {(d.options ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+                            .map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : (
+                        <input className="ec-input" disabled={!l.itemId}
+                               type={d.fieldType === 'DATE' ? 'date' : d.fieldType === 'NUMBER' ? 'number' : 'text'}
+                               value={l.custom[d.fieldKey] ?? ''}
+                               onChange={(e) => setLineCustom(i, d.fieldKey, e.target.value)} style={{ width: '100%' }} />
+                      )}
+                    </td>
+                  ))}
                   <td style={{ color: '#6b7280' }}>{i + 1}</td>
                   <td style={{ color: '#6b7280' }}>{unitOf(l.itemId)}</td>
                   <td style={{ textAlign: 'right', color: '#6b7280' }}>{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
@@ -893,7 +957,8 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
                 <td colSpan={6} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
-                <td style={{ textAlign: 'right' }} colSpan={6}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
+                {/* 추가항목 열이 늘어난 만큼 여기도 늘어야 한다 — 안 그러면 합계가 엉뚱한 열 아래 붙는다. */}
+                <td style={{ textAlign: 'right' }} colSpan={6 + lineDefs.length}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>
