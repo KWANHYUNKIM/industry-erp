@@ -66,6 +66,8 @@ interface Row {
   remark: string
   /** 원본 조건 [외화종류]. 안 정했으면 빈 값 — 원화 거래다. */
   currency: string
+  /** 원본 조건 [최초작성자]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
+  createdBy: string
   /** 원본 조건 [유효기간]. 단가요청 건에 붙는 날짜다(납기일과 다르다). */
   validUntil: string
   qty: number
@@ -123,6 +125,8 @@ export default function PurchaseRequestStatusPage({
     /* 원본 [거래유형]·[단가]. */
     taxKind: '', priceFrom: '', priceTo: '',
     qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+    /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
+    createdBy: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -153,6 +157,7 @@ export default function PurchaseRequestStatusPage({
           itemName: l.itemName,
           category: l.itemCategory ?? '',
           currency: o.currency ?? '',
+          createdBy: o.createdBy ?? '',
           validUntil: o.priceValidUntil ?? '',
           spec: l.spec ?? '',
           remark: l.remark ?? '',
@@ -197,6 +202,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.remark || r.remark.includes(c.remark))
     /* 원본 조건 [담당자]. 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.employee || r.employee.includes(c.employee))
+    /* 원본 조건 [최초작성자]. 담당자와 다르다 — 전표를 <b>넣은</b> 사람이다. */
+    && (!c.createdBy || r.createdBy === c.createdBy)
     /* 원본 조건 [품목구분]. 원자재를 사는 건인지 상품을 사는 건인지로 먼저 갈라 본다. */
     && (!c.category || r.category === c.category)
     /* 원본 조건 [거래처관리담당자]. 그 거래처를 맡은 사람 — 전표의 담당자와 다르다. */
@@ -225,6 +232,12 @@ export default function PurchaseRequestStatusPage({
     && (!c.vatTo || r.vat <= Number(c.vatTo))
     && (!c.dueFrom || (r.dueDate ?? '') >= c.dueFrom)
     && (!c.dueTo || (r.dueDate ?? '') <= c.dueTo)
+
+  /**
+   * 원본 [최초작성자] 후보. <b>지금 받아 온 줄에 실제로 있는 이름</b>만 낸다 —
+   * 사용자 마스터를 부르면 이 화면에 한 건도 없는 사람까지 목록에 선다.
+   */
+  const authors = [...new Set(rows.map((r) => r.createdBy).filter((v) => !!v))].sort()
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -275,6 +288,8 @@ export default function PurchaseRequestStatusPage({
       category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
       taxKind: '', priceFrom: '', priceTo: '',
       qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+    /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
+    createdBy: '',
     })
     setMode('내역'); setCompare('사용안함'); setKeyword('')
   }
@@ -493,6 +508,14 @@ export default function PurchaseRequestStatusPage({
           <select className="ec-input" value={status} style={{ width: 140 }}
                   onChange={(e) => setStatus(e.target.value as PurchaseOrderStatus)}>
             {PIPELINE.map((st) => <option key={st} value={st}>{STATUS_LABEL[st]}</option>)}
+          </select>
+        </EcCond>
+        {/* 원본 차례: [진행상태] 바로 뒤다(사본 실측 — 두 화면이 같다). */}
+        <EcCond label="최초작성자">
+          <select className="ec-input" value={cond.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setC({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {authors.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </EcCond>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측 — 두 화면이 같다). */}

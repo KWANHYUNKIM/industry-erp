@@ -25,8 +25,9 @@ import { dateText } from '../../utils/dateText'
  * <p>우리는 조건 판이 없고 검색어 한 칸이 전부였다 — 작업지시 444건이 통째로 쏟아졌다.
  *
  * <p>납기일자는 원본에서 <b>기본이 '사용안함'</b> 인 두 번째 기간이다. 켜면 그 구간의
- * 납기만 본다. 오더관리번호·거래처·담당자·규격·적요·작성자는 작업지시에 그 값이 없어
- * 칸을 만들지 않는다. 진행상태는 우리 상태(예정·진행중·완료)로 갈음한다.
+ * 납기만 본다. 오더관리번호는 작업지시에 그 값이 없어 칸을 만들지 않는다.
+ * (거래처·담당자·규격·적요·작성자도 '값이 없다'고 적혀 있었으나 사실이 아니었다 —
+ * 응답이 진작 싣고 있었고 이 화면이 안 받고 있었을 뿐이다.) 진행상태는 우리 상태(예정·진행중·완료)로 갈음한다.
  */
 type WoStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
 
@@ -53,6 +54,8 @@ interface WorkOrderRow {
   partnerName: string | null
   /** 원본 조건 판의 [적요]. 위와 같음. */
   remark: string | null
+  /** 원본 조건 판의 [최초작성자]. 위와 같음 — 응답이 진작 싣는데 안 받고 있었다. */
+  createdBy: string | null
 }
 
 interface ProductionRow {
@@ -120,6 +123,8 @@ export default function WoEfficiencyPage() {
   /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
   const [manager, setManager] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
+  /** 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다(사본 실측). */
+  const [author, setAuthor] = useState('')
   /** 원본 [거래처] — 작업지시의 납품처. */
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
@@ -274,6 +279,7 @@ export default function WoEfficiencyPage() {
     if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
     if (partner && (r.partnerName ?? '') !== partner) return false
+    if (author && (r.createdBy ?? '') !== author) return false
     if (status !== '전체' && r.statusName !== status) return false
     return true
   })
@@ -359,6 +365,18 @@ export default function WoEfficiencyPage() {
                       onClick={() => setStatus(s2)}>{s2}</button>
             ))}
           </div>
+        </EcCond>
+        {/*
+          원본 [최초작성자] 후보. <b>지금 받아 온 줄에 실제로 있는 이름</b>만 낸다 —
+          사용자 마스터를 부르면 이 화면에 한 건도 없는 사람까지 목록에 선다.
+        */}
+        <EcCond label="최초작성자">
+          <select className="ec-input" value={author} style={{ width: 140 }}
+                  onChange={(e) => setAuthor(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(orders.map((o) => o.createdBy).filter((v): v is string => !!v))].sort()
+              .map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -39,6 +39,8 @@ export default function EcDrivePage() {
   const [uploading, setUploading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [nameCond, setNameCond] = useState('')
+  /** 원본 ECDrive 조건 차례는 [이름] · [최초작성자] · [최종수정자] 다. 올린 사람이 곧 최초작성자다. */
+  const [authorCond, setAuthorCond] = useState('')
   /** 열려 있는 [더보기] ⋮ 메뉴의 문서 id */
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [treeOpen, setTreeOpen] = useState(true)
@@ -48,9 +50,15 @@ export default function EcDrivePage() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const current = TREE.find((t) => t.key === sel)!
+  /**
+   * 원본 [최초작성자] 후보. <b>지금 받아 온 줄에 실제로 있는 이름</b>만 낸다 —
+   * 사용자 마스터를 부르면 이 화면에 한 건도 없는 사람까지 목록에 선다.
+   */
+  const uploaders = [...new Set(rows.map((d) => d.uploader).filter((v): v is string => !!v))].sort()
   /* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자. */
   const shownRows = rows
     .filter((d) => !nameCond || d.name.includes(nameCond))
+    .filter((d) => !authorCond || (d.uploader ?? '') === authorCond)
     .filter((d) => !keyword || d.name.includes(keyword))
 
   /*
@@ -217,6 +225,16 @@ export default function EcDrivePage() {
             <span>이름</span>
             <input className="ec-input" value={nameCond} placeholder="파일·폴더 이름"
                    onChange={(e) => setNameCond(e.target.value)} style={{ width: 200 }} />
+            {/*
+              원본 [최초작성자]. uploader 는 응답에도 프론트 타입에도 진작 있었는데
+              <b>줄에 마우스를 올려야 보이는 툴팁</b>으로만 쓰고 있었다 — 그걸로 거를 수가 없었다.
+            */}
+            <span style={{ marginLeft: 8 }}>최초작성자</span>
+            <select className="ec-input" value={authorCond} style={{ width: 140 }}
+                    onChange={(e) => setAuthorCond(e.target.value)}>
+              <option value="">전체</option>
+              {uploaders.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
           </div>
 
           {/* 원본 실측 폭(67-984-447-224-89-134)을 비율로 옮겼다 */}
