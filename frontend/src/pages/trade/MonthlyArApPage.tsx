@@ -4,6 +4,7 @@ import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { ymd } from '../../components/EcPeriodPicks'
 
 /**
@@ -42,6 +43,9 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
    * 응답에 진작 실려 온다(하네스가 SalesResponse 에 partnerName 이 있다고 짚어 줬다).
    */
   const [partner, setPartner] = useState('')
+  /** 원본 [거래처그룹1] — 거래처 마스터에서 잇는다(하나뿐인 그룹에 원본의 1 을 붙인다). */
+  const pgroups = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
   /**
    * 원본 조건 <b>[거래처관리담당자]</b>. 받을 돈을 나눠 맡는 곳에서는 "내가 맡은 곳이
    * 이 달을 얼마나 밀었나" 가 이 표를 여는 이유다. 담당자는 <b>거래처 마스터</b>에 붙어
@@ -89,6 +93,13 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         if (머리) for (const p of partnerRows) if (p.parentId === 머리.id) 고른이름.add(p.name)
       }
     }
+    /*
+     * 원본 [거래처그룹1] — 담당자와 같은 성질이다. 거래처 마스터에 붙는 값이라
+     * 전표에서는 이름으로 잇는다. 하나뿐인 그룹에 원본의 '1' 을 붙인다(거래처등록과 같다).
+     */
+    const 그룹이름 = partnerGroup
+      ? new Set(partnerRows.filter((p) => (p.partnerGroupName ?? '') === partnerGroup).map((p) => p.name))
+      : null
     /* 담당자로 좁힐 때 쓸 이름 집합. 거래처 마스터의 값이라 전표에서는 이름으로 잇는다. */
     const 담당이름 = manager
       ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.name))
@@ -97,6 +108,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       const n = name ?? ''
       if (고른이름.size && !고른이름.has(n)) return false
       if (담당이름 && !담당이름.has(n)) return false
+      if (그룹이름 && !그룹이름.has(n)) return false
       return true
     }
     const incDocs = mode === 'AR'
@@ -165,7 +177,13 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
-        {/* 원본 차례: 거래처 → 거래처그룹들 → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
+        {/* 원본 차례: 거래처 → <b>거래처그룹1</b> → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처그룹1</span>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </div>
         <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
           <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} disabled={!partner} />
           <span style={{ color: partner ? undefined : '#a8b0ba' }}>대표거래처로 합산</span>

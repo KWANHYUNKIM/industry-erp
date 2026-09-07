@@ -651,7 +651,15 @@
     ],
     "file": "trade/SalesPlanPage.tsx"
   },
-  "거래처그룹1": {
+  "자가사용현황|거래처그룹1": {
+  "claim": "재고조정 전표에 거래처가 없다 — 사내에서 쓴 것이라 상대가 없다",
+  "absent": [
+   "partner",
+   "Partner"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+ },
+  "거래처그룹2": {
     "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
     "absent": [
       "partnerGroup2",

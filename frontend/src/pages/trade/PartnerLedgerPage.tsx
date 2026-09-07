@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -109,6 +110,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
  */
   const [searchParams] = useSearchParams()
   const [partner, setPartner] = useState(searchParams.get('partner') ?? '')
+  /** 원본 [거래처그룹1] — 거래처 마스터에서 잇는다(하나뿐인 그룹에 원본의 1 을 붙인다). */
+  const pgroups = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
 
   async function load() {
     setLoading(true)
@@ -176,8 +180,11 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
 
   const bySide = useMemo(
     () => all.filter((e) => (side === '전체' || e.side === side)
-      && (!partner || e.partnerName.includes(partner))),
-    [all, side, partner],
+      && (!partner || e.partnerName.includes(partner))
+      /* 원본 [거래처그룹1]. 거래처 마스터에 붙는 값이라 전표에서는 이름으로 잇는다. */
+      && (!partnerGroup || pgroups.groupOfName(e.partnerName) === partnerGroup)),
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [all, side, partner, partnerGroup, pgroups.groupOptions],
   )
 
   /** 거래처마다 이월잔액 + 기간 안의 줄 + 소계. */
@@ -321,6 +328,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
+        </EcCond>
+        {/* 원본 차례: [거래처] 다음이 [거래처그룹1] 이다(사본 실측). */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroup} onChange={(v) => setPartnerGroup(v)}
+                           items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="대표거래처로 합산">
           <div className="ec-pills">
