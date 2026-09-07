@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 영업관리 > 출하현황 — 출하 전표를 기간·조건으로 본다 (/api/shipments).
@@ -110,6 +111,14 @@ export default function ShipmentPage() {
   }
 
   const inRange = (r: Shipment, a: string, b: string) => r.shipDate >= a && r.shipDate <= b
+  /**
+   * 원본 [관리항목] — 차례는 [프로젝트] 다음, [거래처] 앞이다(사본 실측).
+   * 품목 마스터에 붙는 값이라 출하 전표 응답에는 없다. 그래도 만들 수 있다 —
+   * 품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const matches = (r: Shipment) => {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
@@ -117,12 +126,14 @@ export default function ShipmentPage() {
     if (item && !r.lines.some((l) => `${l.itemCode} ${l.itemName}`.includes(item))) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
+    if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     return true
   }
 
   const shown = useMemo(
     () => rows.filter((r) => inRange(r, from, to) && matches(r)),
-    [rows, from, to, statusFilter, shipNo, partner, item, warehouse, project],
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [rows, from, to, statusFilter, shipNo, partner, item, warehouse, project, mgmtCond, mgmt.options],
   )
 
   /** 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 합계만 견준다. */
@@ -199,6 +210,12 @@ export default function ShipmentPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"

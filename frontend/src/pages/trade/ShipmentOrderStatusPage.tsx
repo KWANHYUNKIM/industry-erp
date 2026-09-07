@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 영업관리 > 출력물 > <b>출하지시서현황</b>.
@@ -101,6 +102,14 @@ export default function ShipmentOrderStatusPage() {
     setShipNo(''); setDueDate(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
   }
 
+  /**
+   * 원본 [관리항목] — 차례는 [프로젝트] 다음, [거래처] 앞이다(사본 실측).
+   * 품목 마스터에 붙는 값이라 출하 전표 응답에는 없다. 그래도 만들 수 있다 —
+   * 품목 마스터를 받아 <b>줄의 itemId 로 화면에서 잇는다</b>(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const shown = useMemo(() => rows.filter((r) => {
     // 아직 안 나간 지시만. 취소된 것도 뺀다 — 보낼 것이 아니다.
     if (r.status !== 'READY') return false
@@ -111,8 +120,10 @@ export default function ShipmentOrderStatusPage() {
     if (partner && !r.partnerName.includes(partner)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
     if (item && !r.lines.some((l) => (l.itemCode + ' ' + l.itemName).includes(item))) return false
+    if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     return true
-  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item, mgmtCond, mgmt.options])
 
   /** 라인별 — 원본 결과 격자의 단위다. */
   const lines = useMemo(
@@ -194,6 +205,12 @@ export default function ShipmentOrderStatusPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
                            items={pickers.projects} />
+        </EcCond>
+        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
