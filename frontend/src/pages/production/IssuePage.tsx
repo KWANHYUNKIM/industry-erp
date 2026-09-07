@@ -73,6 +73,8 @@ const emptyForm = {
  * 같은 날 같은 작업지시로 자재 다섯 개를 내보내면서 다섯 번 저장할 일이 아니다.
  */
 interface FormLine { key: number; itemId: string; qty: string; note: string }
+/** GET /api/stock 한 줄 — 원본 [재고불러오기]가 격자의 수량 칸 셋을 채우는 자료다. */
+interface StockRow { itemId: number; warehouseId: number; quantity: number }
 let nextLineKey = 1
 const emptyLine = (): FormLine => ({ key: nextLineKey++, itemId: '', qty: '', note: '' })
 
@@ -123,6 +125,44 @@ export default function IssuePage() {
     const added = picked.map((m) => ({ ...emptyLine(), itemId: String(m.itemId), qty: String(m.defaultQty) }))
     return [...kept, ...added, emptyLine()]
   }))
+  /**
+   * 원본 격자 툴바의 <b>[재고불러오기]</b>.
+   *
+   * <p>불출은 <b>있는 것을 빼는 일</b>이다. 재고가 모자라면 서버가 거절하는데, 그걸
+   * <b>[등록]을 누른 뒤에야</b> 알았다 — 다섯 줄을 채워 넣고 세 번째 줄에서 막히는 식이다.
+   * 원본 격자에는 <b>전체수량 · 보내는창고수량 · 받는창고수량</b> 세 칸이 있고
+   * (qa/fixtures/ecount-column-width.json 의 생산불출입력 — 각 67), 이 단추가 그것을 채운다.
+   *
+   * <p>화면을 열 때마다 전 품목 재고를 끌어오지 않는다 — 누를 때만 부른다(TradeEntry 와 같다).
+   * 부르기 전에는 칸을 <b>비워 두지 않고 '-' 로</b> 둔다. 0 으로 채우면 "재고가 없다" 로 읽힌다.
+   */
+  const [stocks, setStocks] = useState<StockRow[]>([])
+  const [stockLoaded, setStockLoaded] = useState(false)
+  const [stockBusy, setStockBusy] = useState(false)
+  async function loadStocks() {
+    setStockBusy(true)
+    try {
+      const r = await api.get<StockRow[]>('/stock')
+      setStocks(r.data)
+      setStockLoaded(true)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setStockBusy(false)
+    }
+  }
+  /** 그 품목의 전 창고 합계. 재고를 아직 안 불러왔으면 null 이다(0 이 아니다). */
+  const stockAllOf = (itemId: string): number | null => {
+    if (!stockLoaded || !itemId) return null
+    return stocks.filter((s) => String(s.itemId) === itemId).reduce((a, s) => a + s.quantity, 0)
+  }
+  /** 그 품목의 <b>한 창고</b> 수량. 창고를 안 골랐으면 잴 것이 없어 null 이다. */
+  const stockAtOf = (itemId: string, warehouseId: string): number | null => {
+    if (!stockLoaded || !itemId || !warehouseId) return null
+    const hit = stocks.find((s) => String(s.itemId) === itemId && String(s.warehouseId) === warehouseId)
+    return hit ? hit.quantity : 0
+  }
+  const qtyCell = (n: number | null) => (n === null ? '-' : n.toLocaleString())
 
   async function load() {
     setLoading(true)
@@ -337,6 +377,7 @@ export default function IssuePage() {
             {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
             <MyItemsNote note={myItems.note} />
+            <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
           </div>
           <table className="w-full text-left">
             <thead>
@@ -344,6 +385,13 @@ export default function IssuePage() {
                 <th style={{ width: 34 }}></th>
                 <th>품목명</th>
                 <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+                {/*
+                  원본 격자의 수량 칸 셋(각 67). [재고불러오기]를 눌러야 찬다 —
+                  차례도 원본 그대로 [수량] 뒤 · [적요] 앞이다.
+                */}
+                <th style={{ width: 67, textAlign: 'right' }}>전체수량</th>
+                <th style={{ width: 67, textAlign: 'right' }}>보내는창고수량</th>
+                <th style={{ width: 67, textAlign: 'right' }}>받는창고수량</th>
                 <th style={{ width: 200 }}>적요</th>
                 <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
               </tr>
@@ -361,6 +409,9 @@ export default function IssuePage() {
                     <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
                            value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
                   </td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAllOf(l.itemId))}</td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
                   <td>
                     <input className={inputCls} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
                   </td>
@@ -377,7 +428,8 @@ export default function IssuePage() {
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>
                   {lines.reduce((a2, l) => a2 + (Number(l.qty) || 0), 0).toLocaleString()}
                 </td>
-                <td colSpan={2}></td>
+                {/* 열이 다섯에서 여덟이 됐다 — 합계행도 같이 늘린다(2 + 1 + 5 = 8). */}
+                <td colSpan={5}></td>
               </tr>
             </tfoot>
           </table>
