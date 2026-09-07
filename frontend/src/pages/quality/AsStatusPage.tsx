@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -91,6 +92,16 @@ export default function AsStatusPage() {
    */
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo, filters.doneFrom, filters.doneTo])
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
+   * 창고 · 프로젝트 · 담당자 · 접수진행상태 · 거래처 · 품목 · 적용양식 · 양식구분 · 데이터 보기형식).
+   *
+   * <p>무엇을 그리나 — A/S 는 <b>어디에 얼마나 밀려 있나</b> 를 보는 화면이다.
+   * 그래서 <b>접수진행상태</b>로 묶어 건수를 그린다. 품목으로 묶으면 '무엇이 자주 고장나나'
+   * 는 보이지만 '지금 몇 건이 안 끝났나' 는 안 보인다 — 이 화면 위쪽 요약이 이미 그 물음이다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
     const f = filters
@@ -168,7 +179,8 @@ export default function AsStatusPage() {
       </div>
 
       {panelOpen && (
-        <SearchPanel draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} onApply={applyDraft} onReset={resetDraft} />
+        <SearchPanel draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} onApply={applyDraft} onReset={resetDraft}
+                     view={view} onViewChange={setView} />
       )}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
@@ -185,6 +197,14 @@ export default function AsStatusPage() {
         평균처리 <b style={{ color: '#3c4553' }}>{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
       </div>
 
+      {view === '그래프' ? (
+        <EcBarChart unit=" 건" emptyText="조회된 접수가 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.statusName, (m.get(r.statusName) ?? 0) + 1)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -230,18 +250,22 @@ export default function AsStatusPage() {
           })}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
 
 /** 이카운트 Search 패널 — 접수일/거래처/품목/담당/상태 */
 function SearchPanel({
-  draft, onChange, onApply, onReset,
+  draft, onChange, onApply, onReset, view, onViewChange,
 }: {
   draft: Filters
   onChange: (patch: Partial<Filters>) => void
   onApply: () => void
   onReset: () => void
+  /** 원본 [데이터 보기형식] — 조건 판 맨 끝이다. 셸을 안 쓰는 화면이라 여기 직접 그린다. */
+  view: '표' | '그래프'
+  onViewChange: (v: '표' | '그래프') => void
 }) {
   const label: React.CSSProperties = {
     width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
@@ -317,6 +341,15 @@ function SearchPanel({
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        <span style={label}>데이터 보기형식</span>
+        <div className="ec-pills">
+          {(['표', '그래프'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                    onClick={() => onViewChange(v)}>{v}</button>
+          ))}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <button className="ec-btn" onClick={onReset}>초기화</button>
