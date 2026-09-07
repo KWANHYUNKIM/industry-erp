@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -194,6 +195,29 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    */
   const SUBTOTALS = ['창고·품목', '품목', '창고', '사유'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('창고·품목')
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 다섯 화면(자가사용·불량처리·대체사용·폐기·
+   * 재고조정)이 한 파일이라 여기 한 번 만들면 다섯이 같이 풀린다.
+   *
+   * <p>무엇을 그리나 — <b>고른 [정렬/소계기준] 축으로 묶어 증감 수량</b>을 그린다.
+   * 줄 하나씩 그리면 같은 품목이 흩어져 막대가 수십 개로 늘어선다. 소계와 같은 축을
+   * 쓰므로 표에서 보던 묶음이 그대로 그림이 된다.
+   *
+   * <p>수량은 <b>절댓값</b>으로 그린다. 조정은 늘기도 줄기도 하는데 부호를 섞어 더하면
+   * 서로 지워져 '움직임이 없었다' 로 보인다 — 얼마나 움직였나를 보는 그림이다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) {
+      const label = subtotal === '품목' ? r.itemName
+        : subtotal === '창고' ? (r.warehouseName ?? '(창고 없음)')
+          : subtotal === '사유' ? ((r.reason ?? '').trim() || '(사유 없음)')
+            : `${r.warehouseName ?? '(창고 없음)'} · ${r.itemName}`
+      m.set(label, (m.get(label) ?? 0) + Math.abs(r.quantityChange))
+    }
+    return [...m].map(([label, value]) => ({ label, value }))
+  }, [shown, subtotal])
 
   /** 집계 — 고른 기준으로 묶어 증감 합을 낸다. */
   const summary = useMemo(() => {
@@ -257,6 +281,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         dateLabel="일자"
+        view={view} onViewChange={setView}
         subtotal={subtotal}
         subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
@@ -385,7 +410,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       </div>
 
       <div className="overflow-x-auto">
-        {mode === '내역' ? (
+        {view === '그래프' ? (
+          <EcBarChart rows={chartRows} unit="" emptyText="조회된 자료가 없습니다." />
+        ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
               <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
