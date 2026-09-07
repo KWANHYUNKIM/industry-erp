@@ -4,6 +4,7 @@ import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
@@ -82,6 +83,13 @@ export default function SalesPurchaseSummaryPage() {
   const keepRemark = (t: string | null) => !remarkCond || (t ?? '').includes(remarkCond)
 
 
+  /**
+   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
+   * 품목 마스터를 받아 줄의 itemId 로 잇는다(판매현황이 먼저 그렇게 했다).
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+
   const rows = useMemo(() => {
     const m = new Map<string, Agg>()
     const bump = (key: string, name: string): Agg => {
@@ -125,6 +133,7 @@ export default function SalesPurchaseSummaryPage() {
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
           if (itemCond && l.itemCode !== itemCond) continue
+          if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
         }
@@ -139,6 +148,7 @@ export default function SalesPurchaseSummaryPage() {
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
           if (itemCond && l.itemCode !== itemCond) continue
+          if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
         }
@@ -188,6 +198,13 @@ export default function SalesPurchaseSummaryPage() {
           <span style={label}>담당자</span>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond} items={partnerPick.employees} />
+        </div>
+        {/* 원본 차례: [프로젝트]·[담당자] 다음, [거래처] 앞이다 — 이 화면만 담당자가 끼어든다(사본 실측). */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>관리항목</span>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>거래처</span>
