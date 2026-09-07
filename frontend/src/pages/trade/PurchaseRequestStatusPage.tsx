@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, PRICE_REQUEST_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { CodeOption, Partner, PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -239,6 +240,15 @@ export default function PurchaseRequestStatusPage({
    */
   const authors = [...new Set(rows.map((r) => r.createdBy).filter((v) => !!v))].sort()
 
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 맨 끝이다(사본 실측).
+   * 이 화면은 EcStatusPanel 을 쓰므로 셸이 제자리에 그려 준다.
+   *
+   * <p>단가요청·발주계획은 <b>어느 거래처에 얼마를 걸어 두었나</b> 를 보는 화면이라
+   * 거래처로 묶어 공급가액을 그린다. 줄 하나씩 그리면 같은 매입처가 흩어진다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return rows
@@ -370,6 +380,7 @@ export default function PurchaseRequestStatusPage({
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={title === '단가요청현황' ? PRICE_REQUEST_PICKS : INQUIRY_PICKS}
+        view={view} onViewChange={setView}
       >
         <EcCond label="발주No." pick>
           <input className="ec-input" placeholder="발주번호 일부" value={cond.orderNo}
@@ -558,7 +569,14 @@ export default function PurchaseRequestStatusPage({
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
-      {mode === '집계' ? (
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 자료가 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partner, (m.get(r.partner) ?? 0) + r.supply)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
