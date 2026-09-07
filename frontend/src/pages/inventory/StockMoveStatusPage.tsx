@@ -4,6 +4,7 @@ import type { CodeOption, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -111,6 +112,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     reason: '', employee: '', spec: '', project: '',
     /* 원본 [불량유형]/[사용유형] · [처리방법] · [수량]. */
     kind: '', handling: '', qtyFrom: '', qtyTo: '',
+    /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
+    itemGroup: '',
     /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
     createdBy: '',
   })
@@ -169,6 +172,13 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
      * 품목등록과 같이 서버가 주는 목록(/meta/item-categories)의 code 로 견준다.
      */
     .filter((r) => !cond.category || r.itemCategory === cond.category)
+    /*
+     * 원본 [품목그룹1]. 품목그룹은 <b>품목 마스터에 붙는 값</b>이라 재고조정 응답에는
+     * 없다 — 관리항목과 같은 길로 잇는다(품목 마스터를 받아 줄의 itemId 로).
+     * 예외에 '우리 품목그룹은 평면이고 <b>번호가 없다</b>' 고 적혀 있었으나 사실이 아니다:
+     * 품목등록이 원본 이름 그대로 [품목그룹1명] 열을 쓴다. 없는 것은 2·3 이지 1 이 아니다.
+     */
+    .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     /* 원본 조건 [담당자]. 담당자 <b>이름</b>은 사원 목록에서 붙인다 — 재고 모듈은 사원을 모른다. */
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
@@ -206,6 +216,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * <p>수량은 <b>절댓값</b>으로 그린다. 조정은 늘기도 줄기도 하는데 부호를 섞어 더하면
    * 서로 지워져 '움직임이 없었다' 로 보인다 — 얼마나 움직였나를 보는 그림이다.
    */
+  /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
+  const mgmt = useItemMgmt()
   const [view, setView] = useState<'표' | '그래프'>('표')
   const chartRows = useMemo(() => {
     const m = new Map<string, number>()
@@ -260,6 +272,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       from: init.from, to: init.to, warehouseId: '', item: '', category: '',
       reason: '', employee: '', spec: '', project: '',
       kind: '', handling: '', qtyFrom: '', qtyTo: '',
+    /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
+    itemGroup: '',
     /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
     createdBy: '',
     })
@@ -319,6 +333,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             <option value="">전체</option>
             {cats.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
+        </EcCond>
+        {/* 원본 차례: [품목구분] 다음이 [품목그룹1] 이다(사본 실측). */}
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         {/* 원본 조건 [담당자] — 표에는 찍히는데 그것으로 거를 수가 없었다. */}
         <EcCond label="담당자" pick>

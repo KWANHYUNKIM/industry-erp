@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { INQUIRY_PICKS, PRICE_REQUEST_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { CodeOption, Partner, PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -62,6 +63,8 @@ interface Row {
   itemName: string
   /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
   category: string
+  /** 원본 조건 [품목그룹1]. 품목 마스터에서 이으려면 줄이 품목 id 를 들어야 한다. */
+  itemId: number
   /** 원본 조건 [규격]·[적요]. 서버는 진작 보내는데 화면이 안 받아 뒀다. */
   spec: string
   remark: string
@@ -126,6 +129,8 @@ export default function PurchaseRequestStatusPage({
     /* 원본 [거래유형]·[단가]. */
     taxKind: '', priceFrom: '', priceTo: '',
     qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+    /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
+    itemGroup: '',
     /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
     createdBy: '',
   })
@@ -156,6 +161,7 @@ export default function PurchaseRequestStatusPage({
           employee: o.employeeName ?? '',
           project: o.projectName ?? '',
           itemName: l.itemName,
+          itemId: l.itemId,
           category: l.itemCategory ?? '',
           currency: o.currency ?? '',
           createdBy: o.createdBy ?? '',
@@ -207,6 +213,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.createdBy || r.createdBy === c.createdBy)
     /* 원본 조건 [품목구분]. 원자재를 사는 건인지 상품을 사는 건인지로 먼저 갈라 본다. */
     && (!c.category || r.category === c.category)
+    /* 원본 조건 [품목그룹1]. 품목 마스터에 붙는 값이라 발주 응답에는 없다 — 마스터에서 잇는다. */
+    && (!c.itemGroup || mgmt.groupOf(r.itemId) === c.itemGroup)
     /* 원본 조건 [거래처관리담당자]. 그 거래처를 맡은 사람 — 전표의 담당자와 다르다. */
     && (!c.partnerManager || 담당거래처(c.partnerManager).has(r.partner))
     /* 원본 조건 [외화종류]. 안 정한 건은 원화라 '(원화)' 로 고른다. */
@@ -247,6 +255,8 @@ export default function PurchaseRequestStatusPage({
    * <p>단가요청·발주계획은 <b>어느 거래처에 얼마를 걸어 두었나</b> 를 보는 화면이라
    * 거래처로 묶어 공급가액을 그린다. 줄 하나씩 그리면 같은 매입처가 흩어진다.
    */
+  /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
+  const mgmt = useItemMgmt()
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   const shown = useMemo(() => {
@@ -298,6 +308,8 @@ export default function PurchaseRequestStatusPage({
       category: '', partnerManager: '', currency: '', validFrom: '', validTo: '',
       taxKind: '', priceFrom: '', priceTo: '',
       qtyFrom: '', qtyTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+    /* 원본 [품목그룹1] — 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
+    itemGroup: '',
     /* 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다. */
     createdBy: '',
     })
@@ -439,6 +451,12 @@ export default function PurchaseRequestStatusPage({
             <option value="">전체</option>
             {cats.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
+        </EcCond>
+        {/* 원본 차례: [품목구분] 다음이 [품목그룹1] 이다(사본 실측). */}
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         {/* 원본 조건 [담당자] — 표에는 찍는데 그것으로 거를 수가 없었다. */}
         <EcCond label="담당자" pick>

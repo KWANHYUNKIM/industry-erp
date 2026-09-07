@@ -6,6 +6,8 @@ interface ItemMgmtRow {
   id: number
   code: string
   managementItemName: string | null
+  /** 원본 [품목그룹1]. 우리 품목그룹은 하나뿐이라 원본의 '1' 이 그것이다. */
+  itemGroupName: string | null
 }
 
 /**
@@ -24,7 +26,7 @@ interface ItemMgmtRow {
  * value/code/name/sub/alias 만 추려 담고 managementItemName 을 버린다.
  * 그래서 /items 를 따로 받는다 — 이미 Item[] 을 받아 둔 화면은 그것을 넘겨 쓰면 된다.
  */
-export function useItemMgmt(preloaded?: { id: number; code: string; managementItemName: string | null }[]) {
+export function useItemMgmt(preloaded?: ItemMgmtRow[]) {
   const [fetched, setFetched] = useState<ItemMgmtRow[]>([])
   const need = preloaded === undefined
 
@@ -55,6 +57,27 @@ export function useItemMgmt(preloaded?: { id: number; code: string; managementIt
     () => [...new Set(items.map((i) => i.managementItemName).filter((v): v is string => !!v))].sort(),
     [items])
 
+  /**
+   * 원본 <b>[품목그룹1]</b>. 예외에 '우리 품목그룹은 평면이고 <b>번호가 없다</b>' 고 적혀
+   * 있었으나 사실이 아니다 — 품목등록·거래처등록은 원본 이름 그대로 [품목그룹1명]·
+   * [거래처그룹1] 이라 적고 있다. 우리에게 없는 것은 <b>2·3</b> 이지 <b>1</b> 이 아니다.
+   * 관리항목과 같은 길로 잇는다(품목 마스터를 받아 줄의 itemId 로).
+   */
+  const groupOptions = useMemo(
+    () => [...new Set(items.map((i) => i.itemGroupName).filter((v): v is string => !!v))].sort(),
+    [items])
+  const byIdGroup = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const i of items) if (i.itemGroupName) m.set(i.id, i.itemGroupName)
+    return m
+  }, [items])
+  /** 그 품목의 품목그룹1 이름. 안 붙은 품목은 빈 문자열이다. */
+  const groupOf = (itemId: number | null | undefined) =>
+    (itemId == null ? '' : byIdGroup.get(itemId) ?? '')
+  /** 고른 품목그룹1 에 걸리나. 전표 한 건에 줄이 여럿이면 한 줄이라도 걸리면 남긴다. */
+  const groupHits = (itemIds: (number | null | undefined)[], picked: string) =>
+    (!picked ? true : itemIds.some((id) => groupOf(id) === picked))
+
   /** 그 품목의 관리항목 이름. 안 붙은 품목은 빈 문자열이다. */
   const nameOf = (itemId: number | null | undefined) =>
     (itemId == null ? '' : byId.get(itemId) ?? '')
@@ -71,5 +94,5 @@ export function useItemMgmt(preloaded?: { id: number; code: string; managementIt
   const hits = (itemIds: (number | null | undefined)[], picked: string) =>
     (!picked ? true : itemIds.some((id) => nameOf(id) === picked))
 
-  return { options, nameOf, nameOfCode, hits }
+  return { options, nameOf, nameOfCode, hits, groupOptions, groupOf, groupHits }
 }
