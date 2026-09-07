@@ -2,7 +2,7 @@ import { useCallback, useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
-import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { PARTNER_LEDGER_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -330,7 +330,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             <input type="date" className="ec-input" value={to}
                    onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
             <span style={{ marginLeft: 6, display: 'inline-flex', gap: 3 }}>
-              {STATUS_PICKS.map((label) => (
+              {PARTNER_LEDGER_PICKS.map((label) => (
                 <button key={label} type="button" className="ec-btn"
                         onClick={() => { const r = periodOf(label); if (r) { setFrom(r.from); setTo(r.to) } }}>
                   {label}
