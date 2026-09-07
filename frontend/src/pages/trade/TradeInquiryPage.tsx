@@ -463,17 +463,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             이름은 화면마다 다르다 — 원본 <b>판매조회는 [창고], 구매조회는 [입고창고]</b> 다.
             한 이름으로 묶으면 한쪽은 원본과 다른 말을 쓰게 된다.
           */}
-          {isSales ? (
-            <CodePickerField label="창고" width={130} emptyLabel="전체"
-                             value={whCond} onChange={setWhCond}
-                             items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
-                               .map((n) => ({ value: n, name: n }))} />
-          ) : (
-            <CodePickerField label="입고창고" width={130} emptyLabel="전체"
-                             value={whCond} onChange={setWhCond}
-                             items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
-                               .map((n) => ({ value: n, name: n }))} />
-          )}
+          {/*
+            <b>판매조회·구매조회 둘 다 [창고] 다.</b> 예전에는 갈래로 나눠 구매 쪽을
+            [입고창고] 라 적었다 — 사본이 그렇게 적어 두어 그대로 따랐다. 2026-09-07 에
+            원본(E040304 구매조회)을 열어 보니 <b>[창고]</b> 다. 사본과 어긋나면 원본이 심판이라
+            갈래를 없애고 한 이름으로 둔다.
+          */}
+          <CodePickerField label="창고" width={130} emptyLabel="전체"
+                           value={whCond} onChange={setWhCond}
+                           items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
           <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond}
                            items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
