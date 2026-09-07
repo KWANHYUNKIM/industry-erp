@@ -58,6 +58,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const isSales = mode === 'sales'
   /* 이 줄의 이름은 화면마다 다르다 — 판매조회는 [기준일자], 구매조회는 [일자](사본 실측). */
   const dateLabel = isSales ? '기준일자' : '일자'
+  /*
+   * 고친 때를 묻는 줄도 화면마다 이름이 다르다 — 판매조회는 <b>[최종수정일시]</b>,
+   * 구매조회는 <b>[최종작업일자]</b> 다(둘 다 실측).
+   *
+   * <p>여기 예외에 "고친 때는 실었으나 원본의 이 칸은 <b>작업일자</b>다 — 무엇을 가리키는지
+   * 못 재어 지어내지 않는다" 고 적어 두었다. 그 뒤 세 화면을 더 재면서 답이 나왔다:
+   * 발주서조회·출하지시서조회는 <b>[최초작성일자]·[최종작업일자]</b> 짝이고,
+   * 판매조회·출하조회는 <b>[최초작성일자]·[최종수정일시]</b> 짝이다. <b>같은 자리에
+   * 두 이름을 번갈아 쓴다.</b> 지어낸 것이 아니라 잰 것이라 이제 만든다 — 앞 두 화면에서
+   * 이미 [최종작업일자]를 updatedAt 에 걸어 두었으니 여기만 다르게 두면 그쪽이 거짓말이 된다.
+   */
+  const updatedLabel = isSales ? '최종수정일시' : '최종작업일자'
   const navigate = useNavigate()
   const [docs, setDocs] = useState<NormalDoc[]>([])
   const [error, setError] = useState('')
@@ -537,7 +549,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <span style={{ color: '#9aa1ab' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} style={{ width: 130 }}
                  onChange={(e) => setMadeTo(e.target.value)} />
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최종수정일시</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>{updatedLabel}</span>
           <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
                  onChange={(e) => setUpdFrom(e.target.value)} />
           <span style={{ color: '#9aa1ab' }}>~</span>

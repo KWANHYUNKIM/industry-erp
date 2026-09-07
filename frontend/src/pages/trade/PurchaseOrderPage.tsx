@@ -15,6 +15,7 @@ import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPer
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -585,6 +586,19 @@ export default function PurchaseOrderPage() {
                           </tbody>
                         </table>
                       )}
+                    </div>
+                    {/*
+                      <b>추가항목(사용자정의).</b> 열 예외에 "우리 추가항목은 판매·구매 전표까지고
+                      <b>발주서 화면이 아직 안 읽는다</b>" 고 적어 두었다 — 이유가 아니라 할 일이었다.
+                      Self-Customizing > 사용자정의필드에서 [발주서]로 정의하면 여기 뜬다.
+                      정의가 없으면 아무것도 안 그린다(안 쓰는 회사의 화면은 그대로다).
+
+                      <p>줄(격자 열)은 아직이다. 원본은 격자에 추가문자·추가숫자·추가일자·추가코드
+                      스물다섯 칸을 여는데, 그건 입력 격자를 손봐야 하는 별개의 일이라 여기서
+                      반만 만들어 두지 않는다 — 열 예외에 그렇게 적어 두었다.
+                    */}
+                    <div style={{ padding: '0 6px 8px' }}>
+                      <CustomFieldsPanel entityType="PURCHASE_ORDER" entityId={po.id} />
                     </div>
                   </td>
                 </tr>
