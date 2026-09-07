@@ -368,11 +368,21 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
           <th style={{ width: 180 }}>계좌번호</th>
           <th style={{ width: 100 }}>예금주</th>
           <th style={{ width: 130 }}>예금계정</th>
-          {/* 원본 [외화통장환종]. 안 정한 통장은 원화라 빈칸이다 — 지어내지 않는다. */}
-          <th style={{ width: 100 }}>외화통장환종</th>
           <th style={{ width: 130, textAlign: 'right' }}>잔액</th>
           {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
           <th>적요</th>
+          {/*
+            원본 이름은 <b>[외화통장]</b> 이고, 차례는 <b>[적요] 뒤 · [사용] 앞</b>,
+            가운데정렬에 폭은 [계좌코드]보다 좁다(qa/fixtures/ecount-column-align.json).
+            우리는 [외화통장환종] 이라 적고 <b>주석에도 그게 원본 이름인 것처럼</b> 적어 두었다.
+            이름이 한 글자라도 어긋나면 낡은 예외 검사가 못 잡는다 — 실제로 '통장은 원화만
+            둔다' 는 예외가 <b>이미 만든 열 옆에서</b> 살아남아 있었다.
+
+            <p>칸에 무엇이 찍히는지는 <b>못 쟀다</b>. 2026-09-07 에 원본을 열어 보니
+            "사용 불가능하거나 존재하지 않는 메뉴명입니다" 다(권한 없음). 우리는 환종 이름을
+            찍는다 — 가운데정렬인 것으로 보아 원본은 표시(Y/N)일 수도 있다. 권한이 생기면 잰다.
+          */}
+          <th style={{ width: 65, textAlign: 'center' }}>외화통장</th>
           <th style={{ width: 70, textAlign: 'center' }}>사용</th>
           <th style={{ width: 70, textAlign: 'center' }}>처리</th>
         </tr>
@@ -392,9 +402,10 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
             <td style={{ fontFamily: 'monospace' }}>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.glAccountCode} {r.glAccountName}</td>
-            <td style={{ color: r.currencyName ? '#5a626e' : '#c9ced6' }}>{r.currencyName ?? '원화'}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
             <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+            {/* 안 정한 통장은 원화라 흐리게 둔다 — 지어내지 않는다. */}
+            <td style={{ textAlign: 'center', color: r.currencyName ? '#5a626e' : '#c9ced6' }}>{r.currencyName ?? '원화'}</td>
             <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
             <td style={{ textAlign: 'center' }}>
               <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
