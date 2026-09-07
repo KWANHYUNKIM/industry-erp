@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 회계 > 비용내역현황.
@@ -84,6 +85,15 @@ export default function ExpenseDetailPage() {
     () => Array.from(new Set(rows.map((r) => r.accountGroupName).filter(Boolean))) as string[],
     [rows],
   )
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
+   * … 비고 · 결제구분 · 적용양식 · 양식구분 · 데이터 보기형식).
+   *
+   * <p>비용은 <b>어디에 얼마를 썼나</b> 를 보는 표라 <b>비용계정</b>으로 묶어 금액을 그린다.
+   * 전표 한 줄씩 그리면 같은 계정이 흩어져 '이 달 접대비가 얼마' 를 못 읽는다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const shown = rows
     .filter((r) => (!from || r.expenseDate >= from) && (!to || r.expenseDate <= to))
     .filter((r) => accountFilter === '전체' || r.accountName === accountFilter)
@@ -142,10 +152,26 @@ export default function ExpenseDetailPage() {
           <option value="">전체</option>
           {[...new Set(rows.map((r) => r.paymentMethod).filter(Boolean))].map((m) => <option key={m as string}>{m}</option>)}
         </select>
+        {/* 원본 조건 차례의 맨 끝 — [결제구분] 다음이다(사본 실측). */}
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>데이터 보기형식</span>
+        <div className="ec-pills">
+          {(['표', '그래프'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                    onClick={() => setView(v)}>{v}</button>
+          ))}
+        </div>
         <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
         </span>
       </div>
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 비용이 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.accountName, (m.get(r.accountName) ?? 0) + r.amount)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -193,6 +219,7 @@ export default function ExpenseDetailPage() {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }

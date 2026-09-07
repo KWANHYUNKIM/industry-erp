@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcBarChart from '../../components/EcBarChart'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -119,6 +120,19 @@ export default function TransferPage() {
    * 창고는 두 표에 다 찍히는데 그것으로 거를 수가 없었다 — 창고이동은 출고·입고
    * <b>어느 쪽이든</b> 걸리게 한다(그 창고가 낀 이동을 보려는 것이므로).
    */
+  /**
+   * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
+   * 창고 · 프로젝트 · 품목 · 담당자 · 적요 · 적용양식 · 양식구분 · 데이터 보기형식).
+   *
+   * <p>이 화면은 탭이 [창고이동]과 조정 계열로 갈린다 — <b>보고 있는 탭의 표</b>를 그린다.
+   * 창고이동은 '어디서 어디로', 조정은 품목별이다. 탭마다 표가 다른데 그림만 하나로
+   * 그리면 표와 그림이 다른 것을 세게 된다.
+   *
+   * <p>수량은 <b>절댓값</b>으로 더한다 — 조정은 늘기도 줄기도 해서 부호를 섞으면
+   * 서로 지워져 '움직임이 없었다' 로 보인다(재고이동·실사와 같은 함정이다).
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
   const shownTransfers = transfers
     .filter((r) => (!from || r.transferDate >= from) && (!to || r.transferDate <= to))
     .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
@@ -198,9 +212,18 @@ export default function TransferPage() {
                            value={empCond} onChange={setEmpCond}
                            items={employees.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
+        {/* 원본 조건 차례의 맨 끝 — [적요] 다음이다(사본 실측). */}
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond} placeholder="적요"
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="데이터 보기형식">
+          <div className="ec-pills">
+            {(['표', '그래프'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
+                      onClick={() => setView(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
       </ul>
 
@@ -210,7 +233,23 @@ export default function TransferPage() {
         ? <TransferForm items={items} warehouses={warehouses} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
 
-      {tab === '창고이동' ? (
+      {view === '그래프' ? (
+        <EcBarChart unit="" emptyText="조회된 이동 내역이 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      if (tab === '창고이동') {
+                        for (const r of shownTransfers) {
+                          const k = `${r.fromWarehouseName} → ${r.toWarehouseName}`
+                          m.set(k, (m.get(k) ?? 0) + Math.abs(r.quantity))
+                        }
+                      } else {
+                        for (const r of shownAdjustments) {
+                          m.set(r.itemName, (m.get(r.itemName) ?? 0) + Math.abs(r.quantityChange))
+                        }
+                      }
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : tab === '창고이동' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
