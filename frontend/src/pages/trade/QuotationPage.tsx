@@ -109,6 +109,12 @@ export default function QuotationPage() {
   /** 원본 [관리항목]. 이 화면은 품목 마스터를 진작 통째로 받아 두고 있다. */
   const mgmt = useItemMgmt(items)
   const [mgmtCond, setMgmtCond] = useState('')
+  /**
+   * 원본 조건 판 <b>[기타]</b>의 [수정일자순(정렬)]. 2026-09-07 에 켜져 있는 원본
+   * (C000071 견적서조회)을 열어 쟀다 — [기타] 안에는 이 하나가 들어 있고 기본은 꺼짐이다.
+   * 판매조회·구매조회와 같은 모양이다.
+   */
+  const [byUpdated, setByUpdated] = useState(false)
 
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
@@ -119,9 +125,11 @@ export default function QuotationPage() {
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
-      || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED')),
+      || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED'))
+    /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 건은 만든 때가 곧 고친 때다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options])
+    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options, byUpdated])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   async function send(q: Quotation) {
@@ -291,6 +299,13 @@ export default function QuotationPage() {
                   onChange={(e) => setSentCond(e.target.value as '전체' | '발송' | '미발송')}>
             <option>전체</option><option>발송</option><option>미발송</option>
           </select>
+        </EcCond>
+        {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

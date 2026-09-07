@@ -57,6 +57,12 @@ public final class QuotationDtos {
             QuotationStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Long convertedOrderId, String remark, String createdBy,
+            /**
+             * 원본 견적서조회 조건 판 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축.
+             * BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다
+             * (판매조회·구매조회와 같은 자리다).
+             */
+            java.time.LocalDateTime updatedAt,
             List<QuoteLineResponse> lines
     ) {
         public static QuotationResponse from(Quotation q) {
@@ -70,6 +76,7 @@ public final class QuotationDtos {
                     q.getStatus(), q.getStatus().getDisplayName(),
                     q.getSupplyAmount(), q.getVatAmount(), q.getTotalAmount(),
                     q.getConvertedOrderId(), q.getRemark(), q.getCreatedBy(),
+                    q.getUpdatedAt(),
                     q.getLines().stream().map(QuoteLineResponse::from).toList());
         }
     }
