@@ -18,6 +18,8 @@ interface NormalDoc {
   id: number; docNo: string; partnerId: number; partnerName: string; warehouseName: string
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. 서버가 이제 싣는다. */
+  updatedAt: string | null
   confirmStatus?: SalesConfirmStatus; confirmStatusName?: string
   accountingReflected: boolean
   /** 원본 구매조회에만 있는 열. 판매 전표에도 프로젝트는 붙지만 원본 판매조회는 안 보여 준다. */
@@ -93,7 +95,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
-        createdBy: d.createdBy, remark: d.remark,
+        createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
         accountingReflected: d.accountingReflected,
@@ -229,6 +231,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]. 원본도 기본은 꺼짐이다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
@@ -242,8 +246,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, mgmtCond, mgmt.options])
+    .sort((a, b) => (byUpdated
+      /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
+      ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
+      : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, mgmtCond, mgmt.options, byUpdated])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -421,6 +428,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={managerCond} onChange={setManagerCond}
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
+          {/*
+            원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
+            재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
+            기준일자 · 거래유형 · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 ·
+            발송여부 · <b>기타</b> · 적요 차례다.
+            원본은 자잘한 체크박스를 이 이름으로 묶고 <b>우리도 묶는다</b>.
+          */}
+          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기타</span>
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </span>
       </div>
 

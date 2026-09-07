@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class PurchaseDtos {
@@ -123,6 +124,12 @@ public final class PurchaseDtos {
              */
             boolean accountingReflected,
             Long projectId, String projectName,
+            /**
+             * 원본 판매조회·구매조회 조건 판 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축.
+             * 그 축이 응답에 없어 정렬을 만들 수 없었다. BaseTimeEntity 가 이미 들고 있는
+             * 값이라 싣기만 하면 된다(매출계획조회 ComparisonRow.updatedAt 과 같은 자리다).
+             */
+            LocalDateTime updatedAt,
             Long employeeId, String employeeName,
             List<PurchaseLineResponse> lines
     ) {
@@ -140,6 +147,7 @@ public final class PurchaseDtos {
                     p.isAccountingReflected(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
+                    p.getUpdatedAt(),
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getLines().stream().map(PurchaseLineResponse::from).toList());

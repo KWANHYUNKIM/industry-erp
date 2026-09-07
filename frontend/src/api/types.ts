@@ -318,6 +318,8 @@ export interface TradeLine {
 export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
 
 export interface SalesDoc {
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
+  updatedAt: string | null
   id: number
   docNo: string
   partnerId: number
@@ -351,6 +353,8 @@ export interface SalesDoc {
 }
 
 export interface PurchaseDoc {
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
+  updatedAt: string | null
   id: number
   docNo: string
   partnerId: number

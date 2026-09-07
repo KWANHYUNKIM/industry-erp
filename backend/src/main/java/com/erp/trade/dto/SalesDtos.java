@@ -123,6 +123,12 @@ public final class SalesDtos {
             /** 원본 [거래구분] 표시값 — 일반 · 반품. */
             String tradeKindName,
             Long projectId, String projectName,
+            /**
+             * 원본 판매조회·구매조회 조건 판 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축.
+             * 그 축이 응답에 없어 정렬을 만들 수 없었다. BaseTimeEntity 가 이미 들고 있는
+             * 값이라 싣기만 하면 된다(매출계획조회 ComparisonRow.updatedAt 과 같은 자리다).
+             */
+            LocalDateTime updatedAt,
             Long employeeId, String employeeName,
             List<SalesLineResponse> lines
     ) {
@@ -141,6 +147,7 @@ public final class SalesDtos {
                     s.isReturnSlip(), s.isReturnSlip() ? "반품" : "일반",
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
+                    s.getUpdatedAt(),
                     s.getEmployee() != null ? s.getEmployee().getId() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getLines().stream().map(SalesLineResponse::from).toList());
