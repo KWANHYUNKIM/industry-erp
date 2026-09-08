@@ -57,6 +57,18 @@ public class MedicalDeviceReportService {
     private final StockAdjustmentService stockAdjustmentService;
     private final PartnerService partnerService;
 
+    /** 그 품목의 구분 이름. 마스터에 없으면 빈 값이 아니라 null 이다 — 화면이 '(미지정)' 으로 모은다. */
+    private static String categoryOf(Map<Long, ItemResponse> itemById, Long itemId) {
+        ItemResponse i = itemById.get(itemId);
+        return i == null ? null : i.categoryName();
+    }
+
+    /** 그 품목의 품목그룹1 이름. */
+    private static String groupOf(Map<Long, ItemResponse> itemById, Long itemId) {
+        ItemResponse i = itemById.get(itemId);
+        return i == null ? null : i.itemGroupName();
+    }
+
     /**
      * 기간의 공급내역 산출.
      *
@@ -65,9 +77,16 @@ public class MedicalDeviceReportService {
      */
     @Transactional(readOnly = true)
     public List<SupplyLine> lines(LocalDate from, LocalDate to, String supplyType, Long partnerId) {
-        Map<Long, String> udiByItem = itemService.findAll().stream()
+        List<ItemResponse> items = itemService.findAll();
+        Map<Long, String> udiByItem = items.stream()
                 .filter(i -> StringUtils.hasText(i.udiDi()))
                 .collect(Collectors.toMap(ItemResponse::id, ItemResponse::udiDi));
+        /*
+         * 품목의 구분·그룹 — 원본 조건 [품목구분]·[품목그룹1] 이 쓰는 값이다.
+         * 품목 마스터는 진작 들고 있었는데 공급내역 줄만 안 실어서 못 거르고 있었다.
+         */
+        Map<Long, ItemResponse> itemById = items.stream()
+                .collect(Collectors.toMap(ItemResponse::id, Function.identity()));
         if (udiByItem.isEmpty()) {
             return List.of();
         }
@@ -90,7 +109,8 @@ public class MedicalDeviceReportService {
                                 l.itemId(), l.itemCode(), l.itemName(), l.unit(),
                                 l.quantity(),
                                 s.partnerId(), s.partnerName(), p != null ? p.bizRegNo() : null,
-                                p != null ? p.udiSupplyShape() : null)));
+                                p != null ? p.udiSupplyShape() : null,
+                                categoryOf(itemById, l.itemId()), groupOf(itemById, l.itemId()))));
             }
         }
 
@@ -110,7 +130,8 @@ public class MedicalDeviceReportService {
                         a.itemId(), a.itemCode(), a.itemName(), a.unit(),
                         a.quantityChange().abs(),
                         // 폐기는 공급받는 자가 없다 — 거래처도, 그 거래처의 공급형태도 없다.
-                        null, null, null, null));
+                        null, null, null, null,
+                        categoryOf(itemById, a.itemId()), groupOf(itemById, a.itemId())));
             }
         }
 

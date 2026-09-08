@@ -35,6 +35,9 @@ interface SupplyLine {
   partnerBizRegNo: string | null
   /** 공급받는 자의 [공급형태] — 거래처에 정해 둔 값. 폐기는 받는 자가 없어 null 이다. */
   supplyShape: string | null
+  /** 원본 조건 [품목구분]·[품목그룹1]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategoryName: string | null
+  itemGroupName: string | null
 }
 interface ReportHistory {
   id: number
@@ -78,6 +81,8 @@ export default function MedicalDeviceReportPage() {
   const [supplyType, setSupplyType] = useState('')
   const [partnerId, setPartnerId] = useState('')
   const [partnerGroup, setPartnerGroup] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
   const { groupOptions, groupOfName } = usePartnerGroups()
   /*
    * 원본 의료기기공급내역보고 조건에 <b>[품목]</b> 이 있다(사본 실측). 공급내역은 품목별로
@@ -126,8 +131,10 @@ export default function MedicalDeviceReportPage() {
   const shownLines = useMemo(
     () => lines.filter((l) => (!itemCond || l.itemName === itemCond)
       && (!partnerGroup || groupOfName(l.partnerName) === partnerGroup)
+      && (!itemCategory || (l.itemCategoryName ?? '') === itemCategory)
+      && (!itemGroup || (l.itemGroupName ?? '') === itemGroup)
       && (allShapes || (l.supplyShape != null && shapes.includes(l.supplyShape)))),
-    [lines, itemCond, partnerGroup, groupOfName, shapes, allShapes])
+    [lines, itemCond, partnerGroup, groupOfName, itemCategory, itemGroup, shapes, allShapes])
 
   /**
    * 원본 [전표별] — 한 전표를 <b>한 줄</b>로 센다. 품목 줄은 몇 개인지와 수량 합계만 남는다.
@@ -267,6 +274,28 @@ export default function MedicalDeviceReportPage() {
         <CodePickerField label="품목" value={itemCond} onChange={setItemCond} width={170}
                          items={[...new Map(lines.map((l) => [l.itemCode, l])).values()]
                            .map((l) => ({ value: l.itemName, code: l.itemCode, name: l.itemName }))} />
+        {/*
+          원본 조건 <b>[품목구분]·[품목그룹1]</b>(2026-09-09 실측). 앞 바퀴에는 "응답이 안
+          실어서 못 만든다" 며 <b>아직 안 만든 것</b>으로 적어 두었는데, 품목 마스터가
+          진작 들고 있던 값이라 서버를 넓혀 싣게 했다. 의료기기 보고는 "이 구분/그룹의
+          품목이 이 달에 얼마나 나갔나" 를 보는 일이 잦은데 품목을 하나씩만 고를 수 있었다.
+        */}
+        <label style={{ fontSize: 12.5 }}>{label('품목구분')}
+          <select className="ec-input" value={itemCategory} style={{ width: 120 }}
+                  onChange={(e) => setItemCategory(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(lines.map((l) => l.itemCategoryName).filter((v): v is string => !!v))].sort()
+              .map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </label>
+        <label style={{ fontSize: 12.5 }}>{label('품목그룹1')}
+          <select className="ec-input" value={itemGroup} style={{ width: 130 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(lines.map((l) => l.itemGroupName).filter((v): v is string => !!v))].sort()
+              .map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </label>
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
           <label style={{ fontSize: 12.5 }}>{label('보고기준월')}
