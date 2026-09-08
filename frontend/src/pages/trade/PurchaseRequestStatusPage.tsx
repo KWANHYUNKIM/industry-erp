@@ -717,17 +717,26 @@ export default function PurchaseRequestStatusPage({
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>발주일자 {sort.mark('발주일자')}</th>
+            {/*
+              2026-09-09 원본 실측(E040318) — 격자 열은
+              <b>일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · 적요</b> 다.
+              우리는 [발주일자]와 [발주번호]를 두 칸으로 나눠 두었는데 원본은 한 칸이고,
+              [매입처]는 [거래처명], [품목명]은 <b>[품목명(규격)]</b> 이다.
+              <b>[적요]가 아예 없었다</b> — 줄 적요는 응답이 진작 싣고 조건으로도 이미
+              거르고 있었다(c.remark). 또 '거를 수는 있는데 볼 수는 없는' 열이었다.
+              [납기]·[창고]·[담당자]·[부가세]는 우리 것이라 그대로 둔다.
+            */}
+            <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
             <th>납기</th>
-            <th>발주번호</th>
-            <th>매입처</th>
             <th>창고</th>
             <th>담당자</th>
-            <th>품목명</th>
+            <th>품목명(규격)</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
+            <th>거래처명</th>
             <th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ width: 150 }}>적요</th>
           </tr>
         </thead>
         <tbody>
@@ -740,17 +749,17 @@ export default function PurchaseRequestStatusPage({
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.orderNo}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
-              <td>{r.partner}</td>
               <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
               <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
+              <td>{r.partner}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+              <td style={{ color: '#8a929c' }}>{r.remark}</td>
             </tr>
           ))}
         </tbody>
