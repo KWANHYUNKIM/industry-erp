@@ -29,7 +29,7 @@ export function EcCond({ label, pick, children }: { label: string; pick?: boolea
 }
 
 export default function EcStatusPanel({
-  modes, mode, onModeChange,
+  modes, mode, onModeChange, modeLabel = '구분', compareLabel = '비교기간',
   compare, onCompareChange,
   from, to, onPeriod,
   view, onViewChange,
@@ -49,6 +49,13 @@ export default function EcStatusPanel({
    * 이익현황은 [라인별 | 품목별 | 거래처별 | …]. 그래서 목록을 받는다.
    */
   modes?: readonly string[]
+  /**
+   * 이 두 줄의 <b>이름표</b>. 기본은 [구분]·[비교기간] 인데 화면마다 다르다 —
+   * 주문서현황(E040209)은 위 줄이 <b>[메뉴]</b>(현황·집계)이고 비교기간이 <b>[구분]</b> 안에 있다.
+   * 이름을 화면이 정하게 두지 않으면 그런 화면에서 대조표가 늘 어긋난다.
+   */
+  modeLabel?: string
+  compareLabel?: string
   mode?: string
   onModeChange?: (m: string) => void
   /** [비교기간]. 안 주면 그 줄을 그리지 않는다. */
@@ -92,7 +99,7 @@ export default function EcStatusPanel({
   return (
     <ul className="ec-cond" style={{ marginBottom: 8 }}>
       {mode && onModeChange && (
-        <EcCond label="구분">
+        <EcCond label={modeLabel}>
           <div className="ec-pills">
             {(modes ?? ['내역', '집계', '라인별']).map((m) => (
               <button
@@ -108,7 +115,7 @@ export default function EcStatusPanel({
       )}
 
       {compare && onCompareChange && (
-        <EcCond label="비교기간">
+        <EcCond label={compareLabel}>
           <select
             className="ec-input"
             value={compare}

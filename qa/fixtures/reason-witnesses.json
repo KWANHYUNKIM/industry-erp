@@ -1667,5 +1667,29 @@
    "settlementId"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+ },
+ "주문서현황|외화종류": {
+  "claim": "수주에 통화 칸이 없다",
+  "absent": [
+   "currency",
+   "exchangeRate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+ },
+ "주문서현황|결제조건": {
+  "claim": "수주에 결제조건 칸이 없다",
+  "absent": [
+   "paymentTerm",
+   "paymentTerms"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+ },
+ "주문서현황|유효기간": {
+  "claim": "유효기간은 견적의 개념이라 수주에 없다",
+  "absent": [
+   "validUntil",
+   "validDate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
  }
 }

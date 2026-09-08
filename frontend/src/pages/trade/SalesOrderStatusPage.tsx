@@ -7,7 +7,9 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 영업관리 > 주문서현황 (이카운트 E040209)
@@ -19,8 +21,26 @@ import { dateText } from '../../utils/dateText'
  * 숨겨 두었고 메뉴·비교기간이 없었다. 이 판은 현황 화면들이 공통으로 쓰므로
  * `EcStatusPanel` 로 빼서 같이 쓴다.
  *
- * 원본 조건 중 창고·프로젝트는 우리 SalesOrderResponse 에 필드가 없어 **의도적으로 제외**한다
- * (값 없는 컨트롤을 흉내내지 않는다). 대신 수주 고유의 상태·미출하를 조건에 둔다.
+ * 원본 조건 [창고]·[프로젝트]·[담당자]는 예전 머리말에 "응답에 필드가 없어 의도적으로
+ * 제외" 라 적혀 있었으나 <b>틀린 말이었다</b> — 서버는 셋을 진작 싣는다(2026-09-08 확인).
+ * 이번에 받아서 조건으로 만들었다. 수주 고유의 상태·미출하도 그대로 둔다.
+ *
+ * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>서른하나</b>다 — 대조표에는
+ * <b>조건이 한 줄도 안 적혀 있었다</b>(빈 화면이었다). 판이 셋으로 갈려 있다:
+ * [메뉴](현황★·집계) 한 줄 · 가운데 판 스물여덟 · 아래 판 셋(적용양식·정렬기준·데이터 보기형식).
+ * 가운데 판은 접혀 있어 <b>여덟만 보이고 스물여덟이 숨어 있었다</b>.
+ *
+ * <p>차례: 메뉴 · 구분 · 기준일자 · 내.외자구분 · 품목별납기일자 · 창고 · 프로젝트 ·
+ * 거래처 · 품목 · 오더관리번호 · 담당자 · 거래처관리담당자 · 외화종류 · 거래유형 ·
+ * 참조 · 결제조건 · 유효기간 · 검색창내용 · <b>규격 · 수량</b> · 거래구분 ·
+ * <b>단가 · 공급가액 · 부가세 · 적요</b> · 진행상태 · <b>작성자</b> · 최종수정자 ·
+ * 적용양식 · 정렬기준 · 데이터 보기형식.
+ *
+ * <p>이번에 만든 것: <b>적요 · 작성자</b> 와 숫자 범위 넷(<b>수량 · 단가 · 공급가액 · 부가세</b>).
+ * 여섯 다 응답이 진작 싣고 있는데 화면이 안 받아 두었거나 거를 자리가 없던 값이다.
+ *
+ * <p>실측한 기본값: [메뉴] 현황 · [구분]의 비교기간 사용안함 · [기준일자] 금월 ·
+ * [내.외자구분] 전체 · [거래구분] 전체 · [진행상태] <b>C-Portal·확인 둘만 켜짐</b>.
  */
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 
@@ -50,6 +70,15 @@ interface SalesOrderResponse {
   partnerName: string
   orderDate: string
   dueDate: string | null
+  /*
+   * 원본 조건 [창고]·[프로젝트]·[담당자]. 화면 머리말에 "우리 SalesOrderResponse 에
+   * 필드가 없어 의도적으로 제외한다" 고 적혀 있었는데 <b>사실이 아니다</b> —
+   * <code>SalesOrderDtos.SalesOrderResponse</code> 는 셋을 진작 싣고 있고,
+   * 화면 형이 안 받아 두었을 뿐이다(2026-09-08 확인).
+   */
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
   status: OrderStatus
   statusName: string
   supplyAmount: number
@@ -62,6 +91,14 @@ interface SalesOrderResponse {
 
 interface Row {
   key: string
+  /** 원본 [창고]·[프로젝트]·[담당자]. 서버가 진작 싣던 값이다. */
+  warehouse: string | null
+  project: string | null
+  employee: string | null
+  /** 원본 [적요]. 응답이 진작 싣는데 줄에 안 받아 두어 거를 수가 없었다. */
+  remark: string | null
+  /** 원본 [작성자]. 위와 같음. */
+  createdBy: string | null
   date: string
   dueDate: string | null
   orderNo: string
@@ -86,6 +123,23 @@ interface Filters {
   status: '' | OrderStatus
   unshippedOnly: boolean
   sortByDoc: boolean
+  /** 원본 [적요]·[작성자]. */
+  remark: string
+  createdBy: string
+  /** 원본 [창고]·[프로젝트]·[담당자]. */
+  warehouse: string
+  project: string
+  employee: string
+  /** 원본 [거래처관리담당자]. 거래처 마스터에 붙는 값이라 전표의 거래처명으로 잇는다. */
+  partnerMgr: string
+  /**
+   * 원본의 숫자 범위 넷 — 수량 · 단가 · 공급가액 · 부가세.
+   * 빈 문자열은 '안 정함' 이다. 0 으로 두면 0 인 줄이 사라진다.
+   */
+  qtyFrom: string; qtyTo: string
+  priceFrom: string; priceTo: string
+  supplyFrom: string; supplyTo: string
+  vatFrom: string; vatTo: string
 }
 
 /*
@@ -97,11 +151,18 @@ const init = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: init.from, dateTo: init.to, partner: '', item: '', status: '', unshippedOnly: false, sortByDoc: false,
+  remark: '', createdBy: '', warehouse: '', project: '', employee: '', partnerMgr: '',
+  qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
 }
+
+/** 범위 조건 하나를 잰다. 빈 칸은 '안 정함' 이라 그냥 지나간다. */
+const inRange = (v: number, lo: string, hi: string) =>
+  (lo === '' || v >= Number(lo)) && (hi === '' || v <= Number(hi))
 
 export default function SalesOrderStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
+  const pmgr = usePartnerManagers()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -111,6 +172,12 @@ export default function SalesOrderStatusPage() {
   const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
   const [mode, setMode] = useState<'현황' | '집계'>('현황')
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  /**
+   * 원본 [데이터 보기형식] — 조건 판의 <b>맨 끝</b>이다(2026-09-08 실측).
+   * 주문서현황은 <b>누가 얼마나 주문했나</b> 를 보는 표라 <b>거래처</b>로 묶어 공급가액을 그린다.
+   * 라인 한 줄씩 그리면 같은 거래처가 흩어져 그 물음에 답이 안 된다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
 
   async function load() {
     setLoading(true)
@@ -122,6 +189,11 @@ export default function SalesOrderStatusPage() {
           const shipped = l.shippedQty ?? 0
           flat.push({
             key: `${d.id}-${l.lineId ?? idx}`,
+            warehouse: d.warehouseName,
+            project: d.projectName,
+            employee: d.employeeName,
+            remark: d.remark,
+            createdBy: d.createdBy,
             date: d.orderDate,
             dueDate: d.dueDate,
             orderNo: d.orderNo,
@@ -164,6 +236,16 @@ export default function SalesOrderStatusPage() {
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.status && r.status !== f.status) return false
       if (f.unshippedOnly && r.unshipped <= 0) return false
+      if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
+      if (f.project && !(r.project ?? '').includes(f.project)) return false
+      if (f.employee && (r.employee ?? '') !== f.employee) return false
+      if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+      if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
+      if (!inRange(r.qty, f.qtyFrom, f.qtyTo)) return false
+      if (!inRange(r.unitPrice, f.priceFrom, f.priceTo)) return false
+      if (!inRange(r.supply, f.supplyFrom, f.supplyTo)) return false
+      if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
       return true
     })
     out.sort((a, b) => f.sortByDoc
@@ -233,13 +315,103 @@ export default function SalesOrderStatusPage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/*
+        원본은 위 줄이 <b>[메뉴]</b>(현황★·집계)이고, 비교기간은 <b>[구분]</b> 안에 있다
+        (2026-09-08 실측). 우리 판은 그 둘을 [구분]·[비교기간]이라 부르고 있었다 —
+        이름표만 이 화면에서 바꿔 단다.
+      */}
       <EcStatusPanel
         modes={['현황', '집계']} mode={mode} onModeChange={(m) => setMode(m as '현황' | '집계')}
+        modeLabel="메뉴" compareLabel="구분"
+        view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
         picks={INQUIRY_PICKS}
       >
+        {/*
+          원본 차례(2026-09-08 실측): … 품목별납기일자 · <b>창고 · 프로젝트 · 거래처 · 품목</b> ·
+          오더관리번호 · <b>담당자 · 거래처관리담당자</b> · … 우리는 거래처·품목을 진행상태
+          뒤에 두고 있었다.
+        */}
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={180} emptyLabel="전체"
+                           value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={180} emptyLabel="전체"
+                           value={filters.project} onChange={(v) => setF({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={filters.partner} onChange={(v) => setF({ partner: v })}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={filters.item} onChange={(v) => setF({ item: v })}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={filters.employee} onChange={(v) => setF({ employee: v })}
+                           items={[...new Set(rows.map((r) => r.employee).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"
+                           value={filters.partnerMgr} onChange={(v) => setF({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/*
+          원본 <b>[검색창내용]</b> — 조건 판 안의 글자 칸이다(다른 화면도 EcCond 로 그린다).
+          우리는 셸의 찾기 칸을 꺼 둔 채 <code>keyword</code> 로 거르고만 있었다 —
+          <b>값은 쓰면서 넣을 자리가 없었다.</b> 조건 판에 자리를 낸다.
+        */}
+        <EcCond label="검색창내용">
+          <input className="ec-input" value={keyword} placeholder="거래처·품목·주문번호"
+                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측): … 품목 … <b>수량</b> · 거래구분 ·
+          <b>단가 · 공급가액 · 부가세 · 적요</b> · 진행상태 · <b>작성자</b> · 최종수정자.
+          숫자 넷은 응답이 진작 싣는 값인데 거를 자리가 없었다 —
+          "십만 원 넘는 줄만" 같은 물음을 눈으로 훑어야 했다.
+        */}
+        <EcCond label="수량">
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}
+                 onChange={(e) => setF({ qtyFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyTo}
+                 onChange={(e) => setF({ qtyTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="단가">
+          <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceFrom}
+                 onChange={(e) => setF({ priceFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceTo}
+                 onChange={(e) => setF({ priceTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyFrom}
+                 onChange={(e) => setF({ supplyFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyTo}
+                 onChange={(e) => setF({ supplyTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatFrom}
+                 onChange={(e) => setF({ vatFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatTo}
+                 onChange={(e) => setF({ vatTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요" style={{ width: 200 }} value={filters.remark}
+                 onChange={(e) => setF({ remark: e.target.value })} />
+        </EcCond>
         <EcCond label="진행상태">
           <select className="ec-input" value={filters.status} style={{ width: 130 }}
                   onChange={(e) => setF({ status: e.target.value as Filters['status'] })}>
@@ -253,15 +425,13 @@ export default function SalesOrderStatusPage() {
                    onChange={(e) => setF({ unshippedOnly: e.target.checked })} /> 미출하만
           </label>
         </EcCond>
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={filters.partner} onChange={(v) => setF({ partner: v })}
-                           items={pickers.partners} />
-        </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={filters.item} onChange={(v) => setF({ item: v })}
-                           items={pickers.items} />
+        <EcCond label="작성자">
+          <select className="ec-input" value={filters.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setF({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
         </EcCond>
         <EcCond label="정렬기준">
           <label style={{ fontSize: 12 }}>
@@ -295,7 +465,18 @@ export default function SalesOrderStatusPage() {
         </div>
       )}
 
-      {mode === '집계' ? (
+      {/*
+        원본 [데이터 보기형식]이 <b>그래프</b>면 거래처별 공급가액을 막대로 그린다 —
+        주문서현황은 누가 얼마나 주문했나를 보는 표라 그 축이 맞다.
+      */}
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 주문이 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partner, (m.get(r.partner) ?? 0) + r.supply)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
