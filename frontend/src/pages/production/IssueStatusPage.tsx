@@ -9,6 +9,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -48,6 +49,8 @@ interface MaterialIssue {
   note: string | null
   /** 원본 조건 판의 [프로젝트]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   projectName: string | null
+  /** 원본 [품목구분]. 품목 마스터의 값이고 응답이 진작 싣는다. */
+  itemCategoryName: string | null
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -77,6 +80,21 @@ export default function IssueStatusPage() {
   const [item, setItem] = useState('')
   const [note, setNote] = useState('')
   const [emp, setEmp] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040409)의 조건 판을 재니 <b>스물여덟</b>이다(사본에는 열).
+   * 접힌 줄은 없다 — 접힘 표시를 눌러도 줄 수가 그대로다.
+   *
+   * <p>여기서 만든 넷: 보내는창고 · 받는창고 · 품목구분 · 품목그룹1.
+   * <b>[창고]의 뜻도 고쳤다</b> — 원본이 [창고]와 [보내는창고]·[받는창고]를 나란히
+   * 두는 까닭은 생산불출조회에서 이미 확인했다: <b>[창고]는 어느 쪽이든 걸리고
+   * 나머지 둘은 한쪽만 건다.</b> 우리 [창고]는 보내는 쪽만 보고 있어서,
+   * 받는 창고로 고르면 그 줄이 통째로 사라졌다.
+   */
+  const [fromWh, setFromWh] = useState('')
+  const [toWh, setToWh] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const mgmt = useItemMgmt()
   /** 담당자 이름표. 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
 
@@ -105,6 +123,7 @@ export default function IssueStatusPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to)
     setMode('내역'); setWarehouseId(''); setItem(''); setNote(''); setEmp('')
+    setFromWh(''); setToWh(''); setItemCategory(''); setItemGroup('')
   }
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다. */
@@ -119,14 +138,21 @@ export default function IssueStatusPage() {
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('자재')
   const shown = useMemo(() => rows.filter((r) => {
     if (r.issueDate < from || r.issueDate > to) return false
-    if (warehouseId && String(r.warehouseId) !== warehouseId) return false
+    /* [창고] — 보내는·받는 어느 쪽이든 걸린다(생산불출조회와 같은 규칙). */
+    if (warehouseId && String(r.warehouseId) !== warehouseId
+        && (r.toWarehouseName ?? '') !== (warehouses.find((w) => String(w.id) === warehouseId)?.name ?? '\u0000')) return false
+    if (fromWh && (r.warehouseName ?? '') !== fromWh) return false
+    if (toWh && (r.toWarehouseName ?? '') !== toWh) return false
+    if (itemCategory && (r.itemCategoryName ?? '') !== itemCategory) return false
+    if (itemGroup && mgmt.groupOf(r.itemId) !== itemGroup) return false
     if (item && !`${r.itemCode} ${r.itemName}`.includes(item)) return false
     if (note && !(r.note ?? '').includes(note)) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
     if (project && (r.projectName ?? '') !== project) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, from, to, warehouseId, item, note, emp, project, employees])
+  }), [rows, from, to, warehouseId, item, note, emp, project, employees,
+       fromWh, toWh, itemCategory, itemGroup, mgmt.groupOptions, warehouses])
 
   /** 내역 — 작업지시 하나를 한 줄로 접는다. */
   const byOrder = useMemo(() => {
@@ -214,6 +240,24 @@ export default function IssueStatusPage() {
                            value={warehouseId} onChange={(v) => setWarehouseId(v)}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 스물여덟): 구분 · 일자 · 창고 · (창고계층그룹) ·
+          <b>보내는창고</b> · (보내는창고계층그룹) · <b>받는창고</b> · (받는창고계층그룹) ·
+          프로젝트 · (프로젝트그룹1/2) · 품목 · <b>품목구분 · 품목그룹1</b> ·
+          (품목그룹2/3 · 품목계층그룹) · 담당자 · 적요 · (오더관리번호 · 진행상태 ·
+          최초작성자 · 최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
+          데이터 보기형식.
+        */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={fromWh} onChange={setFromWh}
+                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={toWh} onChange={setToWh}
+                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
@@ -223,6 +267,17 @@ export default function IssueStatusPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={itemCategory} onChange={setItemCategory}
+                           items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroup} onChange={setItemGroup}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
