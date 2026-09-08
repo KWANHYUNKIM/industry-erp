@@ -354,9 +354,9 @@ export default function App() {
         <Route path="/sales/partner-ledger" element={<PartnerLedgerPage />} />
         <Route path="/sales/partner-ledger-receivable" element={<PartnerLedgerPage side="AR" />} />
         <Route path="/sales/partner-ledger-payable" element={<PartnerLedgerPage side="AP" />} />
-        <Route path="/sales/ar-ap-status" element={<ArApStatusPage />} />
-        <Route path="/sales/receivable-status" element={<ArApStatusPage defaultMode="RECEIVABLE" />} />
-        <Route path="/sales/payable-status" element={<ArApStatusPage defaultMode="PAYABLE" />} />
+        <Route path="/sales/ar-ap-status" element={<ArApStatusPage screen="AR_AP" />} />
+        <Route path="/sales/receivable-status" element={<ArApStatusPage screen="AR" />} />
+        <Route path="/sales/payable-status" element={<ArApStatusPage screen="AP" />} />
         <Route path="/sales/accounting-reflection" element={<AccountingReflectionPage />} />
         <Route path="/sales/outsourcing-discount" element={<OutsourcingDiscountPage />} />
         <Route path="/sales/order-types" element={<OrderTypePage />} />

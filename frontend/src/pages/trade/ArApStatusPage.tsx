@@ -37,7 +37,21 @@ const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '�
 
 const won = (n: number) => n.toLocaleString()
 
-export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?: Mode }) {
+/**
+ * 이 표가 겸하는 <b>원본 세 화면</b>. 무엇을 겸하는지 이름으로 들고 있어야
+ * [구분] 기본값과 기준일자 기본값을 갈라 줄 수 있다 — 둘이 서로 다른 축이라
+ * defaultMode 하나로는 못 갈랐다(채권/채무현황의 [구분] 기본은 <b>채권</b>인데
+ * 기준일자 기본은 그 화면만 <b>금일</b>이다).
+ */
+type Screen = 'AR_AP' | 'AR' | 'AP'
+
+export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }) {
+  /*
+   * 원본 <b>채권/채무현황(E040703)</b> 을 열면 [구분]이 <b>채권</b>에 찍혀 있다
+   * (2026-09-09 실측 — 라디오 세 알 [채권]·[채무]·[채권/채무] 중 첫 알).
+   * 우리는 이 화면을 <b>채권/채무</b>로 열고 있었다 — 원본과 다른 숫자가 첫 화면에 보였다.
+   */
+  const defaultMode: Mode = screen === 'AP' ? 'PAYABLE' : 'RECEIVABLE'
   const [mode, setMode] = useState<Mode>(defaultMode)
   /*
    * 원본 기준일자는 <b>한 날짜</b>인데 <b>기본값이 화면마다 다르다</b> —
@@ -46,7 +60,7 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
    * 한 파일이 셋을 겸하면서 한 값으로 열고 있었다 — [구분]으로 갈린다.
    */
   const [asOf, setAsOf] = useState(
-    defaultMode === 'BOTH' ? periodOf('금일')!.to : periodOf('금월(~오늘)')!.to)
+    screen === 'AR_AP' ? periodOf('금일')!.to : periodOf('금월(~오늘)')!.to)
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   /*
@@ -321,10 +335,17 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
             채권/채무현황(E040703)은 둘을 나란히 놓으므로 그쪽에서만 [채권]·[채무]다 —
             <b>같은 표가 세 화면을 겸하므로</b> 보는 화면에 따라 머리를 갈라 그린다.
           */}
+          {/*
+            [구분]을 <b>채권/채무</b>로 놓았을 때의 원본 격자(2026-09-09 실측)는
+            머리가 <b>두 줄</b>이다 — 위가 [거래처명 · 채권(3칸) · 채무(3칸) · <b>차액</b>],
+            아래가 [청구금액 · 미청구금액 · 합계]를 채권·채무 밑에 한 벌씩.
+            우리는 청구·미청구를 못 가르므로(아래 예외) 한 쪽에 한 칸씩만 두는데,
+            마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
+          */}
           {mode !== 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>합계</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
-          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>순액</th>}
+          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>차액</th>}
         </tr></thead>
         <tbody>
           {loading ? (

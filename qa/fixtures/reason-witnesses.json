@@ -3114,5 +3114,23 @@
    "qty"
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+ },
+ "채권/채무현황|청구금액": {
+  "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
+  "absent": [
+   "sales",
+   "taxInvoice",
+   "invoiceId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "채권/채무현황|미청구금액": {
+  "claim": "위와 같음 — 정산 전표에 청구 연결이 없다",
+  "absent": [
+   "sales",
+   "taxInvoice",
+   "invoiceId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
  }
 }
