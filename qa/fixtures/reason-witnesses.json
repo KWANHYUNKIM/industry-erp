@@ -1747,13 +1747,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
  },
- "미주문현황|규격": {
-  "claim": "견적 라인이 규격을 안 싣는다",
-  "absent": [
-   "spec"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
- },
  "미주문현황|추가수량": {
   "claim": "견적 라인에 추가수량 칸이 없다",
   "absent": [
@@ -3012,5 +3005,13 @@
    "invoiceId"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "미주문현황|수량": {
+  "claim": "우리 견적은 통째로 수주 전환된다 - 부분 전환을 남기지 않는다",
+  "absent": [
+   "orderedQuantity",
+   "convertedQuantity"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/QuotationLine.java"
  }
 }

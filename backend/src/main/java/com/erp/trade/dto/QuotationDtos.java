@@ -39,12 +39,18 @@ public final class QuotationDtos {
     public record QuoteLineResponse(
             Long id, int lineNo,
             Long itemId, String itemCode, String itemName, String unit,
+            /**
+             * 규격. 미주문현황(E040211)의 열 이름이 <b>[품목명(규격)]</b> 이라 이 값이 없으면
+             * 그 열을 지어내야 한다 - 품목 마스터가 진작 들고 있는데 응답이 안 싣고 있었다.
+             */
+            String spec,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
     ) {
         public static QuoteLineResponse from(QuotationLine l) {
             return new QuoteLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
         }
     }

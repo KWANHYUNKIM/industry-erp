@@ -1718,6 +1718,8 @@ export interface QuoteLine {
   itemCode: string
   itemName: string
   unit: string
+  /** 규격. 미주문현황(E040211)의 열 이름이 [품목명(규격)] 이라 붙여 찍는다. */
+  spec: string | null
   quantity: number
   unitPrice: number
   supplyAmount: number

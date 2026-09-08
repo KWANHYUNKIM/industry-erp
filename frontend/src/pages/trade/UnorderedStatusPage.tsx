@@ -57,6 +57,8 @@ interface Row {
   status: QuotationStatus
   statusName: string
   itemName: string
+  /** 규격. 원본 열 이름이 [품목명(규격)] 이라 붙여 찍는다 - 응답을 넓혀 받아 온다. */
+  spec: string | null
   qty: number
   unitPrice: number
   supply: number
@@ -80,6 +82,12 @@ interface Filters {
   /** 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */
   validFrom: string
   validTo: string
+  /**
+   * 원본 [규격] - 차례는 [유효기간] 바로 뒤다. 오래도록 "견적 라인이 규격을 안 싣는다" 고
+   * 적어 두고 예외로 두었는데, 2026-09-09 에 격자를 재면서 응답을 넓혀 받아 오게 됐다.
+   * 이유를 고쳐 쓸 것이 아니라 만들 일이었다 - 근거 검사가 그 예외가 낡았다고 짚어 줬다.
+   */
+  spec: string
   qtyFrom: string; qtyTo: string
   unorderedFrom: string; unorderedTo: string
   priceFrom: string; priceTo: string
@@ -111,7 +119,7 @@ const EMPTY_FILTERS: Filters = {
   warehouse: '', project: '', mgmt: '', partnerMgr: '',
   validFrom: '', validTo: '', qtyFrom: '', qtyTo: '', unorderedFrom: '', unorderedTo: '',
   priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
-  remark: '', status: '', createdBy: '', taxType: '',
+  remark: '', status: '', createdBy: '', taxType: '', spec: '',
 }
 
 /** 범위 조건 하나. 빈 칸은 '안 정함' 이라 지나간다. */
@@ -160,6 +168,7 @@ export default function UnorderedStatusPage() {
           status: q.status,
           statusName: q.statusName,
           itemName: l.itemName,
+          spec: l.spec ?? null,
           qty: l.quantity,
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
@@ -200,6 +209,7 @@ export default function UnorderedStatusPage() {
       if (!inRange(r.supply, f.supplyFrom, f.supplyTo)) return false
       if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
       if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+      if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
       if (f.status && r.status !== f.status) return false
       /* 원본 [거래유형]. 판매·구매·발주 화면들과 같은 규칙 — 부가세가 있으면 과세다. */
       if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false
@@ -312,6 +322,10 @@ export default function UnorderedStatusPage() {
           <input type="date" className="ec-input" value={filters.validTo}
                  onChange={(e) => setF({ validTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" placeholder="규격 일부" value={filters.spec}
+                 onChange={(e) => setF({ spec: e.target.value })} style={{ width: 180 }} />
+        </EcCond>
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}
                  onChange={(e) => setF({ qtyFrom: e.target.value })} />
@@ -397,18 +411,28 @@ export default function UnorderedStatusPage() {
       ) : (
       <table className="w-full text-left">
         <thead>
+          {/*
+            원본 격자(2026-09-09 E040211 실측):
+            <b>일자-No. · 품목명(규격) · 수량 · 미주문수량 · 미주문공급가액 · 거래처명 ·
+            적요 · 미주문부가세</b>.
+            우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) 규격을 안 받아 왔고,
+            (3) 금액 열을 그냥 [공급가액]·[부가세] 라 불러 <b>그게 미주문분이라는 것</b>이
+            이름에 안 드러났고, (4) <b>[적요] 열이 없었고</b>(거를 수는 있었다),
+            (5) 거래처를 앞쪽에 [매출처] 라 두고 있었다 - 원본은 <b>미주문공급가액 뒤</b> 의
+            [거래처명] 이다. 유효기간·상태·단가는 원본에 없지만 우리가 더 두는 열이다.
+          */}
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('견적일자')}>견적일자 {sort.mark('견적일자')}</th>
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('견적일자')}>일자-No. {sort.mark('견적일자')}</th>
             <th>유효기간</th>
-            <th>견적번호</th>
-            <th>매출처</th>
             <th style={{ textAlign: 'center' }}>상태</th>
-            <th>품목명</th>
+            <th>품목명(규격)</th>
             <th style={{ textAlign: 'right' }}>미주문수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ textAlign: 'right' }}>미주문공급가액</th>
+            <th>거래처명</th>
+            <th>적요</th>
+            <th style={{ textAlign: 'right' }}>미주문부가세</th>
           </tr>
         </thead>
         <tbody>
@@ -421,19 +445,20 @@ export default function UnorderedStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              {/* 원본은 일자와 번호를 '2026/03/12 -1' 처럼 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.date)} {r.quoteNo}</td>
               <td style={{ fontFamily: 'monospace', color: r.expired ? '#c60a2e' : r.validUntil ? '#5a626e' : '#c5cbd3' }}>
                 {r.validUntil ?? '-'}{r.expired ? ' (경과)' : ''}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.quoteNo}</td>
-              <td>{r.partner}</td>
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: statusColor(r.status), fontWeight: 600, fontSize: 12 }}>{r.statusName}</span>
               </td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
+              <td>{r.partner}</td>
+              <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
             </tr>
           ))}
