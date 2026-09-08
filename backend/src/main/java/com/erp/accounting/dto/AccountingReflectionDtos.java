@@ -37,6 +37,13 @@ public final class AccountingReflectionDtos {
      */
     public record SlipLine(
             String itemCode, String itemName,
+            /**
+             * 규격 · 품목구분 · 근거 전표번호 — 2026-09-08 원본 회계미반영현황(판매)
+             * (E040609)의 접힌 줄까지 재니 [규격]·[품목구분]·[오더관리번호]가 조건으로 있다.
+             * 셋 다 품목 마스터와 전표 줄이 진작 들고 있는 값인데 응답이 안 실어
+             * 화면이 거를 수가 없었다.
+             */
+            String spec, String itemCategoryName, String sourceDocNo,
             BigDecimal quantity, BigDecimal unitPrice,
             BigDecimal supplyAmount, BigDecimal vatAmount,
             String remark
@@ -111,6 +118,9 @@ public final class AccountingReflectionDtos {
                     null, null, s.getCreatedBy(), s.getCreatedAt(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
+                            l.getItem().getSpec(),
+                            l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
                             l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
         }
@@ -131,6 +141,9 @@ public final class AccountingReflectionDtos {
                     null, null, p.getCreatedBy(), p.getCreatedAt(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getCode(), l.getItem().getName(),
+                            l.getItem().getSpec(),
+                            l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
                             l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
         }

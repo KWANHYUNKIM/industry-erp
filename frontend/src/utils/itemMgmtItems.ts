@@ -74,6 +74,14 @@ export function useItemMgmt(preloaded?: ItemMgmtRow[]) {
   /** 그 품목의 품목그룹1 이름. 안 붙은 품목은 빈 문자열이다. */
   const groupOf = (itemId: number | null | undefined) =>
     (itemId == null ? '' : byIdGroup.get(itemId) ?? '')
+  const byCodeGroup = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of items) if (i.code && i.itemGroupName) m.set(i.code, i.itemGroupName)
+    return m
+  }, [items])
+  /** 품목코드로 잇는다 — 줄에 itemId 가 없고 itemCode 만 오는 화면이 있다(nameOfCode 와 짝). */
+  const groupOfCode = (itemCode: string | null | undefined) =>
+    (!itemCode ? '' : byCodeGroup.get(itemCode) ?? '')
   /** 고른 품목그룹1 에 걸리나. 전표 한 건에 줄이 여럿이면 한 줄이라도 걸리면 남긴다. */
   const groupHits = (itemIds: (number | null | undefined)[], picked: string) =>
     (!picked ? true : itemIds.some((id) => groupOf(id) === picked))
@@ -94,5 +102,5 @@ export function useItemMgmt(preloaded?: ItemMgmtRow[]) {
   const hits = (itemIds: (number | null | undefined)[], picked: string) =>
     (!picked ? true : itemIds.some((id) => nameOf(id) === picked))
 
-  return { options, nameOf, nameOfCode, hits, groupOptions, groupOf, groupHits }
+  return { options, nameOf, nameOfCode, hits, groupOptions, groupOf, groupOfCode, groupHits }
 }

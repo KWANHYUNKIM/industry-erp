@@ -10,6 +10,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
@@ -58,6 +59,10 @@ interface SlipLine {
   supplyAmount: number
   vatAmount: number
   remark: string | null
+  /** 규격 · 품목구분 · 근거 전표번호. 원본 회계미반영현황(판매)의 조건 셋이 이 값을 본다. */
+  spec: string | null
+  itemCategoryName: string | null
+  sourceDocNo: string | null
 }
 
 interface Slip {
@@ -90,6 +95,10 @@ interface Slip {
    */
   journalEntryId: number | null
   journalDocNo: string | null
+  /** 전표를 만든 사람. 원본 [최초작성자]. 응답이 진작 싣는데 이 화면이 안 받고 있었다. */
+  createdBy: string | null
+  /** 전표 적요. 원본 [적요]. 줄 적요와 함께 본다. */
+  note: string | null
 }
 
 /*
@@ -166,6 +175,20 @@ export default function AccountingReflectionPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /*
+   * 2026-09-08 에 원본 회계미반영현황(판매)(E040609)의 조건 판을 접힌 줄까지 재니
+   * <b>스물여덟</b>이다. 사본에는 (구매) 쪽이 열하나로만 적혀 있었고 (판매)는 아예 없었다.
+   * 여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 적요 · 오더관리번호 ·
+   * 규격 · 최초작성자. 규격·품목구분·오더관리번호는 <code>SlipLine</code> 에 같이 실었다.
+   */
+  const pgroup = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
 
   const shownRows = slips
     .filter((s) => !onlyUnreflected || !s.reflected)
@@ -185,6 +208,15 @@ export default function AccountingReflectionPage() {
     .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
     /* 이 화면의 줄은 itemCode 만 든다(itemId 가 없다) — 코드로 잇는다. */
     .filter((s) => !mgmtCond || (s.lines ?? []).some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
+    .filter((s) => !partnerGroup || pgroup.groupOfName(s.partnerName) === partnerGroup)
+    .filter((s) => !itemCategory || (s.lines ?? []).some((l) => l.itemCategoryName === itemCategory))
+    .filter((s) => !itemGroup || (s.lines ?? []).some((l) => mgmt.groupOfCode(l.itemCode) === itemGroup))
+    .filter((s) => !remarkCond
+      || (s.note ?? '').includes(remarkCond)
+      || (s.lines ?? []).some((l) => (l.remark ?? '').includes(remarkCond)))
+    .filter((s) => !orderNoCond || (s.lines ?? []).some((l) => (l.sourceDocNo ?? '') === orderNoCond))
+    .filter((s) => !specCond || (s.lines ?? []).some((l) => (l.spec ?? '').includes(specCond)))
+    .filter((s) => !authorCond || (s.createdBy ?? '') === authorCond)
 
   /*
    * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [회계반영]은 안쪽 참/거짓이 아니라
@@ -220,6 +252,8 @@ export default function AccountingReflectionPage() {
       warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
     })
+    setMgmtCond(''); setPartnerGroup(''); setItemCategory(''); setItemGroup('')
+    setRemarkCond(''); setOrderNoCond(''); setSpecCond(''); setAuthorCond('')
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
     // 화면에 보이지도 않는 전표를 회계반영하게 된다.
@@ -412,15 +446,43 @@ export default function AccountingReflectionPage() {
                            value={mgmtCond} onChange={setMgmtCond}
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
+        {/*
+          원본 회계미반영현황(판매) 차례(2026-09-08 실측, 스물여덟):
+          기준일(영업주기) · 거래유형 · 창고 · (창고계층그룹) · 프로젝트 · (프로젝트그룹1/2) ·
+          거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 품목 ·
+          <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 거래처관리담당자 ·
+          금액 · <b>적요 · 오더관리번호 · 규격 · 최초작성자</b> · (최종수정자 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준.
+          [구분]·[판매No.]·[관리항목]·[거래구분]·[담당자]는 같은 파일이 겸하는
+          <b>판매·구매일괄회계반영</b>의 조건이다 — 이 화면에는 없다.
+        */}
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 [품목구분] — 품목 마스터의 값이다. 줄에 실어 오므로 줄로 거른다. */}
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={itemCategory} onChange={setItemCategory}
+                           items={[...new Set(slips.flatMap((s2) => (s2.lines ?? [])
+                             .map((l) => l.itemCategoryName)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroup} onChange={setItemGroup}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         {/* 원본 조건의 [거래유형]. 전표의 과세 여부를 그대로 본다. */}
         {/* 원본 판매일괄회계반영의 [거래구분] · 구매일괄회계반영의 [구매구분]. */}
@@ -449,12 +511,35 @@ export default function AccountingReflectionPage() {
                            value={cond.partnerManager} onChange={(v) => setC({ partnerManager: v })}
                            items={pickers.employees} />
         </EcCond>
+        {/* 아래 넷은 원본 차례로 [금액] 다음이다. */}
         <EcCond label="금액">
           <input className="ec-input" type="number" value={cond.amtFrom}
                  onChange={(e) => setC({ amtFrom: e.target.value })} style={{ width: 120 }} />
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input className="ec-input" type="number" value={cond.amtTo}
                  onChange={(e) => setC({ amtTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        {/* 원본 [오더관리번호] — 이 줄을 담아 온 근거 전표(수주·발주)의 번호다. */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={150} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(slips.flatMap((s2) => (s2.lines ?? [])
+                             .map((l) => l.sourceDocNo)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={specCond}
+                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(slips.map((s2) => s2.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="정렬/소계기준">
           <div className="ec-pills">
