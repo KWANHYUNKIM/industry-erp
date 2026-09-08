@@ -5,6 +5,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -24,6 +26,14 @@ interface AsRow {
   receiptDate: string; symptom: string | null; charge: string | null
   warehouseName: string | null; projectName: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
+  /*
+   * 2026-09-08 에 원본(E040610)의 조건 판을 재니 <b>스물아홉</b>이다(사본에는 아홉).
+   * 아래 넷은 <code>AsResponse</code> 가 진작 싣는데 이 화면이 안 받고 있었다.
+   */
+  itemCategoryName: string | null
+  title: string | null
+  scheduledDate: string | null
+  createdBy: string | null
 }
 
 interface Filters {
@@ -38,6 +48,10 @@ interface Filters {
   doneFrom: string; doneTo: string
   warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
+  /** 2026-09-08 실측으로 드러난 일곱. */
+  partnerGroup: string; category: string; itemGroup: string
+  schedFrom: string; schedTo: string
+  title: string; remark: string; author: string
 }
 /*
  * 원본 A/S접수현황은 <b>금월</b>을 보고 열리고, 기간 단추에 <b>직전분기·직전반기</b>가
@@ -46,7 +60,8 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, doneFrom: '', doneTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '' }
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, doneFrom: '', doneTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
+  partnerGroup: '', category: '', itemGroup: '', schedFrom: '', schedTo: '', title: '', remark: '', author: '' }
 
 /** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
 function daysBetween(from: string, to: string | null): number | null {
@@ -58,6 +73,9 @@ function daysBetween(from: string, to: string | null): number | null {
 
 export default function AsStatusPage() {
   const [rows, setRows] = useState<AsRow[]>([])
+  /* 거래처그룹1·품목그룹1 은 마스터에 붙는 값이라 마스터를 받아 이름·id 로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const mgmt = useItemMgmt()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -121,9 +139,18 @@ export default function AsStatusPage() {
       if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.charge && !(r.charge ?? '').includes(f.charge)) return false
       if (f.status && r.status !== f.status) return false
+      if (f.partnerGroup && pgroup.groupOfName(r.partnerName) !== f.partnerGroup) return false
+      if (f.category && (r.itemCategoryName ?? '') !== f.category) return false
+      if (f.itemGroup && mgmt.groupOf(r.itemId) !== f.itemGroup) return false
+      if (f.schedFrom && (r.scheduledDate ?? '') < f.schedFrom) return false
+      if (f.schedTo && ((r.scheduledDate ?? '') === '' || (r.scheduledDate ?? '') > f.schedTo)) return false
+      if (f.title && !(r.title ?? '').includes(f.title)) return false
+      if (f.remark && !(r.repairNote ?? '').includes(f.remark)) return false
+      if (f.author && (r.createdBy ?? '') !== f.author) return false
       return true
     }).sort((a, b) => (a.receiptDate < b.receiptDate ? 1 : a.receiptDate > b.receiptDate ? -1 : b.id - a.id))
-  }, [rows, keyword, filters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, keyword, filters, pgroup.groupOptions, mgmt.groupOptions])
 
   const stats = useMemo(() => {
     const byStatus: Record<AsStatus, number> = { RECEIVED: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELED: 0 }
@@ -280,7 +307,7 @@ function SearchPanel({
       style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '4px 14px 12px', marginBottom: 10 }}
     >
       <div style={rowStyle}>
-        <span style={label}>접수일</span>
+        <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
@@ -332,15 +359,62 @@ function SearchPanel({
           {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
         </select>
       </div>
+      {/*
+        원본 차례(2026-09-08 실측, 스물아홉): 구분 · 기준일자 · 창고 · (창고계층그룹) ·
+        프로젝트 · (프로젝트그룹1/2) · 담당자 · 접수진행상태 · 거래처 ·
+        <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 품목 ·
+        <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · <b>수리예정일자 ·
+        제목 · 적요 · 최초작성자</b> · (최종수정자 · 양식) · 적용양식 · 양식구분 ·
+        정렬/소계기준 · 데이터 보기형식.
+      */}
       <div style={rowStyle}>
         <span style={label}>거래처</span>
         <input className="ec-input" placeholder="거래처명 일부" value={draft.partner}
           onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
+        <span style={label}>거래처그룹1</span>
+        <input className="ec-input" placeholder="거래처그룹1 이름" value={draft.partnerGroup}
+          onChange={(e) => onChange({ partnerGroup: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목구분</span>
+        <input className="ec-input" placeholder="원재료·상품 …" value={draft.category}
+          onChange={(e) => onChange({ category: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목그룹1</span>
+        <input className="ec-input" placeholder="품목그룹1 이름" value={draft.itemGroup}
+          onChange={(e) => onChange({ itemGroup: e.target.value })} style={{ width: 220 }} />
+      </div>
+      {/* 원본 [수리예정일자] — <b>언제 고쳐 주기로 했나</b> 다. 아래 [수리일자](실제로 고친 날)와 다르다. */}
+      <div style={rowStyle}>
+        <span style={label}>수리예정일자</span>
+        <input type="date" className="ec-input" value={draft.schedFrom}
+          onChange={(e) => onChange({ schedFrom: e.target.value })} style={{ width: 150 }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input type="date" className="ec-input" value={draft.schedTo}
+          onChange={(e) => onChange({ schedTo: e.target.value })} style={{ width: 150 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>제목</span>
+        <input className="ec-input" placeholder="제목 일부" value={draft.title}
+          onChange={(e) => onChange({ title: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>적요</span>
+        <input className="ec-input" placeholder="수리 적요 일부" value={draft.remark}
+          onChange={(e) => onChange({ remark: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>최초작성자</span>
+        <input className="ec-input" placeholder="만든 사람" value={draft.author}
+          onChange={(e) => onChange({ author: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
         <span style={label}>데이터 보기형식</span>
