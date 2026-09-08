@@ -9,6 +9,7 @@ import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 재고 > 재고잔량분석표 (이카운트 E040727)
@@ -37,6 +38,9 @@ interface AnalysisRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+
+/** 원본 [정렬/소계기준] 의 축 — 팝업을 못 열어 후보를 못 쟀으므로 <b>우리가 거르는 축</b>만 둔다. */
+const SUBTOTALS = ['없음', '품목구분', '품목그룹1'] as const
 
 export default function StockAnalysisPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -78,6 +82,15 @@ export default function StockAnalysisPage() {
    */
   const [category, setCategory] = useState('')
   const [itemGroup, setItemGroup] = useState('')
+  /*
+   * 원본 조건 <b>[정렬/소계기준]</b>. 앞 바퀴에 '아직 안 만든 것' 으로 적어 두었던 자리다.
+   *
+   * <p>원본에서 이 줄은 <b>[설정] 링크 하나</b>라, 고를 수 있는 축이 무엇인지는 그 팝업을
+   * 열어야 보인다 — <b>아직 못 쟀다.</b> 그래서 축은 <b>우리가 아는 것</b>으로만 둔다:
+   * 이 화면이 이미 거르는 [품목구분]·[품목그룹1]. 지어낸 축은 넣지 않는다.
+   * 소계 없이 보려면 [없음] 이다.
+   */
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
   const [date, setDate] = useState(periodOf('금일')!.to)
   const today = ymd(new Date())
 
@@ -133,7 +146,8 @@ export default function StockAnalysisPage() {
 
   const reset = () => {
     setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
-    setWithUntracked(false); setWithInactive(true); setCategory(''); setItemGroup(''); setDate(today)
+    setWithUntracked(false); setWithInactive(true); setCategory(''); setItemGroup('')
+    setSubtotal('없음'); setDate(today)
   }
 
   const totals = useMemo(() => ({
@@ -161,6 +175,8 @@ export default function StockAnalysisPage() {
         single
         from={date} to={date}
         onPeriod={(r) => setDate(r.from)}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
         picks={STOCK_PICKS}
       >
         <EcCond label="품목" pick>
@@ -284,6 +300,42 @@ export default function StockAnalysisPage() {
           </tfoot>
         )}
       </table>
+
+      {subtotal !== '없음' && rows.length > 0 && (() => {
+        /* 소계 축은 품목 마스터의 값이라 줄에서 바로 못 읽는다 — id 로 되짚는다. */
+        const keyOf = (r: AnalysisRow) => {
+          const it = itemById.get(r.itemId)
+          return (subtotal === '품목구분' ? it?.categoryName : it?.itemGroupName) || ''
+        }
+        const groups = subtotalBy(rows, keyOf, {
+          qty: (r) => r.quantity, value: (r) => r.value,
+        })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>품목수</th>
+                <th style={{ width: 130, textAlign: 'right' }}>재고수량</th>
+                <th style={{ width: 150, textAlign: 'right' }}>재고금액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.qty)}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>
+                      {won(g.sums.value)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
