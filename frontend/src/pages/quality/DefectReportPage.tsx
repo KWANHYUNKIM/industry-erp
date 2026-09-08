@@ -18,6 +18,14 @@ import { useCondPickers } from '../../utils/useCondPickers'
  */
 
 interface Row {
+  /**
+   * 원본은 <b>창고 × 품목</b>으로 묶는다(2026-09-09 E040512 실측: 첫 두 칸이
+   * [창고코드]·[창고명]). 우리는 품목 하나로만 묶고 있었다 — 같은 품목이라도
+   * <b>어느 창고에서 불량이 났는지</b>가 안 보였다.
+   * 창고를 안 적은 검사·조정은 <b>(미지정)</b> 으로 한 덩어리가 된다 — 0 으로
+   * 지어내거나 아무 창고에 붙이지 않는다.
+   */
+  warehouseName: string; warehouseCode: string
   /** 원본 격자가 [품목명[규격명]] 한 칸으로 적는다 — 규격을 줄에 실어 둔다. */
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
   inspectedQty: number; inspectDefect: number; defectRate: number
@@ -111,10 +119,20 @@ export default function DefectReportPage() {
 
   const rows = useMemo<Row[]>(() => {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
-    const map = new Map<number, Row>()
-    const get = (itemId: number, code: string, name: string, unit: string): Row => {
-      let r = map.get(itemId)
-      if (!r) { r = { itemId, itemCode: code, itemName: name, spec: items.find((x) => x.id === itemId)?.spec ?? null, unit, inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }; map.set(itemId, r) }
+    /* 창고코드는 줄에 없다 — 조건 목록(창고 마스터)에서 이름으로 되짚는다. */
+    const codeOfWarehouse = (name: string) =>
+      pickers.warehouses.find((w) => w.value === name)?.code ?? ''
+    const map = new Map<string, Row>()
+    const get = (wh: string | null, itemId: number, code: string, name: string, unit: string): Row => {
+      const w = wh || '(미지정)'
+      const key = w + '\u0000' + itemId
+      let r = map.get(key)
+      if (!r) {
+        r = { warehouseName: w, warehouseCode: w === '(미지정)' ? '' : codeOfWarehouse(w),
+          itemId, itemCode: code, itemName: name, spec: items.find((x) => x.id === itemId)?.spec ?? null, unit,
+          inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }
+        map.set(key, r)
+      }
       return r
     }
     for (const q of inspections) {
@@ -130,7 +148,7 @@ export default function DefectReportPage() {
       if (defectTypeCond && q.defectType !== defectTypeCond) continue
       if (whCond && (q.warehouseName ?? '') !== whCond) continue
       if (projCond && (q.projectName ?? '') !== projCond) continue
-      const r = get(q.itemId, q.itemCode, q.itemName, q.unit)
+      const r = get(q.warehouseName, q.itemId, q.itemCode, q.itemName, q.unit)
       r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
     }
     for (const a of adjustments) {
@@ -141,7 +159,7 @@ export default function DefectReportPage() {
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
       if (whCond && a.warehouseName !== whCond) continue
       if (projCond && (a.projectName ?? '') !== projCond) continue
-      const r = get(a.itemId, a.itemCode, a.itemName, a.unit)
+      const r = get(a.warehouseName, a.itemId, a.itemCode, a.itemName, a.unit)
       const qty = Math.abs(a.quantityChange)
       if (a.type === 'DEFECT') r.defectHandled += qty
       else r.disposed += qty
@@ -270,14 +288,16 @@ export default function DefectReportPage() {
               [창고코드 · 창고명 · 품목코드 · <b>품목명[규격명]</b> · <b>생산수량</b> ·
               <b>불량수량</b> · 불량률].
               고친 것: 품목명 뒤에 규격을 대괄호로 붙였다(원본 이름 그대로).
-              <b>[창고코드]·[창고명]은 아직 없다</b> — 우리 줄은 <b>품목 하나</b>로 묶는데
-              원본은 <b>창고 × 품목</b>으로 묶는다. 검사 전표가 창고를 이미 들고 있으니
-              묶는 열쇠만 바꾸면 되는 일이라 pending-columns.json 에 적었다.
+              [창고코드]·[창고명]은 <b>2026-09-09 에 만들었다</b> — 묶는 열쇠를
+              품목 하나에서 <b>창고 × 품목</b>으로 바꿨다. 창고를 안 적은 검사·조정은
+              <b>(미지정)</b> 한 덩어리가 된다(창고코드는 비운다).
               <b>[생산수량]·[불량수량]은 우리 값이 아니다</b> — 우리 숫자는
               <b>검사</b>에서 나온다(검사수량·검사불량). 생산수량이라 부르면
               검사 안 한 생산분까지 센 것처럼 읽혀 거짓이 된다(예외에 적었다).
               [단위]·[불량처리]·[폐기]는 우리 열이다.
             */}
+            <th style={{ width: 90 }}>창고코드</th>
+            <th style={{ width: 120 }}>창고명</th>
             <th>품목코드</th>
             <th>품목명[규격명]</th>
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
@@ -290,12 +310,14 @@ export default function DefectReportPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
-            <tr key={r.itemId}>
+            <tr key={r.warehouseName + '\u0000' + r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace', color: r.warehouseCode ? undefined : '#c5cbd3' }}>{r.warehouseCode}</td>
+              <td style={{ color: r.warehouseName === '(미지정)' ? '#9aa1ab' : undefined }}>{r.warehouseName}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
@@ -310,7 +332,7 @@ export default function DefectReportPage() {
         {rows.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
+              <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(totals.inspected)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(totals.defect)}</td>
               <td style={{ textAlign: 'right', color: rateColor(overallRate) }}>{overallRate.toFixed(2)}%</td>
