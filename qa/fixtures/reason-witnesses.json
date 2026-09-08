@@ -1553,5 +1553,12 @@
           "requestDate",
           "requestedDate"
       ]
+  },
+  "작업내역조회|최초작성자": {
+      "claim": "만든 사람을 안 남긴다 — WorkResult 에 createdBy 칸이 없다",
+      "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java",
+      "absent": [
+          "createdBy"
+      ]
   }
 }

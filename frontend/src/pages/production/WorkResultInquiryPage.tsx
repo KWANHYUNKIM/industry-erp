@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -43,6 +44,15 @@ interface Row {
   workTimeMin: number
   workDate: string
   note: string | null
+  /** 원본 조건 [작업품목]·[생산품목] 아래의 [품목구분]. 둘이 다른 품목이라 따로 온다. */
+  workItemId: number | null
+  workItemCategoryName: string | null
+  productId: number | null
+  productCategoryName: string | null
+  /** 원본 조건 [프로젝트]. 응답에 진작 오는데 이 화면이 안 받아 두고 있었다. */
+  projectName: string | null
+  /** 원본 [기타]의 수정일자순(정렬)이 쓰는 축. */
+  updatedAt: string | null
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -103,6 +113,22 @@ export default function WorkResultInquiryPage() {
   const [warehouse, setWarehouse] = useState('')
   const [worker, setWorker] = useState('')
   const [workItem, setWorkItem] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040431)을 열어 조건을 <b>전부</b> 쟀다 — <b>스물일곱</b>이다.
+   * 사본에는 여섯뿐이었다(열 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
+   * [기타] 안에는 <b>수정일자순(정렬)</b> 하나다.
+   *
+   * <p>이 화면은 <b>[품목구분]·[품목그룹1] 이 두 벌</b>이다 — [작업품목] 아래에 한 벌,
+   * [생산품목] 아래에 또 한 벌. 둘은 다른 품목이라 값도 따로 나온다.
+   */
+  const [workItemCategory, setWorkItemCategory] = useState('')
+  const [workItemGroup, setWorkItemGroup] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productGroup, setProductGroup] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
 
   async function load() {
     setLoading(true)
@@ -127,8 +153,20 @@ export default function WorkResultInquiryPage() {
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (worker && !(r.worker ?? '').includes(worker)) return false
     if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
+    if (workItemCategory && (r.workItemCategoryName ?? '') !== workItemCategory) return false
+    if (workItemGroup && mgmt.groupOf(r.workItemId) !== workItemGroup) return false
+    if (productCategory && (r.productCategoryName ?? '') !== productCategory) return false
+    if (productGroup && mgmt.groupOf(r.productId) !== productGroup) return false
+    if (projectCond && (r.projectName ?? '') !== projectCond) return false
+    if (noteCond && !(r.note ?? '').includes(noteCond)) return false
     return true
-  }), [rows, from, to, process, product, warehouse, worker, workItem])
+  })
+    /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 작업이 위로 온다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  [rows, from, to, process, product, warehouse, worker, workItem,
+   workItemCategory, workItemGroup, productCategory, productGroup, mgmt.groupOptions,
+   projectCond, noteCond, byUpdated])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.goodQty + r.defectQty, time: s.time + r.workTimeMin }),
@@ -175,7 +213,8 @@ export default function WorkResultInquiryPage() {
       </div>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="작업일자">
+        {/* 원본은 이 줄을 <b>[기준일자]</b> 라 부른다(2026-09-08 실측). [작업일자]는 우리가 붙인 이름이었다. */}
+        <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
@@ -204,14 +243,58 @@ export default function WorkResultInquiryPage() {
           <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
                            value={worker} onChange={setWorker} items={pickers.employees} />
         </EcCond>
+        {/*
+          원본 차례: 작업품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) ·
+          생산품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) · 기타 · (발송여부) ·
+          프로젝트 · (프로젝트그룹1·2) · 적요 · (최초작성자 · 최종수정자) · (양식) · 적용양식.
+          같은 이름이 <b>두 벌</b>이라 대조표에는 [작업품목:품목구분] 처럼 어디 것인지 밝혀 적었다.
+        */}
         <EcCond label="작업품목" pick>
           <CodePickerField label="작업품목" hideLabel width={200} emptyLabel="전체"
                            value={workItem} onChange={setWorkItem} items={pickers.items} />
+        </EcCond>
+        <EcCond label="작업품목:품목구분" pick>
+          <CodePickerField label="작업품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={workItemCategory} onChange={setWorkItemCategory}
+                           items={[...new Set(rows.map((r) => r.workItemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="작업품목:품목그룹1" pick>
+          <CodePickerField label="작업품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={workItemGroup} onChange={setWorkItemGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={product} onChange={(v) => setProduct(v)}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="생산품목:품목구분" pick>
+          <CodePickerField label="생산품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={productCategory} onChange={setProductCategory}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="생산품목:품목그룹1" pick>
+          <CodePickerField label="생산품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={productGroup} onChange={setProductGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
       </ul>
 

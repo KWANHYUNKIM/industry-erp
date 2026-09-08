@@ -1,6 +1,7 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.WorkResult;
+import com.erp.inventory.domain.ItemCategory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -10,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 import java.util.List;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public final class WorkResultDtos {
 
@@ -82,6 +84,10 @@ public final class WorkResultDtos {
              * 조회 화면은 '작업품목명[규격명]' 으로 적는다.
              */
             Long workItemId, String workItemCode, String workItemName, String workItemSpec,
+            /** 원본 조건 [작업품목]의 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            ItemCategory workItemCategory, String workItemCategoryName,
+            /** 원본 조건 [생산품목]의 <b>[품목구분]</b>. 위와 다른 품목이라 따로 싣는다. */
+            ItemCategory productCategory, String productCategoryName,
             /** 투입자원(설비). 안 정했으면 null. */
             Long resourceId, String resourceName,
             /** 생산공장. 안 정했으면 null. */
@@ -95,7 +101,13 @@ public final class WorkResultDtos {
             Integer standardTimeMin,
             /** 귀속 프로젝트. 원본 머리의 [프로젝트]. */
             Long projectId, String projectName,
-            LocalDate workDate, String note
+            LocalDate workDate, String note,
+            /**
+             * 원본 조건 [최초작성자] 와 [기타]의 <b>수정일자순(정렬)</b>.
+             * WorkResult 는 BaseTimeEntity 를 물려받아 고친 때를 진작 채우고 있는데
+             * 응답이 안 실었다. <b>만든 사람은 안 남긴다</b> — createdBy 칸이 없다.
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         public static WorkResultResponse from(WorkResult wr) {
             return from(wr, null);
@@ -116,6 +128,12 @@ public final class WorkResultDtos {
                     wr.getWorkItem() != null ? wr.getWorkItem().getCode() : null,
                     wr.getWorkItem() != null ? wr.getWorkItem().getName() : null,
                     wr.getWorkItem() != null ? wr.getWorkItem().getSpec() : null,
+                    wr.getWorkItem() != null ? wr.getWorkItem().getCategory() : null,
+                    wr.getWorkItem() != null && wr.getWorkItem().getCategory() != null
+                            ? wr.getWorkItem().getCategory().getDisplayName() : null,
+                    product != null ? product.getCategory() : null,
+                    product != null && product.getCategory() != null
+                            ? product.getCategory().getDisplayName() : null,
                     wr.getResource() != null ? wr.getResource().getId() : null,
                     wr.getResource() != null ? wr.getResource().getName() : null,
                     wr.getWarehouse() != null ? wr.getWarehouse().getId() : null,
@@ -125,7 +143,8 @@ public final class WorkResultDtos {
                     standardTimeMin,
                     wr.getProject() != null ? wr.getProject().getId() : null,
                     wr.getProject() != null ? wr.getProject().getName() : null,
-                    wr.getWorkDate(), wr.getNote());
+                    wr.getWorkDate(), wr.getNote(),
+                    wr.getCreatedAt(), wr.getUpdatedAt());
         }
     }
 }
