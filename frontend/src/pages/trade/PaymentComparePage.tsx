@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
@@ -85,6 +86,16 @@ export default function PaymentComparePage() {
   const [to, setTo] = useState(init.to)
   const [partner, setPartner] = useState('')
   const [basis, setBasis] = useState<Basis>('전체')
+  /*
+   * 원본 조건 <b>[거래처그룹1]</b>. 2026-09-09 에 원본(E040255)을 열어 재니 조건이
+   * 아홉이고([기준일자]·[거래처]·<b>[거래처그룹1]·[거래처그룹2]·[거래처계층그룹]</b>·
+   * [자료기준]·양식·[적용양식]·[정렬/소계기준]) 대조표에는 다섯만 적혀 있었다.
+   * 이 화면은 <b>대사</b> 화면이라 "이 그룹 거래처들만 맞춰 보자" 가 늘 있는 물음인데
+   * 거래처 하나씩만 좁힐 수 있었다. 거래처그룹은 마스터에 진작 있다.
+   * (거래처그룹2·거래처계층그룹은 우리 그룹이 하나뿐이라 전역 예외다.)
+   */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const { groupOptions, groupOfName } = usePartnerGroups()
   // '이번기수(~전월)' 은 회사 회계연도 시작월을 알아야 계산된다. 1월로 넘겨짚지 않는다.
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
 
@@ -172,12 +183,13 @@ export default function PaymentComparePage() {
     if (partner && !(r.partnerName.includes(partner)
       || r.saleDocNos.some((n) => n.includes(partner))
       || r.payDocNos.some((n) => n.includes(partner)))) return false
+    if (partnerGroup && groupOfName(r.partnerName) !== partnerGroup) return false
     if (basis !== '전체') {
       const same = Math.abs(r.saleTotal - r.payTotal) < 0.005
       if (basis === '일치' ? !same : same) return false
     }
     return true
-  }), [compared, partner, basis])
+  }), [compared, partner, partnerGroup, groupOfName, basis])
 
   const mismatchCount = useMemo(
     () => shown.filter((r) => Math.abs(r.saleTotal - r.payTotal) >= 0.005).length, [shown])
@@ -193,7 +205,7 @@ export default function PaymentComparePage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setFrom(init.from); setTo(init.to); setPartner(''); setBasis('전체')
+          setFrom(init.from); setTo(init.to); setPartner(''); setPartnerGroup(''); setBasis('전체')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -211,6 +223,13 @@ export default function PaymentComparePage() {
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
+        </EcCond>
+        <EcCond label="거래처그룹1">
+          <select className="ec-input" value={partnerGroup} style={{ width: 170 }}
+                  onChange={(e) => setPartnerGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
         </EcCond>
         <EcCond label="자료기준">
           <div className="ec-pills">
