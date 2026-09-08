@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import type { QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
@@ -37,6 +38,18 @@ interface Filters {
   item: string
   result: '' | QualityResult
   inspector: string
+  /*
+   * 2026-09-08 에 원본(E040623)의 조건 판을 재니 <b>서른둘</b>이다(사본에는 일곱).
+   * 접힌 줄은 없다. 여기서 만든 넷: 품목구분 · 품목그룹1 · 규격 · 불량유형 · 적요.
+   *
+   * <p>이름도 셋을 원본대로 고쳤다 — [검사일자]→<b>[기준일자]</b>,
+   * [판정결과]→<b>[합격여부]</b>, [검사자]→<b>[담당자]</b>.
+   */
+  category: string
+  itemGroup: string
+  spec: string
+  defectType: string
+  remark: string
 }
 /*
  * 원본 품질검사현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
@@ -44,12 +57,17 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', inspector: '' }
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', inspector: '',
+  category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 const pct = (n: number) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
 
 export default function QualityStatusPage() {
   const [rows, setRows] = useState<QualityInspection[]>([])
+  /* 품목구분·규격은 <b>품목 마스터</b>의 값이라 마스터를 받아 itemId 로 잇는다. */
+  const [items, setItems] = useState<Item[]>([])
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
+  const mgmt = useItemMgmt()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -61,8 +79,11 @@ export default function QualityStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<QualityInspection[]>('/quality-inspections', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
-      setRows(res.data)
+      const [res, it] = await Promise.all([
+        api.get<QualityInspection[]>('/quality-inspections', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } }),
+        api.get<Item[]>('/items'),
+      ])
+      setRows(res.data); setItems(it.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -101,9 +122,15 @@ export default function QualityStatusPage() {
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.result && r.result !== f.result) return false
       if (f.inspector && !(r.inspector ?? '').includes(f.inspector)) return false
+      if (f.category && (itemById.get(r.itemId)?.categoryName ?? '') !== f.category) return false
+      if (f.itemGroup && mgmt.groupOf(r.itemId) !== f.itemGroup) return false
+      if (f.spec && !(itemById.get(r.itemId)?.spec ?? '').includes(f.spec)) return false
+      if (f.defectType && (r.defectType ?? '') !== f.defectType) return false
+      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
       return true
     }).sort((a, b) => (a.inspectionDate < b.inspectionDate ? 1 : a.inspectionDate > b.inspectionDate ? -1 : b.id - a.id))
-  }, [rows, keyword, filters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, keyword, filters, itemById, mgmt.groupOptions])
 
   const totals = useMemo(() => {
     const t = shown.reduce((s, r) => ({
@@ -256,7 +283,7 @@ function SearchPanel({
       style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '4px 14px 12px', marginBottom: 10 }}
     >
       <div style={rowStyle}>
-        <span style={label}>검사일자</span>
+        <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
         <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
@@ -267,18 +294,30 @@ function SearchPanel({
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
           </span>
       </div>
-      <div style={rowStyle}>
-        <span style={label}>검사유형</span>
-        <select className="ec-input" value={draft.type}
-          onChange={(e) => onChange({ type: e.target.value as Filters['type'] })} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
-        </select>
-      </div>
+      {/*
+        원본 차례(2026-09-08 실측, 서른둘): 구분 · 기준일자 · 품목 · <b>품목구분 ·
+        품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 창고 · (창고계층그룹) · 프로젝트 ·
+        (프로젝트그룹1/2) · 출처(요청)구분 · (오더관리번호) · <b>규격</b> · 담당자 ·
+        (거래처관리담당자) · <b>불량유형</b> · 검사유형 · (진행상태 · 출처(검사)구분) ·
+        합격여부 · (검사방법) · <b>적요</b> · (최초작성자 · 최종수정자 · 양식) ·
+        적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        코드형·숫자형·문자형 검사항목 1~4 는 원본의 <b>사용자정의 칸</b>이라 실측 목록에
+        안 넣었다(다른 화면의 문자형식1~5 와 같다).
+      */}
       <div style={rowStyle}>
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목구분</span>
+        <input className="ec-input" placeholder="원재료·상품 …" value={draft.category}
+          onChange={(e) => onChange({ category: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목그룹1</span>
+        <input className="ec-input" placeholder="품목그룹1 이름" value={draft.itemGroup}
+          onChange={(e) => onChange({ itemGroup: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         {/* 원본 품질검사현황 차례: 품목 · <b>창고 · 프로젝트</b> · 출처(요청)구분 */}
@@ -292,7 +331,35 @@ function SearchPanel({
           onChange={(e) => onChange({ project: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
-        <span style={label}>판정결과</span>
+        <span style={label}>규격</span>
+        <input className="ec-input" placeholder="규격 일부" value={draft.spec}
+          onChange={(e) => onChange({ spec: e.target.value })} style={{ width: 220 }} />
+      </div>
+      {/* 원본은 검사자를 <b>[담당자]</b> 라 부른다 — 이름을 원본에 맞춘다. */}
+      <div style={rowStyle}>
+        <span style={label}>담당자</span>
+        <input className="ec-input" placeholder="검사자명 일부" value={draft.inspector}
+          onChange={(e) => onChange({ inspector: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>불량유형</span>
+        <input className="ec-input" placeholder="불량유형 코드" value={draft.defectType}
+          onChange={(e) => onChange({ defectType: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>검사유형</span>
+        <select className="ec-input" value={draft.type}
+          onChange={(e) => onChange({ type: e.target.value as Filters['type'] })} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+        </select>
+      </div>
+      {/*
+        원본은 이 칸을 <b>[합격여부]</b> 라 부르고 후보가 전체·해당없음·합격·불합격 이다.
+        우리 판정은 합격·조건부합격·불합격 셋이라 <b>후보가 다르다</b> — 지어내지 않는다.
+      */}
+      <div style={rowStyle}>
+        <span style={label}>합격여부</span>
         <select className="ec-input" value={draft.result}
           onChange={(e) => onChange({ result: e.target.value as Filters['result'] })} style={{ width: 150 }}>
           <option value="">전체</option>
@@ -300,9 +367,9 @@ function SearchPanel({
         </select>
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
-        <span style={label}>검사자</span>
-        <input className="ec-input" placeholder="검사자명 일부" value={draft.inspector}
-          onChange={(e) => onChange({ inspector: e.target.value })} style={{ width: 220 }} />
+        <span style={label}>적요</span>
+        <input className="ec-input" placeholder="적요 일부" value={draft.remark}
+          onChange={(e) => onChange({ remark: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
         <span style={label}>데이터 보기형식</span>
