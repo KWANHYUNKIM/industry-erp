@@ -288,10 +288,11 @@ export default function DailyProfitPage() {
   const HEADS: Record<Mode, string[]> = {
     일자별: ['일자'],
     라인별: ['일자', '전표번호', '거래처', '품목'],
-    품목별: ['품목코드', '품목명'],
+    /* 원본은 규격을 품목명 뒤 대괄호에 붙여 <b>[품목명[규격]]</b> 한 칸으로 적는다. */
+    품목별: ['품목코드', '품목명[규격]'],
     거래처별: ['거래처'],
-    품목별거래처별: ['품목코드', '품목명', '거래처'],
-    거래처별품목별: ['거래처', '품목코드', '품목명'],
+    품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
   }
   const heads = HEADS[mode]
   const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + 6
@@ -476,9 +477,23 @@ export default function DailyProfitPage() {
               <th style={{ textAlign: 'right', width: 90 }}>수량</th>
               <th style={{ textAlign: 'right', width: 120 }}>판매액</th>
               <th style={{ textAlign: 'right', width: 120 }}>원가</th>
-              <th style={{ textAlign: 'right', width: 130 }}>이익 (이익률)</th>
-              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
+              {/*
+                <b>일별이익현황(E040806) [구분]=품목별 2026-09-09 원본 격자 실측</b>.
+                원본 머리는 <b>두 줄</b>이다 —
+                위: [품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 이익(2) · 이익율 ·
+                이익금액(부대비용포함) · <b>판매부대비용</b>],
+                아래: 판매 밑에 [수량·단가·금액], 원가·이익 밑에 각각 [단가·금액].
+                우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
+                이번에 고친 둘: (1) <b>[판매부대비용]이 맨 뒤</b>다 — 우리는
+                [이익금액(부대비용포함)] 앞에 두고 있었다, (2) 품목 칸 이름을
+                <b>[품목명[규격]]</b> 으로(원본이 규격을 대괄호로 붙인다).
+                [이익률]은 원본이 <b>[이익율]</b> 이라는 <b>독립된 칸</b>으로 두는데
+                우리는 [이익] 칸 안에 괄호로 붙여 적는다 — 열 하나를 아끼려던 것이라
+                이름 검사에 걸리게 <b>따옴표 글자로</b> 남겨 둔다.
+              */}
+              <th style={{ textAlign: 'right', width: 130 }}>{'이익'} ({'이익율'})</th>
               <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
+              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
             </tr>
           </thead>
           <tbody>
@@ -512,11 +527,11 @@ export default function DailyProfitPage() {
                       </>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
-                    {r.extra === 0 ? '—' : won(r.extra)}
-                  </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? '#c9ced6' : (r.profit - r.extra) < 0 ? '#c60a2e' : '#1c7c3c' }}>
                     {r.profit === null ? '—' : won(r.profit - r.extra)}
+                  </td>
+                  <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                    {r.extra === 0 ? '—' : won(r.extra)}
                   </td>
                 </tr>
               )
