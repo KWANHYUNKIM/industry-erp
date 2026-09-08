@@ -3,6 +3,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import type { Item } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
@@ -46,6 +48,23 @@ export default function StandardCostPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()
+  /*
+   * 2026-09-08 에 원본(E040808)의 조건 판을 재니 <b>열</b>이다(사본에는 다섯).
+   * 접힌 줄은 없고 [기본]·[전체] 두 탭이 같은 판을 쓴다.
+   *
+   * <p>여기서 만든 둘: <b>품목구분 · 품목그룹1</b>. 둘 다 품목 마스터의 값이라
+   * 마스터를 받아 원가 줄의 itemId 로 잇는다 — 원가 자료에는 그 값이 없다.
+   *
+   * <p>원본 [품목구분]의 후보가 이 화면만 다르다 — 다른 화면은
+   * 전체·원재료·부재료·제품·반제품·상품·무형상품 인데 여기는
+   * <b>전체·원재료·부재료·제품·반제품·상품·제품세트·상품세트</b> 다.
+   * 후보를 지어내지 않고 <b>줄에 실제로 있는 값</b>에서 뽑는다.
+   */
+  const mgmt = useItemMgmt()
+  const [items, setItems] = useState<Item[]>([])
+  const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
   /**
    * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
    * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
@@ -56,8 +75,11 @@ export default function StandardCostPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Cost[]>('/costs')
-      setRows(res.data)
+      const [res, it] = await Promise.all([
+        api.get<Cost[]>('/costs'),
+        api.get<Item[]>('/items'),
+      ])
+      setRows(res.data); setItems(it.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -80,6 +102,8 @@ export default function StandardCostPage() {
     .filter((r) => withInactive || !inactive.has(r.itemId))
     .filter((r) => withUntracked || !untracked.has(r.itemId))
     .filter((r) => withZero || r.standardTotal !== 0)
+    .filter((r) => !categoryCond || (catOf.get(r.itemId) ?? '') === categoryCond)
+    .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
   const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
 
   return (
@@ -91,6 +115,26 @@ export default function StandardCostPage() {
           <select className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }}>
             <option>전체</option>
             {periods.map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열): 기준월 · 품목 · <b>품목구분 · 품목그룹1</b> ·
+          (품목그룹2/3 · 품목계층그룹) · 생산공정 · 기타 · 정렬/소계기준.
+          [품목]은 이 화면에서 셸의 찾기 칸이 맡는다.
+        */}
+        <EcCond label="품목구분" pick>
+          <select className="ec-input" value={categoryCond} style={{ width: 140 }}
+                  onChange={(e) => setCategoryCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => catOf.get(r.itemId)).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <select className="ec-input" value={itemGroupCond} style={{ width: 160 }}
+                  onChange={(e) => setItemGroupCond(e.target.value)}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </EcCond>
         <EcCond label="기타">
