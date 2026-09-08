@@ -3,8 +3,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { stockCostMap, sumStockValue } from '../../utils/stockValue'
-import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
-import EcStatusPanel from '../../components/EcStatusPanel'
+import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -16,8 +16,12 @@ import EcStatusPanel from '../../components/EcStatusPanel'
  */
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => ymd(new Date())
+/*
+ * 원본 경영자보고서의 [기준일자] 기본값은 <b>금월(~오늘)</b> 이다(2026-09-08 실측).
+ * 값은 여태 쓰던 것과 같지만, 검사가 읽을 수 있게 <code>periodOf</code> 로 적는다 —
+ * 손으로 만든 날짜 문자열은 '어느 빠른선택인지' 를 아무 데도 말해 주지 않는다.
+ */
+const firstOfMonth = () => periodOf('금월(~오늘)')!.from
 
 interface NameAmt { key: string; name: string; amount: number }
 
@@ -31,7 +35,7 @@ export default function ExecutiveReportPage() {
   const [error, setError] = useState('')
 
   const [from, setFrom] = useState(firstOfMonth())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
 
   async function load() {
     setLoading(true); setError('')
@@ -103,7 +107,14 @@ export default function ExecutiveReportPage() {
 
   const margin = report.saleAmt > 0 ? (report.grossProfit / report.saleAmt) * 100 : 0
 
-  const reset = () => { setFrom(firstOfMonth()); setTo(today()) }
+  /*
+   * 2026-09-08 에 원본(<b>E040704</b>)을 열어 재니 조건은 <b>둘</b>이다 —
+   * [기준일자](금월)과 [기타](결재방표시, 꺼짐). 대조표의 조건 수는 맞았는데
+   * <b>이름과 [기타]가 어긋나 있었다</b>: 우리는 기간 칸을 [기간]이라 부르고
+   * [기타]는 아예 없었다. 화면코드도 사본에서 주워 온 ESZ005R 이 박혀 있었다.
+   */
+  const [signBox, setSignBox] = useState(false)
+  const reset = () => { setFrom(firstOfMonth()); setTo(periodOf('금월(~오늘)')!.to); setSignBox(false) }
 
   return (
     <EcListShell
@@ -115,13 +126,21 @@ export default function ExecutiveReportPage() {
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
+      signLine={signBox}
     >
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={INQUIRY_FULL_PICKS}
-        dateLabel="기간"
-      />
+        dateLabel="기준일자"
+      >
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            결재방표시
+          </label>
+        </EcCond>
+      </EcStatusPanel>
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         매출 <b style={{ color: '#3c4553' }}>{report.saleCount}</b>건
