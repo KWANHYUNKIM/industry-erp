@@ -213,39 +213,49 @@ export default function QualityStatusPage() {
       ) : (
       <table className="w-full text-left">
         <thead>
+          {/*
+            원본 격자(2026-09-09 E040623 실측):
+            <b>일자-No. · 검사방법 · 품목명[규격명] · 수량 · 시료 · 적격 · 부적격 · 합격여부</b>.
+            우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) 규격을 <b>조건으로는 거르면서</b>
+            품목명에 안 붙였고, (3) 좋고 나쁨을 [양품]·[불량] 이라 부르고 <b>차례도 거꾸로</b>
+            두었다 - 원본은 [적격]·[부적격] 이고 적격이 먼저다, (4) [검사수량]·[판정] 이라
+            부르던 것이 원본에서는 [수량]·[합격여부] 다.
+            [검사방법]·[시료]는 못 만든다(샘플링·전수를 갈라 적지 않는다) - 예외에 적었다.
+            검사구분·로트·불량률·검사자는 원본에 없지만 우리가 더 두는 열이다.
+          */}
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
-            <th>검사번호</th>
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('검사일자')}>일자-No. {sort.mark('검사일자')}</th>
             <th style={{ textAlign: 'center' }}>검사구분</th>
-            <th>품목명</th>
+            <th>품목명[규격명]</th>
             <th>로트</th>
-            <th style={{ textAlign: 'right' }}>검사수량</th>
-            <th style={{ textAlign: 'right' }}>불량</th>
-            <th style={{ textAlign: 'right' }}>양품</th>
+            <th style={{ textAlign: 'right' }}>수량</th>
+            <th style={{ textAlign: 'right' }}>적격</th>
+            <th style={{ textAlign: 'right' }}>부적격</th>
             <th style={{ textAlign: 'right' }}>불량률</th>
-            <th style={{ textAlign: 'center' }}>판정</th>
+            <th style={{ textAlign: 'center' }}>합격여부</th>
             <th>검사자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.inspectionDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.inspectionDate)} {r.inspectionNo}</td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
-              <td>{r.itemName}</td>
+              {/* 규격은 품목 마스터가 든다 - 이 화면은 조건으로 거르려고 진작 받아 두고 있었다. */}
+              <td>{r.itemName}{itemById.get(r.itemId)?.spec ? ` [${itemById.get(r.itemId)?.spec}]` : ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.lotNo ? '#5a626e' : '#c5cbd3' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{r.goodQty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate > 0 ? '#c60a2e' : '#8a929c' }}>{pct(r.defectRate)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName || '미판정'}</td>
               <td style={{ color: r.inspector ? undefined : '#c5cbd3' }}>{r.inspector || ''}</td>

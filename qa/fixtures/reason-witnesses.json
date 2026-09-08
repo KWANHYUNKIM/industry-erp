@@ -3013,5 +3013,23 @@
    "convertedQuantity"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/QuotationLine.java"
+ },
+ "품질검사현황|검사방법": {
+  "claim": "샘플링·전수를 갈라 적지 않는다",
+  "absent": [
+   "sampleQty",
+   "inspectionMethod",
+   "samplingType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "품질검사현황|시료": {
+  "claim": "뽑은 시료 수를 따로 안 든다",
+  "absent": [
+   "sampleQty",
+   "inspectionMethod",
+   "samplingType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
  }
 }
