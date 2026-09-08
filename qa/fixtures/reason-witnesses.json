@@ -329,22 +329,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
  },
- "발주서입력|전체수량": {
-  "claim": "주문하면서 지금 재고를 같이 보여 주는 기능이 없다",
-  "absent": [
-   "stock",
-   "Stock"
-  ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
- },
- "발주서입력|창고수량": {
-  "claim": "그 창고의 재고를 발주 화면에 붙이지 않는다",
-  "absent": [
-   "stock",
-   "Stock"
-  ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx"
- },
  "건설예정공정표|업무지원AI": {
   "claim": "업무지원 AI 를 붙이지 않았다",
   "absent": [

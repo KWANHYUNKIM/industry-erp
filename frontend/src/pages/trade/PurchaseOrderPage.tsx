@@ -7,7 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
+import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
@@ -818,7 +818,43 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '발주서 품목 격자', [])
+  useTableColumnCheck(tableRef, '발주서 품목 격자', [lineDefs.length])
+
+  /**
+   * 원본 격자 툴바의 <b>[재고불러오기]</b>와 그것이 채우는 두 칸.
+   *
+   * <p>발주는 <b>모자라는 것을 채우는 일</b>이다. 얼마를 시킬지는 <b>지금 얼마 있나</b>를
+   * 봐야 정하는데, 우리 격자에는 그 칸이 없어 재고현황을 따로 열어 보고 와야 했다.
+   * 원본 발주서입력 격자에는 <b>[전체수량]·[창고수량]</b> 두 칸이 있고
+   * (<code>qa/fixtures/ecount-column-width.json</code> 의 발주서입력 — 각 67),
+   * 이 단추가 그것을 채운다.
+   *
+   * <p>화면을 열 때마다 전 품목 재고를 끌어오지 않는다 — <b>누를 때만</b> 부른다
+   * (생산불출입력·판매/구매입력과 같다). 부르기 전에는 <b>'-'</b> 로 둔다.
+   * 0 으로 채우면 "재고가 없다" 로 읽힌다.
+   */
+  const [stocks, setStocks] = useState<StockRow[]>([])
+  const [stockLoaded, setStockLoaded] = useState(false)
+  const [stockBusy, setStockBusy] = useState(false)
+  async function loadStocks() {
+    setStockBusy(true)
+    try {
+      setStocks((await api.get<StockRow[]>('/stock')).data)
+      setStockLoaded(true)
+    } catch (err) { setError(extractErrorMessage(err)) } finally { setStockBusy(false) }
+  }
+  /** 그 품목의 전 창고 합계. 아직 안 불러왔으면 null 이다(0 이 아니다). */
+  const stockAllOf = (itemId: string): number | null => {
+    if (!stockLoaded || !itemId) return null
+    return stocks.filter((s) => String(s.itemId) === itemId).reduce((a, s) => a + s.quantity, 0)
+  }
+  /** 머리에서 고른 <b>입고창고</b>의 수량. 창고를 안 골랐으면 잴 것이 없어 null 이다. */
+  const stockAtOf = (itemId: string): number | null => {
+    if (!stockLoaded || !itemId || !warehouseId) return null
+    const hit = stocks.find((s) => String(s.itemId) === itemId && String(s.warehouseId) === warehouseId)
+    return hit ? hit.quantity : 0
+  }
+  const stockCell = (n: number | null) => (n === null ? '-' : n.toLocaleString())
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
@@ -904,7 +940,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
               안 보여 "3" 이 세 개인지 세 박스인지 알 수 없었다. 부가세 포함 단가는 <b>매입처가 부르는 값</b>이라
               머릿속으로 곱해 보고 있었다.
             */}
-            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th>{/* 줄 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 격자가 그대로다. */}{lineDefs.map((d) => (<th key={d.fieldKey} style={{ width: 120 }}>{d.label}</th>))}<th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
+            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 67, textAlign: 'right' }}>전체수량</th><th style={{ width: 67, textAlign: 'right' }}>창고수량</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th>{/* 줄 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 격자가 그대로다. */}{lineDefs.map((d) => (<th key={d.fieldKey} style={{ width: 120 }}>{d.label}</th>))}<th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -921,6 +957,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                       {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </td>
+                  {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{stockCell(stockAllOf(l.itemId))}</td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{stockCell(stockAtOf(l.itemId))}</td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
@@ -956,7 +995,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={6} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
+                <td colSpan={8} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
                 {/* 추가항목 열이 늘어난 만큼 여기도 늘어야 한다 — 안 그러면 합계가 엉뚱한 열 아래 붙는다. */}
                 <td style={{ textAlign: 'right' }} colSpan={6 + lineDefs.length}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
@@ -966,7 +1005,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             <button className="ec-btn" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
             {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
             <MyItemsNote note={myItems.note} />
+            {stockLoaded && (
+              <span style={{ fontSize: 12, color: '#5a626e' }}>
+                재고를 불러왔습니다{warehouseId ? '' : ' — [입고창고]를 고르면 창고수량도 찹니다'}.
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
