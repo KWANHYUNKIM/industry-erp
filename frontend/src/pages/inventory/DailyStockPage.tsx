@@ -284,32 +284,38 @@ export default function DailyStockPage() {
         <table className="w-full text-left">
           <colgroup>
             <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '15%' }} /><col style={{ width: '15%' }} />
-            <col style={{ width: '11%' }} /><col style={{ width: '11%' }} /><col style={{ width: '13%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '12%' }} /><col style={{ width: '12%' }} /><col style={{ width: '14%' }} />
           </colgroup>
+          {/*
+            2026-09-09 원본 실측(E040807) — 격자 열은
+            <b>품목코드 · 품목명[규격] · 재고수량 · 재고단가 · 재고금액</b> 다.
+            우리는 [품목명]과 [규격정보]를 두 칸으로 나눠 두었는데 원본은 <b>한 칸</b>이고,
+            [단가]의 원본 이름은 <b>[재고단가]</b> 다 — 이 화면에는 판매단가·구매단가도
+            있을 수 있어 그냥 [단가]로 두면 어느 단가인지 알 수 없다.
+            [창고]는 우리 것이라 그대로 둔다(원본은 조건으로만 좁힌다).
+          */}
           <thead>
             <tr>
               <th></th>
               <th>품목코드</th>
-              <th>품목명</th>
-              <th>규격정보</th>
+              <th>품목명[규격]</th>
               <th>창고</th>
               <th style={{ textAlign: 'right' }}>재고수량</th>
-              <th style={{ textAlign: 'right' }}>단가</th>
+              <th style={{ textAlign: 'right' }}>재고단가</th>
               <th style={{ textAlign: 'right' }}>재고금액</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={`${r.itemId}-${r.warehouseId}`}>
                 <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td>{r.spec ?? ''}</td>
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>
                   {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
@@ -326,7 +332,7 @@ export default function DailyStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalQty)}</td>
                 <td style={{ background: '#f5f7fa' }}></td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totalAmount)}</td>
