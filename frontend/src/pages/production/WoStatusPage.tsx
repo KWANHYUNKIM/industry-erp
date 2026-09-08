@@ -8,6 +8,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -49,6 +52,13 @@ interface Row {
   statusName: string
   orderDate: string
   dueDate: string | null
+  /**
+   * 품목구분 · 적요 · 작성자 — <code>WorkOrderResponse</code> 가 진작 싣는 값인데
+   * 이 화면이 받아 두지 않아 거를 수가 없었다(2026-09-08 원본 실측으로 드러났다).
+   */
+  productCategoryName: string | null
+  remark: string | null
+  createdBy: string | null
 }
 
 /*
@@ -99,6 +109,30 @@ export default function WoStatusPage() {
   const [warehouseCond, setWarehouseCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040413)의 조건 판을 재니 <b>서른하나</b>다(사본에는 일곱).
+   * 접힌 줄은 없다 — 접힘 표시를 눌러도 줄 수가 그대로다.
+   *
+   * <p>여기서 만든 열둘: 납기일자 · 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+   * 거래처관리담당자 · 규격 · 수량 · 적요 · 진행상태 · 최초작성자.
+   * 값은 전부 응답이나 마스터에 이미 있다 — 서버는 한 줄도 안 고쳤다.
+   */
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [qtyFrom, setQtyFrom] = useState('')
+  const [qtyTo, setQtyTo] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [statusCond, setStatusCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
+  const mgmt = useItemMgmt()
   const pickers = useCondPickers(['warehouses', 'partners', 'items'])
 
   async function load() {
@@ -130,7 +164,20 @@ export default function WoStatusPage() {
     && (!warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
     && (!partnerCond || (r.partnerName ?? '').includes(partnerCond))
     && (!itemCond || r.productName.includes(itemCond))
-    && (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
+    && (!from || r.orderDate >= from) && (!to || r.orderDate <= to)
+    && (!dueFrom || (r.dueDate ?? '') >= dueFrom)
+    && (!dueTo || ((r.dueDate ?? '') !== '' && (r.dueDate ?? '') <= dueTo))
+    && (!partnerGroup || pgroup.groupOfName(r.partnerName) === partnerGroup)
+    && (!itemCategory || (r.productCategoryName ?? '') === itemCategory)
+    && (!itemGroup || mgmt.groupOfCode(r.productCode) === itemGroup)
+    && (!empCond || empName(r.employeeId) === empCond)
+    && (!pmgrCond || pmgr.managerOfName(r.partnerName) === pmgrCond)
+    && (!specCond || (r.productSpec ?? '').includes(specCond))
+    && (!qtyFrom || r.plannedQty >= Number(qtyFrom))
+    && (!qtyTo || r.plannedQty <= Number(qtyTo))
+    && (!remarkCond || (r.remark ?? '').includes(remarkCond))
+    && (!statusCond || r.statusName === statusCond)
+    && (!authorCond || (r.createdBy ?? '') === authorCond))
 
   /** 고른 축으로 묶어 수량 셋을 더한다. 줄이 없으면 빈 배열이라 표가 스스로 비운다. */
   const grouped = useMemo(() => {
@@ -205,6 +252,21 @@ export default function WoStatusPage() {
           <input className="ec-input" value={orderNoCond}
                  onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 서른하나): 구분 · 기준일자 · 작업지시No. ·
+          <b>납기일자</b> · 창고 · (창고계층그룹) · 거래처 · <b>거래처그룹1</b> ·
+          (거래처그룹2 · 거래처계층그룹) · 품목 · <b>품목구분 · 품목그룹1</b> ·
+          (품목그룹2/3 · 품목계층그룹) · (오더관리번호) · <b>담당자 · 거래처관리담당자 ·
+          규격 · 수량 · 적요 · 진행상태 · 최초작성자</b> · (최종수정자 · 제목 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="납기일자">
+          <input type="date" className="ec-input" value={dueFrom}
+                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={dueTo}
+                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         {/* 마스터를 고르는 조건은 직접 입력이 아니라 코드도움이다 — 다른 화면과 같은 규칙. */}
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
@@ -214,9 +276,67 @@ export default function WoStatusPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
         </EcCond>
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={itemCategory} onChange={setItemCategory}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroup} onChange={setItemGroup}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((e) => ({ value: e.name, name: e.name }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={specCond}
+                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="수량">
+          <input className="ec-input" type="number" value={qtyFrom}
+                 onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" value={qtyTo}
+                 onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 190 }} />
+        </EcCond>
+        {/*
+          원본 [진행상태]는 전표의 <b>결재 단계</b>(결재중·미확인·확인)를 고르는 칸이다.
+          우리 작업지시에는 그 단계가 없고 <b>작업 진행</b>(예정·진행중·완료)이 있다 —
+          축이 다르므로 후보를 지어내지 않고 <b>목록에 실제로 있는 상태</b>에서 뽑는다.
+        */}
+        <EcCond label="진행상태" pick>
+          <CodePickerField label="진행상태" hideLabel width={130} emptyLabel="전체"
+                           value={statusCond} onChange={setStatusCond}
+                           items={[...new Set(rows.map((r) => r.statusName))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
