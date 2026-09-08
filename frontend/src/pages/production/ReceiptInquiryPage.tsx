@@ -97,7 +97,7 @@ export default function ReceiptInquiryPage() {
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   /*
-   * 2026-09-08 에 원본(C000032)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른둘</b>이다.
+   * 2026-09-08 에 원본(E040408)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른둘</b>이다.
    * 사본에는 넷뿐이었다(여덟 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
    * [기타] 안에는 <b>수정일자순(정렬)</b>과 <b>외주공장만</b> 둘이 있다.
    */

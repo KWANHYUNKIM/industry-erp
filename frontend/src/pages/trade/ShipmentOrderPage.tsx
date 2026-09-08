@@ -197,7 +197,7 @@ export default function ShipmentOrderPage() {
   const mgmt = useItemMgmt(items)
   const [mgmtCond, setMgmtCond] = useState('')
   /*
-   * 2026-09-07 에 원본(C000120)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(서른셋).
+   * 2026-09-07 에 원본(E040221)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(서른셋).
    * 사본에는 열뿐이었다 — 조건 판 아래 '···' 줄을 안 펼친 채로 사본을 떴기 때문이다.
    * 그중 우리 응답이 <b>이미 싣고 있던 여덟</b>을 만든다: 출하예정일 · 규격 · 담당자 ·
    * 거래처관리담당자 · 연락처 · 주소 · 적요 · 작성자.

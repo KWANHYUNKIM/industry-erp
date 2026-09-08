@@ -132,7 +132,7 @@ export default function AsManagePage() {
   const [itemCond, setItemCond] = useState('')
   const [projCond, setProjCond] = useState('')
   /*
-   * 2026-09-08 에 원본(C000091)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른하나</b>다.
+   * 2026-09-08 에 원본(E040602)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른하나</b>다.
    * 사본에는 열하나뿐이었고 <b>맨 앞의 [기준일자]</b>가 빠져 있었다(발주서조회·
    * 창고이동조회·결제내역조회에 이어 네 번째로 첫 줄을 건너뛴 사본이다).
    * [수리예정일자]는 둘째 줄이다. 기본 기간은 [최근30일(+1개월)] 이다.

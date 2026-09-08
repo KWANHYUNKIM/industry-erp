@@ -97,7 +97,7 @@ export default function PurchaseOrderPage() {
   const [itemCond, setItemCond] = useState('')
   const condPickers = useCondPickers(['warehouses', 'partners', 'items'])
   /*
-   * 2026-09-07 에 원본(C000077)을 열어 조건을 <b>전부</b> 쟀다 — 서른넷이다.
+   * 2026-09-07 에 원본(E040302)을 열어 조건을 <b>전부</b> 쟀다 — 서른넷이다.
    * 사본에는 여덟뿐이었고 <b>[기준일자]조차 빠져 있었다</b>(우리는 앞 바퀴에 그걸 만들었다).
    * 판매조회·구매조회·출하조회·출하지시서조회에 이어 다섯 번째 같은 구멍이다.
    *
