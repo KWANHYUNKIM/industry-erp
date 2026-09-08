@@ -2946,5 +2946,19 @@
    "shipToPartner"
   ],
   "in": "frontend/src/pages/datacenter/MedicalDeviceReportPage.tsx"
+ },
+ "내결재관리|거래처": {
+  "claim": "기안서에 거래처를 달지 않는다",
+  "absent": [
+   "BusinessPartner"
+  ],
+  "in": "backend/src/main/java/com/erp/groupware/domain/ApprovalDocument.java"
+ },
+ "내결재관리|품목": {
+  "claim": "기안서에 품목을 달지 않는다",
+  "absent": [
+   "Item"
+  ],
+  "in": "backend/src/main/java/com/erp/groupware/domain/ApprovalDocument.java"
  }
 }
