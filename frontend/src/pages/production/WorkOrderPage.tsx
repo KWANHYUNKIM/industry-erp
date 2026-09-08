@@ -7,6 +7,9 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import Modal from '../../components/Modal'
 import { Link } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
@@ -109,6 +112,29 @@ export default function WorkOrderPage() {
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040412)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른하나</b>다.
+   * 사본에는 다섯뿐이었다(아홉 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
+   * [기타] 안에는 <b>수정일자순(정렬)</b> 하나다.
+   */
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
+  const pgroups = usePartnerGroups()
+  const pmgr = usePartnerManagers()
   /** 납품처·담당자. 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
   const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
@@ -150,7 +176,23 @@ export default function WorkOrderPage() {
     && (!orderNoCond || o.orderNo.includes(orderNoCond))
     && (!whCond || o.warehouseName === whCond)
     && (!partnerCond || (o.partnerName ?? '').includes(partnerCond))
-    && (!itemCond || o.productName.includes(itemCond)))
+    && (!itemCond || o.productName.includes(itemCond))
+    && (!partnerGroupCond || pgroups.groupOfName(o.partnerName) === partnerGroupCond)
+    && (!categoryCond || (o.productCategoryName ?? '') === categoryCond)
+    && (!itemGroupCond || mgmt.groupOf(o.productId) === itemGroupCond)
+    && (!dueFrom || (o.dueDate ?? '') >= dueFrom)
+    && (!dueTo || ((o.dueDate ?? '') !== '' && (o.dueDate as string) <= dueTo))
+    && (!empCond || empName(o.employeeId) === empCond)
+    && (!pmgrCond || pmgr.managerOfName(o.partnerName) === pmgrCond)
+    && (!remarkCond || (o.remark ?? '').includes(remarkCond))
+    && (!specCond || (o.productSpec ?? '') === specCond)
+    && (!authorCond || (o.createdBy ?? '') === authorCond)
+    && (!madeFrom || (o.createdAt ?? '').slice(0, 10) >= madeFrom)
+    && (!madeTo || ((o.createdAt ?? '') !== '' && o.createdAt!.slice(0, 10) <= madeTo))
+    && (!editedFrom || (o.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    && (!editedTo || ((o.updatedAt ?? '') !== '' && o.updatedAt!.slice(0, 10) <= editedTo)))
+    /* 원본 [기타]의 수정일자순(정렬). */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -231,9 +273,76 @@ export default function WorkOrderPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />
         </EcCond>
+        {/* 원본 차례: 거래처 · <b>거래처그룹1</b> · (거래처그룹2·계층) · 품목 · 품목구분 · 품목그룹1 … */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroupCond} onChange={setPartnerGroupCond}
+                           items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(orders.map((o) => o.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: (품목그룹2·3·계층 · 발송여부) · 납기일자 · (오더관리번호) · 담당자 · 거래처관리담당자 · 적요 · 규격 … */}
+        <EcCond label="납기일자">
+          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={employees.map((e) => ({ value: e.name, name: e.name }))} />
+        </EcCond>
+        {/* 원본 [거래처관리담당자] — 납품처를 맡은 영업담당자. 작업지시의 [담당자]와 다른 사람이다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={150} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(orders.map((o) => o.productSpec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: 규격 · 최초작성자 · (최종수정자) · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) · 기타 · (제목) */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(orders.map((o) => o.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

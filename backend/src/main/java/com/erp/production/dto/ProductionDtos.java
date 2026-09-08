@@ -52,6 +52,8 @@ public final class ProductionDtos {
             Long productId, String productCode, String productName, String productUnit,
             /** 규격. 원본 작업지시서현황의 열 이름이 [품목명[규격명]] 이다. */
             String productSpec,
+            /** 원본 조건 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            ItemCategory productCategory, String productCategoryName,
             Long warehouseId, String warehouseName,
             /** 납품처. 원본 작업지시서조회의 [거래처명] 열. */
             Long partnerId, String partnerName,
@@ -59,7 +61,13 @@ public final class ProductionDtos {
             Long employeeId,
             BigDecimal plannedQty, BigDecimal producedQty, BigDecimal remainingQty,
             WorkOrderStatus status, String statusName,
-            LocalDate orderDate, LocalDate dueDate, String remark, String createdBy
+            LocalDate orderDate, LocalDate dueDate, String remark, String createdBy,
+            /**
+             * 원본 조건 [최초작성일자] · [최종작업일자], 그리고 [기타]의
+             * <b>수정일자순(정렬)</b>. WorkOrder 는 BaseTimeEntity 를 물려받아
+             * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         public static WorkOrderResponse from(WorkOrder w) {
             BigDecimal remaining = w.getPlannedQty().subtract(w.getProducedQty());
@@ -67,13 +75,16 @@ public final class ProductionDtos {
                     w.getId(), w.getOrderNo(),
                     w.getProduct().getId(), w.getProduct().getCode(), w.getProduct().getName(), w.getProduct().getUnit(),
                     w.getProduct().getSpec(),
+                    w.getProduct().getCategory(),
+                    w.getProduct().getCategory() != null ? w.getProduct().getCategory().getDisplayName() : null,
                     w.getWarehouse().getId(), w.getWarehouse().getName(),
                     w.getPartner() != null ? w.getPartner().getId() : null,
                     w.getPartner() != null ? w.getPartner().getName() : null,
                     w.getEmployeeId(),
                     w.getPlannedQty(), w.getProducedQty(), remaining,
                     w.getStatus(), w.getStatus().getDisplayName(),
-                    w.getOrderDate(), w.getDueDate(), w.getRemark(), w.getCreatedBy());
+                    w.getOrderDate(), w.getDueDate(), w.getRemark(), w.getCreatedBy(),
+                    w.getCreatedAt(), w.getUpdatedAt());
         }
     }
 

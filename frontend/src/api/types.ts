@@ -462,6 +462,11 @@ export interface WorkOrder {
   dueDate: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  productCategoryName: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface ProductionMaterial {
