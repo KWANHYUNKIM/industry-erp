@@ -21,20 +21,50 @@ export interface ItemFlags {
   inactive: Set<number>
   /** 수량관리제외(stockTracked=false) 품목의 id */
   untracked: Set<number>
+  /**
+   * 그 품목의 <b>[품목구분]·[품목그룹1]</b> 이름. 원본 재고 화면들이 그 둘로 거른다
+   * (2026-09-09 재고현황·재고잔량분석표 실측). 어차피 여기서 품목 마스터를 통째로
+   * 받고 있으니 <b>같은 한 번</b>에 담아 둔다 — 화면마다 또 부르면 같은 목록을 두 번 받는다.
+   */
+  categoryOf: (itemId: number) => string
+  groupOf: (itemId: number) => string
+  /** 고를 수 있는 후보(마스터에 실제로 붙어 있는 이름만). */
+  categories: string[]
+  groups: string[]
+}
+
+type ItemRow = {
+  id: number; active: boolean; stockTracked?: boolean
+  categoryName?: string | null; itemGroupName?: string | null
+}
+
+const EMPTY: ItemFlags = {
+  inactive: new Set(), untracked: new Set(),
+  categoryOf: () => '', groupOf: () => '', categories: [], groups: [],
 }
 
 export function useItemFlags(): ItemFlags {
-  const [flags, setFlags] = useState<ItemFlags>({ inactive: new Set(), untracked: new Set() })
+  const [flags, setFlags] = useState<ItemFlags>(EMPTY)
 
   useEffect(() => {
     let alive = true
-    api.get<{ id: number; active: boolean; stockTracked?: boolean }[]>('/items')
+    api.get<ItemRow[]>('/items')
       .then((r) => {
         if (!alive) return
+        const cat = new Map<number, string>()
+        const grp = new Map<number, string>()
+        for (const i of r.data) {
+          if (i.categoryName) cat.set(i.id, i.categoryName)
+          if (i.itemGroupName) grp.set(i.id, i.itemGroupName)
+        }
         setFlags({
           inactive: new Set(r.data.filter((i) => !i.active).map((i) => i.id)),
           // stockTracked 가 안 오면 관리대상으로 본다 — 모르는 것을 숨기지 않는다.
           untracked: new Set(r.data.filter((i) => i.stockTracked === false).map((i) => i.id)),
+          categoryOf: (id) => cat.get(id) ?? '',
+          groupOf: (id) => grp.get(id) ?? '',
+          categories: [...new Set(cat.values())].sort(),
+          groups: [...new Set(grp.values())].sort(),
         })
       })
       .catch(() => { /* 못 받으면 아무것도 숨기지 않는다 */ })

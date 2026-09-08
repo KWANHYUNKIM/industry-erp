@@ -39,22 +39,33 @@ export default function CurrentStockPage() {
     warehouse: '',
     item: '',
     /*
+     * 원본 조건 <b>[품목구분]·[품목그룹1]</b>([품목] 바로 뒤에 선다 — 2026-09-09 실측).
+     * 재고를 "원재료만" · "이 그룹만" 으로 좁혀 보는 일이 잦은데 품목을 하나씩만
+     * 고를 수 있었다. 품목 마스터가 드는 값이라 이름으로 이으면 된다.
+     */
+    category: '',
+    itemGroup: '',
+    /*
      * 원본 [기타]는 <b>셋</b>이다(2026-09-02 E040701 실측):
      * [수량관리제외품목포함] · [사용중단품목포함] · [안전재고설정미만표시].
      * 우리에겐 마지막 하나뿐이라, <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었다 —
      * 용역·수수료처럼 수량을 안 세는 품목이 재고표에 0 으로 줄을 차지하고,
      * 내린 품목도 그대로 남아 지금 파는 것이 무엇인지 눈으로 골라야 했다.
-     * 원본대로 <b>셋 다 꺼진 채</b> 열린다 — 켜야 보인다.
+     * <p><b>2026-09-09 에 다시 재니 셋이 다 꺼진 것이 아니었다</b> —
+     * [사용중단품목포함]은 <b>켜짐</b>이 기본이다. 끄고 열면 <b>안 쓰기로 한 품목의
+     * 재고가 화면에서 사라진다</b>. 창고에 그 물건이 그대로 있는데 재고현황에서
+     * 빠지니 실사와 숫자가 어긋난다 — 원본이 굳이 켜 두는 까닭이다.
+     * (재고잔량분석표에서도 같은 것이 뒤집혀 있었다.)
      */
     withUntracked: false,
-    withInactive: false,
+    withInactive: true,
     belowSafetyOnly: false,
     qtyFrom: '',
     qtyTo: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 들고 있다 — 재고 줄에는 없어 따로 받는다. */
-  const { inactive, untracked } = useItemFlags()
+  const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
 
   function load() {
     setLoading(true)
@@ -74,6 +85,8 @@ export default function CurrentStockPage() {
     /* 안 켜면 뺀다 — 원본이 [포함] 이라 이름 지은 것은 기본이 '안 넣음' 이라는 뜻이다. */
     .filter((r) => cond.withUntracked || !untracked.has(r.itemId))
     .filter((r) => cond.withInactive || !inactive.has(r.itemId))
+    .filter((r) => !cond.category || categoryOf(r.itemId) === cond.category)
+    .filter((r) => !cond.itemGroup || groupOf(r.itemId) === cond.itemGroup)
     .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
     .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
@@ -90,7 +103,8 @@ export default function CurrentStockPage() {
 
   const belowCount = rows.filter((r) => r.belowSafety).length
   const totalQty = shown.reduce((s, r) => s + r.quantity, 0)
-  const reset = () => setCond({ date: today, warehouse: '', item: '', withUntracked: false, withInactive: false, belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
+  const reset = () => setCond({ date: today, warehouse: '', item: '', category: '', itemGroup: '',
+    withUntracked: false, withInactive: true, belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
 
   return (
     <EcListShell
@@ -118,6 +132,20 @@ export default function CurrentStockPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={cond.category} style={{ width: 130 }}
+                  onChange={(e) => setC({ category: e.target.value })}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={cond.itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setC({ itemGroup: e.target.value })}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </EcCond>
         {/* 원본 [기타] 차례 그대로: 수량관리제외품목포함 · 사용중단품목포함 · 안전재고설정미만표시 */}
         <EcCond label="기타">
