@@ -92,6 +92,8 @@ export default function StocktakeStatusPage() {
   const mgmt = useItemMgmt()
   /** [수량관리제외품목포함] 도 품목 마스터의 값이다 — 같은 길로 잇는다. */
   const [items, setItems] = useState<Item[]>([])
+  /* 원본 격자의 [품목명[규격명]]. 줄에는 규격이 없어 품목 마스터에서 잇는다. */
+  const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   const untracked = useMemo(
     () => new Set(items.filter((i) => i.stockTracked === false).map((i) => i.id)),
     [items])
@@ -308,13 +310,26 @@ export default function StocktakeStatusPage() {
             </colgroup>
             <thead>
               <tr>
+                {/*
+                  <b>재고실사현황(E040615) [구분]=내역 2026-09-09 원본 격자 실측</b>(자료 96줄) —
+                  [일자-No. · 품목코드 · 품목명[규격명] · 창고명 · 수량 · 적요] 여섯.
+                  우리는 (1) 일자와 전표번호를 <b>두 칸</b>으로 갈라 두었고(원본은 한 칸),
+                  (2) 품목코드와 품목명을 <b>한 칸</b>에 뭉쳐 두었으며(원본은 두 칸),
+                  (3) 창고를 품목 <b>앞</b>에 두었다(원본은 뒤).
+                  이름 셋도 달랐다 — [창고]→[창고명], [실사수량]→<b>[수량]</b>,
+                  그리고 품목 칸은 규격까지 붙인 [품목명[규격명]] 이다.
+                  <b>[실사수량]을 [수량]으로 바꾸는 것이 마음에 걸리지만</b>, 같은 값을
+                  화면마다 다르게 부르면 원본을 아는 사람이 여기서 다시 배워야 한다 —
+                  옆에 [장부수량]·[차이]를 그대로 두어 무엇과 견주는 수인지 보이게 했다.
+                  [장부수량]·[차이]·[상태]는 원본에 없는 우리 열이다.
+                */}
                 <th></th>
-                <th>전표번호</th>
-                <th>일자</th>
-                <th>창고</th>
-                <th>품목</th>
+                <th style={{ textAlign: 'center' }}>일자-No.</th>
+                <th>품목코드</th>
+                <th>품목명[규격명]</th>
+                <th>창고명</th>
                 <th style={{ textAlign: 'right' }}>장부수량</th>
-                <th style={{ textAlign: 'right' }}>실사수량</th>
+                <th style={{ textAlign: 'right' }}>수량</th>
                 <th style={{ textAlign: 'right' }}>차이</th>
                 <th style={{ textAlign: 'center' }}>상태</th>
                 <th>적요</th>
@@ -328,10 +343,12 @@ export default function StocktakeStatusPage() {
               ) : shown.map((r, i) => (
                 <tr key={r.id} style={r.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
-                  <td>{r.requestDate.replace(/-/g, '/')}</td>
+                  {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+                  <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.requestDate.replace(/-/g, '/')} {r.adjustNo}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  {/* 규격은 줄에 없고 품목 마스터가 든다 — id 로 잇는다. */}
+                  <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.bookQty)}</td>
                   <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: diffColor(r.diff) }}>
