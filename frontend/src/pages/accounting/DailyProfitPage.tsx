@@ -10,6 +10,9 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 이익관리 > 일별이익현황 (이카운트 C000140)
@@ -121,7 +124,20 @@ export default function DailyProfitPage() {
   const [tradeKind, setTradeKind] = useState<'전체' | '반품만' | '반품제외'>('전체')
   // 원본 기본값이 금월(~오늘)이다.
   const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
-  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '' })
+  /*
+   * 2026-09-08 에 원본(E040806)의 조건 판을 재니 <b>[전체] 탭이 스물다섯</b>이다
+   * ([기본] 탭은 스물둘에 차례도 조금 다르다). 사본에는 열하나뿐이었다. 접힌 줄은 없다.
+   *
+   * <p>여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+   * 거래처관리담당자 · 거래유형. 값은 판매 전표 응답에 진작 다 있다
+   * (월별이익현황과 같은 여섯이다 — 두 화면이 같은 자료를 본다).
+   */
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
+    partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
+  /* 거래처그룹1·거래처관리담당자·품목그룹1 은 마스터에 붙는 값이라 이름·id 로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
+  const mgmtItems = useItemMgmt()
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -172,11 +188,18 @@ export default function DailyProfitPage() {
     .filter((d) => !cond.warehouseId || String(d.warehouseId) === cond.warehouseId)
     .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
+    .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
+    .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)
+    .filter((d) => !cond.partnerMgr || pmgr.managerOfName(d.partnerName) === cond.partnerMgr)
+    /* 원본 [거래유형] — 과세 · 면세. [거래구분](반품)과 다른 축이다. */
+    .filter((d) => !cond.taxType || (d.taxable ? '과세' : '면세') === cond.taxType)
     .filter((d) => tradeKind === '전체'
       || (tradeKind === '반품만' ? d.returnSlip : !d.returnSlip))
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
       .filter((l) => withUntracked || !untracked.has(l.itemId))
+      .filter((l) => !cond.category || (l.itemCategoryName ?? '') === cond.category)
+      .filter((l) => !cond.itemGroup || mgmtItems.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
         const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
         const price = costPrice(l.itemId, d.saleDate)
@@ -256,7 +279,8 @@ export default function DailyProfitPage() {
 
   const reset = () => {
     setMode('라인별'); setBasis('입고단가(품목)'); setWithVat(false)
-    setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '' })
+    setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
+      partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
     setTradeKind('전체')
   }
 
@@ -316,20 +340,65 @@ export default function DailyProfitPage() {
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
-                           value={cond.project} onChange={(v) => setC({ project: v })}
-                           items={pickers.projects} />
-        </EcCond>
+        {/*
+          원본 [전체] 탭 차례(2026-09-08 실측, 스물다섯): 구분 · 기준일자 · 창고 ·
+          (창고계층그룹) · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 프로젝트 ·
+          (프로젝트그룹1/2) · <b>담당자 · 거래처관리담당자 · 거래유형</b> · 판매액 · 원가 ·
+          거래구분 · 기타 · 정렬/소계기준.
+          <b>[기본] 탭은 스물둘</b>이고 차례가 다르다(프로젝트가 창고 다음, 거래구분이
+          기타 다음). 조건이 더 많은 [전체] 쪽에 맞춘다 — 월별이익현황과 같은 규칙이다.
+        */}
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={cond.category} onChange={(v) => setC({ category: v })}
+                           items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+                             .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmtItems.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={'ec-pill no-ec' + (cond.taxType === v ? ' active' : '')}
+                      onClick={() => setC({ taxType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="판매액">
           <div className="ec-pills">
