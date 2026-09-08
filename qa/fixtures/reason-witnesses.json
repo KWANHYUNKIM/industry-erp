@@ -3184,5 +3184,14 @@
    "getVat"
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
+ },
+ "작업내역조회|일자-No.": {
+  "claim": "작업내역 전표에 번호가 없다",
+  "absent": [
+   "resultNo",
+   "docNo",
+   "workResultNo"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java"
  }
 }

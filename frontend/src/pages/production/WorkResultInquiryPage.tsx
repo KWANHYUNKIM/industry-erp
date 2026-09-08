@@ -313,8 +313,17 @@ export default function WorkResultInquiryPage() {
               <th style={{ width: 34, textAlign: 'center' }}>
                 <input type="checkbox" checked={allOn} onChange={toggleAll} />
               </th>
+              {/*
+                <b>작업내역조회(E040431) 2026-09-09 원본 격자 실측</b> — 열이 일곱이다:
+                [일자-No. · 생산공장명 · 작업품목명[규격명] · 작업수량 · 작업시간 ·
+                <b>작업지시서</b> · 인쇄].
+                우리는 (1) 둘째 칸을 <b>[작업지시No.]</b> 라 부르며 <b>앞쪽</b>에 두었는데,
+                원본에서 그 칸은 <b>[작업지시서]</b> 이고 <b>작업시간 뒤</b>에 있다 —
+                이름과 자리를 원본으로 옮겼다. (2) 첫 칸은 [일자-No.] 인데 우리는
+                <b>날짜만</b> 찍는다 — 작업내역에 전표번호가 없다(아래 예외).
+                [작업(공정)]·[생산품목명]·[자원명]·[담당자]·[적요]는 우리 열이다.
+              */}
               <th style={{ width: 110 }}>일자</th>
-              <th style={{ width: 170 }}>작업지시No.</th>
               <th style={{ width: 130 }}>생산공장명</th>
               <th style={{ width: 170 }}>작업품목명[규격명]</th>
               <th style={{ width: 120 }}>작업(공정)</th>
@@ -323,6 +332,7 @@ export default function WorkResultInquiryPage() {
               <th style={{ width: 100 }}>담당자</th>
               <th style={{ width: 110, textAlign: 'right' }}>작업수량</th>
               <th style={{ width: 110, textAlign: 'right' }}>작업시간</th>
+              <th style={{ width: 170 }}>작업지시서</th>
               <th style={{ width: 160 }}>적요</th>
               {/* 원본 작업내역조회의 마지막 열 [인쇄] — 그 한 건을 작업내역서로 찍는다. */}
               <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -339,7 +349,6 @@ export default function WorkResultInquiryPage() {
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? ''}</td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
@@ -351,6 +360,7 @@ export default function WorkResultInquiryPage() {
                 <td>{r.worker ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
+                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? ''}</td>
                 <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
@@ -360,11 +370,11 @@ export default function WorkResultInquiryPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right' }}>{num(totals.qty)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
-              {/* 적요 · 인쇄 */}
-              <td colSpan={2}></td>
+              {/* 작업지시서 · 적요 · 인쇄 */}
+              <td colSpan={3}></td>
             </tr>
           </tfoot>
         </table>
