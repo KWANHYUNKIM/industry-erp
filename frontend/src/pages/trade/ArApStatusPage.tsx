@@ -23,6 +23,14 @@ import type { LedgerBasis } from '../../utils/partnerRollup'
  * 원본의 거래처계층그룹·하위그룹포함검색은 우리 거래처 <b>그룹</b>에 계층이 없어 제외했다
  * (거래처그룹은 1단계 평면 그룹이다). <b>[대표거래처로 합산]은 다르다</b> — 거래처끼리는
  * 대표(parent)로 묶이므로 만들 수 있는데, 없다고 적어 두고 넘어갔었다.
+ *
+ * <p><b>2026-09-09 채권현황(E040721) 원본 실측</b> — 조건은 <b>열둘</b>이고(대조표의 열셋은
+ * [기타]와 [대표거래처로 합산]의 라디오 두 알을 펴 놓은 것이었다), 격자는
+ * <b>거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계</b> 다.
+ * <b>[청구금액]·[미청구금액]은 못 만든다</b> — 세금계산서가 어느 판매에 붙었는지는 알지만
+ * (TaxInvoice.sales), 우리 채권은 <b>수금을 뺀 순액</b>이고 <code>Settlement</code> 에는
+ * 그 수금이 <b>어느 청구를 갚은 것인지</b>가 없다. 순액을 청구분·미청구분으로 가르려면
+ * 그 배분 규칙을 지어내야 한다.
  */
 type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
@@ -306,7 +314,15 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           <th>거래처명</th>
           <th style={{ width: 130 }}>거래처그룹</th>
           <th style={{ width: 100 }}>관리담당자</th>
-          {showR && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
+          {/*
+            원본 <b>채권현황(E040721)</b>의 이 열 이름은 [채권]이 아니라 <b>[합계]</b> 다
+            (2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 · 미청구금액 · <b>합계</b>).
+            채권/채무현황(E040703)은 채권·채무를 나란히 놓으므로 그쪽에서는 [채권]이 맞다 —
+            <b>같은 표가 두 화면을 겸하므로</b> 보는 화면에 따라 이름을 바꾼다.
+          */}
+          {showR && <th style={{ width: 130, textAlign: 'right' }}>
+            {mode === 'RECEIVABLE' ? '합계' : '채권'}
+          </th>}
           {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>순액</th>}
         </tr></thead>
