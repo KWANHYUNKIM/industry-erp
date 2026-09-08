@@ -3083,5 +3083,13 @@
    "amount"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+ },
+ "창고이동현황|금액(수량*입고단가)": {
+  "claim": "창고이동에 단가를 안 매긴다",
+  "absent": [
+   "unitPrice",
+   "amount"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
  }
 }

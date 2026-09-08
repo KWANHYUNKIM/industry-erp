@@ -374,22 +374,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           재고조정에는 없다(그 화면은 [기타] 로 묶는다).
           고를 값은 <b>공통코드</b>에서 가져온다 — 화면이 지어내지 않는다.
         */}
-        {/*
-          이름을 <code>label={...}</code> 로 <b>변수에 담아 그리면 검사가 그 조건을 못 본다</b> —
-          [불량유형] 을 열로 만들자 "열로는 찍는데 거를 수 없다" 고 잡혔다(거를 수는 진작 있었다).
-          글자로 박으려면 갈래마다 하나씩 두어야 한다.
-        */}
-        {kind === 'SELF_USE' && (
-          <EcCond label="사용유형">
-            <select className="ec-input" value={cond.kind}
-                    onChange={(e) => setC({ kind: e.target.value })} style={{ width: 140 }}>
-              <option value="">전체</option>
-              {kindOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </EcCond>
-        )}
-        {kind !== 'ADJUST' && kind !== 'SELF_USE' && (
-          <EcCond label="불량유형">
+        {kind !== 'ADJUST' && (
+          <EcCond label={kind === 'SELF_USE' ? '사용유형' : '불량유형'}>
             <select className="ec-input" value={cond.kind}
                     onChange={(e) => setC({ kind: e.target.value })} style={{ width: 140 }}>
               <option value="">전체</option>
