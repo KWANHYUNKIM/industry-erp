@@ -1426,5 +1426,56 @@
       "payable"
     ],
     "file": "trade/PartnersPage.tsx"
+  },
+  "출하조회|최종수정자": {
+      "claim": "누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다",
+      "in": "backend",
+      "absent": [
+          "updatedBy",
+          "modifiedBy",
+          "lastModifiedBy"
+      ]
+  },
+  "출하지시서조회|최종수정자": {
+      "claim": "누가 고쳤는지는 안 남긴다",
+      "in": "backend",
+      "absent": [
+          "updatedBy",
+          "modifiedBy",
+          "lastModifiedBy"
+      ]
+  },
+  "출하조회|삭제구분": {
+      "claim": "지운 전표를 남기지 않는다 — 소프트 삭제가 아니다",
+      "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java",
+      "absent": [
+          "deletedAt",
+          "deleted"
+      ]
+  },
+  "발주서조회|삭제구분": {
+      "claim": "지운 발주를 남기지 않는다 — 소프트 삭제가 아니다",
+      "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
+      "absent": [
+          "deletedAt",
+          "deleted"
+      ]
+  },
+  "창고이동조회|삭제구분": {
+      "claim": "지운 이동을 남기지 않는다 — 소프트 삭제가 아니다",
+      "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java",
+      "absent": [
+          "deletedAt",
+          "deleted"
+      ]
+  },
+  "창고이동조회|오더관리번호": {
+      "claim": "창고이동은 사내 이동이라 근거가 될 오더가 없다",
+      "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java",
+      "absent": [
+          "salesOrder",
+          "purchaseOrder",
+          "sourceOrder"
+      ]
   }
 }
