@@ -242,10 +242,11 @@ export default function MonthlyProfitPage() {
   const years = [nowYear(), nowYear() - 1, nowYear() - 2]
   /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
   const HEADS: Record<Mode, string[]> = {
-    품목별: ['품목코드', '품목명'],
+    /* 원본은 규격을 품목명 뒤 대괄호에 붙여 <b>[품목명[규격]]</b> 한 칸으로 적는다. */
+    품목별: ['품목코드', '품목명[규격]'],
     거래처별: ['거래처'],
-    품목별거래처별: ['품목코드', '품목명', '거래처'],
-    거래처별품목별: ['거래처', '품목코드', '품목명'],
+    품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
     월별: ['월'],
   }
   const heads = HEADS[mode]
@@ -428,11 +429,24 @@ export default function MonthlyProfitPage() {
             <tr>
               <th style={{ width: 40 }}></th>
               {heads.map((h) => <th key={h}>{h}</th>)}
+              {/*
+                <b>월별이익현황(E040805) [구분]=품목별 2026-09-09 원본 격자 실측</b>(자료 33줄).
+                원본 머리는 <b>두 줄</b>이다 —
+                위: [품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 이익(2) · <b>이익율</b>],
+                아래: 판매 밑에 [수량·단가·금액], 원가·이익 밑에 각각 [단가·금액].
+                <b>일별이익현황(E040806)과 다른 점</b>: 이쪽에는
+                [이익금액(부대비용포함)]·[판매부대비용]이 <b>없다</b>. 우리는 둘 다 그리는데
+                우리 열이니 그대로 둔다(부대비용을 뺀 이익을 월 단위로도 보고 싶다).
+                [구분]도 넷뿐이다 — 원본에 [라인별]·[사용자지정집계]가 없고,
+                우리 다섯째 [월별]은 우리 것이다. 기본값(품목별)은 같다.
+                우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
+                [건수]도 원본에 없는 우리 열이다.
+              */}
               <th style={{ textAlign: 'right', width: 70 }}>건수</th>
               <th style={{ textAlign: 'right', width: 90 }}>수량</th>
               <th style={{ textAlign: 'right', width: 130 }}>판매액</th>
               <th style={{ textAlign: 'right', width: 130 }}>원가</th>
-              <th style={{ textAlign: 'right', width: 140 }}>이익 (이익률)</th>
+              <th style={{ textAlign: 'right', width: 140 }}>{'이익'} ({'이익율'})</th>
               <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
               <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
             </tr>
