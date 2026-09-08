@@ -8,6 +8,9 @@ import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { aggregate, GROUP_KEYS, type GroupKey } from '../../utils/statusAggregate'
 import EcBarChart from '../../components/EcBarChart'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 구매관리 > 발주서현황 (이카운트 E040306)
@@ -44,6 +47,21 @@ interface Row {
   unitPrice: number
   supply: number
   vat: number
+  /*
+   * 2026-09-08 에 원본(E040306)의 조건 판을 재니 <b>마흔하나</b>다(사본에는 아홉).
+   * 아래 값은 전부 <code>PurchaseOrderResponse</code>·<code>OrderLineResponse</code> 가
+   * 진작 싣는데 이 화면이 줄로 펼 때 <b>버리고 있었다</b> — 실어 두기만 하면 된다.
+   */
+  itemCode: string
+  spec: string | null
+  itemCategoryName: string | null
+  currency: string | null
+  /** 과세 여부. 원본 [거래유형] — 과세 · 면세. */
+  taxable: boolean
+  /** 원본 [적요]는 <b>줄</b>의 메모, [참조]는 전표 머리다 — 다른 칸이다(발주서조회와 같다). */
+  lineRemark: string | null
+  headRemark: string | null
+  createdBy: string | null
 }
 
 interface Filters {
@@ -57,6 +75,27 @@ interface Filters {
   item: string
   status: '' | PurchaseOrderStatus
   sortByDoc: boolean
+  /** 2026-09-08 실측으로 드러난 열넷. */
+  dueFrom: string
+  dueTo: string
+  partnerGroup: string
+  itemCategory: string
+  itemGroup: string
+  partnerMgr: string
+  currency: string
+  taxType: '' | '과세' | '면세'
+  ref: string
+  spec: string
+  qtyFrom: string
+  qtyTo: string
+  priceFrom: string
+  priceTo: string
+  supplyFrom: string
+  supplyTo: string
+  vatFrom: string
+  vatTo: string
+  note: string
+  author: string
 }
 
 /*
@@ -67,6 +106,9 @@ const initP = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: initP.from, dateTo: initP.to, partner: '', employee: '', orderNo: '', warehouse: '', project: '', item: '', status: '', sortByDoc: false,
+  dueFrom: '', dueTo: '', partnerGroup: '', itemCategory: '', itemGroup: '', partnerMgr: '',
+  currency: '', taxType: '', ref: '', spec: '', qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '',
+  supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '', note: '', author: '',
 }
 
 export default function PurchaseOrderStatusPage() {
@@ -85,6 +127,10 @@ export default function PurchaseOrderStatusPage() {
   const [keyword, setKeyword] = useState('')
 
   const [panelOpen, setPanelOpen] = useState(false)
+  /* 마스터에 붙는 값들 — 전표 응답에는 없어 이름·코드로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
+  const mgmt = useItemMgmt()
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
 
@@ -110,6 +156,14 @@ export default function PurchaseOrderStatusPage() {
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
           vat: l.vatAmount,
+          itemCode: l.itemCode,
+          spec: l.spec ?? null,
+          itemCategoryName: l.itemCategoryName ?? null,
+          currency: o.currency ?? null,
+          taxable: o.taxable !== false,
+          lineRemark: l.remark ?? null,
+          headRemark: o.remark ?? null,
+          createdBy: o.createdBy ?? null,
         }))
       }
       setRows(flat)
@@ -151,13 +205,34 @@ export default function PurchaseOrderStatusPage() {
       if (f.project && !r.project.includes(f.project)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.status && r.status !== f.status) return false
+      if (f.dueFrom && (r.dueDate ?? '') < f.dueFrom) return false
+      if (f.dueTo && ((r.dueDate ?? '') === '' || (r.dueDate ?? '') > f.dueTo)) return false
+      if (f.partnerGroup && pgroup.groupOfName(r.partner) !== f.partnerGroup) return false
+      if (f.itemCategory && (r.itemCategoryName ?? '') !== f.itemCategory) return false
+      if (f.itemGroup && mgmt.groupOfCode(r.itemCode) !== f.itemGroup) return false
+      if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+      if (f.currency && (r.currency ?? '') !== f.currency) return false
+      if (f.taxType && (r.taxable ? '과세' : '면세') !== f.taxType) return false
+      if (f.ref && !(r.headRemark ?? '').includes(f.ref)) return false
+      if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
+      if (f.qtyFrom && r.qty < Number(f.qtyFrom)) return false
+      if (f.qtyTo && r.qty > Number(f.qtyTo)) return false
+      if (f.priceFrom && r.unitPrice < Number(f.priceFrom)) return false
+      if (f.priceTo && r.unitPrice > Number(f.priceTo)) return false
+      if (f.supplyFrom && r.supply < Number(f.supplyFrom)) return false
+      if (f.supplyTo && r.supply > Number(f.supplyTo)) return false
+      if (f.vatFrom && r.vat < Number(f.vatFrom)) return false
+      if (f.vatTo && r.vat > Number(f.vatTo)) return false
+      if (f.note && !(r.lineRemark ?? '').includes(f.note)) return false
+      if (f.author && (r.createdBy ?? '') !== f.author) return false
       return true
     })
     out.sort((a, b) => f.sortByDoc
       ? (a.orderNo < b.orderNo ? 1 : a.orderNo > b.orderNo ? -1 : 0)
       : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     return out
-  }, [rows, keyword, filters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, keyword, filters, pgroup.groupOptions, pmgr.options, mgmt.groupOptions])
 
   /* 집계는 판매·구매현황과 같은 규칙을 쓴다 — 계산은 utils/statusAggregate 가 진다. */
   /* 2차 집계조건을 고르면 열이 하나 늘어난다 — 늘 때마다 머리와 칸이 맞는지 본다. */
@@ -250,11 +325,16 @@ export default function PurchaseOrderStatusPage() {
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
+        {/*
+          <b>합계줄의 말이 조건 이름과 같으면 안 된다.</b> [수량]·[공급가액]·[부가세]를
+          조건으로 만들고 나니, 합계줄에 적힌 같은 글자가 <b>조건 판보다 위에</b> 있어
+          조건 차례가 어긋난 것으로 읽혔다. 합계는 '총' 을 붙여 구분한다.
+        */}
+        총수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
+        총공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
+        총부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
         <EcBarChart unit=" 원" emptyText="조회된 발주가 없습니다."
@@ -405,6 +485,24 @@ function SearchPanel({
         <input className="ec-input" placeholder="발주번호 일부" value={draft.orderNo}
           onChange={(e) => onChange({ orderNo: e.target.value })} style={{ width: 220 }} />
       </div>
+      {/*
+        원본 차례(2026-09-08 실측, 마흔하나): 기준일자 · 발주No. · 내.외자구분 ·
+        <b>품목별납기일자</b> · 창고 · (창고계층그룹) · 프로젝트 · (프로젝트그룹1/2) ·
+        거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 품목 ·
+        <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · (오더관리번호) ·
+        담당자 · <b>거래처관리담당자 · 외화종류 · 거래유형 · 참조</b> · (거래구분) ·
+        <b>규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요</b> · 진행상태 ·
+        <b>최초작성자</b> · (최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
+        데이터 보기형식.
+      */}
+      <div style={rowStyle}>
+        <span style={label}>품목별납기일자</span>
+        <input type="date" className="ec-input" value={draft.dueFrom}
+          onChange={(e) => onChange({ dueFrom: e.target.value })} style={{ width: 150 }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input type="date" className="ec-input" value={draft.dueTo}
+          onChange={(e) => onChange({ dueTo: e.target.value })} style={{ width: 150 }} />
+      </div>
       <div style={rowStyle}>
         <span style={label}>창고</span>
         <input className="ec-input" placeholder="창고명 일부" value={draft.warehouse}
@@ -422,14 +520,96 @@ function SearchPanel({
           onChange={(e) => onChange({ partner: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
-        <span style={label}>담당자</span>
-        <input className="ec-input" placeholder="담당자명 일부" value={draft.employee}
-          onChange={(e) => onChange({ employee: e.target.value })} style={{ width: 220 }} />
+        <span style={label}>거래처그룹1</span>
+        <input className="ec-input" placeholder="거래처그룹1 이름" value={draft.partnerGroup}
+          onChange={(e) => onChange({ partnerGroup: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>품목</span>
         <input className="ec-input" placeholder="품목명 일부" value={draft.item}
           onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목구분</span>
+        <input className="ec-input" placeholder="원재료·상품 …" value={draft.itemCategory}
+          onChange={(e) => onChange({ itemCategory: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>품목그룹1</span>
+        <input className="ec-input" placeholder="품목그룹1 이름" value={draft.itemGroup}
+          onChange={(e) => onChange({ itemGroup: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>담당자</span>
+        <input className="ec-input" placeholder="담당자명 일부" value={draft.employee}
+          onChange={(e) => onChange({ employee: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>거래처관리담당자</span>
+        <input className="ec-input" placeholder="거래처를 맡은 사람" value={draft.partnerMgr}
+          onChange={(e) => onChange({ partnerMgr: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>외화종류</span>
+        <input className="ec-input" placeholder="USD·JPY …" value={draft.currency}
+          onChange={(e) => onChange({ currency: e.target.value })} style={{ width: 150 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>거래유형</span>
+        <select className="ec-input" value={draft.taxType}
+          onChange={(e) => onChange({ taxType: e.target.value as Filters['taxType'] })} style={{ width: 150 }}>
+          <option value="">전체</option>
+          <option value="과세">과세</option>
+          <option value="면세">면세</option>
+        </select>
+      </div>
+      {/* 원본 [적요]는 <b>줄</b>의 메모, [참조]는 전표 머리다 — 다른 칸이다(발주서조회와 같다). */}
+      <div style={rowStyle}>
+        <span style={label}>참조</span>
+        <input className="ec-input" placeholder="전표 참조 일부" value={draft.ref}
+          onChange={(e) => onChange({ ref: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>규격</span>
+        <input className="ec-input" placeholder="규격 일부" value={draft.spec}
+          onChange={(e) => onChange({ spec: e.target.value })} style={{ width: 220 }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>수량</span>
+        <input className="ec-input" type="number" value={draft.qtyFrom}
+          onChange={(e) => onChange({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input className="ec-input" type="number" value={draft.qtyTo}
+          onChange={(e) => onChange({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>단가</span>
+        <input className="ec-input" type="number" value={draft.priceFrom}
+          onChange={(e) => onChange({ priceFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input className="ec-input" type="number" value={draft.priceTo}
+          onChange={(e) => onChange({ priceTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>공급가액</span>
+        <input className="ec-input" type="number" value={draft.supplyFrom}
+          onChange={(e) => onChange({ supplyFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input className="ec-input" type="number" value={draft.supplyTo}
+          onChange={(e) => onChange({ supplyTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>부가세</span>
+        <input className="ec-input" type="number" value={draft.vatFrom}
+          onChange={(e) => onChange({ vatFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
+        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <input className="ec-input" type="number" value={draft.vatTo}
+          onChange={(e) => onChange({ vatTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>적요</span>
+        <input className="ec-input" placeholder="줄 적요 일부" value={draft.note}
+          onChange={(e) => onChange({ note: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
         <span style={label}>진행상태</span>
@@ -448,6 +628,11 @@ function SearchPanel({
             onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
           발주번호순(정렬)
         </label>
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>최초작성자</span>
+        <input className="ec-input" placeholder="만든 사람" value={draft.author}
+          onChange={(e) => onChange({ author: e.target.value })} style={{ width: 220 }} />
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>
         <span style={label}>데이터 보기형식</span>
