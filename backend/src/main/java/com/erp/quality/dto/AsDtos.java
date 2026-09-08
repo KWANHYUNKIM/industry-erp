@@ -1,5 +1,6 @@
 package com.erp.quality.dto;
 
+import com.erp.inventory.domain.ItemCategory;
 import com.erp.quality.domain.AsPart;
 import com.erp.quality.domain.AsRequest;
 import com.erp.quality.domain.AsStatus;
@@ -10,6 +11,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public final class AsDtos {
 
@@ -81,19 +83,29 @@ public final class AsDtos {
             Long id, String asNo,
             Long partnerId, String partnerName,
             Long itemId, String itemName,
+            /** 원본 조건 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            ItemCategory itemCategory, String itemCategoryName,
             LocalDate receiptDate,
             String title, LocalDate scheduledDate,
             Long warehouseId, String warehouseName,
             Long projectId, String projectName,
             String symptom, String charge,
             AsStatus status, String statusName,
-            LocalDate doneDate, String repairNote
+            LocalDate doneDate, String repairNote,
+            /**
+             * 원본 조건 [최초작성자] · [최초작성일자] · [최종작업일자], 그리고 [기타]의
+             * <b>수정일자순(정렬)</b>. AsRequest 는 createdBy 를 들고 BaseTimeEntity 도
+             * 물려받는데 응답이 셋 다 안 실었다.
+             */
+            String createdBy, LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         public static AsResponse from(AsRequest a) {
             return new AsResponse(
                     a.getId(), a.getAsNo(),
                     a.getPartner().getId(), a.getPartner().getName(),
                     a.getItem().getId(), a.getItem().getName(),
+                    a.getItem().getCategory(),
+                    a.getItem().getCategory() != null ? a.getItem().getCategory().getDisplayName() : null,
                     a.getReceiptDate(),
                     a.getTitle(), a.getScheduledDate(),
                     a.getWarehouse() != null ? a.getWarehouse().getId() : null,
@@ -102,7 +114,8 @@ public final class AsDtos {
                     a.getProject() != null ? a.getProject().getName() : null,
                     a.getSymptom(), a.getCharge(),
                     a.getStatus(), a.getStatus().getDisplayName(),
-                    a.getDoneDate(), a.getRepairNote());
+                    a.getDoneDate(), a.getRepairNote(),
+                    a.getCreatedBy(), a.getCreatedAt(), a.getUpdatedAt());
         }
     }
 }

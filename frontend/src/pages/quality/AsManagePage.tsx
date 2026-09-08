@@ -9,6 +9,8 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { Link } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 
 interface AsPart {
   id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
@@ -28,6 +30,12 @@ interface AsRow {
   projectId: number | null; projectName: string | null
   symptom: string | null; charge: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategoryName: string | null
+  /** 원본 조건 [최초작성자]·[최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 const today = () => ymd(new Date())
@@ -123,6 +131,28 @@ export default function AsManagePage() {
   const [whCond, setWhCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [projCond, setProjCond] = useState('')
+  /*
+   * 2026-09-08 에 원본(C000091)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른하나</b>다.
+   * 사본에는 열하나뿐이었고 <b>맨 앞의 [기준일자]</b>가 빠져 있었다(발주서조회·
+   * 창고이동조회·결제내역조회에 이어 네 번째로 첫 줄을 건너뛴 사본이다).
+   * [수리예정일자]는 둘째 줄이다. 기본 기간은 [최근30일(+1개월)] 이다.
+   */
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [symptomCond, setSymptomCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
+  const pgroups = usePartnerGroups()
 
   const [partnerId, setPartnerId] = useState('')
   const [itemId, setItemId] = useState('')
@@ -235,6 +265,22 @@ export default function AsManagePage() {
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
+    /* 원본 첫 줄 [기준일자] — 접수한 날이다. 둘째 줄 [수리예정일자]와 다르다. */
+    .filter((r) => !from || r.receiptDate >= from)
+    .filter((r) => !to || r.receiptDate <= to)
+    .filter((r) => !partnerCond || r.partnerName === partnerCond)
+    .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
+    .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
+    .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
+    .filter((r) => !symptomCond || (r.symptom ?? '').includes(symptomCond))
+    .filter((r) => !remarkCond || (r.repairNote ?? '').includes(remarkCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    /* 원본 [기타]의 수정일자순(정렬). */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
@@ -365,7 +411,12 @@ export default function AsManagePage() {
       )}</Modal>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>수리예정일자</span>
+        {/* 원본 첫 줄은 <b>[기준일자]</b>(접수한 날)고 [수리예정일자]는 둘째 줄이다(2026-09-08 실측). */}
+        <span>기준일자</span>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: '#9aa1ab' }}>~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ marginLeft: 8 }}>수리예정일자</span>
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: '#9aa1ab' }}>~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
@@ -374,6 +425,15 @@ export default function AsManagePage() {
         <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
                          value={whCond} onChange={setWhCond}
                          items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        {/* 원본 차례: 창고 · (창고계층그룹) · <b>거래처 · 거래처그룹1</b> · 품목 · 품목구분 · 품목그룹1 · 프로젝트 … */}
+        <span style={{ marginLeft: 8 }}>거래처</span>
+        <CodePickerField label="거래처" hideLabel width={150} emptyLabel="전체"
+                         value={partnerCond} onChange={setPartnerCond}
+                         items={[...new Set(rows.map((r) => r.partnerName))].sort().map((n) => ({ value: n, name: n }))} />
+        <span style={{ marginLeft: 8 }}>거래처그룹1</span>
+        <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
+                         value={partnerGroupCond} onChange={setPartnerGroupCond}
+                         items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
         <span style={{ marginLeft: 8 }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                          value={projCond} onChange={setProjCond}
@@ -381,12 +441,46 @@ export default function AsManagePage() {
         <span style={{ marginLeft: 8 }}>품목</span>
         <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
                placeholder="품목" style={{ width: 150 }} />
+        <span style={{ marginLeft: 8 }}>품목구분</span>
+        <CodePickerField label="품목구분" hideLabel width={130} emptyLabel="전체"
+                         value={categoryCond} onChange={setCategoryCond}
+                         items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                           .map((n) => ({ value: n, name: n }))} />
+        <span style={{ marginLeft: 8 }}>품목그룹1</span>
+        <CodePickerField label="품목그룹1" hideLabel width={130} emptyLabel="전체"
+                         value={itemGroupCond} onChange={setItemGroupCond}
+                         items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         <span style={{ marginLeft: 8 }}>담당자</span>
         <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
                placeholder="담당자" style={{ width: 150 }} />
         <span style={{ marginLeft: 8 }}>제목</span>
         <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
                placeholder="제목" style={{ width: 170 }} />
+        {/* 원본 차례: 제목 · (최종수정자) · 기타 · (발송여부) · 접수내용 · 적요 · 최초작성자 · 최초작성일자 · 최종작업일자 … */}
+        <span style={{ marginLeft: 8 }}>기타</span>
+        <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
+        <span style={{ marginLeft: 8 }}>접수내용</span>
+        <input className="ec-input" value={symptomCond} onChange={(e) => setSymptomCond(e.target.value)}
+               placeholder="접수내용" style={{ width: 150 }} />
+        <span style={{ marginLeft: 8 }}>적요</span>
+        <input className="ec-input" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)}
+               placeholder="적요" style={{ width: 150 }} />
+        <span style={{ marginLeft: 8 }}>최초작성자</span>
+        <CodePickerField label="최초작성자" hideLabel width={130} emptyLabel="전체"
+                         value={authorCond} onChange={setAuthorCond}
+                         items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                           .map((n) => ({ value: n, name: n }))} />
+        <span style={{ marginLeft: 8 }}>최초작성일자</span>
+        <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: '#9aa1ab' }}>~</span>
+        <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        <span style={{ marginLeft: 8 }}>최종작업일자</span>
+        <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+        <span style={{ color: '#9aa1ab' }}>~</span>
+        <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
       {/* 원본 A/S접수의 조건 이름은 <b>[접수진행상태]</b> 다 — 이 알약이 그 일을 한다. */}
