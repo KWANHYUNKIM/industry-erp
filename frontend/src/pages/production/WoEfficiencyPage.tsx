@@ -425,19 +425,28 @@ export default function WoEfficiencyPage() {
             <th style={{ textAlign: 'right' }}>소모 차이</th>
             <th style={{ textAlign: 'right' }}>시간 표준</th>
             <th style={{ textAlign: 'right' }}>시간 실제</th>
+            {/*
+              2026-09-09 원본 실측(E040436). 원본 격자는 <b>머리가 두 줄</b>이라
+              [작업지시서|생산|소모|시간|하위공정] 아래에 전표번호·품목·납기일자 /
+              계획수량·생산수량·<b>차이</b> / 표준·실제·<b>차이</b> / 표준·실제·<b>차이</b> 가
+              달린다. 우리는 소모 쪽 차이만 두고 <b>시간 쪽 차이를 빼먹고 있었다</b> —
+              표준과 실제를 나란히 두고 뺄셈은 사람에게 시키고 있었던 셈이다.
+            */}
+            <th style={{ textAlign: 'right' }}>시간 차이</th>
             <th style={{ textAlign: 'center' }}>하위공정</th>
             <th style={{ textAlign: 'center' }}>진행상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((r, i) => {
             const e = efficiency.get(r.id)
             const qtyDiff = r.producedQty - r.plannedQty
             const consumeDiff = e ? e.std.amount - e.act.amount : 0
+            const timeDiff = e ? e.time.standard - e.time.actual : 0
             const unknown = e ? e.std.unknown + e.act.unknown : 0
             const expanded = open.has(r.id)
             const detail = (e?.rows ?? []).filter((x) => x.stdQty !== 0 || x.actualQty !== 0)
@@ -463,6 +472,10 @@ export default function WoEfficiencyPage() {
                 </td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
                 <td style={{ textAlign: 'right' }}>{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
+                {/* 표준 − 실제. 음수면 예정보다 오래 걸렸다는 뜻이다(소모 차이와 같은 방향). */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? '#c60a2e' : timeDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                  {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
+                </td>
                 <td style={{ textAlign: 'center' }}>
                   {detail.length > 0 ? (
                     <button onClick={() => setOpen((prev) => {
@@ -492,8 +505,8 @@ export default function WoEfficiencyPage() {
                     <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? '#c60a2e' : '#5a626e' }}>
                       {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
                     </td>
-                    {/* 시간 표준·실제 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}
-                    <td colSpan={4}></td>
+                    {/* 시간 표준·실제·차이 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}
+                    <td colSpan={5}></td>
                   </tr>,
                 )
               }
