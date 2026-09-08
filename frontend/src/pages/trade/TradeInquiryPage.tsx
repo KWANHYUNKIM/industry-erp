@@ -271,6 +271,17 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 그중 <b>우리 자료로 지금 거를 수 있는 셋</b>을 만든다 — 셋 다 응답에 진작 실려 오는데
    * 거를 자리가 없었다(표에는 [회계반영여부]가 열로 찍히고 있었다).
    */
+  /**
+   * 원본 <b>[오더관리번호]</b>. 2026-09-08 에 원본(판매조회)을 열어 그 칸의 속을 보고서야
+   * 만들었다 — <code>btn-code-search</code> + <code>form-control-code</code> 인
+   * <b>코드도움</b>이었다([거래처]·[품목]과 같은 부류다). 치는 칸이었다면 수주에 따로
+   * 매기는 관리번호였을 테고 우리에겐 그 자리가 없었을 것이다.
+   *
+   * <p>고르는 값은 <b>근거 수주의 전표번호</b>다 — 우리 줄의 <code>sourceDocNo</code> 가
+   * 그것이고, 목록의 [근거전표] 열에 진작 찍고 있었다. 예외에 '전표에 오더 참조가 없다'
+   * 고 적어 두었던 것이 거짓이었고(32b7ded), 이제 거를 자리까지 만든다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
   const [specCond, setSpecCond] = useState('')
   const [reflectedCond, setReflectedCond] = useState<'전체' | '반영' | '미반영'>('전체')
   const [remarkCond, setRemarkCond] = useState('')
@@ -299,6 +310,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
     .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    /* 전표 안의 <b>어느 줄이든</b> 그 오더에서 왔으면 걸린다(품목·규격과 같은 규칙). */
+    .filter((d) => !orderNoCond || d.lines.some((l) => (l.sourceDocNo ?? '') === orderNoCond))
     .filter((d) => !specCond || d.lines.some((l) => (l.spec ?? '') === specCond))
     /* 원본 [회계반영여부]. 표에는 진작 열로 찍고 있었는데 그것으로 거를 수가 없었다. */
     .filter((d) => reflectedCond === '전체' || (reflectedCond === '반영') === d.accountingReflected)
@@ -311,7 +324,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, orderNoCond, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -509,7 +522,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            value={itemCond} onChange={setItemCond}
                            items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.itemName)).filter(Boolean))].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {/* 원본 차례: [품목] 다음이 [발송여부]·[오더관리번호]·<b>[규격]</b>, 그다음이 [담당자] 다. */}
+          {/* 원본 차례: [품목] · (발송여부는 알약) · <b>[오더관리번호]</b> · [규격] · [담당자]. */}
+          <CodePickerField label="오더관리번호" width={130} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.sourceDocNo)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
           <CodePickerField label="규격" width={110} emptyLabel="전체"
                            value={specCond} onChange={setSpecCond}
                            items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()

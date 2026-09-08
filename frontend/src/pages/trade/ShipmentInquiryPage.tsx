@@ -118,6 +118,13 @@ export default function ShipmentInquiryPage() {
    * 사본에는 열뿐이었다. 그중 우리 응답이 진작 싣고 있던 넷을 만든다 —
    * 규격 · 담당자 · 적요 · 작성자. 넷 다 값이 오는데 거를 자리가 없었다.
    */
+  /**
+   * 원본 <b>[오더관리번호]</b>. 판매조회에서 그 칸이 <b>코드도움</b>임을 확인하고 만들었다
+   * (2026-09-08 실측 — btn-code-search + form-control-code). 고르는 값은 근거 수주의
+   * 전표번호고, 우리 <code>salesOrderNo</code> 가 그것이다. 목록의 [수주번호] 열에
+   * 진작 찍고 있었는데 거를 자리만 없었다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
   const [specCond, setSpecCond] = useState('')
   const [empCond, setEmpCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
@@ -153,6 +160,7 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond) || l.itemCode.includes(itemCond)))
     .filter((r) => !mgmtCond || r.lines.some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    .filter((r) => !orderNoCond || (r.salesOrderNo ?? '') === orderNoCond)
     .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '') === specCond))
     /* 원본 [담당자] — 출하를 맡은 사원. 작성자와 다르다. */
     .filter((r) => !empCond || (r.employeeName ?? '') === empCond)
@@ -175,7 +183,7 @@ export default function ShipmentInquiryPage() {
       : 0) || b.shipDate.localeCompare(a.shipDate) || b.id - a.id),
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options,
-   specCond, empCond, remarkCond, authorCond, pmgrCond, pmgr.options, contactCond, addressCond,
+   orderNoCond, specCond, empCond, remarkCond, authorCond, pmgrCond, pmgr.options, contactCond, addressCond,
    madeFrom, madeTo, editedFrom, editedTo, byUpdated])
 
   /*
@@ -238,6 +246,13 @@ export default function ShipmentInquiryPage() {
         </EcCond>
         {/* 원본 차례(실측): 품목 · 발송여부 · (오더관리번호) · 규격 · 담당자 · (거래처관리담당자
             · 연락처 · 주소) · 적요 · 작성자 · … 괄호 안은 아직 못 만든 것이다. */}
+        {/* 원본 차례: 품목 · (발송여부는 탭) · <b>오더관리번호</b> · 규격 · 담당자 … */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(rows.map((r) => r.salesOrderNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="규격" pick>
           <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
                            value={specCond} onChange={setSpecCond}
