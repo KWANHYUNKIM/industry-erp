@@ -8,6 +8,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -52,6 +53,15 @@ interface WorkResult {
   workTimeMin: number
   workDate: string
   note: string | null
+  /**
+   * 품목구분 둘 · 품목코드 · 프로젝트 — <code>WorkResultResponse</code> 가 진작 싣는데
+   * 이 화면이 받아 두지 않았다(2026-09-08 원본 실측으로 드러났다).
+   * 작업내역<b>조회</b> 는 같은 값을 이미 쓰고 있다 — 현황만 뒤처져 있었다.
+   */
+  workItemCode: string | null
+  workItemCategoryName: string | null
+  productCategoryName: string | null
+  projectName: string | null
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -90,6 +100,30 @@ export default function WorkResultListPage() {
    */
   const [workItem, setWorkItem] = useState('')
   const [plant, setPlant] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040432)의 조건 판을 재니 <b>서른둘</b>이다(사본에는 열하나).
+   * 접힌 줄은 없다.
+   *
+   * <p>만든 것 아홉: 작업품목:품목구분 · 작업품목:품목그룹1 · 생산품목:품목구분 ·
+   * 생산품목:품목그룹1 · 프로젝트 · 자원 · 수량 · 작업시간 · 적요.
+   * 값은 응답에 진작 다 있었다 — 작업내역<b>조회</b> 가 이미 쓰는 값이다.
+   *
+   * <p><b>[작업지시No.] 는 걷어냈다</b> — 원본 작업내역현황에도 작업내역조회에도
+   * 그런 조건이 없다. 우리만 하나 더 두고 있었다(표의 열로는 그대로 보인다).
+   * 이름도 [작업(공정)] → <b>[작업]</b> 으로 원본을 따른다.
+   */
+  const [workItemCategory, setWorkItemCategory] = useState('')
+  const [workItemGroup, setWorkItemGroup] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productGroup, setProductGroup] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [resourceCond, setResourceCond] = useState('')
+  const [qtyFrom, setQtyFrom] = useState('')
+  const [qtyTo, setQtyTo] = useState('')
+  const [timeFrom, setTimeFrom] = useState('')
+  const [timeTo, setTimeTo] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const mgmt = useItemMgmt()
 
   async function load() {
     setLoading(true)
@@ -111,6 +145,9 @@ export default function WorkResultListPage() {
     setFrom(init.from); setTo(init.to)
     setMode('내역'); setProcess(''); setWorker(''); setOrderNo(''); setProduct('')
     setWorkItem(''); setPlant('')
+    setWorkItemCategory(''); setWorkItemGroup(''); setProductCategory(''); setProductGroup('')
+    setProjectCond(''); setResourceCond(''); setQtyFrom(''); setQtyTo('')
+    setTimeFrom(''); setTimeTo(''); setNoteCond('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
@@ -121,8 +158,22 @@ export default function WorkResultListPage() {
     if (product && !(r.productName ?? '').includes(product)) return false
     if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
     if (plant && !(r.warehouseName ?? '').includes(plant)) return false
+    if (workItemCategory && (r.workItemCategoryName ?? '') !== workItemCategory) return false
+    if (workItemGroup && mgmt.groupOfCode(r.workItemCode) !== workItemGroup) return false
+    if (productCategory && (r.productCategoryName ?? '') !== productCategory) return false
+    if (productGroup && mgmt.groupOfCode(r.productCode) !== productGroup) return false
+    if (projectCond && (r.projectName ?? '') !== projectCond) return false
+    if (resourceCond && (r.resourceName ?? '') !== resourceCond) return false
+    if (qtyFrom && r.goodQty < Number(qtyFrom)) return false
+    if (qtyTo && r.goodQty > Number(qtyTo)) return false
+    if (timeFrom && r.workTimeMin < Number(timeFrom)) return false
+    if (timeTo && r.workTimeMin > Number(timeTo)) return false
+    if (noteCond && !(r.note ?? '').includes(noteCond)) return false
     return true
-  }), [rows, from, to, process, worker, orderNo, product, workItem, plant])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, from, to, process, worker, orderNo, product, workItem, plant,
+       workItemCategory, workItemGroup, productCategory, productGroup, projectCond,
+       resourceCond, qtyFrom, qtyTo, timeFrom, timeTo, noteCond, mgmt.groupOptions])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workTimeMin }),
@@ -212,32 +263,91 @@ export default function WorkResultListPage() {
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
-        <EcCond label="작업(공정)" pick>
-          <input className="ec-input" placeholder="공정명 일부" value={process}
-                 onChange={(e) => setProcess(e.target.value)} style={{ width: 200 }} />
-        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 서른둘): 구분 · 기준일자 · 생산공장 ·
+          (창고계층그룹) · <b>작업</b> · 담당자 · 작업품목 · <b>작업품목:품목구분 ·
+          작업품목:품목그룹1</b> · (작업품목:품목그룹2/3 · 계층) · 생산품목 ·
+          <b>생산품목:품목구분 · 생산품목:품목그룹1</b> · (…) · <b>프로젝트</b> ·
+          (프로젝트그룹1/2) · <b>자원 · 수량 · 작업시간 · 적요</b> ·
+          (최초작성자 · 최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
+          데이터 보기형식. 같은 이름이 두 벌이라 대조표에는 어디 것인지 밝혀 적는다.
+        */}
         <EcCond label="생산공장" pick>
           <input className="ec-input" placeholder="공장명 일부" value={plant}
                  onChange={(e) => setPlant(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="작업" pick>
+          <input className="ec-input" placeholder="공정명 일부" value={process}
+                 onChange={(e) => setProcess(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={worker} onChange={(v) => setWorker(v)}
                            items={pickers.employees} />
         </EcCond>
-        <EcCond label="작업지시No." pick>
-          <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
-                 onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
-        </EcCond>
         {/* 원본 조건의 [작업품목]. 그 작업이 실제로 다루는 품목 — 생산품목과 다르다. */}
         <EcCond label="작업품목" pick>
           <input className="ec-input" placeholder="작업품목명 일부" value={workItem}
                  onChange={(e) => setWorkItem(e.target.value)} style={{ width: 200 }} />
         </EcCond>
+        <EcCond label="작업품목:품목구분" pick>
+          <CodePickerField label="작업품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={workItemCategory} onChange={setWorkItemCategory}
+                           items={[...new Set(rows.map((r) => r.workItemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="작업품목:품목그룹1" pick>
+          <CodePickerField label="작업품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={workItemGroup} onChange={setWorkItemGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={product} onChange={(v) => setProduct(v)}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="생산품목:품목구분" pick>
+          <CodePickerField label="생산품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={productCategory} onChange={setProductCategory}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="생산품목:품목그룹1" pick>
+          <CodePickerField label="생산품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={productGroup} onChange={setProductGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [자원] — BOR 이 무는 설비·인력이다. 줄에 이미 실려 온다. */}
+        <EcCond label="자원" pick>
+          <CodePickerField label="자원" hideLabel width={170} emptyLabel="전체"
+                           value={resourceCond} onChange={setResourceCond}
+                           items={[...new Set(rows.map((r) => r.resourceName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [수량]은 <b>양품수량</b>이다 — 불량은 따로 센다. */}
+        <EcCond label="수량">
+          <input className="ec-input" type="number" value={qtyFrom}
+                 onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" value={qtyTo}
+                 onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+        </EcCond>
+        <EcCond label="작업시간">
+          <input className="ec-input" type="number" value={timeFrom}
+                 onChange={(e) => setTimeFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" value={timeTo}
+                 onChange={(e) => setTimeTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 190 }} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
