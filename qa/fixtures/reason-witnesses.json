@@ -3031,5 +3031,14 @@
    "samplingType"
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "생산불출현황|생산금액": {
+  "claim": "불출에 단가를 안 매긴다 - 수량만 든다",
+  "absent": [
+   "unitPrice",
+   "amount",
+   "supplyAmount"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
  }
 }

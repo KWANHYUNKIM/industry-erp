@@ -27,11 +27,24 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 담당자 <b>이름</b>은 서버가 못 붙인다 — production 은 hr 을 참조할 수 없어
  * (hr → accounting → production 순환) id 만 온다. 화면이 사원 목록에서 붙인다.
  */
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+/*
+ * 원본 [구분]은 <b>내역·집계 둘</b>이다(대조표 실측). [라인별]은 우리가 더 둔 갈래였는데,
+ * 2026-09-09 에 원본 격자를 재 보니 <b>[내역]이 이미 줄 단위</b>였다 - 우리 [내역]만
+ * 작업지시로 접고 있어서 [라인별]을 따로 둔 것이었다. [내역]을 원본대로 고치면
+ * 둘이 같은 표가 되므로 갈래를 없앤다.
+ */
+type Mode = '내역' | '집계'
+const MODES = ['내역', '집계'] as const
 
 interface MaterialIssue {
   id: number
+  /**
+   * 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다 - <b>서버가 진작 보내고 있었는데</b>
+   * 이 화면이 안 받아 두어 일자와 번호를 한 칸에 못 적고 있었다.
+   */
+  issueNo: string
+  /** 규격. 원본 열 이름이 [품목명[규격명]] 이다 - 이것도 진작 오던 값이다. */
+  itemSpec: string | null
   itemId: number
   itemCode: string
   itemName: string
@@ -345,81 +358,52 @@ export default function IssueStatusPage() {
             </tr>
           </tfoot>
         </table>
-      ) : mode === '라인별' ? (
+      ) : (
         <table className="w-full text-left">
+          {/*
+            원본 격자(2026-09-09 E040409 실측):
+            <b>일자-No. · 출고창고명 · 입고창고명 · 품목명[규격명] · 수량 · 생산금액 · 적요</b>.
+            <b>[내역]은 줄 단위다</b> - 우리는 작업지시 하나를 한 줄로 접고 자재를
+            "첫 자재 외 N건" 으로 줄여 두어 <b>무엇을 냈는지가 화면에서 사라졌다</b>
+            (판매현황·구매현황에서 본 것과 같은 실수다).
+            이름도 넷 달랐다 - 보내는창고/받는공장/자재명/불출수량.
+            [작업지시번호]는 원본에 없지만 우리가 더 두는 열이라 맨 뒤에 붙인다.
+            [생산금액]은 못 만든다 - 불출에 단가를 안 매긴다(예외에 적었다).
+          */}
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 110 }}>불출일</th>
-              <th style={{ width: 170 }}>작업지시번호</th>
-              <th style={{ width: 140 }}>자재코드</th>
-              <th>자재명</th>
-              <th style={{ width: 110, textAlign: 'right' }}>불출수량</th>
-              <th style={{ width: 130 }}>보내는창고</th>
-              <th style={{ width: 130 }}>받는공장</th>
+              <th style={{ width: 170, textAlign: 'center' }}>일자-No.</th>
+              <th style={{ width: 130 }}>출고창고명</th>
+              <th style={{ width: 130 }}>입고창고명</th>
+              <th>품목명[규격명]</th>
+              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
               <th>적요</th>
+              <th style={{ width: 170 }}>작업지시번호</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.issueDate)}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
+                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.issueDate)} {r.issueNo}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
+                <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
                 <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              <td colSpan={3}></td>
-            </tr>
-          </tfoot>
-        </table>
-      ) : (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 110 }}>불출일</th>
-              <th style={{ width: 170 }}>작업지시번호</th>
-              <th>자재명(요약)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>불출수량</th>
-              <th style={{ width: 130 }}>보내는창고</th>
-              <th style={{ width: 130 }}>받는공장</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : byOrder.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : byOrder.map((g, i) => (
-              <tr key={g.workOrderId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(g.date)}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{g.workOrderNo}</td>
-                <td>{g.itemName}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
-                <td>{g.warehouseName}</td>
-                <td style={{ color: g.toWarehouseName ? undefined : '#c9ced6' }}>{g.toWarehouseName ?? ''}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byOrder.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
               <td colSpan={2}></td>
             </tr>
