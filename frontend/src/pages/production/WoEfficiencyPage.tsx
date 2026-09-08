@@ -413,10 +413,23 @@ export default function WoEfficiencyPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              <b>작업지시서효율현황(E040436) 2026-09-09 원본 격자 실측</b>(자료 6줄).
+              원본 머리는 <b>두 줄</b>이다 —
+              위: [작업지시서(4) · 생산(2) · 소모(3) · 시간(3) · 하위공정],
+              아래: [전표번호·품목·납기일자·계획수량] / [생산수량·차이] /
+              [표준·실제·차이] / [표준·실제·차이].
+              <b>열 구성은 우리 것과 같다.</b> 우리는 한 줄 머리라 아래 이름이 겹치는
+              여섯을 [소모 표준]·[소모 실제]·[소모 차이]·[시간 …] 으로 풀어 적는다 —
+              묶음 이름을 앞에 붙인 것이라 뜻이 같고, 한 줄 표에서는 이쪽이 또렷하다.
+              이번에 고친 것은 <b>정렬 둘</b>이다: 원본은 [전표번호]와 [납기일자]를
+              <b>가운데</b>에 둔다.
+              ([진행상태]는 원본 격자에 없는 우리 열이다 — 원본은 조건으로만 둔다.)
+            */}
             <th style={{ width: 34 }}></th>
-            <th>전표번호</th>
+            <th style={{ textAlign: 'center' }}>전표번호</th>
             <th>품목</th>
-            <th>납기일자</th>
+            <th style={{ textAlign: 'center' }}>납기일자</th>
             <th style={{ textAlign: 'right' }}>계획수량</th>
             <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>차이</th>
@@ -433,7 +446,8 @@ export default function WoEfficiencyPage() {
               표준과 실제를 나란히 두고 뺄셈은 사람에게 시키고 있었던 셈이다.
             */}
             <th style={{ textAlign: 'right' }}>시간 차이</th>
-            <th style={{ textAlign: 'center' }}>하위공정</th>
+            {/* 원본은 이 칸의 [조회] 를 <b>왼쪽</b>에 붙인다(실측). */}
+            <th>하위공정</th>
             <th style={{ textAlign: 'center' }}>진행상태</th>
           </tr>
         </thead>
@@ -453,9 +467,9 @@ export default function WoEfficiencyPage() {
             const rows = [(
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
                 <td>[{r.productCode}] {r.productName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.dueDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right' }}>{r.producedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', color: qtyDiff < 0 ? '#c60a2e' : qtyDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
@@ -476,7 +490,7 @@ export default function WoEfficiencyPage() {
                 <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? '#c60a2e' : timeDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
                   {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td>
                   {detail.length > 0 ? (
                     <button onClick={() => setOpen((prev) => {
                       const next = new Set(prev)
