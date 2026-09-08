@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
@@ -85,7 +86,20 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
   const [employee, setEmployee] = useState('')
-  const [minDiff, setMinDiff] = useState('')
+  /*
+   * 2026-09-08 에 원본 둘(판매할인현황 E040216 · 구매할인현황 E040313)을 열어 쟀다.
+   * 조건이 <b>열아홉</b>이고 두 화면이 글자 하나까지 같다(사본에는 열하나만 적혀 있었다).
+   * 접힌 줄은 없다 — 접힘 표시를 눌러도 줄 수가 그대로다.
+   *
+   * <p>원본 [할인금액]은 <b>구간</b>이다(할인금액 ~). 우리는 '차액 이상' 한 칸이었다.
+   */
+  const [discFrom, setDiscFrom] = useState('')
+  const [discTo, setDiscTo] = useState('')
+  /** 원본 [적요]. 줄에 이미 모아 오고 있는데 거를 자리가 없었다. */
+  const [remarkCond, setRemarkCond] = useState('')
+  /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 전표 응답에는 없다. 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
   /** 원본 [거래유형]. 전표의 과세 여부로 거른다. */
   const [tradeType, setTradeType] = useState<'전체' | '과세' | '면세'>('전체')
   /** 원본 조건 판의 [프로젝트]. 전표가 프로젝트를 들고 있는데 거를 수가 없었다. */
@@ -144,13 +158,17 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partner.localeCompare(b.partner)))
   }, [docs, from, to, tradeType])
 
-  const min = Number(minDiff)
+  const min = Number(discFrom)
+  const max = Number(discTo)
   const shown = rows.filter((r) => {
     if (keyword && !r.partner.includes(keyword)) return false
     if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
     if (employee && !(r.employee ?? '').includes(employee)) return false
     if (project && (r.project ?? '') !== project) return false
-    if (minDiff && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
+    if (discFrom && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
+    if (discTo && !Number.isNaN(max) && r.orgAmount - r.reflectedAmount > max) return false
+    if (partnerGroup && pgroup.groupOfName(r.partner) !== partnerGroup) return false
+    if (remarkCond && !r.remarks.some((t) => t.includes(remarkCond))) return false
     return true
   })
 
@@ -193,7 +211,8 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to)
-          setKeyword(''); setWarehouse(''); setEmployee(''); setMinDiff('')
+          setKeyword(''); setWarehouse(''); setEmployee('')
+          setDiscFrom(''); setDiscTo(''); setRemarkCond(''); setPartnerGroup(''); setProject('')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -230,6 +249,17 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.partners} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열아홉): 기준일자 · 거래유형 · 창고 · (창고계층그룹) ·
+          거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 프로젝트 ·
+          (프로젝트그룹1 · 프로젝트그룹2) · 거래처관리담당자 · 할인금액 · <b>적요</b> ·
+          (양식) · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
@@ -241,8 +271,15 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
                            items={pickers.employees} />
         </EcCond>
         <EcCond label="할인금액">
-          <input className="ec-input" type="number" placeholder="차액 이상" value={minDiff}
-                 onChange={(e) => setMinDiff(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
+          <input className="ec-input" type="number" value={discFrom}
+                 onChange={(e) => setDiscFrom(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input className="ec-input" type="number" value={discTo}
+                 onChange={(e) => setDiscTo(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
