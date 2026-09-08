@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
+import { useDeptGroups } from '../../utils/deptGroups'
 import { printDocuments } from '../../utils/printDocument'
 import { formatDays } from '../../utils/dayCount'
 
@@ -68,6 +69,14 @@ export default function LeaveListPage() {
    * (사본 실측). 부서와 적요가 없었는데 <b>둘 다 이미 목록에 실려 오고 있었다</b>.
    */
   const [dept, setDept] = useState('')
+  /*
+   * 원본 근태조회(E020711) 조건 <b>[부서계층그룹]</b>. 2026-09-09 에 원본을 열어 재니
+   * [부서] 바로 다음이 이것이다. [부서]는 그 부서 하나로 좁히지만 이쪽은
+   * <b>그 부서와 그 아래 전부</b>를 본다 — "생산본부 전체의 휴가가 몇 건인가" 를
+   * 눈으로 더하지 않아도 된다. 부서 트리는 진작 있고 다른 근태 화면이 이미 쓴다.
+   */
+  const [deptGroup, setDeptGroup] = useState('')
+  const { groups: deptGroups, inGroup } = useDeptGroups()
   const [reasonCond, setReasonCond] = useState('')
   /*
    * 원본 조건 차례의 <b>맨 뒤 [근태일자]</b>. [기준일자]는 신청한 날의 구간이고,
@@ -125,6 +134,7 @@ export default function LeaveListPage() {
     if (emp && !r.empName.includes(emp)) return false
     if (type && !r.type.includes(type)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
+    if (!inGroup(r.department, deptGroup)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
     if (dayCond && !(r.startDate <= dayCond && dayCond <= r.endDate)) return false
     /* [기준일자] — 신청 기간이 이 구간에 걸치나. 시작이 끝보다 뒤면 겹치지 않는 것이다. */
@@ -134,7 +144,7 @@ export default function LeaveListPage() {
     if (tab === '확인' && r.status !== 'APPROVED') return false
     if (tab === '이력' && r.status !== 'REJECTED') return false
     return true
-  }), [rows, emp, type, tab, dept, reasonCond, dayCond, fromCond, toCond])
+  }), [rows, emp, type, tab, dept, deptGroup, inGroup, reasonCond, dayCond, fromCond, toCond])
 
   const total = shown.reduce((n, r) => n + r.days, 0)
 
@@ -209,6 +219,15 @@ export default function LeaveListPage() {
           <input type="date" className="ec-input" value={toCond}
                  onChange={(e) => setToCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
+        {/*
+          원본 차례는 <b>기준일자 · 근태일자 · 사원 · 부서 · 부서계층그룹 …</b> 이다
+          (2026-09-09 원본 실측). 우리는 [근태일자]를 맨 뒤에 두고 "원본 조건 차례의
+          맨 뒤" 라고 적어 두었는데 <b>틀렸다</b> — 사본만 보고 적은 것이었다.
+        */}
+        <EcCond label="근태일자">
+          <input type="date" className="ec-input" value={dayCond}
+                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
                  onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
@@ -218,6 +237,13 @@ export default function LeaveListPage() {
           <input className="ec-input" placeholder="부서명 일부" value={dept}
                  onChange={(e) => setDept(e.target.value)} style={{ width: 160 }} />
         </EcCond>
+        <EcCond label="부서계층그룹">
+          <select className="ec-input" value={deptGroup} style={{ width: 160 }}
+                  onChange={(e) => setDeptGroup(e.target.value)}>
+            <option value="">전체</option>
+            {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </EcCond>
         {/* 원본 근태조회의 이름은 [근태코드]가 아니라 <b>[근태항목]</b> 이다(사본 실측). */}
         <EcCond label="근태항목" pick>
           <input className="ec-input" placeholder="연차·반차 등" value={type}
@@ -226,11 +252,6 @@ export default function LeaveListPage() {
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond}
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 180 }} />
-        </EcCond>
-        {/* 원본 조건 차례의 맨 뒤 — 그날 근태가 걸쳐 있는 것만. */}
-        <EcCond label="근태일자">
-          <input type="date" className="ec-input" value={dayCond}
-                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </ul>
 

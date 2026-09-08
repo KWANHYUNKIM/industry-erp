@@ -2916,5 +2916,12 @@
    "b.defectRate - a.defectRate"
   ],
   "file": "quality/DefectReportPage.tsx"
+ },
+ "근태조회|최초작성자": {
+  "claim": "휴가 신청에 만든 사람을 따로 남기지 않는다",
+  "absent": [
+   "createdBy"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain/VacationRequest.java"
  }
 }
