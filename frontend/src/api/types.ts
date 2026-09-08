@@ -295,6 +295,8 @@ export interface TradeLine {
   itemName: string
   unit: string
   spec: string | null
+  /** 원본 전표이력조회(거래이력조회) 조건의 [품목구분]. 품목 마스터의 값이다. */
+  itemCategoryName: string | null
   quantity: number
   unitPrice: number
   supplyAmount: number

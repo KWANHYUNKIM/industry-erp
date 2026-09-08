@@ -1,5 +1,6 @@
 package com.erp.trade.dto;
 
+import com.erp.inventory.domain.ItemCategory;
 import com.erp.trade.domain.Purchase;
 import com.erp.trade.domain.PurchaseLine;
 import com.erp.trade.domain.PurchaseOrder;
@@ -64,6 +65,8 @@ public final class PurchaseDtos {
              */
             Long lineId,
             Long itemId, String itemCode, String itemName, String unit, String spec,
+            /** 원본 전표이력조회(거래이력조회) 조건의 <b>[품목구분]</b>. 품목 마스터의 값이다. */
+            ItemCategory itemCategory, String itemCategoryName,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             String remark, String lotNo, BigDecimal extraCost,
             /** 불러온 전표 — 원본 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열. 없으면 전부 null. */
@@ -74,6 +77,8 @@ public final class PurchaseDtos {
             return new PurchaseLineResponse(
                     l.getId(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getCategory(),
+                    l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark(), l.getLotNo(), l.getExtraCost(),
                     src == null ? null : src.getId(),
