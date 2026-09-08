@@ -741,24 +741,36 @@ export default function PurchaseRequestStatusPage({
               (거래처명 자리도 다르다 — 원본은 둘째 칸인데 발주요청현황은 뒤쪽이다.
               한 표로는 둘 다 못 맞춰 차례 견주기에서 이 화면만 빼고 이유를 적었다.)
             */}
+            {/*
+              <b>발주계획현황(E041015) 2026-09-09 원본 격자 실측</b> —
+              원본은 전표 하나를 <b>두 줄</b>로 편다: 위가 [일자-No. · 거래처명 · 담당자명 ·
+              납기일자 · 참조 · 진행상태], 아래가 [품목명[규격명] · 수량 · 단가 · 공급가액 · 부가세].
+              우리는 한 줄로 편다 — 같은 값을 다 담고 있고, 줄이 여럿인 전표에서
+              두 줄 꼴은 머리가 되풀이된다. <b>이름 셋을 고쳤다</b>:
+              [납기]→[납기일자] · [담당자]→[담당자명], 그리고 규격 감싸는 꼴이
+              세 화면 다 다르다 — (규격) · [규격] · <b>[규격명]</b>.
+              <b>[참조] 열이 없었다</b> — 전표 머리의 참조(PurchaseOrder.remark)는
+              응답이 진작 싣고 조건으로도 이미 거르고 있었는데 표에 안 찍고 있었다.
+            */}
             <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>{title === '단가요청현황' ? '일자No.' : '일자-No.'} {sort.mark('발주일자')}</th>
-            <th>납기</th>
+            <th>납기일자</th>
             <th>창고</th>
-            <th>담당자</th>
-            <th>{title === '단가요청현황' ? '품목명[규격]' : '품목명(규격)'}</th>
+            <th>담당자명</th>
+            <th>{title === '단가요청현황' ? '품목명[규격]' : title === '발주계획현황' ? '품목명[규격명]' : '품목명(규격)'}</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
             <th>거래처명</th>
             <th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ width: 130 }}>참조</th>
             <th style={{ width: 150 }}>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? `${STATUS_LABEL[status]} 상태의 발주서가 없습니다.` : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
@@ -768,12 +780,14 @@ export default function PurchaseRequestStatusPage({
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
               <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
-              <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
+              {/* 규격을 감싸는 꼴을 머리와 맞춘다 — 화면마다 다르다. */}
+              <td>{r.itemName}{r.spec ? (title === '발주요청현황' ? ` (${r.spec})` : ` [${r.spec}]`) : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td>{r.partner}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+              <td style={{ color: r.ref ? '#5a626e' : '#c5cbd3' }}>{r.ref || ''}</td>
               <td style={{ color: '#8a929c' }}>{r.remark}</td>
             </tr>
           ))}

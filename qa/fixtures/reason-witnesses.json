@@ -3159,5 +3159,13 @@
    "confirmedPrice"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "발주계획현황|진행상태": {
+  "claim": "우리 표는 위 카드로 고른 한 상태만 편다",
+  "present": [
+   "setStatus",
+   "STATUS_LABEL"
+  ],
+  "file": "trade/PurchaseRequestStatusPage.tsx"
  }
 }
