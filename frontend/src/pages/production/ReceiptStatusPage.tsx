@@ -9,6 +9,7 @@ import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
 import { stockCostMap, sumStockValue } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -66,6 +67,13 @@ interface Production {
   productionDate: string
   createdBy: string | null
   note: string | null
+  /**
+   * 원본 [품목구분]·[담당자]. 둘 다 <code>ProductionResponse</code> 가 진작 싣는데
+   * 이 화면이 받아 두지 않았다 — <b>[담당자] 칸이 작성자를 거르고 있었다.</b>
+   * 원본은 [담당자](전표의 담당 사원)와 [최초작성자](만든 계정)를 따로 묻는다.
+   */
+  productCategoryName: string | null
+  employeeId: number | null
   materials: Material[]
 }
 
@@ -100,6 +108,25 @@ export default function ReceiptStatusPage() {
    * (채무번호는 외주 매입과 잇는 값이라 우리에게 없다.)
    */
   const [note, setNote] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040410)의 조건 판을 재니 <b>서른둘</b>이다(사본에는 열하나).
+   * 접힌 줄은 없다.
+   *
+   * <p>만든 것 여섯: 보내는창고 · 받는창고 · 품목구분 · 품목그룹1 · 규격 · 최초작성자.
+   * <b>[창고]의 뜻과 [담당자]의 값도 고쳤다</b> — 생산불출현황과 같은 두 잘못이
+   * 이 화면에도 그대로 있었다.
+   */
+  const [fromWh, setFromWh] = useState('')
+  const [toWh, setToWh] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+  const mgmt = useItemMgmt()
+  /** 담당자 이름. production 은 hr 을 참조할 수 없어 id 만 온다 — 화면이 붙인다. */
+  const empName = (id: number | null) =>
+    id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
   const [mode, setMode] = useState<Mode>('내역')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
@@ -107,12 +134,14 @@ export default function ReceiptStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const [prod, wh, it, pu] = await Promise.all([
+      const [prod, wh, it, pu, emps] = await Promise.all([
         api.get<Production[]>('/productions', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
         api.get<PurchaseDoc[]>('/purchases'),
+        api.get<{ id: number; name: string }[]>('/employees'),
       ])
+      setEmployees(emps.data)
       setItems(it.data)
       setPurchases(pu.data)
       setRows([...prod.data].sort((a, b) =>
@@ -134,17 +163,29 @@ export default function ReceiptStatusPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to)
     setWarehouseId(''); setItem(''); setWorker(''); setMode('내역'); setProject(''); setNote('')
+    setFromWh(''); setToWh(''); setItemCategory(''); setItemGroup(''); setSpecCond(''); setAuthorCond('')
   }
 
   const shown = useMemo(() => rows.filter((r) => {
     if (r.productionDate < from || r.productionDate > to) return false
-    if (warehouseId && String(r.warehouseId) !== warehouseId) return false
+    /* [창고] — 보내는·받는 어느 쪽이든 걸린다(생산불출현황과 같은 규칙). */
+    if (warehouseId && String(r.warehouseId) !== warehouseId
+        && String(r.fromWarehouseId ?? '') !== warehouseId) return false
+    if (fromWh && (r.fromWarehouseName ?? '') !== fromWh) return false
+    if (toWh && (r.warehouseName ?? '') !== toWh) return false
     if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
-    if (worker && !(r.createdBy ?? '').includes(worker)) return false
+    /* [담당자]는 전표의 담당 사원이다 — 만든 계정([최초작성자])과 다른 사람이다. */
+    if (worker && !empName(r.employeeId).includes(worker)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
+    if (itemCategory && (r.productCategoryName ?? '') !== itemCategory) return false
+    if (itemGroup && mgmt.groupOf(r.productId) !== itemGroup) return false
+    if (specCond && !(r.productSpec ?? '').includes(specCond)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
     if (note && !(r.note ?? '').includes(note)) return false
     return true
-  }), [rows, from, to, warehouseId, item, worker, project, note])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, from, to, warehouseId, item, worker, project, note,
+       fromWh, toWh, itemCategory, itemGroup, specCond, authorCond, employees, mgmt.groupOptions])
 
   /** 집계 — 품목 단위로 입고수량을 모은다. */
   /*
@@ -225,6 +266,24 @@ export default function ReceiptStatusPage() {
                            value={warehouseId} onChange={(v) => setWarehouseId(v)}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 서른둘): 구분 · 일자 · 창고 · (창고계층그룹) ·
+          <b>보내는창고</b> · (…) · <b>받는창고</b> · (…) · 프로젝트 · (프로젝트그룹1/2) ·
+          품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 담당자 ·
+          적요 · (채무번호 · 오더관리번호) · <b>규격</b> · (거래구분 · 생산입고구분 ·
+          진행상태) · <b>최초작성자</b> · (최종수정자 · 양식) · 적용양식 · 양식구분 ·
+          정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={fromWh} onChange={setFromWh}
+                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={toWh} onChange={setToWh}
+                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={project} onChange={(v) => setProject(v)}
@@ -235,15 +294,40 @@ export default function ReceiptStatusPage() {
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={itemCategory} onChange={setItemCategory}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroup} onChange={setItemGroup}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        {/*
+          <b>[담당자]가 작성자를 거르고 있었다.</b> 원본은 [담당자](전표의 담당 사원)와
+          [최초작성자](만든 계정)를 따로 묻는다 — 골라도 걸리는 값이 서로 달랐다.
+        */}
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={worker} onChange={(v) => setWorker(v)}
-                           items={pickers.employees} />
+                           items={employees.map((e) => ({ value: e.name, name: e.name }))} />
         </EcCond>
         {/* 원본 조건의 [적요]. 왜 그렇게 입고했는지 적어 두고도 그 말로는 못 찾았다. */}
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={note}
                  onChange={(e) => setNote(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={specCond}
+                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
