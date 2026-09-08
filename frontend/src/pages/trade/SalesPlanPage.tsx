@@ -86,8 +86,13 @@ type SaleFlag = typeof SALE_FLAGS[number]
 const SETUPS = ['코드포함', '비율(%)', '수량'] as const
 
 /**
- * 원본 매출계획비교표(E040626)의 <b>[표시조건1]·[표시조건2]</b> — 무엇으로 묶어 볼지 고르는 자리다
- * (2026-09-01 원본 실측). 원본 후보는 열하나다:
+ * 원본 매출계획비교표(E040626)의 <b>[표시조건1~5]</b> — 무엇으로 묶어 볼지 고르는 자리다.
+ *
+ * <p><b>2026-09-08 에 원본을 다시 열어 보니 다섯 줄이다</b>(사본을 보고 둘이라 적어
+ * 두었는데 틀렸다). 다섯을 다 만든다 — 묶는 코드는 고른 축을 이어 붙이는 방식이라
+ * 축이 둘이든 다섯이든 같다.
+ *
+ * <p>원본 후보는 열하나다:
  * 없음 · 담당자 · 품목그룹1 · 품목그룹2 · 품목그룹3 · 창고 · 품목명 · 거래처 · 프로젝트 ·
  * 거래처그룹1 · 거래처그룹2.
  *
@@ -163,8 +168,9 @@ export default function SalesPlanPage() {
    */
   const [byUpdated, setByUpdated] = useState(false)
   /* 원본 [표시조건1]·[표시조건2] — 둘 다 처음엔 [없음] 이다(실측). */
-  const [axis1, setAxis1] = useState<Axis>('없음')
-  const [axis2, setAxis2] = useState<Axis>('없음')
+  /* 원본 [표시조건1~5] — 다섯 줄이고 다 [없음] 으로 열린다(2026-09-08 실측). */
+  const [axes, setAxes] = useState<Axis[]>(['없음', '없음', '없음', '없음', '없음'])
+  const setAxis = (i: number, v: Axis) => setAxes((a) => a.map((x, k) => (k === i ? v : x)))
   const [axisSort, setAxisSort] = useState<AxisSort>('코드순')
   /* 원본 매출계획현황 [구분] — [내역]이 기본이고 단위는 [라인별]이 기본이다(실측). */
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
@@ -388,27 +394,29 @@ export default function SalesPlanPage() {
           </div>
         </EcCond>
         {/*
-          원본 [표시조건] — <b>표시조건1 · 표시조건2</b> 두 줄이고, 1 옆에 정렬이 붙는다
-          (2026-09-01 실측: 정렬은 코드순·코드명순·금액순·수량순, 기본 코드순).
-          원본은 두 축을 겹쳐 접어 보여 주고, 우리는 <b>두 축을 한 묶음</b>으로 낸다 —
+          원본 [표시조건] — <b>표시조건1~5</b> 다섯 줄이고, 1 옆에 정렬이 붙는다
+          (2026-09-08 실측. 사본을 보고 둘이라 적어 두었는데 <b>틀렸다</b> —
+           정렬 후보는 코드순·코드명순·금액순·수량순이고 기본은 코드순이다).
+          원본은 축을 겹쳐 접어 보여 주고, 우리는 <b>고른 축을 한 묶음</b>으로 낸다 —
           같은 숫자를 같은 자리에 내되 접었다 폈다 하지는 않는다.
         */}
         <EcCond label="표시조건">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5, color: '#5a626e' }}>표시조건1</span>
-            <select className="ec-input" value={axis1}
-                    onChange={(e) => setAxis1(e.target.value as Axis)} style={{ width: 130 }}>
-              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-            <select className="ec-input" value={axisSort}
-                    onChange={(e) => setAxisSort(e.target.value as AxisSort)} style={{ width: 110 }}>
-              {AXIS_SORTS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-            <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 6 }}>표시조건2</span>
-            <select className="ec-input" value={axis2}
-                    onChange={(e) => setAxis2(e.target.value as Axis)} style={{ width: 130 }}>
-              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
+            {axes.map((ax, i) => (
+              <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: i ? 6 : 0 }}>표시조건{i + 1}</span>
+                <select className="ec-input" value={ax}
+                        onChange={(e) => setAxis(i, e.target.value as Axis)} style={{ width: 130 }}>
+                  {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+                {i === 0 && (
+                  <select className="ec-input" value={axisSort}
+                          onChange={(e) => setAxisSort(e.target.value as AxisSort)} style={{ width: 110 }}>
+                    {AXIS_SORTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+              </span>
+            ))}
           </div>
         </EcCond>
         {/*
@@ -593,7 +601,7 @@ export default function SalesPlanPage() {
         원본도 그때는 줄 목록만 낸다. 소계표는 본 표와 열 수가 달라 <b>바깥</b>에 둔다
         (본 표는 [설정]으로 열이 늘고 줄어 렌더된 칸을 재는 검사가 붙어 있다).
       */}
-      {(axis1 !== '없음' || axis2 !== '없음') && shown.length > 0 && (() => {
+      {axes.some((a) => a !== '없음') && shown.length > 0 && (() => {
         const valueOf = (r: ComparisonRow, a: Axis) =>
           a === '담당자' ? r.employeeName
             : a === '창고' ? r.warehouseName
@@ -601,10 +609,10 @@ export default function SalesPlanPage() {
                 : a === '거래처' ? r.partnerName
                   : a === '프로젝트' ? r.projectName
                     : null
-        const label = [axis1, axis2].filter((a) => a !== '없음').join(' · ')
+        const picked = axes.filter((a) => a !== '없음')
+        const label = picked.join(' · ')
         const groups = subtotalBy(shown,
-          (r) => [axis1, axis2].filter((a) => a !== '없음')
-            .map((a) => valueOf(r, a) ?? '(미지정)').join(' · '),
+          (r) => picked.map((a) => valueOf(r, a) ?? '(미지정)').join(' · '),
           { plan: (r) => r.planAmount, actual: (r) => r.actualAmount,
             planQty: (r) => r.planQty, actualQty: (r) => r.actualQty })
         /* 원본 정렬: 코드순·코드명순은 이름 차례, 금액순·수량순은 큰 것부터다. */
