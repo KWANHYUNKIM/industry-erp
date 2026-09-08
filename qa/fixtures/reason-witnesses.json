@@ -2130,5 +2130,148 @@
    "APPROVED"
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/AsStatus.java"
+ },
+ "결제내역조회|품목": {
+  "claim": "정산 전표에 품목이 없다 — 수금·지급 한 건이다",
+  "absent": [
+   "Item"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|품목명": {
+  "claim": "정산 전표에 품목이 없다",
+  "absent": [
+   "Item"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|재고전표": {
+  "claim": "정산에서 재고전표가 나오지 않는다",
+  "absent": [
+   "Stock"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|창고명": {
+  "claim": "정산은 돈이라 창고를 타지 않는다",
+  "absent": [
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|결제상태": {
+  "claim": "결제 자체의 단계를 두지 않는다 — 우리 상태는 회계반영 여부뿐이다",
+  "absent": [
+   "PaymentStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java",
+  "present": [
+   "회계반영"
+  ]
+ },
+ "결제내역조회|상태별처리기능": {
+  "claim": "단계가 없으니 단계별 버튼도 없다",
+  "absent": [
+   "PaymentStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|강제회계반영": {
+  "claim": "강제로 만든 전표인지 구분해 두지 않는다 — 반영/미반영뿐이다",
+  "absent": [
+   "forceReflect",
+   "forced"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "결제내역조회|카드/식별번호": {
+  "claim": "PG 카드번호를 정산에 남기지 않는다",
+  "absent": [
+   "cardNo",
+   "identifyNo"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "특별단가등록|품목설정": {
+  "claim": "우리 특별단가는 늘 품목 하나에 붙는다",
+  "absent": [
+   "Warehouse",
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|특별단가그룹": {
+  "claim": "우리는 품목별 단가 한 축이다",
+  "absent": [
+   "Warehouse",
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|품목별": {
+  "claim": "우리는 품목별 단가 한 축이다",
+  "absent": [
+   "Warehouse",
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|품목그룹별": {
+  "claim": "우리는 품목별 단가 한 축이다",
+  "absent": [
+   "Warehouse",
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "특별단가등록|적용단가": {
+  "claim": "우리는 품목별 단가 한 축이다",
+  "absent": [
+   "Warehouse",
+   "ItemGroup"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+ },
+ "카드등록|카드관리자": {
+  "claim": "우리 카드는 명의자(ownerName)만 든다",
+  "absent": [
+   "manager",
+   "Manager",
+   "Employee"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/CreditCard.java"
+ },
+ "카드등록|검색창내용": {
+  "claim": "카드 마스터에 찾기용 별칭 칸이 없다",
+  "absent": [
+   "alias",
+   "nickname",
+   "searchKeyword"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/CreditCard.java"
+ },
+ "계좌등록|이체정보": {
+  "claim": "자동이체 설정을 들지 않는다",
+  "absent": [
+   "Transfer",
+   "transfer",
+   "autoDebit"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
+ },
+ "발주서입력|추가수량": {
+  "claim": "수량을 둘로 나눠 적지 않는다",
+  "absent": [
+   "extraQty",
+   "addQty"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "발주서입력|시리얼/로트": {
+  "claim": "발주 줄에 로트를 달지 않는다 — 로트는 입고할 때 정해진다",
+  "absent": [
+   "Lot"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
  }
 }
