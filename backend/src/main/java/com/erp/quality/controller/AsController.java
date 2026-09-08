@@ -1,5 +1,6 @@
 package com.erp.quality.controller;
 
+import com.erp.quality.dto.AsDtos.AsConsumptionLine;
 import com.erp.quality.dto.AsDtos.AsConsumptionRow;
 import com.erp.quality.dto.AsDtos.AsPartResponse;
 import com.erp.quality.dto.AsDtos.AsResponse;
@@ -72,9 +73,35 @@ public class AsController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String remark,
-            @RequestParam(required = false) String createdBy) {
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String charge) {
         return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId,
-                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy);
+                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge);
+    }
+
+    /**
+     * A/S소모현황의 <b>[내역]</b>. 원본(E040641)은 [구분] 기본이 <b>내역</b>이라
+     * 열면 소모부품 <b>한 줄씩</b>이 뜬다 — 우리는 집계만 내고 있었다(2026-09-09 실측).
+     * 조건은 집계와 <b>같은 것을 그대로</b> 받는다. 갈래마다 다르게 걸면 두 숫자가 어긋난다.
+     */
+    @GetMapping("/parts/consumption/lines")
+    public List<AsConsumptionLine> consumptionLines(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long repairItemId,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String partnerGroup,
+            @RequestParam(required = false) String itemCategory,
+            @RequestParam(required = false) String itemGroup,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String remark,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String charge) {
+        return asService.consumptionLines(from, to, warehouseId, partnerId, repairItemId, projectId,
+                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge);
     }
 
     @GetMapping("/{id}/parts")

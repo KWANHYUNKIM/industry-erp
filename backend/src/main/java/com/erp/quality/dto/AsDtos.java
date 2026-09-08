@@ -45,10 +45,24 @@ public final class AsDtos {
         }
     }
 
-    /** A/S소모현황 — 품목별 소모 집계. */
+    /** A/S소모현황 — 품목별 소모 집계. 원본 [구분]의 <b>[집계]</b> 쪽이다. */
     public record AsConsumptionRow(
             Long itemId, String itemName,
             long asCount, BigDecimal totalQty, BigDecimal totalAmount
+    ) {}
+
+    /**
+     * A/S소모현황의 <b>[내역]</b> — 소모부품 한 줄이 표의 한 줄이다.
+     *
+     * <p>원본(E040641)의 [구분] 기본은 <b>내역</b>이고 격자가
+     * [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 ·
+     * 공급가액 · 부가세] 다(2026-09-09 실측). 우리는 <b>집계만</b> 내고 있어서
+     * "어느 수리에 무엇이 몇 개 들어갔나" 를 이 화면에서 볼 수 없었다.
+     */
+    public record AsConsumptionLine(
+            Long partId, String asNo, String repairItemName, String charge,
+            Long itemId, String itemName,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount
     ) {}
 
     public record CreateAsRequest(

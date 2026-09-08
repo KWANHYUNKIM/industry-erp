@@ -288,15 +288,6 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
  },
- "A/S소모현황|수리담당자": {
-  "claim": "A/S 전표의 담당자가 하나라 접수·수리로 가를 수 없다",
-  "absent": [
-   "repairCharge",
-   "repairEmployee",
-   "receiptCharge"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
- },
  "품목등록|생산공정": {
   "claim": "품목 마스터에 공정을 매어 두지 않는다 — 공정은 작업지시가 든다",
   "absent": [
@@ -3176,5 +3167,22 @@
    "businessPartner"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/StockTransaction.java"
+ },
+ "A/S소모현황|소모(판매)번호": {
+  "claim": "A/S 소모부품이 판매 전표를 만들지 않는다",
+  "absent": [
+   "sales",
+   "salesId",
+   "salesNo"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
+ },
+ "A/S소모현황|부가세": {
+  "claim": "소모부품 줄에 부가세 칸이 없다",
+  "absent": [
+   "vatAmount",
+   "getVat"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
  }
 }

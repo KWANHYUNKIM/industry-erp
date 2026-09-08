@@ -11,6 +11,7 @@ import com.erp.inventory.service.ProjectService;
 import com.erp.inventory.service.WarehouseService;
 import com.erp.inventory.domain.StockTransactionType;
 import com.erp.inventory.domain.Warehouse;
+import com.erp.quality.dto.AsDtos.AsConsumptionLine;
 import com.erp.quality.dto.AsDtos.AsConsumptionRow;
 import com.erp.quality.dto.AsDtos.AsPartResponse;
 import com.erp.quality.dto.AsDtos.AsResponse;
@@ -204,8 +205,37 @@ public class AsService {
                                               Long warehouseId, Long partnerId, Long repairItemId,
                                               Long projectId,
                                               String partnerGroup, String itemCategory, String itemGroup,
-                                              String status, String title, String remark, String createdBy) {
+                                              String status, String title, String remark, String createdBy, String charge) {
         Map<Long, Acc> byItem = new LinkedHashMap<>();
+        for (AsPart p : filteredParts(from, to, warehouseId, partnerId, repairItemId, projectId,
+                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge)) {
+            Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
+                    k -> new Acc(p.getItem().getName()));
+            acc.totalQty = acc.totalQty.add(p.getQuantity());
+            if (p.getUnitPrice() != null) {
+                acc.totalAmount = acc.totalAmount.add(p.getUnitPrice().multiply(p.getQuantity()));
+            }
+            acc.asIds.add(p.getAsRequest().getId());
+        }
+        List<AsConsumptionRow> rows = new ArrayList<>();
+        for (Map.Entry<Long, Acc> e : byItem.entrySet()) {
+            Acc a = e.getValue();
+            rows.add(new AsConsumptionRow(e.getKey(), a.name, a.asIds.size(), a.totalQty, a.totalAmount));
+        }
+        rows.sort((x, y) -> y.totalQty().compareTo(x.totalQty()));
+        return rows;
+    }
+
+    /**
+     * 조건에 걸리는 소모부품 줄. <b>[내역]과 [집계]가 같은 거름망을 써야</b>
+     * 두 갈래의 숫자가 어긋나지 않는다 — 원본도 [구분]만 바꿔 같은 자료를 달리 편다.
+     */
+    private List<AsPart> filteredParts(LocalDate from, LocalDate to,
+                                       Long warehouseId, Long partnerId, Long repairItemId,
+                                       Long projectId,
+                                       String partnerGroup, String itemCategory, String itemGroup,
+                                       String status, String title, String remark, String createdBy, String charge) {
+        List<AsPart> out = new ArrayList<>();
         for (AsPart p : asPartRepository.findAllWithRefs()) {
             AsRequest as = p.getAsRequest();
             if (from != null && as.getReceiptDate().isBefore(from)) continue;
@@ -234,20 +264,37 @@ public class AsService {
                     || !as.getRepairNote().contains(remark))) continue;
             if (hasText(createdBy) && (as.getCreatedBy() == null
                     || !as.getCreatedBy().contains(createdBy))) continue;
-            Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
-                    k -> new Acc(p.getItem().getName()));
-            acc.totalQty = acc.totalQty.add(p.getQuantity());
-            if (p.getUnitPrice() != null) {
-                acc.totalAmount = acc.totalAmount.add(p.getUnitPrice().multiply(p.getQuantity()));
-            }
-            acc.asIds.add(p.getAsRequest().getId());
+            /*
+             * 원본 <b>[수리담당자]</b>. [내역] 격자에 이 열이 생기면서 <b>볼 수는 있는데
+             * 거를 수는 없는</b> 칸이 됐다. 원본은 수리·접수 담당자를 갈라 두지만
+             * 우리 A/S 는 담당자가 하나(<code>charge</code>)라 그 하나로 건다.
+             */
+            if (hasText(charge) && (as.getCharge() == null
+                    || !as.getCharge().contains(charge))) continue;
+            out.add(p);
         }
-        List<AsConsumptionRow> rows = new ArrayList<>();
-        for (Map.Entry<Long, Acc> e : byItem.entrySet()) {
-            Acc a = e.getValue();
-            rows.add(new AsConsumptionRow(e.getKey(), a.name, a.asIds.size(), a.totalQty, a.totalAmount));
+        return out;
+    }
+
+    /**
+     * A/S소모현황 <b>[내역]</b> — 소모부품 한 줄씩. 거름망은 [집계]와 같은 것을 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public List<AsConsumptionLine> consumptionLines(LocalDate from, LocalDate to,
+                                                    Long warehouseId, Long partnerId, Long repairItemId,
+                                                    Long projectId,
+                                                    String partnerGroup, String itemCategory, String itemGroup,
+                                                    String status, String title, String remark, String createdBy, String charge) {
+        List<AsConsumptionLine> rows = new ArrayList<>();
+        for (AsPart p : filteredParts(from, to, warehouseId, partnerId, repairItemId, projectId,
+                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge)) {
+            AsRequest as = p.getAsRequest();
+            BigDecimal supply = p.getUnitPrice() == null ? null
+                    : p.getUnitPrice().multiply(p.getQuantity());
+            rows.add(new AsConsumptionLine(p.getId(), as.getAsNo(), as.getItem().getName(),
+                    as.getCharge(), p.getItem().getId(), p.getItem().getName(),
+                    p.getQuantity(), p.getUnitPrice(), supply));
         }
-        rows.sort((x, y) -> y.totalQty().compareTo(x.totalQty()));
         return rows;
     }
 
