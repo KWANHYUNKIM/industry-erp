@@ -1576,5 +1576,12 @@
           "deletedAt",
           "deleted"
       ]
+  },
+  "판매현황|외화종류": {
+      "claim": "판매 전표에 통화 칸이 없다",
+      "in": "backend/src/main/java/com/erp/trade/domain/Sales.java",
+      "absent": [
+          "currency"
+      ]
   }
 }

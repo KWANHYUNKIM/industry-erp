@@ -11,6 +11,7 @@ import type { Item, Partner, SalesDoc, Warehouse } from '../../api/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
 type Mode = '내역' | '집계' | '라인별'
@@ -36,6 +37,15 @@ interface Row {
   /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
   returnSlip: boolean
   employeeName: string | null
+  /*
+   * 2026-09-08 에 원본(E040207)의 <b>접힌 줄을 펼쳐</b> 조건을 전부 쟀다 — 스물일곱이다
+   * (사본은 열넷). 아래 여섯은 그때 드러난 조건이 보는 값이고, 전부 응답에 진작 오던 것이다.
+   */
+  spec: string | null
+  remark: string | null
+  extraCost: number | null
+  createdBy: string | null
+  sourceDocNo: string | null
 }
 
 export default function SalesStatusPage() {
@@ -67,10 +77,31 @@ export default function SalesStatusPage() {
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
   const [lotNo, setLotNo] = useState('')
-  const [mgmtItem, setMgmtItem] = useState('')
   const [taxType, setTaxType] = useState<'전체' | '과세' | '면세'>('전체')
   /** 원본 판매현황 조건의 [거래구분] — 전체 · 일반 · 반품. */
   const [tradeKind, setTradeKind] = useState<'전체' | '일반' | '반품'>('전체')
+  /*
+   * 원본 판매현황(E040207)의 <b>접힌 줄</b>을 펼쳐 드러난 조건들. 사본에는 열넷이라
+   * 적혀 있었는데 원본은 <b>스물일곱</b>이다 — '현황 화면은 다시 안 재도 된다' 고
+   * 적어 두었던 것이 틀렸다(거래처별채권 한 화면만 보고 짐작한 말이었다).
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [qtyFrom, setQtyFrom] = useState('')
+  const [qtyTo, setQtyTo] = useState('')
+  const [priceFrom, setPriceFrom] = useState('')
+  const [priceTo, setPriceTo] = useState('')
+  const [supplyFrom, setSupplyFrom] = useState('')
+  const [supplyTo, setSupplyTo] = useState('')
+  const [vatFrom, setVatFrom] = useState('')
+  const [vatTo, setVatTo] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [extraFrom, setExtraFrom] = useState('')
+  const [extraTo, setExtraTo] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const pmgr = usePartnerManagers()
   /*
    * 원본은 상단 [현황|집계] 로 모드를 가르고, 집계 모드에서는 `집계조건1/2` 로 **두 단계 그룹화**를 한다.
    * 우리는 현황(라인 목록)만 있었다.
@@ -117,6 +148,11 @@ export default function SalesStatusPage() {
           taxable: d.taxable,
           returnSlip: d.returnSlip,
           employeeName: d.employeeName,
+          spec: l.spec,
+          remark: d.remark,
+          extraCost: l.extraCost,
+          createdBy: d.createdBy,
+          sourceDocNo: l.sourceDocNo,
         }))
       }
       // 최신 일자 우선
@@ -144,7 +180,6 @@ export default function SalesStatusPage() {
 
   /** 품목의 관리항목은 품목 마스터에서 파생한다(전표 라인이 들고 있지 않다 — 원본도 그렇다). */
   const mgmtOf = (id: number) => items.find((i) => i.id === id)?.managementItemName ?? ''
-  const mgmtOptions = [...new Set(items.map((i) => i.managementItemName).filter(Boolean))] as string[]
   const projectOptions = [...new Set(rows.map((r) => r.projectName).filter(Boolean))] as string[]
 
   const shown = rows
@@ -154,9 +189,24 @@ export default function SalesStatusPage() {
     .filter((r) => !warehouse || r.warehouseName === warehouse)
     .filter((r) => !project || r.projectName === project)
     .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
-    .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
     .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
     .filter((r) => tradeKind === '전체' || (tradeKind === '반품' ? r.returnSlip : !r.returnSlip))
+    .filter((r) => !orderNoCond || (r.sourceDocNo ?? '') === orderNoCond)
+    .filter((r) => !empCond || (r.employeeName ?? '') === empCond)
+    .filter((r) => !pmgrCond || pmgr.managerOfName(r.partner) === pmgrCond)
+    .filter((r) => !specCond || (r.spec ?? '') === specCond)
+    .filter((r) => !qtyFrom || r.qty >= Number(qtyFrom))
+    .filter((r) => !qtyTo || r.qty <= Number(qtyTo))
+    .filter((r) => !priceFrom || r.unitPrice >= Number(priceFrom))
+    .filter((r) => !priceTo || r.unitPrice <= Number(priceTo))
+    .filter((r) => !supplyFrom || r.supply >= Number(supplyFrom))
+    .filter((r) => !supplyTo || r.supply <= Number(supplyTo))
+    .filter((r) => !vatFrom || r.vat >= Number(vatFrom))
+    .filter((r) => !vatTo || r.vat <= Number(vatTo))
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !extraFrom || (r.extraCost ?? 0) >= Number(extraFrom))
+    .filter((r) => !extraTo || (r.extraCost ?? 0) <= Number(extraTo))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
     .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
   /** 집계는 판매·구매가 같은 규칙을 쓰므로 `utils/statusAggregate` 에 모아 두고 여기서 부른다. */
   const grouped = useMemo(
@@ -271,7 +321,12 @@ export default function SalesStatusPage() {
     setFrom(m.from); setTo(m.to)
     setMode('내역'); setCompare('사용안함')
     setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')
-    setMgmtItem(''); setLotNo(''); setTaxType('전체'); setTradeKind('전체'); setKeyword('')
+    setLotNo(''); setTaxType('전체'); setTradeKind('전체'); setKeyword('')
+    /* 접힌 줄을 펼쳐 드러난 조건들도 같이 되돌린다 — 안 되돌리면 걸어 둔 채 남는다. */
+    setOrderNoCond(''); setEmpCond(''); setPmgrCond(''); setSpecCond('')
+    setQtyFrom(''); setQtyTo(''); setPriceFrom(''); setPriceTo('')
+    setSupplyFrom(''); setSupplyTo(''); setVatFrom(''); setVatTo('')
+    setRemarkCond(''); setExtraFrom(''); setExtraTo(''); setAuthorCond('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -286,13 +341,12 @@ export default function SalesStatusPage() {
       .filter((r) => !warehouse || r.warehouseName === warehouse)
       .filter((r) => !project || r.projectName === project)
       .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
-      .filter((r) => !mgmtItem || mgmtOf(r.itemId) === mgmtItem)
-      .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
+        .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
       .filter((r) => tradeKind === '전체' || (tradeKind === '반품' ? r.returnSlip : !r.returnSlip))
       .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, mgmtItem, taxType, tradeKind, keyword, items])
+  }, [rows, prevRange, partnerId, itemId, warehouse, project, lotNo, taxType, tradeKind, keyword, items])
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
@@ -367,11 +421,12 @@ export default function SalesStatusPage() {
                            value={project} onChange={(v) => setProject(v)}
                            items={projectOptions.map((p) => ({ value: p, name: p }))} />
         </EcCond>
-        <EcCond label="관리항목">
-          <CodePickerField label="관리항목" hideLabel width={200} emptyLabel="전체"
-                           value={mgmtItem} onChange={(v) => setMgmtItem(v)}
-                           items={mgmtOptions.map((m) => ({ value: m, name: m }))} />
-        </EcCond>
+        {/*
+          <b>[관리항목]은 원본 판매현황에 없다.</b> 2026-09-08 에 접힌 줄까지 펼쳐
+          스물일곱을 다 재었는데 그 안에 없었다 — 사본에만 적혀 있었다. 판매조회에서
+          겪은 것과 같다(견적서조회·출하조회에는 있고 판매 쪽에는 없다).
+          원본에 없는 것을 두지 않는다.
+        */}
         <EcCond label="거래처" pick>
           <CodePickerField
             label="거래처" hideLabel width={220} emptyLabel="전체"
@@ -400,6 +455,81 @@ export default function SalesStatusPage() {
               {t}
             </button>
           ))}
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 스물일곱):
+          … 거래구분 · <b>오더관리번호 · 담당자 · 거래처관리담당자</b> · (외화종류) ·
+          <b>규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요 · 부대비용</b> ·
+          (판매구분 · 진행상태 · 채권번호) · <b>작성자</b> · (최종수정자 · 사용자지정).
+        */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(rows.map((r) => r.sourceDocNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.map((r) => r.spec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="수량">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={qtyFrom}
+                 onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 100 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={qtyTo}
+                 onChange={(e) => setQtyTo(e.target.value)} style={{ width: 100 }} />
+        </EcCond>
+        <EcCond label="단가">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={priceFrom}
+                 onChange={(e) => setPriceFrom(e.target.value)} style={{ width: 110 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={priceTo}
+                 onChange={(e) => setPriceTo(e.target.value)} style={{ width: 110 }} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={supplyFrom}
+                 onChange={(e) => setSupplyFrom(e.target.value)} style={{ width: 120 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={supplyTo}
+                 onChange={(e) => setSupplyTo(e.target.value)} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={vatFrom}
+                 onChange={(e) => setVatFrom(e.target.value)} style={{ width: 120 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={vatTo}
+                 onChange={(e) => setVatTo(e.target.value)} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        {/* 원본 [부대비용] — 줄에 붙는 값이고 합계 금액에는 안 더한다. */}
+        <EcCond label="부대비용">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={extraFrom}
+                 onChange={(e) => setExtraFrom(e.target.value)} style={{ width: 110 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={extraTo}
+                 onChange={(e) => setExtraTo(e.target.value)} style={{ width: 110 }} />
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
       </EcStatusPanel>
 
