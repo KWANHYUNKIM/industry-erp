@@ -173,6 +173,8 @@ export default function StockMovementPage() {
 
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 변동표 줄에는 없어 따로 받는다. */
   const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
+  /* 원본 격자의 [규격]. 줄에는 없고 품목 마스터가 든다 — id 로 잇는다. */
+  const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   const mgmt = useItemMgmt(items)
 
   const shown = useMemo(() => {
@@ -395,21 +397,33 @@ export default function StockMovementPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              <b>재고변동표(E040719) [구분]=집계·종 2026-09-09 원본 격자 실측</b> —
+              [품목코드 · 품목명 · <b>규격</b> · <b>전일재고</b> · <b>입고수량</b> ·
+              <b>출고수량</b> · <b>재고수량</b>] (맨 뒤에 품목코드를 한 번 더 찍는다 —
+              가로로 넓은 표에서 오른쪽 끝을 보다 어느 품목인지 놓치지 않게 하는 칸이라
+              우리 일곱 칸짜리 표에는 두지 않는다).
+              우리는 (1) 수량 넷을 <b>[기초]·[입고]·[출고]·[기말]</b> 이라 불렀고 —
+              재고수불부와도 어긋난 이름이다(거기서도 원본은 [입고수량]·[출고수량]·
+              [재고수량] 이었다), (2) <b>[규격] 열이 없었다</b>.
+              [단위]는 우리가 더 두는 열이다.
+            */}
             <th style={{ width: 34 }}></th>
             <th>품목코드</th>
             <th>품목명</th>
+            <th style={{ width: 110 }}>규격</th>
             <th style={{ textAlign: 'center', width: 50 }}>단위</th>
-            <th style={{ textAlign: 'right' }}>기초</th>
-            <th style={{ textAlign: 'right' }}>입고</th>
-            <th style={{ textAlign: 'right' }}>출고</th>
-            <th style={{ textAlign: 'right' }}>기말</th>
+            <th style={{ textAlign: 'right' }}>전일재고</th>
+            <th style={{ textAlign: 'right' }}>입고수량</th>
+            <th style={{ textAlign: 'right' }}>출고수량</th>
+            <th style={{ textAlign: 'right' }}>재고수량</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '해당 기간의 재고 변동이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
@@ -417,6 +431,7 @@ export default function StockMovementPage() {
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
+              <td style={{ color: '#5a626e' }}>{specOf(r.itemId)}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
               <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
@@ -428,7 +443,7 @@ export default function StockMovementPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
+              <td colSpan={5} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{num(totals.opening)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
