@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 영업관리 > 월별채권/채무증감내역 (이카운트 E040713·E040714)
@@ -25,7 +26,23 @@ interface Settlement {
 
 interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
 
+/**
+ * 원본 격자 한 덩어리(2026-09-09 E040713 실측):
+ * <b>거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액</b>.
+ * 거래처 하나가 <b>두 줄</b>을 쓴다 - [매출]/[수금](채무면 [매입]/[지급]).
+ */
+interface PartnerYearRow {
+  code: string
+  name: string
+  opening: number
+  inc: number[]
+  dec: number[]
+  closing: number
+}
+
 const won = (n: number) => n.toLocaleString('ko-KR')
+/** 원본은 기간의 달마다 열을 하나씩 둔다. 우리 기간은 한 해라 열둘이다. */
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const ym = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) })
 
@@ -78,7 +95,11 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
   // 채권판·채무판이 같은 컴포넌트를 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 값을 따라가게 한다.
   useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
-  const rows = useMemo<MonthRow[]>(() => {
+  /*
+   * 거른 전표를 <b>한 번만</b> 고른다 - 달별 표와 거래처별 표가 같은 자료를 본다.
+   * 갈라 두지 않으면 두 표가 서로 다른 조건으로 셀 수 있다.
+   */
+  const docs = useMemo(() => {
     // 증가/감소 소스: 채권=매출/수금, 채무=매입/지급
     /* 거래처를 고르면 <b>증가·감소 양쪽</b>을 같이 좁힌다 — 한쪽만 좁히면 잔액이 거짓말이 된다. */
     /*
@@ -111,22 +132,27 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       if (그룹이름 && !그룹이름.has(n)) return false
       return true
     }
+    /* 거래처 축을 세우려면 이름을 버리면 안 된다 - 원본 격자가 거래처별 두 줄이다. */
     const incDocs = mode === 'AR'
-      ? sales.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.saleDate, amt: d.totalAmount }))
-      : purchases.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount }))
+      ? sales.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.saleDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
+      : purchases.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
     const decType: SettlementType = mode === 'AR' ? 'RECEIPT' : 'PAYMENT'
     const decDocs = settlements.filter((s) => s.type === decType && mine(s.partnerName))
-      .map((s) => ({ date: s.settleDate, amt: s.amount }))
+      .map((s) => ({ date: s.settleDate, amt: s.amount, name: s.partnerName ?? '' }))
 
+    return { inc: incDocs, dec: decDocs }
+  }, [sales, purchases, settlements, mode, partner, manager, rollUp, partnerRows, partnerGroup])
+
+  const rows = useMemo<MonthRow[]>(() => {
     // 연초 이전 누적 순잔액 = 전월이월(1월)
     let opening = 0
-    for (const d of incDocs) if (ym(d.date).y < year) opening += d.amt
-    for (const d of decDocs) if (ym(d.date).y < year) opening -= d.amt
+    for (const d of docs.inc) if (ym(d.date).y < year) opening += d.amt
+    for (const d of docs.dec) if (ym(d.date).y < year) opening -= d.amt
 
     const inc = new Array(13).fill(0)
     const dec = new Array(13).fill(0)
-    for (const d of incDocs) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) inc[m] += d.amt }
-    for (const d of decDocs) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) dec[m] += d.amt }
+    for (const d of docs.inc) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) inc[m] += d.amt }
+    for (const d of docs.dec) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) dec[m] += d.amt }
 
     const out: MonthRow[] = []
     let carry = opening
@@ -136,7 +162,45 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       carry = closing
     }
     return out
-  }, [sales, purchases, settlements, mode, year, partner, manager, rollUp, partnerRows])
+  }, [docs, year])
+
+  /**
+   * 원본 격자 - <b>거래처별 × 달</b>. 우리는 온 회사를 달마다 한 줄로만 보여 주고 있어서
+   * <b>어느 거래처가 그 달을 밀었는지</b>를 이 화면에서 볼 수가 없었다(조건으로 하나씩
+   * 골라 보는 수밖에 없었다). 위 <code>rows</code> 와 같은 자료를 거래처로 갈라 센다.
+   */
+  const byPartner = useMemo<PartnerYearRow[]>(() => {
+    const codeOf = new Map(partnerRows.map((p) => [p.name, p.code]))
+    const m = new Map<string, PartnerYearRow>()
+    const seat = (name: string) => {
+      let r = m.get(name)
+      if (!r) {
+        r = { code: codeOf.get(name) ?? '', name, opening: 0,
+          inc: new Array(13).fill(0), dec: new Array(13).fill(0), closing: 0 }
+        m.set(name, r)
+      }
+      return r
+    }
+    for (const d of docs.inc) {
+      const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
+      if (y < year) r.opening += d.amt
+      else if (y === year) r.inc[mo] += d.amt
+    }
+    for (const d of docs.dec) {
+      const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
+      if (y < year) r.opening -= d.amt
+      else if (y === year) r.dec[mo] += d.amt
+    }
+    const out = [...m.values()]
+    for (const r of out) {
+      r.closing = r.opening
+      for (let i = 1; i <= 12; i++) r.closing += r.inc[i] - r.dec[i]
+    }
+    /* 그 해에 아무 일도 없고 이월도 0 인 거래처는 줄을 만들지 않는다. */
+    return out.filter((r) => r.opening !== 0 || r.closing !== 0
+        || r.inc.some(Boolean) || r.dec.some(Boolean))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+  }, [docs, partnerRows, year])
 
   /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
   const managers = useMemo(
@@ -147,6 +211,13 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const incLabel = mode === 'AR' ? '매출(증가)' : '매입(증가)'
   const decLabel = mode === 'AR' ? '수금(감소)' : '지급(감소)'
+  /* 원본 [구분] 칸에 찍히는 글자 — 채권은 매출/수금, 채무는 매입/지급이다(실측). */
+  const incWord = mode === 'AR' ? '매출' : '매입'
+  const decWord = mode === 'AR' ? '수금' : '지급'
+
+  /* 달 열이 늘었다 줄었다 하는 표라 정적 검사로는 칸 수를 셀 수 없다 — 렌더된 표를 잰다. */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '월별채권/채무증감내역', [mode, year, byPartner.length])
   const incColor = 'var(--ec-blue)'
   const decColor = '#a5561b'
 
@@ -210,6 +281,63 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/*
+        원본 격자(2026-09-09 E040713 실측): 거래처코드 · 거래처명 · 구분 · 이월잔액 ·
+        (기간의 달마다 한 열) · 잔액. 거래처 하나가 <b>두 줄</b>을 쓴다.
+        원본은 [이월잔액]·[잔액]을 두 줄에 따로 두는데, 이 회사에 자료가 없어
+        <b>아래 줄에 무엇이 들어가는지 못 읽었다</b> — 지어내지 않고 두 줄을 합쳐 둔다
+        (합친 칸은 틀릴 수가 없다).
+      */}
+      <div className="overflow-x-auto" ref={tableRef}>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th style={{ width: 110 }}>거래처코드</th>
+            <th style={{ minWidth: 140 }}>거래처명</th>
+            <th style={{ width: 70 }}>구분</th>
+            <th style={{ textAlign: 'right', width: 120 }}>이월잔액</th>
+            {MONTHS.map((mo) => (
+              <th key={mo} style={{ textAlign: 'right', width: 110 }}>{year}/{String(mo).padStart(2, '0')}</th>
+            ))}
+            <th style={{ textAlign: 'right', width: 130 }}>잔액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : byPartner.length === 0 ? (
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : byPartner.flatMap((r) => [
+            <tr key={`${r.name}-inc`}>
+              <td rowSpan={2} style={{ fontFamily: 'monospace' }}>{r.code}</td>
+              <td rowSpan={2} style={{ fontWeight: 600 }}>{r.name}</td>
+              <td>{incWord}</td>
+              <td rowSpan={2} style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.opening)}</td>
+              {MONTHS.map((mo) => (
+                <td key={mo} style={{ textAlign: 'right', color: r.inc[mo] ? incColor : '#c5cbd3' }}>
+                  {r.inc[mo] ? won(r.inc[mo]) : ''}
+                </td>
+              ))}
+              <td rowSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
+            </tr>,
+            <tr key={`${r.name}-dec`}>
+              <td>{decWord}</td>
+              {MONTHS.map((mo) => (
+                <td key={mo} style={{ textAlign: 'right', color: r.dec[mo] ? decColor : '#c5cbd3' }}>
+                  {r.dec[mo] ? won(r.dec[mo]) : ''}
+                </td>
+              ))}
+            </tr>,
+          ])}
+        </tbody>
+      </table>
+      </div>
+
+      {/*
+        아래는 원본에 없다 — 온 회사를 달마다 한 줄로 접은 <b>우리가 더 두는 표</b>다.
+        위 표가 거래처별로 갈리므로 "이 달에 통틀어 얼마" 는 여기서 본다.
+      */}
+      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>월별 합계</h3>
       <table className="w-full text-left">
         <thead>
           <tr>
