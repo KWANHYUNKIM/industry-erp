@@ -720,6 +720,10 @@
   "trade/ArApStatusPage.tsx"
  ],
  [
+  "채권/채무현황",
+  "trade/ArApStatusPage.tsx"
+ ],
+ [
   "출/퇴근기록부(ID)",
   "groupware/AttendancePage.tsx"
  ],

@@ -216,14 +216,27 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         <CodePickerField label="거래처관리담당자" value={manager === '전체' ? '' : manager} width={120}
                          onChange={(v) => setManager(v || '전체')}
                          items={managers.map((m) => ({ value: m, name: m }))} />
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
-          사용중단거래처포함
-        </label>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
-          잔액 0 숨김
-        </label>
+        {/*
+          2026-09-08 에 <b>채권/채무현황(E040703)</b> 을 열어 재니, 이 화면은 체크를 낱개로
+          두지 않고 <b>[기타]</b> 안에 묶는다 — 그 안에는 <b>사용중단거래처포함</b> 하나뿐이고
+          <b>켜짐</b>이 기본이다(우리도 켜짐이다). 이름표를 붙여 예외에 기대지 않게 한다.
+          <b>[잔액 0 숨김]은 원본에 없다</b> — 우리가 만든 것이다. 채권/채무현황도
+          채권현황도 그 체크가 없다. 지우지 않고 여기 적어 둔다(잔액 0 인 거래처가
+          수천 줄 쌓이는 것을 막는 칸이다).
+        */}
+        <div style={{ fontSize: 12.5 }}>
+          <div style={{ color: '#5a626e', marginBottom: 3 }}>기타</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              사용중단거래처포함
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
+              잔액 0 숨김
+            </label>
+          </div>
+        </div>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 바로 앞줄이다(사본 실측). */}
         <div style={{ fontSize: 12.5 }}>
           <div style={{ color: '#5a626e', marginBottom: 3 }}>정렬/소계기준</div>
