@@ -10,6 +10,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 이익관리 > 월별이익현황
@@ -92,7 +94,15 @@ export default function MonthlyProfitPage() {
    *
    * <p>[관리항목]은 안 만든다 — 판매 라인이 관리항목을 안 들어서 거를 수가 없다.
    */
-  const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '' })
+  /*
+   * 2026-09-08 에 원본(E040805)의 조건 판을 재니 <b>[전체] 탭이 스물넷</b>이다
+   * ([기본] 탭은 스물하나에 차례도 조금 다르다). 사본에는 열뿐이었다. 접힌 줄은 없다.
+   *
+   * <p>여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+   * 거래처관리담당자 · 거래유형. 값은 판매 전표 응답에 진작 다 있다.
+   */
+  const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '',
+    partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -140,6 +150,9 @@ export default function MonthlyProfitPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /* 거래처그룹1·거래처관리담당자는 거래처 마스터에 붙는 값이라 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
 
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
@@ -151,10 +164,17 @@ export default function MonthlyProfitPage() {
     .filter((d) => !cond.warehouse || (d.warehouseName ?? '').includes(cond.warehouse))
     .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
+    .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
+    .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)
+    .filter((d) => !cond.partnerMgr || pmgr.managerOfName(d.partnerName) === cond.partnerMgr)
+    /* 원본 [거래유형] — 과세 · 면세. 전표가 그 값을 든다. */
+    .filter((d) => !cond.taxType || (d.taxable ? '과세' : '면세') === cond.taxType)
     .flatMap((d) => d.lines
       .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
       .filter((l) => withUntracked || !untracked.has(l.itemId))
       .filter((l) => !mgmtCond || mgmt.nameOf(l.itemId) === mgmtCond)
+      .filter((l) => !cond.category || (l.itemCategoryName ?? '') === cond.category)
+      .filter((l) => !cond.itemGroup || mgmt.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
       const price = costPrice(l.itemId, d.saleDate)
@@ -245,7 +265,8 @@ export default function MonthlyProfitPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '' }) },
+        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '',
+          partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' }) },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -299,26 +320,74 @@ export default function MonthlyProfitPage() {
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={pickers.warehouses} />
         </EcCond>
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
-                           value={cond.project} onChange={(v) => setC({ project: v })}
-                           items={pickers.projects} />
-        </EcCond>
-        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
-        <EcCond label="관리항목" pick>
-          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
-                           value={mgmtCond} onChange={setMgmtCond}
-                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
-        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
+        {/*
+          원본 [전체] 탭 차례(2026-09-08 실측, 스물넷): 구분 · 기준월 · 창고 ·
+          (창고계층그룹) · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 프로젝트 ·
+          (프로젝트그룹1/2) · 관리항목 · <b>담당자 · 거래처관리담당자 · 거래유형</b> ·
+          판매액 · 기타 · 정렬/소계기준.
+          <b>[기본] 탭은 스물하나</b>고 차례가 조금 다르다(프로젝트·관리항목이 앞으로 온다).
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={cond.category} onChange={(v) => setC({ category: v })}
+                           items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+                             .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        {/*
+          <b>[프로젝트]·[관리항목]의 자리가 탭마다 다르다.</b> [기본] 탭은 창고 다음이고
+          [전체] 탭은 품목그룹1 다음이다(2026-09-08 실측). 조건이 더 많은 <b>[전체]</b>
+          차례에 맞춘다 — 우리가 이번에 만든 담당자·거래처관리담당자·거래유형이 거기 있다.
+        */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={'ec-pill no-ec' + (cond.taxType === v ? ' active' : '')}
+                      onClick={() => setC({ taxType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
         </EcCond>
         {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
         <EcCond label="수량관리제외품목포함">
