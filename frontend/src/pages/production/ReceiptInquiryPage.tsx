@@ -8,6 +8,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -30,6 +31,17 @@ interface Row {
   producedQty: number
   productionDate: string
   createdBy: string | null
+  /** 원본 조건 [품목]·[규격]·[품목구분]·[품목그룹1] 이 보는 값. 서버는 진작 보낸다. */
+  productId: number
+  productSpec: string | null
+  productCategoryName: string | null
+  /** 원본 조건 [담당자]. id 만 온다 — 이름은 화면이 붙인다(production 은 hr 을 못 참조한다). */
+  employeeId: number | null
+  /** 원본 조건 [적요]. */
+  note: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 /**
@@ -79,7 +91,29 @@ export default function ReceiptInquiryPage() {
   const [warehouseCond, setWarehouseCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
-  const pickers = useCondPickers(['warehouses', 'projects', 'items'])
+  /*
+   * 2026-09-08 에 원본(C000032)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른둘</b>이다.
+   * 사본에는 넷뿐이었다(여덟 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
+   * [기타] 안에는 <b>수정일자순(정렬)</b>과 <b>외주공장만</b> 둘이 있다.
+   */
+  const [fromWhCond, setFromWhCond] = useState('')
+  const [toWhCond, setToWhCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
+  const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
+  /** 담당자 이름. 서버가 못 붙여서(production 은 hr 을 못 참조) 화면이 붙인다. */
+  const empName = (id: number | null) =>
+    (id == null ? '' : (pickers.employees.find((e) => String(e.value) === String(id))?.name ?? ''))
 
   async function load() {
     setLoading(true)
@@ -120,7 +154,22 @@ export default function ReceiptInquiryPage() {
       || (r.fromWarehouseName ?? '').includes(warehouseCond))
     && (!projectCond || (r.projectName ?? '').includes(projectCond))
     && (!itemCond || r.productName.includes(itemCond))
-    && (!from || r.productionDate >= from) && (!to || r.productionDate <= to))
+    && (!from || r.productionDate >= from) && (!to || r.productionDate <= to)
+    /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
+    && (!fromWhCond || (r.fromWarehouseName ?? '').includes(fromWhCond))
+    && (!toWhCond || r.warehouseName.includes(toWhCond))
+    && (!categoryCond || (r.productCategoryName ?? '') === categoryCond)
+    && (!itemGroupCond || mgmt.groupOf(r.productId) === itemGroupCond)
+    && (!empCond || empName(r.employeeId).includes(empCond))
+    && (!noteCond || (r.note ?? '').includes(noteCond))
+    && (!specCond || (r.productSpec ?? '') === specCond)
+    && (!authorCond || (r.createdBy ?? '') === authorCond)
+    && (!madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    && (!madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    && (!editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    && (!editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo)))
+    /* 원본 [기타]의 수정일자순(정렬). */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   return (
     <EcListShell
@@ -157,6 +206,15 @@ export default function ReceiptInquiryPage() {
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
         </EcCond>
+        {/* 원본 차례: 창고 · (창고계층그룹) · 보내는창고 · 받는창고 · 프로젝트 · 품목 · 품목구분 · 품목그룹1 … */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={fromWhCond} onChange={setFromWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={toWhCond} onChange={setToWhCond} items={pickers.warehouses} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond} items={pickers.projects} />
@@ -164,6 +222,55 @@ export default function ReceiptInquiryPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: (품목그룹2·3·계층) · 기타 · (발송여부 · 오더관리번호) · 담당자 · (생산입고구분) · 적요 · 규격 … */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond} items={pickers.employees} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={150} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.map((r) => r.productSpec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: 규격 · (채무번호) · 최초작성자 · (최종수정자) · 최초작성일자 · 최종작업일자 … */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </ul>
 

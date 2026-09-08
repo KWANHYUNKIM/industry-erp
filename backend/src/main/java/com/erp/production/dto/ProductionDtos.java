@@ -1,5 +1,6 @@
 package com.erp.production.dto;
 
+import com.erp.inventory.domain.ItemCategory;
 import com.erp.production.domain.Production;
 import com.erp.production.domain.ProductionMaterial;
 import com.erp.production.domain.WorkOrder;
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class ProductionDtos {
@@ -164,6 +166,8 @@ public final class ProductionDtos {
             Long productId, String productCode, String productName, String productUnit,
             /** 규격. 원본 생산입고현황의 열 이름이 [품목명[규격명]] 이라 이름만으로는 못 찍는다. */
             String productSpec,
+            /** 원본 조건 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            ItemCategory productCategory, String productCategoryName,
             /** 받는창고 — 완제품이 들어간 곳. 원본 [받는창고명]. */
             Long warehouseId, String warehouseName,
             /** 생산된공장 — 자재를 소모한 곳. 원본 [생산된공장명]. 안 정했으면 null. */
@@ -177,6 +181,12 @@ public final class ProductionDtos {
             Integer laborMinutes,
             /** 담당자(사원) id. 이름은 화면이 사원 목록에서 붙인다. */
             Long employeeId,
+            /**
+             * 원본 조건 [최초작성일자] · [최종작업일자], 그리고 [기타]의
+             * <b>수정일자순(정렬)</b>. Production 은 BaseTimeEntity 를 물려받아
+             * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt,
             List<ProductionMaterialResponse> materials
     ) {
         public static ProductionResponse from(Production p) {
@@ -185,6 +195,8 @@ public final class ProductionDtos {
                     p.getWorkOrder().getId(), p.getWorkOrder().getOrderNo(),
                     p.getProduct().getId(), p.getProduct().getCode(), p.getProduct().getName(), p.getProduct().getUnit(),
                     p.getProduct().getSpec(),
+                    p.getProduct().getCategory(),
+                    p.getProduct().getCategory() != null ? p.getProduct().getCategory().getDisplayName() : null,
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,
@@ -192,6 +204,7 @@ public final class ProductionDtos {
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getNote(), p.getLaborMinutes(), p.getEmployeeId(),
+                    p.getCreatedAt(), p.getUpdatedAt(),
                     p.getMaterials().stream().map(ProductionMaterialResponse::from).toList());
         }
     }
