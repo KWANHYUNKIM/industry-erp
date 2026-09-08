@@ -1391,6 +1391,12 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고실사현황', 'inventory/StocktakeStatusPage.tsx'],
+    /*
+     * <b>창고별재고현황(E040711)</b> — 원본 [구분]은 <b>창고별(종)/창고별(횡)</b> 이고
+     * 기본이 <b>횡</b>이다(2026-09-09 실측). 우리 상태는 그 괄호 안만 담아 '종'·'횡' 이라
+     * 적으므로 대조표의 [값]도 그렇게 적었다 — 화면에 찍히는 글자는 원본 그대로다.
+     */
+    ['창고별재고현황', 'inventory/WarehouseStockPage.tsx'],
     ['생산불출현황', 'production/IssueStatusPage.tsx'],
     ['생산입고현황', 'production/ReceiptStatusPage.tsx'],
     ['작업지시서별진행현황', 'production/WoProgressPage.tsx'],

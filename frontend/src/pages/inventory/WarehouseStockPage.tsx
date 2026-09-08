@@ -19,7 +19,10 @@ import { useItemFlags } from '../../utils/useInactiveItems'
  *   종 — 품목마다 창고를 아래로 늘어놓는다. 같은 품목이 이어지면 품목 칸을 비운다.
  *   횡 — 창고를 <b>열</b>로 돌린다. "이 품목이 어느 창고에 얼마나 있나"를 한 줄에서 본다.
  *
- * 원본 조건: 기준일자(한 날짜) · 창고 · 품목 · 기타 7종.
+ * 2026-09-09 원본 실측 — 조건은 <b>열둘</b>이다(대조표에 적혀 있던 열둘 가운데 일곱은
+ * [기타] 체크박스를 펴 놓은 것이라 실제로는 다섯만 맞았다): 구분 · 기준일자 · 창고 ·
+ * 창고계층그룹 · 품목 · 품목구분 · 품목그룹1 · 품목그룹2 · 품목그룹3 · 품목계층그룹 ·
+ * 대표품목으로 합산 · 기타.
  * 기타 중 '수량관리제외품목포함'은 품목에 그 구분이 없다.
  * '창고별안전재고수량포함'은 우리 안전재고가 <b>품목 단위</b>라서(창고별이 아니다) 뜻이 다르므로
  * 라벨을 '안전재고표시'로 적고 품목 안전재고를 보여 준다.
@@ -45,15 +48,32 @@ export default function WarehouseStockPage() {
    * 이 화면이 그 스위치를 안 달고 있었을 뿐이다.
    */
   const [signBox, setSignBox] = useState(false)
-  const [mode, setMode] = useState<'종' | '횡'>('종')
+  /**
+   * 원본 [구분] 기본값은 <b>창고별(횡)</b>이다(2026-09-09 E040711 실측). 우리는 [종]으로
+   * 열고 있었다 — 열자마자 <b>표의 모양 자체가 다른</b> 것이다. 이 화면을 여는 까닭은
+   * "이 품목이 어느 창고에 얼마씩 있나" 를 한 줄에서 보려는 것인데, [종]으로 열면
+   * 같은 품목이 창고 수만큼 세로로 흩어져 그것을 눈으로 모아야 한다.
+   */
+  const [mode, setMode] = useState<'종' | '횡'>('횡')
   const [cond, setCond] = useState({
     date: today,
     warehouseId: '',
     item: '',
     zeroItem: false,
     zeroWarehouse: false,
-    inactiveItem: false,
-    inactiveWarehouse: false,
+    /**
+     * 원본 <b>[사용중단품목포함]·[사용중단/삭제창고포함]은 둘 다 켜져 있다</b>
+     * (2026-09-09 실측). 우리는 둘 다 꺼 두었다 — 재고잔량분석표·재고현황·재고수불부·
+     * 재고변동표에 이어 <b>다섯 번째</b>로 같은 값이 뒤집혀 있었고, 창고 쪽은 여기서 처음이다.
+     * 내린 창고에 남아 있는 재고가 통째로 빠지면 <b>합계가 실제 창고와 어긋난 채</b>
+     * 맞는 것처럼 보인다 — 창고를 내리는 것은 그 재고를 옮긴 뒤에 하는 일이라,
+     * 옮기기 전에 이 화면을 열면 그 수량이 어디에도 안 잡힌다.
+     */
+    inactiveItem: true,
+    inactiveWarehouse: true,
+    /** 원본 조건 [품목구분]·[품목그룹1] — [품목] 바로 뒤에 선다(2026-09-09 실측). */
+    category: '',
+    itemGroup: '',
     /*
      * 원본 [기타]의 <b>[수량관리제외품목포함]</b>(2026-09-02 E040711 실측).
      * 우리에게만 없어서, 용역·수수료처럼 수량을 안 세는 품목이 창고표에 0 으로 줄을 차지했다.
@@ -115,7 +135,7 @@ export default function WarehouseStockPage() {
   }, [warehouses, stock, cond.inactiveWarehouse, cond.warehouseId, cond.zeroWarehouse])
 
   /* 품목의 [수량관리] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
-  const { untracked } = useItemFlags()
+  const { untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
 
   const shownItems = useMemo(() => {
     const wid = new Set(shownWarehouses.map((w) => w.id))
@@ -128,8 +148,11 @@ export default function WarehouseStockPage() {
       .filter((it) => cond.withUntracked || !untracked.has(it.id))
       .filter((it) => cond.inactiveItem || it.active)
       .filter((it) => !cond.item || it.name.includes(cond.item) || it.code.includes(cond.item))
+      .filter((it) => !cond.category || categoryOf(it.id) === cond.category)
+      .filter((it) => !cond.itemGroup || groupOf(it.id) === cond.itemGroup)
       .filter((it) => cond.zeroItem || total(it.id) !== 0)
-  }, [items, stock, shownWarehouses, headOf, cond.rollUp, cond.inactiveItem, cond.item, cond.zeroItem])
+  }, [items, stock, shownWarehouses, headOf, cond.rollUp, cond.inactiveItem, cond.item, cond.zeroItem,
+    cond.withUntracked, untracked, cond.category, cond.itemGroup, categoryOf, groupOf])
 
   const itemTotal = (id: number) => shownWarehouses.reduce((n, w) => n + (qtyOf.get(`${id}:${w.id}`) ?? 0), 0)
   const warehouseTotal = (id: number) => shownItems.reduce((n, it) => n + (qtyOf.get(`${it.id}:${id}`) ?? 0), 0)
@@ -143,8 +166,8 @@ export default function WarehouseStockPage() {
 
   const num = (n: number) => n.toLocaleString()
   const reset = () => {
-    setMode('종')
-    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: false, inactiveWarehouse: false, withUntracked: false, safety: false, rollUp: false })
+    setMode('횡')
+    setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: true, inactiveWarehouse: true, withUntracked: false, safety: false, rollUp: false, category: '', itemGroup: '' })
   }
 
   const flatCols = 6 + (cond.safety ? 1 : 0)
@@ -193,6 +216,31 @@ export default function WarehouseStockPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={cond.category} style={{ width: 130 }}
+                  onChange={(e) => setC({ category: e.target.value })}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={cond.itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setC({ itemGroup: e.target.value })}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        {/*
+          원본 차례: <b>[대표품목으로 합산] 이 [기타] 앞</b>이다(2026-09-09 실측).
+          예전에는 "[기타] 뒤가 마지막(세 화면이 다 같다)" 이라 적어 두었는데,
+          사본만 보고 적은 것이라 <b>네 화면을 나란히</b> 틀렸다.
+        */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={cond.rollUp}
+                   onChange={(e) => setC({ rollUp: e.target.checked })} /> 형제 품목을 대표 한 줄로
+          </label>
+        </EcCond>
         <EcCond label="기타">
           {/*
             원본 [기타] 차례 그대로다(2026-09-02 E040711 실측): 결재방표시 ·
@@ -231,13 +279,6 @@ export default function WarehouseStockPage() {
           <label style={{ fontSize: 12, marginRight: 12 }}>
             <input type="checkbox" checked={cond.safety}
                    onChange={(e) => setC({ safety: e.target.checked })} /> 창고별안전재고수량포함
-          </label>
-        </EcCond>
-        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
-        <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={cond.rollUp}
-                   onChange={(e) => setC({ rollUp: e.target.checked })} /> 형제 품목을 대표 한 줄로
           </label>
         </EcCond>
       </EcStatusPanel>
