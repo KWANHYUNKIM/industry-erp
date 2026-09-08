@@ -183,6 +183,14 @@ public final class ProductionDtos {
             Long warehouseId, String warehouseName,
             /** 생산된공장 — 자재를 소모한 곳. 원본 [생산된공장명]. 안 정했으면 null. */
             Long fromWarehouseId, String fromWarehouseName,
+            /**
+             * 만든 자리의 <b>구분</b> — 창고 · 공장 · <b>외주</b>.
+             * 원본 생산입고조회 [기타]의 <b>[외주공장만]</b> 이 이 값을 본다.
+             * <code>Warehouse.kind</code> 가 진작 들고 있는데 응답이 안 실어,
+             * "창고 갈래를 안 싣는다" 는 이유로 그 체크를 못 만들고 있었다.
+             * 이름만으로는 외주인지 가릴 수 없다 — 갈래를 같이 보낸다.
+             */
+            String fromWarehouseKind,
             BigDecimal producedQty, LocalDate productionDate, String createdBy,
             /** 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트]. */
             Long projectId, String projectName,
@@ -211,6 +219,7 @@ public final class ProductionDtos {
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
                     p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,
+                    p.getFromWarehouse() != null ? p.getFromWarehouse().getKind() : null,
                     p.getProducedQty(), p.getProductionDate(), p.getCreatedBy(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,

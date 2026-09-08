@@ -26,6 +26,11 @@ interface Row {
   productUnit: string
   warehouseName: string
   fromWarehouseName: string | null
+  /**
+   * 만든 자리의 구분 — 창고 · 공장 · <b>외주</b>. 원본 [기타]의 [외주공장만] 이 이 값을 본다.
+   * <code>Warehouse.kind</code> 가 진작 들고 있는데 응답이 안 실어 못 만들고 있던 값이다.
+   */
+  fromWarehouseKind: string | null
   /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면이 안 받아 조건으로 쓸 수 없었다. */
   projectName: string | null
   producedQty: number
@@ -109,6 +114,13 @@ export default function ReceiptInquiryPage() {
   const [editedFrom, setEditedFrom] = useState('')
   const [editedTo, setEditedTo] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
+  /*
+   * 원본 [기타]의 <b>[외주공장만]</b> — 기본은 꺼짐이다(2026-09-08 실측).
+   * '창고 갈래를 응답이 안 싣는다' 는 이유로 못 만들고 있었는데, 그 갈래를 실었으니
+   * 이제 만든다. <b>만든 자리(보내는창고)</b>가 외주인 줄만 남긴다 — 생산입고에서
+   * 물건이 만들어진 곳이 보내는창고이고, 외주로 돌린 것을 보려는 체크이기 때문이다.
+   */
+  const [outsourcedOnly, setOutsourcedOnly] = useState(false)
   const mgmt = useItemMgmt()
   const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
   /** 담당자 이름. 서버가 못 붙여서(production 은 hr 을 못 참조) 화면이 붙인다. */
@@ -167,7 +179,8 @@ export default function ReceiptInquiryPage() {
     && (!madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
     && (!madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
     && (!editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
-    && (!editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo)))
+    && (!editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    && (!outsourcedOnly || (r.fromWarehouseKind ?? '') === '외주'))
     /* 원본 [기타]의 수정일자순(정렬). */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
@@ -239,6 +252,11 @@ export default function ReceiptInquiryPage() {
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
+          </label>
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 10 }}>
+            <input type="checkbox" checked={outsourcedOnly}
+                   onChange={(e) => setOutsourcedOnly(e.target.checked)} />
+            외주공장만
           </label>
         </EcCond>
         <EcCond label="담당자" pick>
