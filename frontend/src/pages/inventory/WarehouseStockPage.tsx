@@ -306,10 +306,23 @@ export default function WarehouseStockPage() {
             <thead>
               <tr>
                 <th style={{ width: '4%' }}></th>
+                {/*
+                  <b>창고별재고현황(E040711) [창고별(종)] 2026-09-09 원본 격자 실측</b> —
+                  [품목코드 · 품목명[규격] · <b>창고코드</b> · <b>창고명</b> · 재고수량].
+                  우리는 (1) 품목명과 규격을 두 칸으로 갈라 두었고 — 이 화면의 [종]에서는
+                  원본이 대괄호로 합친다(같은 화면 [횡]에서는 [규격]을 따로 둔다. 원본이
+                  그렇게 갈라 놓았다), (2) 창고를 <b>이름 한 칸</b>으로만 두었다 —
+                  원본은 코드와 이름을 나란히 둔다.
+                  (원본 [종]에는 표시형식용 열 둘이 더 붙는다 — [품목명]·[품목코드(품명,
+                  규격,단위포함)]. 같은 값을 다르게 적어 보여 주는 칸이라 옮기지 않는다.)
+                  <b>대조표(ecount-column-align.json)의 이 화면 차례는 [종] 기준</b>이다 —
+                  한 화면이 격자 둘을 갈아 끼우는데 대조표는 화면마다 한 줄이라, [횡]에만
+                  있는 이름([품목명]·[규격])은 뒤에 잇대어 두었다.
+                */}
                 <th style={{ width: '14%' }}>품목코드</th>
-                <th>품목명</th>
-                <th style={{ width: '16%' }}>규격정보</th>
-                <th style={{ width: '18%' }}>창고</th>
+                <th>품목명[규격]</th>
+                <th style={{ width: '10%' }}>창고코드</th>
+                <th style={{ width: '18%' }}>창고명</th>
                 <th style={{ width: '12%', textAlign: 'right' }}>재고수량</th>
                 {cond.safety && <th style={{ width: '11%', textAlign: 'right' }}>안전재고</th>}
               </tr>
@@ -326,8 +339,9 @@ export default function WarehouseStockPage() {
                   <tr key={`${r.item.id}-${r.warehouse.id}`}>
                     <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'monospace' }}>{first ? r.item.code : ''}</td>
-                    <td>{first ? r.item.name : ''}</td>
-                    <td>{first ? (r.item.spec ?? '') : ''}</td>
+                    {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                    <td>{first ? r.item.name + (r.item.spec ? ` [${r.item.spec}]` : '') : ''}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{r.warehouse.code}</td>
                     <td>{r.warehouse.name}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>
                       {num(r.qty)} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.item.unit}</span>
@@ -352,14 +366,22 @@ export default function WarehouseStockPage() {
             <thead>
               <tr>
                 <th style={{ width: 40 }}></th>
+                {/*
+                  <b>[창고별(횡)] 2026-09-09 원본 격자 실측</b> —
+                  [품목코드 · 품목명 · <b>규격</b> · <b>재고수량</b> · 창고들…].
+                  우리는 (1) 규격 칸을 [규격정보]라 불렀고, (2) 품목 합계를 창고들
+                  <b>뒤</b>에 [합계]로 두었다 — 원본은 창고들 <b>앞</b>에 두고
+                  <b>[재고수량]</b> 이라 부른다(창고가 여럿이면 오른쪽 끝까지 밀려
+                  가로로 긁어야 총량이 보였다). [단위]는 우리가 더 두는 열이다.
+                */}
                 <th style={{ width: 120 }}>품목코드</th>
                 <th style={{ minWidth: 160 }}>품목명</th>
-                <th style={{ width: 120 }}>규격정보</th>
+                <th style={{ width: 120 }}>규격</th>
                 <th style={{ width: 60 }}>단위</th>
+                <th style={{ textAlign: 'right', width: 110 }}>재고수량</th>
                 {shownWarehouses.map((w) => (
                   <th key={w.id} style={{ textAlign: 'right', width: 110 }}>{w.name}</th>
                 ))}
-                <th style={{ textAlign: 'right', width: 110 }}>합계</th>
                 {cond.safety && <th style={{ textAlign: 'right', width: 100 }}>안전재고</th>}
               </tr>
             </thead>
@@ -375,11 +397,11 @@ export default function WarehouseStockPage() {
                   <td>{it.name}</td>
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{num(itemTotal(it.id))}</td>
                   {shownWarehouses.map((w) => {
                     const q = qtyOf.get(`${it.id}:${w.id}`) ?? 0
                     return <td key={w.id} style={{ textAlign: 'right', color: q === 0 ? '#c2c8d0' : undefined }}>{num(q)}</td>
                   })}
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{num(itemTotal(it.id))}</td>
                   {cond.safety && <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(it.safetyStock)}</td>}
                 </tr>
               ))}
@@ -388,10 +410,10 @@ export default function WarehouseStockPage() {
               <tfoot>
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(grandTotal)}</td>
                   {shownWarehouses.map((w) => (
                     <td key={w.id} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(warehouseTotal(w.id))}</td>
                   ))}
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(grandTotal)}</td>
                   {cond.safety && <td style={{ background: '#f5f7fa' }}></td>}
                 </tr>
               </tfoot>
