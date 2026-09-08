@@ -68,6 +68,8 @@ public final class SalesPlanDtos {
             java.time.LocalDateTime updatedAt,
             int planYear, int planMonth,
             Long itemId, String itemName, String unit,
+            /** 원본 매출계획조회 조건의 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            com.erp.inventory.domain.ItemCategory itemCategory, String itemCategoryName,
             Long warehouseId, String warehouseName,
             Long partnerId, String partnerName,
             Long projectId, String projectName,
@@ -83,6 +85,12 @@ public final class SalesPlanDtos {
             java.time.LocalDate expectedDate,
             BigDecimal planQty, BigDecimal planAmount,
             BigDecimal actualQty, BigDecimal actualAmount,
-            BigDecimal achieveRate
+            BigDecimal achieveRate,
+            /**
+             * 원본 매출계획조회 조건의 [적요] · [최초작성자] · [최초작성일자].
+             * SalesPlan 이 셋 다 진작 들고 있는데(remark·createdBy·BaseTimeEntity)
+             * 비교표 줄이 안 싣고 있었다 — [최종작업일자]는 위 updatedAt 이 그것이다.
+             */
+            String remark, String createdBy, java.time.LocalDateTime createdAt
     ) {}
 }

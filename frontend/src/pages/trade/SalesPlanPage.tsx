@@ -9,6 +9,9 @@ import type { Item } from '../../api/types'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -51,6 +54,11 @@ interface ComparisonRow {
   actualQty: number
   actualAmount: number
   achieveRate: number
+  /** 원본 매출계획조회 조건의 [품목구분]·[적요]·[최초작성자]·[최초작성일자]. 서버가 이제 싣는다. */
+  itemCategoryName: string | null
+  remark: string | null
+  createdBy: string | null
+  createdAt: string | null
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -126,6 +134,27 @@ export default function SalesPlanPage() {
   const [partnerCond, setPartnerCond] = useState('')
   const [projCond, setProjCond] = useState('')
   const [empCond, setEmpCond] = useState('')
+  /*
+   * 2026-09-08 에 원본 <b>매출계획조회(E040625)</b> 를 열어 조건을 전부 쟀다 —
+   * <b>스물일곱</b>이다. 사본에는 일곱뿐이었다(열세 번째 같은 구멍).
+   *
+   * <p>이 파일은 원본 <b>다섯</b>을 겸한다(매출계획·입력·조회·비교표·현황). 조회에는
+   * [구분]·[담당자]·[반품구분]·[표시조건]·[설정]이 <b>없다</b> — 그것들은 비교표·현황 것이다.
+   * 아래 조건들은 조회에 있는 것을 채운 것이고, 차례는 조회를 기준으로 삼는다.
+   */
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const mgmt = useItemMgmt()
+  const pgroups = usePartnerGroups()
+  const pmgr = usePartnerManagers()
   const [saleFlag, setSaleFlag] = useState<SaleFlag>('전체')
   const [setups, setSetups] = useState<string[]>(['비율(%)'])
   /*
@@ -197,13 +226,26 @@ export default function SalesPlanPage() {
     .filter((r) => !partnerCond || r.partnerName === partnerCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !empCond || r.employeeName === empCond)
+    .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
+    .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
+    .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
+    .filter((r) => !pmgrCond || pmgr.managerOfName(r.partnerName) === pmgrCond)
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
     /*
      * 원본 [기타]의 [수정일자순(정렬)] — 켜면 <b>나중에 고친 것이 위</b>다.
      * 안 켜면 서버가 준 차례(계획연월) 그대로 둔다. sort 는 제자리를 바꾸므로 베껴서 한다.
      */
     .slice()
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
-    [rows, itemCond, whCond, partnerCond, projCond, empCond, byUpdated])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    [rows, itemCond, whCond, partnerCond, projCond, empCond, byUpdated,
+     partnerGroupCond, pgroups.groupOptions, categoryCond, itemGroupCond, mgmt.groupOptions,
+     pmgrCond, pmgr.options, remarkCond, authorCond, madeFrom, madeTo, editedFrom, editedTo])
 
   /*
    * [설정]으로 열이 켜지고 꺼지니 <b>머리와 줄의 칸 수가 자료 따라 변한다</b> —
@@ -304,11 +346,28 @@ export default function SalesPlanPage() {
                            value={partnerCond} onChange={setPartnerCond}
                            items={partners.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
+        {/* 원본 매출계획조회 차례: 창고 · (창고계층) · 거래처 · <b>거래처그룹1</b> · (그룹2·계층) · 품목 · <b>품목구분 · 품목그룹1</b> … */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroupCond} onChange={setPartnerGroupCond}
+                           items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="품목">
           {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
@@ -362,6 +421,32 @@ export default function SalesPlanPage() {
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
+        </EcCond>
+        {/* 원본 매출계획조회 차례: (최종수정자) · 기타 · <b>거래처관리담당자 · 적요 · 최초작성자 · 최초작성일자 · 최종작업일자</b> … */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="설정">
           <div style={{ display: 'flex', gap: 12 }}>

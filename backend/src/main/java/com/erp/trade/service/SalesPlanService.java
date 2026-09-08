@@ -161,6 +161,8 @@ public class SalesPlanService {
                     p.getPlanNo(), p.getPlanDate(), p.getUpdatedAt(),
                     p.getPlanYear(), p.getPlanMonth(),
                     p.getItem().getId(), p.getItem().getName(), p.getItem().getUnit(),
+                    p.getItem().getCategory(),
+                    p.getItem().getCategory() != null ? p.getItem().getCategory().getDisplayName() : null,
                     p.getWarehouse() != null ? p.getWarehouse().getId() : null,
                     p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                     p.getPartner() != null ? p.getPartner().getId() : null,
@@ -175,7 +177,8 @@ public class SalesPlanService {
                     p.getProject() != null ? p.getProject().getCode() : null,
                     p.getEmployee() != null ? p.getEmployee().getCode() : null,
                     p.getExpectedDate(),
-                    p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate));
+                    p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate,
+                    p.getRemark(), p.getCreatedBy(), p.getCreatedAt()));
         }
         return out;
     }
