@@ -159,9 +159,16 @@ export default function UnsoldStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, cond])
 
+  /*
+   * 원본 미판매현황(E040212)의 마지막 열 <b>[미판매부가세]</b>.
+   * 줄에는 부가세가 오지 않는다(미판매수량·공급가액만). 대신 서버가 그 줄이
+   * 과세인지(<code>taxable</code>)를 되짚어 실어 주므로, 저장소가 쓰는 식 그대로
+   * 공급가액의 10%로 낸다(면세면 0). 판매·발주 입력 화면이 이미 같은 식을 쓴다.
+   */
+  const lineVat = (r: UnsoldLine) => (r.taxable ? Math.round(r.unsoldAmount * 0.1) : 0)
   const totals = shown.reduce(
-    (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount }),
-    { qty: 0, amount: 0 },
+    (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount, vat: a.vat + lineVat(r) }),
+    { qty: 0, amount: 0, vat: 0 },
   )
   const reset = () => {
     setMode('라인별')
@@ -331,52 +338,67 @@ export default function UnsoldStatusPage() {
         {mode === '라인별' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '10%' }} />
-              <col style={{ width: '15%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
-              <col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
+              <col style={{ width: '4%' }} /><col style={{ width: '13%' }} /><col />
+              <col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} />
+              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
+              <col style={{ width: '9%' }} /><col style={{ width: '10%' }} />
             </colgroup>
+            {/*
+              2026-09-09 원본 실측 — 격자 열은
+              <b>일자-No. · 품목명(규격) · 수량 · 미판매수량 · 미판매공급가액 · 거래처명 ·
+              적요 · 품목별납기일자 · 미판매부가세</b> 다([검색(F8)] 을 눌러야 머리가 나온다).
+              우리 이름은 넷이 달랐고([주문번호]·[거래처]·[품목]·[주문수량]),
+              <b>[적요]와 [미판매부가세]는 아예 없었다</b> — 적요는 응답이 진작 싣던 값이다.
+              [판매수량]은 우리 것이라 그대로 둔다(미판매가 왜 그만큼인지 보는 칸이다).
+            */}
             <thead>
               <tr>
                 <th></th>
-                <th>주문번호</th>
-                <th>납기일자</th>
-                <th>거래처</th>
-                <th>품목</th>
-                <th style={{ textAlign: 'right' }}>주문수량</th>
+                <th>일자-No.</th>
+                <th>품목명(규격)</th>
+                <th style={{ textAlign: 'right' }}>수량</th>
                 <th style={{ textAlign: 'right' }}>판매수량</th>
                 <th style={{ textAlign: 'right' }}>미판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매금액</th>
+                <th style={{ textAlign: 'right' }}>미판매공급가액</th>
+                <th>거래처명</th>
+                <th>적요</th>
+                {/* 원본 이름은 [품목별납기일자] 지만 우리 납기는 전표 단위 하나다 — 이름을 그대로 쓰면 거짓이 된다. */}
+                <th>납기일자</th>
+                <th style={{ textAlign: 'right' }}>미판매부가세</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.orderLineId} style={{ cursor: 'pointer' }}
                     onClick={() => navigate('/sales/order-status')}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.orderNo}</td>
-                  <td>{(r.dueDate ?? r.orderDate).replace(/-/g, '/')}</td>
-                  <td>{r.partnerName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.orderDate.replace(/-/g, '/')} {r.orderNo}</td>
+                  <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
                   <td style={{ textAlign: 'right' }}>{num(r.orderQty)}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.soldQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
                     {num(r.unsoldQty)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
                   <td style={{ textAlign: 'right' }}>{num(r.unsoldAmount)}</td>
+                  <td>{r.partnerName}</td>
+                  <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
+                  <td>{(r.dueDate ?? r.orderDate).replace(/-/g, '/')}</td>
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(lineVat(r))}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#a5561b' }}>{num(totals.qty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totals.amount)}</td>
+                  <td colSpan={3} style={{ background: '#f5f7fa' }}></td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#8a929c' }}>{num(totals.vat)}</td>
                 </tr>
               </tfoot>
             )}

@@ -2923,5 +2923,12 @@
    "createdBy"
   ],
   "in": "backend/src/main/java/com/erp/hr/domain/VacationRequest.java"
+ },
+ "미판매현황|품목별납기일자": {
+  "claim": "수주의 납기는 전표 단위 하나다 — 라인마다 납기를 따로 두지 않는다",
+  "absent": [
+   "dueDate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrderLine.java"
  }
 }

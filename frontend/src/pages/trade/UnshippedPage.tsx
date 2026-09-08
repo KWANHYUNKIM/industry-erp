@@ -493,7 +493,8 @@ export default function UnshippedPage() {
             <th style={{ width: 110 }}>창고명</th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
             <th style={{ width: 150 }}>적요</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
+            {/* 원본은 [출하예정일]을 <b>가운데</b>로 찍는다(2026-09-09 실측). */}
+            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
             <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             <th style={{ width: 150, textAlign: 'right' }}>출하지시</th>
           </tr>
@@ -513,7 +514,7 @@ export default function UnshippedPage() {
               <td>{r.warehouseName ?? ''}</td>
               <td>{r.partnerName}</td>
               <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <input
