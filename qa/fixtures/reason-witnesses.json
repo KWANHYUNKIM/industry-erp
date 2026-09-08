@@ -2273,5 +2273,192 @@
    "Lot"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "판매현황|채권번호": {
+  "claim": "채권에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다",
+  "absent": [
+   "receivableNo"
+  ],
+  "in": "backend"
+ },
+ "판매조회|채권번호": {
+  "claim": "채권에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다",
+  "absent": [
+   "receivableNo"
+  ],
+  "in": "backend"
+ },
+ "구매조회|채무번호": {
+  "claim": "채무에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다",
+  "absent": [
+   "payableNo"
+  ],
+  "in": "backend"
+ },
+ "구매현황|채무번호": {
+  "claim": "채무에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다",
+  "absent": [
+   "payableNo"
+  ],
+  "in": "backend"
+ },
+ "판매현황|판매구분": {
+  "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
+  "absent": [
+   "salesType",
+   "salesKind",
+   "salesDivision"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "판매조회|판매구분": {
+  "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
+  "absent": [
+   "salesType",
+   "salesKind",
+   "salesDivision"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "집계표|판매구분": {
+  "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
+  "absent": [
+   "salesType",
+   "salesKind",
+   "salesDivision"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "집계표|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "미판매현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "주문서현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "발주서조회|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "발주서현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "창고이동현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "최종수정자": {
+  "claim": "고친 사람을 아무 데도 남기지 않는다 — updatedBy 필드가 없다",
+  "absent": [
+   "updatedBy"
+  ],
+  "in": "backend"
+ },
+ "거래처등록|최초작성자": {
+  "claim": "거래처 마스터에는 만든 사람을 남기지 않는다",
+  "absent": [
+   "createdBy"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/BusinessPartner.java"
+ },
+ "품목등록|최초작성자": {
+  "claim": "품목 마스터에는 만든 사람을 남기지 않는다",
+  "absent": [
+   "createdBy"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "수집데이터등록|최초작성자": {
+  "claim": "수집 소스에는 만든 사람을 남기지 않는다",
+  "absent": [
+   "createdBy"
+  ],
+  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+ },
+ "수집데이터등록|진행상태": {
+  "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+ },
+ "주문서현황|품목별납기일자": {
+  "claim": "수주의 납기는 전표 단위 하나다 — 라인마다 따로 두지 않는다",
+  "absent": [
+   "dueDate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrderLine.java"
+ },
+ "주문서현황|거래구분": {
+  "claim": "수주에 반품 갈래가 없다 — 반품은 판매(returnSlip)에서 생긴다",
+  "absent": [
+   "returnSlip"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+ },
+ "발주서현황|거래구분": {
+  "claim": "발주에 반품이 없다 — 되돌려 보내는 것은 구매 전표에서 잡는다",
+  "absent": [
+   "returnSlip"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "구매조회|세금계산서구분": {
+  "claim": "구매 전표에 세금계산서 청구 상태를 남기지 않는다",
+  "absent": [
+   "taxInvoice",
+   "TaxInvoice"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "창고이동현황|진행상태": {
+  "claim": "이동 전표에 확인 상태가 없다 — 넣는 순간 재고가 움직이고 끝이다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "근태조회|프로젝트": {
+  "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다",
+  "absent": [
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain"
  }
 }
