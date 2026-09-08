@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { exportTableToXlsx } from '../../utils/excel'
+import { printTable } from '../../utils/print'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../api/types'
@@ -23,8 +24,15 @@ const today = () => ymd(new Date())
  * 원본은 제목을 누르면 그 자리에서 펼쳐지고, 하단 [모두펼쳐보기]로 전부 편다.
  * 펼친 글 아래에는 답글(F8)·복사·<b>수정</b>·<b>삭제</b>·닫기가 붙는다.
  *
- * <p>답글·복사·인쇄는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도 아무 일 없는 버튼은
+ * <p>답글·복사는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도 아무 일 없는 버튼은
  * 있는 것만 못하다.
+ *
+ * <p><b>[인쇄]는 그 셈이 아니었다.</b> 이 화면은 목록 껍데기(EcListShell)를 안 쓰는 탓에
+ * 인쇄가 없었을 뿐, <b>받쳐 줄 것은 이미 다 있었다</b> — 다른 목록 화면이 쓰는
+ * <code>printTable</code> 이 그 자리에서 도는 표를 그대로 종이로 옮긴다.
+ * '기능이 없어 안 만든다' 와 '껍데기를 안 써서 못 붙였다' 는 다른 말인데,
+ * 예전 주석은 앞엣것처럼 적혀 있었다. Excel 이 이미 같은 표를 긁어 가고 있었으니
+ * 인쇄만 빠져 있을 까닭이 없다.
  *
  * <p>격자의 <b>[첨부]·[조회]</b> 두 열은 만들어 두고 채우지 못하고 있었다. 첨부 칸은 늘
  * 비어 있었고(붙일 자리가 없었다), 조회 칸에는 완료/재개 버튼이 들어가 있어 <b>열 이름과
@@ -195,10 +203,21 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     load()
   }
 
+  /** 목록 표를 찾는다 — Excel 과 인쇄가 같은 표를 본다. */
+  function listTable() {
+    return document.querySelector('#work-list table') as HTMLTableElement | null
+  }
+
   async function doExcel() {
-    const table = document.querySelector('#work-list table') as HTMLTableElement | null
+    const table = listTable()
     if (!table) return setError('내보낼 표가 없습니다.')
     if (!(await exportTableToXlsx(table, 'WORK'))) setError('내보낼 자료가 없습니다.')
+  }
+
+  function doPrint() {
+    const table = listTable()
+    if (!table) return setError('인쇄할 표가 없습니다.')
+    if (!printTable(table, title)) setError('인쇄할 자료가 없습니다.')
   }
 
   const shown = rows
@@ -414,6 +433,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
           받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다.
+          [인쇄]는 이제 있다 — Excel 이 긁어 가던 그 표를 그대로 종이로 옮긴다.
           [모두펼쳐보기]는 이제 있다 — 내용을 읽을 자리가 그것뿐이었다.
           [웹자료올리기]도 이제 있다 — 등록 폼의 첨부 자리가 그것이다.
         */}
@@ -426,6 +446,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </button>
         <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
+        <button className="ec-btn" onClick={doPrint}>인쇄</button>
       </div>
     </div>
   )
