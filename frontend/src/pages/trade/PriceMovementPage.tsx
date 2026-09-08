@@ -231,7 +231,7 @@ export default function PriceMovementPage() {
         out.push({
           key: `${d.no}-${l.itemId}-${out.length}`,
           date: d.date, no: d.no ?? '', partner: d.partner,
-          itemName: l.itemName, spec: l.spec, unit: l.unit,
+          itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
           quantity: l.quantity, price: l.unitPrice,
         })
       }
@@ -401,12 +401,24 @@ export default function PriceMovementPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              <b>단가변동표(E040819) [구분]=전표별 2026-09-09 원본 격자 실측</b> —
+              [품목코드 · 품목명 · 규격 · <b>전표별</b> · 판매단가(단순평균) ·
+              구매단가(단순평균)]. 넷째 칸의 이름이 <b>[구분]으로 고른 값 그대로</b>이고
+              칸 안에는 일자와 전표번호가 <b>한 덩어리</b>로 들어간다(2026/09/04 -1).
+              우리는 (1) 품목을 뒤에 두고 일자·전표번호를 두 칸으로 갈라 두었으며,
+              (2) <b>[품목코드]가 없었다</b> — 줄이 진작 싣고 있는 값이다(l.itemCode).
+              단가 칸 이름은 아직 [단가] 하나다: 원본은 [단가구분] 기본이 <b>전체</b>라
+              판매·구매 단가를 <b>나란히</b> 두는데 우리 [단가구분]에는 전체가 없다
+              (pending-columns.json 에 적었다).
+              [거래처]·[단위]·[수량]은 우리 열이다.
+            */}
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 110 }}>일자</th>
-            <th style={{ width: 140 }}>전표번호</th>
-            <th>거래처</th>
+            <th style={{ width: 110 }}>품목코드</th>
             <th>품목명</th>
             <th style={{ width: 110 }}>규격</th>
+            <th style={{ width: 170 }}>전표별</th>
+            <th>거래처</th>
             <th style={{ width: 70 }}>단위</th>
             <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             <th style={{ width: 110, textAlign: 'right' }}>단가</th>
@@ -420,11 +432,12 @@ export default function PriceMovementPage() {
           ) : lineRows.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.no}</td>
-              <td>{r.partner}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
+              {/* 원본은 일자와 전표번호를 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.no}</td>
+              <td>{r.partner}</td>
               <td>{r.unit}</td>
               <td style={{ textAlign: 'right' }}>{r.quantity.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
