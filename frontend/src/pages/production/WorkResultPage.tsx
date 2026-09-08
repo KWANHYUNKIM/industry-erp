@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item } from '../../api/types'
 import { dateText } from '../../utils/dateText'
 
@@ -91,6 +92,20 @@ export default function WorkResultPage() {
   const [wrLines, setWrLines] = useState<WrLine[]>([emptyLine()])
   const setWrLine = (key: number, patch: Partial<WrLine>) =>
     setWrLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+  /**
+   * 원본 격자 툴바의 <b>[My품목]</b>. 예외에 '전표 입력 격자를 이 화면에 붙이지 않았다'고
+   * 적혀 있었는데 <b>틀렸다</b> — 이 화면은 진작 격자였고(<code>wrLines</code>·[줄 추가]),
+   * 줄마다 <b>[작업품목]</b>(<code>workItemId</code>)을 고른다. 부을 자리가 있는데
+   * 묶음 예외에 섞여 아무도 안 보고 있었다.
+   *
+   * <p>작업내역은 <b>단가를 안 든다</b> — 품목과 수량만 붓고, 수량은 <b>양품</b>으로 넣는다
+   * (불량은 사람이 적는 값이라 지어내지 않는다).
+   */
+  const myItems = useMyItemsPick((picked) => setWrLines((ls) => {
+    const kept = ls.filter((l) => l.workItemId)
+    const added = picked.map((m) => ({ ...emptyLine(), workItemId: String(m.itemId), goodQty: String(m.defaultQty) }))
+    return [...kept, ...added, emptyLine()]
+  }))
 
   async function load() {
     setLoading(true)
@@ -235,6 +250,8 @@ export default function WorkResultPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>작업</span>
             <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
+            <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <MyItemsNote note={myItems.note} />
           </div>
           {/* 좁은 창에서는 열두 칸이 다 안 들어간다 — 잘리지 말고 옆으로 밀리게 둔다. */}
           <div style={{ overflowX: 'auto' }}>
