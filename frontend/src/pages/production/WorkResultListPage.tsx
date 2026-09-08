@@ -9,7 +9,6 @@ import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -28,8 +27,15 @@ import { dateText } from '../../utils/dateText'
  *
  * <p>원본의 '작업'은 우리 자료의 공정에 해당한다.
  */
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+type Mode = '내역' | '집계'
+/*
+ * 원본 [구분]은 <b>내역·집계 둘</b>이다(대조표 실측). [라인별]은 우리가 더 둔 갈래였는데,
+ * 원본 [내역]이 이미 <b>줄 단위</b>다(격자 대조표가 일자-No. · 생산공장명 · 작업명 ·
+ * 생산품목명 · 품목명[규격] · 수량 … 을 적고 있다). 우리 [내역]만 작업지시로 접고 있어서
+ * 줄을 보려고 갈래를 하나 더 만들어 둔 것이었다 - 생산불출현황과 똑같은 꼴이다.
+ * [내역]을 원본대로 두면 둘이 같은 표가 되므로 갈래를 없앤다.
+ */
+const MODES = ['내역', '집계'] as const
 
 interface WorkResult {
   id: number
@@ -187,31 +193,6 @@ export default function WorkResultListPage() {
   const time = useMemo(() => stdVsActual(
     shown.map((r) => ({ standard: r.standardTimeMin, actual: r.workTimeMin })),
   ), [shown])
-
-  /** 내역 — 작업지시 하나를 한 줄로 접는다. 지시가 없는 실적은 따로 모은다. */
-  const byOrder = useMemo(() => {
-    const m = new Map<string, {
-      key: string; orderNo: string; date: string; process: string; lineCount: number
-      good: number; defect: number; time: number
-    }>()
-    for (const r of shown) {
-      const key = r.workOrderNo ?? '(작업지시 없음)'
-      const cur = m.get(key)
-      if (!cur) {
-        m.set(key, {
-          key, orderNo: key, date: r.workDate, process: r.process, lineCount: 1,
-          good: r.goodQty, defect: r.defectQty, time: r.workTimeMin,
-        })
-      } else {
-        cur.lineCount += 1
-        cur.good += r.goodQty
-        cur.defect += r.defectQty
-        cur.time += r.workTimeMin
-        if (r.workDate > cur.date) cur.date = r.workDate
-      }
-    }
-    return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : -1))
-  }, [shown])
 
   /** 집계 — 공정(원본의 '작업') 단위로 모은다. */
   /*
@@ -421,7 +402,7 @@ export default function WorkResultListPage() {
             </tr>
           </tfoot>
         </table>
-      ) : mode === '라인별' ? (
+      ) : (
         <table className="w-full text-left">
           <thead>
             <tr>
@@ -515,48 +496,6 @@ export default function WorkResultListPage() {
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
               <td style={{ textAlign: 'right', color: time.diff < 0 ? '#c60a2e' : '#1c7c3c' }}>{gap(time.diff)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{pct(totals.defect, totals.good)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      ) : (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 110 }}>일자</th>
-              <th style={{ width: 200 }}>작업지시번호</th>
-              <th>작업(공정)</th>
-              <th style={{ width: 90, textAlign: 'right' }}>작업건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>양품</th>
-              <th style={{ width: 110, textAlign: 'right' }}>불량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>작업시간(분)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : byOrder.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : byOrder.map((g, i) => (
-              <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(g.date)}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{g.orderNo}</td>
-                <td>{g.process}{g.lineCount > 1 ? ` 외 ${g.lineCount - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.lineCount)}</td>
-                <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(g.good)}</td>
-                <td style={{ textAlign: 'right', color: g.defect > 0 ? '#c60a2e' : '#8a929c' }}>{num(g.defect)}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.time)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byOrder.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
             </tr>
           </tfoot>
         </table>
