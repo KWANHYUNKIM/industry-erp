@@ -7,6 +7,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -19,8 +20,11 @@ import { useItemFlags } from '../../utils/useInactiveItems'
  *               기초는 movement 의 품목별 기초를 합친 값에서 시작해 앞 구간의 기말을 다음 구간의
  *               기초로 굴린다. 그래야 구간끼리 이어진다(기말 = 기초 + 입고 − 출고).
  *
- * 원본 조건 중 '입출고표시방법(표시/상세표시)'·'개별창고기준'·'결재방표시'는 우리 데이터에
- * 대응하는 개념이 없어 넣지 않았다.
+ * 2026-09-09 원본 실측 — 조건은 <b>열셋</b>이다(대조표에 적혀 있던 열하나는 [기타] 체크박스를
+ * 펴 놓은 것이었다): 구분 · 기준일자 · 창고 · 창고계층그룹 · 품목 · 품목구분 · 품목그룹1 ·
+ * 품목그룹2 · 품목그룹3 · 품목계층그룹 · 대표품목으로 합산 · 관리항목 · 기타.
+ * [구분] 칸 안에는 <b>[입출고표시방법](표시/상세표시)</b> 라디오가 하나 더 들어 있는데,
+ * 우리 변동표는 줄 단위 입출고 내역을 펼치지 않아 대응하는 개념이 없다.
  */
 
 interface MovementRow {
@@ -71,7 +75,25 @@ export default function StockMovementPage() {
    */
   const [signBox, setSignBox] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
-  const [withInactive, setWithInactive] = useState(false)
+  /**
+   * 원본 <b>[사용중단품목포함]은 켜져 있다</b>(2026-09-09 실측). 우리는 꺼 두었다 —
+   * 재고잔량분석표·재고현황·재고수불부에 이어 <b>네 번째</b>로 같은 값이 뒤집혀 있었다.
+   * 변동표에서 이게 꺼지면 <b>내린 품목이 이 달에 얼마나 움직였는지</b>가 통째로 빠져,
+   * 기초·입고·출고·기말 합계가 실제 창고와 어긋난 채 맞는 것처럼 보인다.
+   */
+  const [withInactive, setWithInactive] = useState(true)
+  /*
+   * 원본 조건 <b>[품목구분]·[품목그룹1]</b> — [품목] 바로 뒤에 선다(2026-09-09 실측).
+   * 훅이 이미 품목 마스터를 들고 있어 값을 더 받아 올 것이 없다.
+   */
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  /**
+   * 원본 조건 <b>[관리항목]</b> — [대표품목으로 합산]과 [기타] 사이다(2026-09-09 실측).
+   * 관리항목은 품목 마스터에 붙는 값이라 변동표 줄에는 안 실려 온다. 이 화면은 이미
+   * 품목 마스터를 통째로 받고 있으니(<code>items</code>) 줄의 itemId 로 화면에서 잇는다.
+   */
+  const [mgmtCond, setMgmtCond] = useState('')
   const [byItemName, setByItemName] = useState(false)
   /**
    * 원본 조건 <b>[대표품목으로 합산]</b>. 색·용량만 다른 형제 품목을 <b>대표품목 한 줄</b>로
@@ -146,10 +168,12 @@ export default function StockMovementPage() {
   const reset = () => {
     setFrom(firstOfMonth()); setTo(today())
     setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계'); setRollUp(false)
+    setCategory(''); setItemGroup(''); setMgmtCond(''); setWithInactive(true)
   }
 
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 변동표 줄에는 없어 따로 받는다. */
-  const { inactive, untracked } = useItemFlags()
+  const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
+  const mgmt = useItemMgmt(items)
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -180,6 +204,9 @@ export default function StockMovementPage() {
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withUntracked && untracked.has(r.itemId)) return false
       if (!withInactive && inactive.has(r.itemId)) return false
+      if (category && categoryOf(r.itemId) !== category) return false
+      if (itemGroup && groupOf(r.itemId) !== itemGroup) return false
+      if (mgmtCond && mgmt.nameOf(r.itemId) !== mgmtCond) return false
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
       if (hideZero && r.inQty === 0 && r.outQty === 0) return false
       return true
@@ -188,7 +215,8 @@ export default function StockMovementPage() {
     return byItemName
       ? [...filtered].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
       : filtered
-  }, [rows, keyword, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive])
+  }, [rows, keyword, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive,
+    category, itemGroup, categoryOf, groupOf, mgmtCond, mgmt])
 
   const totals = useMemo(() => shown.reduce((s, r) => ({
     opening: s.opening + r.opening, inQty: s.inQty + r.inQty, outQty: s.outQty + r.outQty, closing: s.closing + r.closing,
@@ -236,8 +264,44 @@ export default function StockMovementPage() {
                            items={pickers.items} />
         </EcCond>
         )}
+        {mode === '집계' && (
+          <EcCond label="품목구분">
+            <select className="ec-input" value={category} style={{ width: 130 }}
+                    onChange={(e) => setCategory(e.target.value)}>
+              <option value="">전체</option>
+              {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </EcCond>
+        )}
+        {mode === '집계' && (
+          <EcCond label="품목그룹1">
+            <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                    onChange={(e) => setItemGroup(e.target.value)}>
+              <option value="">전체</option>
+              {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </EcCond>
+        )}
         {/*
-          원본 [기타] 일곱 중 셋은 아직 없다 —
+          원본 차례: <b>[대표품목으로 합산] 이 [기타] 앞</b>이다(2026-09-09 실측).
+          예전에는 "[기타] 뒤가 마지막(세 화면이 다 같다)" 이라 적어 두었는데 사본만 보고 적은 것이라 틀렸다.
+          집계 보기에서만 뜻이 있다 — 일별·월별은 이미 품목을 한 덩어리로 굴린 표다.
+        */}
+        {mode === '집계' && (
+          <EcCond label="대표품목으로 합산">
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={rollUp}
+                     onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
+            </label>
+          </EcCond>
+        )}
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        {/*
+          원본 [기타] 일곱 중 둘은 아직 없다 —
           [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
           [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
         */}
@@ -265,18 +329,6 @@ export default function StockMovementPage() {
             </label>
           </div>
         </EcCond>
-        {/*
-          원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다).
-          집계 보기에서만 뜻이 있다 — 일별·월별은 이미 품목을 한 덩어리로 굴린 표다.
-        */}
-        {mode === '집계' && (
-          <EcCond label="대표품목으로 합산">
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={rollUp}
-                     onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
-            </label>
-          </EcCond>
-        )}
       </EcStatusPanel>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
