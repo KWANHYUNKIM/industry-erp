@@ -605,12 +605,24 @@ export default function WoProgressPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
+              {/*
+                <b>작업지시서별진행현황(E040414) [생산진행현황] 2026-09-09 원본 격자 실측</b>.
+                원본 머리는 <b>두 줄</b>이다 —
+                위: [작업지시서번호 · 품목 · <b>BOM기준</b>(3칸) · <b>생산</b>(4칸) · 미생산 · 현재고],
+                아래: [생산공정 · 일자 · 필요수량] / [공장 · 생산공정 · 일자 · 수량].
+                즉 원본은 작업지시 하나를 <b>BOM 줄까지 펴서</b> 필요수량과 실제 생산을
+                나란히 놓는다. 우리 표는 작업지시 <b>한 줄 요약</b>이라 그 일곱 칸이 없다.
+                지금 바퀴에서는 <b>이름이 맞는 셋</b>만 원본으로 옮긴다 —
+                [작업지시번호]→<b>[작업지시서번호]</b>, [품목명]→<b>[품목]</b>,
+                [잔여수량]→<b>[미생산]</b>(같은 값이다: 지시수량 − 생산수량).
+                [지시수량]·[완료수량]·[진행률]·[상태]는 우리 열이다.
+              */}
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>작업지시번호</th>
-              <th>품목명</th>
+              <th style={{ width: 170, textAlign: 'center' }}>작업지시서번호</th>
+              <th>품목</th>
               <th style={{ width: 100, textAlign: 'right' }}>지시수량</th>
               <th style={{ width: 100, textAlign: 'right' }}>완료수량</th>
-              <th style={{ width: 100, textAlign: 'right' }}>잔여수량</th>
+              <th style={{ width: 100, textAlign: 'right' }}>미생산</th>
               <th style={{ width: 160 }}>진행률</th>
               <th style={{ width: 90, textAlign: 'right' }}>진행률(%)</th>
               <th style={{ width: 90, textAlign: 'center' }}>상태</th>
@@ -626,7 +638,7 @@ export default function WoProgressPage() {
               return (
                 <tr key={o.id}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
+                  <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
                   <td style={{ textAlign: 'right' }}>{num(o.plannedQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(o.producedQty)}</td>

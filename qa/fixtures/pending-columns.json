@@ -1,3 +1,8 @@
 [
-
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [공장] 열이 없다",
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [생산공정] 열이 없다",
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [수량] 열이 없다",
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [일자] 열이 없다",
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [필요수량] 열이 없다",
+ "WoProgressPage.tsx  원본 작업지시서별진행현황 의 [현재고] 열이 없다"
 ]
