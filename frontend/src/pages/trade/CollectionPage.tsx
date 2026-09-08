@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -39,6 +40,8 @@ interface Settlement {
   /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
   projectName: string | null
   note: string | null
+  /** 원본 조건의 [최초작성자]. 응답이 진작 싣던 값인데 화면이 안 받고 있었다. */
+  createdBy: string | null
 }
 
 /** 수금현황(RECEIPT)·지급현황(PAYMENT)이 같은 화면이라 종류만 바꿔 쓴다. */
@@ -62,18 +65,18 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
   const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
   /*
-   * 원본 수금현황의 기본 기간은 <b>[이번기수]</b> 다(사본 조건 판의 버튼).
-   * 우리는 비워 두어 수금 전체가 나왔다 — 이번 기수에 얼마 받았는지를 보는 화면인데
-   * 지난 기수 것까지 섞여 합계가 그 뜻이 아니게 된다.
+   * <b>원본 수금현황의 기본 기간은 [금월(~오늘)] 이다</b> — 2026-09-08 에 원본(E040217)을
+   * 열어 간편검색 칸에서 직접 쟀다. 사본을 보고 [이번기수]로 적어 두었던 것이 틀렸다.
+   * [이번기수]·[직전기수]는 이 화면에만 있는 <b>버튼</b>이라 사본에 눈에 띄었을 뿐,
+   * 눌려 있는 것은 [금월(~오늘)]다.
+   *
+   * <p>그대로 두면 화면을 열자마자 <b>기수 전체</b>의 수금이 합계로 잡힌다 —
+   * 원본을 열었을 때 보이는 숫자와 다르다.
    */
-  /*
-   * [이번기수] 는 회계연도 시작월을 알아야 계산된다 — 모르면 periodOf 가 null 이다.
-   * ! 로 눌러 두어서 <b>수금현황·지급현황이 통째로 하얗게 떴다</b>(브라우저로 열어 보고 알았다).
-   * 시작월은 아래에서 받아 오는데 첫 그림 다음이라 늦다 — 그때까지는 [금월(~오늘)]로 연다.
-   */
-  const initPeriod = periodOf('이번기수', new Date(), undefined) ?? periodOf('금월(~오늘)')!
+  const initPeriod = periodOf('금월(~오늘)')!
   const [cond, setCond] = useState({
-    from: initPeriod.from, to: initPeriod.to, partner: '', method: '', manager: '', project: '',
+    from: initPeriod.from, to: initPeriod.to, partner: '', manager: '', project: '',
+    partnerGroup: '', author: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -103,17 +106,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       .catch(() => {})
   }, [])
 
-  /* 시작월을 받으면 원본 기본 기간([이번기수])으로 한 번 다시 건다. */
-  const applied = useRef(false)
-  useEffect(() => {
-    if (applied.current || !fiscalStart) return
-    const r = periodOf('이번기수', new Date(), fiscalStart)
-    if (r) { applied.current = true; setC({ from: r.from, to: r.to }) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fiscalStart])
-
-  const methods = useMemo(
-    () => [...new Set(rows.map((r) => r.method).filter(Boolean))].sort() as string[], [rows])
+  /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 정산 전표 응답에는 없다. 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
 
   const managerOf = useMemo(
     () => new Map(partners.map((p) => [p.id, p.manager ?? ''])),
@@ -130,7 +124,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
-    .filter((r) => !cond.method || r.method === cond.method)
+    .filter((r) => !cond.partnerGroup || pgroup.groupOfName(r.partnerName) === cond.partnerGroup)
+    .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
     .filter((r) => !cond.manager
       || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
@@ -150,7 +145,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     return [...m].map(([label, value]) => ({ label, value }))
   }, [shown])
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
+    setCond({ from: '', to: '', partner: '', manager: '', project: '', partnerGroup: '', author: '' })
     setKeyword('')
   }
 
@@ -191,6 +186,18 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열아홉 — 이 화면은 <b>접힌 줄이 없다</b>):
+          기준일자 · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          (부서 · 부서계층그룹) · 프로젝트 · (프로젝트그룹1 · 프로젝트그룹2) ·
+          거래처관리담당자 · <b>최초작성자</b> · (최종수정자 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
@@ -201,11 +208,15 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
                            value={cond.manager} onChange={(v) => setC({ manager: v })}
                            items={pickers.employees} />
         </EcCond>
-        <EcCond label={moneyLabel === '수금' ? '수금방법' : '지급방법'}>
-          <select className="ec-input" value={cond.method} onChange={(e) => setC({ method: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+        {/*
+          <b>[수금방법]/[지급방법] 을 걷어냈다.</b> 원본 조건 판 열아홉에 그런 칸이 없다 —
+          우리만 하나 더 두고 있었다. 수금방법은 표의 열로는 그대로 보인다.
+        */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
