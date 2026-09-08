@@ -113,6 +113,12 @@ export default function TransferStatusPage() {
     fromWarehouseId: '', toWarehouseId: '',
     category: '', itemGroup: '', author: '',
     madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+    /*
+     * 2026-09-08 에 <b>창고이동현황</b>(E040505)도 열어 쟀다 — <b>스물아홉</b>이다
+     * (사본에는 여덟). 조회 쪽과 이름이 거의 같은데 <b>[수량]</b> 이 하나 더 있다.
+     * 그 값은 표에 진작 찍고 있었는데 거를 자리가 없었다.
+     */
+    qtyFrom: '', qtyTo: '',
   })
   /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다(실측). */
   const [byUpdated, setByUpdated] = useState(false)
@@ -154,6 +160,8 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.category || (r.itemCategoryName ?? '') === cond.category)
     .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
     .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
+    .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
     .filter((r) => !cond.madeFrom || (r.createdAt ?? '').slice(0, 10) >= cond.madeFrom)
     .filter((r) => !cond.madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= cond.madeTo))
     .filter((r) => !cond.editedFrom || (r.updatedAt ?? '').slice(0, 10) >= cond.editedFrom)
@@ -196,7 +204,7 @@ export default function TransferStatusPage() {
     setCond({
       from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '',
       fromWarehouseId: '', toWarehouseId: '', category: '', itemGroup: '', author: '',
-      madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+      madeFrom: '', madeTo: '', editedFrom: '', editedTo: '', qtyFrom: '', qtyTo: '',
     })
     setByUpdated(false)
   }
@@ -305,6 +313,14 @@ export default function TransferStatusPage() {
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        {/* 원본 창고이동<b>현황</b> 차례: … 적요 · (오더관리번호) · <b>수량</b> · (진행상태) · 최초작성자 … */}
+        <EcCond label="수량">
+          <input className="ec-input" type="number" value={cond.qtyFrom}
+                 onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" value={cond.qtyTo}
+                 onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
         {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호) · 최초작성자 · 최초작성일자 · 최종작업일자 */}
         <EcCond label="최초작성자" pick>
