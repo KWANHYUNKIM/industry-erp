@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { Item, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -75,9 +75,26 @@ export default function StocktakeStatusPage() {
      * 접힌 줄은 없다. 여기서 만든 셋: 품목구분 · 품목그룹1 · 최초작성자.
      */
     category: '', itemGroup: '', author: '',
+    /*
+     * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 기본은 꺼짐이다(2026-09-08 실측).
+     *
+     * <p>앞 바퀴에 '실사 요청 줄이 품목의 수량관리 여부를 안 들어 만들 수 없다' 고
+     * 적었는데 <b>사실이 아니었다</b> — 품목 마스터가 <code>stockTracked</code> 를
+     * 진작 들고 있다(품목등록의 [재고수량관리] 열이 그 값이다). 줄의 itemId 로 이으면
+     * 그만이라, 이유를 고쳐 쓸 것이 아니라 만들 일이었다.
+     *
+     * <p>꺼져 있으면 <b>수량관리제외 품목의 줄을 감춘다</b> — 용역·운반비처럼 재고를
+     * 잡지 않는 품목이 실사 표에 섞이면 '실사했는데 차이가 늘 0' 인 줄이 늘어선다.
+     */
+    inclUntracked: false,
   })
   /** [품목그룹1] — 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
   const mgmt = useItemMgmt()
+  /** [수량관리제외품목포함] 도 품목 마스터의 값이다 — 같은 길로 잇는다. */
+  const [items, setItems] = useState<Item[]>([])
+  const untracked = useMemo(
+    () => new Set(items.filter((i) => i.stockTracked === false).map((i) => i.id)),
+    [items])
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -86,8 +103,9 @@ export default function StocktakeStatusPage() {
     Promise.all([
       api.get<Staged[]>('/staged-adjustments'),
       api.get<Warehouse[]>('/warehouses'),
+      api.get<Item[]>('/items'),
     ])
-      .then(([s, w]) => { setRows(s.data); setWarehouses(w.data) })
+      .then(([s, w, it]) => { setRows(s.data); setWarehouses(w.data); setItems(it.data) })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
@@ -108,6 +126,8 @@ export default function StocktakeStatusPage() {
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     .filter((r) => !cond.status || r.status === cond.status)
     .filter((r) => !cond.diffOnly || r.diff !== 0)
+    /* [수량관리제외품목포함] 이 꺼져 있으면 재고를 잡지 않는 품목의 줄을 감춘다. */
+    .filter((r) => cond.inclUntracked || !untracked.has(r.itemId))
 
   /**
    * 원본 [데이터 보기형식] · [그래프로 보기].
@@ -149,7 +169,7 @@ export default function StocktakeStatusPage() {
   const reset = () => {
     setMode('내역')
     setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false,
-      category: '', itemGroup: '', author: '' })
+      category: '', itemGroup: '', author: '', inclUntracked: false })
   }
 
   return (
@@ -226,7 +246,13 @@ export default function StocktakeStatusPage() {
           실사 요청 줄이 들고 있지 않아 그 체크를 만들 수 없다. 이름만 같고 뜻이 다르다.
         */}
         <EcCond label="기타">
+          {/* 원본 [기타]의 체크는 <b>[수량관리제외품목포함]</b> 하나다(기본 꺼짐). */}
           <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={cond.inclUntracked}
+                   onChange={(e) => setC({ inclUntracked: e.target.checked })} /> 수량관리제외품목포함
+          </label>
+          {/* [차이있는것만] 은 원본에 없는 우리 체크다 — 실사는 어긋난 줄만 보려고 여는 화면이라 남긴다. */}
+          <label style={{ fontSize: 12, marginLeft: 10 }}>
             <input type="checkbox" checked={cond.diffOnly}
                    onChange={(e) => setC({ diffOnly: e.target.checked })} /> 차이있는것만
           </label>
