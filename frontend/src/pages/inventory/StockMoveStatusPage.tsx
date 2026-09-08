@@ -467,24 +467,33 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
-              <col style={{ width: '14%' }} /><col />
+              <col style={{ width: '4%' }} /><col style={{ width: '16%' }} /><col style={{ width: '11%' }} />
+              <col /><col style={{ width: '12%' }} />
               <col style={{ width: '9%' }} /><col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
-              <col style={{ width: '14%' }} />
+              <col style={{ width: '9%' }} /><col style={{ width: '13%' }} />
             </colgroup>
+            {/*
+              원본 격자는 <b>다섯 화면이 서로 다르다</b>(2026-09-09 실측).
+              자가사용현황(E040506): 일자-No. · 거래처명 · 품목명[규격] · 창고명 · 수량 ·
+                금액(수량*입고단가) · 적요
+              폐기현황(E040511):     일자-No. · 품목코드 · 품목명[규격명] · 수량 · 적요
+              둘에 다 있는 것을 원본 차례로 맞춘다 — 일자-No. · 품목코드 · 품목명[규격] ·
+              창고명 · 수량 · 적요. 품목명 칸의 이름도 화면마다 달라 그대로 갈라 적는다.
+              [거래처명]·[금액(수량*입고단가)]은 못 만든다(예외에 적었다).
+              프로젝트·이전재고·이후재고·담당자는 원본에 없지만 우리가 더 두는 열이다.
+            */}
             <thead>
               <tr>
                 <th></th>
-                <th>전표번호</th>
-                <th>일자</th>
-                <th>창고</th>
-                <th>품목</th>
-                {/* 원본 조건에 [규격]이 있다 — 거르려면 표에도 보여야 한다. */}
-                <th style={{ width: 110 }}>규격</th>
+                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+                <th style={{ textAlign: 'center' }}>일자-No.</th>
+                <th>품목코드</th>
+                <th>{kind === 'DISPOSAL' ? '품목명[규격명]' : '품목명[규격]'}</th>
+                <th>창고명</th>
                 {/* 원본 조건에 [프로젝트]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 110 }}>프로젝트</th>
                 <th style={{ textAlign: 'right' }}>이전재고</th>
-                <th style={{ textAlign: 'right' }}>증감</th>
+                <th style={{ textAlign: 'right' }}>수량</th>
                 <th style={{ textAlign: 'right' }}>이후재고</th>
                 {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 90 }}>담당자</th>
@@ -493,17 +502,17 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
-                  <td>{r.adjustDate.replace(/-/g, '/')}</td>
+                  <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.adjustDate.replace(/-/g, '/')} {r.adjustNo}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
+                  <td>{r.itemName}{r.spec ? ' [' + r.spec + ']' : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
-                  <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
                   <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
@@ -518,9 +527,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
-                  <td colSpan={5} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={3} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
             )}
