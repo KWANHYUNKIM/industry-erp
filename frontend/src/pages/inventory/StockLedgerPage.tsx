@@ -94,7 +94,19 @@ export default function StockLedgerPage() {
    */
   const [signBox, setSignBox] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
-  const [withInactive, setWithInactive] = useState(false)
+  /*
+   * <b>[사용중단품목포함]은 기본이 켜짐이다</b>(2026-09-09 원본 실측). 우리는 꺼짐이었다 —
+   * 수불부에서 그러면 <b>내린 품목의 입출고 기록이 통째로 사라진다.</b> 지난달까지
+   * 사고팔던 물건인데 이력이 안 보이니, 재고가 왜 그 숫자인지 되짚을 수가 없다.
+   * (재고잔량분석표·재고현황에 이어 세 번째로 같은 값이 뒤집혀 있었다.)
+   */
+  const [withInactive, setWithInactive] = useState(true)
+  /*
+   * 원본 조건 <b>[품목구분]·[품목그룹1]</b> — [품목] 바로 뒤에 선다(2026-09-09 실측).
+   * 품목 마스터는 이 화면이 이미 통째로 받고 있고(<code>items</code>), 훅도 그 값을 든다.
+   */
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
   const [byItemName, setByItemName] = useState(false)
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
@@ -151,7 +163,7 @@ export default function StockLedgerPage() {
   }, [rows, opening])
 
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 원장 줄에는 없어 따로 받는다. */
-  const { inactive, untracked } = useItemFlags()
+  const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -163,13 +175,16 @@ export default function StockLedgerPage() {
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withUntracked && untracked.has(r.itemId)) return false
       if (!withInactive && inactive.has(r.itemId)) return false
+      if (category && categoryOf(r.itemId) !== category) return false
+      if (itemGroup && groupOf(r.itemId) !== itemGroup) return false
       return true
     })
     /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례(일자순) 그대로. */
     return byItemName
       ? [...out].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
       : out
-  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive])
+  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive,
+    category, itemGroup, categoryOf, groupOf])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
@@ -226,6 +241,31 @@ export default function StockLedgerPage() {
                            onChange={(v) => setF({ itemId: v })}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={category} style={{ width: 130 }}
+                  onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        {/*
+          원본 차례: <b>[대표품목으로 합산] 이 [기타] 앞</b>이다(2026-09-09 실측).
+          예전에는 "[기타] 뒤가 마지막" 이라 적어 두었는데 사본만 보고 적은 것이라 틀렸다.
+        */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
+                   onChange={(e) => setF({ rollUp: e.target.checked })} />
+            <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
+          </label>
+        </EcCond>
         {/*
           원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
           [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
@@ -253,14 +293,6 @@ export default function StockLedgerPage() {
                      onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
             </label>
           </div>
-        </EcCond>
-        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
-        <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
-                   onChange={(e) => setF({ rollUp: e.target.checked })} />
-            <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
-          </label>
         </EcCond>
       </EcStatusPanel>
 

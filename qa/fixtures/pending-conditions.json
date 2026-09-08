@@ -1,4 +1,5 @@
 [
  "CurrentStockPage.tsx  원본 재고현황 의 [대표품목으로 합산] 조건이 없다",
- "CurrentStockPage.tsx  원본 재고현황 의 [정렬/소계기준] 조건이 없다"
+ "CurrentStockPage.tsx  원본 재고현황 의 [정렬/소계기준] 조건이 없다",
+ "StockLedgerPage.tsx  원본 재고수불부 의 [단가표시] 조건이 없다"
 ]
