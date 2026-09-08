@@ -131,6 +131,15 @@ interface Filters {
   spec: string
   remark: string
   createdBy: string
+  /**
+   * 원본 [거래유형] — 과세 · 면세.
+   *
+   * <p>앞 바퀴에 "과세·면세를 수주에서 정하지 않는다" 고 적어 두었는데 <b>틀린 말이었다</b> —
+   * <code>CreateSalesOrderRequest</code> 가 <code>taxable</code> 을 받고 서비스가 그것으로
+   * 부가세를 매긴다. 엔티티에 칸이 없을 뿐이고, 줄의 부가세로 되짚을 수 있다
+   * (판매·구매·발주 화면들이 이미 그 규칙을 쓴다).
+   */
+  taxType: string
   /** 원본 [창고]·[프로젝트]·[담당자]. */
   warehouse: string
   project: string
@@ -156,7 +165,7 @@ const init = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: init.from, dateTo: init.to, partner: '', item: '', status: '', unshippedOnly: false, sortByDoc: false,
-  spec: '', remark: '', createdBy: '', warehouse: '', project: '', employee: '', partnerMgr: '',
+  spec: '', remark: '', createdBy: '', taxType: '', warehouse: '', project: '', employee: '', partnerMgr: '',
   qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
 }
 
@@ -246,6 +255,7 @@ export default function SalesOrderStatusPage() {
       if (f.project && !(r.project ?? '').includes(f.project)) return false
       if (f.employee && (r.employee ?? '') !== f.employee) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+      if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false
       if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
       if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
       if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
@@ -371,6 +381,13 @@ export default function SalesOrderStatusPage() {
           <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"
                            value={filters.partnerMgr} onChange={(v) => setF({ partnerMgr: v })}
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: [거래처관리담당자] 다음이 외화종류·<b>[거래유형]</b>·참조다. */}
+        <EcCond label="거래유형">
+          <select className="ec-input" value={filters.taxType} style={{ width: 110 }}
+                  onChange={(e) => setF({ taxType: e.target.value })}>
+            <option value="">전체</option><option>과세</option><option>면세</option>
+          </select>
         </EcCond>
         {/*
           원본 <b>[검색창내용]</b> — 조건 판 안의 글자 칸이다(다른 화면도 EcCond 로 그린다).

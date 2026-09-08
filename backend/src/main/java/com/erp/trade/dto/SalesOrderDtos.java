@@ -148,7 +148,19 @@ public final class SalesOrderDtos {
             Long warehouseId, String warehouseName,
             Long projectId, String projectName,
             Long employeeId, String employeeName,
-            String remark, String spec, String createdBy
+            String remark, String spec, String createdBy,
+            /**
+             * 과세 전표인가 — 원본 미판매현황(E040212)의 <b>[거래유형]</b> 이 쓰는 값.
+             *
+             * <p>앞서 "과세·면세를 수주에서 정하지 않는다" 고 적어 두었는데 틀린 말이었다 —
+             * <code>CreateSalesOrderRequest</code> 가 <code>taxable</code> 을 받고
+             * <code>SalesOrderService</code> 가 그것으로 부가세를 매긴다. 엔티티에 칸이
+             * 없을 뿐이라 서비스와 같은 방식으로 <b>전표 부가세에서 되짚는다.</b>
+             *
+             * <p>줄에는 부가세가 없어(미판매수량·금액만 낸다) 화면이 스스로 되짚을 수 없다 —
+             * 그래서 값을 여기서 실어 준다.
+             */
+            boolean taxable
     ) {
         public static UnsoldLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal sold) {
             BigDecimal orderQty = l.getQuantity();
@@ -170,7 +182,8 @@ public final class SalesOrderDtos {
                     o.getProject() != null ? o.getProject().getName() : null,
                     o.getEmployee() != null ? o.getEmployee().getId() : null,
                     o.getEmployee() != null ? o.getEmployee().getName() : null,
-                    o.getRemark(), l.getItem().getSpec(), o.getCreatedBy());
+                    o.getRemark(), l.getItem().getSpec(), o.getCreatedBy(),
+                    o.getVatAmount() != null && o.getVatAmount().signum() > 0);
         }
     }
 

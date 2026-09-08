@@ -57,6 +57,11 @@ interface UnsoldLine {
   remark: string | null
   spec: string | null
   createdBy: string | null
+  /**
+   * 원본 [거래유형] — 과세 · 면세. 줄에는 부가세가 없어(미판매수량·금액만 낸다)
+   * 화면이 스스로 되짚을 수 없다 — 서버가 전표 부가세로 되짚어 실어 준다.
+   */
+  taxable: boolean
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -82,6 +87,7 @@ export default function UnsoldStatusPage() {
     from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
     warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
     status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+    taxType: '',
   })
   /**
    * 원본 [정렬기준]·[데이터 보기형식] — 조건 판의 맨 끝 둘이다.
@@ -126,6 +132,8 @@ export default function UnsoldStatusPage() {
     .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
     .filter((r) => !cond.status || r.status === cond.status)
     .filter((r) => !cond.createdBy || (r.createdBy ?? '') === cond.createdBy)
+    /* 원본 [거래유형]. 서버가 전표 부가세로 되짚어 준 값을 그대로 쓴다. */
+    .filter((r) => !cond.taxType || (r.taxable ? '과세' : '면세') === cond.taxType)
     /* 원본 [품목별납기일자] — 라인 납기가 없어 전표 납기로 본다(아래 [남은 것] 참고). */
     .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
     .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
@@ -161,6 +169,7 @@ export default function UnsoldStatusPage() {
       from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
       warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
       status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+      taxType: '',
     })
     setByDue(false); setView('표')
   }
@@ -257,6 +266,13 @@ export default function UnsoldStatusPage() {
           <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyTo}
                  onChange={(e) => setC({ orderQtyTo: e.target.value })} />
+        </EcCond>
+        {/* 원본 차례: [수량] 다음이 내.외자구분·<b>[거래유형]</b>·규격이다. */}
+        <EcCond label="거래유형">
+          <select className="ec-input" value={cond.taxType} style={{ width: 110 }}
+                  onChange={(e) => setC({ taxType: e.target.value })}>
+            <option value="">전체</option><option>과세</option><option>면세</option>
+          </select>
         </EcCond>
         <EcCond label="규격">
           <input className="ec-input" placeholder="규격" value={cond.spec}
