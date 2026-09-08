@@ -303,24 +303,33 @@ export default function ReceiptInquiryPage() {
                        shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                      )} />
             </th>
-            <th>일자</th>
-            <th>입고번호</th>
-            <th>작업지시번호</th>
-            <th>완제품명</th>
-            <th style={{ textAlign: 'right' }}>입고수량</th>
-            <th>단위</th>
-            <th>생산된공장</th>
-            <th>받는창고</th>
-            <th>담당자</th>
+            {/*
+              원본 격자(2026-09-09 E040408 실측):
+              <b>일자-No. · 생산된공장명 · 받는창고명 · 품목명[규격] · 수량 · 담당자명 ·
+              작업지시서 · 인쇄</b>.
+              우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) <b>작업지시번호를 맨 앞</b>에
+              두었는데 원본은 <b>담당자명 뒤</b>이고 이름도 [작업지시서] 다,
+              (3) 만든 자리·받는 자리를 <b>품목 뒤</b>에 두었는데 원본은 <b>품목 앞</b>이다,
+              (4) 이름이 다섯 다르다 - 완제품명/입고수량/생산된공장/받는창고/담당자.
+              [단위]는 원본에 없지만 우리가 더 두는 열이라 맨 뒤에 붙인다.
+            */}
+            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th>생산된공장명</th>
+            <th>받는창고명</th>
+            <th>품목명[규격]</th>
+            <th style={{ textAlign: 'right' }}>수량</th>
+            <th>담당자명</th>
+            <th>작업지시서</th>
             {/* 원본 생산입고조회의 마지막 열 [인쇄]. */}
             <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+            <th>단위</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -330,18 +339,23 @@ export default function ReceiptInquiryPage() {
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.prodNo}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>
-              <td>[{r.productCode}] {r.productName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
-              <td>{r.productUnit}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.productionDate)} {r.prodNo}</td>
               <td>{r.fromWarehouseName ?? r.warehouseName}</td>
               <td>{r.warehouseName}</td>
+              {/*
+                원본 열 이름이 [품목명[규격]] 이라 규격을 대괄호에 붙인다.
+                품목코드는 여기서 빠진다 - 원본도 이 칸에 코드를 안 적는다(조건 판의
+                [품목] 코드도움에서 코드로 고른다).
+              */}
+              <td>{r.productName}{r.productSpec ? ` [${r.productSpec}]` : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
               <td>{r.createdBy ?? ''}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
+              <td>{r.productUnit}</td>
             </tr>
           ))}
         </tbody>
