@@ -2930,5 +2930,21 @@
    "dueDate"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/SalesOrderLine.java"
+ },
+ "의료기기공급내역보고|납품일자": {
+  "claim": "공급내역 줄에 날짜가 하나뿐이다 — 납품한 날을 따로 두지 않는다",
+  "absent": [
+   "deliveryDate",
+   "deliverDate"
+  ],
+  "in": "frontend/src/pages/datacenter/MedicalDeviceReportPage.tsx"
+ },
+ "의료기기공급내역보고|납품거래처그룹": {
+  "claim": "납품처가 없으니 그 그룹도 없다",
+  "absent": [
+   "deliveryPartner",
+   "shipToPartner"
+  ],
+  "in": "frontend/src/pages/datacenter/MedicalDeviceReportPage.tsx"
  }
 }

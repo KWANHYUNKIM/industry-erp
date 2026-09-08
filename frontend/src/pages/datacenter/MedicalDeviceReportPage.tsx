@@ -8,6 +8,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 
 /**
  * 데이터센터 > 데이터내보내기 > 의료기기공급내역보고 (이카운트 E040231)
@@ -76,6 +77,8 @@ export default function MedicalDeviceReportPage() {
   const [to, setTo] = useState(initP.to)
   const [supplyType, setSupplyType] = useState('')
   const [partnerId, setPartnerId] = useState('')
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const { groupOptions, groupOfName } = usePartnerGroups()
   /*
    * 원본 의료기기공급내역보고 조건에 <b>[품목]</b> 이 있다(사본 실측). 공급내역은 품목별로
    * 줄이 서는데 그것으로 거를 수가 없어, 한 기기의 공급만 보려면 표를 눈으로 훑어야 했다.
@@ -122,8 +125,9 @@ export default function MedicalDeviceReportPage() {
   const allShapes = shapes.length === SUPPLY_SHAPES.length
   const shownLines = useMemo(
     () => lines.filter((l) => (!itemCond || l.itemName === itemCond)
+      && (!partnerGroup || groupOfName(l.partnerName) === partnerGroup)
       && (allShapes || (l.supplyShape != null && shapes.includes(l.supplyShape)))),
-    [lines, itemCond, shapes, allShapes])
+    [lines, itemCond, partnerGroup, groupOfName, shapes, allShapes])
 
   /**
    * 원본 [전표별] — 한 전표를 <b>한 줄</b>로 센다. 품목 줄은 몇 개인지와 수량 합계만 남는다.
@@ -214,9 +218,14 @@ export default function MedicalDeviceReportPage() {
             ))}
           </div>
         </label>
-        {/* 원본 의료기기공급내역보고의 이름은 [기준일자]가 아니라 <b>[납품일자]</b> 다(사본 실측)
-            — 이 구간이 재는 것이 공급(납품)한 날이다. */}
-        <label style={{ fontSize: 12.5 }}>{label('납품일자')}
+        {/*
+          예전에 "원본 이름은 [기준일자]가 아니라 [납품일자] 다(사본 실측)" 라고 적어 두었는데
+          <b>둘 다 있다.</b> 2026-09-09 에 원본(E040231)을 열어 재니 조건이 <b>스물넷</b>이고
+          [기준일자]와 [납품일자]가 <b>따로</b> 선다 — 앞엣것은 전표를 끊은 날, 뒤엣것은
+          실제로 납품한 날이다. 우리 공급내역에는 날짜가 <b>하나뿐</b>(전표일자)이라
+          이 구간은 [기준일자] 다. [납품일자]는 예외로 적었다.
+        */}
+        <label style={{ fontSize: 12.5 }}>{label('기준일자')}
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
@@ -229,6 +238,17 @@ export default function MedicalDeviceReportPage() {
           </select></label>
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={160}
                          items={partnerCodeItems(partners)} />
+        {/*
+          원본 조건 <b>[거래처그룹]</b>. 의료기기는 거래처 <b>종류</b>(병원·약국·도매)로 묶어
+          보는 일이 잦은데 거래처를 하나씩만 고를 수 있었다. 거래처그룹은 마스터에 진작 있다.
+        */}
+        <label style={{ fontSize: 12.5 }}>{label('거래처그룹')}
+          <select className="ec-input" value={partnerGroup} style={{ width: 150 }}
+                  onChange={(e) => setPartnerGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
         <label style={{ fontSize: 12.5 }}>{label('공급형태')}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 3 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
