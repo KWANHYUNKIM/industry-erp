@@ -336,17 +336,30 @@ export default function StockLedgerPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              <b>재고수불부(E040702) 2026-09-09 원본 격자 실측</b> — 원본은 <b>품목마다
+              작은 표를 하나씩</b> 찍는다(자료 286개 품목 = 표 286개). 표 하나의 열은
+              [일자 · <b>거래처명</b> · <b>적요</b> · <b>입고수량</b> · <b>출고수량</b> ·
+              <b>재고수량</b>] 이고, 맨 윗줄이 <b>[전일재고]</b>, 맨 아랫줄이 <b>[합계]</b> 다.
+              우리는 품목·창고를 <b>열</b>로 두고 한 표에 다 편다 — 품목을 안 고르고
+              기간만으로도 볼 수 있어야 하기 때문이다(원본은 품목 수가 많으면
+              "조회품목을 재지정하겠습니까" 를 먼저 묻는다).
+              이름 넷이 어긋나 있었다: [입고]·[출고]·[잔량]·[비고] →
+              <b>[입고수량]·[출고수량]·[재고수량]·[적요]</b>. [적요] 자리도 원본을 따라
+              수량 앞으로 옮겼다. [거래처명]은 못 만든다(아래 예외).
+              [유형]·[단가]·[금액]은 우리 열이다.
+            */}
             <th style={{ width: 34 }}></th>
-            <th>일자</th>
+            <th style={{ textAlign: 'center' }}>일자</th>
             <th style={{ textAlign: 'center', width: 60 }}>유형</th>
             <th>품목</th>
             <th>창고</th>
-            <th style={{ textAlign: 'right' }}>입고</th>
-            <th style={{ textAlign: 'right' }}>출고</th>
-            <th style={{ textAlign: 'right' }}>잔량</th>
+            <th>적요</th>
+            <th style={{ textAlign: 'right' }}>입고수량</th>
+            <th style={{ textAlign: 'right' }}>출고수량</th>
+            <th style={{ textAlign: 'right' }}>재고수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>금액</th>
-            <th>비고</th>
           </tr>
         </thead>
         <tbody>
@@ -365,18 +378,18 @@ export default function StockLedgerPage() {
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.transactionDate)}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.transactionDate)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
+                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : ''}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>
             )
           })}
