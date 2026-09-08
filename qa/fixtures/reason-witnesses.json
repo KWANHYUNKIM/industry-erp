@@ -1691,5 +1691,13 @@
    "validDate"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+ },
+ "견적서현황|시리얼/로트No.": {
+  "claim": "견적 라인에 시리얼/로트 칸이 없다",
+  "absent": [
+   "lotNo",
+   "serialNo"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
  }
 }

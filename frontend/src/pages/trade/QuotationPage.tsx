@@ -2,6 +2,8 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
@@ -109,12 +111,29 @@ export default function QuotationPage() {
   /** 원본 [관리항목]. 이 화면은 품목 마스터를 진작 통째로 받아 두고 있다. */
   const mgmt = useItemMgmt(items)
   const [mgmtCond, setMgmtCond] = useState('')
+  /*
+   * 원본 [거래처] — 차례는 [관리항목] 다음, [품목] 앞이다(2026-09-08 견적서현황 실측).
+   * 표에는 거래처명을 진작 찍고 있었는데 <b>그것으로 거를 자리가 없었다.</b>
+   */
+  const [partnerCond, setPartnerCond] = useState('')
   /**
    * 원본 조건 판 <b>[기타]</b>의 [수정일자순(정렬)]. 2026-09-07 에 켜져 있는 원본
    * (C000071 견적서조회)을 열어 쟀다 — [기타] 안에는 이 하나가 들어 있고 기본은 꺼짐이다.
    * 판매조회·구매조회와 같은 모양이다.
    */
   const [byUpdated, setByUpdated] = useState(false)
+  /*
+   * 2026-09-08 에 <b>견적서현황(E040208)</b> 을 열어 재니 조건이 <b>열하나</b>다 —
+   * 메뉴 · 구분 · 기준일자 · 견적No. · 내.외자구분 · 창고 · 프로젝트 · 관리항목 ·
+   * 거래처 · 품목 · 시리얼/로트No.
+   *
+   * <p>맨 위 두 줄이 우리에게 없었다. <b>[메뉴]</b> 는 현황★·집계, <b>[구분]</b> 안에는
+   * 라인별과 <b>비교기간</b>(사용안함★·전년/전월/전주/전일동일기간)이 들어 있다.
+   * 한 화면이 입력·조회·현황을 겸하다 보니 <b>목록 하나만</b> 내고 있었다 —
+   * "이번 달에 어느 거래처에 얼마나 견적을 냈나" 를 이 화면에서 못 봤다.
+   */
+  const [menu, setMenu] = useState<'현황' | '집계'>('현황')
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
 
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
@@ -122,6 +141,7 @@ export default function QuotationPage() {
     .filter((r) => !noCond || r.quoteNo.includes(noCond))
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
@@ -131,6 +151,34 @@ export default function QuotationPage() {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
     [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options, byUpdated])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
+
+  /**
+   * 원본 [구분]의 <b>비교기간</b>. 같은 길이의 앞 구간을 같은 조건으로 다시 세어
+   * <b>합계만</b> 견준다 — 목록을 두 벌 그리지 않는다(주문서현황과 같은 방식).
+   */
+  const prevRange = comparePeriodOf(from, to, compare)
+  const prevTotals = useMemo(() => {
+    if (!prevRange) return { count: 0, supply: 0 }
+    return rows
+      .filter((r) => r.quoteDate >= prevRange.from && r.quoteDate <= prevRange.to)
+      .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+      .filter((r) => !noCond || r.quoteNo.includes(noCond))
+      .filter((r) => !whCond || r.warehouseName === whCond)
+      .filter((r) => !projCond || r.projectName === projCond)
+      .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+      .reduce((a, r) => ({ count: a.count + 1, supply: a.supply + r.supplyAmount }), { count: 0, supply: 0 })
+  }, [rows, prevRange, tab, noCond, whCond, projCond, itemCond])
+
+  /** 원본 [메뉴]의 <b>집계</b> — 거래처별로 묶어 건수와 공급가액을 낸다. */
+  const summary = useMemo(() => {
+    const m = new Map<string, { partner: string; count: number; supply: number; vat: number }>()
+    for (const r of shown) {
+      const g = m.get(r.partnerName) ?? { partner: r.partnerName, count: 0, supply: 0, vat: 0 }
+      g.count += 1; g.supply += r.supplyAmount; g.vat += r.vatAmount
+      m.set(r.partnerName, g)
+    }
+    return [...m.values()].sort((a, b) => b.supply - a.supply)
+  }, [shown])
 
   async function send(q: Quotation) {
     try { await api.post(`/quotations/${q.id}/send`); flash(`${q.quoteNo} 발송`); load() }
@@ -252,6 +300,30 @@ export default function QuotationPage() {
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/*
+          원본 조건 판의 <b>맨 위 두 줄</b>(2026-09-08 견적서현황 실측).
+          [메뉴]는 현황★·집계, [구분] 안에는 비교기간이 있다.
+        */}
+        <EcCond label="메뉴">
+          <div className="ec-pills">
+            {(['현황', '집계'] as const).map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${menu === m ? ' active' : ''}`}
+                      onClick={() => setMenu(m)}>{m}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="구분">
+          <select className="ec-input" value={compare} style={{ width: 150 }}
+                  onChange={(e) => setCompare(e.target.value as ComparePeriod)}>
+            {COMPARE_PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {prevRange && (
+            <span style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+              비교 대상 {prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')}
+              {' · 견적 '}{prevTotals.count}건 · {prevTotals.supply.toLocaleString()}원
+            </span>
+          )}
+        </EcCond>
         {/* 원본 조건 차례의 첫째 <b>[기준일자]</b>. 단추는 원본대로 종료일 다음에 최근30일(+1개월). */}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
@@ -289,6 +361,11 @@ export default function QuotationPage() {
                            value={mgmtCond} onChange={setMgmtCond}
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
+                           value={partnerCond} onChange={setPartnerCond}
+                           items={partners.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
@@ -320,6 +397,37 @@ export default function QuotationPage() {
         ))}
       </div>
 
+      {/*
+        원본 [메뉴]가 <b>집계</b>면 거래처별로 묶어 건수·공급가액을 낸다 —
+        "이번 달에 어느 거래처에 얼마나 견적을 냈나" 가 이 화면의 물음이다.
+        목록(현황)과 같은 조건을 그대로 쓴다.
+      */}
+      {menu === '집계' ? (
+        <>
+          <EcBarChart unit=" 원" emptyText="조회된 견적이 없습니다."
+                      rows={summary.map((g) => ({ label: g.partner, value: g.supply }))} />
+          <table className="w-full text-left" style={{ marginTop: 10 }}>
+            <thead><tr>
+              <th>거래처</th>
+              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 150, textAlign: 'right' }}>공급가액</th>
+              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
+            </tr></thead>
+            <tbody>
+              {summary.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : summary.map((g) => (
+                <tr key={g.partner}>
+                  <td style={{ fontWeight: 600 }}>{g.partner}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{g.supply.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{g.vat.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -408,6 +516,7 @@ export default function QuotationPage() {
           ))}
         </tbody>
       </table>
+      )}
 
       {showForm && <QuotationForm items={items} partners={partners} warehouses={warehouses} projects={projects} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}
     </EcListShell>
