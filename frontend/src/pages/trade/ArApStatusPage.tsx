@@ -31,8 +31,14 @@ const won = (n: number) => n.toLocaleString()
 
 export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?: Mode }) {
   const [mode, setMode] = useState<Mode>(defaultMode)
-  /** 원본 기준일자는 <b>한 날짜</b>이고 [금월(~오늘)] 이 눌린 채로 열린다(2026-09-02 실측). */
-  const [asOf, setAsOf] = useState(periodOf('금월(~오늘)')!.to)
+  /*
+   * 원본 기준일자는 <b>한 날짜</b>인데 <b>기본값이 화면마다 다르다</b> —
+   * 채권현황·채무현황(E040721)은 <b>금월(~오늘)</b>(2026-09-02 실측)이고,
+   * 채권/채무현황(E040703)은 <b>금일</b>(2026-09-08 실측)이다.
+   * 한 파일이 셋을 겸하면서 한 값으로 열고 있었다 — [구분]으로 갈린다.
+   */
+  const [asOf, setAsOf] = useState(
+    defaultMode === 'BOTH' ? periodOf('금일')!.to : periodOf('금월(~오늘)')!.to)
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   /*
@@ -130,7 +136,13 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   const [view, setView] = useState<'표' | '그래프'>('표')
   /*
-   * 원본 거래처별채권·채무의 [그래프로 보기].
+   * <b>[데이터 보기형식]은 이 화면의 원본에는 없다.</b> 2026-09-08 에 채권/채무현황(E040703)을
+   * 재고 앞서 채권현황(E040721)을 잰 것을 견주니 <b>둘 다 이 줄이 없다</b> —
+   * 아래 주석이 가리키는 <b>거래처별채권·채무</b>는 이 파일이 겸하지 않는 다른 화면이다.
+   * 지우지 않고 남기되, 원본에 없는 우리 칸이라는 것을 여기 적어 둔다
+   * (같은 화면의 [잔액 0 숨김]과 같은 처지다).
+   *
+   * <p>원본 거래처별채권·채무의 [그래프로 보기].
    *
    * <p>보고 있는 [구분]이 재는 값을 그린다. 채권/채무를 함께 보는 중이면
    * <b>순채권(채권−채무)</b>을 그린다 — 그래야 줄 것이 더 많은 거래처가 음수 막대로

@@ -43,11 +43,21 @@ public final class SalesOrderDtos {
 
     public record OrderLineResponse(
             Long lineId, Long itemId, String itemCode, String itemName, String unit,
+            /**
+             * 규격 — 2026-09-08 원본 주문서현황(E040209)의 조건이다.
+             *
+             * <p>같은 파일의 미출하·미판매 응답은 규격을 이미 싣는데 <b>이 응답만 빠져</b>
+             * 있었다. 그래서 주문서현황은 [규격] 조건을 '못 만드는 것' 으로 적어 두어야 했고,
+             * 그 이유에는 근거를 달 수도 없었다(파일 단위로는 spec 이 있으니까).
+             * 없던 것은 <b>줄</b>이지 파일이 아니었다 — 품목 마스터의 값을 실기만 하면 된다.
+             */
+            String spec,
             BigDecimal quantity, BigDecimal shippedQty, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
     ) {
         static OrderLineResponse from(SalesOrderLine l) {
             return new OrderLineResponse(
                     l.getId(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getSpec(),
                     l.getQuantity(), l.getShippedQty(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
         }
     }

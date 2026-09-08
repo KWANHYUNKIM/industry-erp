@@ -57,6 +57,8 @@ interface OrderLineResponse {
   itemCode: string
   itemName: string
   unit: string
+  /** 원본 [규격]. 2026-09-08 에 서버 응답을 넓혀 실어 준다. */
+  spec: string | null
   quantity: number
   shippedQty: number
   unitPrice: number
@@ -99,6 +101,8 @@ interface Row {
   remark: string | null
   /** 원본 [작성자]. 위와 같음. */
   createdBy: string | null
+  /** 원본 [규격]. 2026-09-08 에 OrderLineResponse 를 넓혀 받는다. */
+  spec: string | null
   date: string
   dueDate: string | null
   orderNo: string
@@ -124,6 +128,7 @@ interface Filters {
   unshippedOnly: boolean
   sortByDoc: boolean
   /** 원본 [적요]·[작성자]. */
+  spec: string
   remark: string
   createdBy: string
   /** 원본 [창고]·[프로젝트]·[담당자]. */
@@ -151,7 +156,7 @@ const init = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: init.from, dateTo: init.to, partner: '', item: '', status: '', unshippedOnly: false, sortByDoc: false,
-  remark: '', createdBy: '', warehouse: '', project: '', employee: '', partnerMgr: '',
+  spec: '', remark: '', createdBy: '', warehouse: '', project: '', employee: '', partnerMgr: '',
   qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
 }
 
@@ -189,6 +194,7 @@ export default function SalesOrderStatusPage() {
           const shipped = l.shippedQty ?? 0
           flat.push({
             key: `${d.id}-${l.lineId ?? idx}`,
+            spec: l.spec,
             warehouse: d.warehouseName,
             project: d.projectName,
             employee: d.employeeName,
@@ -240,6 +246,7 @@ export default function SalesOrderStatusPage() {
       if (f.project && !(r.project ?? '').includes(f.project)) return false
       if (f.employee && (r.employee ?? '') !== f.employee) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+      if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
       if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
       if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
       if (!inRange(r.qty, f.qtyFrom, f.qtyTo)) return false
@@ -380,6 +387,11 @@ export default function SalesOrderStatusPage() {
           숫자 넷은 응답이 진작 싣는 값인데 거를 자리가 없었다 —
           "십만 원 넘는 줄만" 같은 물음을 눈으로 훑어야 했다.
         */}
+        {/* 원본 차례: [검색창내용] 다음이 <b>[규격]</b> 이다(2026-09-08 실측). */}
+        <EcCond label="규격">
+          <input className="ec-input" placeholder="규격" value={filters.spec}
+                 onChange={(e) => setF({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}
                  onChange={(e) => setF({ qtyFrom: e.target.value })} />
