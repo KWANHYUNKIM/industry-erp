@@ -18,6 +18,13 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 const won = (n: number) => n.toLocaleString('ko-KR')
 /*
  * 원본 경영자보고서의 [기준일자] 기본값은 <b>금월(~오늘)</b> 이다(2026-09-08 실측).
+ *
+ * <p><b>2026-09-09 에 다시 열어 대조했다 — 그대로 맞다.</b> 조건은 [기준일자]와 [기타]
+ * 둘뿐이고 [기타] 안에는 <b>[결재방표시]</b> 체크박스 하나가 <b>꺼진 채</b>로 있다.
+ * (그 체크박스의 <code>data-ecpath</code> 가 <code>ESZ005R_…∫cbRptConfirm∫EtcChk</code> 라,
+ * 예전에 화면코드로 잘못 박아 두었던 ESZ005R 이 <b>양식의 내부 id</b> 였음도 다시 확인된다.
+ * 메뉴가 여는 코드는 <b>E040704</b> 다.)
+ * 기본값을 <code>ecount-checkbox-default.json</code> 에 적어 못 박았다.
  * 값은 여태 쓰던 것과 같지만, 검사가 읽을 수 있게 <code>periodOf</code> 로 적는다 —
  * 손으로 만든 날짜 문자열은 '어느 빠른선택인지' 를 아무 데도 말해 주지 않는다.
  */
