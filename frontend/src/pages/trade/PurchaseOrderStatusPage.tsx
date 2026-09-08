@@ -270,7 +270,37 @@ export default function PurchaseOrderStatusPage() {
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
   const sort = useTableSort(shown, {
     발주일자: (r) => r.date,
-  })
+  }, { key: '발주일자', dir: 'asc' })
+
+  /**
+   * 원본은 <b>달이 바뀌는 자리에 소계 줄</b>을 끼운다('2026/09 계' - 2026-09-09 E040306 실측).
+   * 우리 표에는 없어서 "이 달에 얼마나 발주했나" 를 눈으로 더해야 했다.
+   * 판매현황이 쓰는 것과 같은 방식이다 - 목록을 만들면서 <b>같이</b> 넣는다.
+   * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
+   * 이 표는 그래서 <b>정렬을 풀 수 없다</b>(오름/내림만 오간다) - 날짜로 묶여 있지
+   * 않으면 소계가 엉킨다.
+   */
+  const lineRows = useMemo(() => {
+    type Line = { kind: 'line'; key: string; no: number; r: Row }
+    type Sub = { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
+    const out: (Line | Sub)[] = []
+    let month = ''
+    let no = 0
+    let qty = 0, supply = 0, vat = 0
+    const flush = () => {
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
+      qty = 0; supply = 0; vat = 0
+    }
+    for (const r of sort.sorted) {
+      const m = r.date.slice(0, 7).replace('-', '/')
+      if (m !== month) { flush(); month = m }
+      out.push({ kind: 'line', key: r.key, no: ++no, r })
+      qty += r.qty; supply += r.supply; vat += r.vat
+    }
+    flush()
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort.sorted])
 
   return (
     <EcListShell
@@ -414,32 +444,42 @@ export default function PurchaseOrderStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
+          ) : lineRows.length === 0 ? (
             <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '발주 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : sort.sorted.map((r, i) => (
-            <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+          ) : lineRows.map((x) => x.kind === 'subtotal' ? (
+            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
+              <td colSpan={7} style={{ textAlign: 'right' }}>{x.month} 계</td>
+              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
+              <td></td>
+              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
+              <td colSpan={2}></td>
+            </tr>
+          ) : (
+            <tr key={x.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
               {/* 원본은 일자와 번호를 '2026/09/04 -1' 처럼 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.date)} {r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
-              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.orderNo}</td>
+              <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(x.r.dueDate) || ''}</td>
+              <td style={{ color: x.r.warehouse ? undefined : '#c5cbd3' }}>{x.r.warehouse || ''}</td>
+              <td style={{ color: x.r.employee ? undefined : '#c5cbd3' }}>{x.r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>
-                  {r.statusName || STATUS_LABEL[r.status]}
+                <span style={{ color: STATUS_COLOR[x.r.status], fontWeight: 600, fontSize: 12 }}>
+                  {x.r.statusName || STATUS_LABEL[x.r.status]}
                 </span>
               </td>
               {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 진작 들고 있으면서 안 찍고 있었다. */}
-              <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
-              <td>{r.partner}</td>
+              <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
+              <td>{x.r.partner}</td>
               {/* 줄 적요가 있으면 그것을, 없으면 전표 적요를 찍는다 — 둘 다 진작 받아 두고 있었다. */}
-              <td style={{ color: '#5a626e' }}>{r.lineRemark || r.headRemark || ''}</td>
+              <td style={{ color: '#5a626e' }}>{x.r.lineRemark || x.r.headRemark || ''}</td>
             </tr>
           ))}
         </tbody>

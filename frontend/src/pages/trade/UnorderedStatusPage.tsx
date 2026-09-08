@@ -234,7 +234,36 @@ export default function UnorderedStatusPage() {
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
   const sort = useTableSort(shown, {
     견적일자: (r) => r.date,
-  })
+  }, { key: '견적일자', dir: 'asc' })
+
+  /**
+   * 원본은 <b>달이 바뀌는 자리에 소계 줄</b>을 끼운다('2026/03 계' - 2026-09-09 E040211 실측).
+   * 발주서현황(E040306)도 같다. 우리 표에는 없어서 "이 달에 아직 안 넘어간 견적이
+   * 얼마나 되나" 를 눈으로 더해야 했다. 판매현황이 쓰는 것과 같은 방식으로,
+   * 목록을 만들면서 <b>같이</b> 넣는다 - 두 벌로 세면 소계와 줄이 어긋난다.
+   * 그래서 이 표는 <b>정렬을 풀 수 없다</b>(오름/내림만 오간다).
+   */
+  const lineRows = useMemo(() => {
+    type Line = { kind: 'line'; key: string; no: number; r: Row }
+    type Sub = { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
+    const out: (Line | Sub)[] = []
+    let month = ''
+    let no = 0
+    let qty = 0, supply = 0, vat = 0
+    const flush = () => {
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
+      qty = 0; supply = 0; vat = 0
+    }
+    for (const r of sort.sorted) {
+      const m = r.date.slice(0, 7).replace('-', '/')
+      if (m !== month) { flush(); month = m }
+      out.push({ kind: 'line', key: r.key, no: ++no, r })
+      qty += r.qty; supply += r.supply; vat += r.vat
+    }
+    flush()
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort.sorted])
 
   return (
     <EcListShell
@@ -438,28 +467,38 @@ export default function UnorderedStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
+          ) : lineRows.length === 0 ? (
             <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '미주문(미전환) 견적이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : sort.sorted.map((r, i) => (
-            <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+          ) : lineRows.map((x) => x.kind === 'subtotal' ? (
+            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
+              <td colSpan={5} style={{ textAlign: 'right' }}>{x.month} 계</td>
+              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
+              <td></td>
+              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
+              <td colSpan={2}></td>
+              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
+            </tr>
+          ) : (
+            <tr key={x.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
               {/* 원본은 일자와 번호를 '2026/03/12 -1' 처럼 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.date)} {r.quoteNo}</td>
-              <td style={{ fontFamily: 'monospace', color: r.expired ? '#c60a2e' : r.validUntil ? '#5a626e' : '#c5cbd3' }}>
-                {r.validUntil ?? '-'}{r.expired ? ' (경과)' : ''}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.quoteNo}</td>
+              <td style={{ fontFamily: 'monospace', color: x.r.expired ? '#c60a2e' : x.r.validUntil ? '#5a626e' : '#c5cbd3' }}>
+                {x.r.validUntil ?? '-'}{x.r.expired ? ' (경과)' : ''}
               </td>
               <td style={{ textAlign: 'center' }}>
-                <span style={{ color: statusColor(r.status), fontWeight: 600, fontSize: 12 }}>{r.statusName}</span>
+                <span style={{ color: statusColor(x.r.status), fontWeight: 600, fontSize: 12 }}>{x.r.statusName}</span>
               </td>
-              <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
-              <td>{r.partner}</td>
-              <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+              <td>{x.r.itemName}{x.r.spec ? ` (${x.r.spec})` : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{x.r.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
+              <td>{x.r.partner}</td>
+              <td style={{ color: '#5a626e' }}>{x.r.remark ?? ''}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
