@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { useItemFlags } from '../../utils/useInactiveItems'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -24,6 +25,14 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * 내역과 라인별이 같은 표가 된다. 없는 구분을 흉내내지 않고 [내역|집계] 둘만 둔다.
  *
  * 원본 조건 중 프로젝트·담당자는 StockAdjustment 에 없어 넣지 않았다.
+ *
+ * <p><b>[기타]는 재고조정현황(E040608)에만 있다.</b> 2026-09-08 에 그 화면을 열어 재니
+ * 조건이 <b>스물</b>이고([양식] 구역 머리까지 세면), [기타] 안에는 체크가 둘 —
+ * <b>조정수량0포함</b>·<b>수량관리제외품목포함</b> 이며 <b>둘 다 꺼짐</b>이 기본이다.
+ * 나머지 넷(자가사용·불량처리·대체사용·폐기)의 조건 판에는 [기타] 자체가 없다.
+ *
+ * <p>조정수량이 0 인 줄은 <b>손댔지만 수량은 그대로</b>인 전표다(창고만 바꿨거나 취소분).
+ * 원본이 기본으로 빼는 이유가 그것이라 우리도 뺀다 — 켜야 보인다.
  */
 export type AdjustKind = 'SELF_USE' | 'DEFECT' | 'SUBSTITUTE' | 'DISPOSAL' | 'ADJUST'
 
@@ -118,6 +127,10 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     createdBy: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+  /** 원본 [기타] — 재고조정현황에만 있다. 실측한 기본값은 둘 다 꺼짐이다. */
+  const [withZeroQty, setWithZeroQty] = useState(false)
+  const [withUntracked, setWithUntracked] = useState(false)
+  const { untracked } = useItemFlags()
 
   function load() {
     setLoading(true)
@@ -162,6 +175,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
 
   const shown = rows
     .filter((r) => r.type === kind)
+    /* 원본 [기타]. 재고조정 말고는 그 칸이 없으니 다른 유형에서는 걸지 않는다. */
+    .filter((r) => kind !== 'ADJUST' || withZeroQty || r.quantityChange !== 0)
+    .filter((r) => kind !== 'ADJUST' || withUntracked || !untracked.has(r.itemId))
     .filter((r) => !cond.from || r.adjustDate >= cond.from)
     .filter((r) => !cond.to || r.adjustDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
@@ -392,6 +408,22 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
         </EcCond>
+        {/*
+          원본 [기타] — <b>재고조정현황에만</b> 있고 [적요] 다음, [최초작성자] 앞이다
+          (2026-09-08 실측). 다른 네 화면에는 그 칸이 없으므로 그릴 때도 가린다.
+        */}
+        {kind === 'ADJUST' && (
+          <EcCond label="기타">
+            <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="checkbox" checked={withZeroQty} onChange={(e) => setWithZeroQty(e.target.checked)} />
+              조정수량0포함
+            </label>
+            <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+              수량관리제외품목포함
+            </label>
+          </EcCond>
+        )}
         {/*
           원본 [최초작성자] — 다섯 화면 모두 [적요]·[진행상태] 뒤, [최종수정자] 앞이다
           (qa/fixtures/ecount-form-fields.json). 응답은 createdBy 를 <b>진작 싣고 있었는데</b>
