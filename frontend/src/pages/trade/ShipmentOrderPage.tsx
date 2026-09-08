@@ -555,16 +555,27 @@ export default function ShipmentOrderPage() {
                        shown.every((s) => checked.has(s.id)) ? new Set() : new Set(shown.map((s) => s.id)))} />
             </th>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th>
-            <th style={{ width: 100 }}>출하예정일</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
-            <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
+            {/*
+              <b>출하지시서조회(E040221) 2026-09-09 원본 격자 실측</b> — 열 여섯:
+              [일자-No. · <b>창고명</b> · 품목명(요약) · 수량합계 · <b>진행상태</b> · 인쇄].
+              바로 앞 바퀴에 잰 <b>출하조회(E040226)와 한 칸만 다르다</b> — 그쪽은
+              다섯째가 [거래처명]이고 이쪽은 [진행상태]다. 나머지는 글자까지 같다.
+              고친 것: (1) 출하번호와 출하일을 <b>두 칸</b>으로 갈라 두었다 → [일자-No.]
+              한 칸, (2) 이름 넷 — [출하창고]→[창고명] · [품목]→[품목명(요약)] ·
+              [수량]→[수량합계] · [상태]→[진행상태].
+              [인쇄]는 원본이 줄마다 두는 열인데 우리는 화면 위 [인쇄] 하나로 낸다.
+              [근거주문]·[출하예정일]·[거래처]·[금액]·[연락처]·[적요]·[처리]는 우리 열이다.
+            */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th>
+            <th style={{ width: 100 }}>출하예정일</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th style={{ width: 110 }}>창고명</th><th>품목명(요약)</th>
+            <th style={{ textAlign: 'right' }}>수량합계</th><th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ width: 110 }}>연락처</th><th style={{ width: 150 }}>적요</th>
-            <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
@@ -575,11 +586,11 @@ export default function ShipmentOrderPage() {
                 })} />
               </td>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{s.shipNo}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace' }}>{dateText(s.shipDate)} {s.shipNo}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
                 {s.salesOrderNo ?? '직접등록'}
               </td>
-              <td>{dateText(s.shipDate)}</td>
               <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || ''}</td>
               <td>{s.partnerName}</td>
               <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? ''}</td>
