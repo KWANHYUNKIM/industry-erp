@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMap } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import { amountVariance, priceVariance, qtyVariance, weightedAvgPrice } from '../../utils/costVariance'
@@ -13,7 +14,15 @@ import { useCondPickers } from '../../utils/useCondPickers'
 /**
  * 회계 > 차이분석.
  *
- * <p>원본 조건 판 실측(사본):
+ * <p>2026-09-08 에 원본(<b>E040809</b>)을 열어 조건 판을 재니 <b>열하나</b>다 —
+ * 사본에는 여섯뿐이었다. 접힌 줄은 없고 [기본]·[전체] 두 탭이 같은 판을 쓴다.
+ * 차례: 구분 · 기준월 · 품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) ·
+ * 생산공정 · 기타 · 정렬/소계기준. 실제원가현황(E040804)과 같은 판이다.
+ *
+ * <p>화면코드도 이번에 바로잡았다 — 대조표에 <b>ESS017R</b> 이라 적혀 있었는데
+ * 주소창의 <code>prgId</code> 는 <b>E040809</b> 였다.
+ *
+ * <p>원본 조건 판:
  *   [구분] 원가비교집계표 | 재료비단가차이 | 소모수량차이 | 노무비/경비/외주비차이
  *   기준월 · 품목 · 생산공정 · [기타] 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 ·
  *
@@ -88,6 +97,14 @@ export default function VariancePage() {
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()
   /**
+   * [품목구분]·[품목그룹1] — 둘 다 품목 마스터에 붙는 값이라 줄의 itemId 로 잇는다.
+   * 네 갈래(원가비교집계표·재료비단가차이·소모수량차이·노무비/경비차이) 모두 품목별 줄이라
+   * 거르는 자리는 <code>hit()</code> 하나면 된다.
+   */
+  const mgmt = useItemMgmt()
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  /**
    * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
    * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
    * 원본도 체크를 켜야 보여 준다.
@@ -122,9 +139,12 @@ export default function VariancePage() {
   }, [costs, productions, purchases])
 
   const inPeriod = (yyyymm: string) => period === '전체' || yyyymm === period
+  const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
   const hit = (itemId: number, code: string, name: string) => {
     if (!withInactive && inactive.has(itemId)) return false
     if (!withUntracked && untracked.has(itemId)) return false
+    if (categoryCond && (catOf.get(itemId) ?? '') !== categoryCond) return false
+    if (itemGroupCond && mgmt.groupOf(itemId) !== itemGroupCond) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -174,7 +194,8 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0))
-  }, [purchases, period, keyword, withInactive, inactive, withUntracked, untracked, nameOf, stdPriceOf])
+  }, [purchases, period, keyword, withInactive, inactive, withUntracked, untracked,
+      categoryCond, itemGroupCond, nameOf, stdPriceOf])
 
   // ── 소모수량차이: BOM 표준소모 vs 실제 투입 (자재별 집계)
   const qtyRows = useMemo(() => {
@@ -200,7 +221,8 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0) || Math.abs(b.diffQty) - Math.abs(a.diffQty))
-  }, [productions, boms, period, keyword, withInactive, inactive, withUntracked, untracked, nameOf, stdPriceOf, evalPriceOf])
+  }, [productions, boms, period, keyword, withInactive, inactive, withUntracked, untracked,
+      categoryCond, itemGroupCond, nameOf, stdPriceOf, evalPriceOf])
 
   // ── 노무비·경비차이
   const laborRows = compareRows.map((r) => ({
@@ -219,7 +241,18 @@ export default function VariancePage() {
       onSearch={load}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setPeriod('전체'); setKeyword(''); setWithInactive(false) } },
+        {
+          /*
+           * [다시 작성]은 <b>기본값</b>으로 되돌리는 버튼이다. [사용중단품목포함]의 기본은
+           * 켜짐(원본 실측)인데 여기서만 꺼짐으로 되돌리고 있어, 누를 때마다 줄이 줄었다.
+           */
+          label: '다시 작성',
+          onClick: () => {
+            setPeriod('전체'); setKeyword('')
+            setWithInactive(true); setWithUntracked(false)
+            setCategoryCond(''); setItemGroupCond('')
+          },
+        },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -245,6 +278,25 @@ export default function VariancePage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.items} />
+        </EcCond>
+        {/*
+          [품목구분]의 후보는 <b>줄에 실제로 있는 값</b>에서 뽑는다. 원본의 후보가 화면마다
+          달라(원가 화면들만 제품세트·상품세트가 더 있다) 목록을 지어내지 않는다.
+        */}
+        <EcCond label="품목구분" pick>
+          <select className="ec-input" value={categoryCond} style={{ width: 140 }}
+                  onChange={(e) => setCategoryCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.categoryName).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <select className="ec-input" value={itemGroupCond} style={{ width: 160 }}
+                  onChange={(e) => setItemGroupCond(e.target.value)}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
