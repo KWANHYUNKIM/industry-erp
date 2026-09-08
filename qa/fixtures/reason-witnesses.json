@@ -2662,5 +2662,134 @@
    "foreignYn"
   ],
   "in": "backend"
+ },
+ "매출계획|이력": {
+  "claim": "결재 이력 탭이다 — 매출계획을 결재에 올리지 않는다",
+  "absent": [
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+ },
+ "품목등록|원가": {
+  "claim": "표준원가 넷 중 셋(재료비·노무비·경비)이 우리 품목에 없다",
+  "absent": [
+   "materialCost",
+   "laborCost",
+   "overheadCost"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "의료기기공급내역보고|전체": {
+  "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
+  "absent": [
+   "sentAt",
+   "transmit",
+   "HIRA"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+ },
+ "의료기기공급내역보고|미전송": {
+  "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
+  "absent": [
+   "sentAt",
+   "transmit",
+   "HIRA"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+ },
+ "의료기기공급내역보고|전송": {
+  "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
+  "absent": [
+   "sentAt",
+   "transmit",
+   "HIRA"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+ },
+ "근태입력|저장/전표(F7)": {
+  "claim": "근태를 회계전표로 넘기지 않는다",
+  "absent": [
+   "JournalEntry"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java"
+ },
+ "수율차이": {
+  "claim": "공정별 투입·산출을 쌓지 않아 수율을 못 낸다",
+  "absent": [
+   "inputQty",
+   "outputQty",
+   "yield"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/ProductionProcess.java"
+ },
+ "거래이력조회|작업일자": {
+  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
+  "absent": [
+   "AuditLog",
+   "ChangeLog"
+  ],
+  "in": "backend"
+ },
+ "거래이력조회|작업시간": {
+  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
+  "absent": [
+   "AuditLog",
+   "ChangeLog"
+  ],
+  "in": "backend"
+ },
+ "거래이력조회|행위": {
+  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
+  "absent": [
+   "AuditLog",
+   "ChangeLog"
+  ],
+  "in": "backend"
+ },
+ "발주서조회|진행중": {
+  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소",
+  "present": [
+   "발주요청",
+   "단가확정",
+   "입고전환"
+  ],
+  "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "발주서|진행중": {
+  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소",
+  "present": [
+   "발주요청",
+   "단가확정",
+   "입고전환"
+  ],
+  "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "창고이동현황|정렬/소계기준": {
+  "claim": "[구분]이 이미 그 축을 고른다",
+  "present": [
+   "<EcCond label=\"구분\">"
+  ],
+  "file": "inventory/TransferStatusPage.tsx"
+ },
+ "재고실사현황|정렬/소계기준": {
+  "claim": "[구분]이 이미 그 축을 고른다",
+  "present": [
+   "<EcCond label=\"구분\">"
+  ],
+  "file": "inventory/StocktakeStatusPage.tsx"
+ },
+ "생산입고_소모현황 I|정렬/소계기준": {
+  "claim": "[구분]이 이미 그 축을 고른다",
+  "present": [
+   "<EcCond label=\"구분\">"
+  ],
+  "file": "production/ProductionIssueStatusPage.tsx"
+ },
+ "작업지시서현황|정렬/소계기준": {
+  "claim": "[구분]이 이미 그 축을 고른다",
+  "present": [
+   "<EcCond label=\"구분\">"
+  ],
+  "file": "production/WoStatusPage.tsx"
  }
 }
