@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMap } from '../../utils/stockValue'
 import { groupByCategory } from '../../utils/costGroup'
 import type { Item, PurchaseDoc } from '../../api/types'
@@ -99,6 +100,8 @@ export default function ActualCostPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()
+  /** [품목그룹1] — 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
+  const mgmt = useItemMgmt()
   /**
    * 원본 조건 판 [기타]의 <b>수량관리제외품목포함</b>. 기본은 꺼져 있다 —
    * 재고를 잡지 않는 품목(용역·운반비)에 표준원가를 매기는 것은 뜻이 없어서,
@@ -158,9 +161,25 @@ export default function ActualCostPage() {
     [items],
   )
 
+  /*
+   * 2026-09-08 에 원본(E040804)의 조건 판을 재니 <b>열하나</b>다(사본에는 여섯).
+   * 접힌 줄은 없고 [기본]·[전체] 두 탭이 같은 판을 쓴다.
+   *
+   * <p>여기서 만든 둘: <b>품목구분 · 품목그룹1</b>. 품목 마스터의 값이라 줄의 itemId 로
+   * 잇는다 — 품목구분은 이 화면이 <code>categoryOf</code> 로 이미 붙여 그리고 있었는데
+   * <b>거를 자리만 없었다</b>(표에는 [품목구분] 열이 있다).
+   *
+   * <p>[기타]의 체크 셋(결재방표시 꺼짐 · 수량관리제외품목포함 꺼짐 ·
+   * <b>사용중단품목포함 켜짐</b>)은 앞서 적어 둔 대조표와 실측이 그대로 맞았다.
+   */
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+
   const hit = (code: string, name: string, itemId: number) => {
     if (!withInactive && inactive.has(itemId)) return false
     if (!withUntracked && untracked.has(itemId)) return false
+    if (categoryCond && (categoryOf.get(itemId) ?? '') !== categoryCond) return false
+    if (itemGroupCond && mgmt.groupOf(itemId) !== itemGroupCond) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -227,6 +246,26 @@ export default function ActualCostPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.items} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열하나): 구분 · 기준월 · 품목 ·
+          <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 생산공정 ·
+          기타 · 정렬/소계기준. 표준원가현황과 같은 모양이다.
+        */}
+        <EcCond label="품목구분" pick>
+          <select className="ec-input" value={categoryCond} style={{ width: 140 }}
+                  onChange={(e) => setCategoryCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.categoryName).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <select className="ec-input" value={itemGroupCond} style={{ width: 160 }}
+                  onChange={(e) => setItemGroupCond(e.target.value)}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
         </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
