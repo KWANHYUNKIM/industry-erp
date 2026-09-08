@@ -1,6 +1,7 @@
 package com.erp.production.dto;
 
 import com.erp.production.domain.MaterialIssue;
+import com.erp.inventory.domain.ItemCategory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class MaterialIssueDtos {
@@ -65,6 +67,8 @@ public final class MaterialIssueDtos {
             Long itemId, String itemCode, String itemName, String unit,
             /** 규격. 원본 생산불출조회의 열 이름이 [품목명[규격명]] 이다. */
             String itemSpec,
+            /** 원본 조건 <b>[품목구분]</b>. 원재료를 낸 것인지 부재료를 낸 것인지로 먼저 갈라 본다. */
+            ItemCategory itemCategory, String itemCategoryName,
             Long warehouseId, String warehouseName,
             /** 받는공장 */
             Long toWarehouseId, String toWarehouseName,
@@ -84,13 +88,24 @@ public final class MaterialIssueDtos {
             Long employeeId,
             /** 귀속 프로젝트. 원본 머리의 [프로젝트]. */
             Long projectId, String projectName,
-            BigDecimal qty, LocalDate issueDate, String note
+            BigDecimal qty, LocalDate issueDate, String note,
+            /**
+             * 원본 조건 [최초작성일자] · [최종작업일자], 그리고 [기타]의
+             * <b>수정일자순(정렬)</b>. MaterialIssue 는 BaseTimeEntity 를 물려받아
+             * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
+             *
+             * <p>원본에는 [최초작성자]도 있으나 <b>만든 사람은 안 남긴다</b> —
+             * MaterialIssue 에 createdBy 칸이 없다(판매·구매·출하와 다르다).
+             */
+            LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
             return new MaterialIssueResponse(
                     mi.getId(), mi.getIssueNo(),
                     mi.getItem().getId(), mi.getItem().getCode(), mi.getItem().getName(), mi.getItem().getUnit(),
                     mi.getItem().getSpec(),
+                    mi.getItem().getCategory(),
+                    mi.getItem().getCategory() != null ? mi.getItem().getCategory().getDisplayName() : null,
                     mi.getWarehouse() != null ? mi.getWarehouse().getId() : null,
                     mi.getWarehouse() != null ? mi.getWarehouse().getName() : null,
                     mi.getToWarehouse() != null ? mi.getToWarehouse().getId() : null,
@@ -103,7 +118,8 @@ public final class MaterialIssueDtos {
                     mi.getEmployeeId(),
                     mi.getProject() != null ? mi.getProject().getId() : null,
                     mi.getProject() != null ? mi.getProject().getName() : null,
-                    mi.getQty(), mi.getIssueDate(), mi.getNote());
+                    mi.getQty(), mi.getIssueDate(), mi.getNote(),
+                    mi.getCreatedAt(), mi.getUpdatedAt());
         }
     }
 }

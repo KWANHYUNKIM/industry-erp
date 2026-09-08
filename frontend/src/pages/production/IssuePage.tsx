@@ -10,6 +10,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 interface MaterialIssue {
@@ -43,6 +44,14 @@ interface MaterialIssue {
   qty: number
   issueDate: string
   note: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategoryName: string | null
+  /** 원본 머리의 [프로젝트]. <b>응답에 진작 오는데</b> 이 화면이 안 받아 두고 있었다. */
+  projectId: number | null
+  projectName: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
 }
 /** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
 interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
@@ -113,6 +122,19 @@ export default function IssuePage() {
   const [itemCond, setItemCond] = useState('')
   const [empCond, setEmpCond] = useState('')
   const [noteCond, setNoteCond] = useState('')
+  const [fromWhCond, setFromWhCond] = useState('')
+  const [toWhCond, setToWhCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다(실측). */
+  const [byUpdated, setByUpdated] = useState(false)
+  /** 원본 [품목그룹1]. 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
+  const mgmt = useItemMgmt()
   const condPickers = useCondPickers(['warehouses', 'items', 'employees'])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -288,9 +310,15 @@ export default function IssuePage() {
   }
 
   /*
-   * 원본 생산불출의 조건 차례는 <b>창고 · 품목 · 프로젝트 · 담당자 · 적요</b> 다(사본 실측).
-   * 우리 화면에는 <b>조건이 하나도 없었다</b> — 검색어 한 칸이 품목명·작업지시번호를 겸했다.
-   * [프로젝트]는 생산불출 응답에 그 값이 없어 못 만든다.
+   * 2026-09-08 에 원본(생산불출조회)을 열어 조건을 <b>전부</b> 쟀다 — <b>스물아홉</b>이다.
+   * 사본에는 다섯뿐이었다(일곱 번째 같은 구멍). 기본 기간도 [최근30일(+1개월)] 이다.
+   *
+   * <p>여기 적혀 있던 '[프로젝트]는 생산불출 응답에 그 값이 없어 못 만든다' 는 <b>틀렸다</b> —
+   * MaterialIssueResponse 가 <code>projectId·projectName</code> 을 진작 싣고 있고
+   * 이 화면이 받아 두지 않았을 뿐이다.
+   *
+   * <p>원본이 [창고]와 [보내는창고]·[받는창고]를 나란히 두는 까닭은 창고이동조회와 같다 —
+   * [창고]는 어느 쪽이든 걸리고 나머지 둘은 한쪽만 건다.
    */
   const shown = rows
     .filter((r) => (!from || r.issueDate >= from) && (!to || r.issueDate <= to))
@@ -298,8 +326,20 @@ export default function IssuePage() {
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond)
       || (r.toWarehouseName ?? '').includes(whCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
+    /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
+    .filter((r) => !fromWhCond || (r.warehouseName ?? '').includes(fromWhCond))
+    .filter((r) => !toWhCond || (r.toWarehouseName ?? '').includes(toWhCond))
+    .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
+    .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
+    .filter((r) => !projectCond || (r.projectName ?? '') === projectCond)
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
     .filter((r) => !empCond || empName(r.employeeId).includes(empCond))
     .filter((r) => !noteCond || (r.note ?? '').includes(noteCond))
+    /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 불출이 위로 온다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   return (
     <EcListShell
@@ -458,9 +498,36 @@ export default function IssuePage() {
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={condPickers.warehouses} />
         </EcCond>
+        {/* 원본 차례: 창고 · (창고계층그룹) · 보내는창고 · 받는창고 · 품목 · 품목구분 · 품목그룹1 · 프로젝트 · 담당자 · 적요 … */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={fromWhCond} onChange={setFromWhCond} items={condPickers.warehouses} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={toWhCond} onChange={setToWhCond} items={condPickers.warehouses} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={condPickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 여기 '응답에 그 값이 없어 못 만든다' 고 적혀 있었으나 진작 오고 있었다. */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
@@ -469,6 +536,23 @@ export default function IssuePage() {
         <EcCond label="적요">
           <input className="ec-input" value={noteCond}
                  onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호 · 최초작성자) · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) · 기타 */}
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </ul>
 

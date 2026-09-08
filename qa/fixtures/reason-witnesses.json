@@ -1477,5 +1477,29 @@
           "purchaseOrder",
           "sourceOrder"
       ]
+  },
+  "생산불출조회|최초작성자": {
+      "claim": "만든 사람을 안 남긴다 — MaterialIssue 에 createdBy 칸이 없다",
+      "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+      "absent": [
+          "createdBy"
+      ]
+  },
+  "생산불출조회|삭제구분": {
+      "claim": "지운 불출을 남기지 않는다 — 소프트 삭제가 아니다",
+      "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+      "absent": [
+          "deletedAt",
+          "deleted"
+      ]
+  },
+  "생산불출조회|오더관리번호": {
+      "claim": "사내 불출이라 근거가 될 오더가 없다",
+      "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+      "absent": [
+          "salesOrder",
+          "purchaseOrder",
+          "sourceOrder"
+      ]
   }
 }
