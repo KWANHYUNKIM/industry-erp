@@ -200,33 +200,43 @@ export default function CurrentStockPage() {
         <table className="w-full text-left">
           <colgroup>
             <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '16%' }} /><col style={{ width: '14%' }} />
+            <col style={{ width: '14%' }} />
             <col style={{ width: '11%' }} /><col style={{ width: '11%' }} /><col style={{ width: '8%' }} />
           </colgroup>
           <thead>
             <tr>
               <th></th>
               <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
-              <th>규격정보</th>
+              {/*
+                <b>재고현황(E040701) 2026-09-09 원본 격자 실측</b> — 열이 <b>셋</b>뿐이다:
+                [품목코드 · 품목명[규격] · 재고수량] (아래 합계행 하나).
+                우리는 (1) 품목명과 규격을 <b>두 칸</b>으로 갈라 두었고 — 원본은 규격을
+                품목명 뒤 대괄호에 붙인다, (2) 수량 칸을 [현재고]라 불렀다 — 원본은
+                <b>[재고수량]</b> 이고 조건 이름도 그것이다(조건 [재고수량] ~ 범위).
+                [창고]·[안전재고]·[상태]는 원본 이 화면에 없는 우리 열이다 —
+                원본은 품목 하나를 <b>한 줄</b>로 합치고, 창고별로 펴는 것은
+                <b>창고별재고현황(E040711)</b> 이라는 다른 화면이다. 우리는 창고별로 펴므로
+                그 열을 남긴다(합치는 축은 [대표품목으로 합산] 과 함께 아직 못 만들었다).
+              */}
+              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
               <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고')}>창고 {sort.mark('창고')}</th>
-              <th style={{ textAlign: 'right' }}>현재고</th>
+              <th style={{ textAlign: 'right' }}>재고수량</th>
               <th style={{ textAlign: 'right' }}>안전재고</th>
               <th style={{ textAlign: 'center' }}>상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((r, idx) => (
                 <tr key={`${r.itemId}-${r.warehouseId}`} style={r.belowSafety ? { background: '#fdf1f3' } : undefined}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                  <td>{r.itemName}</td>
-                  <td>{r.spec ?? ''}</td>
+                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                  <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                   <td>{r.warehouseName}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: r.belowSafety ? '#c60a2e' : undefined }}>
                     {r.quantity.toLocaleString()} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.unit}</span>
@@ -244,7 +254,7 @@ export default function CurrentStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
+                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totalQty.toLocaleString()}</td>
                 <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
               </tr>
