@@ -67,6 +67,13 @@ interface LedgerRow {
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
+/**
+ * 묶음별 단가 — 원본 실제원가현황은 [기초|증가|감소|기말] 넷 다 <b>수량·단가·금액</b>을 낸다.
+ * 단가는 따로 저장하는 값이 아니라 <b>금액 ÷ 수량</b>이다. 수량이 0이면 빈칸으로 둔다 —
+ * 0으로 찍으면 '단가가 0원' 으로 읽힌다.
+ */
+const unitOf = (amt: number | null, qty: number) =>
+  (amt == null || qty === 0 ? '' : Math.round(amt / qty).toLocaleString('ko-KR'))
 
 /** 이번 달을 yyyy-MM 으로. 원본 [기준월]의 기본값이다. */
 function thisMonth(): string {
@@ -297,22 +304,33 @@ export default function ActualCostPage() {
                 <th>품목명</th>
                 {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
                 <th style={{ width: 80 }}>품목구분</th>
+                {/*
+                  2026-09-09 원본 실측(E040804). 원본은 <b>머리가 두 줄</b>이라
+                  [기초|증가|감소|기말] 아래에 <b>수량·단가·금액</b> 이 각각 달린다.
+                  우리는 네 묶음 중 <b>기말에만 단가</b>를 두고 나머지 셋은 수량·금액만
+                  두고 있었다 — 그러면 "기초 단가가 얼마였는데 증가분이 얼마에 들어와
+                  기말이 이렇게 됐다" 를 화면에서 읽을 수 없다. 셋을 마저 낸다.
+                  [단가]도 <b>[기말단가]</b> 로 고쳐 네 묶음 이름을 나란히 맞췄다.
+                */}
                 <th style={{ textAlign: 'right' }}>기초수량</th>
+                <th style={{ textAlign: 'right' }}>기초단가</th>
                 <th style={{ textAlign: 'right' }}>기초금액</th>
                 <th style={{ textAlign: 'right' }}>증가수량</th>
+                <th style={{ textAlign: 'right' }}>증가단가</th>
                 <th style={{ textAlign: 'right' }}>증가금액</th>
                 <th style={{ textAlign: 'right' }}>감소수량</th>
+                <th style={{ textAlign: 'right' }}>감소단가</th>
                 <th style={{ textAlign: 'right' }}>감소금액</th>
                 <th style={{ textAlign: 'right' }}>기말수량</th>
-                <th style={{ textAlign: 'right' }}>단가</th>
+                <th style={{ textAlign: 'right' }}>기말단가</th>
                 <th style={{ textAlign: 'right' }}>기말금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : groups.map((g) => {
                 // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 누계와 어긋난다.
                 const sub = g.rows.reduce((a, r) => ({
@@ -328,10 +346,13 @@ export default function ActualCostPage() {
                   <td>{r.itemName}</td>
                   <td style={{ color: '#5a626e' }}>{r.categoryName}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{unitOf(r.openAmt, r.opening)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.openAmt)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(r.inQty)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{unitOf(r.inAmt, r.inQty)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.inAmt)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(r.outQty)}</td>
+                  <td style={{ textAlign: 'right', color: '#a5561b' }}>{unitOf(r.outAmt, r.outQty)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(r.outAmt)}</td>
                   {/* 기말수량이 음수면 그 자체가 문제다. 0으로 감추면 아무도 못 본다. */}
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.closing < 0 ? '#c60a2e' : undefined }}>
@@ -346,11 +367,11 @@ export default function ActualCostPage() {
                       <td colSpan={4} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
                         {g.name} 계 ({g.rows.length}품목)
                       </td>
-                      <td></td>
+                      <td colSpan={2}></td>
                       <td style={{ textAlign: 'right' }}>{won(sub.open)}</td>
-                      <td></td>
+                      <td colSpan={2}></td>
                       <td style={{ textAlign: 'right' }}>{won(sub.in)}</td>
-                      <td></td>
+                      <td colSpan={2}></td>
                       <td style={{ textAlign: 'right' }}>{won(sub.out)}</td>
                       <td colSpan={2}></td>
                       <td style={{ textAlign: 'right' }}>{won(sub.close)}</td>
@@ -363,11 +384,11 @@ export default function ActualCostPage() {
               <tfoot>
                 <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
                   {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다. */}
-                  <td colSpan={5} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
+                  <td colSpan={6} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
                   <td style={{ textAlign: 'right' }}>{won(totals.open)}</td>
-                  <td></td>
+                  <td colSpan={2}></td>
                   <td style={{ textAlign: 'right' }}>{won(totals.in)}</td>
-                  <td></td>
+                  <td colSpan={2}></td>
                   <td style={{ textAlign: 'right' }}>{won(totals.out)}</td>
                   <td colSpan={2}></td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
