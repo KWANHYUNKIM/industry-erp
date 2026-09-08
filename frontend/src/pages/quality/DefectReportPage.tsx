@@ -18,7 +18,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
  */
 
 interface Row {
-  itemId: number; itemCode: string; itemName: string; unit: string
+  /** 원본 격자가 [품목명[규격명]] 한 칸으로 적는다 — 규격을 줄에 실어 둔다. */
+  itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
   inspectedQty: number; inspectDefect: number; defectRate: number
   defectHandled: number; disposed: number
 }
@@ -113,7 +114,7 @@ export default function DefectReportPage() {
     const map = new Map<number, Row>()
     const get = (itemId: number, code: string, name: string, unit: string): Row => {
       let r = map.get(itemId)
-      if (!r) { r = { itemId, itemCode: code, itemName: name, unit, inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }; map.set(itemId, r) }
+      if (!r) { r = { itemId, itemCode: code, itemName: name, spec: items.find((x) => x.id === itemId)?.spec ?? null, unit, inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }; map.set(itemId, r) }
       return r
     }
     for (const q of inspections) {
@@ -264,8 +265,21 @@ export default function DefectReportPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/*
+              <b>불량률파악보고서(E040512) 2026-09-09 원본 격자 실측</b> — 열이 일곱이다:
+              [창고코드 · 창고명 · 품목코드 · <b>품목명[규격명]</b> · <b>생산수량</b> ·
+              <b>불량수량</b> · 불량률].
+              고친 것: 품목명 뒤에 규격을 대괄호로 붙였다(원본 이름 그대로).
+              <b>[창고코드]·[창고명]은 아직 없다</b> — 우리 줄은 <b>품목 하나</b>로 묶는데
+              원본은 <b>창고 × 품목</b>으로 묶는다. 검사 전표가 창고를 이미 들고 있으니
+              묶는 열쇠만 바꾸면 되는 일이라 pending-columns.json 에 적었다.
+              <b>[생산수량]·[불량수량]은 우리 값이 아니다</b> — 우리 숫자는
+              <b>검사</b>에서 나온다(검사수량·검사불량). 생산수량이라 부르면
+              검사 안 한 생산분까지 센 것처럼 읽혀 거짓이 된다(예외에 적었다).
+              [단위]·[불량처리]·[폐기]는 우리 열이다.
+            */}
             <th>품목코드</th>
-            <th>품목명</th>
+            <th>품목명[규격명]</th>
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
             <th style={{ textAlign: 'right' }}>검사수량</th>
             <th style={{ textAlign: 'right' }}>검사불량</th>
@@ -283,7 +297,7 @@ export default function DefectReportPage() {
             <tr key={r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>
               <td style={{ textAlign: 'right', color: r.inspectDefect ? '#c60a2e' : '#c5cbd3' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>

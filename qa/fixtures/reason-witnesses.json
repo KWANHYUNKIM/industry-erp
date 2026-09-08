@@ -3177,5 +3177,20 @@
    "workResultNo"
   ],
   "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java"
+ },
+ "불량률파악보고서|생산수량": {
+  "claim": "우리 숫자는 검사에서 나온다",
+  "present": [
+   "inspectedQty",
+   "inspectDefect"
+  ],
+  "file": "quality/DefectReportPage.tsx"
+ },
+ "불량률파악보고서|불량수량": {
+  "claim": "우리 것은 검사에서 나온 [검사불량]이다",
+  "present": [
+   "inspectDefect"
+  ],
+  "file": "quality/DefectReportPage.tsx"
  }
 }
