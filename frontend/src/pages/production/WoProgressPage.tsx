@@ -6,9 +6,17 @@ import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useItemFlags } from '../../utils/useInactiveItems'
 
 /**
  * 생산관리 > 작업지시서별진행현황 — 작업지시 하나가 어디까지 갔는지 네 갈래로 본다.
+ *
+ * <p><b>2026-09-09 원본(E040414) 실측 — 조건은 스물아홉이다</b>(사본은 열하나였다).
+ * 빠져 있던 열여덟 가운데 여덟은 그 자리에서 만들었다 — 거래처그룹1 · 품목코드(하위품목) ·
+ * 품목구분 · 품목그룹1 · 납기일자 · 적요 · 진행상태 · 최초작성자.
+ * <b>뒤 넷은 서버가 이미 보내던 값</b>인데(WorkOrderResponse 의 dueDate·remark·
+ * statusName·createdBy) 이 화면이 받아 두지 않아 걸 수가 없었다 — 값이 없어서가 아니다.
  *
  * <p>원본 조건 판 실측(사본):
  *   [구분] 생산진행현황 | 불출진행현황 | 원재료투입비교표 | 작업진행현황
@@ -65,6 +73,16 @@ interface WorkOrder {
   remainingQty: number
   status: WoStatus
   statusName: string
+  /*
+   * 아래 넷은 <b>서버가 진작 보내고 있었는데</b> 이 화면이 받아 두지 않았다
+   * (WorkOrderResponse 의 productCategoryName · dueDate · remark · createdBy).
+   * 그래서 원본 조건 [품목구분]·[납기일자]·[적요]·[최초작성자]를 걸 축이 없었다 —
+   * 값이 없어서가 아니라 <b>받아 두지 않아서</b> 못 걸던 것이다.
+   */
+  productCategoryName: string | null
+  dueDate: string | null
+  remark: string | null
+  createdBy: string | null
 }
 interface Issue { id: number; workOrderId: number; itemId: number; itemCode: string; itemName: string; qty: number; issueDate: string }
 /** 생산전표의 소모자재. 필드 이름이 불출(itemId)과 달리 componentId 다 — 실제 응답을 보고 맞췄다. */
@@ -108,6 +126,27 @@ export default function WoProgressPage() {
   const [managerOf, setManagerOf] = useState<Map<string, string>>(new Map())
   const [emp, setEmp] = useState('')
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+  /*
+   * 2026-09-09 원본(E040414) 실측으로 드러난 조건들. 아래는 <b>줄이 이미 들고 있는 값</b>이라
+   * 그 자리에서 만들 수 있었다 — 지어낸 것은 하나도 없다.
+   */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const pgroup = usePartnerGroups()
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const { categoryOf, groupOf, categories, groups } = useItemFlags()
+  /** 원본 [품목코드(하위품목)] — 그 <b>자재를 쓰는</b> 작업지시만 본다. BOM 을 이미 받아 두었다. */
+  const [component, setComponent] = useState('')
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  /**
+   * 원본 [진행상태]는 <b>결재 상태</b>(전체·결재중·미확인·확인)이고 <b>[확인]만 켜져</b> 있다.
+   * 우리 작업지시의 진행상태는 <b>생산 진척</b>(계획·진행·완료)이라 <b>다른 축</b>이다 —
+   * 우리 값에 '확인' 이 없으므로 기본값을 원본과 맞출 길이 없다. 지어내지 않고 [전체]로 둔다.
+   */
+  const [statusCond, setStatusCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
 
   async function load() {
     setLoading(true)
@@ -139,7 +178,18 @@ export default function WoProgressPage() {
     setFrom(init.from); setTo(init.to)
     setMode('생산진행현황'); setOrderNo(''); setItem(''); setWarehouse('')
     setPartner(''); setPartnerManager(''); setEmp('')
+    setPartnerGroup(''); setCategory(''); setItemGroup(''); setComponent('')
+    setDueFrom(''); setDueTo(''); setRemarkCond(''); setStatusCond(''); setAuthorCond('')
   }
+
+  /** 품목 → 그 품목의 BOM 자재 이름들. [품목코드(하위품목)] 이 이 값을 본다. */
+  const bomOf = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const b of boms) {
+      m.set(b.productId, b.lines.map((l) => `${l.componentCode} ${l.componentName}`).join(' | '))
+    }
+    return m
+  }, [boms])
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다. */
   const empName = (id: number | null) =>
@@ -154,10 +204,21 @@ export default function WoProgressPage() {
     if (partnerManager
       && !(managerOf.get(o.partnerName ?? '') ?? '').includes(partnerManager)) return false
     if (emp && !empName(o.employeeId).includes(emp)) return false
+    if (partnerGroup && pgroup.groupOfName(o.partnerName) !== partnerGroup) return false
+    if (category && (o.productCategoryName ?? categoryOf(o.productId)) !== category) return false
+    if (itemGroup && groupOf(o.productId) !== itemGroup) return false
+    if (component && !(bomOf.get(o.productId) ?? '').includes(component)) return false
+    if (dueFrom && (!o.dueDate || o.dueDate < dueFrom)) return false
+    if (dueTo && (!o.dueDate || o.dueDate > dueTo)) return false
+    if (remarkCond && !(o.remark ?? '').includes(remarkCond)) return false
+    if (statusCond && o.statusName !== statusCond) return false
+    if (authorCond && (o.createdBy ?? '') !== authorCond) return false
     return true
   }).sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [orders, from, to, orderNo, item, warehouse, partner, emp, employees])
+  [orders, from, to, orderNo, item, warehouse, partner, emp, employees,
+    partnerGroup, pgroup, category, itemGroup, categoryOf, groupOf, component, bomOf,
+    dueFrom, dueTo, remarkCond, statusCond, authorCond])
 
   /** 작업지시별 불출 집계. */
   const issueBy = useMemo(() => {
@@ -315,10 +376,40 @@ export default function WoProgressPage() {
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
+        {/* 원본 차례: [거래처] 다음이 [거래처그룹1]이다(2026-09-09 실측). */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={160} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
+        </EcCond>
+        {/*
+          원본 [품목코드(하위품목)] — [품목]이 <b>만드는 것</b>을 고르는 데 견줘
+          이쪽은 <b>쓰는 자재</b>로 고른다. "이 원재료가 들어가는 지시가 지금 몇 건인가" 는
+          BOM 을 눈으로 뒤져야 알 수 있었다. 이 화면은 BOM 을 이미 받아 두고 있다.
+        */}
+        <EcCond label="품목코드(하위품목)" pick>
+          <CodePickerField label="품목코드(하위품목)" hideLabel width={200} emptyLabel="전체"
+                           value={component} onChange={setComponent}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={category} style={{ width: 130 }}
+                  onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </EcCond>
         {/* 원본 [거래처관리담당자]. 그 거래처를 맡은 영업담당자다. */}
         <EcCond label="담당자" pick>
@@ -330,6 +421,34 @@ export default function WoProgressPage() {
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
                            value={partnerManager} onChange={(v) => setPartnerManager(v)}
                            items={pickers.employees} />
+        </EcCond>
+        {/*
+          원본 차례: [거래처관리담당자] 다음이 <b>납기일자 · 오더관리번호 · 적요 ·
+          진행상태 · 최초작성자</b> 다(2026-09-09 실측). 아래 넷은 <b>서버가 이미 보내던 값</b>인데
+          이 화면이 받아 두지 않아 걸 수가 없었다.
+        */}
+        <EcCond label="납기일자">
+          <input type="date" className="ec-input" value={dueFrom}
+                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input type="date" className="ec-input" value={dueTo}
+                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="진행상태" pick>
+          <CodePickerField label="진행상태" hideLabel width={130} emptyLabel="전체"
+                           value={statusCond} onChange={setStatusCond}
+                           items={[...new Set(orders.map((o) => o.statusName))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(orders.map((o) => o.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

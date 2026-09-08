@@ -2967,5 +2967,14 @@
    "createdBy"
   ],
   "in": "backend/src/main/java/com/erp/hr/domain/VacationRequest.java"
+ },
+ "작업지시서별진행현황|오더관리번호": {
+  "claim": "위와 같음 — 작업지시가 무는 것은 수주가 아니라 품목·창고다",
+  "absent": [
+   "salesOrder",
+   "purchaseOrder",
+   "sourceOrder"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
  }
 }
