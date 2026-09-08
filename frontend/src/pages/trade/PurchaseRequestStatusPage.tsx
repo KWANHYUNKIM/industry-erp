@@ -95,11 +95,36 @@ interface Row {
  */
 const init = periodOf('금월(~오늘)')!
 
+/*
+ * 2026-09-08 에 <b>발주요청현황(E040318)</b> 을 열어 접힌 줄까지 재니 조건이 <b>서른일곱</b>이다
+ * (대조표에는 조건이 한 줄도 없던 화면이다).
+ *
+ * <p>한 파일이 세 화면을 겸하는데 <b>이름표가 화면마다 다르다</b> —
+ * 발주요청현황은 [메뉴]·[발주요청No.]·[작성자]·[정렬기준] 이고,
+ * 발주계획현황·단가요청현황은 [구분]·[최초작성자]·[정렬/소계기준] 이다.
+ * 이름을 파일에 박아 두면 어느 한 화면은 늘 어긋나므로 <b>화면이 정하게</b> 둔다.
+ */
+/**
+ * 발주계획현황·단가요청현황이 쓰는 이름표 묶음. 기본값(발주요청현황)과 <b>다른 것만</b> 담는다.
+ * App.tsx 가 이 묶음을 그대로 넘긴다 — 이름을 라우트마다 손으로 적으면 한쪽이 빠진다.
+ */
+export const PLAN_LABELS = {
+  modeLabel: '구분', compareLabel: '비교기간', docNoLabel: '발주No.',
+  authorLabel: '최초작성자', subtotalLabel: '정렬/소계기준',
+}
+
 export default function PurchaseRequestStatusPage({
   defaultStatus = 'REQUESTED', title = '발주요청현황',
+  modeLabel = '메뉴', compareLabel = '구분', docNoLabel = '발주요청No.',
+  authorLabel = '작성자', subtotalLabel = '정렬기준',
 }: {
   defaultStatus?: PurchaseOrderStatus
   title?: string
+  modeLabel?: string
+  compareLabel?: string
+  docNoLabel?: string
+  authorLabel?: string
+  subtotalLabel?: string
 }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['partners', 'warehouses', 'items', 'employees', 'projects'])
@@ -112,6 +137,12 @@ export default function PurchaseRequestStatusPage({
    * 그래서 거래처 목록을 받아 이름으로 이어 붙인다.
    */
   const [partnerRows, setPartnerRows] = useState<Partner[]>([])
+  /*
+   * 원본 <b>[관리항목]</b> — 발주요청현황의 조건 판에 있다([프로젝트] 다음, [거래처] 앞).
+   * 품목 마스터에 붙는 값이라 전표 응답에는 없다 — 마스터를 받아 줄의 itemId 로 잇는다
+   * (판매현황·견적서가 먼저 그렇게 했다).
+   */
+  const [mgmtCond, setMgmtCond] = useState('')
   const [status, setStatus] = useState<PurchaseOrderStatus>(defaultStatus)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -230,6 +261,8 @@ export default function PurchaseRequestStatusPage({
     && (!c.category || r.category === c.category)
     /* 원본 조건 [품목그룹1]. 품목 마스터에 붙는 값이라 발주 응답에는 없다 — 마스터에서 잇는다. */
     && (!c.itemGroup || mgmt.groupOf(r.itemId) === c.itemGroup)
+    /* 원본 조건 [관리항목](발주요청현황). 위와 같은 길 — 품목 마스터에서 잇는다. */
+    && (!mgmtCond || mgmt.nameOf(r.itemId) === mgmtCond)
     /* 원본 조건 [거래처그룹1]. 거래처 마스터에 붙는 값이라 같은 길로 잇는다. */
     && (!c.partnerGroup || pgroups.groupOfName(r.partner) === c.partnerGroup)
     /* 원본 조건 [거래처관리담당자]. 그 거래처를 맡은 사람 — 전표의 담당자와 다르다. */
@@ -409,13 +442,14 @@ export default function PurchaseRequestStatusPage({
       */}
       <EcStatusPanel
         modes={['내역', '집계']} mode={mode} onModeChange={(m) => setMode(m as '내역' | '집계')}
+        modeLabel={modeLabel} compareLabel={compareLabel}
         compare={compare} onCompareChange={setCompare}
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={title === '단가요청현황' ? PRICE_REQUEST_PICKS : INQUIRY_PICKS}
         view={view} onViewChange={setView}
       >
-        <EcCond label="발주No." pick>
+        <EcCond label={docNoLabel} pick>
           <input className="ec-input" placeholder="발주번호 일부" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
@@ -454,6 +488,11 @@ export default function PurchaseRequestStatusPage({
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
+        </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
@@ -575,22 +614,38 @@ export default function PurchaseRequestStatusPage({
           </select>
         </EcCond>
         {/* 원본 차례: [진행상태] 바로 뒤다(사본 실측 — 두 화면이 같다). */}
-        <EcCond label="최초작성자">
+        <EcCond label={authorLabel}>
           <select className="ec-input" value={cond.createdBy} style={{ width: 140 }}
                   onChange={(e) => setC({ createdBy: e.target.value })}>
             <option value="">전체</option>
             {authors.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </EcCond>
-        {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측 — 두 화면이 같다). */}
-        <EcCond label="정렬/소계기준">
-          <div className="ec-pills">
-            {SUBTOTALS.map((v) => (
-              <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
-                      onClick={() => setSubtotal(v)}>{v}</button>
-            ))}
-          </div>
-        </EcCond>
+        {/*
+          원본 차례: 조건 판 <b>맨 끝</b>이다(세 화면이 같다).
+          이름표만 갈린다 — 발주요청현황은 <b>[정렬기준]</b>, 나머지 둘은 <b>[정렬/소계기준]</b>.
+          이 줄은 대조 검사가 <b>글자 그대로</b> 찾으므로 두 갈래를 펴서 적는다
+          (<code>label={'{'}subtotalLabel{'}'}</code> 로 두면 어느 쪽도 못 찾는다).
+        */}
+        {subtotalLabel === '정렬기준' ? (
+          <EcCond label="정렬기준">
+            <div className="ec-pills">
+              {SUBTOTALS.map((v) => (
+                <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                        onClick={() => setSubtotal(v)}>{v}</button>
+              ))}
+            </div>
+          </EcCond>
+        ) : (
+          <EcCond label="정렬/소계기준">
+            <div className="ec-pills">
+              {SUBTOTALS.map((v) => (
+                <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                        onClick={() => setSubtotal(v)}>{v}</button>
+              ))}
+            </div>
+          </EcCond>
+        )}
       </EcStatusPanel>
 
       {prevTotals && (
