@@ -1544,5 +1544,14 @@
           "deletedAt",
           "deleted"
       ]
+  },
+  "결제내역조회|결제요청일자": {
+      "claim": "결제에 요청 단계가 없다 — 요청한 날을 적을 칸이 없다",
+      "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java",
+      "absent": [
+          "requestedAt",
+          "requestDate",
+          "requestedDate"
+      ]
   }
 }
