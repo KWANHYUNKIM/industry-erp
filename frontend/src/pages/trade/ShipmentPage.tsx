@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 영업관리 > 출하현황 — 출하 전표를 기간·조건으로 본다 (/api/shipments).
@@ -43,6 +44,8 @@ interface ShipLine {
   itemCode: string
   itemName: string
   unit: string
+  /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
+  spec: string | null
   quantity: number
   unitPrice: number
   amount: number
@@ -67,6 +70,13 @@ interface Shipment {
   projectName: string | null
   remark: string | null
   createdBy: string | null
+  /*
+   * 2026-09-08 에 원본(E040227)의 <b>접힌 줄을 펼쳐</b> 조건을 전부 쟀다 — 서른이다
+   * (사본은 열둘). 아래 셋은 그때 드러난 조건이 보는 값이고, 응답에 진작 오던 것이다.
+   */
+  employeeName: string | null
+  contact: string | null
+  address: string | null
   lines: ShipLine[]
 }
 
@@ -108,6 +118,9 @@ export default function ShipmentPage() {
   const reset = () => {
     setFrom(init.from); setTo(init.to); setCompare('사용안함'); setMode('내역')
     setShipNo(''); setPartner(''); setItem(''); setStatusFilter('ALL'); setWarehouse(''); setProject('')
+    /* 접힌 줄을 펼쳐 드러난 조건들도 같이 되돌린다. */
+    setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
+    setContactCond(''); setAddressCond(''); setRemarkCond(''); setAuthorCond('')
   }
 
   const inRange = (r: Shipment, a: string, b: string) => r.shipDate >= a && r.shipDate <= b
@@ -118,6 +131,19 @@ export default function ShipmentPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /*
+   * 원본 출하현황의 <b>접힌 줄</b>을 펼쳐 드러난 조건들. 사본에는 열둘이라 적혀
+   * 있었는데 원본은 <b>서른</b>이다 — 판매현황·구매현황과 같은 구멍이다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [contactCond, setContactCond] = useState('')
+  const [addressCond, setAddressCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const pmgr = usePartnerManagers()
 
   const matches = (r: Shipment) => {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
@@ -127,6 +153,14 @@ export default function ShipmentPage() {
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (project && !(r.projectName ?? '').includes(project)) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
+    if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false
+    if (specCond && !r.lines.some((l) => (l.spec ?? '') === specCond)) return false
+    if (empCond && (r.employeeName ?? '') !== empCond) return false
+    if (pmgrCond && pmgr.managerOfName(r.partnerName) !== pmgrCond) return false
+    if (contactCond && !(r.contact ?? '').includes(contactCond)) return false
+    if (addressCond && !(r.address ?? '').includes(addressCond)) return false
+    if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
   }
 
@@ -227,6 +261,48 @@ export default function ShipmentPage() {
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 서른):
+          … 품목 · 시리얼/로트No. · <b>오더관리번호 · 규격 · 담당자 · 거래처관리담당자 ·
+          연락처 · 주소 · 적요</b> · (문자형식1~5 · 장문형식1) · 진행상태 · <b>작성자</b> ·
+          (최종수정자 · 제목 · 사용자지정) · 적용양식 · 정렬기준 · 데이터 보기형식.
+        */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(rows.map((r) => r.salesOrderNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 [연락처]·[주소] — 배송지다. 출하지시서입력이 받아 저장하고 응답도 싣는다. */}
+        <EcCond label="연락처">
+          <input className="ec-input" value={contactCond}
+                 onChange={(e) => setContactCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="주소">
+          <input className="ec-input" value={addressCond}
+                 onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">
             {(['ALL', 'READY', 'SHIPPED', 'CANCELED'] as const).map((s) => (
@@ -236,6 +312,12 @@ export default function ShipmentPage() {
               </button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
       </EcStatusPanel>
 
