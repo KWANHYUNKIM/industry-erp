@@ -2460,5 +2460,207 @@
    "Project"
   ],
   "in": "backend/src/main/java/com/erp/hr/domain"
+ },
+ "출하조회|미확인": {
+  "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "생산불출조회|미확인": {
+  "claim": "생산 전표에 확인 상태가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산불출현황|진행상태": {
+  "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산입고현황|진행상태": {
+  "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "confirmStatus",
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "출하조회|결재중": {
+  "claim": "출하 전표를 전자결재에 올리지 않는다",
+  "absent": [
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "생산불출조회|결재중": {
+  "claim": "생산 전표를 전자결재에 올리지 않는다",
+  "absent": [
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산입고조회|전자결재": {
+  "claim": "생산 전표를 결재에 올리지 않는다",
+  "absent": [
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "생산불출현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다 — 사내 전표는 오더를 물지도 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "생산입고현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다 — 사내 전표는 오더를 물지도 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "작업지시서효율현황|오더관리번호": {
+  "claim": "오더관리에 번호를 매기지 않는다 — 사내 전표는 오더를 물지도 않는다",
+  "absent": [
+   "orderManageNo",
+   "orderMgmtNo",
+   "orderManagementNo"
+  ],
+  "in": "backend"
+ },
+ "생산입고현황|채무번호": {
+  "claim": "생산입고를 외상매입과 잇지 않는다",
+  "absent": [
+   "payableNo"
+  ],
+  "in": "backend"
+ },
+ "생산입고현황|거래구분": {
+  "claim": "생산입고에 반품이 없다 — 만든 것을 되돌려 받는 자리가 아니다",
+  "absent": [
+   "returnSlip"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "수금현황|부서": {
+  "claim": "정산에 부서가 없다 — 붙일 값이 없다",
+  "absent": [
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "수금현황|부서계층그룹": {
+  "claim": "부서를 붙일 자리가 없으니 그 위의 계층도 없다",
+  "absent": [
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "거래처관리대장 II|거래처그룹2": {
+  "claim": "거래처그룹이 하나다 — [거래처그룹1] 만 있다",
+  "absent": [
+   "group2",
+   "partnerGroup2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/BusinessPartner.java"
+ },
+ "건설예정공정표|거래처": {
+  "claim": "프로젝트에 거래처를 달지 않는다",
+  "absent": [
+   "BusinessPartner"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "건설예정공정표|삭제구분": {
+  "claim": "지운 것을 남겨 두지 않는다 — 지우면 없어진다",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "건설예정공정표|게시글번호": {
+  "claim": "게시글이 아니라 번호가 없다",
+  "absent": [
+   "postNo"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "건설예정공정표|입력경로": {
+  "claim": "어디서 넣었는지 기록하지 않는다",
+  "absent": [
+   "inputChannel"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "휴가사용실적현황|프로젝트": {
+  "claim": "휴가에 프로젝트를 달지 않는다",
+  "absent": [
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain"
+ },
+ "판매조회|발송여부": {
+  "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "구매조회|발송여부": {
+  "claim": "전표를 거래처로 내보내는 기능이 없다 — 보낸 기록 자체가 없다",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "생산불출조회|미발송": {
+  "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산불출조회|발송여부": {
+  "claim": "불출 전표를 어디로 내보내는 기능이 없다",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "내자": {
+  "claim": "국내/수입 구분을 전표에 두지 않는다",
+  "absent": [
+   "domesticImport",
+   "importYn",
+   "foreignYn"
+  ],
+  "in": "backend"
+ },
+ "내.외자구분": {
+  "claim": "국내/수입 구분을 전표에 두지 않는다",
+  "absent": [
+   "domesticImport",
+   "importYn",
+   "foreignYn"
+  ],
+  "in": "backend"
  }
 }
