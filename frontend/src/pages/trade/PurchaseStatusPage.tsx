@@ -202,31 +202,15 @@ export default function PurchaseStatusPage() {
     return out
   }, [rows, keyword, filters])
 
-  /**
-   * 내역 — 전표 하나를 한 줄로 접는다. 원본 구매조회 격자와 같은 칸 구성
-   * (일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명).
+  /*
+   * <b>[내역]은 전표가 아니라 줄이다.</b> 2026-09-09 에 원본(E040305)의 격자를 처음 재 보니
+   * 판매현황(E040207)과 <b>글자 하나까지 같았다</b> - 일자-No. · 품목명(규격) · 수량 ·
+   * 단가 · 공급가액 · 부가세 · 합계 · 거래처명. 같은 [일자-No.] 가 품목 수만큼 되풀이된다.
+   * 우리는 전표 하나를 한 줄로 접고 품목을 '첫 품목 외 N건' 으로 줄여 두어
+   * <b>무엇을 샀는지가 화면에서 사라졌다</b> - 주석에는 '원본 구매조회 격자와 같은 칸 구성'
+   * 이라 적혀 있었는데, <b>구매조회(E040304)는 다른 화면이다.</b>
+   * 여기서는 줄을 그대로 편다(<code>shown</code> 이 이미 줄 단위다).
    */
-  const slips = useMemo(() => {
-    const by = new Map<string, {
-      date: string; docNo: string; partner: string; itemName: string; lineCount: number
-      qty: number; supply: number; vat: number; warehouse: string
-    }>()
-    for (const r of shown) {
-      const cur = by.get(r.docNo)
-      if (!cur) {
-        by.set(r.docNo, {
-          date: r.date, docNo: r.docNo, partner: r.partner, itemName: r.itemName, lineCount: 1,
-          qty: r.qty, supply: r.supply, vat: r.vat, warehouse: r.warehouse,
-        })
-      } else {
-        cur.lineCount += 1
-        cur.qty += r.qty
-        cur.supply += r.supply
-        cur.vat += r.vat
-      }
-    }
-    return [...by.values()]
-  }, [shown])
 
   /** 집계는 판매현황과 같은 규칙을 쓴다 — 계산은 utils/statusAggregate 가 진다. */
   const grouped = useMemo(
@@ -560,49 +544,59 @@ export default function PurchaseStatusPage() {
       ) : mode === '내역' ? (
         <table className="w-full text-left">
           <thead>
+            {/*
+              원본 열 차례(2026-09-09 실측): 일자-No. · 품목명(규격) · 수량 · <b>단가</b> ·
+              공급가액 · 부가세 · 합계 · <b>거래처명</b>. 우리는 그 자리를 [매입처] 라 부르고
+              둘째 칸에 두고 있었다 - 원본은 <b>맨 뒤</b>이고 이름도 [거래처명] 이다.
+              [창고명]은 원본에 없지만 우리가 더 두는 것이라 맨 뒤에 붙인다.
+            */}
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 190 }}>일자-No.</th>
-              <th>매입처</th>
-              <th>품목명(요약)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
+              <th>품목명(규격)</th>
+              <th style={{ width: 100, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 110, textAlign: 'right' }}>단가</th>
               <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
               <th style={{ width: 120, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>금액합계</th>
+              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th>거래처명</th>
               <th style={{ width: 110 }}>창고명</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : slips.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : slips.map((sl, i) => (
-              <tr key={sl.docNo}>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : shown.map((r, i) => (
+              <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(sl.date)} {sl.docNo}</td>
-                <td>{sl.partner}</td>
-                <td>{sl.itemName}{sl.lineCount > 1 ? ` 외 ${sl.lineCount - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{sl.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{sl.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{sl.vat.toLocaleString()}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.date)} {r.docNo}</td>
+                {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 - 없는 품목은 이름만 찍는다. */}
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.unitPrice.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{r.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>
-                  {(sl.supply + sl.vat).toLocaleString()}
+                  {(r.supply + r.vat).toLocaleString()}
                 </td>
-                <td>{sl.warehouse}</td>
+                <td>{r.partner}</td>
+                <td>{r.warehouse}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({slips.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{slips.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({shown.length}줄)</td>
+              <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+              <td></td>
               <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>
                 {(totals.supply + totals.vat).toLocaleString()}
               </td>
-              <td></td>
+              <td colSpan={2}></td>
             </tr>
           </tfoot>
         </table>
