@@ -202,7 +202,9 @@ public class AsService {
     @Transactional(readOnly = true)
     public List<AsConsumptionRow> consumption(LocalDate from, LocalDate to,
                                               Long warehouseId, Long partnerId, Long repairItemId,
-                                              Long projectId) {
+                                              Long projectId,
+                                              String partnerGroup, String itemCategory, String itemGroup,
+                                              String status, String title, String remark, String createdBy) {
         Map<Long, Acc> byItem = new LinkedHashMap<>();
         for (AsPart p : asPartRepository.findAllWithRefs()) {
             AsRequest as = p.getAsRequest();
@@ -214,6 +216,24 @@ public class AsService {
             /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
             if (projectId != null && (as.getProject() == null
                     || !projectId.equals(as.getProject().getId()))) continue;
+            /*
+             * 2026-09-09 원본(E040641) 실측으로 늘어난 일곱. 화면이 아니라 <b>여기서</b> 거른다 —
+             * 아래 집계가 품목별로 합쳐 버리면 거래처도 상태도 제목도 줄에 남지 않는다.
+             * 그룹은 미지정 허용이라 null 을 먼저 본다.
+             */
+            if (hasText(partnerGroup) && (as.getPartner().getPartnerGroup() == null
+                    || !partnerGroup.equals(as.getPartner().getPartnerGroup().getName()))) continue;
+            if (hasText(itemCategory)
+                    && !itemCategory.equals(as.getItem().getCategory().getDisplayName())) continue;
+            if (hasText(itemGroup) && (as.getItem().getItemGroup() == null
+                    || !itemGroup.equals(as.getItem().getItemGroup().getName()))) continue;
+            if (hasText(status) && !status.equals(as.getStatus().getDisplayName())) continue;
+            if (hasText(title) && (as.getTitle() == null || !as.getTitle().contains(title))) continue;
+            /* 원본 [적요]. A/S 전표의 적요는 수리내역이다(A/S접수조회가 이미 그렇게 건다). */
+            if (hasText(remark) && (as.getRepairNote() == null
+                    || !as.getRepairNote().contains(remark))) continue;
+            if (hasText(createdBy) && (as.getCreatedBy() == null
+                    || !as.getCreatedBy().contains(createdBy))) continue;
             Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
                     k -> new Acc(p.getItem().getName()));
             acc.totalQty = acc.totalQty.add(p.getQuantity());
@@ -230,6 +250,8 @@ public class AsService {
         rows.sort((x, y) -> y.totalQty().compareTo(x.totalQty()));
         return rows;
     }
+
+    private static boolean hasText(String s) { return s != null && !s.isBlank(); }
 
     private static final class Acc {
         final String name;

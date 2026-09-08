@@ -51,7 +51,13 @@ public class AsController {
 
     // 소모부품 -------------------------------------------------------------
 
-    /** A/S소모현황 — 품목별 소모 집계. 원본 조건 접수일자·창고·거래처·수리품목으로 거른다. */
+    /**
+     * A/S소모현황 — 품목별 소모 집계.
+     *
+     * <p>서버가 <b>품목별로 합쳐서</b> 주므로, 합친 뒤에는 화면에서 더 거를 수 없다.
+     * 그래서 원본 조건을 전부 여기서 받는다(2026-09-09 E040641 실측으로 일곱이 늘었다):
+     * 거래처그룹1 · 수리품목의 품목구분·품목그룹1 · 수리진행상태 · 제목 · 적요 · 최초작성자.
+     */
     @GetMapping("/parts/consumption")
     public List<AsConsumptionRow> consumption(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -59,8 +65,16 @@ public class AsController {
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long partnerId,
             @RequestParam(required = false) Long repairItemId,
-            @RequestParam(required = false) Long projectId) {
-        return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId);
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String partnerGroup,
+            @RequestParam(required = false) String itemCategory,
+            @RequestParam(required = false) String itemGroup,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String remark,
+            @RequestParam(required = false) String createdBy) {
+        return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId,
+                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy);
     }
 
     @GetMapping("/{id}/parts")

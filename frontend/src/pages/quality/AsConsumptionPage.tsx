@@ -5,6 +5,9 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { AS_CONSUMPTION_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useItemFlags } from '../../utils/useInactiveItems'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
@@ -16,6 +19,16 @@ interface Row { itemId: number; itemName: string; asCount: number; totalQty: num
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const initP = periodOf('금월(~오늘)')!
+
+/** A/S 처리 상태(AsStatus)의 표시 이름. 원본 [수리진행상태]가 고르는 것이 이것이다. */
+const AS_STATUSES = ['접수', '처리중', '완료', '취소'] as const
+
+/**
+ * 원본 [정렬/소계기준]. 축은 [설정] 창에서 고르는데 그 창은 <b>값을 저장</b>하므로 열지 않았다
+ * (조회 화면만 연다는 규칙). 이 표의 줄은 <b>소모부품 품목</b> 하나뿐이라 그 품목이 들고 있는
+ * 값으로만 축을 둔다 — 지어내지 않는다.
+ */
+const SUBTOTALS = ['없음', '품목구분', '품목그룹1'] as const
 
 export default function AsConsumptionPage() {
   const [rows, setRows] = useState<Row[]>([])
@@ -49,6 +62,21 @@ export default function AsConsumptionPage() {
   const [repairItemId, setRepairItemId] = useState('')
   /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
   const [projectId, setProjectId] = useState('')
+  /*
+   * 2026-09-09 원본(E040641) 실측 — 조건이 <b>서른</b>이다(사본은 열). 아래 일곱은
+   * <b>서버에 넘겨야</b> 한다. 이 화면의 응답은 품목별로 <b>이미 합쳐진</b> 줄이라
+   * 거래처도 상태도 제목도 남아 있지 않다 — 합친 뒤에는 화면에서 거를 수가 없다.
+   */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [status, setStatus] = useState('')
+  const [title, setTitle] = useState('')
+  const [remark, setRemark] = useState('')
+  const [createdBy, setCreatedBy] = useState('')
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
+  const pgroup = usePartnerGroups()
+  const { categoryOf, groupOf, categories, groups } = useItemFlags()
   const pickers = useCondPickers(['warehouses', 'partners', 'items', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -58,13 +86,24 @@ export default function AsConsumptionPage() {
     try {
       const params = { from, to, warehouseId: warehouseId || undefined,
         partnerId: partnerId || undefined, repairItemId: repairItemId || undefined,
-        projectId: projectId || undefined }
+        projectId: projectId || undefined,
+        partnerGroup: partnerGroup || undefined, itemCategory: itemCategory || undefined,
+        itemGroup: itemGroup || undefined, status: status || undefined,
+        title: title || undefined, remark: remark || undefined,
+        createdBy: createdBy || undefined }
       setRows((await api.get<Row[]>('/as-requests/parts/consumption', { params })).data)
     }
     catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /*
+   * 원본은 이 화면에 <b>[검색(F8)] 이 없다</b> — 조건을 바꾸면 바로 반영된다.
+   * 우리는 조건을 서버에 넘기면서도 다시 부르지 않아, <b>창고를 골라도 표가 그대로</b>였다
+   * ([새로고침]을 눌러야 바뀌었다). 조건이 바뀌면 다시 부른다.
+   */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to, warehouseId, partnerId, repairItemId, projectId,
+    partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy])
 
   const shown = useMemo(() => rows.filter((r) => !keyword || r.itemName.includes(keyword)), [rows, keyword])
   const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQty, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
@@ -73,7 +112,9 @@ export default function AsConsumptionPage() {
     <EcListShell title="A/S소모현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <EcStatusPanel from={from} to={to} onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={AS_CONSUMPTION_PICKS} dateLabel="접수일자">
+        picks={AS_CONSUMPTION_PICKS} dateLabel="접수일자"
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseId} onChange={setWarehouseId} items={pickers.warehouses} />
@@ -87,9 +128,50 @@ export default function AsConsumptionPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerId} onChange={setPartnerId} items={pickers.partners} />
         </EcCond>
+        {/* 원본 차례: [거래처] 다음이 [거래처그룹1]이다(2026-09-09 실측). */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="수리품목" pick>
           <CodePickerField label="수리품목" hideLabel width={170} emptyLabel="전체"
                            value={repairItemId} onChange={setRepairItemId} items={pickers.items} />
+        </EcCond>
+        {/* [품목구분]·[품목그룹1]은 <b>수리품목</b>의 값이다 — 소모부품이 아니다(원본 차례가 그렇다). */}
+        <EcCond label="품목구분">
+          <select className="ec-input" value={itemCategory} style={{ width: 130 }}
+                  onChange={(e) => setItemCategory(e.target.value)}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="수리진행상태" pick>
+          <select className="ec-input" value={status} style={{ width: 120 }}
+                  onChange={(e) => setStatus(e.target.value)}>
+            <option value="">전체</option>
+            {AS_STATUSES.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="제목">
+          <input className="ec-input" placeholder="제목 일부" value={title}
+                 onChange={(e) => setTitle(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        {/* 원본 [적요]. A/S 전표의 적요는 수리내역이다 — A/S접수조회가 이미 그렇게 건다. */}
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remark}
+                 onChange={(e) => setRemark(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="최초작성자">
+          <input className="ec-input" placeholder="작성자 일부" value={createdBy}
+                 onChange={(e) => setCreatedBy(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
@@ -141,6 +223,39 @@ export default function AsConsumptionPage() {
           </tfoot>
         )}
       </table>
+
+      {subtotal !== '없음' && shown.length > 0 && (() => {
+        /* 소계 축은 품목 마스터의 값이라 줄에서 바로 못 읽는다 — itemId 로 되짚는다. */
+        const keyOf = (r: Row) => (subtotal === '품목구분' ? categoryOf(r.itemId) : groupOf(r.itemId))
+        const groupsOf = subtotalBy(shown, keyOf, {
+          qty: (r) => r.totalQty, amount: (r) => r.totalAmount,
+        })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>품목수</th>
+                <th style={{ width: 130, textAlign: 'right' }}>소모수량</th>
+                <th style={{ width: 150, textAlign: 'right' }}>소모금액</th>
+              </tr></thead>
+              <tbody>
+                {groupsOf.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#c07a00' }}>{won(g.sums.qty)}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>
+                      {won(g.sums.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
