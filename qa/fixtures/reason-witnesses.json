@@ -1699,5 +1699,36 @@
    "serialNo"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|담당자": {
+  "claim": "견적 전표에 담당자를 안 붙인다",
+  "absent": [
+   "employeeId",
+   "employeeName"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|외화종류": {
+  "claim": "견적에 통화 칸이 없다",
+  "absent": [
+   "currency",
+   "exchangeRate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|결제조건": {
+  "claim": "견적에 결제조건 칸이 없다",
+  "absent": [
+   "paymentTerm",
+   "paymentTerms"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|제목": {
+  "claim": "견적에 제목 칸이 없다",
+  "absent": [
+   "String title"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
  }
 }

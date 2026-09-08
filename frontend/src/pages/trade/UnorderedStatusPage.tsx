@@ -8,6 +8,9 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import EcBarChart from '../../components/EcBarChart'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -20,8 +23,14 @@ import { dateText } from '../../utils/dateText'
  * 우리 모델은 견적서를 **통짜로** 수주 전환한다(Quotation.convertedOrderId 하나). 라인별 부분 전환이 없으므로
  * 미전환 견적의 견적수량 전체가 곧 미주문수량이다. 이 한계 안에서 '전환 안 된 견적'을 충실히 보여준다.
  *
- * 원본 Search 패널의 창고·프로젝트·담당자·거래처관리담당자·관리항목은 Quotation 에 필드가 없어 **의도적 제외**
- * (구매현황·주문서현황 선례와 동일). 실제 데이터가 있는 기준일자·거래처·견적No.·품목만 조건으로 둔다.
+ * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>서른여덟</b>이다(대조표에는 조건이
+ * 한 줄도 없었다). 접힌 줄을 펴야 <b>열하나 → 마흔둘</b>로 늘어난다.
+ *
+ * <p>머리말에 "창고·프로젝트·담당자·거래처관리담당자·관리항목은 Quotation 에 필드가 없어
+ * 의도적 제외" 라 적혀 있었는데 <b>대부분 틀린 말이었다</b> — <code>Quotation</code> 은
+ * warehouseName·projectName·remark·createdBy·statusName·validUntil 을 진작 싣고,
+ * 관리항목은 품목 마스터로, 거래처관리담당자는 거래처 마스터로 이으면 된다
+ * (견적서 화면이 이미 그렇게 한다). 정말 없는 것은 <b>담당자</b> 하나다.
  *
  * 조건 판은 현황 화면 공용(`EcStatusPanel`)이다. 원본도 접히지 않고 펼쳐져 있다.
  * 원본 기준일자는 '기준일자(영업주기)' 라는 **한 날짜**지만, 우리는 견적일자 <b>구간</b>으로 거른다 —
@@ -39,6 +48,12 @@ interface Row {
   validUntil: string | null
   quoteNo: string
   partner: string
+  /** 원본 [창고]·[프로젝트]·[적요]·[작성자]. 응답이 진작 싣던 값이다. */
+  warehouse: string | null
+  project: string | null
+  remark: string | null
+  createdBy: string | null
+  itemId: number
   status: QuotationStatus
   statusName: string
   itemName: string
@@ -57,6 +72,22 @@ interface Filters {
   item: string
   expiredOnly: boolean
   sortByDoc: boolean
+  /* 2026-09-08 실측으로 만든 것들. 값은 전부 이미 응답이나 마스터에 있다. */
+  warehouse: string
+  project: string
+  mgmt: string
+  partnerMgr: string
+  /** 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */
+  validFrom: string
+  validTo: string
+  qtyFrom: string; qtyTo: string
+  unorderedFrom: string; unorderedTo: string
+  priceFrom: string; priceTo: string
+  supplyFrom: string; supplyTo: string
+  vatFrom: string; vatTo: string
+  remark: string
+  status: '' | QuotationStatus
+  createdBy: string
 }
 
 /*
@@ -67,13 +98,28 @@ const init = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: init.from, dateTo: init.to, partner: '', quoteNo: '', item: '', expiredOnly: false, sortByDoc: false,
+  warehouse: '', project: '', mgmt: '', partnerMgr: '',
+  validFrom: '', validTo: '', qtyFrom: '', qtyTo: '', unorderedFrom: '', unorderedTo: '',
+  priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+  remark: '', status: '', createdBy: '',
 }
+
+/** 범위 조건 하나. 빈 칸은 '안 정함' 이라 지나간다. */
+const inRange = (v: number, lo: string, hi: string) =>
+  (lo === '' || v >= Number(lo)) && (hi === '' || v <= Number(hi))
 
 const todayStr = () => ymd(new Date())
 
 export default function UnorderedStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
+  const mgmt = useItemMgmt()
+  const pmgr = usePartnerManagers()
+  /**
+   * 원본 [정렬기준]·[데이터 보기형식] — 조건 판의 맨 끝 둘이다.
+   * 미주문은 <b>어느 거래처의 견적이 얼마나 잠겨 있나</b> 를 보는 표라 거래처로 묶어 그린다.
+   */
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -96,6 +142,11 @@ export default function UnorderedStatusPage() {
           validUntil: q.validUntil,
           quoteNo: q.quoteNo,
           partner: q.partnerName,
+          warehouse: q.warehouseName,
+          project: q.projectName,
+          remark: q.remark,
+          createdBy: q.createdBy,
+          itemId: l.itemId,
           status: q.status,
           statusName: q.statusName,
           itemName: l.itemName,
@@ -126,6 +177,21 @@ export default function UnorderedStatusPage() {
       if (f.partner && !r.partner.includes(f.partner)) return false
       if (f.quoteNo && !r.quoteNo.includes(f.quoteNo)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
+      if (f.project && !(r.project ?? '').includes(f.project)) return false
+      if (f.mgmt && mgmt.nameOf(r.itemId) !== f.mgmt) return false
+      if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+      if (f.validFrom && !(r.validUntil && r.validUntil >= f.validFrom)) return false
+      if (f.validTo && !(r.validUntil && r.validUntil <= f.validTo)) return false
+      if (!inRange(r.qty, f.qtyFrom, f.qtyTo)) return false
+      /* 우리 모델은 견적을 통짜로 전환하므로 <b>미주문수량 = 견적수량</b> 이다(머리말 참고). */
+      if (!inRange(r.qty, f.unorderedFrom, f.unorderedTo)) return false
+      if (!inRange(r.unitPrice, f.priceFrom, f.priceTo)) return false
+      if (!inRange(r.supply, f.supplyFrom, f.supplyTo)) return false
+      if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
+      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+      if (f.status && r.status !== f.status) return false
+      if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
       if (f.expiredOnly && !r.expired) return false
       return true
     })
@@ -164,30 +230,124 @@ export default function UnorderedStatusPage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/*
+        원본 차례(2026-09-08 실측): 구분 · <b>기준일자(영업주기)</b> · 견적No. · 창고 ·
+        프로젝트 · 관리항목 · 거래처 · 품목 · 담당자 · 거래처관리담당자 · 미주문수량 · …
+        우리는 거래처를 견적No. 앞에 두고 창고·프로젝트·관리항목이 아예 없었다.
+        기간 칸의 원본 이름도 <b>[기준일자(영업주기)]</b> 다.
+      */}
       <EcStatusPanel
         from={filters.dateFrom} to={filters.dateTo}
         onPeriod={(r) => setF({ dateFrom: r.from, dateTo: r.to })}
         picks={INQUIRY_FULL_PICKS}
+        dateLabel="기준일자(영업주기)"
+        view={view} onViewChange={setView}
       >
+        <EcCond label="견적No." pick>
+          <input className="ec-input" placeholder="견적번호 일부" value={filters.quoteNo}
+                 onChange={(e) => setF({ quoteNo: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={180} emptyLabel="전체"
+                           value={filters.warehouse} onChange={(v) => setF({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={180} emptyLabel="전체"
+                           value={filters.project} onChange={(v) => setF({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={filters.mgmt} onChange={(v) => setF({ mgmt: v })}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={filters.partner} onChange={(v) => setF({ partner: v })}
                            items={pickers.partners} />
-        </EcCond>
-        <EcCond label="견적No." pick>
-          <input className="ec-input" placeholder="견적번호 일부" value={filters.quoteNo}
-                 onChange={(e) => setF({ quoteNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"
+                           value={filters.partnerMgr} onChange={(v) => setF({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: … 거래처관리담당자 · <b>미주문수량</b> · … · 수량 · 단가 · 공급가액 · 부가세 … */}
+        <EcCond label="미주문수량">
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.unorderedFrom}
+                 onChange={(e) => setF({ unorderedFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.unorderedTo}
+                 onChange={(e) => setF({ unorderedTo: e.target.value })} />
+        </EcCond>
+        {/* 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */}
+        <EcCond label="유효기간">
+          <input type="date" className="ec-input" value={filters.validFrom}
+                 onChange={(e) => setF({ validFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={filters.validTo}
+                 onChange={(e) => setF({ validTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="수량">
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}
+                 onChange={(e) => setF({ qtyFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyTo}
+                 onChange={(e) => setF({ qtyTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="단가">
+          <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceFrom}
+                 onChange={(e) => setF({ priceFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceTo}
+                 onChange={(e) => setF({ priceTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyFrom}
+                 onChange={(e) => setF({ supplyFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyTo}
+                 onChange={(e) => setF({ supplyTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatFrom}
+                 onChange={(e) => setF({ vatFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatTo}
+                 onChange={(e) => setF({ vatTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요" value={filters.remark}
+                 onChange={(e) => setF({ remark: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input" value={filters.status} style={{ width: 120 }}
+                  onChange={(e) => setF({ status: e.target.value as Filters['status'] })}>
+            <option value="">전체</option>
+            {OPEN_STATUS.map((k) => <option key={k} value={k}>{k === 'DRAFT' ? '작성' : '발송'}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="작성자">
+          <select className="ec-input" value={filters.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setF({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
         <EcCond label="기타">
           <label style={{ fontSize: 12, marginRight: 12 }}>
             <input type="checkbox" checked={filters.expiredOnly}
                    onChange={(e) => setF({ expiredOnly: e.target.checked })} /> 유효기간 지난 것만
           </label>
+        </EcCond>
+        {/* 원본 [정렬기준] — [데이터 보기형식] 바로 앞줄이다. */}
+        <EcCond label="정렬기준">
           <label style={{ fontSize: 12 }}>
             <input type="checkbox" checked={filters.sortByDoc}
                    onChange={(e) => setF({ sortByDoc: e.target.checked })} /> 견적번호순 (기본: 일자순)
@@ -204,6 +364,18 @@ export default function UnorderedStatusPage() {
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
+      {/*
+        원본 [데이터 보기형식]이 <b>그래프</b>면 거래처별로 잠긴 금액을 막대로 그린다 —
+        미주문은 "어느 거래처의 견적이 얼마나 잠겨 있나" 를 보는 표다.
+      */}
+      {view === '그래프' ? (
+        <EcBarChart unit=" 원" emptyText="조회된 미주문 견적이 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partner, (m.get(r.partner) ?? 0) + r.supply)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -248,6 +420,7 @@ export default function UnorderedStatusPage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
