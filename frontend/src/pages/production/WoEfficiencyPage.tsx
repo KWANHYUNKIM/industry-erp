@@ -11,6 +11,7 @@ import { stockCostMap } from '../../utils/stockValue'
 import type { Item, PurchaseDoc } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -122,6 +123,14 @@ export default function WoEfficiencyPage() {
   const [orderNo, setOrderNo] = useState('')
   /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
   const [manager, setManager] = useState('')
+  /*
+   * 원본 [거래처관리담당자]. 앞서 "작업지시에는 거래처가 <b>납품처로만</b> 붙는다" 고 적어
+   * 못 만드는 것으로 두었는데 <b>이유가 되지 않는다</b> — 납품처든 아니든 거래처는 거래처이고,
+   * 관리담당자는 <b>거래처 마스터</b>에 붙는 값이라 이름으로 이으면 그만이다
+   * (판매·구매·미주문·미판매현황이 모두 그 길을 쓴다). 응답이 partnerName 을 진작 싣는다.
+   */
+  const [partnerMgr, setPartnerMgr] = useState('')
+  const pmgr = usePartnerManagers()
   const [remarkCond, setRemarkCond] = useState('')
   /** 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다(사본 실측). */
   const [author, setAuthor] = useState('')
@@ -279,6 +288,7 @@ export default function WoEfficiencyPage() {
     if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
     if (partner && (r.partnerName ?? '') !== partner) return false
+    if (partnerMgr && pmgr.managerOfName(r.partnerName ?? '') !== partnerMgr) return false
     if (author && (r.createdBy ?? '') !== author) return false
     if (status !== '전체' && r.statusName !== status) return false
     return true
@@ -352,6 +362,12 @@ export default function WoEfficiencyPage() {
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
                            value={manager} onChange={(v) => setManager(v)}
                            items={pickers.employees} />
+        </EcCond>
+        {/* 원본 차례: [담당자] 다음이 <b>[거래처관리담당자]</b>, 그 다음이 규격·적요다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={partnerMgr} onChange={(v) => setPartnerMgr(v)}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={remarkCond}
