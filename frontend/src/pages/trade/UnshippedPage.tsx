@@ -70,6 +70,10 @@ interface UnshippedLine {
   shipNos: string | null
   /** 적요. 원본 미출하현황의 열 — 주문서에 적어 둔 말이 여기서 사라지면 안 된다. */
   remark: string | null
+  /** 규격 — 열에는 품목명 뒤에 붙여 그리면서 값을 따로 안 받아 거를 수가 없었다. */
+  spec: string | null
+  /** 작성자 — 수주 전표가 진작 들고 있는 값이다. */
+  createdBy: string | null
 }
 
 const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b6791b' : '#1c6fb5')
@@ -89,8 +93,17 @@ export default function UnshippedPage() {
    * "이번 주까지 나가야 할 미출하" 를 보려면 표를 눈으로 훑어야 했다.
    * [거래처관리담당자]는 거래처 마스터가 든다 — "내가 맡은 거래처의 미출하" 를 못 봤다.
    */
+  /*
+   * 2026-09-08 에 원본(E040228)의 조건 판을 <b>접힌 줄까지 펼쳐</b> 다시 쟀다.
+   * 사본에 열둘로 적혀 있던 것이 실제로는 스물다섯이다. 이 화면의 접힘 표시에는
+   * <code>collapsed</code> 클래스가 <b>붙지 않는다</b> — 줄 수를 세어 봐야 안다.
+   *
+   * <p>새로 만든 여섯: 오더관리번호(옛 [주문번호]를 원본 이름으로) · 수량 ·
+   * 규격 · 적요 · 진행상태 · 작성자.
+   */
   const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
-    dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
+    dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '',
+    ordQtyFrom: '', ordQtyTo: '', spec: '', remark: '', author: '', status: '전체' })
   const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [loading, setLoading] = useState(true)
@@ -185,6 +198,12 @@ export default function UnshippedPage() {
     .filter((r) => !cond.item || r.itemName.includes(cond.item))
     .filter((r) => !mgmtCond || mgmt.nameOf(r.itemId) === mgmtCond)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
+    .filter((r) => !cond.ordQtyFrom || r.orderQty >= Number(cond.ordQtyFrom))
+    .filter((r) => !cond.ordQtyTo || r.orderQty <= Number(cond.ordQtyTo))
+    .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
+    .filter((r) => !cond.remark || (r.remark ?? '').includes(cond.remark))
+    .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    .filter((r) => cond.status === '전체' || r.statusName === cond.status)
     // 원본 [출하지시No.] — 그 지시에 걸린 줄만. 지시가 안 나간 줄은 값이 없어 걸리지 않는다.
     .filter((r) => !cond.shipNo || (r.shipNos ?? '').includes(cond.shipNo))
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
@@ -240,7 +259,8 @@ export default function UnshippedPage() {
 
   const reset = () => {
     setCond({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
-      dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '' })
+      dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '',
+      ordQtyFrom: '', ordQtyTo: '', spec: '', remark: '', author: '', status: '전체' })
     setKeyword('')
   }
 
@@ -310,10 +330,6 @@ export default function UnshippedPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
-        <EcCond label="주문번호" pick>
-          <input className="ec-input" placeholder="주문번호 일부" value={cond.orderNo}
-                 onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
-        </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={cond.employee} onChange={(v) => setC({ employee: v })}
@@ -333,6 +349,59 @@ export default function UnshippedPage() {
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 스물다섯): … 미출하수량 ·
+          <b>오더관리번호 · (연락처 · 주소) · 적요 · 수량 · 규격 · 진행상태 · 작성자</b> ·
+          (최종수정자 · 제목) · 적용양식 · 정렬기준 · 데이터 보기형식.
+
+          <p>[주문번호]라는 이름으로 두고 있던 칸이 원본에서는 <b>[오더관리번호]</b>다.
+          출하현황·출하조회에서 같은 이름의 칸이 근거 수주의 전표번호를 가리키는 것을
+          이미 확인했고, 여기서는 줄 자신이 그 수주다.
+        */}
+        {/* 원본에서 이 칸은 <b>코드도움</b>이다(btn-code-search + form-control-code 실측). */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={180} emptyLabel="전체"
+                           value={cond.orderNo} onChange={(v) => setC({ orderNo: v })}
+                           items={[...new Set(rows.map((r) => r.orderNo))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={cond.remark}
+                 onChange={(e) => setC({ remark: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        {/* 원본 [수량] — 미출하가 아니라 <b>주문수량</b> 이다. 둘을 따로 묻는다. */}
+        <EcCond label="수량">
+          <input className="ec-input" type="number" value={cond.ordQtyFrom}
+                 onChange={(e) => setC({ ordQtyFrom: e.target.value })} style={{ width: 100 }} />
+          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <input className="ec-input" type="number" value={cond.ordQtyTo}
+                 onChange={(e) => setC({ ordQtyTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={cond.spec}
+                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        {/*
+          원본 [진행상태]는 전표의 <b>결재 단계</b>(결재중·미확인·확인)를 고르는 칸이다.
+          우리 수주에는 그 단계가 없고 <b>수주 진행</b>(접수·진행중)이 있다 — 축이 다르므로
+          후보를 지어내지 않고 <b>지금 목록에 실제로 있는 상태</b>에서 뽑는다.
+          미출하현황은 열려 있는 주문만 보므로 완료·취소는 여기 오지 않는다.
+        */}
+        <EcCond label="진행상태">
+          <div className="ec-pills">
+            {['전체', ...new Set(rows.map((r) => r.statusName))].map((k) => (
+              <button key={k} type="button"
+                      className={'ec-pill no-ec' + (cond.status === k ? ' active' : '')}
+                      onClick={() => setC({ status: k })}>{k}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         {/*
           원본 [정렬기준] — 조건 판에서 무엇으로 세울지 고른다. 우리는 표 머리로만 정렬할 수

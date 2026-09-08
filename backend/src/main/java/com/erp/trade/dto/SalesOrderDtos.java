@@ -76,7 +76,14 @@ public final class SalesOrderDtos {
              * 이 줄에 <b>이미 나가 있는 출하지시 전표번호</b>(READY). 여럿이면 쉼표로 잇는다.
              * 원본 미출하현황의 [출하지시No.] 조건이 가리키는 값이다.
              */
-            String shipNos
+            String shipNos,
+            /**
+             * 규격 · 작성자 — 2026-09-08 원본 미출하현황(E040228)의 접힌 줄을 펼쳐 재니
+             * 둘 다 조건으로 있다. 품목 마스터와 수주 전표가 진작 들고 있는 값인데
+             * 응답이 안 실어 화면이 거를 수가 없었다. 열([품목명(규격)])에는 규격을
+             * 이미 붙여 그리면서 정작 그 값을 따로 주지 않아, 화면이 이름에서 되짚어야 했다.
+             */
+            String spec, String createdBy
     ) {
         /**
          * @param committed 이 라인에 <b>이미 잡힌</b> 출하수량 — 출하지시(READY)와 출하완료(SHIPPED)를 더한 값.
@@ -103,7 +110,8 @@ public final class SalesOrderDtos {
                     o.getProject() != null ? o.getProject().getName() : null,
                     o.getEmployee() != null ? o.getEmployee().getId() : null,
                     o.getEmployee() != null ? o.getEmployee().getName() : null,
-                    o.getRemark(), shipNos);
+                    o.getRemark(), shipNos,
+                    l.getItem().getSpec(), o.getCreatedBy());
         }
     }
 
