@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -6,11 +6,26 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ymd } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 영업관리 > 현황누계표 (이카운트 E040709)
  * 연도별 12개월의 당월/누계 매출·매입·이익(추정)을 시계열로 본다.
  * 데이터는 GET /api/sales + /purchases 집계(백엔드 무변경). 이익 = 매출−매입(추정, 원가매칭 아님).
+ *
+ * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>열아홉</b>이다(사본에는 일곱뿐이었다).
+ * 접힌 줄은 없고 [기본]·[전체] 두 탭이 같은 판을 쓴다. 차례:
+ * <b>구분</b> · 창고 · (창고계층그룹) · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 ·
+ * 거래처계층그룹) · 품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) ·
+ * 프로젝트 · (프로젝트그룹1/2) · 관리항목 · 내.외자구분 · <b>기타</b>.
+ *
+ * <p><b>[구분] 이 통째로 없었다.</b> 그 안에는 넷이 들어 있다 —
+ * <b>표시방법</b>(종★ · 횡) · 기준일자(금월) · 비교기간(사용안함★) · 비교대상.
+ * 우리는 해만 고르고 표를 <b>늘 세로로</b>(월이 행) 그렸다. 원본은 눕혀 볼 수 있다 —
+ * 열두 달을 나란히 놓고 훑는 것이 이 표를 보는 흔한 방식이다.
+ *
+ * <p>[기타]도 없었다 — 체크는 <b>결재방표시</b> 하나이고 꺼짐이 기본이다.
  */
 
 interface MonthRow {
@@ -33,10 +48,22 @@ export default function MonthlyCumulativePage() {
    * 원본 현황누계표의 조건 차례는 <b>창고 · 거래처 · 품목 · 프로젝트</b> 다(사본 실측).
    * 해가 전부였다 — 판매·구매 응답이 셋을 다 보내고 있는데 걸 자리가 없었다.
    */
+  /*
+   * 원본 [구분]의 <b>표시방법</b> — 종(월이 행) · 횡(월이 열). 기본은 <b>종</b>이다.
+   * 우리는 종 하나로 박혀 있었다.
+   */
+  const [layout, setLayout] = useState<'종' | '횡'>('종')
+  /* 원본 [기타] — 결재방표시 하나, 기본 꺼짐. */
+  const [signBox, setSignBox] = useState(false)
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
   const [project, setProject] = useState('')
   const [item, setItem] = useState('')
+  /* 2026-09-08 실측으로 만든 셋. 값은 마스터와 라인에 이미 있다. */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const pgroup = usePartnerGroups()
   const pickers = useCondPickers(['warehouses', 'partners', 'projects', 'items'])
 
   async function load() {
@@ -60,12 +87,21 @@ export default function MonthlyCumulativePage() {
     const saleByM = new Array(13).fill(0)
     const buyByM = new Array(13).fill(0)
     /* 품목은 전표가 아니라 <b>라인</b>에 있다 — 그 품목이 든 전표만 센다. */
+    /*
+     * 원본 [품목구분]·[품목그룹1]도 라인에 붙는 값이라, 전표를 셀 때는
+     * <b>그 조건에 맞는 줄을 하나라도 가진 전표</b>만 센다(판매구매집계표와 같은 규칙).
+     */
+    const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
+      (!category || (l.itemCategoryName ?? '') === category)
+      && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
     const keep = (d: { warehouseName: string; partnerName: string; projectName: string | null;
-                      lines: { itemName: string; itemId: number }[] }) =>
+                      lines: { itemName: string; itemId: number; itemCategoryName: string | null }[] }) =>
       (!warehouse || d.warehouseName.includes(warehouse))
       && (!partner || d.partnerName.includes(partner))
+      && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
       && (!project || (d.projectName ?? '').includes(project))
       && (!item || d.lines.some((l) => l.itemName.includes(item)))
+      && d.lines.some(lineHit)
       && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
     for (const d of sales) {
       if (d.saleDate.slice(0, 4) !== String(year)) continue
@@ -85,7 +121,14 @@ export default function MonthlyCumulativePage() {
       out.push({ month: m, sale, saleCum, buy, buyCum, profit, profitCum })
     }
     return out
-  }, [sales, purchases, year, warehouse, partner, project, item])
+  }, [sales, purchases, year, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
+
+  /*
+   * [표시방법]이 <b>횡</b>이면 열이 열두 달 + 연간으로 바뀐다 — 정적으로는 못 세는 표라
+   * 렌더된 표를 직접 재는 검사를 단다.
+   */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '현황누계표', [layout])
 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const yTotal = rows.length ? rows[rows.length - 1] : null
@@ -94,10 +137,23 @@ export default function MonthlyCumulativePage() {
     <EcListShell
       title="현황누계표"
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      signLine={signBox}
     >
       <p className="mb-2 text-xs text-slate-500">월별 당월·누계 매출·매입·이익(추정). 이익 = 매출공급가 − 매입공급가(원가매칭 아님).</p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        {/*
+          원본 [구분] 안의 <b>표시방법</b> — 종(월이 행) · 횡(월이 열). 기본은 종이다.
+          [구분]에는 기준일자·비교기간·비교대상도 함께 들어 있는데, 우리 표는
+          <b>한 해 열두 달</b>이 축이라 기간을 연 단위로만 고른다(아래 [연도]).
+        */}
+        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>구분</span>
+        <div className="ec-pills">
+          {(['종', '횡'] as const).map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${layout === v ? ' active' : ''}`}
+                    onClick={() => setLayout(v)}>{v}</button>
+          ))}
+        </div>
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
@@ -107,16 +163,36 @@ export default function MonthlyCumulativePage() {
                          value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
         <CodePickerField label="거래처" width={150} emptyLabel="전체"
                          value={partner} onChange={setPartner} items={pickers.partners} />
+        <CodePickerField label="거래처그룹1" width={140} emptyLabel="전체"
+                         value={partnerGroup} onChange={setPartnerGroup}
+                         items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 창고 · 거래처 · <b>품목</b> · 프로젝트 — 품목이 프로젝트보다 앞이다.
             주석에는 넷을 다 적어 놓고 셋만 만들어 두었다. */}
         <CodePickerField label="품목" width={150} emptyLabel="전체"
                          value={item} onChange={setItem} items={pickers.items} />
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목구분</span>
+        <select className="ec-input" value={category} style={{ width: 130 }}
+                onChange={(e) => setCategory(e.target.value)}>
+          <option value="">전체</option>
+          {[...new Set([...sales, ...purchases].flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+            .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목그룹1</span>
+        <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                onChange={(e) => setItemGroup(e.target.value)}>
+          <option value="">전체</option>
+          {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
         {/* 원본 차례: [품목] · [프로젝트] · <b>[관리항목]</b> (사본 실측 — 이 화면에서는 맨 뒤다). */}
         <CodePickerField label="프로젝트" width={150} emptyLabel="전체"
                          value={project} onChange={setProject} items={pickers.projects} />
         <CodePickerField label="관리항목" width={150} emptyLabel="전체"
                          value={mgmtCond} onChange={setMgmtCond}
                          items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기타</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />결재방표시
+        </label>
         {yTotal && (
           <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
             연매출 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(yTotal.saleCum)}</b>
@@ -128,6 +204,44 @@ export default function MonthlyCumulativePage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {/*
+        원본 [구분]의 <b>표시방법</b>이 <b>횡</b>이면 열두 달을 <b>열</b>로 눕힌다.
+        같은 숫자를 돌려 놓는 것뿐이지만, 달을 나란히 놓고 훑는 것이 이 표를 보는
+        흔한 방식이라 원본이 첫 조건으로 둔다.
+      */}
+      {layout === '횡' ? (
+      <div ref={tableRef} style={{ overflowX: 'auto' }}>
+        <table className="w-full text-left" style={{ minWidth: 900 }}>
+          <thead>
+            <tr>
+              <th style={{ position: 'sticky', left: 0, background: '#f5f7fa', minWidth: 110 }}>구분</th>
+              {rows.map((r) => <th key={r.month} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.month}월</th>)}
+              <th style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>연간</th>
+            </tr>
+          </thead>
+          <tbody>
+            {([
+              ['당월매출', (r: MonthRow) => r.sale, yTotal ? yTotal.saleCum : 0],
+              ['누계매출', (r: MonthRow) => r.saleCum, yTotal ? yTotal.saleCum : 0],
+              ['당월매입', (r: MonthRow) => r.buy, yTotal ? yTotal.buyCum : 0],
+              ['누계매입', (r: MonthRow) => r.buyCum, yTotal ? yTotal.buyCum : 0],
+              ['당월이익', (r: MonthRow) => r.profit, yTotal ? yTotal.profitCum : 0],
+              ['누계이익', (r: MonthRow) => r.profitCum, yTotal ? yTotal.profitCum : 0],
+            ] as [string, (r: MonthRow) => number, number][]).map(([name, of, total]) => (
+              <tr key={name}>
+                <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{name}</td>
+                {rows.map((r) => (
+                  <td key={r.month} style={{ textAlign: 'right', color: of(r) ? undefined : '#c5cbd3' }}>
+                    {of(r) ? won(of(r)) : ''}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -169,6 +283,7 @@ export default function MonthlyCumulativePage() {
           </tfoot>
         )}
       </table>
+      )}
     </EcListShell>
   )
 }
