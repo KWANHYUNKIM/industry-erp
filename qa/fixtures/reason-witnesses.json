@@ -1651,5 +1651,21 @@
    "exchangeRate"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+ },
+ "집계표|외화종류": {
+  "claim": "판매 전표에 통화 칸이 없다 — 원화 하나로 본다",
+  "absent": [
+   "currency",
+   "exchangeRate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+ },
+ "집계표|채권번호": {
+  "claim": "판매 전표가 채권을 물지 않는다 — 정산이 전표를 문다",
+  "absent": [
+   "receivableNo",
+   "settlementId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
  }
 }
