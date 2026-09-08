@@ -334,8 +334,22 @@ export default function ShipmentInquiryPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th>
-            <th style={{ textAlign: 'right' }}>출하수량</th><th style={{ textAlign: 'right' }}>출하금액</th>
+            {/*
+              <b>출하조회(E040226) 2026-09-09 원본 격자 실측</b> — 열 여섯:
+              [일자-No. · <b>창고명</b> · 품목명(요약) · 수량합계 · 거래처명 · <b>인쇄</b>].
+              (주소창 prgId 도 이 자리에서 다시 확인했다 — <b>E040226</b> 이 맞다.)
+              고친 것: (1) 출하번호와 출하일을 <b>두 칸</b>으로 갈라 두었다 → [일자-No.] 한 칸,
+              (2) <b>[창고명] 열이 없었다</b> — 응답이 진작 싣고 조건으로도 이미 거르고
+              있었는데 표에만 안 찍고 있었다(또 '거를 수는 있는데 볼 수는 없는 열'),
+              (3) 이름 셋 — [품목]→[품목명(요약)] · [출하수량]→[수량합계] ·
+              [거래처]→[거래처명], 그리고 거래처는 원본 차례대로 수량 뒤로 옮겼다.
+              [인쇄]는 줄마다 두는 원본 열인데 우리는 화면 위 [인쇄] 하나로 낸다 —
+              pending-columns.json 에 적었다.
+              [근거주문]·[출하금액]·[발송여부]·[담당]은 우리 열이다.
+            */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th>창고명</th><th>품목명(요약)</th>
+            <th style={{ textAlign: 'right' }}>수량합계</th><th style={{ textAlign: 'right' }}>출하금액</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
             <th style={{ textAlign: 'center' }}>발송여부</th><th>담당</th>
           </tr>
         </thead>
@@ -348,13 +362,14 @@ export default function ShipmentInquiryPage() {
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{r.shipNo}</td>
-                <td>{dateText(r.shipDate)}</td>
+                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{dateText(r.shipDate)} {r.shipNo}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: r.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>{r.salesOrderNo ?? '직접등록'}</td>
-                <td>{r.partnerName}</td>
+                <td style={{ color: r.warehouseName ? undefined : '#c5cbd3' }}>{r.warehouseName ?? ''}</td>
                 <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
+                <td>{r.partnerName}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
                 <td>{r.employeeName ?? ''}</td>
               </tr>
@@ -387,10 +402,10 @@ export default function ShipmentInquiryPage() {
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-            <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
-            <td colSpan={2}></td>
+            <td colSpan={3}></td>
           </tr>
         </tfoot>
       </table>
