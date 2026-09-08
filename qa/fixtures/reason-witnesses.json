@@ -3091,5 +3091,20 @@
    "amount"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "미구매현황|수량": {
+  "claim": "우리 발주는 통째로 구매로 넘어간다 - 부분 입고를 남기지 않는다",
+  "absent": [
+   "receivedQuantity",
+   "convertedQuantity"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "미구매현황|품목별납기일자": {
+  "claim": "납기를 줄에 안 적는다 - 전표 단위다",
+  "absent": [
+   "dueDate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
  }
 }

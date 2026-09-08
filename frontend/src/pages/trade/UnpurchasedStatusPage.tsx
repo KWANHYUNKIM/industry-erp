@@ -247,9 +247,36 @@ export default function UnpurchasedStatusPage() {
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
+  /*
+   * 원본은 <b>달이 바뀌는 자리에 '2026/01 계'</b> 를 끼우고 맨 끝에 <b>'총합계'</b> 를 둔다
+   * (2026-09-09 E040307 실측 - 미주문현황·발주서현황과 같다). 소계가 날짜로 묶이므로
+   * 정렬은 <b>풀 수 없다</b>(오름/내림만 오간다) - 목록을 만들면서 같이 넣는다.
+   */
   const sort = useTableSort(shown, {
     발주일자: (r) => r.date,
-  })
+  }, { key: '발주일자', dir: 'asc' })
+
+  const lineRows = useMemo(() => {
+    type Line = { kind: 'line'; key: string; no: number; r: Row }
+    type Sub = { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
+    const out: (Line | Sub)[] = []
+    let month = ''
+    let no = 0
+    let qty = 0, supply = 0, vat = 0
+    const flush = () => {
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
+      qty = 0; supply = 0; vat = 0
+    }
+    for (const r of sort.sorted) {
+      const m = r.date.slice(0, 7).replace('-', '/')
+      if (m !== month) { flush(); month = m }
+      out.push({ kind: 'line', key: r.key, no: ++no, r })
+      qty += r.qty; supply += r.supply; vat += r.vat
+    }
+    flush()
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort.sorted])
 
   return (
     <EcListShell
@@ -359,50 +386,81 @@ export default function UnpurchasedStatusPage() {
         </table>
       ) : (
       <table className="w-full text-left">
+        {/*
+          원본 격자(2026-09-09 E040307 실측):
+          <b>일자-No. · 품목명(규격) · 수량 · 미구매수량 · 품목별납기일자 · 거래처명 ·
+          적요 · 미구매부가세</b>.
+          우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) 규격을 들고 있으면서 안 붙였고,
+          (3) <b>[적요] 열이 없었고</b>, (4) 거래처를 앞쪽에 [매입처] 라 두었고,
+          (5) 부가세를 그냥 [부가세] 라 불러 <b>그게 미구매분인 것</b>이 이름에 안 드러났다.
+          납기·창고·담당자·상태·단가·공급가액은 원본에 없지만 우리가 더 두는 열이다.
+        */}
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>발주일자 {sort.mark('발주일자')}</th>
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
             <th>납기</th>
-            <th>발주번호</th>
-            <th>매입처</th>
             <th>창고</th>
             <th>담당자</th>
             <th style={{ textAlign: 'center' }}>상태</th>
-            <th>품목명</th>
+            <th>품목명(규격)</th>
             <th style={{ textAlign: 'right' }}>미구매수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
+            <th>거래처명</th>
+            <th>적요</th>
+            <th style={{ textAlign: 'right' }}>미구매부가세</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
+          ) : lineRows.length === 0 ? (
             <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '미구매(미입고) 발주가 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : sort.sorted.map((r, i) => (
-            <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
-              <td>{r.partner}</td>
-              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
-              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
+          ) : lineRows.map((x) => x.kind === 'subtotal' ? (
+            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
+              <td colSpan={7} style={{ textAlign: 'right' }}>{x.month} 계</td>
+              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
+              <td></td>
+              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
+              <td colSpan={2}></td>
+              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
+            </tr>
+          ) : (
+            <tr key={x.key}>
+              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.orderNo}</td>
+              <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(x.r.dueDate) || ''}</td>
+              <td style={{ color: x.r.warehouse ? undefined : '#c5cbd3' }}>{x.r.warehouse || ''}</td>
+              <td style={{ color: x.r.employee ? undefined : '#c5cbd3' }}>{x.r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>{r.statusName}</span>
+                <span style={{ color: STATUS_COLOR[x.r.status], fontWeight: 600, fontSize: 12 }}>{x.r.statusName}</span>
               </td>
-              <td>{r.itemName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+              {/* 원본은 규격을 품목명 뒤 괄호에 붙인다 - 우리는 들고 있으면서 안 찍고 있었다. */}
+              <td>{x.r.itemName}{x.r.spec ? ' (' + x.r.spec + ')' : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{x.r.qty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
+              <td>{x.r.partner}</td>
+              <td style={{ color: '#5a626e' }}>{x.r.remark ?? ''}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+            <td colSpan={7} style={{ textAlign: 'right' }}>총합계 ({shown.length}줄)</td>
+            <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+            <td></td>
+            <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.supply, 0).toLocaleString()}</td>
+            <td colSpan={2}></td>
+            <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.vat, 0).toLocaleString()}</td>
+          </tr>
+        </tfoot>
       </table>
     )}
     </EcListShell>
