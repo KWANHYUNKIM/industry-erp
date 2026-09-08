@@ -126,7 +126,19 @@ public final class SalesOrderDtos {
             SalesOrderStatus status, String statusName,
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal orderQty, BigDecimal soldQty, BigDecimal unsoldQty,
-            BigDecimal unitPrice, BigDecimal unsoldAmount
+            BigDecimal unitPrice, BigDecimal unsoldAmount,
+            /**
+             * 창고 · 프로젝트 · 담당자 · 적요 · 규격 · 작성자 —
+             * 2026-09-08 원본 미판매현황(E040212)의 접힌 줄을 펼쳐 재니 여섯 다 조건으로 있다.
+             *
+             * <p>수주 전표와 품목 마스터가 진작 들고 있는 값인데 이 응답만 안 실어,
+             * 화면이 거를 수가 없었다. <b>같은 파일의 미출하 응답은 이미 싣는다</b> —
+             * 미출하와 미판매는 같은 수주를 다른 잣대로 보는 화면이라 조건도 거의 같다.
+             */
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            Long employeeId, String employeeName,
+            String remark, String spec, String createdBy
     ) {
         public static UnsoldLineResponse of(SalesOrder o, SalesOrderLine l, BigDecimal sold) {
             BigDecimal orderQty = l.getQuantity();
@@ -141,7 +153,14 @@ public final class SalesOrderDtos {
                     o.getStatus(), o.getStatus().getDisplayName(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
                     orderQty, soldQty, unsold,
-                    price, unsold.multiply(price));
+                    price, unsold.multiply(price),
+                    o.getWarehouse() != null ? o.getWarehouse().getId() : null,
+                    o.getWarehouse() != null ? o.getWarehouse().getName() : null,
+                    o.getProject() != null ? o.getProject().getId() : null,
+                    o.getProject() != null ? o.getProject().getName() : null,
+                    o.getEmployee() != null ? o.getEmployee().getId() : null,
+                    o.getEmployee() != null ? o.getEmployee().getName() : null,
+                    o.getRemark(), l.getItem().getSpec(), o.getCreatedBy());
         }
     }
 

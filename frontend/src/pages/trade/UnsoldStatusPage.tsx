@@ -6,6 +6,8 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import EcBarChart from '../../components/EcBarChart'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -17,9 +19,17 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * 판매 라인은 수주 <b>헤더</b>만 가리키므로(SalesLine.sourceOrder) 라인 대 라인이 아니라
  * 품목으로 맞춘다. 주문보다 많이 판 경우는 음수 대신 0 으로 둔다(GET /api/sales-orders/unsold).
  *
- * 원본 조건: 구분(품목별/라인별) · 기준일자(영업주기) · 품목별납기일자 · 창고 · 프로젝트 ·
- * 거래처 · 품목 · 담당자 · 거래처관리담당자 · 미판매수량(범위).
- * 창고·프로젝트·담당자·거래처관리담당자는 수주 라인에 없어 넣지 않았다(미출하현황과 같은 이유).
+ * <p>2026-09-08 에 원본을 열어 접힌 줄까지 재니 조건은 <b>스물둘</b>이다(사본에는 없었다):
+ * 구분 · 기준일자(영업주기) · 품목별납기일자 · 창고 · 프로젝트 · 거래처 · 품목 · 담당자 ·
+ * 거래처관리담당자 · 미판매수량 · 오더관리번호 · 적요 · 수량 · 내.외자구분 · 거래유형 ·
+ * 규격 · 진행상태 · 작성자 · 최종수정자 · 적용양식 · 정렬기준 · 데이터 보기형식.
+ *
+ * <p>머리말에 "창고·프로젝트·담당자·거래처관리담당자는 수주 라인에 없어 넣지 않았다" 고
+ * 적혀 있었는데 <b>수주 전표에는 다 있다</b> — 이 응답만 안 실었을 뿐이고,
+ * <b>같은 파일의 미출하 응답은 이미 싣고 있었다</b>(미출하와 미판매는 같은 수주를
+ * 다른 잣대로 보는 화면이라 조건도 거의 같다). <code>UnsoldLineResponse</code> 를
+ * 미출하와 같은 모양으로 넓히고 여섯을 만들었다 —
+ * 창고 · 프로젝트 · 담당자 · 적요 · 규격 · 작성자.
  */
 interface UnsoldLine {
   orderId: number
@@ -40,6 +50,13 @@ interface UnsoldLine {
   unsoldQty: number
   unitPrice: number
   unsoldAmount: number
+  /* 2026-09-08 에 응답을 넓혀 받은 것들 — 수주 전표와 품목 마스터가 진작 들던 값이다. */
+  warehouseName: string | null
+  projectName: string | null
+  employeeName: string | null
+  remark: string | null
+  spec: string | null
+  createdBy: string | null
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -53,14 +70,25 @@ const init = periodOf('금월(~오늘)')!
 export default function UnsoldStatusPage() {
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
+  const pmgr = usePartnerManagers()
   const [rows, setRows] = useState<UnsoldLine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   /** 원본 [구분] — 품목별(품목으로 합침) / 라인별(주문 라인 그대로). */
   const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
-  const [cond, setCond] = useState({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
+  const [cond, setCond] = useState({
+    from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
+    warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
+    status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+  })
+  /**
+   * 원본 [정렬기준]·[데이터 보기형식] — 조건 판의 맨 끝 둘이다.
+   * 미판매는 <b>어느 거래처의 수주가 얼마나 매출로 안 잡혔나</b> 를 보는 표라 거래처로 묶어 그린다.
+   */
+  const [byDue, setByDue] = useState(false)
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -89,6 +117,25 @@ export default function UnsoldStatusPage() {
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.qtyFrom || r.unsoldQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unsoldQty <= Number(cond.qtyTo))
+    /* 2026-09-08 실측으로 만든 것들. 응답을 넓혀 받은 값을 그대로 건다. */
+    .filter((r) => !cond.warehouse || (r.warehouseName ?? '').includes(cond.warehouse))
+    .filter((r) => !cond.project || (r.projectName ?? '').includes(cond.project))
+    .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
+    .filter((r) => !cond.partnerMgr || pmgr.managerOfName(r.partnerName) === cond.partnerMgr)
+    .filter((r) => !cond.remark || (r.remark ?? '').includes(cond.remark))
+    .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
+    .filter((r) => !cond.status || r.status === cond.status)
+    .filter((r) => !cond.createdBy || (r.createdBy ?? '') === cond.createdBy)
+    /* 원본 [품목별납기일자] — 라인 납기가 없어 전표 납기로 본다(아래 [남은 것] 참고). */
+    .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
+    .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
+    /* 원본 [수량] — 미판매수량이 아니라 <b>주문수량</b> 범위다. 둘은 다른 물음이다. */
+    .filter((r) => !cond.orderQtyFrom || r.orderQty >= Number(cond.orderQtyFrom))
+    .filter((r) => !cond.orderQtyTo || r.orderQty <= Number(cond.orderQtyTo))
+    .slice()
+    .sort((a, b) => (byDue
+      ? ((a.dueDate ?? '') < (b.dueDate ?? '') ? -1 : (a.dueDate ?? '') > (b.dueDate ?? '') ? 1 : 0)
+      : 0))
 
   /** 품목별 보기 — 주문번호가 여럿 섞이므로 건수로 대신 보여 준다. */
   const byItem = useMemo(() => {
@@ -108,7 +155,15 @@ export default function UnsoldStatusPage() {
     (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount }),
     { qty: 0, amount: 0 },
   )
-  const reset = () => { setMode('라인별'); setCond({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' }) }
+  const reset = () => {
+    setMode('라인별')
+    setCond({
+      from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
+      warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
+      status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+    })
+    setByDue(false); setView('표')
+  }
 
   return (
     <EcListShell
@@ -124,8 +179,9 @@ export default function UnsoldStatusPage() {
       <EcStatusPanel
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        dateLabel="기준일자(영업주기)"
+        view={view} onViewChange={setView}
         picks={INQUIRY_FULL_PICKS}
-        dateLabel="납기일자"
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -137,6 +193,28 @@ export default function UnsoldStatusPage() {
             ))}
           </div>
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측): 구분 · 기준일자(영업주기) · <b>품목별납기일자</b> ·
+          <b>창고 · 프로젝트</b> · 거래처 · 품목 · <b>담당자 · 거래처관리담당자</b> ·
+          미판매수량 · 오더관리번호 · <b>적요</b> · 수량 · … · <b>규격 · 진행상태 · 작성자</b>.
+        */}
+        <EcCond label="품목별납기일자">
+          <input type="date" className="ec-input" value={cond.dueFrom}
+                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="date" className="ec-input" value={cond.dueTo}
+                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={180} emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={180} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
@@ -146,6 +224,17 @@ export default function UnsoldStatusPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="주문번호">
           <input className="ec-input" placeholder="SO-…" value={cond.orderNo}
@@ -158,8 +247,59 @@ export default function UnsoldStatusPage() {
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요" value={cond.remark}
+                 onChange={(e) => setC({ remark: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="수량">
+          <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyFrom}
+                 onChange={(e) => setC({ orderQtyFrom: e.target.value })} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyTo}
+                 onChange={(e) => setC({ orderQtyTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" placeholder="규격" value={cond.spec}
+                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input" value={cond.status} style={{ width: 120 }}
+                  onChange={(e) => setC({ status: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.status))].map((k) => (
+              <option key={k} value={k}>{rows.find((r) => r.status === k)?.statusName ?? k}</option>
+            ))}
+          </select>
+        </EcCond>
+        <EcCond label="작성자">
+          <select className="ec-input" value={cond.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setC({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        {/* 원본 [정렬기준] — [데이터 보기형식] 바로 앞줄이다. */}
+        <EcCond label="정렬기준">
+          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={byDue} onChange={(e) => setByDue(e.target.checked)} />
+            납기일순 (기본: 미판매수량순)
+          </label>
+        </EcCond>
       </EcStatusPanel>
 
+      {/*
+        원본 [데이터 보기형식]이 <b>그래프</b>면 거래처별 미판매금액을 막대로 그린다 —
+        "어느 거래처의 수주가 얼마나 매출로 안 잡혔나" 가 이 화면의 물음이다.
+      */}
+      {view === '그래프' && (
+        <EcBarChart unit=" 원" emptyText="조회된 미판매 수주가 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partnerName, (m.get(r.partnerName) ?? 0) + r.unsoldAmount)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      )}
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
