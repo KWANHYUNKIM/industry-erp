@@ -53,7 +53,6 @@ export default function SurveyPage() {
   const [writerCond, setWriterCond] = useState('')
   const [postNoCond, setPostNoCond] = useState('')
   const [scope, setScope] = useState('')
-  const [visibility, setVisibility] = useState('')
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [answering, setAnswering] = useState<SurveyDoc | null>(null)
@@ -92,7 +91,6 @@ export default function SurveyPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? '').includes(keyword))
     .filter((r) => !scope || r.targetScope === scope)
-    .filter((r) => !visibility || r.resultVisibility === visibility)
     .filter((r) => !madeFrom || dateOf(r.createdAt) >= madeFrom)
     .filter((r) => !madeTo || dateOf(r.createdAt) <= madeTo)
     .filter((r) => !endFrom || dateOf(r.endAt) >= endFrom)
@@ -100,7 +98,7 @@ export default function SurveyPage() {
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !writerCond || (r.writerName ?? '').includes(writerCond))
     .filter((r) => !postNoCond || String(r.postNo).includes(postNoCond)),
-    [rows, tab, keyword, scope, visibility, madeFrom, madeTo, endFrom, endTo,
+    [rows, tab, keyword, scope, madeFrom, madeTo, endFrom, endTo,
       titleCond, writerCond, postNoCond])
 
   const tabCount = (t: Tab) => (t === '전체' ? rows.length : rows.filter((r) => r.status === TAB_STATUS[t]).length)
@@ -139,7 +137,14 @@ export default function SurveyPage() {
         ))}
       </div>
 
-      {/* 원본 조건의 [설문대상구분]·[결과공개범위]. 보기 이름도 원본 그대로다. */}
+      {/*
+        원본 조건의 [설문대상구분]. 보기 이름도 원본 그대로다.
+        <b>[결과공개범위]는 여기 있으면 안 된다.</b> 2026-09-08 에 원본(E070257)을 열어
+        재 보니 조회 조건은 <b>여덟</b>이고(작성일 · 설문종료일 · 설문대상구분 · 제목 ·
+        작성자 · 게시글번호 · 양식 · 적용양식) 그 안에 [결과공개범위]가 없다 —
+        그건 <b>설문조사입력</b>(만드는 화면)의 칸이다. 대조표도 그렇게 적고 있었다.
+        원본에 없는 것을 하나 더 두고 있었으므로 뺀다.
+      */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 차례: <b>작성일 · 설문종료일</b> · 설문대상구분 · 제목 · 작성자 · 게시글번호 */}
         <EcCond label="작성일">
@@ -157,14 +162,6 @@ export default function SurveyPage() {
             {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
               <button key={l} type="button" className={`ec-pill no-ec${scope === v ? ' active' : ''}`}
                       onClick={() => setScope(v)}>{l}</button>
-            ))}
-          </div>
-        </EcCond>
-        <EcCond label="결과공개범위">
-          <div className="ec-pills">
-            {([['', '전체'], ['ALL', '전체공개'], ['PARTIAL', '일부공개'], ['NONE', '비공개']] as const).map(([v, l]) => (
-              <button key={l} type="button" className={`ec-pill no-ec${visibility === v ? ' active' : ''}`}
-                      onClick={() => setVisibility(v)}>{l}</button>
             ))}
           </div>
         </EcCond>
