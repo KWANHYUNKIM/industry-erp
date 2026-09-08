@@ -8,6 +8,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.erp.inventory.domain.ItemCategory;
 
 public final class StagedAdjustmentDtos {
 
@@ -25,6 +26,12 @@ public final class StagedAdjustmentDtos {
     public record StagedResponse(
             Long id, String adjustNo, LocalDate requestDate,
             Long itemId, String itemCode, String itemName, String unit,
+            /**
+             * 원본 재고실사현황(E040615) 조건의 <b>[품목구분]</b>. 품목 마스터의 값이라
+             * 실어 주기만 하면 된다 — 2026-09-08 실측으로 이 화면이 그 축을 못 거르고
+             * 있었다는 것이 드러났다.
+             */
+            ItemCategory itemCategory, String itemCategoryName,
             Long warehouseId, String warehouseName,
             BigDecimal bookQty, BigDecimal actualQty, BigDecimal diff,
             String reason, StagedStatus status, String statusName,
@@ -35,6 +42,8 @@ public final class StagedAdjustmentDtos {
             return new StagedResponse(
                     s.getId(), s.getAdjustNo(), s.getRequestDate(),
                     s.getItem().getId(), s.getItem().getCode(), s.getItem().getName(), s.getItem().getUnit(),
+                    s.getItem().getCategory(),
+                    s.getItem().getCategory() != null ? s.getItem().getCategory().getDisplayName() : null,
                     s.getWarehouse().getId(), s.getWarehouse().getName(),
                     s.getBookQty(), s.getActualQty(), diff,
                     s.getReason(), s.getStatus(), s.getStatus().getDisplayName(),

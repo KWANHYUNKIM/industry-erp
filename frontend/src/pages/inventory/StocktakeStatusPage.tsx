@@ -7,6 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { STOCKTAKE_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 > 재고실사현황 (이카운트 E040615)
@@ -44,6 +45,8 @@ interface Staged {
   statusName: string
   requester: string | null
   handler: string | null
+  /** 원본 [품목구분]. 품목 마스터의 값이고 이번에 응답에 실었다. */
+  itemCategoryName: string | null
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -66,7 +69,15 @@ export default function StocktakeStatusPage() {
   const init = periodOf('금년', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({
     from: init.from, to: init.to, warehouseId: '', item: '', reason: '',
-    status: '' as Status, diffOnly: false, handler: '',})
+    status: '' as Status, diffOnly: false, handler: '',
+    /*
+     * 2026-09-08 에 원본(E040615)의 조건 판을 재니 <b>스물하나</b>다(사본에는 아홉).
+     * 접힌 줄은 없다. 여기서 만든 셋: 품목구분 · 품목그룹1 · 최초작성자.
+     */
+    category: '', itemGroup: '', author: '',
+  })
+  /** [품목그룹1] — 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
+  const mgmt = useItemMgmt()
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
@@ -91,6 +102,9 @@ export default function StocktakeStatusPage() {
     /* 원본 재고실사현황 차례: 구분 · 창고 · 품목 · <b>담당자</b> · 적요.
        실사를 누가 맞췄는지가 자료에는 있는데 거를 수가 없었다. */
     .filter((r) => !cond.handler || (r.handler ?? '') === cond.handler)
+    .filter((r) => !cond.category || (r.itemCategoryName ?? '') === cond.category)
+    .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
+    .filter((r) => !cond.author || (r.requester ?? '') === cond.author)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     .filter((r) => !cond.status || r.status === cond.status)
     .filter((r) => !cond.diffOnly || r.diff !== 0)
@@ -134,7 +148,8 @@ export default function StocktakeStatusPage() {
 
   const reset = () => {
     setMode('내역')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false })
+    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false,
+      category: '', itemGroup: '', author: '' })
   }
 
   return (
@@ -175,6 +190,25 @@ export default function StocktakeStatusPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 스물하나): 구분 · 일자 · <b>구분(전체·간편·단계별)</b> ·
+          창고 · (창고계층그룹) · 품목 · <b>품목구분 · 품목그룹1</b> ·
+          (품목그룹2/3 · 품목계층그룹) · 담당자 · 적요 · 기타 · <b>최초작성자</b> ·
+          (최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+          <b>[구분]이 두 벌</b>이라 대조표에는 둘째를 [실사:구분] 으로 밝혀 적었다
+          (작업내역현황의 [작업품목:품목구분] 과 같은 방식이다).
+        */}
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={cond.category} onChange={(v) => setC({ category: v })}
+                           items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="담당자" pick>
           {/* 담당자는 사원 마스터를 물지 않고 이름으로 적히므로, 후보를 실제 담당자들에서 뽑는다. */}
           <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
@@ -182,6 +216,33 @@ export default function StocktakeStatusPage() {
                            items={[...new Set(rows.map((r) => r.handler).filter(Boolean))]
                              .map((n) => ({ value: n as string, name: n as string }))} />
         </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={cond.reason}
+                 onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
+        </EcCond>
+        {/*
+          원본 [기타]의 체크는 <b>[수량관리제외품목포함]</b> 하나다(2026-09-08 실측, 꺼짐).
+          우리 것은 <b>[차이있는것만]</b> 이라 <b>다른 칸</b>이다 — 수량관리 여부를
+          실사 요청 줄이 들고 있지 않아 그 체크를 만들 수 없다. 이름만 같고 뜻이 다르다.
+        */}
+        <EcCond label="기타">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={cond.diffOnly}
+                   onChange={(e) => setC({ diffOnly: e.target.checked })} /> 차이있는것만
+          </label>
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.requester).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/*
+          <b>[상태]는 원본에 없는 우리 축이다.</b> 원본은 그 자리에 [구분](전체·간편·단계별)
+          — <b>실사 방식</b>을 둔다. 우리 실사는 요청·반영완료·반려로 흐르므로 그 축을
+          그대로 옮길 수 없다. 지우면 반려된 줄을 감출 길이 사라지므로 <b>남기되</b>,
+          실측한 차례를 흐트리지 않게 맨 뒤에 둔다.
+        */}
         <EcCond label="상태">
           <select className="ec-input" value={cond.status}
                   onChange={(e) => setC({ status: e.target.value as Status })} style={{ width: 220 }}>
@@ -190,16 +251,6 @@ export default function StocktakeStatusPage() {
             <option value="APPLIED">반영완료</option>
             <option value="REJECTED">반려</option>
           </select>
-        </EcCond>
-        <EcCond label="적요">
-          <input className="ec-input" placeholder="적요 일부" value={cond.reason}
-                 onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
-        </EcCond>
-        <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={cond.diffOnly}
-                   onChange={(e) => setC({ diffOnly: e.target.checked })} /> 차이있는것만
-          </label>
         </EcCond>
       </EcStatusPanel>
 
