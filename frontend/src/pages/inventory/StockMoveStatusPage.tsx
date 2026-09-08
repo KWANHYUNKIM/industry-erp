@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -9,6 +9,7 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 재고 > 기타이동현황 — 자가사용(E040506) · 불량처리(E040509) · 대체사용(E040510) ·
@@ -281,6 +282,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
 
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
+  /* 불량처리현황만 앞에 칸이 둘 더 붙는다 - 빈 줄의 colSpan 도 같이 움직여야 한다. */
+  const cols = 11 + (kind === 'DEFECT' ? 2 : 0)
+  /* 화면에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, shown.length])
   const reset = () => {
     setMode('내역')
     setSubtotal('창고·품목')
@@ -368,8 +374,22 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           재고조정에는 없다(그 화면은 [기타] 로 묶는다).
           고를 값은 <b>공통코드</b>에서 가져온다 — 화면이 지어내지 않는다.
         */}
-        {kind !== 'ADJUST' && (
-          <EcCond label={kind === 'SELF_USE' ? '사용유형' : '불량유형'}>
+        {/*
+          이름을 <code>label={...}</code> 로 <b>변수에 담아 그리면 검사가 그 조건을 못 본다</b> —
+          [불량유형] 을 열로 만들자 "열로는 찍는데 거를 수 없다" 고 잡혔다(거를 수는 진작 있었다).
+          글자로 박으려면 갈래마다 하나씩 두어야 한다.
+        */}
+        {kind === 'SELF_USE' && (
+          <EcCond label="사용유형">
+            <select className="ec-input" value={cond.kind}
+                    onChange={(e) => setC({ kind: e.target.value })} style={{ width: 140 }}>
+              <option value="">전체</option>
+              {kindOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </EcCond>
+        )}
+        {kind !== 'ADJUST' && kind !== 'SELF_USE' && (
+          <EcCond label="불량유형">
             <select className="ec-input" value={cond.kind}
                     onChange={(e) => setC({ kind: e.target.value })} style={{ width: 140 }}>
               <option value="">전체</option>
@@ -461,7 +481,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         증감계 <b style={{ color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)', fontSize: 14 }}>{num(totalChange)}</b>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" ref={tableRef}>
         {view === '그래프' ? (
           <EcBarChart rows={chartRows} unit="" emptyText="조회된 자료가 없습니다." />
         ) : mode === '내역' ? (
@@ -473,18 +493,27 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
               <col style={{ width: '9%' }} /><col style={{ width: '13%' }} />
             </colgroup>
             {/*
-              원본 격자는 <b>다섯 화면이 서로 다르다</b>(2026-09-09 실측).
-              자가사용현황(E040506): 일자-No. · 거래처명 · 품목명[규격] · 창고명 · 수량 ·
+              원본 격자는 <b>다섯 화면이 서로 다르다</b>(2026-09-09 다섯 다 실측).
+              자가사용(E040506): 일자-No. · 거래처명 · 품목명[규격] · 창고명 · 수량 ·
                 금액(수량*입고단가) · 적요
-              폐기현황(E040511):     일자-No. · 품목코드 · 품목명[규격명] · 수량 · 적요
-              둘에 다 있는 것을 원본 차례로 맞춘다 — 일자-No. · 품목코드 · 품목명[규격] ·
-              창고명 · 수량 · 적요. 품목명 칸의 이름도 화면마다 달라 그대로 갈라 적는다.
-              [거래처명]·[금액(수량*입고단가)]은 못 만든다(예외에 적었다).
-              프로젝트·이전재고·이후재고·담당자는 원본에 없지만 우리가 더 두는 열이다.
+              불량처리(E040509): <b>불량유형 · 처리방법</b> · 일자-No. · 품목코드 ·
+                품목명[규격] · 수량 · 적요
+              대체사용(E040510): 일자-No. · 품목코드 · 품목명[규격] ·
+                <b>불량수량 · 정상수량</b> · 적요
+              폐기(E040511):     일자-No. · 품목코드 · 품목명<b>[규격명]</b> · 수량 · 적요
+              재고조정(E040608): 일자-No. · 품목코드 · 품목명[규격] · 창고명 ·
+                <b>장부수량 · 실사수량 · 조정수량</b> · 금액(수량*입고단가) · 적요
+              한 표가 다섯을 겸하므로 <b>화면(kind)에 따라 이름을 갈라 적고</b> 그 화면에만
+              있는 칸은 그때만 그린다. 한 이름으로 통일하면 넷이 틀린다.
+              못 만드는 것: [거래처명]·[금액(수량*입고단가)]·[불량수량]·[정상수량](예외에 적었다).
+              프로젝트·담당자는 원본에 없지만 우리가 더 두는 열이다.
             */}
             <thead>
               <tr>
                 <th></th>
+                {/* 불량처리현황만 이 둘을 <b>맨 앞</b>에 둔다. 거를 수는 있었는데 볼 수가 없었다. */}
+                {kind === 'DEFECT' && <th style={{ width: 110 }}>불량유형</th>}
+                {kind === 'DEFECT' && <th style={{ width: 110 }}>처리방법</th>}
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <th style={{ textAlign: 'center' }}>일자-No.</th>
                 <th>품목코드</th>
@@ -492,9 +521,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <th>창고명</th>
                 {/* 원본 조건에 [프로젝트]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 110 }}>프로젝트</th>
-                <th style={{ textAlign: 'right' }}>이전재고</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'right' }}>이후재고</th>
+                <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '장부수량' : '이전재고'}</th>
+                <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '실사수량' : '이후재고'}</th>
+                <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '조정수량' : '수량'}</th>
                 {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 90 }}>담당자</th>
                 <th>적요</th>
@@ -502,12 +531,14 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  {kind === 'DEFECT' && <td style={{ color: '#5a626e' }}>{r.kind ?? ''}</td>}
+                  {kind === 'DEFECT' && <td style={{ color: '#5a626e' }}>{r.handling ?? ''}</td>}
                   <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.adjustDate.replace(/-/g, '/')} {r.adjustNo}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
@@ -515,10 +546,10 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td>{r.warehouseName}</td>
                   <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>
+                  <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
                     {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
                   <td style={{ color: '#5a626e' }}>{empName(r.employeeId)}</td>
                   <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
                 </tr>
@@ -527,9 +558,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={cols - 3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
-                  <td colSpan={3} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
             )}

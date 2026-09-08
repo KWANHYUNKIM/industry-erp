@@ -3057,5 +3057,31 @@
    "amount"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|불량수량": {
+  "claim": "기타이동 전표는 증감 한 수만 든다",
+  "absent": [
+   "defectQty",
+   "goodQty",
+   "normalQty"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+ },
+ "대체사용현황|정상수량": {
+  "claim": "위와 같음 - 불량분과 정상분을 갈라 적지 않는다",
+  "absent": [
+   "defectQty",
+   "goodQty",
+   "normalQty"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+ },
+ "재고조정현황|금액(수량*입고단가)": {
+  "claim": "기타이동에 단가를 안 매긴다",
+  "absent": [
+   "unitPrice",
+   "amount"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
  }
 }
