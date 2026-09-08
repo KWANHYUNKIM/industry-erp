@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, QualityInspection, StockAdjustment } from '../../api/types'
+import type { CommonCode, Item, QualityInspection, StockAdjustment } from '../../api/types'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcListShell from '../../components/EcListShell'
 import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -64,16 +65,31 @@ export default function DefectReportPage() {
   const [defectTypeCond, setDefectTypeCond] = useState('')
   const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
   const [handleCond, setHandleCond] = useState<'전체' | '불량' | '폐기'>('전체')
+  /*
+   * 2026-09-08 에 원본(E040512)의 조건 판을 재니 <b>스물하나</b>다(사본에는 여덟).
+   * 접힌 줄은 없다. 여기서 만든 셋: 품목구분 · 품목그룹1 · 규격.
+   * 셋 다 <b>품목 마스터</b>의 값이라 마스터를 받아 itemId 로 잇는다 —
+   * 이 화면은 품목별로 합친 표라 줄에 그 값이 없다.
+   *
+   * <p>기간 이름표도 [기간] 이라 적고 있었는데 원본은 <b>[기준일자]</b> 다.
+   */
+  const [items, setItems] = useState<Item[]>([])
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const mgmt = useItemMgmt()
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [q, a, d] = await Promise.all([
+      const [q, a, d, it] = await Promise.all([
         api.get<QualityInspection[]>('/quality-inspections'),
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
+        api.get<Item[]>('/items'),
       ])
-      setInspections(q.data); setAdjustments(a.data.rows); setDefectTypes(d.data)
+      setInspections(q.data); setAdjustments(a.data.rows); setDefectTypes(d.data); setItems(it.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -134,8 +150,14 @@ export default function DefectReportPage() {
     for (const r of out) r.defectRate = r.inspectedQty > 0 ? (r.inspectDefect / r.inspectedQty) * 100 : 0
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
+      /* 품목구분·품목그룹1·규격은 <b>품목 마스터</b>의 값이라 itemId 로 이어 거른다. */
+      .filter((r) => !categoryCond || (itemById.get(r.itemId)?.categoryName ?? '') === categoryCond)
+      .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
+      .filter((r) => !specCond || (itemById.get(r.itemId)?.spec ?? '').includes(specCond))
       .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
-  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond,
+      categoryCond, itemGroupCond, specCond, itemById, mgmt.groupOptions])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
@@ -159,7 +181,7 @@ export default function DefectReportPage() {
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={INQUIRY_FULL_PICKS}
-        dateLabel="기간"
+        dateLabel="기준일자"
         view={view} onViewChange={setView}
       >
         {/* 원본 차례: <b>창고 · 프로젝트</b> · 담당자 · 불량유형 · 처리방법 */}
@@ -170,11 +192,6 @@ export default function DefectReportPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond} items={pickers.projects} />
-        </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
-                           items={pickers.items} />
         </EcCond>
         <EcCond label="담당자" pick>
           {/*
@@ -198,6 +215,33 @@ export default function DefectReportPage() {
                   onChange={(e) => setHandleCond(e.target.value as '전체' | '불량' | '폐기')}>
             <option>전체</option><option>불량</option><option>폐기</option>
           </select>
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 스물하나): 기준일자 · 창고 · (창고계층그룹) ·
+          프로젝트 · (프로젝트그룹1/2) · 담당자 · 불량유형 · 처리방법 · <b>품목</b> ·
+          <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · <b>규격</b> ·
+          (양식) · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+          [품목]은 <b>처리방법 뒤</b>다 — 우리는 앞에 두고 있었다.
+        */}
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={keyword} onChange={(v) => setKeyword(v)}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(items.map((i) => i.categoryName).filter(Boolean))].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        <EcCond label="규격">
+          <input className="ec-input" value={specCond}
+                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
