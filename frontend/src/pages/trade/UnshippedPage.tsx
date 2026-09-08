@@ -28,8 +28,11 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 거래처명 · <b>적요</b> · 출하예정일. 적요는 이제 싣는다 — 주문서에 적어 둔 말이
  * 미출하현황에서 사라지면, 왜 아직 안 나갔는지 적어 둬도 그 화면에서는 볼 수가 없다.
  *
- * <p>[창고명]은 아직 없다. 주문서에 창고 칸이 없어서인데, <b>원본 주문서 화면 사본이 없어</b>
- * 그 칸이 주문의 것인지 품목 기본창고인지 확인하지 못했다. 짐작으로 만들지 않는다.
+ * <p><b>[창고명]도 이제 있다.</b> 예전에는 "주문서에 창고 칸이 없어서" 없다고 적어 뒀는데
+ * <b>그 사이에 사실이 아니게 됐다</b> — 수주에 창고를 만들면서 응답도
+ * <code>warehouseName</code> 을 싣고 있었고, 이 화면은 그 값으로 <b>거르기까지</b> 하고
+ * 있었다. 거를 수는 있는데 볼 수는 없는 열이었던 셈이다.
+ * 이유를 고쳐 쓸 것이 아니라 열을 낼 일이었다.
  */
 /**
  * 원본 미출하현황의 [구분] 은 <b>품목별 · 라인별</b> 둘이다(원본 사본 실측).
@@ -479,14 +482,15 @@ export default function UnshippedPage() {
         <thead>
           <tr>
             {/* 칸 순서·이름은 원본 미출하현황 격자 그대로:
-                일자-No. · 품목명(규격) · 수량 · 미출하수량 · 거래처명 · 출하예정일.
-                원본의 창고명·적요는 우리 주문서에 그 값이 없어 칸을 만들지 않는다.
+                일자-No. · 품목명(규격) · 수량 · 미출하수량 · 창고명 · 거래처명 · 적요 · 출하예정일.
+                창고명·적요도 이제 싣는다 — 둘 다 응답에 진작 있었다.
                 맨 끝 [출하지시] 는 우리 화면의 것이다 — 여기서 바로 출하지시서를 낸다. */}
             <th style={{ width: 34 }}></th>
             <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명(규격)')}>품목명(규격) {sort.mark('품목명(규격)')}</th>
             <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             <th style={{ width: 90, textAlign: 'right' }}>미출하수량</th>
+            <th style={{ width: 110 }}>창고명</th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
             <th style={{ width: 150 }}>적요</th>
             <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
@@ -496,9 +500,9 @@ export default function UnshippedPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -506,6 +510,7 @@ export default function UnshippedPage() {
               <td>[{r.itemCode}] {r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
+              <td>{r.warehouseName ?? ''}</td>
               <td>{r.partnerName}</td>
               <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || ''}</td>
