@@ -5,6 +5,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 회계 > 비용내역현황.
@@ -18,6 +20,24 @@ import EcBarChart from '../../components/EcBarChart'
  *
  * <p>비용그룹 마스터는 우리에게 없어 계정과목의 세부분류로 갈음한다(없으면 계정구분).
  * 없는 마스터를 지어내지 않는다.
+ *
+ * <p>2026-09-08 에 원본(<b>E060815</b>)의 조건 판을 재니 <b>스물</b>이다 — 사본에는 열뿐이었다.
+ * 차례: 기준일자 · <b>사용일자</b> · 비용그룹 · 비용 · 사원 · 거래처 · <b>거래처그룹1</b> ·
+ * (거래처그룹2 · 거래처계층그룹) · 프로젝트 · <b>비고</b> · 결제구분 · <b>적요</b> ·
+ * (최초작성자 · 최종수정자 · 양식 · 적용양식 · 양식구분) · <b>정렬/소계기준</b> · 데이터 보기형식.
+ * 접힌 줄 토글이 있지만 눌러도 줄이 늘지 않는다(사용자정의 칸이 없다).
+ *
+ * <p>실측이 바로잡은 세 가지 이름:
+ * <ul>
+ *   <li><b>[비고]로 걸어 두었던 칸은 사실 [적요]다.</b> 원본은 <b>비고와 적요를 따로</b> 두고,
+ *       표에 찍히는 열은 <b>적요</b>다(우리 <code>content</code> 가 그것이다). 비고는 우리에게 없다.
+ *   <li><b>기간 칸의 이름은 [사용일자]다.</b> 원본은 [기준일자]와 [사용일자]를 따로 두는데
+ *       우리 전표에는 날짜가 하나뿐이고 그것이 표에 [사용일자]로 찍힌다 — [기준일자]라
+ *       적어 놓고 사용일자를 거르고 있었다.
+ *   <li><b>[결제구분]은 개인비용·회사비용 두 갈래다</b>(실측한 라디오 셋: 전체★·개인비용·회사비용).
+ *       우리가 그 이름으로 걸어 둔 것은 <b>결제수단</b>(법인카드·계좌이체·현금)이라 이름이
+ *       거짓이었다 — 이름을 [결제수단]으로 바로잡고, 원본의 [결제구분]은 못 만든 것으로 남긴다.
+ * </ul>
  */
 interface Expense {
   id: number
@@ -63,6 +83,15 @@ export default function ExpenseDetailPage() {
    */
   const [remarkCond, setRemarkCond] = useState('')
   const [payCond, setPayCond] = useState('')
+  /** 원본 [거래처그룹1]. 거래처 마스터에 붙는 값이라 전표의 거래처명으로 잇는다. */
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const pgroup = usePartnerGroups()
+  /*
+   * 원본 [정렬/소계기준]. 이 표는 비용 전표 한 줄씩이라 묶을 축이 여럿이다 —
+   * 무엇에 얼마를 썼는지는 묶어 봐야 보인다.
+   */
+  const SUBTOTALS = ['비용그룹', '비용', '사원', '거래처', '프로젝트'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('비용그룹')
   const partnerPick = useCondPickers(['partners', 'projects'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -101,6 +130,7 @@ export default function ExpenseDetailPage() {
     .filter((r) => groupCond === '전체' || r.accountGroupName === groupCond)
     .filter((r) => !empCond || (r.createdBy ?? '').includes(empCond))
     .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
+    .filter((r) => !partnerGroupCond || pgroup.groupOfName(r.partnerName ?? '') === partnerGroupCond)
     .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
     .filter((r) => !remarkCond || (r.content ?? '').includes(remarkCond))
     .filter((r) => !payCond || (r.paymentMethod ?? '') === payCond)
@@ -116,8 +146,14 @@ export default function ExpenseDetailPage() {
           주석에는 다섯을 적어 놓고 <b>뒤 둘만</b> 만들어 두었다 — 앞 셋도 목록에 이미
           찍히는 값이다(비용그룹명 · 비용명 · 사용자명). 우리 [계정]은 원본 이름이 <b>[비용]</b> 이다.
         */}
-        {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>기준일자</span>
+        {/*
+          원본은 <b>[기준일자]와 [사용일자]를 따로</b> 둔다(2026-09-08 실측).
+          우리 비용 전표에는 날짜가 <code>expenseDate</code> 하나뿐이고 그것이
+          표에 [사용일자]로 찍히는 값이다 — 그래서 이 칸의 이름을 <b>[사용일자]</b>로
+          바로잡았다. 예전에는 [기준일자]라 적어 놓고 사용일자를 걸러, 이름과 거르는
+          값이 어긋나 있었다. 원본의 [기준일자]는 못 만든 것으로 남긴다.
+        */}
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>사용일자</span>
         <input type="date" className="ec-input" value={from}
                onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ margin: '0 2px', color: '#9aa1ab' }}>~</span>
@@ -141,18 +177,31 @@ export default function ExpenseDetailPage() {
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처그룹1</span>
+        <select className="ec-input" value={partnerGroupCond} style={{ width: 140 }}
+                onChange={(e) => setPartnerGroupCond(e.target.value)}>
+          <option value="">전체</option>
+          {pgroup.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비고</span>
-        <input className="ec-input" value={remarkCond} placeholder="비고"
-               onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 130 }} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>결제구분</span>
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>결제수단</span>
         <select className="ec-input" value={payCond} onChange={(e) => setPayCond(e.target.value)} style={{ width: 110 }}>
           <option value="">전체</option>
           {[...new Set(rows.map((r) => r.paymentMethod).filter(Boolean))].map((m) => <option key={m as string}>{m}</option>)}
         </select>
-        {/* 원본 조건 차례의 맨 끝 — [결제구분] 다음이다(사본 실측). */}
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>적요</span>
+        <input className="ec-input" value={remarkCond} placeholder="적요"
+               onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 130 }} />
+        <span style={{ fontSize: 12.5, color: '#3a4453' }}>정렬/소계기준</span>
+        <div className="ec-pills">
+          {SUBTOTALS.map((v) => (
+            <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
+                    onClick={() => setSubtotal(v)}>{v}</button>
+          ))}
+        </div>
+        {/* 원본 조건 차례의 맨 끝 — [정렬/소계기준] 다음이다(2026-09-08 실측). */}
         <span style={{ fontSize: 12.5, color: '#3a4453' }}>데이터 보기형식</span>
         <div className="ec-pills">
           {(['표', '그래프'] as const).map((v) => (
@@ -220,6 +269,39 @@ export default function ExpenseDetailPage() {
         )}
       </table>
       )}
+
+      {view === '표' && shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === '비용' ? r.accountName
+            : subtotal === '사원' ? r.createdBy
+              : subtotal === '거래처' ? r.partnerName
+                : subtotal === '프로젝트' ? r.projectName
+                  : r.accountGroupName),
+          { amount: (r) => r.amount })
+        return (
+          <>
+            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                <th style={{ width: 160, textAlign: 'right' }}>사용금액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td style={{ fontWeight: 600 }}>{g.label}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                      {g.sums.amount.toLocaleString('ko-KR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
