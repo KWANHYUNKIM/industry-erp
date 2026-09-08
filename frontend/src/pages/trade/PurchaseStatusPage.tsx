@@ -10,6 +10,7 @@ import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregat
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
@@ -33,6 +34,14 @@ interface Row {
   /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
   returnSlip: boolean
   employeeName: string | null
+  /*
+   * 2026-09-08 에 원본(E040305)의 <b>접힌 줄을 펼쳐</b> 조건을 전부 쟀다 — 스물넷이다
+   * (사본은 열하나). 아래 넷은 그때 드러난 조건이 보는 값이고, 전부 응답에 진작 오던 것이다.
+   */
+  spec: string | null
+  remark: string | null
+  createdBy: string | null
+  sourceDocNo: string | null
 }
 
 /** 이카운트 Search 패널의 검색조건. 이 화면 데이터로 실제 거를 수 있는 항목만 둔다. */
@@ -49,6 +58,24 @@ interface Filters {
   /** 원본 [거래구분] — 일반 · 반품. */
   tradeKind: string
   sortByModified: boolean
+  /*
+   * 원본 구매현황의 <b>접힌 줄</b>을 펼쳐 드러난 조건들. 사본에는 열하나라 적혀
+   * 있었는데 원본은 <b>스물넷</b>이다 — 판매현황과 같은 구멍이다.
+   */
+  orderNo: string
+  employee: string
+  partnerManager: string
+  spec: string
+  qtyFrom: string
+  qtyTo: string
+  priceFrom: string
+  priceTo: string
+  supplyFrom: string
+  supplyTo: string
+  vatFrom: string
+  vatTo: string
+  remark: string
+  author: string
 }
 
 /*
@@ -60,6 +87,10 @@ const EMPTY_FILTERS: Filters = {
   dateFrom: periodOf('전월+금월')!.from, dateTo: periodOf('전월+금월')!.to,
   partner: '', warehouse: '', item: '',
   project: '', taxType: '', tradeKind: '', sortByModified: false,
+  orderNo: '', employee: '', partnerManager: '', spec: '',
+  qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '',
+  supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+  remark: '', author: '',
 }
 
 export default function PurchaseStatusPage() {
@@ -87,6 +118,8 @@ export default function PurchaseStatusPage() {
    * 화면은 "그런 자료가 없다" 처럼 보인다.
    */
   const pickers = useCondPickers(['partners', 'warehouses', 'items', 'projects'])
+  /** 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 전표 [담당자]와 다른 사람이다. */
+  const pmgr = usePartnerManagers()
   const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
 
   async function load() {
@@ -112,6 +145,10 @@ export default function PurchaseStatusPage() {
           taxable: d.taxable,
           returnSlip: d.returnSlip,
           employeeName: d.employeeName,
+          spec: l.spec,
+          remark: d.remark,
+          createdBy: d.createdBy,
+          sourceDocNo: l.sourceDocNo,
         }))
       }
       setRows(flat)
@@ -142,6 +179,20 @@ export default function PurchaseStatusPage() {
       if (f.project && !(r.projectName ?? '').includes(f.project)) return false
       if (f.taxType && (f.taxType === '면세' ? r.taxable : !r.taxable)) return false
       if (f.tradeKind && (f.tradeKind === '반품' ? !r.returnSlip : r.returnSlip)) return false
+      if (f.orderNo && (r.sourceDocNo ?? '') !== f.orderNo) return false
+      if (f.employee && (r.employeeName ?? '') !== f.employee) return false
+      if (f.partnerManager && pmgr.managerOfName(r.partner) !== f.partnerManager) return false
+      if (f.spec && (r.spec ?? '') !== f.spec) return false
+      if (f.qtyFrom && r.qty < Number(f.qtyFrom)) return false
+      if (f.qtyTo && r.qty > Number(f.qtyTo)) return false
+      if (f.priceFrom && r.unitPrice < Number(f.priceFrom)) return false
+      if (f.priceTo && r.unitPrice > Number(f.priceTo)) return false
+      if (f.supplyFrom && r.supply < Number(f.supplyFrom)) return false
+      if (f.supplyTo && r.supply > Number(f.supplyTo)) return false
+      if (f.vatFrom && r.vat < Number(f.vatFrom)) return false
+      if (f.vatTo && r.vat > Number(f.vatTo)) return false
+      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+      if (f.author && (r.createdBy ?? '') !== f.author) return false
       return true
     })
     // 기타: 수정일자순(정렬) 체크 시 전표번호 역순, 기본은 일자 내림차순
@@ -354,6 +405,67 @@ export default function PurchaseStatusPage() {
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 스물넷):
+          … 품목 · <b>오더관리번호 · 담당자 · 거래처관리담당자</b> · (외화종류) ·
+          <b>규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요</b> · 구매구분 ·
+          (진행상태 · 채무번호) · <b>작성자</b> · (최종수정자 · 사용자지정).
+        */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={filters.orderNo} onChange={(v) => setF({ orderNo: v })}
+                           items={[...new Set(rows.map((r) => r.sourceDocNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={filters.employee} onChange={(v) => setF({ employee: v })}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={filters.partnerManager} onChange={(v) => setF({ partnerManager: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={filters.spec} onChange={(v) => setF({ spec: v })}
+                           items={[...new Set(rows.map((r) => r.spec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="수량">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.qtyFrom}
+                 onChange={(e) => setF({ qtyFrom: e.target.value })} style={{ width: 100 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.qtyTo}
+                 onChange={(e) => setF({ qtyTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        <EcCond label="단가">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.priceFrom}
+                 onChange={(e) => setF({ priceFrom: e.target.value })} style={{ width: 110 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.priceTo}
+                 onChange={(e) => setF({ priceTo: e.target.value })} style={{ width: 110 }} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.supplyFrom}
+                 onChange={(e) => setF({ supplyFrom: e.target.value })} style={{ width: 120 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.supplyTo}
+                 onChange={(e) => setF({ supplyTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.vatFrom}
+                 onChange={(e) => setF({ vatFrom: e.target.value })} style={{ width: 120 }} />
+          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.vatTo}
+                 onChange={(e) => setF({ vatTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={filters.remark}
+                 onChange={(e) => setF({ remark: e.target.value })} style={{ width: 170 }} />
+        </EcCond>
         <EcCond label="구매구분">
           <div className="ec-pills">
             {['', '일반', '반품'].map((v) => (
@@ -362,6 +474,12 @@ export default function PurchaseStatusPage() {
                       onClick={() => setF({ tradeKind: v })}>{v || '전체'}</button>
             ))}
           </div>
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={filters.author} onChange={(v) => setF({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="정렬기준">
           <label style={{ fontSize: 12 }}>

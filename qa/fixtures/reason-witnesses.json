@@ -1583,5 +1583,12 @@
       "absent": [
           "currency"
       ]
+  },
+  "구매현황|외화종류": {
+      "claim": "구매 전표에 통화 칸이 없다",
+      "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java",
+      "absent": [
+          "currency"
+      ]
   }
 }
