@@ -48,9 +48,15 @@ const confirmColor = (s?: SalesConfirmStatus) =>
   s === 'CONFIRMED' ? '#1c7c3c' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : '#8a929c'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; partnerLabel: string; accent: string; entryTo: string }> = {
-  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', partnerLabel: '매출처', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
-  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', partnerLabel: '매입처', accent: '#a5561b', entryTo: '/sales/buy' },
+/*
+ * 2026-09-09 원본 격자 실측(E040206 판매조회 · E040304 구매조회) — 두 화면 모두
+ * 그 열을 <b>[거래처명]</b> 이라 부른다. 우리는 [매출처]·[매입처] 로 갈라 적고 있었는데,
+ * 원본은 사는 쪽이든 파는 쪽이든 <b>같은 이름</b>이다. 그래서 화면별 라벨을 없앤다.
+ * (열 구성도 확인했다 — 판매조회는 구매조회에서 [프로젝트명] 하나가 빠진 것이다.)
+ */
+const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; accent: string; entryTo: string }> = {
+  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
+  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', accent: '#a5561b', entryTo: '/sales/buy' },
 }
 
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
@@ -602,8 +608,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
             */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
-            <th>{cfg.partnerLabel}</th>
+            {/* 원본은 [일자-No.] 를 가운데로, [회계반영여부]·[인쇄] 를 왼쪽으로,
+                [불러온전표] 를 오른쪽으로 찍는다(2026-09-09 구매조회 실측). */}
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th>거래처명</th>
             <th>품목명(요약)</th>
             <th style={{ textAlign: 'right' }}>금액합계</th>
             {/* 원본 구매조회에만 있는 열이다 — 판매조회에는 없다. 실측으로 확인했다. */}
@@ -611,10 +619,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
             <th>거래유형명</th>
             <th>창고명</th>
-            <th style={{ textAlign: 'center' }}>회계반영여부</th>
-            <th style={{ textAlign: 'center' }}>인쇄</th>
+            <th>회계반영여부</th>
+            <th>인쇄</th>
             {/* 이 전표가 어느 수주/발주에서 왔는지 */}
-            <th>불러온전표</th>
+            <th style={{ textAlign: 'right' }}>불러온전표</th>
             {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th>담당</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
@@ -651,13 +659,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
                 <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
-                <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
+                <td style={{ color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
                   {d.accountingReflected ? '반영' : '미반영'}
                 </td>
-                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                <td onClick={(e) => e.stopPropagation()}>
                   <button className="ec-btn ec-btn-sm" onClick={() => printOne(d)}>인쇄</button>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>
+                <td style={{ fontFamily: 'monospace', color: '#8a929c', textAlign: 'right' }}>
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
                     const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
