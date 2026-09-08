@@ -2676,8 +2676,14 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
    * 그중 하나를 만들었을 때 지우기 쉽지 않은데, 그대로 두면 그 자리는 이후로
    * 아무도 안 본다. 아래 [낡은 예외] 단언이 이 목록을 강제한다.
    */
-  /* 생산입고 I 은 격자로 바꿨다 — 적요·노무시간·수량이 이제 열이다. */
-  for (const k of ['생산입고I-BOM기준소모|적요', '생산입고I-BOM기준소모|노무시간',
+  /*
+   * 생산입고 I 은 격자로 바꿨다 — 적요·수량이 이제 열이다.
+   * <b>[노무시간]은 아니었다.</b> 여기 같이 적어 두고 있었는데, 화면에서 그 글자는
+   * <b>격자 머리가 아니라 폼 이름표</b>(<code>&lt;th style={th}&gt;</code>)였다 —
+   * 검사가 이름표까지 열로 세고 있어서 <b>있는 것처럼 보였다</b>(위 ours 주석 참고).
+   * 이름표를 빼고 세게 고치자 바로 드러났다. 목록(pending-columns)으로 옮긴다.
+   */
+  for (const k of ['생산입고I-BOM기준소모|적요',
     '생산입고I-BOM기준소모|수량']) NO_COLUMN.delete(k)
 
   let pending = 0
@@ -2689,7 +2695,16 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     if (PENDING.has(screen)) { pending++; continue }
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
-    const ours = new Set([...noArrow(src).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
+    /*
+     * <b>조건 판의 이름표도 <code>&lt;th&gt;</code> 다.</b> 그룹웨어·생산 쪽 열다섯 화면이
+     * 조건을 표로 그리면서 <code>&lt;th style={th}&gt;질문내용&lt;/th&gt;</code> 처럼 이름표를 th 로 둔다.
+     * 그걸 열로 세면 <b>거를 수만 있고 못 보는 칸이 있는 열로</b> 잡혀,
+     * 없는 열이 <b>있다</b> 고 나온다(설문조사현황의 [질문내용]이 그랬다).
+     * 이름표 자리는 빼고 <b>진짜 격자 머리</b>만 본다.
+     */
+    const ours = new Set([...noArrow(src).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
+      .filter((m) => !/style=\{th\}/.test(m[1]))
+      .map((m) => flat(m[2])))
     for (const name of Object.keys(cols)) {
       const exempt = NO_COLUMN.has(screen + '|' + name)
       if (!exempt) checked++

@@ -221,7 +221,18 @@ export default function SurveyStatusPage() {
         </colgroup>
         <thead>
           <tr>
-            <th></th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
+            {/*
+              <b>설문조사현황(E070258) 2026-09-09 원본 격자 실측</b> — 열 일곱이 아니라
+              일곱 칸이다: [작성일 · 게시글번호 · 설문종료일 · <b>설문대상자</b> · 제목 ·
+              <b>질문내용</b> · <b>응답내용</b>].
+              원본은 <b>응답 한 줄이 한 줄</b>이다(설문 × 질문 × 응답자). 우리 표는
+              <b>설문 한 줄</b>이라 대상수·응답수·응답률을 낸다 — 축이 다르다.
+              이번에 고친 것은 <b>차례</b>다: 원본은 [작성일]이 먼저고 [게시글번호]가 뒤인데
+              우리는 반대였다. 나머지 셋([설문대상자]·[질문내용]·[응답내용])은
+              못 만드는 것이 아니라 아직 안 만든 것이라 pending-columns.json 에 적었다
+              (SurveyDoc 이 questions·targets 를 이미 들고 온다).
+            */}
+            <th></th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
             <th style={{ textAlign: 'center' }}>작성자</th><th style={{ textAlign: 'center' }}>대상구분</th><th style={{ textAlign: 'right' }}>대상수</th><th style={{ textAlign: 'right' }}>응답수</th><th style={{ textAlign: 'right' }}>응답률</th>
           </tr>
         </thead>
@@ -233,8 +244,8 @@ export default function SurveyStatusPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
               <td style={{ textAlign: 'center' }}>{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
+              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
               <td style={{ textAlign: 'center' }}>{(r.endAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
               <td>{r.title}</td>
               <td style={{ textAlign: 'center' }}>{r.writerName ?? ''}</td>
