@@ -6,12 +6,36 @@ import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 영업관리 > 단가변동표 (이카운트 E040819)
  * 판매·매입 전표 라인의 실제 단가를 품목별로 모아 기간 내 최저·최고·평균·최근 단가와 변동폭을 본다.
  * 별도 단가이력 테이블 없이 거래 단가(라인 unitPrice)로 도출한다(백엔드 무변경).
  * 데이터는 GET /api/sales, /purchases, /items(표준단가).
+ *
+ * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>[기본] 열일곱 · [전체] 스물둘</b>이다
+ * (사본에는 여덟뿐이었다). 접힌 줄은 없다. 조건이 더 많은 <b>[전체]</b> 쪽에 맞춘다 —
+ * 매출계획비교표·월별이익현황과 같은 규칙이다.
+ * 차례: 구분 · 기준일자 · 창고 · (창고계층그룹) · 거래처 · <b>거래처그룹1</b> ·
+ * (거래처그룹2 · 거래처계층그룹) · 품목 · <b>품목구분 · 품목그룹1</b> ·
+ * (품목그룹2/3 · 품목계층그룹) · <b>프로젝트</b> · (프로젝트그룹1/2) · <b>담당자 ·
+ * 거래처관리담당자</b> · 단가구분 · 단가기준 · <b>기타</b>.
+ *
+ * <p>실측이 바로잡은 둘:
+ * <ul>
+ *   <li><b>[기준일자] 기본값이 금월이다.</b> 우리는 <b>비워 두어</b> 열자마자 몇 해치
+ *       거래 단가를 한 평균으로 뭉개고 있었다 — 단가가 언제 움직였는지를 보는 표인데.
+ *   <li><b>[기타] 가 통째로 없었다.</b> 체크는 넷 — 결재방표시 · 수량표시 ·
+ *       단가등락폭표시 · <b>변동없는단가포함</b>, 넷 다 꺼짐이 기본이다.
+ *       특히 마지막 것 때문에 <b>한 번도 안 변한 단가</b>가 늘 표를 채우고 있었다.
+ * </ul>
+ *
+ * <p>화면 안쪽 ecpath 는 <code>ESP021R_…</code> 이다 — 대조표에 적혀 있던 그 코드는
+ * <b>양식의 내부 id</b> 이고, 메뉴가 쓰는 화면코드는 주소창의 <b>E040819</b> 다.
  */
 
 type Mode = 'SALE' | 'PURCHASE'
@@ -29,7 +53,7 @@ const PRICE_BASES = ['단순평균단가', '최고단가', '최저단가'] as co
 
 interface PriceRow {
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
-  standard: number; count: number
+  standard: number; count: number; quantity: number
   min: number; max: number; avg: number; latest: number; latestDate: string
 }
 
@@ -48,7 +72,7 @@ export default function PriceMovementPage() {
    */
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
-  const pickers = useCondPickers(['warehouses', 'partners'])
+  const pickers = useCondPickers(['warehouses', 'partners', 'projects'])
 
   const [mode, setMode] = useState<Mode>('SALE')
   /**
@@ -65,8 +89,10 @@ export default function PriceMovementPage() {
   const withAvg = bases.includes('단순평균단가')
   const withMax = bases.includes('최고단가')
   const withMin = bases.includes('최저단가')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /* 원본 [기준일자] 기본값은 <b>금월</b>이다(2026-09-08 실측 — 달 칸이 09 하나다). */
+  const initP = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 단가변동표 조건 차례: 구분 · 기준일자 · 창고 · 거래처 · <b>품목</b> · <b>단가구분</b> · 단가기준.
@@ -74,6 +100,27 @@ export default function PriceMovementPage() {
    * 품목 하나를 골라 그 단가 흐름만 보는 일은 못 했다. 코드도움으로 따로 세운다.
    */
   const [itemCond, setItemCond] = useState('')
+  /* 2026-09-08 실측으로 만든 여섯. 값은 전부 이미 응답이나 마스터에 있다. */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [partnerMgr, setPartnerMgr] = useState('')
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [project, setProject] = useState('')
+  const [employee, setEmployee] = useState('')
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
+  const mgmt = useItemMgmt()
+  /*
+   * 원본 [기타] 넷. 넷 다 꺼짐이 기본이다.
+   *   결재방표시 — 출력물에 결재란을 찍는다
+   *   수량표시 — 요약표에 수량 열을 더한다
+   *   단가등락폭표시 — 최고−최저 변동폭 열을 더한다
+   *   변동없는단가포함 — 한 번도 안 변한 품목(최저=최고)까지 낸다
+   */
+  const [signBox, setSignBox] = useState(false)
+  const [showQty, setShowQty] = useState(false)
+  const [showSwing, setShowSwing] = useState(false)
+  const [withFlat, setWithFlat] = useState(false)
 
   async function load() {
     setLoading(true); setError('')
@@ -91,21 +138,33 @@ export default function PriceMovementPage() {
 
   const priceById = useMemo(() => new Map(items.map((it) => [it.id, it.unitPrice])), [items])
 
+  /** 전표 하나가 조건을 지나는가. 두 표(요약·전표별)가 같은 규칙을 써야 서로 짚을 수 있다. */
+  const keepDoc = (d: SalesDoc | PurchaseDoc) =>
+    (!warehouse || d.warehouseName.includes(warehouse))
+    && (!partner || d.partnerName.includes(partner))
+    && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
+    && (!partnerMgr || pmgr.managerOfName(d.partnerName) === partnerMgr)
+    && (!project || (d.projectName ?? '').includes(project))
+    && (!employee || (d.employeeName ?? '') === employee)
+  /** 라인 하나가 품목 조건을 지나는가. */
+  const keepLine = (l: { itemId: number; itemCategoryName: string | null }) =>
+    (!category || (l.itemCategoryName ?? '') === category)
+    && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
+
   const rows = useMemo<PriceRow[]>(() => {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
     // (date, itemId, spec, unit, name, price) 포인트 수집
-    interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number }
+    interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number; quantity: number }
     const pts: Pt[] = []
-    const keep = (wh: string, pt: string) =>
-      (!warehouse || wh.includes(warehouse)) && (!partner || pt.includes(partner))
     const docs = mode === 'SALE'
-      ? sales.filter((d) => keep(d.warehouseName, d.partnerName)).map((d) => ({ date: d.saleDate, lines: d.lines }))
-      : purchases.filter((d) => keep(d.warehouseName, d.partnerName)).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+      ? sales.filter(keepDoc).map((d) => ({ date: d.saleDate, lines: d.lines }))
+      : purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
     for (const d of docs) {
       if (!inPeriod(d.date)) continue
       for (const l of d.lines) {
         if (l.unitPrice == null) continue
-        pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, price: l.unitPrice })
+        if (!keepLine(l)) continue
+        pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, price: l.unitPrice, quantity: l.quantity })
       }
     }
 
@@ -130,6 +189,7 @@ export default function PriceMovementPage() {
         unit: last.unit,
         standard: priceById.get(itemId) ?? 0,
         count: list.length,
+        quantity: list.reduce((a, x) => a + x.quantity, 0),
         min: Math.min(...prices),
         max: Math.max(...prices),
         avg: Math.round(sum / prices.length),
@@ -140,8 +200,11 @@ export default function PriceMovementPage() {
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .filter((r) => !pickedItem || r.itemName === pickedItem)
+      /* 원본 [기타]의 <b>변동없는단가포함</b> — 기본은 꺼짐이라 안 변한 품목은 뺀다. */
+      .filter((r) => withFlat || r.min !== r.max)
       .sort((a, b) => (b.max - b.min) - (a.max - a.min))
-  }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner, itemCond])
+  }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner, itemCond,
+      partnerGroup, partnerMgr, category, itemGroup, project, employee, withFlat])
 
   /**
    * [전표별] 한 줄 = 전표의 한 라인. 같은 조건으로 모은 점(Pt)을 요약하지 않고 그대로 편다.
@@ -150,12 +213,10 @@ export default function PriceMovementPage() {
   const lineRows = useMemo(() => {
     if (gubun !== '전표별') return []
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
-    const keep = (wh: string, pt: string) =>
-      (!warehouse || wh.includes(warehouse)) && (!partner || pt.includes(partner))
     const docs = mode === 'SALE'
-      ? sales.filter((d) => keep(d.warehouseName, d.partnerName))
+      ? sales.filter(keepDoc)
         .map((d) => ({ date: d.saleDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
-      : purchases.filter((d) => keep(d.warehouseName, d.partnerName))
+      : purchases.filter(keepDoc)
         .map((d) => ({ date: d.purchaseDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
     const kw = keyword.trim()
     const pickedItem = itemCond.trim()
@@ -166,6 +227,7 @@ export default function PriceMovementPage() {
         if (l.unitPrice == null) continue
         if (kw && !l.itemName.includes(kw)) continue
         if (pickedItem && l.itemName !== pickedItem) continue
+        if (!keepLine(l)) continue
         out.push({
           key: `${d.no}-${l.itemId}-${out.length}`,
           date: d.date, no: d.no ?? '', partner: d.partner,
@@ -176,7 +238,8 @@ export default function PriceMovementPage() {
     }
     /* 값이 언제 어떻게 움직였나를 보는 표라 <b>날짜순</b>이다 — 요약표는 변동폭순이다. */
     return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-  }, [gubun, sales, purchases, mode, from, to, keyword, warehouse, partner, itemCond])
+  }, [gubun, sales, purchases, mode, from, to, keyword, warehouse, partner, itemCond,
+      partnerGroup, partnerMgr, category, itemGroup, project, employee])
 
   const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
@@ -185,7 +248,7 @@ export default function PriceMovementPage() {
    * 렌더된 표를 직접 재는 검사를 단다.
    */
   const tableRef = useRef<HTMLDivElement>(null)
-  useTableColumnCheck(tableRef, '단가변동표', [withMin, withMax, withAvg, rows.length])
+  useTableColumnCheck(tableRef, '단가변동표', [withMin, withMax, withAvg, showQty, showSwing, rows.length])
 
   return (
     <EcListShell
@@ -194,6 +257,7 @@ export default function PriceMovementPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      signLine={signBox}
     >
       <p className="mb-2 text-xs text-slate-500">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
 
@@ -227,10 +291,51 @@ export default function PriceMovementPage() {
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 74 }}>거래처그룹1</span>
+          <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>품목</span>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 60 }}>품목구분</span>
+          <select className="ec-input" value={category} style={{ width: 130 }}
+                  onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set([...sales, ...purchases].flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+              .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 66 }}>품목그룹1</span>
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 60 }}>프로젝트</span>
+          <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
+                           value={project} onChange={setProject} items={pickers.projects} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>담당자</span>
+          <CodePickerField label="담당자" hideLabel width={130} emptyLabel="전체"
+                           value={employee} onChange={setEmployee}
+                           items={[...new Set([...sales, ...purchases].map((d) => d.employeeName)
+                             .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 100 }}>거래처관리담당자</span>
+          <CodePickerField label="거래처관리담당자" hideLabel width={140} emptyLabel="전체"
+                           value={partnerMgr} onChange={setPartnerMgr}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </div>
         {/*
           원본 단가변동표 조건의 <b>[단가구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
@@ -262,6 +367,26 @@ export default function PriceMovementPage() {
               {k}
             </label>
           ))}
+        </div>
+        {/*
+          원본 [기타] — 조건 판의 <b>맨 끝</b>이다(2026-09-08 실측). 넷 다 꺼짐이 기본이다.
+          우리 화면에는 이 줄이 통째로 없어서, 특히 <b>한 번도 안 변한 단가</b>가
+          늘 표를 채우고 있었다(변동폭이 0 인 줄이라 아무 말도 안 해 준다).
+        */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기타</span>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />결재방표시
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={showQty} onChange={(e) => setShowQty(e.target.checked)} />수량표시
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={showSwing} onChange={(e) => setShowSwing(e.target.checked)} />단가등락폭표시
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={withFlat} onChange={(e) => setWithFlat(e.target.checked)} />변동없는단가포함
+          </label>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목수 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
       </div>
@@ -319,20 +444,23 @@ export default function PriceMovementPage() {
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
             <th style={{ textAlign: 'right' }}>표준단가</th>
             <th style={{ textAlign: 'right' }}>거래수</th>
+            {/* 원본 [기타]의 <b>수량표시</b> — 기본은 꺼짐이다. */}
+            {showQty && <th style={{ textAlign: 'right' }}>수량</th>}
             {/* 원본 [단가기준]으로 켜고 끈다 — 처음엔 평균만 보인다. */}
             {withMin && <th style={{ textAlign: 'right' }}>최저</th>}
             {withMax && <th style={{ textAlign: 'right' }}>최고</th>}
             {withAvg && <th style={{ textAlign: 'right' }}>평균</th>}
             <th style={{ textAlign: 'right' }}>최근</th>
-            <th style={{ textAlign: 'right' }}>변동폭</th>
+            {/* 원본 [기타]의 <b>단가등락폭표시</b> — 기본은 꺼짐인데 우리는 늘 그리고 있었다. */}
+            {showSwing && <th style={{ textAlign: 'right' }}>변동폭</th>}
             <th style={{ textAlign: 'right' }}>최근vs표준</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={10 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {(mode === 'SALE' ? sales.length : purchases.length) === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
@@ -347,11 +475,12 @@ export default function PriceMovementPage() {
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.standard)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.count}</td>
+                {showQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.quantity.toLocaleString()}</td>}
                 {withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
                 {withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
                 {withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
-                <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>
+                {showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>}
                 <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
                   {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}
                 </td>

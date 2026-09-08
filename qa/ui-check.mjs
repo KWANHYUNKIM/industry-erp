@@ -1301,6 +1301,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['재고잔량분석표', 'inventory/StockAnalysisPage.tsx'],
     ['A/S소모현황', 'quality/AsConsumptionPage.tsx'],
     ['판매구매집계표', 'trade/SalesPurchaseSummaryPage.tsx'],
+    /* 단가변동표는 2026-09-08 에 원본(E040819)을 열어 [기준일자] 칸에서 직접 쟀다 — 달 칸이 09 하나다. */
+    ['단가변동표', 'trade/PriceMovementPage.tsx'],
     ['의료기기공급내역보고', 'datacenter/MedicalDeviceReportPage.tsx'],
     ['비용내역현황', 'accounting/ExpenseDetailPage.tsx'],
     ['기타이동현황', 'inventory/TransferPage.tsx'],
