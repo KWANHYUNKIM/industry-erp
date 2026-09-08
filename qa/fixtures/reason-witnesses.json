@@ -3132,5 +3132,32 @@
    "invoiceId"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "단가요청현황|단가(요청단가)": {
+  "claim": "발주 줄에 단가가 하나뿐이다",
+  "absent": [
+   "requestedPrice",
+   "receivedPrice",
+   "confirmedPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "단가요청현황|단가(수취단가)": {
+  "claim": "발주 줄에 단가가 하나뿐이다",
+  "absent": [
+   "requestedPrice",
+   "receivedPrice",
+   "confirmedPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "단가요청현황|단가(확정단가)": {
+  "claim": "발주 줄에 단가가 하나뿐이다",
+  "absent": [
+   "requestedPrice",
+   "receivedPrice",
+   "confirmedPrice"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
  }
 }
