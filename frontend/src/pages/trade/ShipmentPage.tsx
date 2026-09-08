@@ -30,8 +30,15 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  * <p>내역 행의 칸 구성은 원본 출하조회 격자를 따른다: 일자-No. · 품목명(요약) · 수량합계 · 거래처명.
  */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+/*
+ * 원본 [구분]은 <b>내역·집계 둘</b>이다(대조표 실측). [라인별]은 우리가 더 둔 갈래였는데,
+ * 2026-09-09 에 원본(E040227) 격자를 재 보니 <b>[내역]이 이미 줄 단위</b>였다 —
+ * 일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 적요. 우리 [내역]만 전표로 접고
+ * 있어서 줄을 보려고 갈래를 하나 더 만들어 둔 것이다(판매·구매·생산불출·작업내역에 이어
+ * <b>다섯 번째</b> 같은 꼴). [내역]을 원본대로 두면 둘이 같은 표가 되므로 갈래를 없앤다.
+ */
+type Mode = '내역' | '집계'
+const MODES = ['내역', '집계'] as const
 
 const STATUS_COLOR: Record<ShipStatus, string> = {
   READY: '#c07a00',
@@ -374,13 +381,18 @@ export default function ShipmentPage() {
             </tr>
           </tfoot>
         </table>
-      ) : mode === '라인별' ? (
+      ) : (
         <table className="w-full text-left">
           <thead>
+            {/*
+              원본 격자(2026-09-09 E040227 실측):
+              <b>일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 적요</b>.
+              단가·금액·상태는 원본에 없지만 우리가 더 두는 열이다.
+            */}
             <tr>
               <th style={{ width: 34 }}></th>
-              <th style={{ width: 190 }}>일자-No.</th>
-              <th>품목명</th>
+              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
+              <th>품목명(규격)</th>
               <th style={{ width: 100, textAlign: 'right' }}>수량</th>
               <th style={{ width: 110, textAlign: 'right' }}>단가</th>
               <th style={{ width: 130, textAlign: 'right' }}>금액</th>
@@ -398,8 +410,12 @@ export default function ShipmentPage() {
             ) : lines.map((x, i) => (
               <tr key={x.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(x.r.shipDate)} {x.r.shipNo}</td>
-                <td>[{x.l.itemCode}] {x.l.itemName}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.shipDate)} {x.r.shipNo}</td>
+                {/*
+                  원본 열 이름이 [품목명(규격)] 이라 규격을 괄호에 붙인다. 품목코드는
+                  이 칸에서 빠진다 — 원본도 여기에 코드를 안 적는다(조건 판의 [품목] 코드도움에서 고른다).
+                */}
+                <td>{x.l.itemName}{x.l.spec ? ' (' + x.l.spec + ')' : ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(x.l.amount)}</td>
@@ -411,47 +427,6 @@ export default function ShipmentPage() {
               </tr>
             ))}
           </tbody>
-        </table>
-      ) : (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 190 }}>일자-No.</th>
-              <th>품목명(요약)</th>
-              <th style={{ width: 120, textAlign: 'right' }}>수량합계</th>
-              <th style={{ width: 140, textAlign: 'right' }}>금액합계</th>
-              <th>거래처명</th>
-              <th style={{ width: 90, textAlign: 'center' }}>상태</th>
-              <th style={{ width: 110 }}>담당자</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.shipDate)} {r.shipNo}</td>
-                <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
-                <td>{r.partnerName}</td>
-                <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
-                <td>{r.createdBy ?? ''}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
-              <td colSpan={3}></td>
-            </tr>
-          </tfoot>
         </table>
       )}
     </EcListShell>
