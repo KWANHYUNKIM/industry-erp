@@ -387,20 +387,28 @@ export default function PurchaseOrderStatusPage() {
       ) : (
       <table className="w-full text-left">
         <thead>
+          {/*
+            원본 격자(2026-09-09 E040306 실측):
+            <b>일자-No. · 품목명[규격] · 수량 · 단가 · 공급가액 · 거래처 · 적요</b>.
+            우리는 (1) 일자와 번호를 두 칸으로 갈라 두었고, (2) 규격을 들고 있으면서
+            품목명에 안 붙였고, (3) <b>[적요] 열이 아예 없었고</b>, (4) 거래처를 앞쪽에
+            [매입처] 라는 이름으로 두고 있었다 — 원본은 <b>공급가액 뒤</b>에 [거래처] 다.
+            납기·창고·담당자·상태·부가세는 원본에 없지만 우리가 더 두는 열이다.
+          */}
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>발주일자 {sort.mark('발주일자')}</th>
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
             <th>납기</th>
-            <th>발주번호</th>
-            <th>매입처</th>
             <th>창고</th>
             <th>담당자</th>
             <th style={{ textAlign: 'center' }}>상태</th>
-            <th>품목명</th>
+            <th>품목명[규격]</th>
             <th style={{ textAlign: 'right' }}>수량</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
             <th style={{ textAlign: 'right' }}>부가세</th>
+            <th>거래처</th>
+            <th>적요</th>
           </tr>
         </thead>
         <tbody>
@@ -413,10 +421,9 @@ export default function PurchaseOrderStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
+              {/* 원본은 일자와 번호를 '2026/09/04 -1' 처럼 한 칸에 적는다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.date)} {r.orderNo}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
-              <td>{r.partner}</td>
               <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
               <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
@@ -424,11 +431,15 @@ export default function PurchaseOrderStatusPage() {
                   {r.statusName || STATUS_LABEL[r.status]}
                 </span>
               </td>
-              <td>{r.itemName}</td>
+              {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 진작 들고 있으면서 안 찍고 있었다. */}
+              <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
+              <td>{r.partner}</td>
+              {/* 줄 적요가 있으면 그것을, 없으면 전표 적요를 찍는다 — 둘 다 진작 받아 두고 있었다. */}
+              <td style={{ color: '#5a626e' }}>{r.lineRemark || r.headRemark || ''}</td>
             </tr>
           ))}
         </tbody>
