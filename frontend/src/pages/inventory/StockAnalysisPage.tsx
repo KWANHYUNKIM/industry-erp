@@ -60,11 +60,24 @@ export default function StockAnalysisPage() {
    * 재고현황·재고변동표·창고별재고현황에 이어 <b>네 번째 같은 구멍</b>이다.
    */
   const [withUntracked, setWithUntracked] = useState(false)
-  const [withInactive, setWithInactive] = useState(false)
+  /*
+   * <b>[사용중단품목포함]은 기본이 켜짐이다</b>(2026-09-09 원본 실측). 우리는 꺼짐으로
+   * 두고 있었다 — 그러면 <b>안 쓰기로 한 품목의 재고가 화면에서 사라진다.</b>
+   * 창고에 그 물건이 그대로 쌓여 있는데도 잔량 분석에서 빠지니, 실사와 숫자가 어긋난다.
+   * 원본이 굳이 켜 두는 까닭이 그것이다.
+   */
+  const [withInactive, setWithInactive] = useState(true)
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
   const { inactive, untracked } = useItemFlags()
   const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
   /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
+  /*
+   * 원본 조건 <b>[품목구분]·[품목그룹1]</b>(2026-09-09 실측 — [품목] 바로 뒤에 선다).
+   * 품목 마스터는 이 화면이 이미 통째로 받아 두고 있는데(<code>items</code>) 그 값으로
+   * 거를 자리가 없었다. 재고 분석은 "원재료만" · "이 그룹만" 으로 보는 일이 잦다.
+   */
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
   const [date, setDate] = useState(periodOf('금일')!.to)
   const today = ymd(new Date())
 
@@ -84,6 +97,9 @@ export default function StockAnalysisPage() {
   useEffect(() => { load() }, [])
 
   const priceById = useMemo(() => stockCostMap(items, buys), [items, buys])
+
+  /** 품목 마스터를 id 로 찾는다 — [품목구분]·[품목그룹1] 이 이 값을 쓴다. */
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
 
   const rows = useMemo(() => {
     const wid = warehouseId ? Number(warehouseId) : null
@@ -107,15 +123,17 @@ export default function StockAnalysisPage() {
       .filter((a) => withUntracked || !untracked.has(a.itemId))
       .filter((a) => withInactive || !inactive.has(a.itemId))
       .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
+      .filter((a) => !category || (itemById.get(a.itemId)?.categoryName ?? '') === category)
+      .filter((a) => !itemGroup || (itemById.get(a.itemId)?.itemGroupName ?? '') === itemGroup)
       .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
       // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
       .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
+  }, [stocks, priceById, warehouseId, keyword, category, itemGroup, itemById, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
 
   const reset = () => {
     setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
-    setWithUntracked(false); setWithInactive(false); setDate(today)
+    setWithUntracked(false); setWithInactive(true); setCategory(''); setItemGroup(''); setDate(today)
   }
 
   const totals = useMemo(() => ({
@@ -150,9 +168,25 @@ export default function StockAnalysisPage() {
                            value={keyword} onChange={(v) => setKeyword(v)}
                            items={pickers.items} />
         </EcCond>
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
-                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
+        {/*
+          원본 차례는 <b>품목 · 품목구분 · 품목그룹1(2·3) · 품목계층그룹 · 기타 · 창고 ·
+          창고계층그룹</b> 이다(2026-09-09 실측). 우리는 [창고]를 [기타] 앞에 두고 있었다.
+        */}
+        <EcCond label="품목구분">
+          <select className="ec-input" value={category} style={{ width: 130 }}
+                  onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.categoryName).filter(Boolean))].sort()
+              .map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.itemGroupName).filter((v): v is string => !!v))].sort()
+              .map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </EcCond>
         {/* 원본 [기타] 차례 그대로다(2026-09-02 E040727 실측). [결재방표시]는 인쇄 판이라 아직 없다. */}
         <EcCond label="기타">
@@ -172,6 +206,10 @@ export default function StockAnalysisPage() {
             <input type="checkbox" checked={shortageOnly}
                    onChange={(e) => setShortageOnly(e.target.checked)} /> 품목별안전재고설정미만표시
           </label>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
         </EcCond>
       </EcStatusPanel>
 
