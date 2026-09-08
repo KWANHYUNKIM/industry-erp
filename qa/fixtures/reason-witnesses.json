@@ -1850,5 +1850,285 @@
    "refNo"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "판매조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "구매조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "출하조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "발주서조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "창고이동조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "생산불출조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "생산입고조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "작업지시서조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "매출계획조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "A/S접수조회|입력경로": {
+  "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
+  "absent": [
+   "inputChannel",
+   "createdVia",
+   "sourceChannel",
+   "inputPath",
+   "OAPI"
+  ],
+  "in": "backend"
+ },
+ "창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산입고조회|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산불출조회|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "창고이동조회|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "창고이동현황|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산불출현황|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산입고현황|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "작업내역조회|작업품목:품목계층그룹": {
+  "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",
+  "absent": [
+   "parent"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+ },
+ "작업내역현황|작업품목:품목계층그룹": {
+  "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",
+  "absent": [
+   "parent"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+ },
+ "판매조회|삭제구분": {
+  "claim": "지운 전표를 남기지 않는다 — 지우면 사라진다",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "구매조회|삭제구분": {
+  "claim": "지운 전표를 남기지 않는다 — 지우면 사라진다",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "창고이동조회|결재중": {
+  "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "창고이동조회|미확인": {
+  "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "창고이동조회|확인": {
+  "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+ },
+ "생산불출|전체": {
+  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산불출|결재중": {
+  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산불출|미확인": {
+  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산불출|확인": {
+  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "매출계획|전체": {
+  "claim": "매출계획에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+ },
+ "매출계획조회|전체": {
+  "claim": "매출계획에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+ },
+ "A/S접수조회|전체": {
+  "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
+  "absent": [
+   "CONFIRMED",
+   "APPROVED"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsStatus.java"
+ },
+ "A/S접수조회|확인": {
+  "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
+  "absent": [
+   "CONFIRMED",
+   "APPROVED"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsStatus.java"
  }
 }
