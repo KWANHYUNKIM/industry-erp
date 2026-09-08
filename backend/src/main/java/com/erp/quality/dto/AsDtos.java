@@ -83,6 +83,12 @@ public final class AsDtos {
             Long id, String asNo,
             Long partnerId, String partnerName,
             Long itemId, String itemName,
+            /**
+             * 품목코드와 규격. A/S접수현황(E040610)의 격자가 <b>[품목코드]</b> 와
+             * <b>[품목명[규격]]</b> 을 나란히 둔다(2026-09-09 실측) - 품목 마스터가 진작
+             * 들고 있는 값인데 응답이 안 싣고 있었다.
+             */
+            String itemCode, String itemSpec,
             /** 원본 조건 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
             ItemCategory itemCategory, String itemCategoryName,
             LocalDate receiptDate,
@@ -104,6 +110,7 @@ public final class AsDtos {
                     a.getId(), a.getAsNo(),
                     a.getPartner().getId(), a.getPartner().getName(),
                     a.getItem().getId(), a.getItem().getName(),
+                    a.getItem().getCode(), a.getItem().getSpec(),
                     a.getItem().getCategory(),
                     a.getItem().getCategory() != null ? a.getItem().getCategory().getDisplayName() : null,
                     a.getReceiptDate(),

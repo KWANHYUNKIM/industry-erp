@@ -3106,5 +3106,13 @@
    "dueDate"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+ },
+ "A/S접수현황|수량": {
+  "claim": "A/S 접수에 수량 칸이 없다",
+  "absent": [
+   "quantity",
+   "qty"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
  }
 }

@@ -31,6 +31,9 @@ interface AsRow {
    * 아래 넷은 <code>AsResponse</code> 가 진작 싣는데 이 화면이 안 받고 있었다.
    */
   itemCategoryName: string | null
+  /* 격자를 재면서 응답을 넓혀 받아 온다 - 원본 열이 [품목코드]·[품목명[규격]] 이다. */
+  itemCode: string | null
+  itemSpec: string | null
   title: string | null
   scheduledDate: string | null
   createdBy: string | null
@@ -234,25 +237,38 @@ export default function AsStatusPage() {
       ) : (
       <table className="w-full text-left">
         <thead>
+          {/*
+            원본 격자(2026-09-09 E040610 실측):
+            <b>일자-No. · 진행상태 · 창고명 · 담당자명 · 거래처명 · 제목 · 품목코드 ·
+            품목명[규격] · 수량 · 관리항목명 · 적요</b>.
+            우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) <b>[창고명]·[제목]·[품목코드]·
+            [관리항목명] 넷을 아예 안 찍고</b> 있었다(넷 다 진작 받아 두거나 받을 수 있던 값이다),
+            (3) 이름이 넷 달랐다 - 거래처/품목/담당/상태.
+            [수량]은 못 만든다 - A/S 접수에 수량 칸이 없다(예외에 적었다).
+            증상·완료일·처리일수는 원본에 없지만 우리가 더 두는 열이다.
+          */}
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('접수일')}>접수일 {sort.mark('접수일')}</th>
-            <th>접수번호</th>
-            <th>거래처</th>
-            <th>품목</th>
+            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('접수일')}>일자-No. {sort.mark('접수일')}</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th>창고명</th>
+            <th>담당자명</th>
+            <th>거래처명</th>
+            <th>제목</th>
+            <th>품목코드</th>
+            <th>품목명[규격]</th>
+            <th>관리항목명</th>
+            <th>적요</th>
             <th>증상</th>
-            <th>담당</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
             <th>완료일</th>
             <th style={{ textAlign: 'right' }}>처리일수</th>
-            <th>수리내역</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => {
@@ -260,18 +276,25 @@ export default function AsStatusPage() {
             return (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.receiptDate)}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.asNo}</td>
-                <td>{r.partnerName}</td>
-                <td>{r.itemName}</td>
-                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
-                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || ''}</td>
+                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.receiptDate)} {r.asNo}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
+                <td style={{ color: r.warehouseName ? undefined : '#c5cbd3' }}>{r.warehouseName || ''}</td>
+                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || ''}</td>
+                <td>{r.partnerName}</td>
+                <td style={{ color: r.title ? undefined : '#c5cbd3' }}>{r.title || ''}</td>
+                <td style={{ fontFamily: 'monospace', color: r.itemCode ? undefined : '#c5cbd3' }}>{r.itemCode || ''}</td>
+                {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
+                {/* 관리항목은 품목 마스터에 붙는 값이라 줄에는 없다 - itemId 로 화면에서 잇는다. */}
+                <td style={{ color: '#5a626e' }}>{mgmt.nameOf(r.itemId)}</td>
+                {/* 원본 [적요] - A/S 전표의 적요는 수리내역이다(A/S소모현황과 같은 매핑). */}
+                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
+                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
                 <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || ''}</td>
                 <td style={{ textAlign: 'right', color: days === null ? '#c5cbd3' : '#3c4553' }}>{days === null ? '-' : `${days}일`}</td>
-                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
               </tr>
             )
           })}
