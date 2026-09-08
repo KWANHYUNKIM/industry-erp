@@ -3,7 +3,14 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { dateText } from '../../utils/dateText'
 
-/** 관리 > 근태조회 — 기간별 사원 출퇴근 및 근태 상태 조회 (백엔드 /api/hr/attendance 연동) */
+/**
+ * 관리 &gt; 근태조회 — 기간별 사원 출퇴근 및 근태 상태 조회 (백엔드 /api/hr/attendance 연동)
+ *
+ * <p><b>[근무시간]이 빠져 있었다.</b> 응답은 <code>workHours</code> 를 진작 실어 주는데
+ * 표에는 출근·퇴근만 찍고 그 값을 버리고 있었다 — 출퇴근 목록에서 정작 <b>몇 시간
+ * 일했나</b>를 볼 수가 없었던 셈이다. 사람이 출근·퇴근을 빼서 머리로 계산해야 했다.
+ * 서버가 이미 세어 주는 값이니 열만 내면 된다.
+ */
 interface Row {
   id: number
   date: string
@@ -64,15 +71,16 @@ export default function AttendanceListPage() {
             <th>부서</th>
             <th>출근</th>
             <th>퇴근</th>
+            <th style={{ width: 90, textAlign: 'right' }}>근무시간</th>
             <th style={{ textAlign: 'center' }}>상태</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -81,6 +89,7 @@ export default function AttendanceListPage() {
               <td>{r.department ?? ''}</td>
               <td style={mono}>{r.clockIn ?? ''}</td>
               <td style={mono}>{r.clockOut ?? ''}</td>
+              <td style={{ ...mono, textAlign: 'right' }}>{r.workHours ? r.workHours.toLocaleString() : ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
               <td>{r.note ?? ''}</td>
             </tr>

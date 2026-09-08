@@ -19,7 +19,11 @@ interface AttendanceRow {
 }
 interface ScheduleEvent {
   id: number; eventDate: string; startTime: string | null; title: string; category: string | null; owner: string | null
-  /** 원본 조건 [공유여부]·[프로젝트]. 일정에 담을 자리가 없어 두 조건을 만들 수가 없었다. */
+  /**
+   * 원본 조건 [공유여부]·[프로젝트]. <b>지금은 둘 다 만들어 두었다</b> —
+   * 일정에 shared·project 가 생겼고 응답도 실어 준다(아래 sharedCond·projectCond).
+   * 예전 주석은 "담을 자리가 없어 만들 수가 없었다" 였는데 그 사이에 사실이 아니게 됐다.
+   */
   shared: boolean; projectId: number | null; projectName: string | null
 }
 interface MergedRow {
@@ -55,7 +59,9 @@ export default function WorkIntegratedPage() {
   /*
    * 원본 조건 <b>[사원명]·[부서]·[상태]·[일정구분]</b>. 우리는 검색상자 하나로 이름과 부서를
    * 함께 훑고 있어서, "김"으로 치면 <b>김씨 사원과 김포지점이 같이</b> 걸렸다.
-   * 나머지 조건(내/외근구분·근태항목·휴가항목·근태그룹·공유여부)은 우리 응답에 그 값이 없다.
+   * 나머지 조건(내/외근구분·근태항목·휴가항목·근태그룹)은 우리 응답에 그 값이 없다.
+   * <b>[공유여부]는 여기 적혀 있었지만 틀렸다</b> — 일정이 shared 를 들고 있고 아래에
+   * 조건으로도 서 있다. 같은 파일 안에서 두 주석이 서로 어긋나 있었다.
    */
   const [nameCond, setNameCond] = useState('')
   const [deptCond, setDeptCond] = useState('')
