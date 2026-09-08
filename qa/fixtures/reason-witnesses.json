@@ -1730,5 +1730,125 @@
    "String title"
   ],
   "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|오더관리번호": {
+  "claim": "견적에 오더관리 유형·진행단계를 걸지 않는다",
+  "absent": [
+   "orderTypeId",
+   "stageId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|참조": {
+  "claim": "견적은 시작점이라 근거전표를 달지 않는다",
+  "absent": [
+   "sourceOrderId",
+   "refNo"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|규격": {
+  "claim": "견적 라인이 규격을 안 싣는다",
+  "absent": [
+   "spec"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|추가수량": {
+  "claim": "견적 라인에 추가수량 칸이 없다",
+  "absent": [
+   "extraQty",
+   "addQty"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|단가(vat포함)": {
+  "claim": "vat 포함 단가를 따로 저장하지 않는다",
+  "absent": [
+   "priceWithVat",
+   "unitPriceVat"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|금액1": {
+  "claim": "견적 라인에 추가 금액 칸이 없다",
+  "absent": [
+   "amount1",
+   "amount2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|적요1": {
+  "claim": "견적 라인에 추가 적요 칸이 없다",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "발주요청현황|오더관리번호": {
+  "claim": "발주에 오더관리 유형·진행단계를 걸지 않는다",
+  "absent": [
+   "orderTypeId",
+   "stageId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|추가수량": {
+  "claim": "발주 라인에 추가수량 칸이 없다",
+  "absent": [
+   "extraQty",
+   "addQty"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|단가(vat포함)": {
+  "claim": "vat 포함 단가를 따로 저장하지 않는다",
+  "absent": [
+   "priceWithVat",
+   "unitPriceVat"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|금액1": {
+  "claim": "발주 라인에 추가 금액 칸이 없다",
+  "absent": [
+   "amount1",
+   "amount2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|적요1": {
+  "claim": "발주 라인에 추가 적요 칸이 없다",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|제목": {
+  "claim": "발주에 제목 칸이 없다",
+  "absent": [
+   "String title"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "미구매현황|오더관리번호": {
+  "claim": "발주에 오더관리를 걸지 않는다",
+  "absent": [
+   "orderTypeId",
+   "stageId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "미구매현황|참조": {
+  "claim": "발주는 시작점이라 근거전표를 달지 않는다",
+  "absent": [
+   "sourceOrderId",
+   "refNo"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
  }
 }

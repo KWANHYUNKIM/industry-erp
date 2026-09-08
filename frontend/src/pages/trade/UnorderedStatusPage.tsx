@@ -88,6 +88,16 @@ interface Filters {
   remark: string
   status: '' | QuotationStatus
   createdBy: string
+  /**
+   * 원본 [거래유형] — 과세 · 면세.
+   *
+   * <p>앞 바퀴에 "과세·면세를 견적에서 정하지 않는다" 고 적어 두었는데 <b>틀린 말이었다</b> —
+   * 견적서 등록이 <code>taxable</code> 을 받고, 서비스는 그것으로 부가세를 매긴다.
+   * 엔티티에 따로 칸이 없을 뿐이고, 전환할 때도 <code>vatAmount &gt; 0</code> 으로 되짚는다
+   * (<code>QuotationService</code> 가 그렇게 한다). 그러니 응답을 넓힐 필요도 없다 —
+   * 발주 쪽 화면들과 같은 규칙으로 줄의 부가세를 보면 된다.
+   */
+  taxType: string
 }
 
 /*
@@ -101,7 +111,7 @@ const EMPTY_FILTERS: Filters = {
   warehouse: '', project: '', mgmt: '', partnerMgr: '',
   validFrom: '', validTo: '', qtyFrom: '', qtyTo: '', unorderedFrom: '', unorderedTo: '',
   priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
-  remark: '', status: '', createdBy: '',
+  remark: '', status: '', createdBy: '', taxType: '',
 }
 
 /** 범위 조건 하나. 빈 칸은 '안 정함' 이라 지나간다. */
@@ -191,6 +201,8 @@ export default function UnorderedStatusPage() {
       if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
       if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
       if (f.status && r.status !== f.status) return false
+      /* 원본 [거래유형]. 판매·구매·발주 화면들과 같은 규칙 — 부가세가 있으면 과세다. */
+      if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false
       if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
       if (f.expiredOnly && !r.expired) return false
       return true
@@ -284,6 +296,13 @@ export default function UnorderedStatusPage() {
           <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.unorderedTo}
                  onChange={(e) => setF({ unorderedTo: e.target.value })} />
+        </EcCond>
+        {/* 원본 차례: [미주문수량] 다음이 오더관리번호·내.외자구분·외화종류·<b>[거래유형]</b> 이다. */}
+        <EcCond label="거래유형">
+          <select className="ec-input" value={filters.taxType} style={{ width: 110 }}
+                  onChange={(e) => setF({ taxType: e.target.value })}>
+            <option value="">전체</option><option>과세</option><option>면세</option>
+          </select>
         </EcCond>
         {/* 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */}
         <EcCond label="유효기간">
