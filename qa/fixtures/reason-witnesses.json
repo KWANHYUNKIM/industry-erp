@@ -2791,5 +2791,75 @@
    "<EcCond label=\"구분\">"
   ],
   "file": "production/WoStatusPage.tsx"
+ },
+ "거래처관리대장 I|닫기": {
+  "claim": "화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다",
+  "absent": [
+   "닫기"
+  ],
+  "in": "frontend/src/pages/trade/LedgerPage.tsx"
+ },
+ "거래처관리대장 I|적용(F8)": {
+  "claim": "조건을 바꾸면 바로 반영된다 — 따로 적용하지 않는다",
+  "absent": [
+   "적용"
+  ],
+  "in": "frontend/src/pages/trade/LedgerPage.tsx"
+ },
+ "미삭제": {
+  "claim": "지운 전표를 남겨 두지 않는다 — 지우면 없어진다",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain"
+ },
+ "건설예정공정표|담당자구분": {
+  "claim": "담당은 이름 한 칸이다 — 갈래가 없다",
+  "absent": [
+   "managerType"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "거래처관리대장 II|검색(F8)": {
+  "claim": "거래처등록은 검색상자로 찾는다",
+  "present": [
+   "setKeyword"
+  ],
+  "file": "trade/PartnersPage.tsx"
+ },
+ "거래처관리대장 II|거래처": {
+  "claim": "이 화면이 곧 거래처 목록이다 — 검색창으로 좁힌다",
+  "present": [
+   "setKeyword"
+  ],
+  "file": "trade/PartnersPage.tsx"
+ },
+ "거래처관리대장 II|리스트": {
+  "claim": "거래처등록 화면 자체가 그 리스트다",
+  "present": [
+   "setKeyword"
+  ],
+  "file": "trade/PartnersPage.tsx"
+ },
+ "판매입력II|할인": {
+  "claim": "툴바 [할인]을 눌러 같은 격자를 아래에 편다",
+  "present": [
+   "할인"
+  ],
+  "file": "trade/TradeEntry.tsx"
+ },
+ "생산입고I-BOM기준소모": {
+  "claim": "BOM대로 자동 소모라 사람이 줄을 넣지 않는다",
+  "present": [
+   "BOM"
+  ],
+  "file": "production/ProductionResultPage.tsx"
+ },
+ "작업지시서작업처리|작업내역입력": {
+  "claim": "작업내역은 그 화면에서 바로 넣는다",
+  "present": [
+   "api.post('/work-results'"
+  ],
+  "file": "production/WorkProcessPage.tsx"
  }
 }
