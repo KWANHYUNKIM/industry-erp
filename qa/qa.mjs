@@ -453,10 +453,32 @@ async function scenarioUnsold(f) {
     lines: [{ itemId: f.product.id, quantity: 50, unitPrice: 2000 }],
   })
   const lineId = order.lines[0].lineId
+  /*
+   * 원본 주문서현황(E040209)의 [규격] 조건이 쓰는 값. <code>OrderLineResponse</code> 만
+   * 규격을 안 실어, 그 조건을 오래 '못 만드는 것' 으로 적어 두었었다(2026-09-08 에 실었다).
+   */
+  eq('수주 라인 응답에 [spec] 칸이 있다', 'spec' in order.lines[0], true)
   const un = async () => (await must('GET', '/sales-orders/unsold')).find((r) => r.orderLineId === lineId)
 
   eq('판매 전 미판매 = 주문수량', (await un()).unsoldQty, 50)
   eq('판매 전 미판매금액 = 수량 × 단가', (await un()).unsoldAmount, 100000)
+
+  /*
+   * <b>조건이 걸 값을 응답이 싣고 있나.</b> 2026-09-08 에 원본 미판매현황(E040212)을 재고
+   * 화면에 [창고]·[프로젝트]·[담당자]·[적요]·[규격]·[작성자]를 만들었는데, 그 여섯을
+   * <code>UnsoldLineResponse</code> 가 <b>안 싣고 있었다</b> — 같은 파일의 미출하 응답은
+   * 이미 싣는데 이쪽만 갈라져 있었다.
+   *
+   * <p>값이 아니라 <b>칸이 있는지</b>를 잰다. 자리만 비면 화면은 조용히 '전체' 로 돌아
+   * 아무도 못 알아챈다 — 조건을 만들어 놓고 서버가 값을 안 주는 것이 이 저장소에서
+   * 가장 오래 못 잡던 구멍이다.
+   */
+  {
+    const row = await un()
+    for (const k of ['warehouseName', 'projectName', 'employeeName', 'remark', 'spec', 'createdBy']) {
+      eq(`미판매현황 응답에 [${k}] 칸이 있다`, k in row, true)
+    }
+  }
 
   // 근거전표(수주)를 달고 20개만 판매 → 미판매 30 남아야 한다
   const sale1 = await must('POST', '/sales', {
