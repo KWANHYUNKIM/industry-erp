@@ -315,15 +315,15 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           <th style={{ width: 130 }}>거래처그룹</th>
           <th style={{ width: 100 }}>관리담당자</th>
           {/*
-            원본 <b>채권현황(E040721)</b>의 이 열 이름은 [채권]이 아니라 <b>[합계]</b> 다
-            (2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 · 미청구금액 · <b>합계</b>).
-            채권/채무현황(E040703)은 채권·채무를 나란히 놓으므로 그쪽에서는 [채권]이 맞다 —
-            <b>같은 표가 두 화면을 겸하므로</b> 보는 화면에 따라 이름을 바꾼다.
+            원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
+            아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
+            미청구금액 · <b>합계</b>. 두 화면의 조건·격자·버튼줄이 글자 하나까지 같았다).
+            채권/채무현황(E040703)은 둘을 나란히 놓으므로 그쪽에서만 [채권]·[채무]다 —
+            <b>같은 표가 세 화면을 겸하므로</b> 보는 화면에 따라 머리를 갈라 그린다.
           */}
-          {showR && <th style={{ width: 130, textAlign: 'right' }}>
-            {mode === 'RECEIVABLE' ? '합계' : '채권'}
-          </th>}
-          {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
+          {mode !== 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>합계</th>}
+          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
+          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>순액</th>}
         </tr></thead>
         <tbody>
