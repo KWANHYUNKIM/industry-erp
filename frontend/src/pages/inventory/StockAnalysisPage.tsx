@@ -250,11 +250,22 @@ export default function StockAnalysisPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/*
+              <b>재고잔량분석표(E040727) 2026-09-09 원본 격자 실측</b>(자료 287줄).
+              원본 머리는 <b>두 줄</b>이다 —
+              위: [품목코드 · 품목명[규격] · 재고수량 · <b>재고수량현황</b>(5칸) · <b>미판매</b>],
+              아래: 재고수량현황 밑에 [9월 · 8월 · 7월 · 6월 · 기타].
+              즉 <b>지금 있는 재고가 언제 들어온 것인지</b>를 최근 넉 달로 갈라 보여 준다
+              (달 이름은 [기준일자]에 따라 움직인다). 우리 표에는 그 다섯 칸과 [미판매]가
+              없다 — pending-columns.json 에 적었다.
+              고친 둘: 품목명과 규격을 <b>한 칸</b>으로 합쳤고(원본은 대괄호로 붙인다),
+              [현재고]를 <b>[재고수량]</b> 으로 맞췄다 — 재고현황·재고변동표와 같은 이름이다.
+              [단위]·[안전재고]·[과부족]·[상태]·[단가]·[재고금액]은 우리 열이다.
+            */}
             <th>품목코드</th>
-            <th>품목명</th>
-            <th>규격</th>
+            <th>품목명[규격]</th>
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
-            <th style={{ textAlign: 'right' }}>현재고</th>
+            <th style={{ textAlign: 'right' }}>재고수량</th>
             <th style={{ textAlign: 'right' }}>안전재고</th>
             <th style={{ textAlign: 'right' }}>과부족</th>
             <th style={{ textAlign: 'center', width: 60 }}>상태</th>
@@ -264,9 +275,9 @@ export default function StockAnalysisPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {stocks.length === 0 ? '재고 자료가 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
@@ -276,8 +287,8 @@ export default function StockAnalysisPage() {
               <tr key={r.itemId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
+                {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                 <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.quantity)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.safetyStock)}</td>
@@ -294,7 +305,7 @@ export default function StockAnalysisPage() {
         {rows.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={10} style={{ textAlign: 'right' }}>재고금액 합계</td>
+              <td colSpan={9} style={{ textAlign: 'right' }}>재고금액 합계</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.value)}</td>
             </tr>
           </tfoot>
