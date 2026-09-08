@@ -5,6 +5,8 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
@@ -13,6 +15,19 @@ import { periodOf } from '../../components/EcPeriodPicks'
  * 데이터는 GET /api/sales + GET /api/purchases 를 그대로 집계(백엔드 무변경).
  *
  * 거래처별: 전표 합계 기준. 품목별: 라인 합계 기준(수량·공급가액).
+ *
+ * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>스물일곱</b>이다 — 사본에는 열뿐이었다.
+ * 화면코드도 바로잡았다: 대조표에 <b>ESZ006R</b> 이라 적혀 있었는데 주소창의 prgId 는
+ * <b>E040725</b> 였다(사본에서 주워 온 코드였다).
+ *
+ * <p>실측 차례: 기준일자 · 집계조건 · 내.외자구분 · 창고 · (창고계층그룹) · 프로젝트 ·
+ * (프로젝트그룹1/2) · 담당자 · <b>거래처관리담당자</b> · 관리항목 · 거래처 ·
+ * <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 품목코드 · <b>품목구분 ·
+ * 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 적요 · 거래구분 · <b>거래유형</b> ·
+ * (외화종류) · (양식 · 양식구분).
+ *
+ * <p>이름 둘도 원본대로 고쳤다 — 기간 칸은 <b>[기준일자]</b>, 우리가 [집계기준]이라 부르던
+ * 것은 <b>[집계조건]</b> 이고 원본에서는 <b>기준일자 바로 다음</b>에 선다(맨 뒤가 아니다).
  */
 
 type GroupBy = 'partner' | 'item'
@@ -51,6 +66,19 @@ export default function SalesPurchaseSummaryPage() {
    */
   const [itemCond, setItemCond] = useState('')
   const [kindCond, setKindCond] = useState<'전체' | '일반' | '반품'>('전체')
+  /*
+   * 2026-09-08 실측으로 만든 넷. 값은 이미 다 있다 —
+   * 거래처그룹1·거래처관리담당자는 거래처 마스터에서 이름으로 잇고,
+   * 품목구분은 라인이 <code>itemCategoryName</code> 으로 진작 싣고 있으며,
+   * 거래유형(과세·면세)은 전표의 <code>taxable</code> 이다.
+   */
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [partnerMgrCond, setPartnerMgrCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [taxTypeCond, setTaxTypeCond] = useState('')
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
   const partnerPick = useCondPickers(['partners', 'projects', 'warehouses', 'employees', 'items'])
 
   /* 원본 판매구매집계표는 <b>금월</b>을 보고 열린다(사본 실측). 우리는 비워 두어 */
@@ -81,6 +109,10 @@ export default function SalesPurchaseSummaryPage() {
   const keepWarehouse = (name: string) => !warehouseCond || name.includes(warehouseCond)
   const keepEmp = (name: string | null) => !empCond || (name ?? '').includes(empCond)
   const keepRemark = (t: string | null) => !remarkCond || (t ?? '').includes(remarkCond)
+  const keepGroup = (name: string) => !partnerGroupCond || pgroup.groupOfName(name) === partnerGroupCond
+  const keepMgr = (name: string) => !partnerMgrCond || pmgr.managerOfName(name) === partnerMgrCond
+  /** 원본 [거래유형] — 과세 · 면세. [거래구분](일반·반품)과 다른 축이다. */
+  const keepTax = (taxable: boolean) => !taxTypeCond || (taxable ? '과세' : '면세') === taxTypeCond
 
 
   /**
@@ -89,6 +121,16 @@ export default function SalesPurchaseSummaryPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /**
+   * 원본 [품목구분]·[품목그룹1]. <b>[거래처별] 로 볼 때도 걸려야 한다</b> —
+   * 그때는 전표 단위로 더하므로 <b>그 조건에 맞는 줄을 하나라도 가진 전표</b>만 센다.
+   * 라인 단위로 자르면 [거래처별] 의 전표 합계가 아니게 된다.
+   */
+  const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
+    (!categoryCond || (l.itemCategoryName ?? '') === categoryCond)
+    && (!itemGroupCond || mgmt.groupOf(l.itemId) === itemGroupCond)
+  const docHasItem = (lines: { itemId: number; itemCategoryName: string | null }[]) =>
+    (!categoryCond && !itemGroupCond) || lines.some(lineHit)
 
   const rows = useMemo(() => {
     const m = new Map<string, Agg>()
@@ -105,6 +147,10 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (!keepGroup(d.partnerName)) continue
+        if (!keepMgr(d.partnerName)) continue
+        if (!keepTax(d.taxable)) continue
+        if (!docHasItem(d.lines)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.saleCount += 1; a.saleSupply += d.supplyAmount
@@ -117,6 +163,10 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (!keepGroup(d.partnerName)) continue
+        if (!keepMgr(d.partnerName)) continue
+        if (!keepTax(d.taxable)) continue
+        if (!docHasItem(d.lines)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
         a.buyCount += 1; a.buySupply += d.supplyAmount
@@ -130,10 +180,14 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (!keepGroup(d.partnerName)) continue
+        if (!keepMgr(d.partnerName)) continue
+        if (!keepTax(d.taxable)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
           if (itemCond && l.itemCode !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
+          if (!lineHit(l)) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
         }
@@ -145,10 +199,14 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
+        if (!keepGroup(d.partnerName)) continue
+        if (!keepMgr(d.partnerName)) continue
+        if (!keepTax(d.taxable)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
           if (itemCond && l.itemCode !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
+          if (!lineHit(l)) continue
           const a = bump(`I${l.itemId}`, l.itemName)
           a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
         }
@@ -158,7 +216,8 @@ export default function SalesPurchaseSummaryPage() {
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
-  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond])
+  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
+      partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
@@ -177,11 +236,28 @@ export default function SalesPurchaseSummaryPage() {
       <p className="mb-2 text-xs text-slate-500">기간 내 판매·매입을 거래처별 또는 품목별로 집계. 순액 = 매출공급가 − 매입공급가.</p>
 
       <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+        {/* 원본 첫째 조건은 [기준일자]다 — 우리는 [기간]이라 적고 있었다(2026-09-08 실측). */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>기간</span>
+          <span style={{ ...label, width: 66 }}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
           <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+        </div>
+        {/*
+          원본 [집계조건] — <b>기준일자 바로 다음</b>이다. 우리는 [집계기준]이라 부르며
+          맨 뒤에 두고 있었다. 원본은 집계조건1~5 를 겹쳐 고르지만 우리 표는 축이 하나라
+          거래처별·품목별 둘로 둔다.
+        */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 66 }}>집계조건</span>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {(['partner', 'item'] as const).map((g) => (
+              <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
+                padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
+                background: groupBy === g ? 'var(--ec-blue)' : '#fff', color: groupBy === g ? '#fff' : '#3a4453', fontWeight: groupBy === g ? 700 : 400,
+              }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
+            ))}
+          </div>
         </div>
         {/* 원본 차례: 창고 · <b>프로젝트</b> · 담당자 · 거래처 … — 프로젝트가 거래처보다 앞이다. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -199,6 +275,13 @@ export default function SalesPurchaseSummaryPage() {
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond} items={partnerPick.employees} />
         </div>
+        {/* 원본 차례: [담당자] 다음, [관리항목] 앞이다(2026-09-08 실측). */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 100 }}>거래처관리담당자</span>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={partnerMgrCond} onChange={setPartnerMgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </div>
         {/* 원본 차례: [프로젝트]·[담당자] 다음, [거래처] 앞이다 — 이 화면만 담당자가 끼어든다(사본 실측). */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>관리항목</span>
@@ -211,12 +294,35 @@ export default function SalesPurchaseSummaryPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
         </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 76 }}>거래처그룹1</span>
+          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={partnerGroupCond} onChange={setPartnerGroupCond}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </div>
         {/* 원본 차례: … 거래처 · 품목코드 · <b>적요</b> · 거래구분. 적요는 이미 응답에 온다. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>품목코드</span>
           <CodePickerField label="품목코드" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={partnerPick.items.map((x) => ({ ...x, value: x.code ?? x.value }))} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 66 }}>품목구분</span>
+          <select className="ec-input" value={categoryCond} style={{ width: 130 }}
+                  onChange={(e) => setCategoryCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set([...sales, ...purchases].flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+              .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 66 }}>품목그룹1</span>
+          <select className="ec-input" value={itemGroupCond} style={{ width: 150 }}
+                  onChange={(e) => setItemGroupCond(e.target.value)}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>적요</span>
@@ -230,16 +336,13 @@ export default function SalesPurchaseSummaryPage() {
             <option>전체</option><option>일반</option><option>반품</option>
           </select>
         </div>
+        {/* 원본 [거래유형] — 과세 · 면세. [거래구분](일반·반품)과 다른 축이다. */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>집계기준</span>
-          <div style={{ display: 'flex', gap: 2 }}>
-            {(['partner', 'item'] as const).map((g) => (
-              <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
-                padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-                background: groupBy === g ? 'var(--ec-blue)' : '#fff', color: groupBy === g ? '#fff' : '#3a4453', fontWeight: groupBy === g ? 700 : 400,
-              }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
-            ))}
-          </div>
+          <span style={{ ...label, width: 66 }}>거래유형</span>
+          <select className="ec-input" value={taxTypeCond} style={{ width: 90 }}
+                  onChange={(e) => setTaxTypeCond(e.target.value)}>
+            <option value="">전체</option><option>과세</option><option>면세</option>
+          </select>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
           매출계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.saleSupply)}</b>

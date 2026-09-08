@@ -1643,5 +1643,13 @@
    "expenseOwner"
   ],
   "in": "backend/src/main/java/com/erp/accounting/domain/Expense.java"
+ },
+ "판매구매집계표|외화종류": {
+  "claim": "판매·구매 전표에 통화 칸이 없다 — 원화 하나로 본다",
+  "absent": [
+   "currency",
+   "exchangeRate"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
  }
 }
