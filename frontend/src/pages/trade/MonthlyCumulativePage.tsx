@@ -5,7 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
@@ -66,6 +66,13 @@ export default function MonthlyCumulativePage() {
    * 우리는 종 하나로 박혀 있었다.
    */
   const [layout, setLayout] = useState<'종' | '횡'>('종')
+  /**
+   * 원본 [구분] 안의 <b>기준일자</b>(기본 금월). [기간 누계]가 이 범위를 센다 —
+   * 이 칸이 없어서 원본 격자의 첫 줄을 아예 만들 수가 없었다.
+   */
+  const initP = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   /* 원본 [기타] — 결재방표시 하나, 기본 꺼짐. */
   const [signBox, setSignBox] = useState(false)
   const [warehouse, setWarehouse] = useState('')
@@ -96,34 +103,82 @@ export default function MonthlyCumulativePage() {
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
 
+  /* 품목은 전표가 아니라 <b>라인</b>에 있다 — 그 품목이 든 전표만 센다. */
+  /*
+   * 원본 [품목구분]·[품목그룹1]도 라인에 붙는 값이라, 전표를 셀 때는
+   * <b>그 조건에 맞는 줄을 하나라도 가진 전표</b>만 센다(판매구매집계표와 같은 규칙).
+   * <b>누계 표와 달별 표가 같은 규칙을 쓴다</b> — 한쪽만 고치면 두 표의 숫자가 갈린다.
+   */
+  const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
+    (!category || (l.itemCategoryName ?? '') === category)
+    && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
+  const keepDoc = (d: { warehouseName: string; partnerName: string; projectName: string | null;
+                        lines: { itemName: string; itemId: number; itemCategoryName: string | null }[] }) =>
+    (!warehouse || d.warehouseName.includes(warehouse))
+    && (!partner || d.partnerName.includes(partner))
+    && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
+    && (!project || (d.projectName ?? '').includes(project))
+    && (!item || d.lines.some((l) => l.itemName.includes(item)))
+    && d.lines.some(lineHit)
+    && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
+
+  /**
+   * <b>원본 [종] 격자</b> — [(현황 이름) · 구분 · 기간 · 수량 · 공급가액 · 부가세 · 합계(금액)].
+   * 현황 하나가 세 줄([기간 누계]·[월 누계]·[년 누계])을 rowSpan 으로 묶는다.
+   *
+   * <p>지금 채우는 것은 <b>판매현황 · 구매현황</b> 둘이다. 원본은 여기에
+   * <b>생산입고현황 · 창고이동현황</b> 두 덩어리가 더 붙는데, 이 화면이 그 자료를
+   * 안 받는다(판매·구매만 받는다) — 지어내지 않고 <b>줄을 안 그린다.</b>
+   * 그 둘을 받아 오면 같은 함수에 덩어리만 더하면 된다.
+   */
+  const cumRows = useMemo(() => {
+    const monthFrom = to.slice(0, 8) + '01'
+    const yearFrom = to.slice(0, 4) + '-01-01'
+    const spans: { name: string; from: string; to: string }[] = [
+      { name: '기간 누계', from, to },
+      { name: '월 누계', from: monthFrom, to },
+      { name: '년 누계', from: yearFrom, to },
+    ]
+    const dash = (a: string, b: string) => `${a.replace(/-/g, '/')}~${b.replace(/-/g, '/')}`
+    const sum = (docs: { date: string; supply: number; vat: number; qty: number }[], a: string, b: string) => {
+      let qty = 0, supply = 0, vat = 0
+      for (const d of docs) {
+        if (d.date < a || d.date > b) continue
+        qty += d.qty; supply += d.supply; vat += d.vat
+      }
+      return { qty, supply, vat }
+    }
+    return [
+      ['판매현황', sales.filter(keepDoc).map((d) => ({
+        date: d.saleDate, supply: d.supplyAmount, vat: d.vatAmount,
+        qty: d.lines.reduce((n, l) => n + l.quantity, 0),
+      }))],
+      ['구매현황', purchases.filter(keepDoc).map((d) => ({
+        date: d.purchaseDate, supply: d.supplyAmount, vat: d.vatAmount,
+        qty: d.lines.reduce((n, l) => n + l.quantity, 0),
+      }))],
+    ].map(([name, docs]) => ({
+      name: name as string,
+      lines: spans.map((sp) => ({
+        gubun: sp.name,
+        period: dash(sp.from, sp.to),
+        ...sum(docs as { date: string; supply: number; vat: number; qty: number }[], sp.from, sp.to),
+      })),
+    }))
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [sales, purchases, from, to, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
+
   const rows = useMemo<MonthRow[]>(() => {
     const saleByM = new Array(13).fill(0)
     const buyByM = new Array(13).fill(0)
-    /* 품목은 전표가 아니라 <b>라인</b>에 있다 — 그 품목이 든 전표만 센다. */
-    /*
-     * 원본 [품목구분]·[품목그룹1]도 라인에 붙는 값이라, 전표를 셀 때는
-     * <b>그 조건에 맞는 줄을 하나라도 가진 전표</b>만 센다(판매구매집계표와 같은 규칙).
-     */
-    const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
-      (!category || (l.itemCategoryName ?? '') === category)
-      && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
-    const keep = (d: { warehouseName: string; partnerName: string; projectName: string | null;
-                      lines: { itemName: string; itemId: number; itemCategoryName: string | null }[] }) =>
-      (!warehouse || d.warehouseName.includes(warehouse))
-      && (!partner || d.partnerName.includes(partner))
-      && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
-      && (!project || (d.projectName ?? '').includes(project))
-      && (!item || d.lines.some((l) => l.itemName.includes(item)))
-      && d.lines.some(lineHit)
-      && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
     for (const d of sales) {
       if (d.saleDate.slice(0, 4) !== String(year)) continue
-      if (!keep(d)) continue
+      if (!keepDoc(d)) continue
       saleByM[Number(d.saleDate.slice(5, 7))] += d.supplyAmount
     }
     for (const d of purchases) {
       if (d.purchaseDate.slice(0, 4) !== String(year)) continue
-      if (!keep(d)) continue
+      if (!keepDoc(d)) continue
       buyByM[Number(d.purchaseDate.slice(5, 7))] += d.supplyAmount
     }
     const out: MonthRow[] = []
@@ -167,6 +222,18 @@ export default function MonthlyCumulativePage() {
                     onClick={() => setLayout(v)}>{v}</button>
           ))}
         </div>
+        {/*
+          원본 [구분] 안의 <b>기준일자</b>(기본 금월). 원본 격자의 [기간 누계]가 이 범위를 센다 —
+          이 칸이 없어서 그 줄을 아예 만들 수가 없었다. [연도]는 아래 달별 표(우리 표)가 쓴다.
+        */}
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input className="ec-input" type="date" style={{ width: 140 }} value={from}
+                 onChange={(e) => setFrom(e.target.value)} />
+          <span style={{ color: '#9aa1ab' }}>~</span>
+          <input className="ec-input" type="date" style={{ width: 140 }} value={to}
+                 onChange={(e) => setTo(e.target.value)} />
+        </span>
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
@@ -222,6 +289,44 @@ export default function MonthlyCumulativePage() {
         같은 숫자를 돌려 놓는 것뿐이지만, 달을 나란히 놓고 훑는 것이 이 표를 보는
         흔한 방식이라 원본이 첫 조건으로 둔다.
       */}
+      {/*
+        <b>원본 [종] 격자</b>(2026-09-09 실측) — [(현황 이름) · 구분 · 기간 · 수량 ·
+        공급가액 · 부가세 · 합계(금액)]. 현황 하나가 세 줄을 rowSpan 으로 묶는다.
+        지금 채우는 것은 <b>판매현황 · 구매현황</b> 둘이고, 원본에 더 있는
+        <b>생산입고현황 · 창고이동현황</b>은 이 화면이 그 자료를 안 받아 <b>줄을 안 그린다</b>
+        (지어내지 않는다 — 받아 오면 덩어리만 더하면 된다).
+      */}
+      <table className="w-full text-left" style={{ marginBottom: 14 }}>
+        <thead>
+          <tr>
+            <th style={{ width: 110 }}></th>
+            <th style={{ width: 90 }}>구분</th>
+            <th style={{ width: 190 }}>기간</th>
+            <th style={{ textAlign: 'right' }}>수량</th>
+            <th style={{ textAlign: 'right' }}>공급가액</th>
+            <th style={{ textAlign: 'right' }}>부가세</th>
+            <th style={{ textAlign: 'right' }}>합계(금액)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cumRows.map((g) => g.lines.map((l, i) => (
+            <tr key={g.name + l.gubun}>
+              {i === 0 && (
+                <td rowSpan={3} style={{ fontWeight: 700, background: '#f7f9fb', verticalAlign: 'middle' }}>{g.name}</td>
+              )}
+              <td>{l.gubun}</td>
+              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{l.period}</td>
+              <td style={{ textAlign: 'right' }}>{l.qty ? won(l.qty) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{l.supply ? won(l.supply) : ''}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{l.vat ? won(l.vat) : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>
+                {won(l.supply + l.vat)}
+              </td>
+            </tr>
+          )))}
+        </tbody>
+      </table>
+
       {layout === '횡' ? (
       <div ref={tableRef} style={{ overflowX: 'auto' }}>
         <table className="w-full text-left" style={{ minWidth: 900 }}>
