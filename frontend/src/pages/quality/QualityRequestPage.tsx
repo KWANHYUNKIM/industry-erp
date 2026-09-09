@@ -7,7 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
-import { dateText } from '../../utils/dateText'
+import { dateText } from '../../utils/dateText'
+import { printDocuments } from '../../utils/printDocument'
 
 /**
  * 재고 II > 품질관리 — 품질검사요청 (이카운트 C000692·E040628~E040631)
@@ -31,6 +32,40 @@ const TABS: { v: Tab; label: string }[] = [
   { v: 'CANCELED', label: '취소' },
 ]
 const statusColor = (s: QualityRequestStatus) => (s === 'REQUESTED' ? '#c07a00' : s === 'INSPECTED' ? '#1c7c3c' : '#8a929c')
+
+/**
+ * 원본 품질검사요청조회의 마지막 열 <b>[인쇄]</b> — 그 요청 한 건을 검사요청서로 찍는다.
+ *
+ * <p>금액 칸은 안 그린다. 검사요청은 <b>거래가 아니다</b> — 단가도 공급가액도 없다.
+ * 0 으로 채우면 "0원짜리 거래" 로 읽힌다(창고이동증·생산불출증과 같은 규칙).
+ * 공급자/공급받는자 칸도 없다 — 사내에서 도는 지시서라 상대가 없다.
+ */
+async function printRequest(r: QualityInspectionRequest) {
+  await printDocuments([{
+    title: '품질검사요청서',
+    docNo: r.requestNo,
+    docDate: r.requestDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '검사구분', value: r.typeName },
+      { label: '검사방법', value: r.inspectMethod === '샘플링' && r.samplePercent != null
+        ? `샘플링 ${r.samplePercent}%` : r.inspectMethod },
+      { label: '검사기한', value: r.dueDate },
+      { label: '담당자명', value: r.requester },
+      { label: '프로젝트', value: r.projectName },
+      { label: '진행상태', value: r.statusName },
+    ],
+    remark: r.remark,
+    lines: [{
+      itemCode: r.itemCode, itemName: r.itemName, spec: r.spec,
+      quantity: r.requestQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      remark: r.lotNo ? `로트 ${r.lotNo}` : null,
+    }],
+  }])
+}
 
 export default function QualityRequestPage() {
   /**
@@ -313,13 +348,15 @@ export default function QualityRequestPage() {
             */}
             <th style={{ width: 100 }}>프로젝트</th>
             <th style={{ width: 150, textAlign: 'center' }}>처리</th>
+            {/* 원본 격자의 마지막 열 [인쇄] — 그 요청 한 건을 검사요청서로 찍는다. */}
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -348,6 +385,10 @@ export default function QualityRequestPage() {
                     <button className="no-ec" onClick={() => advance(r, 'CANCELED')} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>
                   </>
                 ) : <span style={{ color: '#c5cbd3', fontSize: 12 }}>—</span>}
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="no-ec" onClick={() => printRequest(r)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
             </tr>
           ))}
