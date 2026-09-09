@@ -38,7 +38,18 @@ import { periodOf } from '../../components/EcPeriodPicks'
  * <b>양식의 내부 id</b> 이고, 메뉴가 쓰는 화면코드는 주소창의 <b>E040819</b> 다.
  */
 
-type Mode = 'SALE' | 'PURCHASE'
+/**
+ * 원본 [단가구분]. <b>기본이 [전체]</b> 다(2026-09-09 E040819 실측) — 그래서 원본
+ * [전표별] 격자에 <b>판매단가와 구매단가가 나란히</b> 선다. 우리에겐 전체가 없어
+ * 한 번에 한쪽만 볼 수 있었다.
+ *
+ * <p><b>[품목별] 요약은 전체를 못 받는다.</b> 그 표는 품목마다 최저·최고·평균을 내는데
+ * 판매단가와 구매단가를 <b>한 평균에 섞으면 거짓</b>이 된다(파는 값과 사는 값이다).
+ * 원본은 그 자리에서 열을 판매·구매로 갈라 두 벌 내는데 우리는 아직 한 벌이다 —
+ * 전체를 고른 채 [품목별]로 가면 <b>고르라고 말하고 표를 비운다.</b> 섞은 숫자를
+ * 내놓는 것보다 낫다.
+ */
+type Mode = 'ALL' | 'SALE' | 'PURCHASE'
 
 /**
  * 원본 단가변동표(ESP021R)의 <b>[단가기준]</b> — 체크박스 넷이고 처음엔
@@ -74,7 +85,8 @@ export default function PriceMovementPage() {
   const [partner, setPartner] = useState('')
   const pickers = useCondPickers(['warehouses', 'partners', 'projects'])
 
-  const [mode, setMode] = useState<Mode>('SALE')
+  /* 원본 [단가구분] 기본은 <b>전체</b>다(2026-09-09 실측). 우리는 판매로 열고 있었다. */
+  const [mode, setMode] = useState<Mode>('ALL')
   /**
    * 원본 단가변동표의 <b>[구분]</b> — 조건 판의 <b>맨 앞</b> 줄이다(사본 실측: 선택상자이고
    * 열릴 때 값이 <b>'전표별'</b>이다). 무엇을 한 줄로 볼지를 고른다.
@@ -156,9 +168,12 @@ export default function PriceMovementPage() {
     // (date, itemId, spec, unit, name, price) 포인트 수집
     interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number; quantity: number }
     const pts: Pt[] = []
+    /* 품목별 요약은 한 갈래만 받는다 — 위 Mode 주석 참고. */
     const docs = mode === 'SALE'
       ? sales.filter(keepDoc).map((d) => ({ date: d.saleDate, lines: d.lines }))
-      : purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+      : mode === 'PURCHASE'
+        ? purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+        : []
     for (const d of docs) {
       if (!inPeriod(d.date)) continue
       for (const l of d.lines) {
@@ -213,11 +228,12 @@ export default function PriceMovementPage() {
   const lineRows = useMemo(() => {
     if (gubun !== '전표별') return []
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
-    const docs = mode === 'SALE'
-      ? sales.filter(keepDoc)
-        .map((d) => ({ date: d.saleDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
-      : purchases.filter(keepDoc)
-        .map((d) => ({ date: d.purchaseDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
+    /* [전체]면 판매·구매를 한 표에 모은다 — 원본 기본이 그렇다. */
+    const saleDocs = sales.filter(keepDoc)
+      .map((d) => ({ kind: 'SALE' as const, date: d.saleDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
+    const buyDocs = purchases.filter(keepDoc)
+      .map((d) => ({ kind: 'PURCHASE' as const, date: d.purchaseDate, no: d.docNo, partner: d.partnerName, lines: d.lines }))
+    const docs = mode === 'SALE' ? saleDocs : mode === 'PURCHASE' ? buyDocs : [...saleDocs, ...buyDocs]
     const kw = keyword.trim()
     const pickedItem = itemCond.trim()
     const out = []
@@ -229,7 +245,8 @@ export default function PriceMovementPage() {
         if (pickedItem && l.itemName !== pickedItem) continue
         if (!keepLine(l)) continue
         out.push({
-          key: `${d.no}-${l.itemId}-${out.length}`,
+          key: `${d.kind}-${d.no}-${l.itemId}-${out.length}`,
+          kind: d.kind,
           date: d.date, no: d.no ?? '', partner: d.partner,
           itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
           quantity: l.quantity, price: l.unitPrice,
@@ -343,11 +360,11 @@ export default function PriceMovementPage() {
         */}
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가구분</span>
         <div style={{ display: 'flex', gap: 2 }}>
-          {(['SALE', 'PURCHASE'] as const).map((m) => (
+          {(['ALL', 'SALE', 'PURCHASE'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
               background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
-            }}>{m === 'SALE' ? '판매단가' : '매입단가'}</button>
+            }}>{m === 'ALL' ? '전체' : m === 'SALE' ? '판매단가' : '매입단가'}</button>
           ))}
         </div>
         {/*
@@ -421,14 +438,21 @@ export default function PriceMovementPage() {
             <th>거래처</th>
             <th style={{ width: 70 }}>단위</th>
             <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-            <th style={{ width: 110, textAlign: 'right' }}>단가</th>
+            {/*
+              원본은 [단가구분] 기본이 [전체]라 <b>판매단가와 구매단가를 나란히</b> 둔다.
+              (원본 머리에는 [단가기준]으로 고른 값이 괄호로 붙는다 — [판매단가(단순평균)].
+              우리 이 표는 <b>전표의 실제 단가</b>를 줄마다 찍는 것이라 평균이 아니어서
+              그 괄호를 붙이지 않는다. 품목별 평균은 아래 [품목별] 표가 낸다.)
+            */}
+            <th style={{ width: 110, textAlign: 'right' }}>판매단가</th>
+            <th style={{ width: 110, textAlign: 'right' }}>구매단가</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : lineRows.map((r, i) => (
             <tr key={r.key}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -440,7 +464,12 @@ export default function PriceMovementPage() {
               <td>{r.partner}</td>
               <td>{r.unit}</td>
               <td style={{ textAlign: 'right' }}>{r.quantity.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'SALE' ? undefined : '#c5cbd3' }}>
+                {r.kind === 'SALE' ? r.price.toLocaleString() : ''}
+              </td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'PURCHASE' ? undefined : '#c5cbd3' }}>
+                {r.kind === 'PURCHASE' ? r.price.toLocaleString() : ''}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -474,7 +503,9 @@ export default function PriceMovementPage() {
             <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
-              {(mode === 'SALE' ? sales.length : purchases.length) === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
+              {mode === 'ALL'
+                ? '[단가구분]을 판매단가 또는 매입단가로 골라 주세요 — 파는 값과 사는 값을 한 평균에 섞으면 거짓이 됩니다.'
+                : (mode === 'SALE' ? sales.length : purchases.length) === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
             const range = r.max - r.min
