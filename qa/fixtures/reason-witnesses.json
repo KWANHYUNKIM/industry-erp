@@ -4015,5 +4015,176 @@
    "Approval"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+ },
+ "발주요청현황|적요3": {
+  "claim": "발주 라인에 추가 적요 칸이 없다(위 [발주요청현황|적요2] 과 같은 사실이다)",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "미주문현황|적요3": {
+  "claim": "견적 라인에 추가 적요 칸이 없다(위 [미주문현황|적요2] 과 같은 사실이다)",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "생산입고조회|발송여부": {
+  "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서조회|발송여부] 과 같은 사실이다)",
+  "absent": [
+   "sentAt",
+   "sentDate",
+   "sendMail"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "매출계획조회|금액": {
+  "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다(위 [매출계획|금액] 과 같은 사실이다)",
+  "present": [
+   "계획금액",
+   "실적금액"
+  ]
+ },
+ "원가생성/수정|계산기준": {
+  "claim": "원본에서도 표의 열이 아니라 조건이다 — 우리도 조건으로 있다(위 [원가생성_수정|계산기준] 과 같은 사실이다)",
+  "present": [
+   "label=\"계산기준\""
+  ]
+ },
+ "원가생성/수정|기준년월": {
+  "claim": "표가 아니라 원가생성 실행 화면의 칸이다(위 [원가생성_수정|기준년월] 과 같은 사실이다)",
+  "present": [
+   "label=\"기준년월\""
+  ]
+ },
+ "생산불출입력|불러온 전표No.": {
+  "claim": "작업지시서에서만 불러온다 — [작업지시서] 열과 같은 값이다(위 [생산불출조회|불러온 전표No.] 과 같은 사실이다)",
+  "present": [
+   "작업지시서"
+  ]
+ },
+ "구매일괄회계반영|조정": {
+  "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|거래가액] 과 같은 사실이다)",
+  "absent": [
+   "currency",
+   "Currency",
+   "외화"
+  ],
+  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+ },
+ "설문조사조회|질문내용": {
+  "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다(위 [설문조사조회|질문유형] 과 같은 사실이다)",
+  "present": [
+   "<th>질문유형</th>"
+  ],
+  "file": "groupware/SurveyInputPage.tsx"
+ },
+ "설문조사조회|사용안함": {
+  "claim": "설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다(위 [설문조사조회|사용] 과 같은 사실이다)",
+  "present": [
+   "<th style={th}>머리말</th>"
+  ],
+  "file": "groupware/SurveyInputPage.tsx"
+ },
+ "집계표|정렬/소계기준": {
+  "claim": "우리 표는 행 축이 하나뿐이고, 그 축은 [거래처별]·[품목별] 알약이 고른다(위 [집계표|구분] 과 같은 사실이다)",
+  "present": [
+   "'거래처별' : '품목별'"
+  ]
+ },
+ "거래처관리대장 I|전표별+내역": {
+  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다(위 [거래처관리대장 I|전표별] 과 같은 사실이다)",
+  "present": [
+   "<tr key={m.partnerId}>"
+  ]
+ },
+ "생산입고II-소모품목 선택|소모": {
+  "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다(위 [생산입고II-소모품목 선택|생산] 과 같은 사실이다)",
+  "present": [
+   "생산입고 등록 (소모품목 직접 선택)",
+   "소모자재 선택"
+  ]
+ },
+ "삭제": {
+  "claim": "지운 전표를 남겨 두지 않는다 — 지우면 없어진다(위 [미삭제] 과 같은 사실이다)",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain"
+ },
+ "외자": {
+  "claim": "국내/수입 구분을 전표에 두지 않는다(위 [내자] 과 같은 사실이다)",
+  "absent": [
+   "domesticImport",
+   "importYn",
+   "foreignYn"
+  ],
+  "in": "backend"
+ },
+ "생산불출조회|발송": {
+  "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다(위 [생산불출조회|미발송] 과 같은 사실이다)",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "출하조회|확인": {
+  "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)(위 [출하조회|미확인] 과 같은 사실이다)",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "생산불출조회|확인": {
+  "claim": "생산 전표에 확인 상태가 없다(위 [생산불출조회|미확인] 과 같은 사실이다)",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "발주서조회|완료": {
+  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서조회|진행중] 과 같은 사실이다)",
+  "present": [
+   "발주요청",
+   "단가확정",
+   "입고전환"
+  ],
+  "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "발주서|완료": {
+  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서|진행중] 과 같은 사실이다)",
+  "present": [
+   "발주요청",
+   "단가확정",
+   "입고전환"
+  ],
+  "file": "trade/PurchaseOrderPage.tsx"
+ },
+ "SW개발일정관리|프로젝트": {
+  "claim": "이 화면의 행 자체가 프로젝트다 — 프로젝트로 프로젝트를 거를 수 없다(위 [건설예정공정표|프로젝트] 과 같은 사실이다)",
+  "present": [
+   "api.get<Project[]>('/projects')"
+  ],
+  "file": "groupware/SwSchedulePage.tsx"
+ },
+ "SW개발일정관리|사용자": {
+  "claim": "작성자만 남기고 조건으로 거르지는 않는다(위 [건설예정공정표|사용자] 과 같은 사실이다)",
+  "present": [
+   "createdBy"
+  ],
+  "file": "groupware/SwSchedulePage.tsx"
+ },
+ "창고이동조회|받는창고명": {
+  "claim": "같은 자리를 창고이동현황은 [입고창고명] 이라 부른다 — 우리 화면 하나가 둘을 겸해 현황 쪽 이름을 따랐다",
+  "present": [
+   "<th>입고창고명</th>"
+  ]
  }
 }
