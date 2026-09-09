@@ -63,6 +63,8 @@ export default function StandardCostPage() {
   const mgmt = useItemMgmt()
   const [items, setItems] = useState<Item[]>([])
   const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
+  /* 원본 격자는 [품목명[규격]] 한 칸이다 — 규격은 줄에 없어 품목 마스터에서 잇는다. */
+  const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   const [categoryCond, setCategoryCond] = useState('')
   const [itemGroupCond, setItemGroupCond] = useState('')
   /**
@@ -193,25 +195,39 @@ export default function StandardCostPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
+            {/*
+              <b>표준원가현황(E040808) 2026-09-09 원본 격자 실측</b>(자료 60줄) —
+              [품목코드 · 품목명[규격] · 품목구분(세트포함) · <b>생산공정명</b> · <b>단가</b>]
+              다섯 칸에 합계행 하나다. <b>원본은 재료비·노무비·경비로 안 가른다</b> —
+              표준원가를 [단가] 한 칸으로만 낸다.
+              우리는 셋으로 갈라 두고 합을 [표준원가]라 불렀다. 가른 셋은 우리 열로 남기되
+              합 칸의 이름은 원본대로 <b>[단가]</b> 로 맞춘다 — 같은 값을 화면마다 다르게
+              부르면 원본을 아는 사람이 여기서 다시 배워야 한다(재고실사현황에서 [실사수량]을
+              [수량]으로 맞춘 것과 같은 까닭이다). 옆에 셋을 그대로 두어 무엇의 합인지 보인다.
+              [생산공정명]은 못 만든다(실제원가현황·차이분석과 같은 이유).
+              [기간]은 우리 열이다.
+            */}
             <th style={{ width: 90 }}>품목코드</th>
-            <th>품목명</th>
+            <th>품목명[규격]</th>
+            <th style={{ width: 80 }}>품목구분(세트포함)</th>
             <th style={{ width: 80 }}>기간</th>
             <th style={{ textAlign: 'right' }}>표준재료비</th>
             <th style={{ textAlign: 'right' }}>표준노무비</th>
             <th style={{ textAlign: 'right' }}>표준경비</th>
-            <th style={{ textAlign: 'right' }}>표준원가</th>
+            <th style={{ textAlign: 'right' }}>단가</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-              <td>{r.itemName}</td>
+              <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
+              <td style={{ color: '#5a626e' }}>{catOf.get(r.itemId) ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
               <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>
@@ -223,7 +239,7 @@ export default function StandardCostPage() {
         {showTotal && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}품목)</td>
+              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}품목)</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.materialCost, 0).toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.laborCost, 0).toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.overheadCost, 0).toLocaleString('ko-KR')}</td>
