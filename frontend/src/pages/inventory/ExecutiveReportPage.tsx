@@ -29,6 +29,8 @@ const won = (n: number) => n.toLocaleString('ko-KR')
  * 손으로 만든 날짜 문자열은 '어느 빠른선택인지' 를 아무 데도 말해 주지 않는다.
  */
 const firstOfMonth = () => periodOf('금월(~오늘)')!.from
+/** 원본은 날짜를 <b>2026/09/09</b> 꼴로 적는다. */
+const dot = (d: string) => d.replace(/-/g, '/')
 
 interface NameAmt { key: string; name: string; amount: number }
 
@@ -98,6 +100,19 @@ export default function ExecutiveReportPage() {
       const e = buyByPartner.get(k) ?? { key: k, name: d.partnerName, amount: 0 }
       e.amount += d.supplyAmount; buyByPartner.set(k, e)
     }
+    /*
+     * <b>원본 격자의 재고 줄들</b> — 품목구분마다 한 줄, 그리고 [합계].
+     * 평가 기준은 위 <code>costById</code> 그대로다(취득원가) — 카드에 쓰는 값과
+     * 같은 규칙이어야 카드와 표의 숫자가 갈리지 않는다.
+     */
+    const catOf = new Map(items.map((it) => [it.id, it.categoryName]))
+    const stockByCat = new Map<string, number>()
+    for (const s of stocks) {
+      const cost = costById.get(s.itemId)
+      if (cost == null) continue          // 평가단가를 모르는 칸은 합계에서 뺀다(위와 같은 규칙)
+      const name = catOf.get(s.itemId) || '(미지정)'
+      stockByCat.set(name, (stockByCat.get(name) ?? 0) + s.quantity * cost)
+    }
     const stockByItem = new Map<string, NameAmt>()
     for (const s of stocks) {
       const k = `I${s.itemId}`
@@ -107,6 +122,7 @@ export default function ExecutiveReportPage() {
 
     return {
       saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, stockUnknown: stockEval.unknown, receivable, payable,
+      stockByCat: [...stockByCat.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko')),
       saleCount: salesP.length, buyCount: buyP.length,
       topSale: top(saleByPartner), topBuy: top(buyByPartner), topStock: top(stockByItem),
     }
@@ -186,6 +202,57 @@ export default function ExecutiveReportPage() {
             <Kpi label="총 채권 (받을 돈)" value={won(report.receivable)} color="#1c6b32" />
             <Kpi label="총 채무 (줄 돈)" value={won(report.payable)} color="#c60a2e" />
           </div>
+
+          {/*
+            <b>경영자보고서(E040704) 2026-09-09 원본 격자 실측</b>(자료 19줄) —
+            열은 <b>[구분 · 기준일자 · 금액]</b> 셋뿐이고, 줄이 열아홉이다:
+            품목구분 여섯(상품·원재료·부재료·제품·반제품·무형상품) · 합계 ·
+            판매액 · 구매액 · 미판매금액 · 미입고금액 · 채권 · 채무 ·
+            판매 할인액 · 구매 할인액 · 재고조정액 · 자가사용액 ·
+            미청구액 (판매) · 미청구액 (구매).
+            [기준일자] 칸에는 그 줄이 <b>어느 구간을 센 것인지</b>가 적힌다 —
+            재고 줄은 시점 하나(2026/09/09), 판매·구매는 조회기간,
+            미판매·미청구는 <b>1년 구간</b>(기준일−1년 ~ 기준일)이다.
+
+            <p>우리는 이 표가 통째로 없었고 KPI 카드와 TOP5 만 있었다(둘 다 우리 것이다).
+            <b>뜻이 정확히 같은 줄만</b> 만든다 — 품목구분별 재고와 합계, 판매액, 구매액.
+            나머지 열둘은 아직 안 만든다:
+            <b>채권·채무</b>는 우리 값이 <b>시점 잔액</b>인데 원본은 그 칸에 기간을 적어
+            발생액인지 잔액인지 아직 못 가렸다(지어내지 않는다).
+            <b>미판매·미입고·할인액·재고조정액·자가사용액·미청구액</b>은 이 화면이 그 자료를
+            안 받는다. 보드에 그대로 적어 두었다.
+          */}
+          <table className="w-full text-left" style={{ marginBottom: 16 }}>
+            <thead><tr>
+              <th style={{ width: 200 }}>구분</th>
+              <th style={{ width: 220 }}>기준일자</th>
+              <th style={{ textAlign: 'right' }}>금액</th>
+            </tr></thead>
+            <tbody>
+              {report.stockByCat.map(([name, amt]) => (
+                <tr key={name}>
+                  <td>{name}</td>
+                  <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(to)}</td>
+                  <td style={{ textAlign: 'right' }}>{won(amt)}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <td>합계</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.stockValue)}</td>
+              </tr>
+              <tr>
+                <td>판매액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.saleAmt)}</td>
+              </tr>
+              <tr>
+                <td>구매액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.buyAmt)}</td>
+              </tr>
+            </tbody>
+          </table>
 
           {/* TOP5 3열 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
