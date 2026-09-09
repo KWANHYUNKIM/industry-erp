@@ -3826,5 +3826,194 @@
    "const SALES_TABS = ['전체', '결재중', '미확인', '확인']"
   ],
   "file": "trade/TradeInquiryPage.tsx"
+ },
+ "일정관리|라벨변경": {
+  "claim": "여러 건의 라벨을 한꺼번에 바꾸는 기능이 없다(위 [공용품관리|라벨변경] 과 같은 사실이다)",
+  "absent": [
+   "bulkLabel"
+  ],
+  "in": "both"
+ },
+ "작업내역조회|작업품목:품목그룹3": {
+  "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역조회|작업품목:품목그룹2] 과 같은 사실이다)",
+  "absent": [
+   "group2",
+   "itemGroup2",
+   "group3",
+   "itemGroup3"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "작업내역조회|생산품목:품목그룹3": {
+  "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역조회|생산품목:품목그룹2] 과 같은 사실이다)",
+  "absent": [
+   "group2",
+   "itemGroup2",
+   "group3",
+   "itemGroup3"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "작업내역현황|작업품목:품목그룹3": {
+  "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역현황|작업품목:품목그룹2] 과 같은 사실이다)",
+  "absent": [
+   "group2",
+   "itemGroup2",
+   "group3",
+   "itemGroup3"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "작업내역현황|생산품목:품목그룹3": {
+  "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역현황|생산품목:품목그룹2] 과 같은 사실이다)",
+  "absent": [
+   "group2",
+   "itemGroup2",
+   "group3",
+   "itemGroup3"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+ },
+ "발주요청현황|금액2": {
+  "claim": "발주 라인에 추가 금액 칸이 없다(위 [발주요청현황|금액1] 과 같은 사실이다)",
+  "absent": [
+   "amount1",
+   "amount2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "발주요청현황|적요2": {
+  "claim": "발주 라인에 추가 적요 칸이 없다(위 [발주요청현황|적요1] 과 같은 사실이다)",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+ },
+ "미주문현황|금액2": {
+  "claim": "견적 라인에 추가 금액 칸이 없다(위 [미주문현황|금액1] 과 같은 사실이다)",
+  "absent": [
+   "amount1",
+   "amount2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "미주문현황|적요2": {
+  "claim": "견적 라인에 추가 적요 칸이 없다(위 [미주문현황|적요1] 과 같은 사실이다)",
+  "absent": [
+   "remark1",
+   "remark2",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "근태현황|프로젝트": {
+  "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다(위 [근태조회|프로젝트] 과 같은 사실이다)",
+  "absent": [
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain"
+ },
+ "발주서조회|발송여부": {
+  "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서|발송여부] 과 같은 사실이다)",
+  "absent": [
+   "sentAt",
+   "sentDate",
+   "sendMail"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "판매단가일괄변경|프로젝트": {
+  "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다(위 [구매단가일괄변경|프로젝트] 과 같은 사실이다)",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/PriceBulkDtos.java"
+ },
+ "지급현황|부서": {
+  "claim": "정산에 부서가 없다 — 붙일 값이 없다(위 [수금현황|부서] 과 같은 사실이다)",
+  "absent": [
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "지급현황|부서계층그룹": {
+  "claim": "부서를 붙일 자리가 없으니 그 위의 계층도 없다(위 [수금현황|부서계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+ },
+ "휴가잔여일수현황|프로젝트": {
+  "claim": "휴가에 프로젝트를 달지 않는다(위 [휴가사용실적현황|프로젝트] 과 같은 사실이다)",
+  "absent": [
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/domain"
+ },
+ "SW개발일정관리|게시일": {
+  "claim": "프로젝트는 게시글이 아니라 올린 날이 없다(위 [건설예정공정표|게시일] 과 같은 사실이다)",
+  "absent": [
+   "postedAt"
+  ],
+  "in": "backend"
+ },
+ "SW개발일정관리|실제완료일": {
+  "claim": "실제로 끝난 날을 적는 칸이 없다(위 [건설예정공정표|실제완료일] 과 같은 사실이다)",
+  "absent": [
+   "actualEndDate"
+  ],
+  "in": "backend"
+ },
+ "SW개발일정관리|태스크구분": {
+  "claim": "일을 갈래로 나누지 않는다(위 [건설예정공정표|태스크구분] 과 같은 사실이다)",
+  "absent": [
+   "taskType"
+  ],
+  "in": "backend"
+ },
+ "SW개발일정관리|거래처": {
+  "claim": "프로젝트에 거래처를 달지 않는다(위 [건설예정공정표|거래처] 과 같은 사실이다)",
+  "absent": [
+   "BusinessPartner"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "SW개발일정관리|담당자구분": {
+  "claim": "담당은 이름 한 칸이다 — 갈래가 없다(위 [건설예정공정표|담당자구분] 과 같은 사실이다)",
+  "absent": [
+   "managerType"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "SW개발일정관리|게시글번호": {
+  "claim": "게시글이 아니라 번호가 없다(위 [건설예정공정표|게시글번호] 과 같은 사실이다)",
+  "absent": [
+   "postNo"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "SW개발일정관리|삭제구분": {
+  "claim": "지운 것을 남겨 두지 않는다 — 지우면 없어진다(위 [건설예정공정표|삭제구분] 과 같은 사실이다)",
+  "absent": [
+   "deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "SW개발일정관리|입력경로": {
+  "claim": "어디서 넣었는지 기록하지 않는다(위 [건설예정공정표|입력경로] 과 같은 사실이다)",
+  "absent": [
+   "inputChannel"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+ },
+ "매출계획조회|이력": {
+  "claim": "결재 이력 탭이다 — 매출계획을 결재에 올리지 않는다(위 [매출계획|이력] 과 같은 사실이다)",
+  "absent": [
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
  }
 }
