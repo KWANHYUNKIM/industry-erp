@@ -3677,5 +3677,53 @@
   "present": [
    "lotStock"
   ]
+ },
+ "품질검사현황|정렬/소계기준": {
+  "claim": "이 표는 검사일 내림차순 하나로 세운다 — 고를 축이 없다",
+  "present": [
+   "a.inspectionDate < b.inspectionDate ? 1"
+  ]
+ },
+ "A/S접수현황|정렬/소계기준": {
+  "claim": "이 표는 접수일 내림차순 하나로 세운다 — 고를 축이 없다",
+  "present": [
+   "a.receiptDate < b.receiptDate ? 1"
+  ]
+ },
+ "품질검사현황|거래처관리담당자": {
+  "claim": "검사에 거래처가 없다 — 우리 검사는 품목에 대고 하지 상대에 대고 하지 않는다",
+  "absent": [
+   "partner",
+   "Partner"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "품질검사현황|오더관리번호": {
+  "claim": "검사를 전표에 이어 두지 않아 근거가 될 오더가 없다",
+  "absent": [
+   "orderNo",
+   "OrderManage"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "품질검사현황|출처(검사)구분": {
+  "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
+  "absent": [
+   "sourceDoc"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "휴가잔여일수현황|적요": {
+  "claim": "잔여일수 응답에 적요가 없다 — 적요로 거르는 칸을 아직 안 만들었다",
+  "absent": [
+   "remark"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/dto/HrDtos.java"
+ },
+ "건설예정공정표|사용자": {
+  "claim": "작성자만 남기고 조건으로 거르지는 않는다",
+  "present": [
+   "createdBy"
+  ]
  }
 }
