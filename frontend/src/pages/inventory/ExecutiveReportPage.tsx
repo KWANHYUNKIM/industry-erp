@@ -34,12 +34,42 @@ const dot = (d: string) => d.replace(/-/g, '/')
 
 interface NameAmt { key: string; name: string; amount: number }
 
+/**
+ * <b>기준일에서 1년 뒤로.</b> 원본 격자의 [미판매금액]·[미청구액] 칸에는 조회기간이 아니라
+ * <b>기준일−1년 ~ 기준일</b> 이 적힌다(2026-09-09 실측). 남아 있는 주문·발주는 그 달에
+ * 낸 것만 세면 뜻이 없어서다 — 반 년 전에 받고 아직 못 판 주문이 진짜 미판매다.
+ */
+const yearBefore = (d: string) => {
+  const t = new Date(d)
+  t.setFullYear(t.getFullYear() - 1)
+  return t.toISOString().slice(0, 10)
+}
+
+/** 미판매 한 줄. 미판매현황이 보는 것과 같은 자리다. */
+interface UnsoldLine { orderDate: string; unsoldAmount: number }
+/** 입고로 안 넘어간 발주. 미입고현황과 같은 규칙으로 거른다. */
+type OpenPoStatus = 'REQUESTED' | 'PLANNED' | 'PRICED' | 'ORDERED'
+const OPEN_PO: string[] = ['REQUESTED', 'PLANNED', 'PRICED', 'ORDERED']
+interface PurchaseOrderRow {
+  orderDate: string; status: OpenPoStatus | string
+  lines: { supplyAmount: number }[]
+}
+/** 할인 한 줄. /sales/discounts · /purchases/discounts 가 이미 내주고 있었다. */
+interface DiscountRow { date: string; discountAmount: number }
+/** 재고조정·자가사용 한 줄. 금액이 없어 수량 × 취득원가로 낸다. */
+interface AdjustRow { adjustDate: string; type: string; itemId: number; quantityChange: number }
+
 export default function ExecutiveReportPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [balances, setBalances] = useState<PartnerBalance[]>([])
+  const [unsold, setUnsold] = useState<UnsoldLine[]>([])
+  const [openPo, setOpenPo] = useState<PurchaseOrderRow[]>([])
+  const [saleDisc, setSaleDisc] = useState<DiscountRow[]>([])
+  const [buyDisc, setBuyDisc] = useState<DiscountRow[]>([])
+  const [adjusts, setAdjusts] = useState<AdjustRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -49,7 +79,8 @@ export default function ExecutiveReportPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b, st, it, bal] = await Promise.all([
+      const y = yearBefore(to)
+      const [s, b, st, it, bal, un, po, sd, bd, adj] = await Promise.all([
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<StockRow[]>('/stock'),
@@ -59,13 +90,28 @@ export default function ExecutiveReportPage() {
          * 나왔다 — 지난달을 조회해도 이번 달 수금까지 반영된 숫자가 카드에 떴다.
          */
         api.get<PartnerBalance[]>('/ledger/partner-balances', { params: { asOf: to } }),
+        /*
+         * 아래 다섯은 <b>다른 화면이 이미 보고 있던 자리</b>다 —
+         * 미판매현황 · 미입고현황 · 판매할인현황 · 구매할인현황 · 재고조정/자가사용현황.
+         * 경영자보고서가 그 값을 안 불러와서 원본 격자의 여섯 줄이 통째로 비어 있었다.
+         */
+        api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: y, to } }),
+        api.get<PurchaseOrderRow[]>('/purchase-orders'),
+        api.get<DiscountRow[]>('/sales/discounts', { params: { from, to } }),
+        api.get<DiscountRow[]>('/purchases/discounts', { params: { from, to } }),
+        api.get<{ rows: AdjustRow[] }>('/stock-adjustments', { params: { from, to, all: true } }),
       ])
       setSales(s.data); setPurchases(b.data); setStocks(st.data); setItems(it.data); setBalances(bal.data)
+      setUnsold(un.data); setOpenPo(po.data)
+      setSaleDisc(sd.data); setBuyDisc(bd.data); setAdjusts(adj.data.rows)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  /* 기준일자 끝이 바뀌면 채권·채무를 다시 받는다(그 시점 잔액이라서다). */
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [to])
+  /*
+   * 기준일자가 바뀌면 다시 받는다 — 채권·채무는 <b>그 시점 잔액</b>이고,
+   * 할인·재고조정·미판매는 서버가 <b>기간을 받아</b> 걸러 주기 때문이다.
+   */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
 
   const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
 
@@ -125,13 +171,37 @@ export default function ExecutiveReportPage() {
       e.amount += s.quantity * (costById.get(s.itemId) ?? 0); stockByItem.set(k, e)
     }
 
+    /*
+     * <b>원본 격자에 남아 있던 여섯 줄.</b> 값을 새로 지어낸 것은 없고, 다른 화면이
+     * 이미 보던 자리를 여기서도 불러와 더한 것뿐이다.
+     *
+     * <p>재고조정액·자가사용액은 <b>금액 칸이 없다</b> — 조정은 수량만 남는다.
+     * 그래서 위 재고 평가와 <b>같은 취득원가</b>로 곱한다. 다른 기준을 쓰면
+     * 같은 화면 안에서 재고자산과 조정액이 서로 다른 단가로 매겨진다.
+     * 평가단가를 모르는 품목은 재고 합계와 마찬가지로 뺀다.
+     */
+    const unsoldAmt = unsold.reduce((a, l) => a + l.unsoldAmount, 0)
+    const unreceivedAmt = openPo
+      .filter((o) => OPEN_PO.includes(o.status) && o.orderDate >= yearBefore(to) && o.orderDate <= to)
+      .reduce((a, o) => a + o.lines.reduce((x, l) => x + l.supplyAmount, 0), 0)
+    const saleDiscAmt = saleDisc.reduce((a, r) => a + r.discountAmount, 0)
+    const buyDiscAmt = buyDisc.reduce((a, r) => a + r.discountAmount, 0)
+    const adjAmt = (kinds: string[]) => adjusts
+      .filter((r) => kinds.includes(r.type))
+      .reduce((a, r) => a + r.quantityChange * (costById.get(r.itemId) ?? 0), 0)
+    /* 자가사용은 따로 한 줄이라 조정액에서 뺀다 — 원본도 두 줄로 나눠 적는다. */
+    const adjustAmt = adjAmt(['ADJUST', 'DEFECT', 'SUBSTITUTE', 'DISPOSAL'])
+    const selfUseAmt = adjAmt(['SELF_USE'])
+
     return {
       saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, stockUnknown: stockEval.unknown, receivable, payable,
+      unsoldAmt, unreceivedAmt, saleDiscAmt, buyDiscAmt, adjustAmt, selfUseAmt,
       stockByCat: [...stockByCat.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko')),
       saleCount: salesP.length, buyCount: buyP.length,
       topSale: top(saleByPartner), topBuy: top(buyByPartner), topStock: top(stockByItem),
     }
-  }, [sales, purchases, stocks, items, balances, from, to])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, purchases, stocks, items, balances, unsold, openPo, saleDisc, buyDisc, adjusts, from, to])
 
   const margin = report.saleAmt > 0 ? (report.grossProfit / report.saleAmt) * 100 : 0
 
@@ -261,6 +331,22 @@ export default function ExecutiveReportPage() {
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.buyAmt)}</td>
               </tr>
+              {/*
+                <b>[미판매금액]·[미입고금액]</b> — 아직 안 판 주문, 아직 안 들어온 발주.
+                기간이 <b>1년</b>인 것은 위 <code>yearBefore</code> 에 적어 둔 실측 때문이다.
+                [미입고금액]의 구간은 실측 기록에 없어 <b>미판매와 같게</b> 두었다 —
+                다음에 원본을 열면 그 칸의 글자를 읽어 확인할 것(지어낸 값이 아니라 맞춰 둔 구간이다).
+              */}
+              <tr>
+                <td>미판매금액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.unsoldAmt)}</td>
+              </tr>
+              <tr>
+                <td>미입고금액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.unreceivedAmt)}</td>
+              </tr>
               {/* 값은 기간 끝 시점의 잔액이다(위 실측). 칸에 적히는 글자는 원본대로 기간이다. */}
               <tr>
                 <td>채권</td>
@@ -272,6 +358,33 @@ export default function ExecutiveReportPage() {
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.payable)}</td>
               </tr>
+              <tr>
+                <td>판매 할인액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.saleDiscAmt)}</td>
+              </tr>
+              <tr>
+                <td>구매 할인액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.buyDiscAmt)}</td>
+              </tr>
+              <tr>
+                <td>재고조정액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.adjustAmt)}</td>
+              </tr>
+              <tr>
+                <td>자가사용액</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.selfUseAmt)}</td>
+              </tr>
+              {/*
+                <b>[미청구액 (판매)]·[미청구액 (구매)] 두 줄은 아직 못 만든다.</b>
+                채권현황(거래처별채권)에 같은 이름의 칸이 있는데 <b>거기도 비어 있다</b> —
+                수금이 <b>어느 청구를 갚은 것인지</b>가 우리 자료에 없어서 잔액을
+                청구분·미청구분으로 가를 수가 없다. 이유는 그 화면 머리말에 적어 두었다.
+                지어내지 않고 줄을 안 그린다.
+              */}
             </tbody>
           </table>
 
