@@ -73,6 +73,7 @@ export default function QuotationPage() {
     setFrom(p.from); setTo(p.to)
     setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체')
     setAuthorCond(''); setSpecCond(''); setRemarkCond(''); setValidCond(''); setPmCond('')
+    setUpFrom(''); setUpTo('')
   }
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -144,6 +145,15 @@ export default function QuotationPage() {
    */
   const [byUpdated, setByUpdated] = useState(false)
   /*
+   * 원본 [최종수정일시] — 2026-09-09 견적서조회 실측에서 <b>날짜 구간 두 칸</b>이었다.
+   * 앞 바퀴에는 목록(pending-conditions)에 남겨 두었는데, 값이 없어서가 아니라
+   * 안 만들어서였다 — <code>updatedAt</code> 은 응답이 진작 싣고 바로 아래
+   * [수정일자순(정렬)]이 그 값으로 줄을 세우고 있다. <b>정렬은 되는데 거를 수가 없었다.</b>
+   * 시각까지 받지만 거르는 축은 원본과 같이 <b>날짜</b>다.
+   */
+  const [upFrom, setUpFrom] = useState('')
+  const [upTo, setUpTo] = useState('')
+  /*
    * 2026-09-08 에 <b>견적서현황(E040208)</b> 을 열어 재니 조건이 <b>열하나</b>다 —
    * 메뉴 · 구분 · 기준일자 · 견적No. · 내.외자구분 · 창고 · 프로젝트 · 관리항목 ·
    * 거래처 · 품목 · 시리얼/로트No.
@@ -169,6 +179,9 @@ export default function QuotationPage() {
     .filter((r) => !validCond || (r.validUntil ?? '') <= validCond)
     .filter((r) => !pmCond
       || (partners.find((x) => x.id === r.partnerId)?.manager ?? '') === pmCond)
+    /* 안 고친 건은 updatedAt 이 없을 수 있다 — 구간을 걸면 그런 줄은 빠진다(원본도 같다). */
+    .filter((r) => !upFrom || (r.updatedAt ?? '').slice(0, 10) >= upFrom)
+    .filter((r) => !upTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= upTo))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
@@ -177,7 +190,8 @@ export default function QuotationPage() {
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
     [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
-      byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners])
+      byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners,
+      upFrom, upTo])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   /**
@@ -433,6 +447,16 @@ export default function QuotationPage() {
         <EcCond label="작성자">
           <input className="ec-input" style={{ width: 110 }} value={authorCond}
                  onChange={(e) => setAuthorCond(e.target.value)} placeholder="전체" />
+        </EcCond>
+        {/* 원본 차례: [작성자] 다음이 [최종수정자]·[최초작성일자]·<b>[최종수정일시]</b> 다. */}
+        <EcCond label="최종수정일시">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input className="ec-input" type="date" style={{ width: 140 }} value={upFrom}
+                   onChange={(e) => setUpFrom(e.target.value)} />
+            <span style={{ color: '#8a929c' }}>~</span>
+            <input className="ec-input" type="date" style={{ width: 140 }} value={upTo}
+                   onChange={(e) => setUpTo(e.target.value)} />
+          </div>
         </EcCond>
         {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}
         <EcCond label="기타">

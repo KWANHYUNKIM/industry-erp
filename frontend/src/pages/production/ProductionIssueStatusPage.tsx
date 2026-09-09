@@ -10,6 +10,7 @@ import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import type { Item, PurchaseDoc } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 생산 > 생산입고/소모현황 I (이카운트 E040415)
@@ -122,6 +123,15 @@ export default function ProductionIssueStatusPage() {
    * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
    */
   const [signBox, setSignBox] = useState(false)
+  /*
+   * 원본 [정렬/소계기준](2026-09-09 E040415 실측 — 조건 판 끝에서 둘째 줄).
+   * 앞 바퀴에는 목록에 남겨 두었다. 우리 [거래별] 표는 <b>생산전표 × 소모자재</b> 줄이라
+   * 줄 수가 금세 수십이 되는데, <b>무엇으로 묶어 봐도 소계가 없었다</b> —
+   * "이 완제품에 자재가 통틀어 얼마나 들어갔나" 를 눈으로 더해야 했다.
+   * 축은 이 표가 실제로 들고 있는 넷이다(없는 축을 이름만 걸어 두지 않는다).
+   */
+  const SUBTOTALS = ['생산품목', '소모품목', '창고', '일자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('생산품목')
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -418,6 +428,9 @@ export default function ProductionIssueStatusPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         view={view} onViewChange={setView}
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
         dateLabel="기준일자"
       >
         <EcCond label="구분">
@@ -561,6 +574,7 @@ export default function ProductionIssueStatusPage() {
       ) : (
       <div className="overflow-x-auto">
         {mode === '거래별' ? (
+          <>
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
@@ -640,6 +654,50 @@ export default function ProductionIssueStatusPage() {
               </tfoot>
             )}
           </table>
+          {/*
+            원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —
+            줄 사이에 소계를 끼우면 정렬을 걸었을 때 소계가 엉뚱한 데로 따라간다.
+            단가를 모르는 줄의 금액은 0 이 아니라 <b>빼고</b> 센다(위 합계와 같은 규칙).
+          */}
+          {flatRows.length > 0 && (() => {
+            const keyOf = (r: typeof flatRows[number]) => (
+              subtotal === '생산품목' ? r.prod.productName
+                : subtotal === '소모품목' ? r.componentName
+                  : subtotal === '창고' ? r.prod.warehouseName
+                    : r.prod.productionDate)
+            const groups = subtotalBy(flatRows, keyOf, {
+              std: (r) => r.stdQty, act: (r) => r.actualQty,
+              gap: (r) => r.gap, amount: (r) => r.amount ?? 0,
+            })
+            return (
+              <>
+                <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+                <table className="w-full text-left">
+                  <thead><tr>
+                    <th>{subtotal}</th>
+                    <th style={{ width: 80, textAlign: 'right' }}>건수</th>
+                    <th style={{ width: 130, textAlign: 'right' }}>표준소모수량</th>
+                    <th style={{ width: 130, textAlign: 'right' }}>실제소모수량</th>
+                    <th style={{ width: 110, textAlign: 'right' }}>차이</th>
+                    <th style={{ width: 140, textAlign: 'right' }}>금액</th>
+                  </tr></thead>
+                  <tbody>
+                    {groups.map((g) => (
+                      <tr key={g.label}>
+                        <td style={{ fontWeight: 600 }}>{g.label}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.std)}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.act)}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.gap)}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )
+          })()}
+          </>
         ) : mode === '생산품목별집계' ? (
           <table className="w-full text-left">
             <thead>

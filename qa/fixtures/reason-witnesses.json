@@ -2746,13 +2746,6 @@
   ],
   "file": "inventory/StocktakeStatusPage.tsx"
  },
- "생산입고_소모현황 I|정렬/소계기준": {
-  "claim": "[구분]이 이미 그 축을 고른다",
-  "present": [
-   "<EcCond label=\"구분\">"
-  ],
-  "file": "production/ProductionIssueStatusPage.tsx"
- },
  "작업지시서현황|정렬/소계기준": {
   "claim": "[구분]이 이미 그 축을 고른다",
   "present": [
