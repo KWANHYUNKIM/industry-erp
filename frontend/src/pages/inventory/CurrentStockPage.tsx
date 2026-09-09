@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { StockRow } from '../../api/types'
+import type { Item, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -9,6 +9,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 재고 > 재고현황 (이카운트 E040701)
@@ -66,6 +67,24 @@ export default function CurrentStockPage() {
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 들고 있다 — 재고 줄에는 없어 따로 받는다. */
   const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>(차례는 [재고수량] 뒤다). 색·규격만 다른 형제
+   * 품목을 <b>대표품목 한 줄</b>로 모아 본다 — 규격별로 갈린 표에서는 "이 물건이 통틀어
+   * 몇 개 있나" 를 눈으로 더해야 했다. 재고수불부·재고변동표에 이미 있는 자리인데
+   * 정작 재고<b>현황</b>에만 없었다. 원본과 같이 기본은 꺼 둔다.
+   *
+   * <p>우리 표는 창고별로 펴므로 <b>같은 창고 안에서만</b> 형제를 합친다 —
+   * 창고를 넘어 합치면 [창고] 칸에 무엇을 적을지가 없어진다.
+   */
+  const [rollUp, setRollUp] = useState(false)
+  /** 대표품목을 알려면 품목 마스터가 필요하다 — 재고 줄에는 품목 id 만 온다. */
+  const [items, setItems] = useState<Item[]>([])
+  /**
+   * 원본 조건 <b>[정렬/소계기준]</b>(조건 판의 마지막 줄). 이 표는 품목 × 창고 줄이라
+   * 창고가 여럿이면 같은 품목이 흩어진다. 무엇으로 묶어 볼지 고르게 한다.
+   */
+  const SUBTOTALS = ['품목', '창고'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목')
 
   function load() {
     setLoading(true)
@@ -77,11 +96,43 @@ export default function CurrentStockPage() {
   }
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => setItems([]))
+  }, [])
 
   const warehouses = useMemo(
     () => [...new Set(rows.map((r) => r.warehouseName))].sort(), [rows])
 
-  const shownRows = rows
+  /*
+   * <b>합치고 나서 거른다.</b> 먼저 거르면 형제 하나가 조건에 안 걸려 빠지고,
+   * 그러면 대표 줄의 재고수량이 조용히 모자란다(재고변동표에서 같은 규칙을 쓴다).
+   */
+  const rolled = useMemo(() => {
+    if (!rollUp) return rows
+    const head = new Map(items.map((it) => [it.id, it.parentItemId ?? it.id]))
+    const master = new Map(items.map((it) => [it.id, it]))
+    const m = new Map<string, StockRow>()
+    for (const r of rows) {
+      const id = head.get(r.itemId) ?? r.itemId
+      const h = master.get(id)
+      const key = `${id}-${r.warehouseId}`
+      const cur = m.get(key) ?? {
+        ...r, itemId: id,
+        itemCode: h?.code ?? r.itemCode, itemName: h?.name ?? r.itemName,
+        spec: h?.spec ?? r.spec,
+        quantity: 0, safetyStock: 0, belowSafety: false,
+      }
+      cur.quantity += r.quantity
+      cur.safetyStock = (cur.safetyStock ?? 0) + (r.safetyStock ?? 0)
+      m.set(key, cur)
+    }
+    /* 합친 뒤에 다시 잰다 — 형제별 미달을 그대로 물려받으면 합쳐 놓고도 빨갛다. */
+    return [...m.values()].map((r) => ({
+      ...r, belowSafety: (r.safetyStock ?? 0) > 0 && r.quantity < (r.safetyStock ?? 0),
+    }))
+  }, [rows, rollUp, items])
+
+  const shownRows = rolled
     /* 안 켜면 뺀다 — 원본이 [포함] 이라 이름 지은 것은 기본이 '안 넣음' 이라는 뜻이다. */
     .filter((r) => cond.withUntracked || !untracked.has(r.itemId))
     .filter((r) => cond.withInactive || !inactive.has(r.itemId))
@@ -122,6 +173,9 @@ export default function CurrentStockPage() {
         from={cond.date} to={cond.date}
         onPeriod={(r) => setC({ date: r.from })}
         picks={STOCK_PICKS}
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -170,6 +224,13 @@ export default function CurrentStockPage() {
           <span style={{ color: 'var(--ec-label)' }}>~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        {/* 원본 차례: [재고수량] 다음이 [대표품목으로 합산] 이다(대조표 실측). */}
+        <EcCond label="대표품목으로 합산">
+          <label style={{ fontSize: 12 }}>
+            <input type="checkbox" checked={rollUp}
+                   onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
+          </label>
         </EcCond>
       </EcStatusPanel>
 
@@ -261,6 +322,44 @@ export default function CurrentStockPage() {
             </tfoot>
           )}
         </table>
+
+        {/*
+          원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —
+          줄 사이에 끼우면 머리를 눌러 정렬했을 때 소계가 엉뚱한 데로 따라간다
+          (생산입고/소모현황 I 과 같은 규칙).
+        */}
+        {shown.length > 0 && (() => {
+          const groups = subtotalBy(
+            shown,
+            (r) => (subtotal === '창고' ? r.warehouseName : r.itemName),
+            { qty: (r) => r.quantity, safety: (r) => r.safetyStock ?? 0 },
+          )
+          return (
+            <>
+              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <table className="w-full text-left">
+                <thead><tr>
+                  <th>{subtotal}</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>재고수량</th>
+                  <th style={{ width: 150, textAlign: 'right' }}>안전재고</th>
+                </tr></thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <tr key={g.label}>
+                      <td style={{ fontWeight: 600 }}>{g.label}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.qty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#8a929c' }}>
+                        {g.sums.safety.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )
+        })()}
       </div>
     </EcListShell>
   )

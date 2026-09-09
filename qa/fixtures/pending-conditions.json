@@ -1,6 +1,4 @@
 [
- "CurrentStockPage.tsx  원본 재고현황 의 [대표품목으로 합산] 조건이 없다",
- "CurrentStockPage.tsx  원본 재고현황 의 [정렬/소계기준] 조건이 없다",
  "PartnerLedgerPage.tsx  원본 거래처관리대장1(채권) 의 [양식] 조건이 없다",
  "PartnerLedgerPage.tsx  원본 거래처관리대장1(채무) 의 [양식] 조건이 없다",
  "ProductionIssueStatusPage.tsx  원본 생산입고/소모현황 I 의 [양식] 조건이 없다",
