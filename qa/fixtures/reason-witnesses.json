@@ -3138,15 +3138,6 @@
   ],
   "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
  },
- "작업내역조회|일자-No.": {
-  "claim": "작업내역 전표에 번호가 없다",
-  "absent": [
-   "resultNo",
-   "docNo",
-   "workResultNo"
-  ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java"
- },
  "불량률파악보고서|생산수량": {
   "claim": "우리 숫자는 검사에서 나온다",
   "present": [

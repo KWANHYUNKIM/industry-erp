@@ -73,6 +73,8 @@ public final class WorkResultDtos {
 
     public record WorkResultResponse(
             Long id,
+            /** 전표번호 WR-yyyyMMdd-NNNN. 원본 작업내역조회 첫 열 [일자-No.] 의 No. 다. */
+            String resultNo,
             Long workOrderId, String workOrderNo,
             /** 작업지시가 가리키는 생산품목. 지시 없이 적은 작업내역이면 null. */
             Long productId, String productCode, String productName,
@@ -116,7 +118,7 @@ public final class WorkResultDtos {
         public static WorkResultResponse from(WorkResult wr, Integer standardTimeMin) {
             var product = wr.getWorkOrder() != null ? wr.getWorkOrder().getProduct() : null;
             return new WorkResultResponse(
-                    wr.getId(),
+                    wr.getId(), wr.getResultNo(),
                     wr.getWorkOrder() != null ? wr.getWorkOrder().getId() : null,
                     wr.getWorkOrder() != null ? wr.getWorkOrder().getOrderNo() : null,
                     product != null ? product.getId() : null,

@@ -28,6 +28,8 @@ import { dateText } from '../../utils/dateText'
  */
 interface Row {
   id: number
+  /** 전표번호 WR-yyyyMMdd-NNNN. 원본 첫 열 [일자-No.] 의 No. 다(2026-09-09에 채번을 만들었다). */
+  resultNo: string
   workOrderNo: string | null
   process: string
   /** 원본 [작업품목명[규격명]]. 옛 자료에는 없다. */
@@ -64,7 +66,7 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 async function printOne(r: Row) {
   await printDocuments([{
     title: '작업내역서',
-    docNo: r.workOrderNo ? `${r.workDate} / ${r.workOrderNo}` : r.workDate,
+    docNo: r.resultNo,
     docDate: r.workDate,
     hideAmounts: true,
     hideParties: true,
@@ -320,10 +322,13 @@ export default function WorkResultInquiryPage() {
                 우리는 (1) 둘째 칸을 <b>[작업지시No.]</b> 라 부르며 <b>앞쪽</b>에 두었는데,
                 원본에서 그 칸은 <b>[작업지시서]</b> 이고 <b>작업시간 뒤</b>에 있다 —
                 이름과 자리를 원본으로 옮겼다. (2) 첫 칸은 [일자-No.] 인데 우리는
-                <b>날짜만</b> 찍는다 — 작업내역에 전표번호가 없다(아래 예외).
+                <b>날짜만</b> 찍고 있었다. <b>2026-09-09 에 채번을 만들어 고쳤다</b> —
+                작업내역 한 줄을 가리킬 이름이 없어 "어느 작업내역을 고쳤다/지웠다" 고 말할
+                방법이 없었다(매출계획이 같은 까닭으로 SP- 를 얻었다). WR-yyyyMMdd-NNNN 으로
+                채번하고 열 이름을 원본대로 <b>[일자-No.]</b> 로 맞췄다(V214/V87).
                 [작업(공정)]·[생산품목명]·[자원명]·[담당자]·[적요]는 우리 열이다.
               */}
-              <th style={{ width: 110 }}>일자</th>
+              <th style={{ width: 170 }}>일자-No.</th>
               <th style={{ width: 130 }}>생산공장명</th>
               <th style={{ width: 170 }}>작업품목명[규격명]</th>
               <th style={{ width: 120 }}>작업(공정)</th>
@@ -348,7 +353,7 @@ export default function WorkResultInquiryPage() {
                 <td style={{ textAlign: 'center' }}>
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
+                <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)} {r.resultNo}</td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>

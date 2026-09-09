@@ -35,6 +35,7 @@ public class WorkResultService {
     private final com.erp.inventory.service.WarehouseService warehouseService;
     private final com.erp.inventory.service.ItemService itemService;
     private final com.erp.inventory.service.ProjectService projectService;
+    private final com.erp.common.DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -85,8 +86,11 @@ public class WorkResultService {
         com.erp.inventory.domain.Item workItem =
                 req.workItemId() != null ? itemService.getUsable(req.workItemId()) : null;
 
+        LocalDate workDate = req.workDate() != null ? req.workDate() : LocalDate.now();
         WorkResult wr = WorkResult.builder()
                 .workOrder(workOrder)
+                /* 채번은 DocumentNoGenerator 로만 한다 — count()+1 은 삭제·동시성에서 겹친다. */
+                .resultNo(docNoGenerator.next("WR-", "work_results", "result_no", "work_date", workDate))
                 .workItem(workItem)
                 .process(req.process())
                 .processMaster(processMaster)
@@ -96,7 +100,7 @@ public class WorkResultService {
                 .goodQty(req.goodQty() != null ? req.goodQty() : BigDecimal.ZERO)
                 .defectQty(req.defectQty() != null ? req.defectQty() : BigDecimal.ZERO)
                 .workTimeMin(req.workTimeMin() != null ? req.workTimeMin() : 0)
-                .workDate(req.workDate() != null ? req.workDate() : LocalDate.now())
+                .workDate(workDate)
                 /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
