@@ -3112,15 +3112,6 @@
   ],
   "file": "trade/PurchaseRequestStatusPage.tsx"
  },
- "재고수불부|거래처명": {
-  "claim": "재고 움직임 줄에 거래처가 없다",
-  "absent": [
-   "partner",
-   "partnerId",
-   "businessPartner"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransaction.java"
- },
  "A/S소모현황|소모(판매)번호": {
   "claim": "A/S 소모부품이 판매 전표를 만들지 않는다",
   "absent": [

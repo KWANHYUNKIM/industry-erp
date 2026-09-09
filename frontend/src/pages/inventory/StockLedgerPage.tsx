@@ -60,6 +60,26 @@ const initP = periodOf('전월+금월')!
 export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
   /**
+   * 전표번호 → 거래처명. 원본 재고수불부의 <b>[거래처명]</b> 을 이 지도로 붙인다.
+   *
+   * <p>여태 "재고 움직임 줄에 거래처가 없다 — inventory 가 trade 를 참조하면 순환이라
+   * id 조차 안 둔다" 고 적어 두고 안 만들었다. <b>백엔드는 그대로 두는 것이 맞다</b>
+   * (CLAUDE.md 4.1 — inventory 는 trade 를 몰라야 한다). 그런데 <b>화면은 둘 다 부를 수
+   * 있다</b> — 담당자 이름·거래처그룹을 이미 그렇게 붙이고 있다.
+   *
+   * <p>이을 실은 <code>note</code> 다. 판매·구매가 재고를 움직일 때
+   * <code>"판매 " + docNo</code> · <code>"구매반품 " + docNo</code> 꼴로 적어 둔다
+   * (SalesService·PurchaseService). 그 <b>뒷토막</b>을 전표번호로 보고 지도에서 찾는다.
+   *
+   * <p><b>못 찾으면 빈칸이다.</b> 적요는 사람이 고쳐 쓸 수도 있는 자유 글자라
+   * 억지로 맞추지 않는다 — 사내 이동·조정처럼 상대가 없는 줄도 빈칸이 맞다.
+   */
+  const [partnerOfDoc, setPartnerOfDoc] = useState<Map<string, string>>(new Map())
+  const partnerOf = (note: string | null) => {
+    const parts = (note ?? '').trim().split(' ').filter(Boolean)
+    return partnerOfDoc.get(parts[parts.length - 1] ?? '') ?? ''
+  }
+  /**
    * 원본 조건 <b>[단가표시]</b>(차례는 [대표품목으로 합산] 과 [기타] 사이).
    *
    * <p>여태 "우리 재고이동은 단가를 하나만 들고 있어 고를 대상이 없다"고 적고 안 만들었다.
@@ -157,7 +177,13 @@ export default function StockLedgerPage() {
   }
 
   async function loadRefs() {
-    const [i, w] = await Promise.all([api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses')])
+    const [i, w, sl, pu] = await Promise.all([
+      api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses'),
+      /* 원본 [거래처명] 을 붙일 재료. 아래 partnerOf 주석 참고. */
+      api.get<{ docNo: string; partnerName: string }[]>('/sales'),
+      api.get<{ docNo: string; partnerName: string }[]>('/purchases'),
+    ])
+    setPartnerOfDoc(new Map([...sl.data, ...pu.data].map((d) => [d.docNo, d.partnerName])))
     setItems(i.data); setWarehouses(w.data)
   }
 
@@ -408,7 +434,9 @@ export default function StockLedgerPage() {
               "조회품목을 재지정하겠습니까" 를 먼저 묻는다).
               이름 넷이 어긋나 있었다: [입고]·[출고]·[잔량]·[비고] →
               <b>[입고수량]·[출고수량]·[재고수량]·[적요]</b>. [적요] 자리도 원본을 따라
-              수량 앞으로 옮겼다. [거래처명]은 못 만든다(아래 예외).
+              수량 앞으로 옮겼다. <b>[거래처명]은 2026-09-09 에 만들었다</b> —
+              적요에 적힌 전표번호로 판매·구매를 찾아 화면이 붙인다(위 partnerOf 주석).
+              백엔드는 그대로다.
               [유형]·[단가]·[금액]은 우리 열이다.
             */}
             <th style={{ width: 34 }}></th>
@@ -416,6 +444,7 @@ export default function StockLedgerPage() {
             <th style={{ textAlign: 'center', width: 60 }}>유형</th>
             <th>품목</th>
             <th>창고</th>
+            <th style={{ width: 140 }}>거래처명</th>
             <th>적요</th>
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th style={{ textAlign: 'right' }}>출고수량</th>
@@ -426,9 +455,9 @@ export default function StockLedgerPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {rows.length === 0 ? '해당 기간의 입출고 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => {
@@ -455,6 +484,7 @@ export default function StockLedgerPage() {
                 </td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
+                <td style={{ color: '#5a626e' }}>{partnerOf(r.note)}</td>
                 <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
