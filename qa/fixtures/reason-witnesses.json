@@ -3289,5 +3289,184 @@
    "sourceOrder"
   ],
   "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "품질검사요청조회|품목명(요약)": {
+  "claim": "요청 한 건이 품목 하나짜리라 요약할 것이 없다",
+  "absent": [
+   "lines",
+   "List<"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+ },
+ "품질검사요청조회|수량합계": {
+  "claim": "위와 같음",
+  "absent": [
+   "lines",
+   "List<"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+ },
+ "품질검사요청조회|연결전표": {
+  "claim": "검사요청이 근거 전표를 물지 않는다",
+  "absent": [
+   "sourceDoc",
+   "purchase",
+   "salesOrder"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+ },
+ "품질검사요청조회|생성한전표": {
+  "claim": "요청에서 검사 전표를 자동으로 만들지 않는다",
+  "absent": [
+   "inspection",
+   "createdSlip"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+ },
+ "품질검사요청조회|창고": {
+  "claim": "검사요청이 창고를 안 든다",
+  "absent": [
+   "warehouse",
+   "Warehouse"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|거래처": {
+  "claim": "검사요청이 거래처를 안 든다",
+  "absent": [
+   "partner",
+   "Partner"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|관리항목": {
+  "claim": "검사요청에 관리항목을 걸지 않는다",
+  "absent": [
+   "manageItem",
+   "ManagementItem"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|거래처관리담당자": {
+  "claim": "거래처 자체를 안 드니 그 담당자도 없다",
+  "absent": [
+   "partner",
+   "Partner"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|발송여부": {
+  "claim": "검사요청을 보내는 자리가 없다",
+  "absent": [
+   "sent",
+   "sendYn"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|오더관리번호": {
+  "claim": "검사요청이 근거 오더를 물지 않는다",
+  "absent": [
+   "orderMgmtNo",
+   "sourceDoc"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|작성자": {
+  "claim": "만든 계정을 안 남긴다",
+  "absent": [
+   "createdBy"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|최초작성일자": {
+  "claim": "만든 때로 거르지 않는다",
+  "absent": [
+   "createdAt"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|최종작업일자": {
+  "claim": "위와 같음",
+  "absent": [
+   "updatedAt"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|삭제구분": {
+  "claim": "지운 요청을 남겨 두지 않는다",
+  "absent": [
+   "deleted",
+   "deletedAt"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|제목": {
+  "claim": "검사요청에 제목이 없다",
+  "absent": [
+   "title",
+   "subject"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식1": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식2": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식3": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식4": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식5": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|문자형식6": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField",
+   "userField"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+ },
+ "품질검사요청조회|품질검사요청No.": {
+  "claim": "원본 입력 화면은 같은 칸을 [일자-No.] 라 부른다",
+  "present": [
+   "일자-No."
+  ],
+  "file": "quality/QualityRequestPage.tsx"
  }
 }

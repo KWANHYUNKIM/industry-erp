@@ -62,6 +62,12 @@ export default function QualityRequestPage() {
   const [itemCond, setItemCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
+  /*
+   * 원본 [규격] — 2026-09-09 조건 판을 펼쳐 재니 <b>스물아홉 칸</b>이었다(닫힌 판은 열둘).
+   * 규격은 응답이 <code>spec</code> 으로 진작 싣고 <b>표에도 열로 찍고 있는데</b>
+   * 그것으로 거를 수가 없었다 — 같은 품목의 규격만 골라 보려면 눈으로 훑어야 했다.
+   */
+  const [specCond, setSpecCond] = useState('')
   const [tab, setTab] = useState<Tab>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -125,8 +131,9 @@ export default function QualityRequestPage() {
     .filter((r) => !itemCond || String(r.itemId) === itemCond)
     .filter((r) => !projectCond || String(r.projectId ?? '') === projectCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !specCond || (r.spec ?? '').includes(specCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.requestNo.includes(keyword) || (r.lotNo ?? '').includes(keyword)),
-  [rows, tab, keyword, docCond, reqCond, itemCond, projectCond, remarkCond])
+  [rows, tab, keyword, docCond, reqCond, itemCond, projectCond, remarkCond, specCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
   const inputCls = 'ec-input'
 
@@ -224,18 +231,21 @@ export default function QualityRequestPage() {
         ))}
       </div>
 
-      {/* 원본 조건 차례: <b>일자-No.</b> · <b>담당자</b> */}
+      {/*
+        <b>원본 조건 차례(2026-09-09 E040629 실측)</b>: 기준일자 · <b>품질검사요청No.</b> ·
+        (창고·거래처) · <b>품목</b> · <b>프로젝트</b> · (관리항목) · <b>담당자</b> ·
+        (거래처관리담당자) · <b>적요</b> · (최종수정자·발송여부·오더관리번호) · <b>규격</b> · …
+        괄호 안은 검사요청이 그 값을 안 들어 만들 자리가 없는 것들이다.
+        전에는 [일자-No.] · [담당자] 두 칸만 보고 적어 차례가 뒤집혀 있었다.
+      */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/*
+          원본 <b>조회</b>는 이 칸을 [품질검사요청No.] 라 부르고 <b>입력</b>은 [일자-No.] 라 부른다.
+          한 파일이 둘을 겸해 둘 다 맞출 수 없어 입력 쪽 이름을 쓴다 — 거르는 일은 같다.
+        */}
         <EcCond label="일자-No.">
           <input className="ec-input" value={docCond} placeholder="요청일자 또는 요청번호"
                  onChange={(e) => setDocCond(e.target.value)} style={{ width: 190 }} />
-        </EcCond>
-        <EcCond label="담당자" pick>
-          {/* 요청자는 사원 마스터를 물지 않고 이름으로 적히므로, 후보를 실제 요청자들에서 뽑는다. */}
-          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
-                           value={reqCond} onChange={setReqCond}
-                           items={[...new Set(rows.map((r) => r.requester).filter(Boolean))]
-                             .map((n) => ({ value: n as string, name: n as string }))} />
         </EcCond>
         {/* 원본 조건 [품목] — 표에 품목 열이 있는데 그 값으로 거를 수가 없었다. */}
         <EcCond label="품목" pick>
@@ -250,18 +260,39 @@ export default function QualityRequestPage() {
                            items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} />
         </EcCond>
         {/* 원본 조건 [적요] — 적요는 표에 찍히기만 하고 검색상자로도 안 걸렸다. */}
+        <EcCond label="담당자" pick>
+          {/* 요청자는 사원 마스터를 물지 않고 이름으로 적히므로, 후보를 실제 요청자들에서 뽑는다. */}
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={reqCond} onChange={setReqCond}
+                           items={[...new Set(rows.map((r) => r.requester).filter(Boolean))]
+                             .map((n) => ({ value: n as string, name: n as string }))} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={remarkCond}
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 190 }} />
+        </EcCond>
+        {/* 원본 차례: … 적요 · (최종수정자·발송여부·오더관리번호) · <b>규격</b> · … */}
+        <EcCond label="규격">
+          <input className="ec-input" value={specCond} placeholder="전체"
+                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </ul>
 
       <table className="w-full text-left">
         <thead>
           <tr>
+            {/*
+              <b>품질검사요청조회(E040629) 2026-09-09 원본 격자 실측</b> —
+              [일자-No. · 담당자명 · 품목명(요약) · 수량합계 · 연결전표 · 진행상태 ·
+              생성한전표 · 인쇄] 여덟 칸이다(자료가 없어 정렬은 못 쟀다 — 대조표에 '?').
+              원본은 <b>요청 한 건이 여러 품목을 싣는</b> 전표라 품목을 요약하고 수량을 합친다.
+              우리 요청은 <b>품목 하나짜리</b>라 요약·합계할 것이 없다 —
+              [품목명]·[수량]이 곧 그 값이다(그래서 그 두 이름은 예외로 적었다).
+              이름을 맞춘 셋: 요청번호+요청일자 → <b>[일자-No.]</b>(판매조회와 같은 규칙) ·
+              요청자 → <b>[담당자명]</b> · 상태 → <b>[진행상태]</b>.
+            */}
             <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>요청번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일자')}>요청일자 {sort.mark('요청일자')}</th>
+            <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('요청일자')}>일자-No. {sort.mark('요청일자')}</th>
             <th style={{ width: 90 }}>검사구분</th>
             {/* 원본 격자의 첫 열이 [검사방법] 이다(사본 실측). 샘플링이면 비율까지 적는다. */}
             <th style={{ width: 100 }}>검사방법</th>
@@ -273,26 +304,26 @@ export default function QualityRequestPage() {
             <th style={{ width: 80, textAlign: 'right' }}>수량</th>
             <th style={{ width: 100 }}>검사기한</th>
             <th>적요</th>
-            <th style={{ width: 80, textAlign: 'center' }}>상태</th>
+            {/* 원본 차례: 일자-No. · <b>담당자명</b> · … · <b>진행상태</b> · … */}
+            <th style={{ width: 80 }}>담당자명</th>
+            <th style={{ width: 80, textAlign: 'center' }}>진행상태</th>
             {/*
               원본 격자의 [프로젝트]. 검사에는 진작 있던 값인데 <b>요청에는 없어</b>
               프로젝트를 걸어 요청해도 그 값이 어디에도 안 남았다.
             */}
             <th style={{ width: 100 }}>프로젝트</th>
-            <th style={{ width: 80 }}>요청자</th>
             <th style={{ width: 150, textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.requestNo}</td>
-              <td>{dateText(r.requestDate)}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(r.requestDate)} {r.requestNo}</td>
               <td>{r.typeName}</td>
               <td style={{ color: r.inspectMethod ? '#5a626e' : '#c9ced6' }}>
                 {r.inspectMethod
@@ -307,9 +338,9 @@ export default function QualityRequestPage() {
               <td style={{ textAlign: 'right' }}>{r.requestQty.toLocaleString()}</td>
               <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+              <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? ''}</td>
-              <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {r.status === 'REQUESTED' ? (
                   <>
