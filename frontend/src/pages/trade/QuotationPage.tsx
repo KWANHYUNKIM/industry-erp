@@ -72,7 +72,7 @@ export default function QuotationPage() {
     const p = periodOf('최근30일(+1개월)')!
     setFrom(p.from); setTo(p.to)
     setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체')
-    setAuthorCond('')
+    setAuthorCond(''); setSpecCond(''); setRemarkCond(''); setValidCond(''); setPmCond('')
   }
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -124,6 +124,19 @@ export default function QuotationPage() {
    * "내가 낸 견적" 을 보려면 눈으로 훑어야 했다.
    */
   const [authorCond, setAuthorCond] = useState('')
+  /*
+   * <b>2026-09-09 견적서조회(E040202) 조건 판을 펼쳐 쟀다 — 서른다섯 칸이다</b>
+   * (닫힌 판은 열). 그중 <b>표에는 찍히는데 그것으로 거를 수 없던 셋</b>을 만든다:
+   * [규격](줄의 <code>spec</code>) · [적요](<code>remark</code>) · [유효기간](<code>validUntil</code>).
+   * ui-check 가 "열로는 찍는데 거를 수 없다" 고 짚어 준 자리가 그대로 이 둘이었다.
+   * [거래처관리담당자]는 거래처 마스터에 붙는 값인데 이 화면이 거래처를 통째로
+   * 받아 두고 있어 바로 이을 수 있었다.
+   */
+  const [specCond, setSpecCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  /** 유효기간이 이 날짜까지인 것만. 원본은 구간이지만 우리는 끝날짜 하나로 좁힌다. */
+  const [validCond, setValidCond] = useState('')
+  const [pmCond, setPmCond] = useState('')
   /**
    * 원본 조건 판 <b>[기타]</b>의 [수정일자순(정렬)]. 2026-09-07 에 켜져 있는 원본
    * (C000071 견적서조회)을 열어 쟀다 — [기타] 안에는 이 하나가 들어 있고 기본은 꺼짐이다.
@@ -151,6 +164,11 @@ export default function QuotationPage() {
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !authorCond || (r.createdBy ?? '').includes(authorCond))
+    .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '').includes(specCond)))
+    .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
+    .filter((r) => !validCond || (r.validUntil ?? '') <= validCond)
+    .filter((r) => !pmCond
+      || (partners.find((x) => x.id === r.partnerId)?.manager ?? '') === pmCond)
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
@@ -158,7 +176,8 @@ export default function QuotationPage() {
     /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 건은 만든 때가 곧 고친 때다. */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options, byUpdated, authorCond, partnerCond])
+    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
+      byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   /**
@@ -385,6 +404,30 @@ export default function QuotationPage() {
                   onChange={(e) => setSentCond(e.target.value as '전체' | '발송' | '미발송')}>
             <option>전체</option><option>발송</option><option>미발송</option>
           </select>
+        </EcCond>
+        {/*
+          원본 견적서조회 차례: … 발송여부 · (오더관리번호) · <b>규격</b> · (담당자) ·
+          <b>거래처관리담당자</b> · (거래유형) · <b>적요</b> · (적요1~3 · 문자형식1~5 ·
+          장문형식1 · 참조 · 결제조건) · <b>유효기간</b> · <b>작성자</b> · …
+        */}
+        <EcCond label="규격">
+          <input className="ec-input" style={{ width: 130 }} value={specCond}
+                 onChange={(e) => setSpecCond(e.target.value)} placeholder="전체" />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={pmCond} onChange={setPmCond}
+                           items={[...new Set(partners.map((x) => x.manager).filter(Boolean) as string[])].sort()
+                             .map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" style={{ width: 190 }} value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} placeholder="전체" />
+        </EcCond>
+        {/* 표에 [유효기간] 열을 찍으면서 "이 날짜까지 유효한 것" 을 고를 수가 없었다. */}
+        <EcCond label="유효기간">
+          <input className="ec-input" type="date" style={{ width: 140 }} value={validCond}
+                 onChange={(e) => setValidCond(e.target.value)} />
         </EcCond>
         {/* 원본 펼친 판의 뒤쪽 칸 — [진행상태] 다음이 [작성자]다(2026-09-09 실측). */}
         <EcCond label="작성자">

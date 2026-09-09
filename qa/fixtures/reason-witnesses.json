@@ -3468,5 +3468,146 @@
    "일자-No."
   ],
   "file": "quality/QualityRequestPage.tsx"
+ },
+ "견적서조회|오더관리번호": {
+  "claim": "견적에 오더관리 유형·진행단계를 걸지 않는다",
+  "absent": [
+   "orderTypeId",
+   "stageId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|담당자": {
+  "claim": "견적에 담당 사원을 달지 않는다",
+  "absent": [
+   "employeeId"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|거래유형": {
+  "claim": "견적에 거래유형(부가세율 묶음)을 걸지 않는다",
+  "absent": [
+   "tradeType",
+   "vatType"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|적요1": {
+  "claim": "줄마다 적는 적요가 없다",
+  "absent": [
+   "lineRemark",
+   "remark1"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|적요2": {
+  "claim": "위와 같음",
+  "absent": [
+   "lineRemark",
+   "remark2"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|적요3": {
+  "claim": "위와 같음",
+  "absent": [
+   "lineRemark",
+   "remark3"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|문자형식1": {
+  "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
+  "absent": [
+   "text1",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|문자형식2": {
+  "claim": "위와 같음",
+  "absent": [
+   "text2",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|문자형식3": {
+  "claim": "위와 같음",
+  "absent": [
+   "text3",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|문자형식4": {
+  "claim": "위와 같음",
+  "absent": [
+   "text4",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|문자형식5": {
+  "claim": "위와 같음",
+  "absent": [
+   "text5",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|장문형식1": {
+  "claim": "위와 같음",
+  "absent": [
+   "longText",
+   "customField"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|참조": {
+  "claim": "견적에 참조 칸이 없다",
+  "absent": [
+   "reference"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|결제조건": {
+  "claim": "견적에 결제조건 칸이 없다",
+  "absent": [
+   "paymentTerms",
+   "payTerm"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|최초작성일자": {
+  "claim": "만든 때로 거르지 않는다",
+  "absent": [
+   "createdAt"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+ },
+ "견적서조회|입력경로": {
+  "claim": "어느 길로 넣었는지 안 남긴다",
+  "absent": [
+   "inputPath",
+   "channel"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|삭제구분": {
+  "claim": "지운 견적을 남겨 두지 않는다",
+  "absent": [
+   "deleted",
+   "deletedAt"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+ },
+ "견적서조회|제목": {
+  "claim": "견적에 제목이 없다",
+  "absent": [
+   "title",
+   "subject"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
  }
 }
