@@ -72,6 +72,7 @@ export default function QuotationPage() {
     const p = periodOf('최근30일(+1개월)')!
     setFrom(p.from); setTo(p.to)
     setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체')
+    setAuthorCond('')
   }
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -116,6 +117,13 @@ export default function QuotationPage() {
    * 표에는 거래처명을 진작 찍고 있었는데 <b>그것으로 거를 자리가 없었다.</b>
    */
   const [partnerCond, setPartnerCond] = useState('')
+  /*
+   * 원본 [작성자] — 조건 판을 <b>펼쳐야</b> 나오는 뒤쪽 칸이다
+   * (2026-09-09 견적서현황 실측: 닫힌 판 11칸, 펼치면 <b>44칸</b>).
+   * 우리는 목록에 [사원(담당)명]으로 <b>진작 찍고 있었는데 그것으로 거를 수가 없었다</b> —
+   * "내가 낸 견적" 을 보려면 눈으로 훑어야 했다.
+   */
+  const [authorCond, setAuthorCond] = useState('')
   /**
    * 원본 조건 판 <b>[기타]</b>의 [수정일자순(정렬)]. 2026-09-07 에 켜져 있는 원본
    * (C000071 견적서조회)을 열어 쟀다 — [기타] 안에는 이 하나가 들어 있고 기본은 꺼짐이다.
@@ -142,6 +150,7 @@ export default function QuotationPage() {
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !projCond || r.projectName === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '').includes(authorCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
@@ -149,7 +158,7 @@ export default function QuotationPage() {
     /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 건은 만든 때가 곧 고친 때다. */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options, byUpdated])
+    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options, byUpdated, authorCond, partnerCond])
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   /**
@@ -377,6 +386,11 @@ export default function QuotationPage() {
             <option>전체</option><option>발송</option><option>미발송</option>
           </select>
         </EcCond>
+        {/* 원본 펼친 판의 뒤쪽 칸 — [진행상태] 다음이 [작성자]다(2026-09-09 실측). */}
+        <EcCond label="작성자">
+          <input className="ec-input" style={{ width: 110 }} value={authorCond}
+                 onChange={(e) => setAuthorCond(e.target.value)} placeholder="전체" />
+        </EcCond>
         {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -446,6 +460,17 @@ export default function QuotationPage() {
             <th style={{ textAlign: 'center' }}>진행상태</th>
             <th style={{ textAlign: 'center' }}>생성한전표</th>
             <th style={{ textAlign: 'center' }}>인쇄</th>
+            {/*
+              <b>견적서현황(E040208) 2026-09-09 원본 격자 실측</b> —
+              [일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · <b>적요</b>] 일곱 칸이다.
+              원본 현황은 <b>줄 단위</b>로 편다(전표 하나가 품목 수만큼 줄이 된다).
+              우리는 전표 한 줄에 펼침 표로 줄을 담으므로, 줄 쪽 칸(품목명(규격)·수량·단가·공급가액)은
+              펼침 표가, 전표 쪽 칸(일자-No.·거래처명·적요)은 이 표가 낸다.
+              <p>이 계정에는 견적 자료가 없어 <b>격자가 비어 있었다</b> — 칸의 정렬은 못 쟀다(대조표에 '?').
+              지어내지 않는다.
+              <p>[적요]는 응답이 <code>remark</code> 로 <b>진작 싣고 있었는데 아무 데도 안 찍었다.</b>
+            */}
+            <th>적요</th>
             {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th>
             <th style={{ textAlign: 'center' }}>처리</th>
@@ -453,7 +478,7 @@ export default function QuotationPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((q, i) => (
             <Fragment key={q.id}>
               <tr onClick={() => setOpenId(openId === q.id ? null : q.id)} style={{ cursor: 'pointer' }}>
@@ -479,6 +504,7 @@ export default function QuotationPage() {
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <button className="ec-btn ec-btn-sm" onClick={() => printQuote(q)}>인쇄</button>
                 </td>
+                <td style={{ color: '#5a626e' }}>{q.remark ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(q.supplyAmount)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(q.vatAmount)}</td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -492,15 +518,16 @@ export default function QuotationPage() {
               </tr>
               {openId === q.id && (
                 <tr className="no-ec">
-                  <td colSpan={14} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={15} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
-                      <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
+                      {/* 원본 현황의 줄 칸이다 — 규격은 응답이 <code>spec</code> 으로 싣고 있었다. */}
+                      <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명(규격)</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>
                         {q.lines.map((l) => (
                           <tr key={l.id}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
-                            <td>{l.itemName}</td>
+                            <td>{l.itemName}{l.spec ? ` (${l.spec})` : ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
