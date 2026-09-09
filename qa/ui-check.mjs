@@ -6304,8 +6304,15 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
          */
         + '|\\w*Label\\s*[:=]\\s*[\'"]' + n + '[\'"]'
         + '|<span[^>]*>' + n
-        // 이름표 뒤에 오는 것이 칸 하나일 수도, <b>알약 묶음(div 안의 button)</b>일 수도 있다
-        + '</span>[^<]{0,4}<(input|select|CodePickerField|div[^>]{0,200}>[\\s\\S]{0,400}?<button)'
+        /*
+         * 이름표 뒤에 오는 것이 칸 하나일 수도, <b>알약 묶음(div 안의 button)</b>일 수도,
+         * <b>범위 두 칸을 감싼 span</b>(<code>a ~ b</code>)일 수도 있다.
+         * 마지막 꼴을 안 보고 있어서 집계표의 [수량]·[공급가액]·[부가세]를 "못 거른다" 고
+         * 말했다 — 화면은 멀쩡히 거르고 있었다. 감싼 span 안에 <b>input 이 곧 나올 때만</b>
+         * 센다(그냥 다음 span 을 다 받아 주면 아무 글자나 조건으로 세어진다).
+         */
+        + '</span>[^<]{0,4}<(input|select|CodePickerField|div[^>]{0,200}>[\\s\\S]{0,400}?<button'
+        + '|span[^>]{0,160}>[\\s\\S]{0,200}?<input)'
         + '|<div className="title">' + n + '</div>'
         + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]'
         + '|<label[^>]*>' + n + '</label>'

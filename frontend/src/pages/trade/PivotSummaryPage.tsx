@@ -45,7 +45,15 @@ type Mode = '판매' | '구매' | '판매구매'
 const MODES = ['판매', '구매', '판매구매'] as const
 type GroupBy = 'partner' | 'item'
 
-interface PivotRow { key: string; name: string; months: number[]; total: number }
+/**
+ * <code>total</code> 은 <b>열두 달 공급가액의 합</b>이다(우리 달별 표의 마지막 칸).
+ * 원본이 재는 값은 그것 말고 <b>수량 · 공급가액 · 부가세 · 합계</b> 넷이라 따로 든다 —
+ * 우리 [합계]와 원본 [합계]는 다른 값이다(원본은 공급가액+부가세).
+ */
+interface PivotRow {
+  key: string; name: string; months: number[]; total: number
+  qty: number; supply: number; vat: number
+}
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
@@ -168,7 +176,7 @@ export default function PivotSummaryPage() {
     const map = new Map<string, PivotRow>()
     const bump = (key: string, name: string): PivotRow => {
       let r = map.get(key)
-      if (!r) { r = { key, name, months: new Array(12).fill(0), total: 0 }; map.set(key, r) }
+      if (!r) { r = { key, name, months: new Array(12).fill(0), total: 0, qty: 0, supply: 0, vat: 0 }; map.set(key, r) }
       return r
     }
     for (const d of docs) {
@@ -195,12 +203,17 @@ export default function PivotSummaryPage() {
         const supply = d.lines.reduce((a, l) => a + l.supplyAmount, 0)
         const r = bump(`P${d.partnerId}`, d.partnerName)
         r.months[m] += supply; r.total += supply
+        /* 원본이 재는 값 셋. [거래처별]은 전표를 통째로 더한다(위 주석의 규칙). */
+        r.qty += d.lines.reduce((a, l) => a + l.quantity, 0)
+        r.supply += supply
+        r.vat += d.lines.reduce((a, l) => a + (l.vatAmount ?? 0), 0)
       } else {
         for (const l of d.lines) {
           if (itemCond && !l.itemName.includes(itemCond)) continue
           if (!lineHit(l)) continue
           const r = bump(`I${l.itemId}`, l.itemName)
           r.months[m] += l.supplyAmount; r.total += l.supplyAmount
+          r.qty += l.quantity; r.supply += l.supplyAmount; r.vat += l.vatAmount ?? 0
         }
       }
     }
@@ -212,9 +225,12 @@ export default function PivotSummaryPage() {
 
   const colTotals = useMemo(() => {
     const t = new Array(12).fill(0)
-    let grand = 0
-    for (const r of rows) { r.months.forEach((v, i) => (t[i] += v)); grand += r.total }
-    return { months: t, grand }
+    let grand = 0, qty = 0, supply = 0, vat = 0
+    for (const r of rows) {
+      r.months.forEach((v, i) => (t[i] += v))
+      grand += r.total; qty += r.qty; supply += r.supply; vat += r.vat
+    }
+    return { months: t, grand, qty, supply, vat }
   }, [rows])
 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
@@ -400,22 +416,32 @@ export default function PivotSummaryPage() {
                 (실측 때는 [담당자])이고, 그다음이 <b>수량 · 공급가액 · 부가세 · 합계</b> 넷이다.
                 아래에 합계행이 붙는다. 축은 사람이 고르지만 <b>재는 값 넷은 고정</b>이라
                 대조표에 그 넷을 적었다(판매구매집계표·매출계획비교표와 달리 여기는 잴 수 있다).
-                <b>우리 표는 축 × 열두 달</b>이다 — 달마다 금액을 펴고 [합계]로 닫는다.
-                재는 값이 달라 [수량]·[공급가액]·[부가세]가 없다(pending-columns 에 적었다).
+                <b>우리 표는 축 × 열두 달</b>이다 — 달마다 금액을 편다. 그건 원본에 없는
+                우리 것이라 <b>뒤로 물리고</b>, 원본이 재는 값 넷을 축 바로 뒤에 세운다.
+                우리 [합계]는 열두 달 공급가액의 합이라 <b>원본 [합계](공급가액+부가세)와
+                다른 값</b>이다 — 이름이 겹치므로 우리 쪽은 [연간합계]라 부른다.
               */}
               <th style={{ position: 'sticky', left: 0, background: '#f5f7fa', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>
-              {MONTHS.map((m) => <th key={m} style={{ ...cell, fontWeight: 700 }}>{m}월</th>)}
+              <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>수량</th>
+              <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>공급가액</th>
+              <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>부가세</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>합계</th>
+              {MONTHS.map((m) => <th key={m} style={{ ...cell, fontWeight: 700 }}>{m}월</th>)}
+              <th style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>연간합계</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r) => (
               <tr key={r.key}>
                 <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{r.name}</td>
+                <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? won(r.qty) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? won(r.supply) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right', color: '#8a929c' }}>{r.vat ? won(r.vat) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.supply + r.vat)}</td>
                 {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? '#3c4553' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
               </tr>
@@ -425,6 +451,10 @@ export default function PivotSummaryPage() {
             <tfoot>
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
                 <td style={{ position: 'sticky', left: 0, background: '#f7f9fb' }}>합계</td>
+                <td style={cell}>{won(colTotals.qty)}</td>
+                <td style={cell}>{won(colTotals.supply)}</td>
+                <td style={cell}>{won(colTotals.vat)}</td>
+                <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.supply + colTotals.vat)}</td>
                 {colTotals.months.map((v, i) => <td key={i} style={cell}>{v ? won(v) : ''}</td>)}
                 <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.grand)}</td>
               </tr>
