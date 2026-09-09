@@ -3289,5 +3289,12 @@
    "sourceOrder"
   ],
   "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "판매일괄회계반영|작성자": {
+  "claim": "같은 자리를 회계미반영현황(판매)는 [최초작성자] 라 부른다",
+  "present": [
+   "최초작성자"
+  ],
+  "file": "trade/AccountingReflectionPage.tsx"
  }
 }
