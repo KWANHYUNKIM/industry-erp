@@ -4161,5 +4161,126 @@
   "present": [
    "<th>입고창고명</th>"
   ]
+ },
+ "생산입고조회|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [생산입고조회|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산불출조회|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [생산불출조회|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "창고이동조회|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [창고이동조회|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "창고이동현황|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [창고이동현황|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산불출현황|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [생산불출현황|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "생산입고현황|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다(위 [생산입고현황|보내는창고계층그룹] 과 같은 사실이다)",
+  "absent": [
+   "WarehouseGroup",
+   "warehouse_group",
+   "parentWarehouse"
+  ],
+  "in": "backend"
+ },
+ "작업지시서조회|발송여부": {
+  "claim": "전표를 거래처에 내보내는 기능이 없다(위 [생산입고조회|발송여부] 과 같은 사실이다)",
+  "absent": [
+   "sentAt",
+   "sentDate",
+   "sendMail"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+ },
+ "수집데이터등록|조건": {
+  "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다(위 [수집데이터등록|진행상태] 과 같은 사실이다)",
+  "absent": [
+   "status"
+  ],
+  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+ },
+ "구매일괄회계반영|환율": {
+  "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|조정] 과 같은 사실이다)",
+  "absent": [
+   "currency",
+   "Currency",
+   "외화"
+  ],
+  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+ },
+ "설문조사조회|보기항목2": {
+  "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다(위 [설문조사조회|질문내용] 과 같은 사실이다)",
+  "present": [
+   "<th>질문유형</th>"
+  ],
+  "file": "groupware/SurveyInputPage.tsx"
+ },
+ "거래처관리대장 I|일별": {
+  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다(위 [거래처관리대장 I|전표별+내역] 과 같은 사실이다)",
+  "present": [
+   "<tr key={m.partnerId}>"
+  ]
+ },
+ "생산입고 III-소모품목 선택|생산": {
+  "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다(위 [생산입고II-소모품목 선택|소모] 과 같은 사실이다)",
+  "present": [
+   "생산입고 등록 (소모품목 직접 선택)",
+   "소모자재 선택"
+  ]
+ },
+ "생산입고조회|미발송": {
+  "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다(위 [생산불출조회|발송] 과 같은 사실이다)",
+  "absent": [
+   "sendYn",
+   "sentAt",
+   "mailSent"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산계획_MRP리스트|신규(F2)": {
+  "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다(위 [생산계획_MRP리스트|H] 과 같은 사실이다)",
+  "absent": [
+   "Modal"
+  ],
+  "in": "frontend/src/pages/production/MrpPage.tsx"
+ },
+ "창고이동조회|품목명[규격명]": {
+  "claim": "같은 자리를 창고이동현황은 [품목명[규격]] 이라 부른다 — 우리 화면 하나가 둘을 겸해 현황 쪽 이름을 따랐다",
+  "present": [
+   "<th>품목명[규격]</th>"
+  ]
  }
 }
