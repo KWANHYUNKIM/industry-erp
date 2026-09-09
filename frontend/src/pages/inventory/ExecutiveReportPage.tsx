@@ -54,13 +54,18 @@ export default function ExecutiveReportPage() {
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<StockRow[]>('/stock'),
         api.get<Item[]>('/items'),
-        api.get<PartnerBalance[]>('/ledger/partner-balances'),
+        /*
+         * <b>기준일자 끝 시점</b>의 잔액을 받는다. 여태 시점을 안 넘겨 늘 '지금' 잔액이
+         * 나왔다 — 지난달을 조회해도 이번 달 수금까지 반영된 숫자가 카드에 떴다.
+         */
+        api.get<PartnerBalance[]>('/ledger/partner-balances', { params: { asOf: to } }),
       ])
       setSales(s.data); setPurchases(b.data); setStocks(st.data); setItems(it.data); setBalances(bal.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기준일자 끝이 바뀌면 채권·채무를 다시 받는다(그 시점 잔액이라서다). */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [to])
 
   const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
 
@@ -217,8 +222,13 @@ export default function ExecutiveReportPage() {
             <p>우리는 이 표가 통째로 없었고 KPI 카드와 TOP5 만 있었다(둘 다 우리 것이다).
             <b>뜻이 정확히 같은 줄만</b> 만든다 — 품목구분별 재고와 합계, 판매액, 구매액.
             나머지 열둘은 아직 안 만든다:
-            <b>채권·채무</b>는 우리 값이 <b>시점 잔액</b>인데 원본은 그 칸에 기간을 적어
-            발생액인지 잔액인지 아직 못 가렸다(지어내지 않는다).
+            <p><b>[채권]·[채무]가 무엇인지 2026-09-09 에 가렸다</b> — 기간을 금월에서 전월로
+            바꿔 두 판을 견줬다. 판매액·구매액은 그 달 것으로 <b>바뀌는데</b>(126,400 → 10,117,738)
+            채권은 <b>그대로</b>고 채무만 <b>정확히 금월 구매액만큼</b> 줄었다
+            (131,375,569 → 131,249,169, 차이 126,400). 발생액이라면 전월 채무가 그 달
+            구매액이어야 하는데 1억이 넘는다 — 즉 <b>기간 끝 시점의 잔액</b>이다.
+            칸에 기간이 적히는 것은 <b>어느 시점까지 센 것인지</b>를 보이려는 것이다.
+            그래서 이제 만든다 — 우리 값도 같은 뜻이다.
             <b>미판매·미입고·할인액·재고조정액·자가사용액·미청구액</b>은 이 화면이 그 자료를
             안 받는다. 보드에 그대로 적어 두었다.
           */}
@@ -250,6 +260,17 @@ export default function ExecutiveReportPage() {
                 <td>구매액</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.buyAmt)}</td>
+              </tr>
+              {/* 값은 기간 끝 시점의 잔액이다(위 실측). 칸에 적히는 글자는 원본대로 기간이다. */}
+              <tr>
+                <td>채권</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.receivable)}</td>
+              </tr>
+              <tr>
+                <td>채무</td>
+                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ textAlign: 'right' }}>{won(report.payable)}</td>
               </tr>
             </tbody>
           </table>
