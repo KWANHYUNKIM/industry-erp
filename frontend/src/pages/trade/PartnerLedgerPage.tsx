@@ -93,7 +93,16 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [side, setSide] = useState<Side>(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
-  const [group, setGroup] = useState<Group>('전표별')
+  /*
+   * <b>2026-09-09 원본(E040723) 실측 — 열릴 때 눌려 있는 것은 [전표별]이 아니라
+   * [전표별+내역] 이다.</b> 우리는 [전표별] 로 열어서, 대장을 열면 전표 한 줄씩만 보이고
+   * <b>그 전표에 무엇이 들었는지</b>는 구분을 바꿔야 나왔다. 대장을 보는 까닭이
+   * "이 금액이 어디서 왔나" 인데 그 줄이 처음부터 접혀 있었던 셈이다.
+   *
+   * <p>같이 잰 것: [기준일자] 기본 <b>전월+금월</b>(맞다) · [대표거래처로 합산] 기본
+   * <b>거래처관계기준</b>(맞다) · [거래처계층그룹]의 <b>하위그룹포함검색</b>이 켜진 채로 열린다.
+   */
+  const [group, setGroup] = useState<Group>('전표별+내역')
   /**
    * 원본 [대표거래처로 합산] — '거래처관계기준' 이면 지점·사업장 채권채무를 대표 밑으로 모은다.
    *
@@ -263,6 +272,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const SUBTOTALS = ['거래처', '월'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
 
+  /*
+   * <b>이 화면의 원본에는 화면 위 격자가 없다.</b> [검색]을 눌러도 표가 그려지지 않고
+   * <b>출력물</b>로 넘어간다(거래처관리대장 II 와 같다) — 그래서 열 이름·차례·정렬을
+   * 잴 축이 없다. 우리 표는 원본 <b>대장 I</b> 의 열(일자 · 전표번호 · 구분 · 적요 ·
+   * 증가 · 감소 · 잔액)을 따른다. 지어내지 않는다.
+   */
   /** 그 거래처의 등록 정보. 목록에 없으면 undefined — 머리말을 아예 안 그린다. */
   const info = (id: number) => partnerInfo.get(id)
 

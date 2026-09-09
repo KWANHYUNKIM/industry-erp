@@ -1406,6 +1406,13 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['작업내역현황', 'production/WorkResultListPage.tsx'],
     ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
     ['거래처별채권', 'trade/LedgerPage.tsx'],
+    /*
+     * <b>거래처관리대장1(채권·채무) E040723·E040724</b> — 원본 [집계구분]은
+     * 전표별/전표별+내역/일별/월별/회계전표별 이고 <b>기본이 [전표별+내역]</b> 이다
+     * (2026-09-09 실측). 대조표의 열쇠 이름은 이 검사가 보는 '구분' 으로 적는다.
+     */
+    ['거래처관리대장1(채권)', 'trade/PartnerLedgerPage.tsx'],
+    ['거래처관리대장1(채무)', 'trade/PartnerLedgerPage.tsx'],
     ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
     ['실제원가현황', 'accounting/ActualCostPage.tsx'],
     ['월별이익현황', 'accounting/MonthlyProfitPage.tsx'],
