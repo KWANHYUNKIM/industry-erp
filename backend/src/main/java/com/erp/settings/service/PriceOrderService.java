@@ -36,9 +36,20 @@ public class PriceOrderService {
         if (!saved.isEmpty()) {
             return saved.stream().map(PriceOrderLine::from).toList();
         }
-        // 저장값이 없으면 기본 순서 반환(미저장)
+        /*
+         * 저장값이 없으면 기본 순서를 낸다.
+         *
+         * <p><b>2026-09-09 원본(E040125) 실측</b> — 기능 일곱과 그 차례는 우리와 같았는데
+         * [사용구분]이 달랐다. 원본은 <b>[출고단가] 하나만 '사용'</b>이고 나머지 여섯은
+         * '사용안함'으로 열린다. 우리는 일곱을 모두 '사용'으로 냈다 —
+         * 아무것도 설정하지 않은 회사에 <b>특별단가·조정률이 다 켜져 있는 것처럼</b> 보이고,
+         * 그 줄을 한 줄도 안 넣었으니 실제로는 아무 일도 안 하는데 화면만 그렇게 말했다.
+         * 원본대로 출고단가만 켠다(이미 저장한 회사의 값은 그대로다 - 여기는 미저장일 때만 탄다).
+         */
         return java.util.stream.IntStream.range(0, DEFAULT_FUNCTIONS.size())
-                .mapToObj(i -> new PriceOrderLine(DEFAULT_FUNCTIONS.get(i), i + 1, true))
+                .mapToObj(i -> new PriceOrderLine(
+                        DEFAULT_FUNCTIONS.get(i), i + 1,
+                        "출고단가".equals(DEFAULT_FUNCTIONS.get(i))))
                 .toList();
     }
 
