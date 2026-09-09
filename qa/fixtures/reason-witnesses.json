@@ -3162,22 +3162,6 @@
   ],
   "file": "quality/DefectReportPage.tsx"
  },
- "차이분석|생산공정명": {
-  "claim": "우리 재고는 창고 단위라 공정별 재공이 없다",
-  "absent": [
-   "processId",
-   "processName"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Stock.java"
- },
- "표준원가현황|생산공정명": {
-  "claim": "우리 재고는 창고 단위라 공정별 재공이 없다",
-  "absent": [
-   "processId",
-   "processName"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Stock.java"
- },
  "생산입고/소모현황 I|보내는창고계층그룹": {
   "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
   "absent": [

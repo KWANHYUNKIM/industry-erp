@@ -8,6 +8,33 @@ import type { Item } from '../../api/types'
 import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
+ * 품목 → <b>생산공정명</b>. 원본 원가 화면 셋이 이 칸을 둔다.
+ *
+ * <p><b>2026-09-09 실측으로 뜻을 가렸다.</b> 여태 "우리 재고는 창고 단위라 <b>공정별 재공</b>이
+ * 없어 그 칸에 넣을 값이 없다" 고 적어 두고 셋 다 안 만들고 있었는데, 원본 실제원가현황
+ * (E040804)의 자료 125줄을 읽어 보니 <b>그 칸은 재공을 가르는 축이 아니었다</b> —
+ * <ul>
+ *   <li>줄은 <b>품목별 하나</b>다(같은 품목코드가 두 번 서는 일이 0건)</li>
+ *   <li>[생산공정명]이 채워진 줄은 <b>열다섯</b>뿐이고 전부 <b>만들어지는 품목</b>이다
+ *       (제품 완제품공정 · 반제품 반제품공정 · 시제품 시제품공정). 사 오는 원재료는 빈칸이다</li>
+ * </ul>
+ * 즉 <b>그 품목이 어느 공정에서 만들어지는가</b>이고, 그 값은 <b>BOR</b>(품목이 거치는 작업)이
+ * 진작 들고 있다. 작업지시서별진행현황이 이미 같은 자리를 그렇게 쓴다.
+ *
+ * <p>BOR 이 없는 품목은 <b>빈칸</b>이다 — 원본도 그렇다. 창고 이름을 공정처럼 갖다 쓰지 않는다.
+ */
+interface BorRow { productId: number; processName: string; seq: number }
+/** BOR 의 <b>첫 작업</b>(작업순서가 가장 앞선 줄)이 그 품목의 공정이다. */
+function processMapOf(bors: BorRow[]) {
+  const m = new Map<number, { seq: number; name: string }>()
+  for (const b of bors) {
+    const cur = m.get(b.productId)
+    if (!cur || b.seq < cur.seq) m.set(b.productId, { seq: b.seq, name: b.processName })
+  }
+  return (id: number) => m.get(id)?.name ?? ''
+}
+
+/**
  * 회계 > 표준원가현황 (/api/costs)
  *
  * <p>원본 조건 판 실측(사본):
@@ -62,6 +89,8 @@ export default function StandardCostPage() {
    */
   const mgmt = useItemMgmt()
   const [items, setItems] = useState<Item[]>([])
+  const [bors, setBors] = useState<BorRow[]>([])
+  const processOf = useMemo(() => processMapOf(bors), [bors])
   const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
   /* 원본 격자는 [품목명[규격]] 한 칸이다 — 규격은 줄에 없어 품목 마스터에서 잇는다. */
   const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
@@ -77,11 +106,12 @@ export default function StandardCostPage() {
   async function load() {
     setLoading(true)
     try {
-      const [res, it] = await Promise.all([
+      const [res, it, br] = await Promise.all([
         api.get<Cost[]>('/costs'),
         api.get<Item[]>('/items'),
+        api.get<BorRow[]>('/bor'),
       ])
-      setRows(res.data); setItems(it.data)
+      setRows(res.data); setItems(it.data); setBors(br.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -204,12 +234,15 @@ export default function StandardCostPage() {
               합 칸의 이름은 원본대로 <b>[단가]</b> 로 맞춘다 — 같은 값을 화면마다 다르게
               부르면 원본을 아는 사람이 여기서 다시 배워야 한다(재고실사현황에서 [실사수량]을
               [수량]으로 맞춘 것과 같은 까닭이다). 옆에 셋을 그대로 두어 무엇의 합인지 보인다.
-              [생산공정명]은 못 만든다(실제원가현황·차이분석과 같은 이유).
+              <b>[생산공정명]은 2026-09-09 에 만들었다</b> — 그 칸이 공정별 재공이 아니라
+              그 품목이 만들어지는 공정임을 원본 자료로 가렸다(위 processMapOf 주석).
               [기간]은 우리 열이다.
             */}
             <th style={{ width: 90 }}>품목코드</th>
             <th>품목명[규격]</th>
             <th style={{ width: 80 }}>품목구분(세트포함)</th>
+            {/* 원본 넷째 칸. 그 품목이 만들어지는 공정 — BOR 이 든다(위 주석). */}
+            <th style={{ width: 100 }}>생산공정명</th>
             <th style={{ width: 80 }}>기간</th>
             <th style={{ textAlign: 'right' }}>표준재료비</th>
             <th style={{ textAlign: 'right' }}>표준노무비</th>
@@ -219,15 +252,17 @@ export default function StandardCostPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
               <td style={{ color: '#5a626e' }}>{catOf.get(r.itemId) ?? ''}</td>
+              {/* BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
+              <td style={{ color: '#5a626e' }}>{processOf(r.itemId)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
               <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>
@@ -239,7 +274,7 @@ export default function StandardCostPage() {
         {showTotal && (
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}품목)</td>
+              <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}품목)</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.materialCost, 0).toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.laborCost, 0).toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.overheadCost, 0).toLocaleString('ko-KR')}</td>

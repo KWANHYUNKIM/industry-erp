@@ -12,6 +12,33 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
+ * 품목 → <b>생산공정명</b>. 원본 원가 화면 셋이 이 칸을 둔다.
+ *
+ * <p><b>2026-09-09 실측으로 뜻을 가렸다.</b> 여태 "우리 재고는 창고 단위라 <b>공정별 재공</b>이
+ * 없어 그 칸에 넣을 값이 없다" 고 적어 두고 셋 다 안 만들고 있었는데, 원본 실제원가현황
+ * (E040804)의 자료 125줄을 읽어 보니 <b>그 칸은 재공을 가르는 축이 아니었다</b> —
+ * <ul>
+ *   <li>줄은 <b>품목별 하나</b>다(같은 품목코드가 두 번 서는 일이 0건)</li>
+ *   <li>[생산공정명]이 채워진 줄은 <b>열다섯</b>뿐이고 전부 <b>만들어지는 품목</b>이다
+ *       (제품 완제품공정 · 반제품 반제품공정 · 시제품 시제품공정). 사 오는 원재료는 빈칸이다</li>
+ * </ul>
+ * 즉 <b>그 품목이 어느 공정에서 만들어지는가</b>이고, 그 값은 <b>BOR</b>(품목이 거치는 작업)이
+ * 진작 들고 있다. 작업지시서별진행현황이 이미 같은 자리를 그렇게 쓴다.
+ *
+ * <p>BOR 이 없는 품목은 <b>빈칸</b>이다 — 원본도 그렇다. 창고 이름을 공정처럼 갖다 쓰지 않는다.
+ */
+interface BorRow { productId: number; processName: string; seq: number }
+/** BOR 의 <b>첫 작업</b>(작업순서가 가장 앞선 줄)이 그 품목의 공정이다. */
+function processMapOf(bors: BorRow[]) {
+  const m = new Map<number, { seq: number; name: string }>()
+  for (const b of bors) {
+    const cur = m.get(b.productId)
+    if (!cur || b.seq < cur.seq) m.set(b.productId, { seq: b.seq, name: b.processName })
+  }
+  return (id: number) => m.get(id)?.name ?? ''
+}
+
+/**
  * 회계 > 차이분석.
  *
  * <p>2026-09-08 에 원본(<b>E040809</b>)을 열어 조건 판을 재니 <b>열하나</b>다 —
@@ -87,6 +114,8 @@ export default function VariancePage() {
   const [mode, setMode] = useState<Mode>('원가비교집계표')
   const [costs, setCosts] = useState<Cost[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [bors, setBors] = useState<BorRow[]>([])
+  const processOf = useMemo(() => processMapOf(bors), [bors])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
@@ -117,14 +146,16 @@ export default function VariancePage() {
     setLoading(true)
     setError('')
     try {
-      const [c, i, p, b, pr] = await Promise.all([
+      const [c, i, br, p, b, pr] = await Promise.all([
         api.get<Cost[]>('/costs'),
         api.get<Item[]>('/items'),
+        api.get<BorRow[]>('/bor'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<BomRow[]>('/boms'),
         api.get<ProductionRow[]>('/productions'),
       ])
-      setCosts(c.data); setItems(i.data); setPurchases(p.data); setBoms(b.data); setProductions(pr.data)
+      setCosts(c.data); setItems(i.data); setBors(br.data)
+      setPurchases(p.data); setBoms(b.data); setProductions(pr.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -365,12 +396,15 @@ export default function VariancePage() {
                 만든 넷: <b>생산수량 · 표준금액 · 실제금액 · 차이</b>.
                 <b>[차이금액]을 [차이]로 바꾼 것이 아니다</b> — 원본 [차이]는 <b>금액</b> 차이라
                 단가 차이와 다른 값이다. 단가 차이는 [차이율(%)] 옆에 그대로 둔다.
-                [생산공정명]은 못 만든다(실제원가현황과 같은 이유 — 우리 재고는 창고 단위다).
+                <b>[생산공정명]은 2026-09-09 에 만들었다</b> — 그 칸이 공정별 재공이 아니라
+                그 품목이 만들어지는 공정임을 원본 자료로 가렸다(위 processMapOf 주석).
                 [기준월]·[차이율(%)]은 우리 열이다.
               */}
               <th style={{ width: 90 }}>품목코드</th>
               <th>품목명[규격]</th>
               <th style={{ width: 80 }}>품목구분(세트포함)</th>
+              {/* 원본 넷째 칸. 그 품목이 만들어지는 공정 — BOR 이 든다(위 주석). */}
+              <th style={{ width: 100 }}>생산공정명</th>
               <th style={{ width: 80 }}>기준월</th>
               <th style={{ textAlign: 'right' }}>생산수량</th>
               <th style={{ textAlign: 'right' }}>표준단가</th>
@@ -383,13 +417,15 @@ export default function VariancePage() {
           </thead>
           <tbody>
             {compareRows.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : compareRows.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                 <td style={{ color: '#5a626e' }}>{categoryOf(r.itemId)}</td>
+                {/* BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
+                <td style={{ color: '#5a626e' }}>{processOf(r.itemId)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
                 {/* 생산실적이 없으면 0 이 아니라 '—' 다 — 0 으로 채우면 차이가 사라진다. */}
                 <td style={{ textAlign: 'right', color: r.producedQty === null ? '#c5cbd3' : undefined }}>
@@ -413,7 +449,7 @@ export default function VariancePage() {
           {compareRows.length > 0 && (
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({compareRows.length}품목)</td>
+                <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({compareRows.length}품목)</td>
                 {/* 생산수량 합 — 모르는 줄(실적 없음)은 빼고 더한다. */}
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + (r.producedQty ?? 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + r.standardTotal, 0))}</td>

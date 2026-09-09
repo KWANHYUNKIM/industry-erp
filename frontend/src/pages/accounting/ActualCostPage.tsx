@@ -43,7 +43,9 @@ import { useCondPickers } from '../../utils/useCondPickers'
  *
  * <p>[수율차이]는 그대로 안 만든다 — 공정별 투입·산출을 쌓지 않아 수율을 낼 축이 없다.
  *
- * <p>생산공정별로 가르지 않는 이유도 같다. 우리 재고는 창고 단위라 공정별 재공이 없다.
+ * <p><b>[생산공정명]도 2026-09-09 에 만들었다</b> — "우리 재고는 창고 단위라 공정별 재공이
+ * 없다" 고 적어 두었는데, 자료를 읽어 보니 그 칸은 <b>재공을 가르는 축이 아니라</b>
+ * 그 품목이 만들어지는 공정이었다(아래 <code>processMapOf</code> 주석에 실측을 적었다).
  */
 type Mode = '원가집계표' | '증가내역' | '감소내역' | '노무비배부액' | '경비배부액'
 const MODES = ['원가집계표', '증가내역', '감소내역', '노무비배부액', '경비배부액'] as const
@@ -63,6 +65,27 @@ interface CostRow {
 }
 /** 그 달 생산실적 — 배부액을 되돌리려면 수량이 있어야 한다(단가 × 수량). */
 interface ProductionRow { productId: number; productionDate: string; producedQty: number }
+
+/** BOR(작업소요시간) 한 줄 — 품목이 어느 공정에서 만들어지는가. */
+interface BorRow { productId: number; processName: string; seq: number }
+/**
+ * 품목 → <b>생산공정명</b>. 원본 원가집계표의 넷째 칸이다.
+ *
+ * <p><b>2026-09-09 자료 125줄을 읽어 뜻을 가렸다.</b> 여태 "우리 재고는 창고 단위라
+ * <b>공정별 재공</b>이 없어 넣을 값이 없다" 고 적어 두었는데, 그 칸은 재공을 가르는 축이
+ * 아니었다 — 줄은 <b>품목별 하나</b>고(같은 품목코드가 두 번 서는 일이 0건),
+ * 값이 채워진 줄은 <b>열다섯</b>뿐이며 전부 <b>만들어지는 품목</b>이다
+ * (제품 완제품공정 · 반제품 반제품공정 · 시제품 시제품공정). 사 오는 원재료는 빈칸이다.
+ * 즉 <b>그 품목이 어느 공정에서 만들어지는가</b>이고, 그 값은 <b>BOR</b> 이 진작 들고 있다.
+ */
+const processMapOf = (bors: BorRow[]) => {
+  const m = new Map<number, { seq: number; name: string }>()
+  for (const b of bors) {
+    const cur = m.get(b.productId)
+    if (!cur || b.seq < cur.seq) m.set(b.productId, { seq: b.seq, name: b.processName })
+  }
+  return (id: number) => m.get(id)?.name ?? ''
+}
 
 interface MovementRow {
   itemId: number
@@ -133,6 +156,8 @@ export default function ActualCostPage() {
   const [items, setItems] = useState<Item[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [expenses, setExpenses] = useState<ProcessExpenseRow[]>([])
+  const [bors, setBors] = useState<BorRow[]>([])
+  const processOf = useMemo(() => processMapOf(bors), [bors])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -152,7 +177,7 @@ export default function ActualCostPage() {
     setError('')
     const { from, to } = monthRange(period)
     try {
-      const [mv, lg, it, pu, ex, cs, pr] = await Promise.all([
+      const [mv, lg, it, pu, ex, cs, pr, br] = await Promise.all([
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
         /*
          * <b>여기서는 자르면 안 된다.</b> 이 화면은 수불부 줄을 <b>합산해서</b> 실제원가를 낸다
@@ -170,12 +195,14 @@ export default function ActualCostPage() {
         api.get<ProcessExpenseRow[]>('/process-expenses', { params: { period } }),
         api.get<CostRow[]>('/costs', { params: { period } }),
         api.get<ProductionRow[]>('/productions', { params: { from, to } }),
+        /* 원가집계표 넷째 칸 [생산공정명] — 품목이 어느 공정에서 만들어지는가(위 주석). */
+        api.get<BorRow[]>('/bor'),
       ])
       setMovement(mv.data)
       setLedger(lg.data.rows)
       setItems(it.data)
       setPurchases(pu.data)
-      setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data)
+      setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data); setBors(br.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -475,6 +502,8 @@ export default function ActualCostPage() {
                 <th>품목명[규격]</th>
                 {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
                 <th style={{ width: 80 }}>품목구분</th>
+                {/* 원본 넷째 칸. BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
+                <th style={{ width: 100 }}>생산공정명</th>
                 {/*
                   2026-09-09 원본 실측(E040804). 원본은 <b>머리가 두 줄</b>이라
                   [기초|증가|감소|기말] 아래에 <b>수량·단가·금액</b> 이 각각 달린다.
@@ -499,9 +528,9 @@ export default function ActualCostPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : groups.map((g) => {
                 // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 누계와 어긋난다.
                 const sub = g.rows.reduce((a, r) => ({
@@ -516,6 +545,7 @@ export default function ActualCostPage() {
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td style={{ color: '#5a626e' }}>{r.categoryName}</td>
+                  <td style={{ color: '#5a626e' }}>{processOf(r.itemId)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{unitOf(r.openAmt, r.opening)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.openAmt)}</td>
@@ -535,7 +565,7 @@ export default function ActualCostPage() {
                     ))}
                     {/* 원본 소계 줄: '원재료 계' · '부재료 계' · … */}
                     <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
-                      <td colSpan={4} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                      <td colSpan={5} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
                         {g.name} 계 ({g.rows.length}품목)
                       </td>
                       <td colSpan={2}></td>
@@ -555,7 +585,7 @@ export default function ActualCostPage() {
               <tfoot>
                 <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
                   {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다. */}
-                  <td colSpan={6} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
+                  <td colSpan={7} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
                   <td style={{ textAlign: 'right' }}>{won(totals.open)}</td>
                   <td colSpan={2}></td>
                   <td style={{ textAlign: 'right' }}>{won(totals.in)}</td>
