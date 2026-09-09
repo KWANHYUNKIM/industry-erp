@@ -29,14 +29,40 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * 넣고 차이분석에서 견주는 값이라 여기서 한 번 더 보여 줄 이유가 없었고, 정작 이 화면이
  * 답해야 할 <b>"이 달에 무엇이 얼마나 들어오고 나가서 얼마가 남았나"</b>는 없었다.
  *
- * <p>[구분] 여섯 중 셋만 만든다. 수율차이·노무비배부액·경비배부액은 배부 자료(공정별 노무비·
- * 경비와 배부기준)가 있어야 하는데 우리에겐 없다. 없는 값을 이름만 걸어 두면 화면이
- * 거짓말을 한다 — 자료가 생기면 그때 붙인다.
+ * <p><b>2026-09-09 — "배부 자료가 없다" 는 이유가 틀렸다.</b> [노무비배부액]·[경비배부액]을
+ * 그 이유로 안 만들고 있었는데, 배부 자료는 <b>진작 있었다</b> —
+ * <code>ProcessExpense</code>(노무비/경비등록)가 기준월·공정·창고별 노무비와 경비를 들고,
+ * <code>CostService.calcActual</code> 이 그 총액을 <b>표준 작업시간 비율</b>로 품목에
+ * 배부해 <code>ItemCost.actualLabor·actualOverhead</code> 로 넣고 있었다.
+ * 즉 <b>배부는 이미 하고 있었고 보여 주지만 않았다.</b> 그래서 이번에 만든다.
+ *
+ * <p>두 갈래는 같은 모양이다 — 위에 <b>배부 전</b>(공정·창고별 총액), 아래에 <b>배부 후</b>
+ * (품목별 단가 × 그 달 생산수량). 두 합계를 나란히 두는 이유는, 그 달 생산이 없는 공정의
+ * 총액은 <b>어디에도 안 붙기</b> 때문이다(CostService 주석). 위아래가 다르면 그 차이가
+ * 곧 "붙일 곳이 없어 빠진 돈" 이고, 화면에서 그것이 보여야 한다.
+ *
+ * <p>[수율차이]는 그대로 안 만든다 — 공정별 투입·산출을 쌓지 않아 수율을 낼 축이 없다.
  *
  * <p>생산공정별로 가르지 않는 이유도 같다. 우리 재고는 창고 단위라 공정별 재공이 없다.
  */
-type Mode = '원가집계표' | '증가내역' | '감소내역'
-const MODES = ['원가집계표', '증가내역', '감소내역'] as const
+type Mode = '원가집계표' | '증가내역' | '감소내역' | '노무비배부액' | '경비배부액'
+const MODES = ['원가집계표', '증가내역', '감소내역', '노무비배부액', '경비배부액'] as const
+/** 배부 두 갈래가 같은 표를 쓴다 — 노무비냐 경비냐만 다르다. */
+const ALLOC = new Set<Mode>(['노무비배부액', '경비배부액'])
+
+/** 노무비/경비등록 한 줄 — <b>배부 전</b> 총액. */
+interface ProcessExpenseRow {
+  id: number; period: string
+  processName: string; warehouseName: string | null
+  laborCost: number; overheadCost: number
+}
+/** 품목 원가 한 줄. actualLabor·actualOverhead 가 <b>배부 후 단위당</b> 값이다. */
+interface CostRow {
+  itemId: number; itemCode: string; itemName: string; period: string
+  actualLabor: number; actualOverhead: number
+}
+/** 그 달 생산실적 — 배부액을 되돌리려면 수량이 있어야 한다(단가 × 수량). */
+interface ProductionRow { productId: number; productionDate: string; producedQty: number }
 
 interface MovementRow {
   itemId: number
@@ -106,6 +132,9 @@ export default function ActualCostPage() {
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [expenses, setExpenses] = useState<ProcessExpenseRow[]>([])
+  const [costs, setCosts] = useState<CostRow[]>([])
+  const [productions, setProductions] = useState<ProductionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()
@@ -123,7 +152,7 @@ export default function ActualCostPage() {
     setError('')
     const { from, to } = monthRange(period)
     try {
-      const [mv, lg, it, pu] = await Promise.all([
+      const [mv, lg, it, pu, ex, cs, pr] = await Promise.all([
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
         /*
          * <b>여기서는 자르면 안 된다.</b> 이 화면은 수불부 줄을 <b>합산해서</b> 실제원가를 낸다
@@ -134,11 +163,19 @@ export default function ActualCostPage() {
         api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } }),
         api.get<Item[]>('/items'),
         api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * 배부 두 갈래가 보는 자리. 셋 다 <b>이미 있던</b> 자리다 —
+         * 노무비/경비등록의 총액, 원가의 배부 후 단가, 그리고 그 달 생산수량.
+         */
+        api.get<ProcessExpenseRow[]>('/process-expenses', { params: { period } }),
+        api.get<CostRow[]>('/costs', { params: { period } }),
+        api.get<ProductionRow[]>('/productions', { params: { from, to } }),
       ])
       setMovement(mv.data)
       setLedger(lg.data.rows)
       setItems(it.data)
       setPurchases(pu.data)
+      setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -218,6 +255,46 @@ export default function ActualCostPage() {
     .sort((a, b) => (a.transactionDate < b.transactionDate ? 1 : a.transactionDate > b.transactionDate ? -1 : b.id - a.id)),
   [ledger, mode, keyword, withInactive, inactive, withUntracked, untracked])
 
+  /**
+   * <b>배부 전</b> — 노무비/경비등록의 공정·창고별 총액. 그 달 것만 본다.
+   * 서버가 이미 기준월로 걸러 주지만, 화면에서 달을 바꾼 직후 옛 자료가 잠깐 남는 것을
+   * 막으려고 한 번 더 건다(다른 표들도 같은 규칙이다).
+   */
+  const allocBefore = useMemo(
+    () => expenses.filter((e) => e.period === period),
+    [expenses, period])
+
+  /** 그 달 품목별 생산수량 — 배부 후 단가에 곱할 값이다. */
+  const producedByItem = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const pr of productions) {
+      if (pr.productionDate.slice(0, 7) !== period) continue
+      m.set(pr.productId, (m.get(pr.productId) ?? 0) + pr.producedQty)
+    }
+    return m
+  }, [productions, period])
+
+  /**
+   * <b>배부 후</b> — 품목별 [단위당 × 생산수량]. 그 달에 만든 적이 없는 품목은 뺀다
+   * (원가 줄은 남아 있어도 <b>이 달에 배부된 돈은 없다</b> — 0 줄을 그리면 합계가
+   * 안 맞는 까닭을 못 찾는다).
+   */
+  const allocAfter = useMemo(() => costs
+    .filter((c) => c.period === period)
+    .map((c) => {
+      const qty = producedByItem.get(c.itemId) ?? 0
+      const unit = mode === '경비배부액' ? c.actualOverhead : c.actualLabor
+      return { ...c, qty, unit, amount: qty * unit }
+    })
+    .filter((r) => r.qty > 0)
+    .sort((a, b) => b.amount - a.amount),
+  [costs, period, producedByItem, mode])
+
+  const allocTotals = useMemo(() => ({
+    before: allocBefore.reduce((n, e) => n + (mode === '경비배부액' ? e.overheadCost : e.laborCost), 0),
+    after: allocAfter.reduce((n, r) => n + r.amount, 0),
+  }), [allocBefore, allocAfter, mode])
+
   const totals = summary.reduce((a, r) => ({
     open: a.open + (r.openAmt ?? 0), in: a.in + (r.inAmt ?? 0),
     out: a.out + (r.outAmt ?? 0), close: a.close + (r.closeAmt ?? 0),
@@ -296,7 +373,98 @@ export default function ActualCostPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      {mode === '원가집계표' ? (
+      {ALLOC.has(mode) ? (
+        <div className="overflow-x-auto">
+          {/*
+            <b>배부 전</b> — 노무비/경비등록에 적힌 그 달 공정·창고별 총액.
+            창고를 안 정한 줄은 원본과 같이 <b>전사 공통</b>이다(빈칸으로 둔다).
+          */}
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>
+            배부 전 — 노무비/경비등록 ({period})
+          </h3>
+          <table className="ec-grid w-full text-left" style={{ marginBottom: 14 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>생산공정명</th>
+                <th style={{ width: 160 }}>창고명</th>
+                <th style={{ width: 160, textAlign: 'right' }}>{mode === '경비배부액' ? '경비' : '노무비'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allocBefore.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : allocBefore.map((e, i) => (
+                <tr key={e.id}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>{e.processName}</td>
+                  <td style={{ color: e.warehouseName ? undefined : '#9aa1ab' }}>{e.warehouseName ?? '(전사 공통)'}</td>
+                  <td style={{ textAlign: 'right' }}>{won(mode === '경비배부액' ? e.overheadCost : e.laborCost)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={3} style={{ textAlign: 'right' }}>누계</td>
+                <td style={{ textAlign: 'right' }}>{won(allocTotals.before)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          {/*
+            <b>배부 후</b> — 그 총액을 표준 작업시간 비율로 품목에 나눈 결과다
+            (CostService.calcActual 이 그렇게 넣는다). 단위당 값을 그 달 생산수량에
+            곱해 되돌린다.
+          */}
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>배부 후 — 품목별</h3>
+          <table className="ec-grid w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>품목코드</th>
+                <th>품목명</th>
+                <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
+                <th style={{ width: 140, textAlign: 'right' }}>단위당</th>
+                <th style={{ width: 160, textAlign: 'right' }}>배부액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              ) : allocAfter.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : allocAfter.map((r, i) => (
+                <tr key={r.itemId}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  <td>{r.itemName}</td>
+                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
+                  <td style={{ textAlign: 'right' }}>{won(r.unit)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{won(r.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={5} style={{ textAlign: 'right' }}>누계 ({allocAfter.length}품목)</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(allocTotals.after)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          {/*
+            <b>위아래가 다를 수 있다.</b> 그 달 생산이 없는 공정의 총액은 어디에도 안 붙는다 —
+            없는 근거로 아무 품목에나 얹지 않기 때문이다(CostService 주석). 그 차이를 숨기지
+            않고 적는다. 숨기면 "왜 노무비가 모자라지" 를 이 화면에서 못 찾는다.
+          */}
+          {Math.round(allocTotals.before) !== Math.round(allocTotals.after) && (
+            <p style={{ fontSize: 12.5, color: '#c07a00', marginTop: 8 }}>
+              ※ 배부 전 {won(allocTotals.before)} · 배부 후 {won(allocTotals.after)} —
+              차이 <b>{won(allocTotals.before - allocTotals.after)}</b> 는 그 달 생산이 없어
+              붙일 품목이 없던 공정의 몫입니다.
+            </p>
+          )}
+        </div>
+      ) : mode === '원가집계표' ? (
         <div className="overflow-x-auto">
           <table className="ec-grid w-full text-left">
             <thead>

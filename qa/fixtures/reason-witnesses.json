@@ -3162,14 +3162,6 @@
   ],
   "file": "quality/DefectReportPage.tsx"
  },
- "실제원가현황|생산공정명": {
-  "claim": "우리 재고는 창고 단위라 공정별 재공이 없다",
-  "absent": [
-   "processId",
-   "processName"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Stock.java"
- },
  "차이분석|생산공정명": {
   "claim": "우리 재고는 창고 단위라 공정별 재공이 없다",
   "absent": [
@@ -3777,5 +3769,27 @@
    "shipToPartner"
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+ },
+ "소요시간계산|내역": {
+  "claim": "계산한 것을 남겨 두지 않는다 — 물을 때마다 다시 센다",
+  "absent": [
+   "api.post"
+  ],
+  "in": "frontend/src/pages/production/TimeCalcPage.tsx"
+ },
+ "품질검사현황|진행상태": {
+  "claim": "검사는 하면 곧 판정이 난다 — 진행중·완료로 흐르는 단계가 없다",
+  "absent": [
+   "status",
+   "Status"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+ },
+ "생산입고II-소모품목 선택|생산": {
+  "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다",
+  "present": [
+   "생산입고 등록 (소모품목 직접 선택)",
+   "소모자재 선택"
+  ]
  }
 }
