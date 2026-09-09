@@ -91,6 +91,8 @@ function monthRange(period: string): { from: string; to: string } {
 export default function ActualCostPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items'])
+  /* 원본 격자는 [품목명[규격]] 한 칸이다 — 규격은 줄에 없어 품목 마스터에서 잇는다. */
+  const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   /*
    * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
    * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
@@ -301,7 +303,8 @@ export default function ActualCostPage() {
               <tr>
                 <th style={{ width: 34 }}></th>
                 <th>품목코드</th>
-                <th>품목명</th>
+                {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다(2026-09-09 실측). */}
+                <th>품목명[규격]</th>
                 {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
                 <th style={{ width: 80 }}>품목구분</th>
                 {/*
@@ -343,7 +346,7 @@ export default function ActualCostPage() {
                 <tr key={r.itemId}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                  <td>{r.itemName}</td>
+                  <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td style={{ color: '#5a626e' }}>{r.categoryName}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{unitOf(r.openAmt, r.opening)}</td>
