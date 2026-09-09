@@ -3791,5 +3791,40 @@
    "생산입고 등록 (소모품목 직접 선택)",
    "소모자재 선택"
   ]
+ },
+ "직접입력": {
+  "claim": "생산계획/MRP 생성 팝업을 안 만든다",
+  "absent": [
+   "Modal"
+  ],
+  "in": "frontend/src/pages/production/MrpPage.tsx"
+ },
+ "재고실사현황|실사:구분": {
+  "claim": "우리 실사는 방식이 하나라 그 축이 없다 — 대신 요청·반영완료·반려로 흐른다",
+  "present": [
+   "<option value=\"APPLIED\">반영완료</option>",
+   "<option value=\"REJECTED\">반려</option>"
+  ]
+ },
+ "거래처관리대장 I|전표별": {
+  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다",
+  "present": [
+   "<tr key={m.partnerId}>"
+  ]
+ },
+ "구매현황|진행상태": {
+  "claim": "구매 전표에 확인상태 자체가 없다 — 확인은 판매전표에만 있다",
+  "absent": [
+   "confirmStatus",
+   "ConfirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+ },
+ "판매현황|진행상태": {
+  "claim": "판매현황은 줄 단위로 펴 보는 화면이라 전표의 확인 상태를 줄에 붙이지 않는다 — 그 상태로 거르는 자리는 판매조회에 있다",
+  "present": [
+   "const SALES_TABS = ['전체', '결재중', '미확인', '확인']"
+  ],
+  "file": "trade/TradeInquiryPage.tsx"
  }
 }
