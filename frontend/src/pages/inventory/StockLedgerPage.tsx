@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
@@ -9,6 +9,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -71,13 +72,33 @@ export default function StockLedgerPage() {
    * 대신 우리 기본값인 <b>[전표단가]</b>(그 거래에 실제로 매겨진 단가)를 앞에 둔다 —
    * 그게 없으면 "실제로 얼마에 오갔나" 를 볼 방법이 사라진다.
    *
-   * <p><b>원본 기본값은 아직 못 쟀다</b>(2026-09-09 이카운트 세션 만료). 우리 기본은
-   * 여태 쓰던 전표단가 그대로 둔다 — 다음 실측에서 확인할 것.
+   * <p><b>2026-09-09 원본(E040702)을 열어 [단가표시]를 끝까지 쟀다.</b> 앞 바퀴에
+   * "기본값을 못 쟀다"고 적어 둔 것을 이제 채운다. 원본은 <b>한 줄이 아니라 네 묶음</b>이다:
+   * <ul>
+   *   <li><b>[표시안함 | 표시]</b> — 기본 <b>표시</b>. 단가·금액 칸을 통째로 끄는 스위치다.</li>
+   *   <li>판매단가 기준: <b>판매단가</b>(기본) | 판매단가(vat 포함) | 월별원가 | 출고단가(품목)</li>
+   *   <li>구매단가 기준: <b>구매단가</b>(기본) | 구매단가(vat 포함) | 월별원가 | 입고단가(품목)</li>
+   *   <li>기타단가: <b>적용안함</b>(기본) | 월별원가 | 입고단가(품목)</li>
+   * </ul>
+   * 즉 원본은 판매·구매 단가를 <b>둘 다</b> 내놓고 각각 무엇으로 셀지를 고르게 한다.
+   *
+   * <p>우리는 그중 <b>[표시안함|표시]</b> 와 단가 <b>하나 고르기</b>까지 한다.
+   * vat 포함·월별원가·출고단가(품목)·기타단가는 각각 값을 따로 들여야 해서 아직 없다 —
+   * 지어내지 않고 여기 적어 둔다(보드에도 남겼다).
    */
   /** 품목 id → 마스터. [단가표시]가 고른 단가를 여기서 뽑는다. */
   const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
   const PRICE_BASES = ['전표단가', '판매단가', '구매단가'] as const
   const [priceBasis, setPriceBasis] = useState<typeof PRICE_BASES[number]>('전표단가')
+  /** 원본 [단가표시]의 첫 갈래 [표시안함 | 표시]. 기본은 <b>표시</b>다(실측). */
+  const [showPrice, setShowPrice] = useState(true)
+  /*
+   * [단가표시]가 [표시안함] 이면 <b>[단가]·[금액] 두 칸이 사라진다</b> — 칸 수가 변하는 표라
+   * 정적 검사(qa/ui-check.mjs)로는 셀 수 없다. 개발 모드에서 실제로 그려진 표를 재서
+   * 머리와 몸이 어긋났는지 잡는다(일별이익현황과 같은 장치).
+   */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '재고수불부', [showPrice, priceBasis])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<StockTransaction[]>([])
   /** 조건에 걸린 전체 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
@@ -292,11 +313,22 @@ export default function StockLedgerPage() {
         */}
         {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
         <EcCond label="단가표시">
-          <div className="ec-pills">
-            {PRICE_BASES.map((b) => (
-              <button key={b} type="button" className={`ec-pill no-ec${priceBasis === b ? ' active' : ''}`}
-                      onClick={() => setPriceBasis(b)}>{b}</button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* 원본의 첫 갈래 — 끄면 [단가]·[금액] 칸이 통째로 사라진다. */}
+            <div className="ec-pills">
+              {(['표시안함', '표시'] as const).map((v) => (
+                <button key={v} type="button" className={`ec-pill no-ec${showPrice === (v === '표시') ? ' active' : ''}`}
+                        onClick={() => setShowPrice(v === '표시')}>{v}</button>
+              ))}
+            </div>
+            {showPrice && (
+              <div className="ec-pills">
+                {PRICE_BASES.map((b) => (
+                  <button key={b} type="button" className={`ec-pill no-ec${priceBasis === b ? ' active' : ''}`}
+                          onClick={() => setPriceBasis(b)}>{b}</button>
+                ))}
+              </div>
+            )}
           </div>
         </EcCond>
         <EcCond label="기타">
@@ -362,6 +394,7 @@ export default function StockLedgerPage() {
         </div>
       </div>
 
+      <div ref={tableRef}>
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -387,8 +420,8 @@ export default function StockLedgerPage() {
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th style={{ textAlign: 'right' }}>출고수량</th>
             <th style={{ textAlign: 'right' }}>재고수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
+            {showPrice && <th style={{ textAlign: 'right' }}>단가</th>}
+            {showPrice && <th style={{ textAlign: 'right' }}>금액</th>}
           </tr>
         </thead>
         <tbody>
@@ -426,13 +459,18 @@ export default function StockLedgerPage() {
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{basePrice != null ? num(basePrice) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
+                {showPrice && (
+                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{basePrice != null ? num(basePrice) : ''}</td>
+                )}
+                {showPrice && (
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
+                )}
               </tr>
             )
           })}
         </tbody>
       </table>
+      </div>
     </EcListShell>
   )
 }
