@@ -3725,5 +3725,57 @@
   "present": [
    "createdBy"
   ]
+ },
+ "주문서현황|참조": {
+  "claim": "수주는 시작점이라 근거전표를 달지 않는다(판매·출하가 수주를 문다)",
+  "absent": [
+   "sourceDoc",
+   "quotation",
+   "Quotation"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+ },
+ "작업지시서효율현황|규격": {
+  "claim": "효율 화면은 품목이 아니라 지시 단위로 센다",
+  "absent": [
+   "spec"
+  ],
+  "in": "frontend/src/pages/production/WoEfficiencyPage.tsx"
+ },
+ "집계표|구분": {
+  "claim": "우리 표는 행 축이 하나뿐이고, 그 축은 [거래처별]·[품목별] 알약이 고른다",
+  "present": [
+   "'거래처별' : '품목별'"
+  ]
+ },
+ "구매일괄회계반영|거래가액": {
+  "claim": "외화·조정 항목을 만들지 않는다",
+  "absent": [
+   "currency",
+   "Currency",
+   "외화"
+  ],
+  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+ },
+ "생산계획_MRP리스트|생산계획계산": {
+  "claim": "표의 열이 아니라 버튼이다 — 우리는 미판매 잔량으로 계획을 만든다",
+  "present": [
+   "'/production-plans/generate'"
+  ]
+ },
+ "생산계획_MRP리스트|H": {
+  "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
+  "absent": [
+   "Modal"
+  ],
+  "in": "frontend/src/pages/production/MrpPage.tsx"
+ },
+ "의료기기공급내역보고|납품거래처": {
+  "claim": "판매 전표에 납품처를 가리키는 칸이 없다 — 배송지는 주소 글자뿐이다",
+  "absent": [
+   "deliveryPartner",
+   "shipToPartner"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
  }
 }
