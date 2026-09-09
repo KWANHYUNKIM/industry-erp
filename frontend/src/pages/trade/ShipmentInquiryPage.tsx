@@ -7,6 +7,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
@@ -70,6 +71,40 @@ const TAB_STATUS: Record<Exclude<SendTab, '전체'>, ShipStatus> = { 미발송: 
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
+/**
+ * 원본 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 종이로 찍는다.
+ *
+ * <p><b>금액 칸(단가·공급가액·부가세)은 안 그린다.</b> 출하 전표에는 <b>부가세가 없다</b> —
+ * 부가세는 판매 전표가 매긴다. 0 으로 채워 그리면 "부가세 0원" 이 되어, 과세 거래인데
+ * 면세처럼 읽히는 종이가 나간다. 대신 우리가 <b>아는 값</b>인 출하금액 합계는 머리 항목에
+ * 적는다 — 없는 값을 지어내지 않으면서 아는 값은 버리지 않는다.
+ */
+async function printShipment(r: Shipment, company: DocParty | null) {
+  await printDocuments([{
+    title: '출 하 증',
+    docNo: r.shipNo,
+    docDate: r.shipDate,
+    hideAmounts: true,
+    supplier: company ? { ...company, label: '공급자' } : { label: '공급자', name: '(회사정보 미등록)' },
+    customer: { label: '공급받는자', name: r.partnerName },
+    extra: [
+      { label: '출하창고', value: r.warehouseName },
+      { label: '근거주문', value: r.salesOrderNo },
+      { label: '담당', value: r.employeeName ?? r.createdBy },
+      { label: '연락처', value: r.contact },
+      { label: '배송지', value: r.address },
+      { label: '발송여부', value: r.statusName },
+      { label: '출하금액', value: r.totalAmount.toLocaleString('ko-KR') },
+    ],
+    remark: r.remark,
+    lines: r.lines.map((l) => ({
+      itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
+      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    })),
+    footNote: '위 물품을 틀림없이 인수하였음을 확인합니다.',
+  }])
+}
+
 export default function ShipmentInquiryPage() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<Shipment[]>([])
@@ -84,6 +119,9 @@ export default function ShipmentInquiryPage() {
   const [itemCond, setItemCond] = useState('')
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const [openId, setOpenId] = useState<number | null>(null)
+  /* 인쇄물 머리의 공급자 칸. 회사정보를 한 번만 받아 둔다. */
+  const [company, setCompany] = useState<DocParty | null>(null)
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -343,21 +381,23 @@ export default function ShipmentInquiryPage() {
               있었는데 표에만 안 찍고 있었다(또 '거를 수는 있는데 볼 수는 없는 열'),
               (3) 이름 셋 — [품목]→[품목명(요약)] · [출하수량]→[수량합계] ·
               [거래처]→[거래처명], 그리고 거래처는 원본 차례대로 수량 뒤로 옮겼다.
-              [인쇄]는 줄마다 두는 원본 열인데 우리는 화면 위 [인쇄] 하나로 낸다 —
-              pending-columns.json 에 적었다.
+              <b>[인쇄]는 줄마다 두는 원본 열이다</b> — 화면 위 [인쇄] 하나로 갈음하고
+              있었는데, 그건 "지금 보고 있는 목록" 을 찍는 버튼이라 <b>한 건을 집어
+              찍을 수가 없었다.</b> 이번에 줄마다 달았다.
               [근거주문]·[출하금액]·[발송여부]·[담당]은 우리 열이다.
             */}
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th>창고명</th><th>품목명(요약)</th>
             <th style={{ textAlign: 'right' }}>수량합계</th><th style={{ textAlign: 'right' }}>출하금액</th>
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
             <th style={{ textAlign: 'center' }}>발송여부</th><th>담당</th>
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
@@ -372,10 +412,14 @@ export default function ShipmentInquiryPage() {
                 <td>{r.partnerName}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
                 <td>{r.employeeName ?? ''}</td>
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <button className="no-ec" onClick={() => printShipment(r, company)}
+                          style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+                </td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={10} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={11} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
                         <tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th></tr>
@@ -405,7 +449,7 @@ export default function ShipmentInquiryPage() {
             <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
-            <td colSpan={3}></td>
+            <td colSpan={4}></td>
           </tr>
         </tfoot>
       </table>

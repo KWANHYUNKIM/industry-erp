@@ -10,6 +10,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
@@ -46,9 +47,48 @@ const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
 
+/**
+ * 원본 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 종이로 찍는다.
+ *
+ * <p><b>금액 칸(단가·공급가액·부가세)은 안 그린다.</b> 출하 전표에는 <b>부가세가 없다</b> —
+ * 부가세는 판매 전표가 매긴다. 0 으로 채워 그리면 "부가세 0원" 이 되어, 과세 거래인데
+ * 면세처럼 읽히는 종이가 나간다. 대신 우리가 <b>아는 값</b>인 출하금액 합계는 머리 항목에
+ * 적는다 — 없는 값을 지어내지 않으면서 아는 값은 버리지 않는다.
+ */
+async function printShipOrder(s: Shipment, company: DocParty | null) {
+  await printDocuments([{
+    title: '출하지시서',
+    docNo: s.shipNo,
+    docDate: s.shipDate,
+    hideAmounts: true,
+    supplier: company ? { ...company, label: '지시자' } : { label: '지시자', name: '(회사정보 미등록)' },
+    customer: { label: '납품처', name: s.partnerName },
+    extra: [
+      { label: '출하예정일', value: s.dueDate },
+      { label: '출하창고', value: s.warehouseName },
+      { label: '근거주문', value: s.salesOrderNo },
+      { label: '담당자', value: s.employeeName },
+      { label: '연락처', value: s.contact },
+      { label: '배송지', value: [s.postalCode, s.address].filter(Boolean).join(' ') },
+      { label: '진행상태', value: s.statusName },
+      { label: '금액', value: s.totalAmount.toLocaleString('ko-KR') },
+    ],
+    remark: s.remark,
+    lines: s.lines.map((l) => ({
+      itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
+      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      remark: l.remark,
+    })),
+    footNote: '위와 같이 출하하여 주시기 바랍니다.',
+  }])
+}
+
 export default function ShipmentOrderPage() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  /* 인쇄물 머리의 지시자 칸. 회사정보를 한 번만 받아 둔다. */
+  const [company, setCompany] = useState<DocParty | null>(null)
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
   const [items, setItems] = useState<Item[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -563,7 +603,9 @@ export default function ShipmentOrderPage() {
               고친 것: (1) 출하번호와 출하일을 <b>두 칸</b>으로 갈라 두었다 → [일자-No.]
               한 칸, (2) 이름 넷 — [출하창고]→[창고명] · [품목]→[품목명(요약)] ·
               [수량]→[수량합계] · [상태]→[진행상태].
-              [인쇄]는 원본이 줄마다 두는 열인데 우리는 화면 위 [인쇄] 하나로 낸다.
+              <b>[인쇄]는 원본이 줄마다 두는 열이다</b> — 화면 위 [인쇄] 하나로 갈음하고
+              있었는데, 그건 목록을 통째로 찍는 버튼이라 <b>한 건을 집어 찍을 수가 없었다.</b>
+              이번에 줄마다 달았다.
               [근거주문]·[출하예정일]·[거래처]·[금액]·[연락처]·[적요]·[처리]는 우리 열이다.
             */}
             <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th>
@@ -571,11 +613,12 @@ export default function ShipmentOrderPage() {
             <th style={{ textAlign: 'right' }}>수량합계</th><th style={{ textAlign: 'right' }}>금액</th>
             <th style={{ width: 110 }}>연락처</th><th style={{ width: 150 }}>적요</th>
             <th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
@@ -604,6 +647,10 @@ export default function ShipmentOrderPage() {
                 {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
                 {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
                 <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="no-ec" onClick={() => printShipOrder(s, company)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
             </tr>
           ))}
