@@ -3216,5 +3216,78 @@
    "processName"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/Stock.java"
+ },
+ "생산입고/소모현황 I|보내는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "private Warehouse parent"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|받는창고계층그룹": {
+  "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
+  "absent": [
+   "WarehouseGroup",
+   "private Warehouse parent"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|생산품목계층그룹": {
+  "claim": "품목그룹 위에 그룹을 두지 않는다 — 평면이다",
+  "absent": [
+   "ItemGroupTree",
+   "parentItemGroup"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|소모품목계층그룹": {
+  "claim": "품목그룹 위에 그룹을 두지 않는다 — 평면이다",
+  "absent": [
+   "ItemGroupTree",
+   "parentItemGroup"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|생산품목그룹2": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|생산품목그룹3": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|소모품목그룹2": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|소모품목그룹3": {
+  "claim": "그룹 축이 하나뿐이다",
+  "absent": [
+   "itemGroup2",
+   "itemGroup3"
+  ],
+  "in": "backend"
+ },
+ "생산입고/소모현황 I|오더관리번호": {
+  "claim": "사내 생산이라 근거가 될 오더가 없다",
+  "absent": [
+   "salesOrder",
+   "purchaseOrder",
+   "sourceOrder"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
  }
 }

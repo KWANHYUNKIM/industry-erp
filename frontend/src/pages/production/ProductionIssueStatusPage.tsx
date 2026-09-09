@@ -26,9 +26,18 @@ import { useCondPickers } from '../../utils/useCondPickers'
  *   품목별 — 품목마다 입고합·소모합. 반제품은 <b>양쪽에 다 뜬다</b>(만들어서 다시 쓰는 것),
  *            그게 이 보기의 쓸모다
  *
- * <b>주의:</b> E040415 자체의 조건 판은 실측하지 못했다(원본 세션 접근 불가).
- * 같은 출력물 묶음에서 실측한 조건 모양(구분 · 일자 구간 기본 금월(~오늘) · 창고 · 품목)을
- * 따랐다. 원본을 다시 열면 대조할 것.
+ * <b>2026-09-09 원본 조건 판을 드디어 열어 쟀다</b>(그때까지는 못 봐서 같은 묶음의
+ * 다른 화면 모양을 따르고 있었다). <b>서른다섯 칸</b>이다:
+ * 구분 · <b>기준일자</b> · 단가표시 · 창고 · 창고계층그룹 · 보내는창고 · 보내는창고계층그룹 ·
+ * 받는창고 · 받는창고계층그룹 · 생산품목 · <b>생산품목구분</b> · 생산품목그룹1~3 ·
+ * 생산품목계층그룹 · 소모품목 · <b>소모품목구분</b> · 소모품목그룹1~3 · 소모품목계층그룹 ·
+ * 담당자 · 오더관리번호 · 프로젝트 · 프로젝트그룹1~2 · 적요 · 최초작성자 · 최종수정자 ·
+ * 양식 · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+ * [구분] 기본값은 <b>거래별</b>, [단가표시]는 생산·소모 양쪽 다 <b>입고단가</b>,
+ * [기준일자]는 <b>금월(~오늘)</b> 이다.
+ *
+ * <p>이 계정에는 생산입고 자료가 금월·전월 모두 없어 <b>격자가 비어 있었다</b> —
+ * 열 이름과 차례는 쟀고 칸의 정렬은 못 쟀다(대조표에 '?'). 지어내지 않는다.
  */
 /**
  * 원본 [구분] 실측(사본 · 생산입고/소모현황 I):
@@ -73,6 +82,16 @@ interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  /*
+   * <b>여기 넷은 <code>ProductionResponse</code> 가 진작 싣고 있었는데 이 화면만
+   * 받아 두지 않았다.</b> 그래서 원본 조건 [보내는창고]·[프로젝트]·[적요]·[최초작성자]를
+   * "우리에겐 그 값이 없다" 고 미뤄 두고 있었다 — 없던 게 아니라 안 읽고 있었다
+   * (생산입고현황은 같은 응답으로 진작 넷을 다 걸고 있다).
+   */
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
+  projectName: string | null
+  note: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
@@ -118,6 +137,19 @@ export default function ProductionIssueStatusPage() {
      * 걸려서, "이 완제품을 만들 때 이 자재를 얼마나 썼나" 를 두 조건으로 좁힐 수가 없었다.
      */
     product: '', material: '',
+    /*
+     * 원본 조건 차례는 [생산품목] 바로 다음이 <b>[생산품목구분]</b>, [소모품목] 다음이
+     * <b>[소모품목구분]</b> 이다(2026-09-09 실측). 품목구분은 품목 마스터가 진작 들고
+     * 있는 값인데(<code>categoryName</code>), 이 화면은 그것으로 거를 수가 없었다 —
+     * "완제품만" "원자재만" 으로 좁히려면 품목을 하나씩 골라야 했다.
+     */
+    productCat: '', materialCat: '',
+    /* 원본 [보내는창고]·[받는창고] — 우리 [창고]는 둘 중 어느 쪽이든 거는 우리 것이다. */
+    fromWh: '', toWh: '',
+    /* 원본 [생산품목그룹1]·[소모품목그룹1]. 품목그룹은 품목 마스터에 붙는 값이다. */
+    productGroup: '', materialGroup: '',
+    /* 원본 [프로젝트]·[적요]·[최초작성자]. 셋 다 응답에 있었다. */
+    project: '', note: '', author: '',
     /** 원본 [담당자]. 값은 사원명이고 전표에는 id 만 있어 사원 목록으로 잇는다. */
     manager: '',
   })
@@ -161,6 +193,17 @@ export default function ProductionIssueStatusPage() {
     || p.productName.includes(cond.item) || p.productCode.includes(cond.item)
     || p.materials.some((m) => m.componentName.includes(cond.item) || m.componentCode.includes(cond.item))
 
+  /** 품목 id → 품목구분. 원본 [생산품목구분]·[소모품목구분]이 쓰는 축이다. */
+  const catOf = useMemo(
+    () => new Map(items.filter((i) => i.categoryName).map((i) => [i.id, i.categoryName as string])),
+    [items])
+  const catOptions = useMemo(() => [...new Set(catOf.values())].sort(), [catOf])
+  /** 품목 id → 품목그룹1. 원본 [생산품목그룹1]·[소모품목그룹1]이 쓰는 축이다. */
+  const groupOf = useMemo(
+    () => new Map(items.filter((i) => i.itemGroupName).map((i) => [i.id, i.itemGroupName as string])),
+    [items])
+  const groupOptions = useMemo(() => [...new Set(groupOf.values())].sort(), [groupOf])
+
   /** 사원 id → 이름. */
   const nameOfEmployee = new Map(
     pickers.employees.filter((e) => e.id != null).map((e) => [e.id as number, e.name]))
@@ -177,6 +220,20 @@ export default function ProductionIssueStatusPage() {
       || p.productName.includes(cond.product) || p.productCode.includes(cond.product))
     .filter((p) => !cond.material
       || p.materials.some((m) => m.componentName.includes(cond.material) || m.componentCode.includes(cond.material)))
+    /* 원본 [생산품목구분]·[소모품목구분]. 품목 마스터의 품목구분으로 거른다. */
+    .filter((p) => !cond.productCat || catOf.get(p.productId) === cond.productCat)
+    .filter((p) => !cond.materialCat
+      || p.materials.some((m) => catOf.get(m.componentId) === cond.materialCat))
+    /* 원본 [생산품목그룹1]·[소모품목그룹1]. */
+    .filter((p) => !cond.productGroup || groupOf.get(p.productId) === cond.productGroup)
+    .filter((p) => !cond.materialGroup
+      || p.materials.some((m) => groupOf.get(m.componentId) === cond.materialGroup))
+    /* 원본 [보내는창고]·[받는창고]. 생산입고는 자재가 나간 창고와 완제품이 든 창고가 다르다. */
+    .filter((p) => !cond.fromWh || String(p.fromWarehouseId ?? '') === cond.fromWh)
+    .filter((p) => !cond.toWh || String(p.warehouseId) === cond.toWh)
+    .filter((p) => !cond.project || (p.projectName ?? '').includes(cond.project))
+    .filter((p) => !cond.note || (p.note ?? '').includes(cond.note))
+    .filter((p) => !cond.author || (p.createdBy ?? '') === cond.author)
     .sort((a, b) => (a.productionDate < b.productionDate ? 1 : -1))
 
   /**
@@ -337,7 +394,11 @@ export default function ProductionIssueStatusPage() {
 
   const reset = () => {
     setMode('거래별')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '', material: '', manager: '' })
+    setCond({
+      from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '',
+      material: '', manager: '', productCat: '', materialCat: '',
+      fromWh: '', toWh: '', productGroup: '', materialGroup: '', project: '', note: '', author: '',
+    })
   }
 
   return (
@@ -357,7 +418,7 @@ export default function ProductionIssueStatusPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         view={view} onViewChange={setView}
-        dateLabel="생산일자"
+        dateLabel="기준일자"
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -389,21 +450,77 @@ export default function ProductionIssueStatusPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/* 원본 차례: [창고] 다음이 [보내는창고] · [받는창고] 다(계층그룹은 우리에게 없다). */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={cond.fromWh} onChange={(v) => setC({ fromWh: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={cond.toWh} onChange={(v) => setC({ toWh: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
         {/* 원본 조건은 [생산품목]과 [소모품목]이 따로다. 위 [품목]은 어느 쪽이든 거는 우리 것이다. */}
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.product} onChange={(v) => setC({ product: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="생산품목구분">
+          <select className="ec-input" style={{ width: 140 }} value={cond.productCat}
+                  onChange={(e) => setC({ productCat: e.target.value })}>
+            <option value="">전체</option>
+            {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="생산품목그룹1" pick>
+          <CodePickerField label="생산품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.productGroup} onChange={(v) => setC({ productGroup: v })}
+                           items={groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="소모품목" pick>
           <CodePickerField label="소모품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.material} onChange={(v) => setC({ material: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="소모품목구분">
+          <select className="ec-input" style={{ width: 140 }} value={cond.materialCat}
+                  onChange={(e) => setC({ materialCat: e.target.value })}>
+            <option value="">전체</option>
+            {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="소모품목그룹1" pick>
+          <CodePickerField label="소모품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.materialGroup} onChange={(v) => setC({ materialGroup: v })}
+                           items={groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
                            value={cond.manager} onChange={(v) => setCond({ ...cond, manager: v })}
                            items={pickers.employees} />
+        </EcCond>
+        {/* 원본 차례: [담당자] · (오더관리번호) · [프로젝트] · (프로젝트그룹1/2) · [적요] · [최초작성자]. */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" style={{ width: 200 }} value={cond.note}
+                 onChange={(e) => setC({ note: e.target.value })} placeholder="전체" />
+        </EcCond>
+        {/*
+          원본은 [담당자](전표의 담당 사원)와 [최초작성자](만든 계정)를 <b>따로</b> 묻는다 —
+          생산입고현황에서 이미 갈라 둔 자리다.
+        */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="작업지시번호">
           <input className="ec-input" placeholder="WO-…" value={cond.orderNo}
