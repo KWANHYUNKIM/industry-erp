@@ -118,6 +118,17 @@ interface Slip {
  * 아예 없어 그 칸을 만들지 않았으므로 맞출 자리도 없다.
  */
 const initP = periodOf('금월(~오늘)')!
+/*
+ * <b>일괄회계반영은 [전월]로 열린다</b>(2026-09-09 E040215 실측 — 오늘이 09-09 인데
+ * 달 스핀박스가 08~08 이었다). 반영은 <b>지난달 장부를 닫는</b> 일이라 그렇다.
+ *
+ * <p>이 한 파일이 원본 넷(판매·구매 일괄회계반영, 회계미반영현황 판매·구매)을 겸하는데
+ * <b>라우트가 하나라</b> 둘 다 맞출 수가 없었다. 이제 메뉴가 <code>?view=</code> 로
+ * 어느 쪽으로 들어왔는지 알려 준다 — <code>?kind=</code> 가 판매/구매를 가르는 것과 같다.
+ * 기간뿐 아니라 <b>같은 자리를 원본이 달리 부르는 이름</b>도 이것으로 갈린다
+ * (일괄회계반영은 [작성자], 회계미반영현황은 [최초작성자]).
+ */
+const initBatch = periodOf('전월')!
 
 export default function AccountingReflectionPage() {
   /** 원본 [매입전표 I]·[매출전표 I] — 일반전표입력으로 넘긴다. */
@@ -133,6 +144,9 @@ export default function AccountingReflectionPage() {
   const [signBox, setSignBox] = useState(false)
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+  /** 어느 원본으로 들어왔나. 메뉴가 <code>?view=unposted</code> 로 알려 준다. */
+  const view: 'batch' | 'unposted' = params.get('view') === 'unposted' ? 'unposted' : 'batch'
+  const initCond = view === 'unposted' ? initP : initBatch
   /*
    * 원본은 <b>거래처별</b>로 열린다. 회계반영은 거래처 단위로 묶어서 하는 일이라
    * 처음 보이는 판이 그 단위여야 한다 — 전표별로 열면 같은 거래처가 여러 줄로 흩어져
@@ -150,7 +164,7 @@ export default function AccountingReflectionPage() {
    * 조건을 안 만들면 열은 보이는데 그걸로 걸러낼 수가 없다.
    */
   const [cond, setCond] = useState({
-    from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
+    from: initCond.from, to: initCond.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
     warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
   })
@@ -256,11 +270,17 @@ export default function AccountingReflectionPage() {
   }
 
   // 두 메뉴가 같은 경로를 가리키므로 서로 오갈 때 컴포넌트가 다시 만들어지지 않는다.
-  useEffect(() => { setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales') }, [params])
+  useEffect(() => {
+    setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+    /* 화면이 다시 만들어지지 않으므로 기간도 그 원본의 기본값으로 돌려 준다. */
+    const p2 = params.get('view') === 'unposted' ? initP : initBatch
+    setC({ from: p2.from, to: p2.to })
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [params])
 
   const reset = () => {
     setCond({
-      from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
+      from: initCond.from, to: initCond.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
       warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
     })
@@ -547,8 +567,9 @@ export default function AccountingReflectionPage() {
           <input className="ec-input" value={specCond}
                  onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="최초작성자" pick>
-          <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"
+        {/* 원본이 화면마다 달리 부른다 — 일괄회계반영은 [작성자], 회계미반영현황은 [최초작성자]. */}
+        <EcCond label={view === 'batch' ? '작성자' : '최초작성자'} pick>
+          <CodePickerField label={view === 'batch' ? '작성자' : '최초작성자'} hideLabel width={140} emptyLabel="전체"
                            value={authorCond} onChange={setAuthorCond}
                            items={[...new Set(slips.map((s2) => s2.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
