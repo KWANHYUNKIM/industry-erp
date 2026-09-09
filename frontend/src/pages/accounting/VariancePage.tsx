@@ -95,7 +95,9 @@ export default function VariancePage() {
   const [withInactive, setWithInactive] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const { inactive, untracked } = useItemFlags()
+  const { inactive, untracked, categoryOf } = useItemFlags()
+  /* 원본 격자는 [품목명[규격]] 한 칸이다 — 규격은 줄에 없어 품목 마스터에서 잇는다. */
+  const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   /**
    * [품목구분]·[품목그룹1] — 둘 다 품목 마스터에 붙는 값이라 줄의 itemId 로 잇는다.
    * 네 갈래(원가비교집계표·재료비단가차이·소모수량차이·노무비/경비차이) 모두 품목별 줄이라
@@ -170,9 +172,36 @@ export default function VariancePage() {
   const nameOf = useMemo(() => new Map(items.map((i) => [i.id, { code: i.code, name: i.name }])), [items])
 
   // ── 원가비교집계표 (기존 표. 원본 이름으로)
+  /*
+   * 원본 <b>원가비교집계표</b>(2026-09-09 E040809 실측)는 단가만이 아니라
+   * <b>생산수량 · 표준금액 · 실제금액 · 차이</b>까지 낸다 — 단가 차이가 작아 보여도
+   * 많이 만든 품목이면 금액 차이는 크다. 그 넷을 만든다.
+   *
+   * <p><b>생산수량은 생산실적에서 그 달치를 더한다.</b> 실적이 없는 품목은 0 이 아니라
+   * <b>모른다</b>로 둔다(null) — 0 으로 채우면 금액도 차이도 0 이 되어
+   * <b>단가가 어긋난 사실이 화면에서 사라진다</b>.
+   */
+  const producedOf = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const pr of productions) {
+      const key = pr.productId + '|' + pr.productionDate.slice(0, 7)
+      m.set(key, (m.get(key) ?? 0) + pr.producedQty)
+    }
+    return m
+  }, [productions])
   const compareRows = costs
     .filter((r) => inPeriod(r.period))
     .filter((r) => hit(r.itemId, r.itemCode, r.itemName))
+    .map((r) => {
+      const qty = producedOf.get(r.itemId + '|' + r.period) ?? null
+      return {
+        ...r,
+        producedQty: qty,
+        stdAmount: qty === null ? null : r.standardTotal * qty,
+        actAmount: qty === null ? null : r.actualTotal * qty,
+        diffAmount: qty === null ? null : r.variance * qty,
+      }
+    })
 
   // ── 재료비단가차이: 그 기간 실제 매입 가중평균 vs 품목 기준단가
   const priceRows = useMemo(() => {
@@ -327,27 +356,56 @@ export default function VariancePage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
+              {/*
+                <b>차이분석(E040809) [구분]=원가비교집계표 2026-09-09 원본 격자 실측</b> —
+                [품목코드 · 품목명[규격] · 품목구분(세트포함) · <b>생산공정명</b> ·
+                생산수량 · 표준단가 · 표준금액 · 실제단가 · 실제금액 · 차이] 열이다.
+                고친 이름 셋: [품목명]→[품목명[규격]] · [표준원가]→<b>[표준단가]</b> ·
+                [실제원가]→<b>[실제단가]</b>(같은 값이다 — 원본 이름을 쓴다).
+                만든 넷: <b>생산수량 · 표준금액 · 실제금액 · 차이</b>.
+                <b>[차이금액]을 [차이]로 바꾼 것이 아니다</b> — 원본 [차이]는 <b>금액</b> 차이라
+                단가 차이와 다른 값이다. 단가 차이는 [차이율(%)] 옆에 그대로 둔다.
+                [생산공정명]은 못 만든다(실제원가현황과 같은 이유 — 우리 재고는 창고 단위다).
+                [기준월]·[차이율(%)]은 우리 열이다.
+              */}
               <th style={{ width: 90 }}>품목코드</th>
-              <th>품목명</th>
+              <th>품목명[규격]</th>
+              <th style={{ width: 80 }}>품목구분(세트포함)</th>
               <th style={{ width: 80 }}>기준월</th>
-              <th style={{ textAlign: 'right' }}>표준원가</th>
-              <th style={{ textAlign: 'right' }}>실제원가</th>
-              <th style={{ textAlign: 'right' }}>차이금액</th>
+              <th style={{ textAlign: 'right' }}>생산수량</th>
+              <th style={{ textAlign: 'right' }}>표준단가</th>
+              <th style={{ textAlign: 'right' }}>표준금액</th>
+              <th style={{ textAlign: 'right' }}>실제단가</th>
+              <th style={{ textAlign: 'right' }}>실제금액</th>
+              <th style={{ textAlign: 'right' }}>차이</th>
               <th style={{ textAlign: 'right' }}>차이율(%)</th>
             </tr>
           </thead>
           <tbody>
             {compareRows.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : compareRows.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                <td>{r.itemName}</td>
+                <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
+                <td style={{ color: '#5a626e' }}>{categoryOf(r.itemId)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
+                {/* 생산실적이 없으면 0 이 아니라 '—' 다 — 0 으로 채우면 차이가 사라진다. */}
+                <td style={{ textAlign: 'right', color: r.producedQty === null ? '#c5cbd3' : undefined }}>
+                  {r.producedQty === null ? '—' : num(r.producedQty)}
+                </td>
                 <td style={{ textAlign: 'right' }}>{num(r.standardTotal)}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                  {r.stdAmount === null ? '—' : num(r.stdAmount)}
+                </td>
                 <td style={{ textAlign: 'right' }}>{num(r.actualTotal)}</td>
-                <td style={{ textAlign: 'right', color: varColor(r.variance) }}>{num(r.variance)}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                  {r.actAmount === null ? '—' : num(r.actAmount)}
+                </td>
+                <td style={{ textAlign: 'right', color: varColor(r.variance) }}>
+                  {r.diffAmount === null ? '—' : num(r.diffAmount)}
+                </td>
                 <td style={{ textAlign: 'right', color: varColor(r.variance) }}>{r.varianceRate}</td>
               </tr>
             ))}
@@ -355,11 +413,16 @@ export default function VariancePage() {
           {compareRows.length > 0 && (
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({compareRows.length}품목)</td>
+                <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({compareRows.length}품목)</td>
+                {/* 생산수량 합 — 모르는 줄(실적 없음)은 빼고 더한다. */}
+                <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + (r.producedQty ?? 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + r.standardTotal, 0))}</td>
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(compareRows.reduce((n, r) => n + (r.stdAmount ?? 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + r.actualTotal, 0))}</td>
-                <td style={{ textAlign: 'right', color: varColor(compareRows.reduce((n, r) => n + r.variance, 0)) }}>
-                  {num(compareRows.reduce((n, r) => n + r.variance, 0))}
+                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(compareRows.reduce((n, r) => n + (r.actAmount ?? 0), 0))}</td>
+                {/* 원본 [차이]는 금액 차이다 — 합계도 금액으로 더한다. */}
+                <td style={{ textAlign: 'right', color: varColor(compareRows.reduce((n, r) => n + (r.diffAmount ?? 0), 0)) }}>
+                  {num(compareRows.reduce((n, r) => n + (r.diffAmount ?? 0), 0))}
                 </td>
                 <td></td>
               </tr>
