@@ -58,6 +58,26 @@ const initP = periodOf('전월+금월')!
 
 export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
+  /**
+   * 원본 조건 <b>[단가표시]</b>(차례는 [대표품목으로 합산] 과 [기타] 사이).
+   *
+   * <p>여태 "우리 재고이동은 단가를 하나만 들고 있어 고를 대상이 없다"고 적고 안 만들었다.
+   * <b>절반만 맞는 말이었다</b> — 전표에서 넘어온 그 단가 말고도 품목 마스터가
+   * <b>판매단가(<code>unitPrice</code>)·구매단가(<code>purchasePrice</code>)</b> 를 들고 있고,
+   * 이 화면은 품목 마스터를 이미 통째로 받아 두고 있다. 원본이 [단가표시]로 고르게 하는 것이
+   * 바로 그 축이다("이 수불을 판매단가로 보면 얼마인가").
+   *
+   * <p>원본의 셋 가운데 <b>[기타단가]</b> 는 우리 품목에 그 칸이 없어 못 만든다.
+   * 대신 우리 기본값인 <b>[전표단가]</b>(그 거래에 실제로 매겨진 단가)를 앞에 둔다 —
+   * 그게 없으면 "실제로 얼마에 오갔나" 를 볼 방법이 사라진다.
+   *
+   * <p><b>원본 기본값은 아직 못 쟀다</b>(2026-09-09 이카운트 세션 만료). 우리 기본은
+   * 여태 쓰던 전표단가 그대로 둔다 — 다음 실측에서 확인할 것.
+   */
+  /** 품목 id → 마스터. [단가표시]가 고른 단가를 여기서 뽑는다. */
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
+  const PRICE_BASES = ['전표단가', '판매단가', '구매단가'] as const
+  const [priceBasis, setPriceBasis] = useState<typeof PRICE_BASES[number]>('전표단가')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<StockTransaction[]>([])
   /** 조건에 걸린 전체 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
@@ -222,9 +242,9 @@ export default function StockLedgerPage() {
       {/*
         원본 재고수불부(E040702)의 조건 판. 기준일자는 구간이고 빠른선택은 여덟 개다
         (금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일).
-        원본에는 '단가표시'가 있어 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
-        우리 재고이동은 단가를 하나만 들고 있어(전표에서 넘어온 그 값) 고를 대상이 없다.
-        그래서 그 조건은 넣지 않고 표에는 그 단가를 그대로 보여 준다.
+        원본 [단가표시]는 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
+        우리는 그중 둘(판매·구매)을 품목 마스터에서 대고, 앞에 [전표단가]를 하나 더 둔다.
+        [기타단가]는 우리 품목에 그 칸이 없다.
       */}
       <EcStatusPanel
         from={filters.from} to={filters.to}
@@ -270,6 +290,15 @@ export default function StockLedgerPage() {
           원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
           [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
         */}
+        {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
+        <EcCond label="단가표시">
+          <div className="ec-pills">
+            {PRICE_BASES.map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${priceBasis === b ? ' active' : ''}`}
+                      onClick={() => setPriceBasis(b)}>{b}</button>
+            ))}
+          </div>
+        </EcCond>
         <EcCond label="기타">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <label style={{ fontSize: 12 }}>
@@ -372,7 +401,16 @@ export default function StockLedgerPage() {
           ) : shown.map((r, i) => {
             const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
             const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
-            const amount = r.unitPrice != null ? Math.abs(r.quantityChange) * r.unitPrice : null
+            /*
+             * 원본 [단가표시]가 고른 단가로 [단가]·[금액]을 낸다. 품목 마스터에 그 단가를
+             * 안 정했으면(0) <b>모른다</b>로 둔다 — 0 으로 쓰면 금액이 0 이 되어
+             * "값이 없는 것" 과 "공짜로 오간 것" 이 화면에서 같아진다.
+             */
+            const master = priceBasis === '전표단가' ? null : itemById.get(r.itemId)
+            const basePrice = priceBasis === '전표단가' ? r.unitPrice
+              : priceBasis === '판매단가' ? (master?.unitPrice || null)
+                : (master?.purchasePrice || null)
+            const amount = basePrice != null ? Math.abs(r.quantityChange) * basePrice : null
             const bal = runningById.get(r.id)
             const c = TYPE_COLOR[r.type]
             return (
@@ -388,7 +426,7 @@ export default function StockLedgerPage() {
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{basePrice != null ? num(basePrice) : ''}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
               </tr>
             )
