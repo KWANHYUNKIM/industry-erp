@@ -92,18 +92,41 @@ export default function StockAnalysisPage() {
    */
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
   const [date, setDate] = useState(periodOf('금일')!.to)
+  /**
+   * 원본 격자의 마지막 열 <b>[미판매]</b>.
+   *
+   * <p><b>2026-09-09 원본에서 뜻을 가렸다.</b> 머리만 재 두고 그 칸이 수량인지 금액인지
+   * 몰라 비워 두고 있었는데, 자료 줄을 읽어 <b>미판매현황(E040212)과 맞춰 봤다</b> —
+   * 재고잔량분석표의 [미판매]가 AQD 19 · AQD 컨트롤러 4 · AQD 실외 온습도 센서 1 ·
+   * AQD 펌프 4 였고, 미판매현황의 [미판매수량]이 AQD 3+16=19 · 4 · 1 · 4 로
+   * <b>글자까지 같았다</b>. 즉 <b>그 품목의 미판매수량 합</b>이다(금액이 아니다).
+   * 정렬도 실측대로 <b>우</b>다.
+   *
+   * <p>287줄 중 값이 있는 줄은 <b>넷뿐</b>이었다 — 수주가 남아 있는 품목만 찍힌다.
+   */
+  const [unsold, setUnsold] = useState<{ itemId: number; unsoldQty: number }[]>([])
+  const unsoldByItem = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const u of unsold) m.set(u.itemId, (m.get(u.itemId) ?? 0) + u.unsoldQty)
+    return m
+  }, [unsold])
   const today = ymd(new Date())
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, i, w, b] = await Promise.all([
+      const [s, i, w, b, u] = await Promise.all([
         api.get<StockRow[]>('/stock', { params: { asOf: date } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
+        /*
+         * 원본 [미판매]. 기간을 안 건다 — 아래 실측대로 <b>아직 열려 있는 수주 잔량 전부</b>다.
+         */
+        api.get<{ itemId: number; unsoldQty: number }[]>('/sales-orders/unsold'),
       ])
       setStocks(s.data); setItems(i.data); setWarehouses(w.data); setBuys(b.data)
+      setUnsold(u.data)
     } catch (err) { setError(extractErrorMessage(err)); setStocks([]) }
     finally { setLoading(false) }
   }
@@ -258,6 +281,10 @@ export default function StockAnalysisPage() {
               즉 <b>지금 있는 재고가 언제 들어온 것인지</b>를 최근 넉 달로 갈라 보여 준다
               (달 이름은 [기준일자]에 따라 움직인다). 우리 표에는 그 다섯 칸과 [미판매]가
               없다 — pending-columns.json 에 적었다.
+              <b>[미판매]는 2026-09-09 에 만들었다</b> — 무엇을 세는 칸인지 몰라 비워 두었는데,
+              미판매현황과 자료를 맞춰 <b>그 품목의 미판매수량 합</b>임을 가렸다(위 상태 주석).
+              재고수량현황 다섯 칸은 아직 없다 — 재고가 <b>언제 들어온 것인지</b>를 알려면
+              입고 레이어를 쌓아야 하는데 우리 재고는 수량 하나로만 든다.
               고친 둘: 품목명과 규격을 <b>한 칸</b>으로 합쳤고(원본은 대괄호로 붙인다),
               [현재고]를 <b>[재고수량]</b> 으로 맞췄다 — 재고현황·재고변동표와 같은 이름이다.
               [단위]·[안전재고]·[과부족]·[상태]·[단가]·[재고금액]은 우리 열이다.
@@ -271,13 +298,14 @@ export default function StockAnalysisPage() {
             <th style={{ textAlign: 'center', width: 60 }}>상태</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>재고금액</th>
+            <th style={{ width: 90, textAlign: 'right' }}>미판매</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
               {stocks.length === 0 ? '재고 자료가 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
@@ -298,6 +326,10 @@ export default function StockAnalysisPage() {
                 </td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.value)}</td>
+                {/* 수주가 남은 품목만 찍는다 — 0 을 찍으면 287줄이 전부 0 으로 덮인다(원본도 비운다). */}
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>
+                  {unsoldByItem.get(r.itemId) ? won(unsoldByItem.get(r.itemId)!) : ''}
+                </td>
               </tr>
             )
           })}
@@ -307,6 +339,9 @@ export default function StockAnalysisPage() {
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={9} style={{ textAlign: 'right' }}>재고금액 합계</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.value)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>
+                {won(rows.reduce((n, r) => n + (unsoldByItem.get(r.itemId) ?? 0), 0))}
+              </td>
             </tr>
           </tfoot>
         )}
