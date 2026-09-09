@@ -41,6 +41,22 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * 우리 열두 달 표는 <b>원본에 없는 우리 표</b>다 — 지우지 않고 그대로 둔다.
  */
 
+/**
+ * 생산입고 한 줄. 원본 [종] 격자의 <b>생산입고현황</b> 덩어리가 이것을 센다.
+ * 생산전표에는 <b>금액이 없다</b> — 만든 수량만 남는다.
+ */
+interface ProductionRow {
+  productionDate: string; producedQty: number
+  warehouseName: string; projectName: string | null
+  productId: number; productName: string; productCategoryName: string | null
+}
+/** 창고이동 한 줄. 이쪽도 수량만 있다(옮기는 것이라 값이 붙지 않는다). */
+interface TransferRow {
+  transferDate: string; quantity: number
+  fromWarehouseName: string; toWarehouseName: string; projectName: string | null
+  itemId: number; itemName: string; itemCategoryName: string | null
+}
+
 interface MonthRow {
   month: number
   sale: number; saleCum: number
@@ -55,6 +71,8 @@ export default function MonthlyCumulativePage() {
   const [year, setYear] = useState<number>(thisYear())
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [productions, setProductions] = useState<ProductionRow[]>([])
+  const [transfers, setTransfers] = useState<TransferRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /*
@@ -89,8 +107,17 @@ export default function MonthlyCumulativePage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b] = await Promise.all([api.get<SalesDoc[]>('/sales'), api.get<PurchaseDoc[]>('/purchases')])
+      /*
+       * 기간을 안 걸고 통째로 받는다 — 누계는 [기간]·[월]·[년] 세 범위를 한꺼번에
+       * 세야 해서, 서버에 한 범위를 걸면 나머지 둘이 못 선다(판매·구매도 그래서 통째다).
+       */
+      const [s, b, pr, tr] = await Promise.all([
+        api.get<SalesDoc[]>('/sales'), api.get<PurchaseDoc[]>('/purchases'),
+        api.get<ProductionRow[]>('/productions'),
+        api.get<TransferRow[]>('/stock-transfers'),
+      ])
       setSales(s.data); setPurchases(b.data)
+      setProductions(pr.data); setTransfers(tr.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -126,10 +153,19 @@ export default function MonthlyCumulativePage() {
    * <b>원본 [종] 격자</b> — [(현황 이름) · 구분 · 기간 · 수량 · 공급가액 · 부가세 · 합계(금액)].
    * 현황 하나가 세 줄([기간 누계]·[월 누계]·[년 누계])을 rowSpan 으로 묶는다.
    *
-   * <p>지금 채우는 것은 <b>판매현황 · 구매현황</b> 둘이다. 원본은 여기에
-   * <b>생산입고현황 · 창고이동현황</b> 두 덩어리가 더 붙는데, 이 화면이 그 자료를
-   * 안 받는다(판매·구매만 받는다) — 지어내지 않고 <b>줄을 안 그린다.</b>
-   * 그 둘을 받아 오면 같은 함수에 덩어리만 더하면 된다.
+   * <p><b>네 덩어리를 다 채운다</b>(2026-09-09). 앞서 못 그리던 <b>생산입고현황 ·
+   * 창고이동현황</b>은 값이 없어서가 아니라 이 화면이 <code>/productions</code>·
+   * <code>/stock-transfers</code> 를 안 받아서였다.
+   *
+   * <p>다만 그 둘은 <b>[공급가액]·[부가세]·[합계(금액)]가 빈칸</b>이다 —
+   * 생산전표도 이동전표도 <b>금액 칸이 없다</b>(만든 수량, 옮긴 수량만 남는다).
+   * 생산입고현황·창고이동현황 화면 자체가 수량만 보여 주는 것과 같은 이유다.
+   * 없는 값을 취득원가로 곱해 채우면 <b>판매·구매의 공급가액과 뜻이 다른 숫자</b>가
+   * 같은 열에 서게 된다 — 지어내지 않고 비운다.
+   *
+   * <p>거르는 조건도 덩어리마다 <b>있는 것만</b> 건다. 생산·이동에는 거래처가 없어서
+   * [거래처]·[거래처그룹1]을 걸면 그 두 덩어리는 <b>0 이 된다</b> — 맞는 결과다
+   * (그 거래처와의 거래에 생산입고는 들어 있지 않다).
    */
   const cumRows = useMemo(() => {
     const monthFrom = to.slice(0, 8) + '01'
@@ -148,6 +184,21 @@ export default function MonthlyCumulativePage() {
       }
       return { qty, supply, vat }
     }
+    /*
+     * 전표에 거래처가 없는 덩어리(생산입고·창고이동)가 쓰는 규칙.
+     * 위 <code>keepDoc</code> 과 <b>같은 조건을 같은 뜻으로</b> 건다 — 창고·프로젝트·
+     * 품목·품목구분·품목그룹·관리항목. 거래처 조건이 걸려 있으면 아예 빠진다.
+     */
+    const keepStock = (r: { warehouse: string; project: string | null;
+                            itemId: number; itemName: string; category: string | null }) =>
+      !partner && !partnerGroup
+      && (!warehouse || r.warehouse.includes(warehouse))
+      && (!project || (r.project ?? '').includes(project))
+      && (!item || r.itemName.includes(item))
+      && (!category || (r.category ?? '') === category)
+      && (!itemGroup || mgmt.groupOf(r.itemId) === itemGroup)
+      && mgmt.hits([r.itemId], mgmtCond)
+
     return [
       ['판매현황', sales.filter(keepDoc).map((d) => ({
         date: d.saleDate, supply: d.supplyAmount, vat: d.vatAmount,
@@ -157,8 +208,22 @@ export default function MonthlyCumulativePage() {
         date: d.purchaseDate, supply: d.supplyAmount, vat: d.vatAmount,
         qty: d.lines.reduce((n, l) => n + l.quantity, 0),
       }))],
+      ['생산입고현황', productions.filter((p2) => keepStock({
+        warehouse: p2.warehouseName, project: p2.projectName,
+        itemId: p2.productId, itemName: p2.productName, category: p2.productCategoryName,
+      })).map((p2) => ({ date: p2.productionDate, supply: 0, vat: 0, qty: p2.producedQty }))],
+      /* 이동은 창고가 둘이다 — 나가는 쪽이든 들어오는 쪽이든 걸리면 센다. */
+      ['창고이동현황', transfers.filter((t) => keepStock({
+        warehouse: t.fromWarehouseName, project: t.projectName,
+        itemId: t.itemId, itemName: t.itemName, category: t.itemCategoryName,
+      }) || keepStock({
+        warehouse: t.toWarehouseName, project: t.projectName,
+        itemId: t.itemId, itemName: t.itemName, category: t.itemCategoryName,
+      })).map((t) => ({ date: t.transferDate, supply: 0, vat: 0, qty: t.quantity }))],
     ].map(([name, docs]) => ({
       name: name as string,
+      /* 금액이 있는 덩어리인가. 없는 쪽은 금액 칸을 <b>비워</b> 그린다(0 이 아니다). */
+      hasAmount: name === '판매현황' || name === '구매현황',
       lines: spans.map((sp) => ({
         gubun: sp.name,
         period: dash(sp.from, sp.to),
@@ -166,7 +231,8 @@ export default function MonthlyCumulativePage() {
       })),
     }))
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [sales, purchases, from, to, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
+  }, [sales, purchases, productions, transfers,
+    from, to, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
 
   const rows = useMemo<MonthRow[]>(() => {
     const saleByM = new Array(13).fill(0)
@@ -292,9 +358,9 @@ export default function MonthlyCumulativePage() {
       {/*
         <b>원본 [종] 격자</b>(2026-09-09 실측) — [(현황 이름) · 구분 · 기간 · 수량 ·
         공급가액 · 부가세 · 합계(금액)]. 현황 하나가 세 줄을 rowSpan 으로 묶는다.
-        지금 채우는 것은 <b>판매현황 · 구매현황</b> 둘이고, 원본에 더 있는
-        <b>생산입고현황 · 창고이동현황</b>은 이 화면이 그 자료를 안 받아 <b>줄을 안 그린다</b>
-        (지어내지 않는다 — 받아 오면 덩어리만 더하면 된다).
+        <b>네 덩어리를 다 그린다</b> — 판매현황 · 구매현황 · 생산입고현황 · 창고이동현황.
+        뒤 둘은 전표에 <b>금액 칸이 아예 없어</b> 수량만 차고 금액 칸은 <b>비운다</b>
+        (0 을 찍으면 "값이 0 원" 으로 읽힌다 — 값이 없는 것과 다르다).
       */}
       <table className="w-full text-left" style={{ marginBottom: 14 }}>
         <thead>
@@ -317,10 +383,10 @@ export default function MonthlyCumulativePage() {
               <td>{l.gubun}</td>
               <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{l.period}</td>
               <td style={{ textAlign: 'right' }}>{l.qty ? won(l.qty) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{l.supply ? won(l.supply) : ''}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{l.vat ? won(l.vat) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
+              <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>
-                {won(l.supply + l.vat)}
+                {g.hasAmount ? won(l.supply + l.vat) : ''}
               </td>
             </tr>
           )))}
