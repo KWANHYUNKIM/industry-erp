@@ -66,6 +66,12 @@ interface PriceRow {
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
   standard: number; count: number; quantity: number
   min: number; max: number; avg: number; latest: number; latestDate: string
+  /**
+   * 원본 [품목별] 격자의 <b>[판매단가(단순평균)]·[구매단가(단순평균)]</b> — 두 칸이 나란히 선다.
+   * 거래가 한쪽만 있으면 그쪽만 값이 있고 다른 쪽은 <b>null</b> 이다(0 이 아니다 —
+   * 0 으로 채우면 "공짜로 샀다" 와 "산 적이 없다" 가 화면에서 같아진다).
+   */
+  saleAvg: number | null; buyAvg: number | null
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -168,18 +174,33 @@ export default function PriceMovementPage() {
     // (date, itemId, spec, unit, name, price) 포인트 수집
     interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number; quantity: number }
     const pts: Pt[] = []
-    /* 품목별 요약은 한 갈래만 받는다 — 위 Mode 주석 참고. */
-    const docs = mode === 'SALE'
-      ? sales.filter(keepDoc).map((d) => ({ date: d.saleDate, lines: d.lines }))
-      : mode === 'PURCHASE'
-        ? purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
-        : []
-    for (const d of docs) {
-      if (!inPeriod(d.date)) continue
-      for (const l of d.lines) {
-        if (l.unitPrice == null) continue
-        if (!keepLine(l)) continue
-        pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, price: l.unitPrice, quantity: l.quantity })
+    const saleDocs = sales.filter(keepDoc).map((d) => ({ date: d.saleDate, lines: d.lines }))
+    const buyDocs = purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+    /**
+     * <b>[전체]는 판매·구매를 한 평균에 섞지 않는다.</b> 갈래마다 따로 더해 두었다가
+     * <b>두 칸으로 나란히</b> 낸다 — 원본 격자가 [판매단가(단순평균)]·[구매단가(단순평균)]
+     * 두 칸인 까닭이다. 여태 우리는 [전체]를 고르면 "섞으면 거짓이 된다" 며 빈 표를 냈는데,
+     * 섞지 않고 <b>가르면</b> 될 일이었다.
+     */
+    const sumOf = new Map<number, { sale: number[]; buy: number[] }>()
+    const add = (kind: 'sale' | 'buy', itemId: number, price: number) => {
+      const g = sumOf.get(itemId) ?? { sale: [], buy: [] }
+      g[kind].push(price)
+      sumOf.set(itemId, g)
+    }
+    const meanOf = (a: number[]) => (a.length === 0 ? null : Math.round(a.reduce((x, y) => x + y, 0) / a.length))
+    for (const [kind, list] of [['sale', saleDocs], ['buy', buyDocs]] as const) {
+      for (const d of list) {
+        if (!inPeriod(d.date)) continue
+        for (const l of d.lines) {
+          if (l.unitPrice == null) continue
+          if (!keepLine(l)) continue
+          add(kind, l.itemId, l.unitPrice)
+          /* 최저·최고·최근은 <b>고른 갈래</b>의 것만 쓴다 — 섞으면 뜻이 없다. */
+          if (mode === 'SALE' ? kind === 'sale' : mode === 'PURCHASE' ? kind === 'buy' : true) {
+            pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, price: l.unitPrice, quantity: l.quantity })
+          }
+        }
       }
     }
 
@@ -210,13 +231,18 @@ export default function PriceMovementPage() {
         avg: Math.round(sum / prices.length),
         latest: last.price,
         latestDate: last.date,
+        saleAvg: meanOf(sumOf.get(itemId)?.sale ?? []),
+        buyAvg: meanOf(sumOf.get(itemId)?.buy ?? []),
       })
     }
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
       .filter((r) => !pickedItem || r.itemName === pickedItem)
-      /* 원본 [기타]의 <b>변동없는단가포함</b> — 기본은 꺼짐이라 안 변한 품목은 뺀다. */
-      .filter((r) => withFlat || r.min !== r.max)
+      /*
+       * 원본 [기타]의 <b>변동없는단가포함</b> — 기본은 꺼짐이라 안 변한 품목은 뺀다.
+       * [전체]에서는 최저·최고를 안 내므로(갈래가 섞인다) 이 거르기도 걸지 않는다.
+       */
+      .filter((r) => mode === 'ALL' || withFlat || r.min !== r.max)
       .sort((a, b) => (b.max - b.min) - (a.max - a.min))
   }, [sales, purchases, items, priceById, mode, from, to, keyword, warehouse, partner, itemCond,
       partnerGroup, partnerMgr, category, itemGroup, project, employee, withFlat])
@@ -486,16 +512,27 @@ export default function PriceMovementPage() {
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
             <th style={{ textAlign: 'right' }}>표준단가</th>
             <th style={{ textAlign: 'right' }}>거래수</th>
+            {/*
+              <b>단가변동표(E040819) [구분]=품목별 원본 격자</b>의 두 칸이다 —
+              [판매단가(단순평균)] · [구매단가(단순평균)]. 이름에 붙은 괄호는
+              [단가기준]으로 고른 값이다(기본이 단순평균단가).
+              여태 [단가구분]=[전체]를 고르면 <b>빈 표에 안내문</b>만 냈다 — 판매와 구매를
+              한 평균에 섞으면 거짓이 되니까. 그런데 원본은 섞지 않고 <b>두 칸으로 가른다.</b>
+              가르면 될 일이었다.
+            */}
+            {mode === 'ALL' && <th style={{ textAlign: 'right' }}>판매단가(단순평균)</th>}
+            {mode === 'ALL' && <th style={{ textAlign: 'right' }}>구매단가(단순평균)</th>}
             {/* 원본 [기타]의 <b>수량표시</b> — 기본은 꺼짐이다. */}
             {showQty && <th style={{ textAlign: 'right' }}>수량</th>}
             {/* 원본 [단가기준]으로 켜고 끈다 — 처음엔 평균만 보인다. */}
-            {withMin && <th style={{ textAlign: 'right' }}>최저</th>}
-            {withMax && <th style={{ textAlign: 'right' }}>최고</th>}
-            {withAvg && <th style={{ textAlign: 'right' }}>평균</th>}
-            <th style={{ textAlign: 'right' }}>최근</th>
+            {/* 최저·최고·평균·최근·변동폭은 <b>한 갈래</b>일 때만 뜻이 있다. */}
+            {mode !== 'ALL' && withMin && <th style={{ textAlign: 'right' }}>최저</th>}
+            {mode !== 'ALL' && withMax && <th style={{ textAlign: 'right' }}>최고</th>}
+            {mode !== 'ALL' && withAvg && <th style={{ textAlign: 'right' }}>평균</th>}
+            {mode !== 'ALL' && <th style={{ textAlign: 'right' }}>최근</th>}
             {/* 원본 [기타]의 <b>단가등락폭표시</b> — 기본은 꺼짐인데 우리는 늘 그리고 있었다. */}
-            {showSwing && <th style={{ textAlign: 'right' }}>변동폭</th>}
-            <th style={{ textAlign: 'right' }}>최근vs표준</th>
+            {mode !== 'ALL' && showSwing && <th style={{ textAlign: 'right' }}>변동폭</th>}
+            {mode !== 'ALL' && <th style={{ textAlign: 'right' }}>최근vs표준</th>}
           </tr>
         </thead>
         <tbody>
@@ -503,9 +540,8 @@ export default function PriceMovementPage() {
             <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
-              {mode === 'ALL'
-                ? '[단가구분]을 판매단가 또는 매입단가로 골라 주세요 — 파는 값과 사는 값을 한 평균에 섞으면 거짓이 됩니다.'
-                : (mode === 'SALE' ? sales.length : purchases.length) === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
+              {(mode === 'ALL' ? sales.length + purchases.length : mode === 'SALE' ? sales.length : purchases.length) === 0
+                ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
             const range = r.max - r.min
@@ -520,14 +556,29 @@ export default function PriceMovementPage() {
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.standard)}</td>
                 <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.count}</td>
                 {showQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.quantity.toLocaleString()}</td>}
-                {withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
-                {withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
-                {withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
-                {showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>}
-                <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
-                  {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}
-                </td>
+                {/* 거래가 한쪽만 있으면 다른 쪽은 빈칸이다 — 0 으로 채우지 않는다. */}
+                {mode === 'ALL' && (
+                  <td style={{ textAlign: 'right', color: r.saleAvg == null ? '#c5cbd3' : undefined }}>
+                    {r.saleAvg == null ? '' : won(r.saleAvg)}
+                  </td>
+                )}
+                {mode === 'ALL' && (
+                  <td style={{ textAlign: 'right', color: r.buyAvg == null ? '#c5cbd3' : undefined }}>
+                    {r.buyAvg == null ? '' : won(r.buyAvg)}
+                  </td>
+                )}
+                {mode !== 'ALL' && withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
+                {mode !== 'ALL' && withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
+                {mode !== 'ALL' && withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
+                {mode !== 'ALL' && (
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
+                )}
+                {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>}
+                {mode !== 'ALL' && (
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
+                    {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}
+                  </td>
+                )}
               </tr>
             )
           })}
