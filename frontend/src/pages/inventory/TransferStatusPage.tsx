@@ -7,6 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { printDocuments } from '../../utils/printDocument'
+import { stockCostMap } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
@@ -84,6 +85,8 @@ export default function TransferStatusPage() {
   const pickers = useCondPickers(['items', 'projects', 'employees'])
   const [rows, setRows] = useState<Transfer[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /* 평가단가를 내는 재료. 품목 마스터의 구매단가와 실제 입고단가(구매전표)다. */
+  const [costById, setCostById] = useState<Map<number, number | null>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -132,8 +135,17 @@ export default function TransferStatusPage() {
     Promise.all([
       api.get<Transfer[]>('/stock-transfers', { params: { from: cond.from || undefined, to: cond.to || undefined } }),
       api.get<Warehouse[]>('/warehouses'),
+      /*
+       * 원본 [금액(수량*입고단가)] 을 내는 재료. 기간을 안 건다 —
+       * 이번 달에 안 샀다고 그 품목의 입고단가가 사라지면 안 된다.
+       */
+      api.get<{ id: number; purchasePrice?: number }[]>('/items'),
+      api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
     ])
-      .then(([t, w]) => { setRows(t.data); setWarehouses(w.data) })
+      .then(([t, w, it, pu]) => {
+        setRows(t.data); setWarehouses(w.data)
+        setCostById(stockCostMap(it.data, pu.data))
+      })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
@@ -198,7 +210,24 @@ export default function TransferStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, cond])
 
+  /**
+   * 원본의 <b>[금액(수량*입고단가)]</b>.
+   *
+   * <p>이름이 계산식 그대로다 — 전표에 적힌 <b>거래 금액이 아니라</b> 그 품목을
+   * <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다. 그래서 "창고이동에 단가를
+   * 안 매긴다" 는 것은 못 만드는 이유가 되지 않았다(예전에 그렇게 적어 두었다).
+   * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
+   * (<code>stockCostMap</code>: 마지막 입고단가 → 없으면 품목 구매단가).
+   *
+   * <p>단가를 모르는 품목은 <b>빈칸</b>이다 — 0 으로 채우면 "값이 0원" 으로 읽혀
+   * 모르는 것과 구별이 안 된다.
+   */
+  const amountOf = (itemId: number, qty: number) => {
+    const c = costById.get(itemId)
+    return c == null ? null : qty * c
+  }
   const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
+  const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantity) ?? 0), 0)
   const reset = () => {
     setMode('내역')
     setCond({
@@ -374,13 +403,17 @@ export default function TransferStatusPage() {
                   2026-09-09 원본(E040505) 격자 실측 — 이름 셋이 달랐다.
                   원본은 <b>출고창고명 · 입고창고명 · 품목명[규격]</b> 이다
                   (생산불출현황도 같은 이름을 쓴다 — 폐기현황만 [규격명] 이었다).
-                  [금액(수량*입고단가)]은 못 만든다 — 창고이동에 단가를 안 매긴다(예외에 적었다).
+                  <b>[금액(수량*입고단가)]은 이제 만든다.</b> 예전에 "창고이동에 단가를 안 매긴다"
+                  고 적어 두었는데, 그 칸은 이름이 계산식 그대로다 — 전표의 거래 금액이 아니라
+                  <b>그 품목을 얼마에 사 왔는지</b>로 수량을 환산한 값이다. 이동전표에 단가가
+                  없다는 것은 이 칸을 못 만드는 이유가 아니었다.
                 */}
                 <th>일자-No.</th>
                 <th>출고창고명</th>
                 <th>입고창고명</th>
                 <th>품목명[규격]</th>
                 <th style={{ textAlign: 'right' }}>수량</th>
+                <th style={{ width: 130, textAlign: 'right' }}>금액(수량*입고단가)</th>
                 <th>적요</th>
                 {/* 원본 창고이동조회의 마지막 열 [인쇄] — 그 한 건을 이동증으로 찍는다. */}
                 <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
@@ -388,9 +421,9 @@ export default function TransferStatusPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td style={{ textAlign: 'center', background: '#f3f3f3' }}>
@@ -406,6 +439,9 @@ export default function TransferStatusPage() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
+                  <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                    {amountOf(r.itemId, r.quantity) == null ? '' : num(amountOf(r.itemId, r.quantity)!)}
+                  </td>
                   <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => printTransfer(r)}
@@ -419,6 +455,7 @@ export default function TransferStatusPage() {
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalAmount)}</td>
                   <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>

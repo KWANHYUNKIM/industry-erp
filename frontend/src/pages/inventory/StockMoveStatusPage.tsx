@@ -6,6 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { stockCostMap } from '../../utils/stockValue'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -132,6 +133,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const [withZeroQty, setWithZeroQty] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
   const { untracked } = useItemFlags()
+  /* 평가단가를 내는 재료. 품목 마스터의 구매단가와 실제 입고단가(구매전표)다. */
+  const [costById, setCostById] = useState<Map<number, number | null>>(new Map())
 
   function load() {
     setLoading(true)
@@ -141,10 +144,17 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       api.get<Warehouse[]>('/warehouses'),
       api.get<CodeOption[]>('/meta/item-categories'),
       api.get<{ code: string; name: string; codes: { name: string }[] }[]>('/codes'),
+      /*
+       * 원본 [금액(수량*입고단가)] 을 내는 재료. 기간을 안 건다 —
+       * 이번 달에 안 샀다고 그 품목의 입고단가가 사라지면 안 된다.
+       */
+      api.get<{ id: number; purchasePrice?: number }[]>('/items'),
+      api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
     ])
-      .then(([a, w, c, g]) => {
+      .then(([a, w, c, g, it, pu]) => {
         setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
         setWarehouses(w.data); setCats(c.data); setCodeGroups(g.data)
+        setCostById(stockCostMap(it.data, pu.data))
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -281,9 +291,32 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const empName = (id: number | null) =>
     (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
 
+/**
+ * 원본의 <b>[금액(수량*입고단가)]</b>.
+ *
+ * <p>이름이 계산식 그대로다 — 전표에 적힌 <b>거래 금액이 아니라</b>
+ * 그 품목을 <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다.
+ * 그래서 "이 전표에는 단가가 없다" 는 것은 못 만드는 이유가 되지 않는다.
+ * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
+ * (<code>stockCostMap</code>: 마지막 입고단가 → 없으면 품목 구매단가).
+ *
+ * <p>단가를 모르는 품목은 <b>빈칸</b>이다. 0 으로 채우면 "값이 0원" 으로 읽혀
+ * 모르는 것과 구별이 안 되고, 합계도 조용히 줄어든다.
+ */
+  const amountOf = (itemId: number, qty: number) => {
+    const c = costById.get(itemId)
+    return c == null ? null : qty * c
+  }
+  /*
+   * 원본에서 이 칸을 두는 것은 <b>자가사용현황 · 재고조정현황</b> 둘이다
+   * (대체사용현황은 그 자리에 [정상수량]·[불량수량]을 둔다 — 다른 칸이다).
+   * 없는 화면에까지 달면 우리가 원본에 없는 열을 하나 더 두는 것이 된다.
+   */
+  const hasAmount = kind === 'SELF_USE' || kind === 'ADJUST'
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
+  const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantityChange) ?? 0), 0)
   /* 불량처리현황만 앞에 칸이 둘 더 붙는다 - 빈 줄의 colSpan 도 같이 움직여야 한다. */
-  const cols = 11 + (kind === 'DEFECT' ? 2 : 0)
+  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0)
   /* 화면에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, shown.length])
@@ -510,6 +543,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '장부수량' : '이전재고'}</th>
                 <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '실사수량' : '이후재고'}</th>
                 <th style={{ textAlign: 'right' }}>{kind === 'ADJUST' ? '조정수량' : '수량'}</th>
+                {hasAmount && <th style={{ width: 130, textAlign: 'right' }}>금액(수량*입고단가)</th>}
                 {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th style={{ width: 90 }}>담당자</th>
                 <th>적요</th>
@@ -535,7 +569,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
                     {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
-                  </td>
+                  </td>
+                  {hasAmount && (
+                    <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                      {amountOf(r.itemId, r.quantityChange) == null ? '' : num(amountOf(r.itemId, r.quantityChange)!)}
+                    </td>
+                  )}
                   <td style={{ color: '#5a626e' }}>{empName(r.employeeId)}</td>
                   <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
                 </tr>
@@ -544,8 +583,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={cols - 3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0)} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
+                  {hasAmount && (
+                    <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalAmount)}</td>
+                  )}
                   <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
                 </tr>
               </tfoot>
