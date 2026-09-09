@@ -215,6 +215,41 @@ public class SurveyService {
                 s.isAnonymous(), questions);
     }
 
+    /**
+     * 응답을 <b>한 건씩</b> 내준다 — 누가 어느 질문에 무엇이라 답했는가.
+     *
+     * <p><code>result()</code> 는 <b>집계</b>만 준다(보기별 수, 서술형 원문 묶음).
+     * 원본 설문조사현황의 격자는 <b>응답 한 줄이 한 줄</b>이라
+     * [설문대상자 · 질문내용 · 응답내용]을 나란히 놓는데, 집계로는 그 세 칸을 못 만든다 —
+     * 어느 답이 누구 것인지가 사라져서다. <code>ResponseDetailDto</code> 는 그러라고
+     * 진작 만들어 두었는데 <b>어떤 컨트롤러도 안 내주고 있었다.</b>
+     *
+     * <p>볼 수 있는 사람은 <b>집계와 같다</b>(<code>canSeeResult</code>). 여기서 규칙을
+     * 따로 두면 집계는 막히는데 원문은 보이는 구멍이 생긴다.
+     * 익명 설문이면 응답자 이름을 <b>비운 채로</b> 준다 — 저장 자체가 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public List<ResponseDetailDto> responses(Long id, String username) {
+        Survey s = getSurvey(id);
+        if (!canSeeResult(s, username)) {
+            throw ApiException.forbidden("이 설문의 응답을 볼 수 없습니다. (공개범위: "
+                    + s.getResultVisibility().getDisplayName() + ")");
+        }
+        return s.getResponses().stream()
+                .sorted(java.util.Comparator.comparing(SurveyResponse::getSubmittedAt))
+                .map(r -> {
+                    Map<Long, List<String>> byQuestion = new LinkedHashMap<>();
+                    for (SurveyAnswer a : r.getAnswers()) {
+                        byQuestion.put(a.getQuestion().getId(), a.values());
+                    }
+                    return new ResponseDetailDto(
+                            r.getId(),
+                            r.getRespondent() == null ? null : r.getRespondent().getName(),
+                            r.getSubmittedAt(), byQuestion);
+                })
+                .toList();
+    }
+
     // ── 내부 ────────────────────────────────────────────────────────────────
 
     private Survey getSurvey(Long id) {

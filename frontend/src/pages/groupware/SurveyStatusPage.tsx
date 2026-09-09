@@ -21,11 +21,42 @@ import { subtotalBy } from '../../utils/subtotalBy'
 
 interface UserRow { id: number; name: string; username: string }
 
+/**
+ * 응답 한 건. <code>GET /surveys/{id}/responses</code> 가 준다 —
+ * 이번에 자리를 열었다(<code>ResponseDetailDto</code> 는 진작 만들어져 있었는데
+ * <b>어떤 컨트롤러도 안 내주고 있었다</b>).
+ * 익명 설문이면 <code>respondentName</code> 이 비어 온다 — 저장 자체가 비어 있다.
+ */
+interface ResponseDetail {
+  id: number
+  respondentName: string | null
+  submittedAt: string
+  answersByQuestionId: Record<string, string[]>
+}
+
 export default function SurveyStatusPage() {
   const [rows, setRows] = useState<SurveyDoc[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
   const [error, setError] = useState('')
   const [searched, setSearched] = useState(false)
+  /*
+   * 펼쳐 놓은 설문과 그 응답. 목록 줄마다 미리 부르지 않는다 —
+   * 설문이 수십 건이면 그만큼 요청이 나가고(N+1), 대부분은 안 펼쳐 볼 것이다.
+   */
+  const [openId, setOpenId] = useState<number | null>(null)
+  const [detail, setDetail] = useState<ResponseDetail[]>([])
+  const [detailErr, setDetailErr] = useState('')
+
+  async function openDetail(id: number) {
+    if (openId === id) { setOpenId(null); return }
+    setOpenId(id); setDetail([]); setDetailErr('')
+    try {
+      setDetail((await api.get<ResponseDetail[]>(`/surveys/${id}/responses`)).data)
+    } catch (err) {
+      /* 결과공개범위에 막히면 403 이 온다 — 빈 표 대신 왜 못 보는지를 적는다. */
+      setDetailErr(extractErrorMessage(err))
+    }
+  }
 
   const today = new Date()
   /*
@@ -100,6 +131,34 @@ export default function SurveyStatusPage() {
   }, [rows, from, to, scope, progress, useEnd, endFrom, endTo, title, question, writer, postNo, users])
 
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  /**
+   * <b>원본 격자의 줄</b> — 펼친 설문의 <b>응답 × 질문</b> 하나가 한 줄이다.
+   * 설문 머리(작성일·게시글번호·설문종료일·제목)는 줄마다 되풀이된다 — 원본이 그렇다.
+   */
+  const detailRows = useMemo(() => {
+    const sv = rows.find((r) => r.id === openId)
+    if (!sv) return []
+    const dot = (d: string | null) => (d ?? '').slice(0, 10).replace(/-/g, '/')
+    const out: {
+      key: string; createdAt: string; postNo: number; endAt: string
+      respondent: string; title: string; question: string; answer: string
+    }[] = []
+    for (const d of detail) {
+      for (const q of sv.questions) {
+        const vals = d.answersByQuestionId[String(q.id)] ?? []
+        out.push({
+          key: `${d.id}-${q.id}`,
+          createdAt: dot(sv.createdAt), postNo: sv.postNo, endAt: dot(sv.endAt),
+          /* 익명이면 서버에 이름이 없다 — 화면에서 가리는 것이 아니다. */
+          respondent: d.respondentName ?? '(익명)',
+          title: sv.title, question: q.content,
+          answer: vals.join(', '),
+        })
+      }
+    }
+    return out
+  }, [rows, openId, detail])
+
   const totals = shown.reduce((a, r) => ({
     targets: a.targets + r.targetCount,
     responses: a.responses + r.responseCount,
@@ -242,7 +301,7 @@ export default function SurveyStatusPage() {
               {searched ? '조건에 맞는 데이터가 없습니다.' : '등록된 데이터가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
-            <tr key={r.id}>
+            <tr key={r.id} onClick={() => openDetail(r.id)} style={{ cursor: 'pointer' }}>
               <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
               <td style={{ textAlign: 'center' }}>{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
               <td style={{ textAlign: 'center' }}>{r.postNo}</td>
@@ -269,6 +328,62 @@ export default function SurveyStatusPage() {
           </tfoot>
         )}
       </table>
+
+      {/*
+        <b>원본 설문조사현황(E070258)의 격자</b>. 원본은 <b>응답 한 줄이 한 줄</b>이라
+        [작성일 · 게시글번호 · 설문종료일 · <b>설문대상자</b> · 제목 · <b>질문내용</b> ·
+        <b>응답내용</b>] 일곱 칸을 나란히 놓는다(설문 × 질문 × 응답자).
+        위 표는 <b>설문 한 줄</b>이라 대상수·응답수·응답률을 내는 <b>우리 표</b>다 —
+        축이 다르니 지우지 않고 둘 다 둔다.
+
+        <p><b>목록 전체를 이 축으로 펴지 않는 이유:</b> 응답 원문은 설문마다 따로 받아야 해서
+        줄마다 부르면 요청이 설문 수만큼 나간다(N+1). 그래서 <b>고른 설문 하나</b>만 편다 —
+        위 표의 줄을 누르면 그 설문의 응답이 여기 원본 차례 그대로 선다.
+
+        <p>[설문대상자]는 <b>답한 사람</b>이다(원본 칸 이름이 대상자다). 익명 설문이면
+        서버에 이름이 <b>저장되어 있지 않아</b> (익명)으로 적는다 — 가리는 것이 아니라 없다.
+      */}
+      {openId != null && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>
+            응답 내역 {detail.length > 0 && `(${detail.length}건)`}
+          </h3>
+          {detailErr ? (
+            <p style={{ color: '#c60a2e', fontSize: 12.5, margin: '0 0 10px' }}>{detailErr}</p>
+          ) : (
+            <table className="w-full text-left" style={{ marginBottom: 14 }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 100, textAlign: 'center' }}>작성일</th>
+                  <th style={{ width: 90, textAlign: 'center' }}>게시글번호</th>
+                  <th style={{ width: 100, textAlign: 'center' }}>설문종료일</th>
+                  <th style={{ width: 110, textAlign: 'center' }}>설문대상자</th>
+                  <th style={{ width: 180 }}>제목</th>
+                  <th>질문내용</th>
+                  <th>응답내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detailRows.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
+                    아직 응답이 없습니다.
+                  </td></tr>
+                ) : detailRows.map((d) => (
+                  <tr key={d.key}>
+                    <td style={{ textAlign: 'center' }}>{d.createdAt}</td>
+                    <td style={{ textAlign: 'center' }}>{d.postNo}</td>
+                    <td style={{ textAlign: 'center' }}>{d.endAt}</td>
+                    <td style={{ textAlign: 'center' }}>{d.respondent}</td>
+                    <td>{d.title}</td>
+                    <td>{d.question}</td>
+                    <td>{d.answer}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
 
       {shown.length > 0 && (() => {
         const groups = subtotalBy(shown,

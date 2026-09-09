@@ -1,6 +1,7 @@
 package com.erp.groupware.controller;
 
 import com.erp.groupware.dto.SurveyDtos.CreateSurveyRequest;
+import com.erp.groupware.dto.SurveyDtos.ResponseDetailDto;
 import com.erp.groupware.dto.SurveyDtos.SubmitResponseRequest;
 import com.erp.groupware.dto.SurveyDtos.SurveyResponseDto;
 import com.erp.groupware.dto.SurveyDtos.SurveyResultDto;
@@ -57,6 +58,17 @@ public class SurveyController {
     @GetMapping("/{id}/result")
     public SurveyResultDto result(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return surveyService.result(id, principal.getUsername());
+    }
+
+    /**
+     * 응답 한 건씩. 원본 설문조사현황 격자의
+     * [설문대상자 · 질문내용 · 응답내용]이 이 자리를 본다 — 집계로는 못 만드는 칸들이다.
+     * 볼 수 있는 사람은 집계와 같아서, 결과공개범위에 따라 403 이 난다.
+     */
+    @GetMapping("/{id}/responses")
+    public List<ResponseDetailDto> responses(@PathVariable Long id,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return surveyService.responses(id, principal.getUsername());
     }
 
     @DeleteMapping("/{id}")
