@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업지시서별진행현황 — 작업지시 하나가 어디까지 갔는지 네 갈래로 본다.
@@ -47,10 +48,6 @@ type Mode = '생산진행현황' | '불출진행현황' | '원재료투입비교
 const MODES = ['생산진행현황', '불출진행현황', '원재료투입비교표', '작업진행현황'] as const
 
 type WoStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
-const STATUS_COLOR: Record<WoStatus, string> = {
-  PLANNED: '#8a929c', IN_PROGRESS: '#c07a00', COMPLETED: '#1c7c3c',
-}
-
 interface WorkOrder {
   id: number
   orderNo: string
@@ -87,13 +84,26 @@ interface WorkOrder {
 interface Issue { id: number; workOrderId: number; itemId: number; itemCode: string; itemName: string; qty: number; issueDate: string }
 /** 생산전표의 소모자재. 필드 이름이 불출(itemId)과 달리 componentId 다 — 실제 응답을 보고 맞췄다. */
 interface ProdMaterial { componentId: number; componentCode: string; componentName: string; quantity: number }
-interface Production { id: number; workOrderId: number; productionDate: string; producedQty: number; materials: ProdMaterial[] }
+/*
+ * 생산전표. 원본 격자의 <b>[생산]</b> 네 칸(공장·생산공정·일자·수량)이 이 줄을 본다.
+ * <code>fromWarehouseName</code>(생산된공장)·<code>prodNo</code>·<code>productId</code> 는
+ * <b>서버가 진작 보내던 값</b>인데 이 화면이 받아 두지 않아 그 네 칸을 못 그리고 있었다.
+ */
+interface Production {
+  id: number; prodNo: string; workOrderId: number; productId: number
+  productionDate: string; producedQty: number
+  fromWarehouseName: string | null; warehouseName: string
+  materials: ProdMaterial[]
+}
+/** BOR(작업소요시간) 한 줄 — 품목이 <b>어느 생산공정</b>에서 만들어지는지가 여기 있다. */
+interface BorRow { productId: number; processName: string; seq: number }
+/** 창고별 재고 한 줄. 원본 격자의 [현재고]는 창고를 가리지 않은 <b>품목 합</b>이다. */
+interface StockRow { itemId: number; quantity: number }
 interface WorkResult { id: number; workOrderId: number | null; process: string; goodQty: number; defectQty: number; workTimeMin: number; workDate: string }
 interface BomLine { componentId: number; componentCode: string; componentName: string; quantity: number }
 interface Bom { productId: number; lines: BomLine[] }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const pct = (done: number, planned: number) => (planned > 0 ? Math.min(999, (done / planned) * 100) : 0)
 
 export default function WoProgressPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -109,6 +119,8 @@ export default function WoProgressPage() {
   const [productions, setProductions] = useState<Production[]>([])
   const [results, setResults] = useState<WorkResult[]>([])
   const [boms, setBoms] = useState<Bom[]>([])
+  const [bors, setBors] = useState<BorRow[]>([])
+  const [stocks, setStocks] = useState<StockRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -152,7 +164,7 @@ export default function WoProgressPage() {
     setLoading(true)
     setError('')
     try {
-      const [wo, mi, pr, wr, bm, emps, parts] = await Promise.all([
+      const [wo, mi, pr, wr, bm, emps, parts, br, st] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders'),
         api.get<Issue[]>('/material-issues'),
         api.get<Production[]>('/productions'),
@@ -160,9 +172,13 @@ export default function WoProgressPage() {
         api.get<Bom[]>('/boms'),
         api.get<{ id: number; name: string }[]>('/employees'),
         api.get<{ name: string; manager: string | null }[]>('/partners'),
+        /* 원본 격자의 [생산공정]·[현재고]. 둘 다 이미 있는 자료인데 안 받아 오고 있었다. */
+        api.get<BorRow[]>('/bor'),
+        api.get<StockRow[]>('/stock'),
       ])
       setOrders(wo.data); setIssues(mi.data); setProductions(pr.data)
       setResults(wr.data); setBoms(bm.data); setEmployees(emps.data)
+      setBors(br.data); setStocks(st.data)
       // 거래처명 → 관리담당자. 작업지시에는 거래처명만 오므로 이름으로 잇는다.
       setManagerOf(new Map(parts.data.map((p) => [p.name, p.manager ?? ''])))
     } catch (err) {
@@ -308,6 +324,115 @@ export default function WoProgressPage() {
     return out
   }, [shown, bomBy, issueBy, consumedBy])
 
+  /** 품목 → 생산공정. BOR 의 첫 작업(작업순서가 가장 앞선 줄)이 그 품목의 공정이다. */
+  const processOf = useMemo(() => {
+    const m = new Map<number, { seq: number; name: string }>()
+    for (const b of bors) {
+      const cur = m.get(b.productId)
+      if (!cur || b.seq < cur.seq) m.set(b.productId, { seq: b.seq, name: b.processName })
+    }
+    return (id: number) => m.get(id)?.name ?? ''
+  }, [bors])
+
+  /** 품목 → 현재고(창고 합). */
+  const onHandOf = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const s of stocks) m.set(s.itemId, (m.get(s.itemId) ?? 0) + s.quantity)
+    return (id: number) => m.get(id) ?? 0
+  }, [stocks])
+
+  /** 품목 → 조회기간 안의 생산전표. 원본 [생산] 네 칸이 이것을 본다. */
+  const prodOf = useMemo(() => {
+    const m = new Map<number, Production[]>()
+    for (const pd of productions) {
+      if (pd.productionDate < from || pd.productionDate > to) continue
+      const a = m.get(pd.productId) ?? []
+      a.push(pd)
+      m.set(pd.productId, a)
+    }
+    for (const a of m.values()) a.sort((x, y) => (x.productionDate < y.productionDate ? -1 : 1))
+    return m
+  }, [productions, from, to])
+
+  /**
+   * <b>원본 격자의 줄</b> — 작업지시 하나를 <b>BOM 줄까지 펴서</b> 만든다.
+   * 지시한 제품이 첫 줄이고(필요수량 = 지시수량), 그 밑에 BOM 자재가
+   * <b>지시수량 × BOM 수량</b>만큼 필요한 줄로 따라붙는다.
+   * 원본과 같게 <b>품목으로 묶고</b> 묶음마다 [코드 / 이름  계] 줄을 하나 둔다.
+   */
+  const progressRows = useMemo(() => {
+    type Need = { orderNo: string; date: string; itemId: number; code: string; name: string; qty: number }
+    const needs: Need[] = []
+    for (const o of shown) {
+      needs.push({ orderNo: o.orderNo, date: o.orderDate, itemId: o.productId,
+        code: o.productCode, name: o.productName, qty: o.plannedQty })
+      for (const l of bomBy.get(o.productId) ?? []) {
+        needs.push({ orderNo: o.orderNo, date: o.orderDate, itemId: l.componentId,
+          code: l.componentCode, name: l.componentName, qty: l.quantity * o.plannedQty })
+      }
+    }
+    const byItem = new Map<number, Need[]>()
+    for (const n of needs) {
+      const a = byItem.get(n.itemId) ?? []
+      a.push(n)
+      byItem.set(n.itemId, a)
+    }
+    type Row = {
+      key: string; sub: boolean; orderNo: string; label: string
+      process: string; bomDate: string; required: number
+      factory: string; prodProcess: string; prodDate: string; prodNo: string; produced: number
+      unmade: number; onHand: number
+    }
+    const out: Row[] = []
+    const order = [...byItem.entries()].sort((a, b) => {
+      const ca = a[1][0].code, cb = b[1][0].code
+      return ca < cb ? -1 : ca > cb ? 1 : 0
+    })
+    for (const [itemId, list] of order) {
+      const proc = processOf(itemId)
+      const onHand = onHandOf(itemId)
+      /*
+       * 생산전표는 <b>품목</b>에 붙지 작업지시 줄마다 붙지 않는다. 그래서 그 품목의
+       * 기간 생산을 한 번만 세고, 묶음의 <b>첫 줄</b>에만 적는다 —
+       * 줄마다 적으면 같은 생산이 여러 번 더해져 합계가 부푼다.
+       */
+      const pds = prodOf.get(itemId) ?? []
+      const produced = pds.reduce((n, x) => n + x.producedQty, 0)
+      const factory = [...new Set(pds.map((x) => x.fromWarehouseName || x.warehouseName))].join(', ')
+      const last = pds[pds.length - 1]
+      let sum = 0
+      list.forEach((n, i) => {
+        sum += n.qty
+        out.push({
+          key: `${itemId}-${n.orderNo}-${i}`, sub: false,
+          orderNo: n.orderNo, label: `[${n.code}] ${n.name}`,
+          process: proc, bomDate: n.date, required: n.qty,
+          factory: i === 0 ? factory : '',
+          prodProcess: i === 0 && pds.length ? proc : '',
+          prodDate: i === 0 && last ? last.productionDate : '',
+          prodNo: i === 0 && last ? last.prodNo : '',
+          produced: i === 0 ? produced : 0,
+          /* 생산은 묶음의 첫 줄에만 적히므로, 미생산도 줄마다 그 줄 기준으로 낸다. */
+          unmade: n.qty - (i === 0 ? produced : 0), onHand,
+        })
+      })
+      out.push({
+        key: `${itemId}-sum`, sub: true, orderNo: '',
+        label: `${list[0].code} / ${list[0].name}  계`,
+        process: '', bomDate: '', required: sum,
+        factory: '', prodProcess: '', prodDate: '', prodNo: '', produced,
+        unmade: sum - produced, onHand,
+      })
+    }
+    return out
+  }, [shown, bomBy, processOf, onHandOf, prodOf])
+
+  const progTotals = useMemo(() => ({
+    required: progressRows.filter((r) => !r.sub).reduce((n, r) => n + r.required, 0),
+    produced: progressRows.filter((r) => !r.sub).reduce((n, r) => n + r.produced, 0),
+    unmade: progressRows.filter((r) => !r.sub).reduce((n, r) => n + r.unmade, 0),
+  }), [progressRows])
+
   const totals = useMemo(() => ({
     planned: shown.reduce((n, o) => n + o.plannedQty, 0),
     produced: shown.reduce((n, o) => n + o.producedQty, 0),
@@ -332,15 +457,6 @@ export default function WoProgressPage() {
       label: `${o.orderNo} ${o.productName}`, value: o.plannedQty - o.producedQty,
     }))
   }, [mode, shown, compareLines, issueBy])
-
-  const bar = (rate: number) => (
-    <div style={{ background: '#eef1f5', height: 12, borderRadius: 2, overflow: 'hidden' }}>
-      <div style={{
-        width: `${Math.min(100, rate)}%`, height: '100%',
-        background: rate >= 100 ? '#1c7c3c' : rate > 0 ? 'var(--ec-blue)' : 'transparent',
-      }} />
-    </div>
-  )
 
   return (
     <EcListShell
@@ -603,59 +719,92 @@ export default function WoProgressPage() {
         </table>
       ) : (
         <table className="w-full text-left">
+          {/*
+            <b>작업지시서별진행현황(E040414) [생산진행현황] 2026-09-09 원본 격자 실측</b>(자료 12줄).
+            원본 머리는 <b>두 줄</b>이다 —
+            위: [작업지시서번호 · 품목 · <b>BOM기준</b>(3칸) · <b>생산</b>(4칸) · 미생산 · 현재고],
+            아래: [생산공정 · 일자 · 필요수량] / [공장 · 생산공정 · 일자 · 수량].
+
+            <p>즉 원본은 작업지시 <b>한 줄</b>이 아니라 <b>BOM 줄까지 편</b> 표다. 실측한 줄이
+            그대로 보여 준다 — 작업지시 하나(2026/03/12 -2)가 [AQD · AQD 몸체 · AQD 컨트롤러]
+            세 줄로 펴지고, 품목마다 <b>[코드 / 이름  계]</b> 줄이 하나씩 붙는다.
+            우리 표는 작업지시 <b>한 줄 요약</b>이라 일곱 칸이 통째로 없었고, 그래서
+            "무엇이 얼마나 모자라나" 를 이 화면에서 볼 수가 없었다. 이번에 그 모양으로 바꿨다.
+
+            <p>일곱 칸은 모두 <b>이미 있는 자료</b>였다 —
+            [생산공정]은 <b>BOR</b>(품목이 거치는 작업)의 첫 공정,
+            [BOM기준 일자]는 작업지시일, [필요수량]은 지시수량 × BOM 수량,
+            [공장]·[일자]·[수량]은 <b>생산전표</b>(fromWarehouseName · prodNo · producedQty),
+            [현재고]는 <code>/stock</code> 의 품목 합이다. 하나도 지어내지 않았다.
+
+            <p>[생산]쪽 <b>[생산공정]</b>만은 생산전표가 공정을 안 적어서 <b>그 품목의 BOR 공정</b>을
+            쓴다 — 원본 실측에서도 두 칸이 같은 값이었다(완제품공정/완제품공정). 다른 값이 될 수
+            있는 자리라면 비워 두었을 텐데, 우리 자료에서는 공정이 품목에 붙는다.
+
+            <p>[지시수량]·[완료수량]·[진행률]·[상태]는 <b>뺐다</b>. 줄이 품목 단위가 되면서
+            작업지시 단위 값이 줄마다 되풀이돼 뜻이 흐려진다 —
+            그 한 줄 요약은 <b>작업지시서현황</b>이 따로 있다.
+          */}
           <thead>
             <tr>
-              {/*
-                <b>작업지시서별진행현황(E040414) [생산진행현황] 2026-09-09 원본 격자 실측</b>.
-                원본 머리는 <b>두 줄</b>이다 —
-                위: [작업지시서번호 · 품목 · <b>BOM기준</b>(3칸) · <b>생산</b>(4칸) · 미생산 · 현재고],
-                아래: [생산공정 · 일자 · 필요수량] / [공장 · 생산공정 · 일자 · 수량].
-                즉 원본은 작업지시 하나를 <b>BOM 줄까지 펴서</b> 필요수량과 실제 생산을
-                나란히 놓는다. 우리 표는 작업지시 <b>한 줄 요약</b>이라 그 일곱 칸이 없다.
-                지금 바퀴에서는 <b>이름이 맞는 셋</b>만 원본으로 옮긴다 —
-                [작업지시번호]→<b>[작업지시서번호]</b>, [품목명]→<b>[품목]</b>,
-                [잔여수량]→<b>[미생산]</b>(같은 값이다: 지시수량 − 생산수량).
-                [지시수량]·[완료수량]·[진행률]·[상태]는 우리 열이다.
-              */}
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170, textAlign: 'center' }}>작업지시서번호</th>
-              <th>품목</th>
-              <th style={{ width: 100, textAlign: 'right' }}>지시수량</th>
-              <th style={{ width: 100, textAlign: 'right' }}>완료수량</th>
-              <th style={{ width: 100, textAlign: 'right' }}>미생산</th>
-              <th style={{ width: 160 }}>진행률</th>
-              <th style={{ width: 90, textAlign: 'right' }}>진행률(%)</th>
-              <th style={{ width: 90, textAlign: 'center' }}>상태</th>
+              <th style={{ width: 34 }} rowSpan={2}></th>
+              <th style={{ width: 150, textAlign: 'center' }} rowSpan={2}>작업지시서번호</th>
+              <th rowSpan={2}>품목</th>
+              <th colSpan={3} style={{ textAlign: 'center' }}>BOM기준</th>
+              <th colSpan={4} style={{ textAlign: 'center' }}>생산</th>
+              <th style={{ width: 90, textAlign: 'right' }} rowSpan={2}>미생산</th>
+              <th style={{ width: 90, textAlign: 'right' }} rowSpan={2}>현재고</th>
+            </tr>
+            <tr>
+              <th style={{ width: 110 }}>생산공정</th>
+              <th style={{ width: 100, textAlign: 'center' }}>일자</th>
+              <th style={{ width: 90, textAlign: 'right' }}>필요수량</th>
+              <th style={{ width: 110 }}>공장</th>
+              <th style={{ width: 110 }}>생산공정</th>
+              <th style={{ width: 130, textAlign: 'center' }}>일자</th>
+              <th style={{ width: 90, textAlign: 'right' }}>수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((o, i) => {
-              const rate = pct(o.producedQty, o.plannedQty)
-              return (
-                <tr key={o.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{o.orderNo}</td>
-                  <td>[{o.productCode}] {o.productName}</td>
-                  <td style={{ textAlign: 'right' }}>{num(o.plannedQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(o.producedQty)}</td>
-                  <td style={{ textAlign: 'right', color: o.remainingQty > 0 ? '#c60a2e' : '#8a929c' }}>{num(o.remainingQty)}</td>
-                  <td>{bar(rate)}</td>
-                  <td style={{ textAlign: 'right' }}>{rate.toFixed(1)}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[o.status] }}>{o.statusName}</td>
-                </tr>
-              )
-            })}
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : progressRows.length === 0 ? (
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : progressRows.map((r, i) => (r.sub ? (
+              <tr key={r.key} style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <td colSpan={3} style={{ textAlign: 'right' }}>{r.label}</td>
+                <td colSpan={2}></td>
+                <td style={{ textAlign: 'right' }}>{num(r.required)}</td>
+                <td colSpan={3}></td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(r.produced)}</td>
+                <td style={{ textAlign: 'right' }}>{num(r.unmade)}</td>
+                <td style={{ textAlign: 'right' }}>{num(r.onHand)}</td>
+              </tr>
+            ) : (
+              <tr key={r.key}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
+                <td>{r.label}</td>
+                <td>{r.process}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.bomDate)}</td>
+                <td style={{ textAlign: 'right' }}>{num(r.required)}</td>
+                <td>{r.factory}</td>
+                <td>{r.prodProcess}</td>
+                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.prodDate ? `${dateText(r.prodDate)} ${r.prodNo}` : ''}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.produced ? num(r.produced) : ''}</td>
+                <td style={{ textAlign: 'right', color: r.unmade > 0 ? '#c60a2e' : '#8a929c' }}>{num(r.unmade)}</td>
+                <td style={{ textAlign: 'right' }}>{num(r.onHand)}</td>
+              </tr>
+            )))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.planned)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totals.produced)}</td>
-              <td colSpan={4}></td>
+              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+              <td style={{ textAlign: 'right' }}>{num(progTotals.required)}</td>
+              <td colSpan={3}></td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(progTotals.produced)}</td>
+              <td style={{ textAlign: 'right' }}>{num(progTotals.unmade)}</td>
+              <td></td>
             </tr>
           </tfoot>
         </table>

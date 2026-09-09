@@ -2158,6 +2158,38 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
     if (!expr) return []
     return [...expr[0].matchAll(/'([^']{1,20})'/g)].map((m) => flat(m[1])).filter(Boolean)
   }
+  /**
+   * <b>머리가 두 줄인 표는 문서 차례와 보이는 차례가 다르다.</b>
+   *
+   * <p>원본 작업지시서별진행현황의 머리가 그렇다 —
+   * 위 [작업지시서번호 · 품목 · <b>BOM기준</b>(3칸) · <b>생산</b>(4칸) · 미생산 · 현재고],
+   * 아래 [생산공정 · 일자 · 필요수량 · 공장 · 생산공정 · 일자 · 수량].
+   * <b>눈에 보이는</b> 차례는 …필요수량 · 공장 … 수량 · 미생산 · 현재고 인데,
+   * 소스에 적힌 차례대로 &lt;th&gt; 를 주우면 <b>미생산 · 현재고</b>가 아래 줄보다
+   * 먼저 나온다(위 줄에 rowSpan 으로 있어서다). 그대로 견주면 <b>제대로 그린 표가
+   * 틀렸다고 걸린다.</b>
+   *
+   * <p>그래서 위 줄의 <code>colSpan</code> 자리마다 아래 줄 칸을 그만큼 끼워 넣어
+   * <b>맨 아래 칸(잎)만</b> 왼쪽부터 늘어놓는다. 머리가 한 줄이면 하던 대로다.
+   */
+  const leafCells = (head) => {
+    const rows = [...head.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map((r) => r[1])
+    const cells = (row) => [...row.matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
+      .map((m) => [m[0], m[2], m[1]])
+    if (rows.length !== 2) return cells(rows.join(' ') || head)
+    const top = cells(rows[0])
+    const sub = cells(rows[1])
+    const out = []
+    let k = 0
+    for (const c of top) {
+      const cs = Number((c[2].match(/colSpan=\{(\d+)\}/) || [])[1] || 1)
+      if (cs > 1) { for (let i = 0; i < cs && k < sub.length; i++) out.push(sub[k++]) }
+      else out.push(c)
+    }
+    while (k < sub.length) out.push(sub[k++])
+    return out
+  }
+
   /** 차례를 견줄 수 없는 화면 — 왜인지 적는다. */
   const ORDER_SKIP = new Map([
     ['생산불출조회',
@@ -2185,9 +2217,18 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
       hit: names.filter((n) => new RegExp('<th\\b[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
-    const ours = [...noArrow(scored[0].head).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => thNames(m[1]))
+    const ours = leafCells(noArrow(scored[0].head)).map((m) => thNames(m[1]))
     const want = names.map(flat).filter((n) => ours.some((c) => c.includes(n)))
+    /*
+     * <b>같은 이름이 두 번 나오는 머리</b>는 한 번으로 줄여서 견준다.
+     * 사본 대조표는 JSON 객체라 열 이름을 <b>한 번밖에</b> 못 적는다 —
+     * 작업지시서별진행현황의 원본 머리에는 [생산공정]·[일자]가 <b>BOM기준</b>과
+     * <b>생산</b> 밑에 하나씩, 즉 두 번씩 있는데 대조표에는 각각 한 줄뿐이다.
+     * 줄이지 않으면 <b>원본과 똑같이 그린 표가</b> "우리가 두 번 적었다" 고 걸린다.
+     */
+    const seen = new Set()
     const got = ours.map((c) => c.find((x) => want.includes(x))).filter(Boolean)
+      .filter((n) => !seen.has(n) && seen.add(n))
     checked += want.length
     if (want.join(' ') !== got.join(' ')) {
       bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
