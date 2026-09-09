@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useItemFlags } from '../../utils/useInactiveItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, SalesDoc } from '../../api/types'
@@ -42,6 +44,24 @@ export default function StatementPrintPage() {
    * 우리는 거래처와 날짜 두 칸이 전부였고 기간 빠른선택도 없었다.
    * 내·외자구분은 우리 판매전표에 그 개념이 없어 칸을 만들지 않는다.
    */
+  /*
+   * <b>2026-09-09 원본(E040210) 조건 판 실측 — 스물한 칸이다</b>(사본에는 열로 적혀 있었다):
+   * 기준일자 · 내.외자구분 · 창고 · 창고계층그룹 · 프로젝트 · 프로젝트그룹1 · 프로젝트그룹2 ·
+   * 거래처 · <b>거래처그룹1</b> · 거래처그룹2 · 거래처계층그룹 · 품목 · <b>품목구분</b> ·
+   * <b>품목그룹1</b> · 품목그룹2 · 품목그룹3 · 품목계층그룹 · 담당자 · 거래처관리담당자 ·
+   * 기타 · 정렬/소계기준.
+   *
+   * <p>굵은 셋을 만든다 — 나머지 여덟(계층그룹 넷 · 그룹2·3 · 프로젝트그룹1·2)은
+   * 마스터에 그 축이 없어 이 저장소가 이름으로 한 번에 예외를 적어 둔 것들이다.
+   *
+   * <p>같이 잰 기본값: [기준일자] <b>금월(~오늘)</b>(맞다) · [기타]의 <b>미수금집계</b>가
+   * <b>꺼진 채로</b> 열린다(맞다) · [내.외자구분] 전체 · [품목구분]은 원본에서 체크 묶음이라
+   * 모두 켜진 채로 연다(= 전체).
+   *
+   * <p>원본 격자 실측: [체크 · 거래처명 · 품목명[규격명] · 수량 · 금액 · 부가세 · 합계 · 상세].
+   * <b>원본에는 [일자]·[명세서번호] 칸이 없다</b> — 우리 열 둘은 우리 것이라 앞에 둔다.
+   * 이 계정에는 이 기간 자료가 없어 격자가 비어 정렬은 못 쟀다(대조표에 '?').
+   */
   const [partnerId, setPartnerId] = useState<number | ''>('')
   const init = periodOf('금월(~오늘)')!
   const [fromDate, setFromDate] = useState(init.from)
@@ -49,6 +69,12 @@ export default function StatementPrintPage() {
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
   const [item, setItem] = useState('')
+  /* 원본 [품목구분]·[품목그룹1]·[거래처그룹1] — 셋 다 마스터에 붙는 값이라 전표에 없다. */
+  const { categories, groups, categoryOf, groupOf } = useItemFlags()
+  const pgroups = usePartnerGroups()
+  const [itemCat, setItemCat] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [partnerGroup, setPartnerGroup] = useState('')
   const [employee, setEmployee] = useState('')
   const [checked, setChecked] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,6 +140,10 @@ export default function StatementPrintPage() {
     if (project && !(d.projectName ?? '').includes(project)) return false
     if (employee && !(d.employeeName ?? '').includes(employee)) return false
     if (item && !d.lines.some((l) => `${l.itemCode ?? ''} ${l.itemName}`.includes(item))) return false
+    /* 품목 쪽 조건은 <b>줄 하나라도</b> 걸리면 그 명세서를 남긴다 — 명세서는 여러 품목을 싣는다. */
+    if (itemCat && !d.lines.some((l) => categoryOf(l.itemId) === itemCat)) return false
+    if (itemGroup && !d.lines.some((l) => groupOf(l.itemId) === itemGroup)) return false
+    if (partnerGroup && pgroups.groupOfId(d.partnerId) !== partnerGroup) return false
     return true
   })
   const total = useMemo(() => shown.reduce((s, d) => s + d.supplyAmount + d.vatAmount, 0), [shown])
@@ -230,10 +260,33 @@ export default function StatementPrintPage() {
                            onChange={(v) => setPartnerId(v ? Number(v) : '')}
                            items={partnerCodeItems(partners)} />
         </EcCond>
+        {/* 원본 차례: [거래처] 다음이 [거래처그룹1] 이다(2026-09-09 실측). */}
+        <EcCond label="거래처그룹1">
+          <select className="ec-input" style={{ width: 150 }} value={partnerGroup}
+                  onChange={(e) => setPartnerGroup(e.target.value)}>
+            <option value="">전체</option>
+            {pgroups.groupOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 차례: [품목] 바로 뒤가 [품목구분] · [품목그룹1] 이다. */}
+        <EcCond label="품목구분">
+          <select className="ec-input" style={{ width: 130 }} value={itemCat}
+                  onChange={(e) => setItemCat(e.target.value)}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" style={{ width: 150 }} value={itemGroup}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
