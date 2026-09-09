@@ -1727,6 +1727,20 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
     : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
 
+  /**
+   * <b>우리는 그리는데 검사가 못 보는 칸</b> — 왜인지 적는다.
+   *
+   * <p>머리를 <code>{heads.map((h) =&gt; &lt;th key={h}&gt;{h}&lt;/th&gt;)}</code> 로 그리는 표가 있다
+   * ([구분]에 따라 앞머리 칸이 갈리는 화면들). 그러면 <b>열 이름이 따옴표 글자로 남지 않아</b>
+   * 아래 '없는 열' 세기가 <b>있는 열을 없다고</b> 말한다. 갈래마다 글자로 적어 보면
+   * 이번엔 여섯 갈래가 한 파일에 다 있어 <b>차례 검사가 같은 이름을 여러 벌</b>로 센다.
+   * 둘 중 하나는 틀리므로, map 으로 두고 <b>이 자리에 이유를 적어</b> 뺀다.
+   * (이름이 진짜 있는지는 아래 1-j 가 따옴표 글자로 확인한다 — 거기서는 걸린다.)
+   */
+  const MISS_SKIP = new Set([
+    '일별이익현황|품목코드', '일별이익현황|품목명[규격]',
+  ])
+
   /** 겸하는 원본끼리 정렬이 어긋나 못 맞추는 칸 — 왜인지 적는다. */
   const NO_ALIGN = new Map([
     /*
@@ -1796,6 +1810,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
          * <b>있나 없나</b>만은 화면 전체에서 본다.
          */
         if (thFor(kin, name)) continue
+        if (MISS_SKIP.has(screen + '|' + name)) continue
         missing.push(`${screen}  [${name}]`)
       }
     }
