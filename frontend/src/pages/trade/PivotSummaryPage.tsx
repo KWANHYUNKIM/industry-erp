@@ -36,6 +36,11 @@ import { ymd } from '../../components/EcPeriodPicks'
  */
 
 /** 원본 [메뉴구분] 여섯 중 우리가 낼 수 있는 셋. 이름은 원본 그대로다. */
+/**
+ * 원본 집계표(E040710)의 <b>[메뉴구분]</b> — 무엇을 집계할지다.
+ * 2026-09-09 실측: <b>판매★ · 구매 · 주문 · 발주 · 생산입고 · 판매구매</b> 여섯이다.
+ * 우리는 셋뿐이라 <b>주문·발주·생산입고</b>를 집계할 수 없다.
+ */
 type Mode = '판매' | '구매' | '판매구매'
 const MODES = ['판매', '구매', '판매구매'] as const
 type GroupBy = 'partner' | 'item'
@@ -390,9 +395,17 @@ export default function PivotSummaryPage() {
         <table ref={tableRef} className="w-full text-left" style={{ minWidth: 900 }}>
           <thead>
             <tr>
+              {/*
+                <b>집계표(E040710) 2026-09-09 원본 격자 실측</b> — 첫 칸은 <b>[구분]으로 고른 축</b>
+                (실측 때는 [담당자])이고, 그다음이 <b>수량 · 공급가액 · 부가세 · 합계</b> 넷이다.
+                아래에 합계행이 붙는다. 축은 사람이 고르지만 <b>재는 값 넷은 고정</b>이라
+                대조표에 그 넷을 적었다(판매구매집계표·매출계획비교표와 달리 여기는 잴 수 있다).
+                <b>우리 표는 축 × 열두 달</b>이다 — 달마다 금액을 펴고 [합계]로 닫는다.
+                재는 값이 달라 [수량]·[공급가액]·[부가세]가 없다(pending-columns 에 적었다).
+              */}
               <th style={{ position: 'sticky', left: 0, background: '#f5f7fa', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>
               {MONTHS.map((m) => <th key={m} style={{ ...cell, fontWeight: 700 }}>{m}월</th>)}
-              <th style={{ ...cell, fontWeight: 700, color: 'var(--ec-blue)' }}>합계</th>
+              <th style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>합계</th>
             </tr>
           </thead>
           <tbody>
@@ -404,7 +417,7 @@ export default function PivotSummaryPage() {
               <tr key={r.key}>
                 <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{r.name}</td>
                 {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? '#3c4553' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
-                <td style={{ ...cell, fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
+                <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
               </tr>
             ))}
           </tbody>
