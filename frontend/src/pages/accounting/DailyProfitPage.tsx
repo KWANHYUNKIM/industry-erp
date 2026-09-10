@@ -143,8 +143,20 @@ export default function DailyProfitPage() {
   function load() {
     setLoading(true)
     setError('')
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서
+     * <code>saleDate &gt;= cond.from</code> 으로 걸렀다. 이 표에는 <b>이월도 누계도 없다</b>
+     * (거래처원장·월별채권채무와 다르다) — 그 기간 전표만 있으면 숫자가 같다.
+     *
+     * <p><b>구매는 좁히면 안 된다</b> — 아래 unitPrices/원가는 그 품목을 <b>언제 샀든</b>
+     * 마지막 매입가를 봐야 한다. 기간으로 자르면 이번 달에 안 사 온 품목의 원가가
+     * 통째로 빠진다(경영자보고서에서 같은 까닭으로 남겨 둔 자리다).
+     */
+    const period: Record<string, string> = {}
+    if (cond.from) period.from = cond.from
+    if (cond.to) period.to = cond.to
     Promise.all([
-      api.get<SalesDoc[]>('/sales'),
+      api.get<SalesDoc[]>('/sales', { params: period }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<CostRow[]>('/costs'),
       api.get<PurchaseLite[]>('/purchases'),
@@ -159,7 +171,9 @@ export default function DailyProfitPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   /** 월별원가는 판매한 <b>그 달</b>의 표준원가를 쓴다 — 기간이 여러 달에 걸쳐도 맞게. */
   const costByItemPeriod = useMemo(

@@ -121,12 +121,24 @@ export default function PivotSummaryPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b] = await Promise.all([api.get<SalesDoc[]>('/sales'), api.get<PurchaseDoc[]>('/purchases')])
+      /*
+       * <b>보는 해를 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서
+       * <code>date.slice(0, 4) === year</code> 로 걸렀다 — 화면은 해를 고르게 해 놓고
+       * 서버에는 아무것도 안 보내는 꼴이었다. 이 표에는 <b>이월도 누계도 없다</b>
+       * (거래처원장·월별채권채무와 다르다) — 그 해 전표만 있으면 숫자가 같다.
+       */
+      const period = { from: `${year}-01-01`, to: `${year}-12-31` }
+      const [s, b] = await Promise.all([
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+      ])
       setSales(s.data); setPurchases(b.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 해를 바꾸면 그 해로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year])
 
   /**
    * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
