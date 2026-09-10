@@ -93,7 +93,11 @@ export default function DefectReportPage() {
     setLoading(true); setError('')
     try {
       const [q, a, d, it] = await Promise.all([
-        api.get<QualityInspection[]>('/quality-inspections'),
+        /*
+         * <b>검사도 기간을 서버에 넘긴다.</b> 바로 아래 재고조정은 진작 넘기고 있었는데
+         * 이것만 전 기간을 받아 아래 inPeriod 로 걸렀다 — 옆줄이 하는 일을 이 줄만 안 했다.
+         */
+        api.get<QualityInspection[]>('/quality-inspections', { params: { from, to } }),
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
         api.get<Item[]>('/items'),

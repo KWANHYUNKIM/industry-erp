@@ -138,6 +138,11 @@ export default function ReceiptStatusPage() {
         api.get<Production[]>('/productions', { params: { from: from || undefined, to: to || undefined } }),
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
+        /*
+         * <b>구매는 기간으로 못 좁힌다.</b> 아래 stockCostMap 이 <b>지난 입고 이력 전부</b>로
+         * 품목별 취득원가를 낸다 — 기간으로 자르면 그 기간에 안 사 온 품목의 금액이 통째로 빠진다.
+         * (경영자보고서·일보에서 같은 판단을 했다.)
+         */
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<{ id: number; name: string }[]>('/employees'),
       ])

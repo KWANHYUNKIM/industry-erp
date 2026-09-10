@@ -49,8 +49,14 @@ export default function DailyReportPage() {
     setLoading(true); setError('')
     try {
       const [s, p, m] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>기간을 서버에 넘긴다.</b> 여태 전 기간을 받아 아래에서 걸렀다 —
+         * 일보는 하루치를 보는 화면인데 판매·구매 전표를 <b>통째로</b> 실어 오고 있었다.
+         * 이 화면이 그 둘로 하는 일은 구간 집계와 펼친 하루뿐이고, 펼친 날은 위 useEffect 가
+         * <b>늘 구간 안으로 되돌린다</b>(구간 밖이면 마지막 날로 옮긴다). 그래서 좁혀도 같다.
+         */
+        api.get<SalesDoc[]>('/sales', { params: { from, to } }),
+        api.get<PurchaseDoc[]>('/purchases', { params: { from, to } }),
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
       ])
       setSales(s.data); setPurchases(p.data); setMovement(m.data)
