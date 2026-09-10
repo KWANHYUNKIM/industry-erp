@@ -5440,7 +5440,11 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
 
   const bad = []
   let checked = 0
-  let skipped = 0
+  /*
+   * <b>건너뛴 것은 이름으로 남긴다.</b> 수만 세면 다섯이 빠져도 아무도 어느 화면인지 모른다 —
+   * 정렬 검사는 진작 이름을 냈는데 여기만 수만 내고 있었다(2026-09-10).
+   */
+  const skippedNames = []
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = WIDTH_MAP.get(screen)
     if (!rel || PENDING.has(screen)) continue
@@ -5457,7 +5461,7 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
        */
       hit: names.filter((n) => new RegExp(String.raw`<th\b[^>]*>\s*${esc(n)}\s*${MARK_TAIL}\s*</th>`).test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
-    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
+    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skippedNames.push(screen); continue }
 
     const widths = new Map()
     for (const m of noArrow(scored[0].head).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)) {
@@ -5487,7 +5491,8 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
     }
   }
   eq('폭을 견준 열 짝 ' + checked + '개의 앞뒤가 원본과 같다 (표를 못 짝지어 건너뛴 '
-    + skipped + '개)', bad.join('\n') || '없음', '없음')
+    + skippedNames.length + (skippedNames.length ? '개: ' + skippedNames.join(', ') : '개') + ')',
+    bad.join(String.fromCharCode(10)) || '없음', '없음')
 }
 
 // ── 2-s) 회계기수 기간을 ! 로 눌러 쓰지 않았나 ────────────────────────────
