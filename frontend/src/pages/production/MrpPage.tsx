@@ -131,7 +131,14 @@ export default function MrpPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Row[]>('/production-plans')
+      /*
+       * 원본 [생산계획기간]을 <b>서버로 보낸다.</b> 예전에는 안 보내고 전 기간을 받아
+       * 아래 shown 에서 걸렀다 — 주차 몇 개를 보려고 계획 전부를 실어 왔다.
+       * 아래 걸름은 그대로 둔다(조건을 지웠을 때와 다른 조건들이 같은 자리에서 돈다).
+       */
+      const res = await api.get<Row[]>('/production-plans', {
+        params: { weekFrom: weekFrom || undefined, weekTo: weekTo || undefined },
+      })
       setRows([...res.data].sort((a, b) => (a.planWeek < b.planWeek ? 1 : a.planWeek > b.planWeek ? -1 : b.id - a.id)))
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -140,7 +147,8 @@ export default function MrpPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 서버에서 다시 읽는다 — 이제 그 조건이 서버로 간다. */
+  useEffect(() => { load() }, [weekFrom, weekTo])
 
   const shown = useMemo(() => rows.filter((r) => {
     if (tab !== '전체' && r.status !== TAB_STATUS[tab]) return false

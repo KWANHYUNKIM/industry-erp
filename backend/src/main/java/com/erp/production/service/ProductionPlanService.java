@@ -39,6 +39,11 @@ import com.erp.production.dto.ProductionPlanDtos;
 @RequiredArgsConstructor
 public class ProductionPlanService {
 
+    /** 빈 문자열은 '안 골랐다' 는 뜻이다 — 그대로 쓰면 모든 주차가 걸러진다. */
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
     private final ProductionPlanRepository planRepository;
     // inventory 의 공개 service 를 거친다(CLAUDE.md 4.2).
     private final ItemService itemService;
@@ -54,8 +59,20 @@ public class ProductionPlanService {
 
     @Transactional(readOnly = true)
     public List<PlanResponse> findAll() {
+        return findAll(null, null);
+    }
+
+    /**
+     * 원본 조건 <b>[생산계획기간]</b>으로 좁혀 읽는다.
+     *
+     * <p>화면(생산계획/MRP생성)은 이 조건을 진작 묻고 있었는데 <b>서버에는 아무것도 안 보내</b>
+     * 전 기간을 받아 브라우저에서 걸렀다. 주차 문자열을 그대로 비교하므로 걸러지는 줄은 같다.
+     * 안 주면 전부 낸다 — 생산계획현황처럼 기간을 안 묻는 화면이 같은 자리를 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanResponse> findAll(String weekFrom, String weekTo) {
         Map<Long, BigDecimal> stockByItem = currentStockByItem();
-        return planRepository.findAllWithProduct().stream()
+        return planRepository.findWithProductInWeeks(blankToNull(weekFrom), blankToNull(weekTo)).stream()
                 .map(p -> PlanResponse.from(p, stockByItem.getOrDefault(p.getProduct().getId(), BigDecimal.ZERO)))
                 .toList();
     }

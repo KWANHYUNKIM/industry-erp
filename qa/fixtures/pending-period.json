@@ -1,8 +1,8 @@
-[
- "/mails/sent",
- "/mails/shared",
- "/pay-settings/transfers",
- "/pay-settings/transfers/transferred-payslips",
- "/production-plans",
- "/projects"
-]
+{
+ "/mails/sent": "메일 화면(MailPage)에 [기간] 조건이 <b>아예 없다</b> — 화면이 안 묻는 것을 서버에 만들 까닭이 없다. 줄이 많은 것은 자료가 쌓인 것이지 기간을 무시해서가 아니다. 원본 메일함에 기간이 있는지는 아직 안 재었다(2026-09-10 확인).",
+ "/mails/shared": "위와 같음 — 같은 화면이 같은 조건 판을 쓴다.",
+ "/pay-settings/transfers": "급여이체 화면(PaySettingPage)도 [기간]을 안 묻는다 — EcPeriodPicks 에서 ymd 함수만 가져다 쓸 뿐 기간 판을 그리지 않는다(2026-09-10 확인).",
+ "/pay-settings/transfers/transferred-payslips": "위와 같음 — 같은 화면의 같은 탭이다.",
+ "/production-plans": "화면은 [생산계획기간]을 <b>묻는다</b> — 다만 그 축이 날짜가 아니라 주차 문자열(2026-W28)이다. 2026-09-10 에 서버가 weekFrom·weekTo 를 받게 고쳤고 화면이 그 조건을 보낸다. 이 검사는 컨트롤러가 <code>LocalDate from</code> 을 받는지만 보므로 <b>고친 뒤에도 목록에 남는다</b> — 남았다고 안 고친 것이 아니다.",
+ "/projects": "열 화면이 <b>드롭다운 소스</b>로 쓰는 마스터다(비용·업무일지·전표 입력 등). 창고·계정과 같은 성격이라 기간을 걸 자리가 아니고, 200줄을 넘은 것은 프로젝트가 많아서다(2026-09-10 확인)."
+}

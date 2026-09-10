@@ -4222,7 +4222,13 @@ async function scenarioNoUnboundedList() {
      */
     if (Array.isArray(lb) && lb.length === la.length) 안받는것.push(p)
   }
-  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8'))
+  /*
+   * 목록은 <b>자리마다 왜 남는지</b>를 함께 든다. 경로만 적어 두었더니 다음 사람이
+   * 같은 조사를 되풀이했다 — 2026-09-10 에 여섯을 다 열어 보니 넷은 <b>화면이 기간을
+   * 아예 안 묻는 자리</b>였고(메일함·급여이체), 하나는 열 화면이 드롭다운으로 쓰는
+   * 마스터(프로젝트)였다. 진짜 미완은 하나뿐이었다.
+   */
+  const TODO = Object.keys(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8')))
   const 늘었다 = 안받는것.filter((x) => !TODO.includes(x))
   const 고쳤다 = TODO.filter((x) => !안받는것.includes(x))
   eq(`기간을 안 받는 목록이 늘지 않았다 (아직 ${TODO.length}자리 남음)`, 늘었다.join(' / ') || '없음', '없음')

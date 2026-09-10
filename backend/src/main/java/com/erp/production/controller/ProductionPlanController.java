@@ -21,9 +21,11 @@ public class ProductionPlanController {
 
     private final ProductionPlanService planService;
 
+    /** 원본 조건 [생산계획기간]. 안 주면 전부 낸다. */
     @GetMapping
-    public List<PlanResponse> list() {
-        return planService.findAll();
+    public List<PlanResponse> list(@RequestParam(required = false) String weekFrom,
+                                   @RequestParam(required = false) String weekTo) {
+        return planService.findAll(weekFrom, weekTo);
     }
 
     /** 생산계획 삭제. 작업지시로 전환된 계획은 거부한다. */
