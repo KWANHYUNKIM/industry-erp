@@ -57,6 +57,28 @@ export function sumStockValue(rows: StockValueRow[]): { value: number; unknown: 
  * <p>화면마다 이 계산을 따로 쓰면 한쪽만 고치는 일이 생긴다 — 실제로 경영자보고서와
  * 재고분석이 각자 판매단가로 평가하고 있었다.
  */
+/**
+ * 재고 평가단가 지도 — <b>서버가 낸 마지막 입고단가</b>로 만든다.
+ *
+ * <p>여섯 화면이 이 지도 하나를 만들려고 구매 전표를 <b>통째로</b> 받고 있었다
+ * (2026-09-10 실측 984KB). <code>/purchases/item-prices</code> 는 품목당 한 줄만 낸다.
+ *
+ * <p>옛 <code>stockCostMap</code> 은 같은 날 전표가 둘일 때 <b>목록 차례에 기대어</b>
+ * 골랐다(날짜 내림차순으로 오는 것을 <code>&gt;=</code> 로 덮어써서 id 가 작은 쪽이 이겼다).
+ * 서버는 <b>나중에 적은 전표</b>를 마지막 입고로 본다. 지금 자료에서 그 차이로 값이
+ * 갈리는 품목은 하나다.
+ */
+export function stockCostMapFromLast(
+  items: { id: number; purchasePrice?: number }[],
+  lastPrices: { itemId: number; unitPrice: number }[],
+): Map<number, number | null> {
+  const last = new Map(lastPrices.map((r) => [r.itemId, r.unitPrice]))
+  return new Map(items.map((it) => [it.id, stockUnitCost({
+    lastInboundPrice: last.get(it.id) ?? null,
+    itemPurchasePrice: it.purchasePrice ?? null,
+  })]))
+}
+
 export function stockCostMap(
   items: { id: number; purchasePrice?: number }[],
   purchases: { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[],

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -73,7 +73,7 @@ export default function StockAnalysisPage() {
   const [withInactive, setWithInactive] = useState(true)
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
   const { inactive, untracked } = useItemFlags()
-  const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
+  const [buys, setBuys] = useState<{ itemId: number; unitPrice: number }[]>([])
   /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
   /*
    * 원본 조건 <b>[품목구분]·[품목그룹1]</b>(2026-09-09 실측 — [품목] 바로 뒤에 선다).
@@ -119,7 +119,11 @@ export default function StockAnalysisPage() {
         api.get<StockRow[]>('/stock', { params: { asOf: date } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
-        api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 평가단가 지도 하나를 만들려고 구매 전표를
+         * 통째로 받고 있었다(2026-09-10 실측 984KB · 이 화면 합계 2,205KB).
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         /*
          * 원본 [미판매]. 기간을 안 건다 — 아래 실측대로 <b>아직 열려 있는 수주 잔량 전부</b>다.
          */
@@ -132,7 +136,7 @@ export default function StockAnalysisPage() {
   }
   useEffect(() => { load() }, [])
 
-  const priceById = useMemo(() => stockCostMap(items, buys), [items, buys])
+  const priceById = useMemo(() => stockCostMapFromLast(items, buys), [items, buys])
 
   /** 품목 마스터를 id 로 찾는다 — [품목구분]·[품목그룹1] 이 이 값을 쓴다. */
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])

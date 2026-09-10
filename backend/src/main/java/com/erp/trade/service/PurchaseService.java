@@ -63,6 +63,23 @@ public class PurchaseService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PurchaseLineRepository purchaseLineRepository;
 
+    /**
+     * 품목별 <b>마지막 입고단가</b>. 품목당 한 줄이다.
+     *
+     * <p>줄을 <b>오래된 것부터</b> 받아 접는다 — 뒤엣것이 이기므로 같은 날 전표가 둘이면
+     * <b>나중에 적은 것</b>이 남는다. 그것이 마지막 입고다.
+     */
+    @Transactional(readOnly = true)
+    public List<com.erp.trade.dto.PurchaseDtos.ItemPriceResponse> findItemPrices() {
+        var last = new java.util.LinkedHashMap<Long, java.math.BigDecimal>();
+        for (var r : purchaseRepository.findItemPriceRows()) {
+            last.put(r.getItemId(), r.getUnitPrice());
+        }
+        return last.entrySet().stream()
+                .map(e -> new com.erp.trade.dto.PurchaseDtos.ItemPriceResponse(e.getKey(), e.getValue()))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<PurchaseResponse> findAll() {
         return findAll(null, null);

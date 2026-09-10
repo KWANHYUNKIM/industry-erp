@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import { amountVariance, priceVariance, qtyVariance, weightedAvgPrice } from '../../utils/costVariance'
 import type { Item, PurchaseDoc } from '../../api/types'
@@ -117,6 +117,8 @@ export default function VariancePage() {
   const [bors, setBors] = useState<BorRow[]>([])
   const processOf = useMemo(() => processMapOf(bors), [bors])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  /* 평가단가 지도만 쓰는 자리. 전표는 아래 purchases 가 따로 든다(가중평균단가·수량차이). */
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [keyword, setKeyword] = useState('')
@@ -146,16 +148,23 @@ export default function VariancePage() {
     setLoading(true)
     setError('')
     try {
-      const [c, i, br, p, b, pr] = await Promise.all([
+      const [c, i, br, p, lp, b, pr] = await Promise.all([
         api.get<Cost[]>('/costs'),
         api.get<Item[]>('/items'),
         api.get<BorRow[]>('/bor'),
+        /* 가중평균단가·수량차이 금액이 이 전표들을 줄 단위로 훑는다 — 여기는 못 줄인다. */
         api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>평가단가 지도는 마지막 입고단가만 있으면 된다.</b> 여태 위 전표 목록을 그대로
+         * 접어 만들었는데, 그 규칙이 <b>목록 차례에 기대고</b> 있었다(같은 날이면 id 가
+         * 작은 쪽이 이겼다). 서버가 품목당 한 줄로 내고 규칙도 그 자리에 적혀 있다.
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<BomRow[]>('/boms'),
         api.get<ProductionRow[]>('/productions'),
       ])
       setCosts(c.data); setItems(i.data); setBors(br.data)
-      setPurchases(p.data); setBoms(b.data); setProductions(pr.data)
+      setPurchases(p.data); setLastPrices(lp.data); setBoms(b.data); setProductions(pr.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -193,10 +202,7 @@ export default function VariancePage() {
 
   /** 기준단가가 없을 때 수량차이 금액을 매길 대체 단가 — 재고자산평가와 같은 규칙. */
   const evalPriceOf = useMemo(
-    () => stockCostMap(items, purchases.map((d) => ({
-      purchaseDate: d.purchaseDate,
-      lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    }))),
+    () => stockCostMapFromLast(items, lastPrices),
     [items, purchases],
   )
 

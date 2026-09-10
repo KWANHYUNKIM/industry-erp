@@ -6,7 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { useItemFlags } from '../../utils/useInactiveItems'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -156,12 +156,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
        * 이번 달에 안 샀다고 그 품목의 입고단가가 사라지면 안 된다.
        */
       api.get<{ id: number; purchasePrice?: number }[]>('/items'),
-      api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
     ])
       .then(([a, w, c, g, it, pu]) => {
         setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
         setWarehouses(w.data); setCats(c.data); setCodeGroups(g.data)
-        setCostById(stockCostMap(it.data, pu.data))
+        setCostById(stockCostMapFromLast(it.data, pu.data))
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))

@@ -4,9 +4,9 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { groupByCategory } from '../../utils/costGroup'
-import type { Item, PurchaseDoc } from '../../api/types'
+import type { Item } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -154,7 +154,7 @@ export default function ActualCostPage() {
   const [movement, setMovement] = useState<MovementRow[]>([])
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [items, setItems] = useState<Item[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [expenses, setExpenses] = useState<ProcessExpenseRow[]>([])
   const [bors, setBors] = useState<BorRow[]>([])
   const processOf = useMemo(() => processMapOf(bors), [bors])
@@ -187,7 +187,12 @@ export default function ActualCostPage() {
          */
         api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } }),
         api.get<Item[]>('/items'),
-        api.get<PurchaseDoc[]>('/purchases'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 품목별 평가단가 지도
+       * 하나를 만드는 것뿐인데, 여태 구매 전표를 통째로 받았다(2026-09-10 실측 984KB).
+       * /purchases/item-prices 는 품목당 한 줄만 낸다.
+       */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         /*
          * 배부 두 갈래가 보는 자리. 셋 다 <b>이미 있던</b> 자리다 —
          * 노무비/경비등록의 총액, 원가의 배부 후 단가, 그리고 그 달 생산수량.
@@ -201,7 +206,7 @@ export default function ActualCostPage() {
       setMovement(mv.data)
       setLedger(lg.data.rows)
       setItems(it.data)
-      setPurchases(pu.data)
+      setLastPrices(pu.data)
       setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data); setBors(br.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -218,11 +223,8 @@ export default function ActualCostPage() {
    * 기말금액 합계가 조용히 작아진다.
    */
   const priceOf = useMemo(
-    () => stockCostMap(items, purchases.map((d) => ({
-      purchaseDate: d.purchaseDate,
-      lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    }))),
-    [items, purchases],
+    () => stockCostMapFromLast(items, lastPrices),
+    [items, lastPrices],
   )
 
   /**

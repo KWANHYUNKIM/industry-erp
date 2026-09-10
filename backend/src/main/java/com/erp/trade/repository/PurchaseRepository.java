@@ -99,4 +99,20 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     @Query("select count(p) from Purchase p where lower(p.docNo) like :q or lower(p.partner.name) like :q")
     long searchCount(@Param("q") String q);
 
+    /**
+     * 품목별 <b>마지막 입고단가</b>를 낼 재료. 줄 단위 투영이라 전표를 통째로 싣지 않는다.
+     *
+     * <p>여섯 화면이 [금액(수량*입고단가)] 하나를 내려고 구매 전표를 <b>통째로</b> 받고 있었다
+     * (2026-09-10 실측 984KB). 필요한 것은 품목당 한 줄뿐이다.
+     * 차례는 <b>오래된 것부터</b> — 접으면서 뒤엣것이 이기게 두면 그것이 마지막 입고다.
+     */
+    @Query("select l.item.id as itemId, l.unitPrice as unitPrice, p.purchaseDate as purchaseDate "
+           + "from Purchase p join p.lines l order by p.purchaseDate, p.id")
+    List<ItemPriceRow> findItemPriceRows();
+
+    interface ItemPriceRow {
+        Long getItemId();
+        BigDecimal getUnitPrice();
+        java.time.LocalDate getPurchaseDate();
+    }
 }

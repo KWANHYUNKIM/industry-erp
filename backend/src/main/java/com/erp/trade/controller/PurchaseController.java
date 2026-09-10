@@ -24,6 +24,15 @@ public class PurchaseController {
     private final PurchaseService purchaseService;
 
     /** <b>limit</b> 은 최근 몇 건만 달라는 뜻이다 — 목록이 최신순이라 앞에서 자르면 그게 최근 건이다. */
+    /**
+     * 품목별 마지막 입고단가. 재고금액을 내는 화면 여섯이 이 값 하나를 얻으려고
+     * 구매 전표를 통째로 받던 자리를 대신한다(실측 984KB).
+     */
+    @GetMapping("/item-prices")
+    public List<com.erp.trade.dto.PurchaseDtos.ItemPriceResponse> itemPrices() {
+        return purchaseService.findItemPrices();
+    }
+
     @GetMapping
     public List<PurchaseResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

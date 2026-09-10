@@ -108,6 +108,20 @@ public final class PurchaseDtos {
             BigDecimal discountPerUnit, BigDecimal discountAmount, BigDecimal discountRate
     ) {}
 
+    /**
+     * 품목의 <b>마지막 입고단가</b> 한 줄.
+     *
+     * <p>재고금액을 내는 화면 여섯이 이 값 하나를 얻으려고 구매 전표를 통째로 받고 있었다
+     * (2026-09-10 실측 984KB). 품목당 한 줄이면 그만이다.
+     *
+     * <p><b>같은 날 전표가 둘이면 나중에 적은 것이 마지막 입고다.</b> 여태 화면이 쓰던 규칙은
+     * 그렇지 않았다 — 목록이 날짜 내림차순으로 오는 데 기대어 <code>&gt;=</code> 로 덮어써서,
+     * 같은 날짜에서는 <b>id 가 작은(먼저 적은) 전표</b>가 이겼다. 아무도 그렇게 정한 적이 없고
+     * 목록 차례가 바뀌면 값도 조용히 바뀌는 규칙이었다. 지금 자료에서 그 차이로 값이 갈리는
+     * 품목이 <b>하나</b> 있다(2026-07-15 에 1,200 과 1 두 건).
+     */
+    public record ItemPriceResponse(Long itemId, BigDecimal unitPrice) {}
+
     public record PurchaseResponse(
             Long id, String docNo,
             Long partnerId, String partnerName,

@@ -65,6 +65,21 @@ ORDER BY "상태"
 반대로 **이제 만들 수 있게 된 예외는 예외에서 빼고 목록으로 옮긴다** — 이유를 고쳐 쓸 것이
 아니라 만들 일이다.
 
+## 3.5 자바 메서드를 **사이에** 끼우지 않는다
+
+새 메서드를 기존 메서드 <b>바로 위</b>에 넣을 때, 그 위의 `@Transactional` 이 **누구 것인지**
+먼저 본다. 애노테이션과 메서드 사이에 끼우면 다음 두 가지가 한꺼번에 벌어진다.
+
+- 원래 주인이 애노테이션을 **잃는다** → 트랜잭션 밖에서 DTO 로 옮기다가
+  `Could not initialize proxy … no session` 으로 터진다(HTTP 500).
+- 새 메서드에도 애노테이션을 붙였으면 `Transactional is not a repeatable annotation type` 로
+  **컴파일이 깨지고**, Lombok 이 그 자리에서 멈춰 다른 파일 수백 곳이
+  `cannot find symbol` 로 줄줄이 딸려 나온다 — 진짜 오류는 **맨 첫 줄 하나**다.
+
+이 세션에서 **세 번** 했다(LedgerService · StockAdjustmentService · PurchaseService).
+그러니 붙여넣기 앵커는 **애노테이션까지 포함**해서 잡고, 컴파일 오류가 쏟아지면
+`./mvnw -o compile | grep -E '^\[ERROR\].*\.java' | head -3` 로 **첫 줄부터** 읽는다.
+
 ## 4. 검증 — 전부 통과해야 한다
 
 ```
