@@ -177,11 +177,23 @@ export default function StockLedgerPage() {
   }
 
   async function loadRefs() {
+    /*
+     * <b>거래처명을 붙일 재료는 이 기간 것만 받는다.</b> 여태 전 기간을 받았다 —
+     * 이 화면 하나가 판매 3,641KB + 구매 984KB 를 <b>전표번호→거래처명 표 하나</b>를
+     * 만들려고 실어 왔다(2026-09-24 실측, 화면 합계 7.7MB).
+     *
+     * <p>수불 줄은 그 기간 안의 거래이고 그 적요가 가리키는 전표도 같은 기간이라,
+     * 좁혀도 붙는 이름이 달라지지 않는다 — <b>자료로 맞대어 봤다</b>: 2027-05 한 달의
+     * 수불 1,153줄에서 전체 지도(2,477건)와 기간 지도(759건)가 낸 거래처명이
+     * <b>모두 같았고 다른 줄이 하나도 없었다.</b>
+     */
+    const period: Record<string, string> = {}
+    if (filters.from) period.from = filters.from
+    if (filters.to) period.to = filters.to
     const [i, w, sl, pu] = await Promise.all([
       api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses'),
-      /* 원본 [거래처명] 을 붙일 재료. 아래 partnerOf 주석 참고. */
-      api.get<{ docNo: string; partnerName: string }[]>('/sales'),
-      api.get<{ docNo: string; partnerName: string }[]>('/purchases'),
+      api.get<{ docNo: string; partnerName: string }[]>('/sales', { params: period }),
+      api.get<{ docNo: string; partnerName: string }[]>('/purchases', { params: period }),
     ])
     setPartnerOfDoc(new Map([...sl.data, ...pu.data].map((d) => [d.docNo, d.partnerName])))
     setItems(i.data); setWarehouses(w.data)
@@ -275,10 +287,10 @@ export default function StockLedgerPage() {
       search={keyword}
       onSearchChange={setKeyword}
       /* 인자 없이 부른다 — onSearch 가 무엇을 넘기든 all 로 새면 안 된다. */
-      onSearch={() => void loadLedger()}
+      onSearch={() => { void loadRefs(); void loadLedger() }}
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: () => void loadLedger() },
+        { label: '검색(F8)', primary: true, onClick: () => { void loadRefs(); void loadLedger() } },
         /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
         { label: '오천건이상조회', onClick: () => void loadLedger(true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
