@@ -7219,6 +7219,40 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
  */
 {
 /*
+ * <b>받아 놓고 안 쓰는 조건은 조용히 거짓말을 한다.</b>
+ *
+ * <p>컨트롤러가 <code>@RequestParam</code> 을 선언해 두고 본문에서 안 쓰면, 화면은
+ * 좁힌 줄 알고 전 기간을 본다 — <b>400도 안 나고 200에 자료도 그럴듯해서</b> 아무도 모른다.
+ *
+ * <p>2026-09-10 에 발주 목록에서 그 꼴을 하나 잡았다 — 상태를 주면 기간이 버려졌다.
+ * 다만 그건 파라미터를 <b>쓰긴 쓰되 한쪽 갈래에서만</b> 쓴 것이라 이 검사로는 안 잡힌다.
+ * 그 모양(<code>x != null ? f(x) : g(y, z)</code>)을 잡는 규칙도 재 봤는데
+ * <b>저장소에 그런 갈림길이 하나도 없어</b> 아무것도 안 재는 검사가 되므로 만들지 않았다.
+ * 여기서는 <b>아예 안 쓰는 것</b>만 본다 — 지금 쉰여덟 자리를 실제로 센다.
+ */
+{
+  const METHOD = /@(?:Get|Post|Put|Delete|Patch)Mapping[\s\S]{0,300}?public\s+[\w.<>,\[\] ?]+\s+(\w+)\s*\(([\s\S]{0,1200}?)\)\s*\{([\s\S]{0,2000}?)\n    \}/g
+  const PARAM = /@RequestParam(?:\([^)]*\))?\s*(?:@\w+(?:\([^)]*\))?\s*)*[\w.<>,\[\] ?]+\s+(\w+)\s*(?:,|$)/g
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(METHOD)) {
+      const params = [...m[2].matchAll(PARAM)].map((x) => x[1])
+      /* 하나만 받는 자리는 갈래가 없다 — 안 쓰면 그건 딴 이야기다. */
+      if (params.length < 2) continue
+      checked += 1
+      const unused = params.filter((p) => !new RegExp('\\b' + p + '\\b').test(m[3]))
+      if (unused.length > 0) {
+        bad.push(`${f.split(sep).pop()}  ${m[1]}(…) — 받아 놓고 안 쓰는 조건: ${unused.join(', ')}`)
+      }
+    }
+  }
+  eq(`조건을 둘 이상 받는 자리 ${checked}곳이 다 그것을 쓴다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+
+/*
  * <b>표에서 조용히 줄을 버리지 않는다.</b>
  *
  * <p>브라우저는 표 한 장에 몇만 줄을 깔면 멈춘다 — 원가집계표 [감소내역]이 63,486줄을
