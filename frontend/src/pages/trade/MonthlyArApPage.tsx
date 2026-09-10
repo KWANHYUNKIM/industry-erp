@@ -24,6 +24,9 @@ interface Settlement {
   partnerId: number; partnerName: string; settleDate: string; amount: number
 }
 
+/** /ledger/partner-balances 한 줄 — 그 시점의 거래처별 채권·채무. */
+interface Opening { partnerId: number; name: string; receivable: number; payable: number }
+
 interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
 
 /**
@@ -76,22 +79,39 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
    */
   const [rollUp, setRollUp] = useState(false)
   const [partnerRows, setPartnerRows] = useState<Partner[]>([])
+  /** 그 해 시작 <b>전날까지</b>의 잔액 — 이것이 1월의 [전월이월]이다. 서버가 낸다. */
+  const [openings, setOpenings] = useState<Opening[]>([])
   const pickers = useCondPickers(['partners'])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b, st, pr] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
-        api.get<Settlement[]>('/settlements'),
+      /*
+       * <b>전표는 그 해만 받고, [전월이월]은 서버가 낸다.</b>
+       *
+       * <p>여태 전표를 통째로 받아 <code>ym(d.date).y &lt; year</code> 인 것을 접어
+       * 이월을 냈다. 거래처원장에서 같은 자리를 풀었고(2026-09-10),
+       * <code>/ledger/partner-balances?asOf=</code> 가 그 값을 그대로 낸다 —
+       * 자료로 맞대어 봤다: 2027년 1월 이월을 거래처 일곱에서 채권·채무 모두
+       * <b>다른 것이 하나도 없었다</b>(채권합 26,440,090 · 채무합 12,427,701).
+       */
+      const period = { from: `${year}-01-01`, to: `${year}-12-31` }
+      const [s, b, st, pr, ob] = await Promise.all([
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+        api.get<Settlement[]>('/settlements', { params: period }),
         api.get<Partner[]>('/partners'),
+        api.get<Opening[]>('/ledger/partner-balances', { params: { asOf: `${year - 1}-12-31` } })
+          .catch(() => ({ data: [] as Opening[] })),
       ])
       setSales(s.data); setPurchases(b.data); setSettlements(st.data); setPartnerRows(pr.data)
+      setOpenings(ob.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 해를 바꾸면 그 해로 다시 받는다(이월도 같이). */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year])
   // 채권판·채무판이 같은 컴포넌트를 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 값을 따라가게 한다.
   useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
@@ -140,14 +160,23 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     const decDocs = settlements.filter((s) => s.type === decType && mine(s.partnerName))
       .map((s) => ({ date: s.settleDate, amt: s.amount, name: s.partnerName ?? '' }))
 
-    return { inc: incDocs, dec: decDocs }
+    /*
+     * <b>거르는 잣대를 함께 낸다.</b> 이월(서버가 낸 기초잔액)도 줄과 <b>같은 잣대</b>로
+     * 걸러야 한다 — 그 해에 거래가 없던 거래처도 이월은 있을 수 있어서,
+     * '그 해 전표에 나온 이름' 으로 거르면 그런 거래처의 이월이 조용히 빠진다.
+     */
+    return { inc: incDocs, dec: decDocs, mine }
   }, [sales, purchases, settlements, mode, partner, manager, rollUp, partnerRows, partnerGroup])
 
   const rows = useMemo<MonthRow[]>(() => {
-    // 연초 이전 누적 순잔액 = 전월이월(1월)
-    let opening = 0
-    for (const d of docs.inc) if (ym(d.date).y < year) opening += d.amt
-    for (const d of docs.dec) if (ym(d.date).y < year) opening -= d.amt
+    /*
+     * 연초 이전 누적 순잔액 = 전월이월(1월). <b>서버가 낸 잔액</b>을 쓴다.
+     * 거르는 잣대는 줄과 <b>같아야 한다</b> — 아래 docs 가 거래처 이름으로 걸렀으니
+     * 이월도 같은 이름 집합으로 거른다. 안 그러면 이월만 남의 거래처를 품는다.
+     */
+    const opening = openings
+      .filter((b) => docs.mine(b.name))
+      .reduce((n, b) => n + (mode === 'AR' ? b.receivable : b.payable), 0)
 
     const inc = new Array(13).fill(0)
     const dec = new Array(13).fill(0)
