@@ -128,6 +128,14 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     setError('')
     try {
       const [s, p, t, js, jp, jt, pt] = await Promise.all([
+        /*
+         * <b>여기서는 기간을 못 보낸다.</b> 2026-09-10 에 보내 보고 되돌렸다 —
+         * 이 화면은 <b>[이월]</b>을 <code>e.date &lt; from</code> 인 전표로 낸다(아래 opening).
+         * 기간 밖을 안 받으면 이월이 통째로 0이 되어 <b>잔액이 딴 숫자</b>가 된다:
+         * 실제로 합계가 (3거래처) 39,041,591 → (2거래처) 3,093,090 으로 바뀌었다.
+         * 줄이려면 <b>서버가 기초잔액을 따로 내주는 것</b>이 먼저다
+         * (거래처관리대장의 /ledger/partner-movements 가 그렇게 한다).
+         */
         api.get<SalesDoc[]>('/sales'),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<Settlement[]>('/settlements').catch(() => ({ data: [] as Settlement[] })),

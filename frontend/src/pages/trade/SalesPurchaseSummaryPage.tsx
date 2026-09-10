@@ -105,12 +105,25 @@ export default function SalesPurchaseSummaryPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b] = await Promise.all([api.get<SalesDoc[]>('/sales'), api.get<PurchaseDoc[]>('/purchases')])
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래 inPeriod 로
+       * 걸렀다 — 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       * 거르는 규칙은 그대로 두고(같은 창을 두 번 보는 것은 해가 없다) 받는 것만 줄인다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      const [s, b] = await Promise.all([
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+      ])
       setSales(s.data); setPurchases(b.data)
     } catch (err) { setError(extractErrorMessage(err)); setSales([]); setPurchases([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다 — 안 그러면 서버 창과 화면 창이 어긋난다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
   /*
