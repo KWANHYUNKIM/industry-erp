@@ -14,8 +14,13 @@
  *
  * <h3>재는 방법</h3>
  * 셋이 <b>모두</b> 맞을 때만 문제로 본다.
- *   1. 같은 stem 으로 {@code Create…Request} · {@code Update…Request} · {@code …Response}
- *      가 다 있다 (즉 사람이 등록·수정하는 마스터다. 조회 전용 DTO 는 건너뛴다)
+ *   1. 같은 stem 으로 {@code Create…Request} 와 {@code …Response} 가 있다
+ *      (즉 사람이 만드는 것이다. 조회 전용 DTO 는 건너뛴다)
+ *      <b>{@code Update…Request} 는 있으면 같이 본다.</b> 예전에는 그것까지 있어야만
+ *      쟀는데, 우리 큰 전표들은 수정도 {@code Create…Request} 를 그대로 받는다
+ *      (PUT /sales/{id} 가 CreateSalesRequest 를 받는다). 그 바람에 판매·구매·수주·발주·
+ *      견적·출하·생산 같은 <b>가장 큰 것들이 통째로 검사 밖</b>에 있었다 — 재는 마스터가
+ *      28개였고, 넓히니 55개다(2026-09-10).
  *   2. 그 stem 의 <b>엔티티에 저장되는 필드</b>다 ({@code @Column} 또는 {@code @JoinColumn})
  *      — 파생값·표시이름은 엔티티에 없으므로 여기서 걸러진다
  *   3. 두 요청 record 어디에도 없다
@@ -145,6 +150,34 @@ function resolveEntity(stem) {
   const ends = [...entities.keys()].filter((k) => k.endsWith(stem))
   return ends.length === 1 ? entities.get(ends[0]) : null
 }
+/**
+ * <b>그 stem 에서만</b> 사람이 정하지 않는 것. 이름을 위 SERVER_OWNED 에 넣으면
+ * <b>어느 엔티티에서든</b> 그 이름이 빠지므로(품목·거래처의 active 까지 안 재게 된다)
+ * 한 화면에서만 서버가 채우는 값은 여기 적는다.
+ */
+const OWNED_HERE = new Map([
+  ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Asset|accumulatedDepreciation', '감가상각을 돌릴 때마다 서버가 쌓는다'],
+  ['Asset|disposalAmount', '처분 처리에서 찍는다 — 등록할 때 정하면 안 판 자산에 처분액이 생긴다'],
+  ['Bookmark|sortOrder', '새 북마크는 맨 뒤(max+1)로 서버가 매긴다. 차례 바꾸기는 통째로 다시 보내는 자리가 따로 있다'],
+  ['FieldWork|rejectReason', '반려할 때 찍는다(POST /{id}/reject)'],
+  ['Payslip|allowanceTotal', '수당 줄에서 더한다'],
+  ['Payslip|deductionTotal', '공제 줄에서 더한다'],
+  ['Payslip|netPay', '수당합 − 공제합이다'],
+  ['Lot|stockQty', '입출고가 쌓아 올린다'],
+  ['Lot|held', '보류는 전용 자리에서 바꾼다'],
+  ['MaterialIssue|issueNo', 'DocumentNoGenerator 가 매긴다'],
+  ['WorkResult|resultNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Inspection|inspectionNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Company|schemaName', '회사코드로 서버가 짓는다(co_0002 …)'],
+  ['Company|active', '회사를 내리는 자리를 아직 안 만들었다 — 만들 때 여기서 빼면 검사가 다시 잰다'],
+  ['PurchaseOrder|convertedPurchaseId', '구매로 넘길 때 서버가 잇는다'],
+  ['Quotation|convertedOrderId', '수주로 넘길 때 서버가 잇는다'],
+  ['SalesPlan|planNo', 'DocumentNoGenerator 가 매긴다'],
+  ['SalesPlan|planDate', '[예상매출일자]에서 서버가 정한다 — 안 정하면 계획연월의 첫날이다'],
+  ['SpecialPrice|active', '전용 엔드포인트(PATCH /{id}/active)로 바꾼다'],
+])
+
 let problems = 0
 let checked = 0
 
@@ -156,7 +189,8 @@ for (const file of javaFiles(ROOT, 'Dtos.java')) {
     const create = recs.get(`Create${stem}Request`)
     const update = recs.get(`Update${stem}Request`)
     // 등록·수정이 둘 다 있어야 '사람이 관리하는 마스터' 다. 조회 전용은 건너뛴다.
-    if (!create || !update) continue
+    /* 수정 전용 record 가 없어도 본다 — 큰 전표들은 수정도 Create…Request 를 그대로 받는다. */
+    if (!create) continue
     const stored = resolveEntity(stem)
     if (!stored) continue
 
@@ -169,12 +203,12 @@ for (const file of javaFiles(ROOT, 'Dtos.java')) {
      * 이걸 안 보면 응답 이름을 전부 '…Name' 으로 바꾸는 수밖에 없는데, 그건 검사에
      * 맞추려고 API 를 바꾸는 것이라 앞뒤가 뒤집힌다.
      */
-    const settable = new Set([...create, ...update])
+    const settable = new Set([...create, ...(update ?? [])])
     for (const f of [...settable]) {
       if (f.endsWith('Id')) settable.add(f.slice(0, -2))
     }
     const missing = fields.filter((f) =>
-      stored.has(f) && !settable.has(f) && !SERVER_OWNED.has(f))
+      stored.has(f) && !settable.has(f) && !SERVER_OWNED.has(f) && !OWNED_HERE.has(`${stem}|${f}`))
     if (missing.length > 0) {
       problems++
       console.log(`  ❌ ${stem} — 응답에 있고 엔티티에 저장되는데 등록·수정에서 정할 수 없다`)
