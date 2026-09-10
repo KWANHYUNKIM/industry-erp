@@ -86,6 +86,7 @@ public class SalesPlanService {
                 .planYear(req.planYear())
                 .planMonth(req.planMonth())
                 .planQty(req.planQty())
+                .unitPrice(req.unitPrice() != null ? req.unitPrice() : java.math.BigDecimal.ZERO)
                 .planAmount(req.planAmount())
                 .remark(req.remark())
                 .createdBy(username)
@@ -177,7 +178,7 @@ public class SalesPlanService {
                     p.getProject() != null ? p.getProject().getCode() : null,
                     p.getEmployee() != null ? p.getEmployee().getCode() : null,
                     p.getExpectedDate(),
-                    p.getPlanQty(), p.getPlanAmount(), actualQty, actualAmount, rate,
+                    p.getPlanQty(), p.getUnitPrice(), p.getPlanAmount(), actualQty, actualAmount, rate,
                     p.getRemark(), p.getCreatedBy(), p.getCreatedAt()));
         }
         return out;

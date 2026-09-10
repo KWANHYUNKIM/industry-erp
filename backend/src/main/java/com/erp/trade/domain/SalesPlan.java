@@ -95,6 +95,15 @@ public class SalesPlan extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal planQty = BigDecimal.ZERO;
 
+    /**
+     * 계획 단가. 원본 매출계획입력 격자는 <b>수량 · 단가 · 금액</b> 셋을 나란히 받는다(사본 실측).
+     * 이 칸이 없을 때는 계획을 세우는 사람이 둘을 손으로 곱해 금액에 적어야 했고,
+     * 표에서는 그 계획을 얼마짜리로 잡았는지 <b>금액을 수량으로 되나누어 짐작</b>할 수밖에 없었다.
+     */
+    @Column(name = "unit_price", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal unitPrice = BigDecimal.ZERO;
+
     /** 계획 금액 */
     @Column(name = "plan_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default

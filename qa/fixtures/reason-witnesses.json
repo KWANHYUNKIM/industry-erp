@@ -4604,13 +4604,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
  },
- "매출계획입력|단가": {
-  "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
-  "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
- },
  "매출계획입력|금액1": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [

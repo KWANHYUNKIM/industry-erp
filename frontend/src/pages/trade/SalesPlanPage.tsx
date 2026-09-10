@@ -41,6 +41,8 @@ interface ComparisonRow {
   expectedDate: string | null
   unit: string
   planQty: number
+  /** 원본 매출계획입력 격자의 [단가] — 수량·단가·금액이 나란히 선다. */
+  unitPrice: number
   planAmount: number
   /** 원본 [일자-No.] — 계획 한 줄을 가리키는 전표번호다. */
   /*
@@ -561,6 +563,7 @@ export default function SalesPlanPage() {
             <th>품목명</th>
             {/* 원본 [설정]의 [수량] — 처음엔 꺼져 있다. 금액만 보는 것이 기본이다. */}
             {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
+            {withQty && <th style={{ width: 90, textAlign: 'right' }}>단가</th>}
             <th style={{ textAlign: 'right' }}>계획금액</th>
             {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
             <th style={{ textAlign: 'right' }}>실적금액</th>
@@ -571,9 +574,9 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11 + (withQty ? 2 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -591,6 +594,7 @@ export default function SalesPlanPage() {
               <td style={{ color: '#5a626e' }}>{named(r.projectName, r.projectCode)}</td>
               <td>{named(r.itemName, r.itemCode)} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
               {withQty && <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>}
+              {withQty && <td style={{ textAlign: 'right' }}>{won(r.unitPrice)}</td>}
               <td style={{ textAlign: 'right' }}>{won(r.planAmount)}</td>
               {withQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.actualQty)}</td>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{won(r.actualAmount)}</td>
@@ -683,7 +687,23 @@ function PlanForm({
   const [itemId, setItemId] = useState('')
   const [month, setMonth] = useState('1')
   const [planQty, setPlanQty] = useState('')
+  /*
+   * 원본 매출계획입력 격자의 <b>[단가]</b>(사본 실측 — 수량 · 단가 · 금액이 나란히 선다).
+   * 이 칸이 없을 때는 계획을 세우는 사람이 <b>둘을 손으로 곱해</b> 금액에 적어야 했고,
+   * 표에서는 그 계획을 얼마짜리로 잡았는지 알 길이 없었다.
+   *
+   * <p>수량이나 단가를 고치면 금액을 <b>다시 곱해 준다.</b> 다만 금액을 사람이 직접
+   * 고친 뒤에는 덮어쓰지 않는다 — 원본도 금액 칸을 따로 두어 <b>수량 없이 금액만</b>
+   * 잡는 계획을 허용한다.
+   */
+  const [unitPrice, setUnitPrice] = useState('')
+  const [amountTouched, setAmountTouched] = useState(false)
   const [planAmount, setPlanAmount] = useState('')
+  const recalc = (q: string, u: string) => {
+    if (amountTouched) return
+    const n = Number(q || 0) * Number(u || 0)
+    if (n > 0) setPlanAmount(String(n))
+  }
   const [remark, setRemark] = useState('')
   /*
    * 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 <b>그 축을 안 나눈다</b>는 뜻이고,
@@ -707,6 +727,7 @@ function PlanForm({
         planYear: year,
         planMonth: Number(month),
         planQty: Number(planQty || 0),
+        unitPrice: Number(unitPrice || 0),
         planAmount: Number(planAmount || 0),
         warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
         partnerId: fPartner ? Number(fPartner) : undefined,
@@ -748,9 +769,18 @@ function PlanForm({
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
         <label style={{ flex: 1 }}><span style={lbl}>계획수량</span>
-          <input className={cls} type="number" step="any" value={planQty} onChange={(e) => setPlanQty(e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></label>
+          <input className={cls} type="number" step="any" value={planQty}
+                 onChange={(e) => { setPlanQty(e.target.value); recalc(e.target.value, unitPrice) }}
+                 style={{ width: '100%', textAlign: 'right' }} /></label>
+        {/* 원본 격자 차례: 수량 · 단가 · 금액. */}
+        <label style={{ flex: 1 }}><span style={lbl}>단가</span>
+          <input className={cls} type="number" step="any" value={unitPrice}
+                 onChange={(e) => { setUnitPrice(e.target.value); recalc(planQty, e.target.value) }}
+                 style={{ width: '100%', textAlign: 'right' }} /></label>
         <label style={{ flex: 1 }}><span style={lbl}>계획금액</span>
-          <input className={cls} type="number" step="any" value={planAmount} onChange={(e) => setPlanAmount(e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></label>
+          <input className={cls} type="number" step="any" value={planAmount}
+                 onChange={(e) => { setAmountTouched(true); setPlanAmount(e.target.value) }}
+                 style={{ width: '100%', textAlign: 'right' }} /></label>
       </div>
       {/* 원본 차례: 창고 · 거래처 · 품목 · 프로젝트 — 안 고르면 그 축을 안 나눈다. */}
       <div style={{ display: 'flex', gap: 10 }}>

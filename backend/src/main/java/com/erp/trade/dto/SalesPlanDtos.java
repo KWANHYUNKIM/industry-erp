@@ -26,6 +26,11 @@ public final class SalesPlanDtos {
             @NotNull(message = "계획연도를 입력하세요.") @Min(value = 2000, message = "연도를 확인하세요.") Integer planYear,
             @NotNull(message = "계획월을 입력하세요.") @Min(value = 1, message = "월은 1~12 입니다.") @Max(value = 12, message = "월은 1~12 입니다.") Integer planMonth,
             @NotNull(message = "계획수량을 입력하세요.") @PositiveOrZero(message = "계획수량은 0 이상이어야 합니다.") BigDecimal planQty,
+            /**
+             * 원본 매출계획입력 격자의 <b>[단가]</b>. 안 적으면 0이다 — 수량 없이 금액만
+             * 잡는 계획도 원본이 허용한다(격자에 금액 칸이 따로 있다).
+             */
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             @NotNull(message = "계획금액을 입력하세요.") @PositiveOrZero(message = "계획금액은 0 이상이어야 합니다.") BigDecimal planAmount,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark
@@ -39,7 +44,7 @@ public final class SalesPlanDtos {
             Long itemId, String itemCode, String itemName, String unit,
             Long employeeId, String employeeName,
             java.time.LocalDate expectedDate,
-            BigDecimal planQty, BigDecimal planAmount, String remark, String createdBy
+            BigDecimal planQty, BigDecimal unitPrice, BigDecimal planAmount, String remark, String createdBy
     ) {
         public static SalesPlanResponse from(SalesPlan p) {
             return new SalesPlanResponse(
@@ -48,7 +53,7 @@ public final class SalesPlanDtos {
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getExpectedDate(),
-                    p.getPlanQty(), p.getPlanAmount(), p.getRemark(), p.getCreatedBy());
+                    p.getPlanQty(), p.getUnitPrice(), p.getPlanAmount(), p.getRemark(), p.getCreatedBy());
         }
     }
 
@@ -83,7 +88,8 @@ public final class SalesPlanDtos {
             String projectCode, String employeeCode,
             /** 원본 매출계획입력의 [예상매출일자]. 안 정했으면 null. */
             java.time.LocalDate expectedDate,
-            BigDecimal planQty, BigDecimal planAmount,
+            /** 원본 매출계획입력 격자의 [수량]·<b>[단가]</b>·[금액]. 셋이 나란히 선다. */
+            BigDecimal planQty, BigDecimal unitPrice, BigDecimal planAmount,
             BigDecimal actualQty, BigDecimal actualAmount,
             BigDecimal achieveRate,
             /**
