@@ -407,6 +407,17 @@ const MARK_TAIL = '(?:▼|\\{[A-Za-z]*[Ss]ort\\.mark\\([^}]*\\)\\})?'
 
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
 
+/**
+ * <b>원본 표와 우리 표를 짝지을 수 없는 화면.</b> 정렬·폭 검사는 원본 열 이름이 가장 많이
+ * 맞는 &lt;thead&gt; 하나를 골라 재는데, <b>두 표가 같은 수만큼 맞으면</b> 어느 쪽인지 고를 수
+ * 없어 통째로 건너뛴다. 그동안 그건 <b>수</b>로만 남아, 늘어도 아무도 몰랐다.
+ *
+ * <p>왜 못 짝짓는지는 화면마다 다르다 — 우리가 원본의 표 하나를 <b>둘로 쪼갠</b> 자리가 있고,
+ * 입력 화면처럼 <b>폼 이름표와 격자가 섞인</b> 자리가 있다. 이유를 적어 두고 그 수가
+ * 늘지 않게 못 박는다. 새 화면이 여기 들어오면 <b>왜인지 적게</b> 된다.
+ */
+const UNPAIRED = JSON.parse(readFileSync(join('qa', 'fixtures', 'unpaired-tables.json'), 'utf8'))
+
 const pageSource = (rel) => {
   const path = join('frontend', 'src', 'pages', ...rel.split('/'))
   if (!existsSync(path)) return null
@@ -1866,6 +1877,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   eq(`원본과 견준 열 ${checked}개의 정렬이 같다 (정렬을 못 잰 ${unknown}개는 뺐다)`
     + (skipped.length ? ` (표를 못 짝지어 건너뛴 화면 ${skipped.length}: ${skipped.join(', ')})` : ''),
     bad.join('\n') || '없음', '없음')
+
+  /*
+   * <b>건너뛴 화면이 늘면 걸린다.</b> 못 짝짓는 것 자체는 잘못이 아니다 — 우리가 원본의
+   * 표 하나를 둘로 쪼갠 자리도 있고, 입력 화면처럼 폼 이름표와 격자가 섞인 자리도 있다.
+   * <b>왜인지 안 적는 것</b>이 문제다. 새로 건너뛰는 화면은 목록에 이유와 함께 올리게 한다.
+   */
+  eq(`표를 못 짝지은 화면 ${skipped.length}개가 다 이유를 들고 있다`,
+    skipped.filter((n) => !UNPAIRED[n]).join(', ') || '없음', '없음')
 
   /*
    * 지금 없는 열을 <code>ecount-missing-columns.json</code> 에 적어 두고 <b>늘지만 않게</b> 한다.
@@ -5493,6 +5512,14 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
   eq('폭을 견준 열 짝 ' + checked + '개의 앞뒤가 원본과 같다 (표를 못 짝지어 건너뛴 '
     + skippedNames.length + (skippedNames.length ? '개: ' + skippedNames.join(', ') : '개') + ')',
     bad.join(String.fromCharCode(10)) || '없음', '없음')
+
+  /*
+   * <b>건너뛴 화면이 늘면 걸린다.</b> 못 짝짓는 것 자체는 잘못이 아니다 — 우리가 원본의
+   * 표 하나를 둘로 쪼갠 자리도 있고, 입력 화면처럼 폼 이름표와 격자가 섞인 자리도 있다.
+   * <b>왜인지 안 적는 것</b>이 문제다. 새로 건너뛰는 화면은 목록에 이유와 함께 올리게 한다.
+   */
+  eq(`표를 못 짝지은 화면 ${skippedNames.length}개가 다 이유를 들고 있다`,
+    skippedNames.filter((n) => !UNPAIRED[n]).join(', ') || '없음', '없음')
 }
 
 // ── 2-s) 회계기수 기간을 ! 로 눌러 쓰지 않았나 ────────────────────────────
