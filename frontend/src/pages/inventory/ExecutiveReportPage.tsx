@@ -90,16 +90,13 @@ export default function ExecutiveReportPage() {
          * 이 화면 하나가 판매 전표 <b>전부</b>를 실어 오고 있었다(개발 자료에서도 1,900줄·1.7MB).
          * 화면이 판매로 하는 일은 기간 매출을 세는 것뿐이라 좁혀도 숫자가 달라지지 않는다.
          *
-         * <p><b>구매는 못 좁힌다.</b> 기간 매입을 세는 데도 쓰지만 <code>stockCostMap</code> 이
-         * <b>지난 입고 이력 전부</b>로 품목별 취득원가를 낸다 — 기간으로 자르면 이번 달에
-         * 안 사 온 품목의 재고자산이 통째로 빠진다.
+         * <p><b>구매도 이제 좁힌다.</b> 예전에는 "구매는 못 좁힌다 — 평가단가를 지난 입고
+         * 이력 전부로 내야 한다" 고 적혀 있었다. 그 지도를 <code>/purchases/item-prices</code>
+         * 로 옮긴 뒤로는(2026-09-10) 이 전표가 하는 일이 <b>기간 매입액을 세는 것뿐</b>이라,
+         * 아래 buyP 가 보는 창을 서버에도 그대로 준다.
          */
         api.get<SalesDoc[]>('/sales', { params: { from, to } }),
-        /*
-         * <b>구매 전표는 그대로 받는다</b> — 아래 buyP 가 이 기간 매입액을 센다.
-         * 다만 <b>평가단가 지도</b>는 전표가 아니라 lite 자리에서 받는다(바로 아래).
-         */
-        api.get<PurchaseDoc[]>('/purchases'),
+        api.get<PurchaseDoc[]>('/purchases', { params: { from, to } }),
         api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<StockRow[]>('/stock'),
         api.get<Item[]>('/items'),

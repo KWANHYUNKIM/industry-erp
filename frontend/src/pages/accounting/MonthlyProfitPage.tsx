@@ -44,7 +44,6 @@ const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처�
 type Basis = CostBasis
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
-interface PurchaseLite { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
@@ -67,7 +66,7 @@ export default function MonthlyProfitPage() {
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
-  const [purchases, setPurchases] = useState<PurchaseLite[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
   /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -118,12 +117,17 @@ export default function MonthlyProfitPage() {
     Promise.all([
       api.get<SalesDoc[]>('/sales', { params: period }),
       api.get<CostRow[]>('/costs'),
-      api.get<PurchaseLite[]>('/purchases', { params: period }),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을 서버가 한다 —
+       * 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>이었다(같은 날이면 id 가 작은 쪽이
+       * 이긴다). /purchases/item-prices 는 나중에 적은 전표를 마지막 입고로 본다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
       api.get<{ id: number; purchasePrice: number }[]>('/items'),
     ])
       .then(([s, c, p, i]) => {
-        setSales(s.data); setCosts(c.data); setPurchases(p.data)
+        setSales(s.data); setCosts(c.data); setLastPrices(p.data)
         setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
       })
       .catch((err) => setError(extractErrorMessage(err)))
@@ -137,19 +141,14 @@ export default function MonthlyProfitPage() {
   const costByItemPeriod = useMemo(
     () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
 
-  const lastPurchasePrice = useMemo(() => {
-    const m = new Map<number, { date: string; price: number }>()
-    purchases.forEach((d) => d.lines.forEach((l) => {
-      const cur = m.get(l.itemId)
-      if (!cur || d.purchaseDate >= cur.date) m.set(l.itemId, { date: d.purchaseDate, price: l.unitPrice })
-    }))
-    return m
-  }, [purchases])
+  /** 그 품목을 마지막으로 산 단가. 서버가 정한 값이다(같은 날이면 나중에 적은 전표). */
+  const lastPurchasePrice = useMemo(
+    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
 
   /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
   const costPrice = (itemId: number, saleDate: string): number | null => costOf(basis, {
     monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
-    lastPurchasePrice: lastPurchasePrice.get(itemId)?.price ?? null,
+    lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
     itemPurchasePrice: unitPrices.get(itemId) ?? null,
   })
 
