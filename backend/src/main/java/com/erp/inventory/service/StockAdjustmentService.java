@@ -56,14 +56,30 @@ public class StockAdjustmentService {
      */
     @Transactional(readOnly = true)
     public StockAdjustmentDtos.AdjustmentListResponse list(LocalDate from, LocalDate to, boolean all) {
+        return list(from, to, all, null);
+    }
+
+    /**
+     * 조정 목록. <b>유형을 주면 그 유형만</b> 센다.
+     *
+     * <p>다섯 화면이 한 파일을 쓰는데 여태 유형을 안 보내, 화면이 다 받아 놓고 브라우저에서
+     * 걸렀다. 그러면 <b>문턱을 다른 유형이 먼저 채운다</b> — 자가사용 줄이 잘려 나가도
+     * 화면은 그것을 모르고, [잘림] 표시조차 다섯을 합친 수에 대한 것이었다.
+     */
+    @Transactional(readOnly = true)
+    public StockAdjustmentDtos.AdjustmentListResponse list(LocalDate from, LocalDate to, boolean all,
+                                                           StockAdjustmentType type) {
         /* 안 준 쪽은 열어 둔다 — 널을 쿼리에 넘기면 PostgreSQL 이 형을 못 정한다. */
         LocalDate f = from != null ? from : LocalDate.of(1, 1, 1);
         LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
-        long totalRows = adjustmentRepository.countByPeriod(f, t);
+        long totalRows = type == null ? adjustmentRepository.countByPeriod(f, t)
+                : adjustmentRepository.countByPeriodAndType(f, t, type);
         boolean truncated = !all && totalRows > LIST_PAGE_ROWS;
-        List<StockAdjustment> found = adjustmentRepository.findByPeriod(f, t,
-                truncated ? org.springframework.data.domain.PageRequest.of(0, LIST_PAGE_ROWS)
-                        : org.springframework.data.domain.Pageable.unpaged());
+        var page = truncated ? org.springframework.data.domain.PageRequest.of(0, LIST_PAGE_ROWS)
+                : org.springframework.data.domain.Pageable.unpaged();
+        List<StockAdjustment> found = type == null
+                ? adjustmentRepository.findByPeriod(f, t, page)
+                : adjustmentRepository.findByPeriodAndType(f, t, type, page);
         return new StockAdjustmentDtos.AdjustmentListResponse(
                 found.stream().map(AdjustmentResponse::from).toList(), totalRows, truncated);
     }

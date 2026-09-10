@@ -140,7 +140,14 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     setLoading(true)
     setError('')
     Promise.all([
-      api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all } }),
+      /*
+       * <b>유형도 같이 보낸다.</b> 다섯 화면이 이 파일을 쓰는데 여태 기간만 보내고
+       * <code>r.type === kind</code> 로 브라우저에서 걸렀다. 그러면 서버의 5,000줄 문턱을
+       * <b>다른 유형이 먼저 채운다</b> — 자가사용 줄이 잘려 나가도 화면은 모르고,
+       * [잘림] 표시조차 다섯을 합친 수에 대한 것이었다(2026-09-10 실측: 자가사용 화면이
+       * 1,952KB 를 받아 한 줄을 그렸다).
+       */
+      api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all, type: kind } }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<CodeOption[]>('/meta/item-categories'),
       api.get<{ code: string; name: string; codes: { name: string }[] }[]>('/codes'),
@@ -165,7 +172,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * 조건 칸에 [금월] 을 물어 놓고 서버에는 <b>아무 조건도 안 보내</b> 4,797줄·1.7MB 를
    * 열 때마다 받아 그중 몇십 줄만 그렸다. 다섯 화면이 이 파일을 쓴다.
    */
-  useEffect(() => { load() }, [cond.from, cond.to, all])
+  useEffect(() => { load() }, [cond.from, cond.to, all, kind])
   /* 기간을 바꾸면 문턱을 다시 세운다 — 좁혀 놓고도 전부 받아 오면 안 자른 것과 같다. */
   useEffect(() => { setAll(false) }, [cond.from, cond.to])
   // 같은 컴포넌트를 다섯 메뉴가 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 유형이 바뀌면 조건만 되돌린다.
@@ -569,7 +576,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
                     {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
-                  </td>
+                  </td>
+
                   {hasAmount && (
                     <td style={{ textAlign: 'right', color: '#5a626e' }}>
                       {amountOf(r.itemId, r.quantityChange) == null ? '' : num(amountOf(r.itemId, r.quantityChange)!)}

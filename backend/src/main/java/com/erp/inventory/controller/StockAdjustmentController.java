@@ -32,8 +32,10 @@ public class StockAdjustmentController {
     public StockAdjustmentDtos.AdjustmentListResponse list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "false") boolean all) {
-        return stockAdjustmentService.list(from, to, all);
+            @RequestParam(defaultValue = "false") boolean all,
+            /* 다섯 화면이 이 자리를 쓴다 — 유형을 주면 그 유형만 세고 문턱도 그 유형 것이 된다. */
+            @RequestParam(required = false) com.erp.inventory.domain.enums.StockAdjustmentType type) {
+        return stockAdjustmentService.list(from, to, all, type);
     }
 
     @PostMapping
