@@ -475,14 +475,19 @@ export default function ApprovalListPage({
               <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
-              {/* 원본 기안서통합관리의 마지막 두 열. 내결재관리(mine)에는 원본에도 없다. */}
-              {scope === 'all' && <th style={{ width: 90 }}>작업자</th>}
-              {scope === 'all' && <th style={{ width: 150 }}>작업일시</th>}
               <th style={{ textAlign: 'center' }}>진행상태</th>
               <th style={{ textAlign: 'center' }}>결재</th>
               <th style={{ textAlign: 'center' }}>기안서복사</th>
               <th style={{ textAlign: 'center' }}>조회</th>
               <th>연결전표</th>
+              {/*
+                원본 기안서통합관리에서 이 둘은 <b>맨 마지막 두 열</b>이다(대조표 실측).
+                주석에는 그렇게 적어 두고 정작 [결재자] 바로 뒤에 세워 두어,
+                원본을 쓰던 사람이 오른쪽 끝에서 찾던 값이 가운데에 있었다.
+                내결재관리(mine)에는 원본에도 없다 — 그래서 scope 로 가른다.
+              */}
+              {scope === 'all' && <th style={{ width: 90 }}>작업자</th>}
+              {scope === 'all' && <th style={{ width: 150 }}>작업일시</th>}
             </tr>
           </thead>
           <tbody>
@@ -511,12 +516,6 @@ export default function ApprovalListPage({
                 <td>{r.formTypeName}</td>
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
-                {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
-                {scope === 'all' && (
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
-                    {r.lastActedAt ? r.lastActedAt.replace('T', ' ').slice(0, 16) : ''}
-                  </td>
-                )}
                 <td style={{ textAlign: 'center' }}>
                   {r.deleted
                     ? <span style={{ color: '#8a929c' }}>삭제</span>
@@ -547,6 +546,12 @@ export default function ApprovalListPage({
                     </span>
                   ))}
                 </td>
+                {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
+                {scope === 'all' && (
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                    {r.lastActedAt ? r.lastActedAt.replace('T', ' ').slice(0, 16) : ''}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -2013,9 +2013,9 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
   for (const [screen, boxes] of Object.entries(cap)) {
     const rel = BOX_MAP.get(screen)
     if (!rel) continue
-    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
-    if (!existsSync(path)) continue
-    const src = readFileSync(path, 'utf8')
+    /* 감싸기만 하는 파일이면 감싸인 쪽까지 읽는다 — 안 그러면 그 화면을 조용히 건너뛴다. */
+    const src = pageSource(rel)
+    if (!src) continue
     for (const [label, want] of Object.entries(boxes)) {
       // 라벨 앞의 <input type="checkbox" checked={변수} … /> 를 찾는다
       let m = null
@@ -2223,9 +2223,9 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = ORDER_MAP.get(screen)
     if (!rel || ORDER_SKIP.has(screen)) continue
-    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
-    if (!existsSync(path)) continue
-    const src = readFileSync(path, 'utf8')
+    /* 감싸기만 하는 파일이면 감싸인 쪽까지 읽는다 — 안 그러면 그 화면을 조용히 건너뛴다. */
+    const src = pageSource(rel)
+    if (!src) continue
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
@@ -2806,6 +2806,22 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     const ours = new Set([...noArrow(src).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
       .filter((m) => !/style=\{th\}/.test(m[1]))
       .map((m) => flat(m[2])))
+    /*
+     * <b>머리 이름이 감싸개에서 건너오는 자리.</b> 할인현황 셋은 표가 하나이고
+     * <code>&lt;th&gt;{amountLabel}&lt;/th&gt;</code> 로 그리는데, 그 이름은 감싸는 파일이
+     * <code>amountLabel="판매금액"</code> 으로 넘겨 준다. th 안만 보면 빈 글자라
+     * <b>있는 열을 없다고</b> 한다. 식으로 적힌 머리의 이름을 그 식과 같은 이름의
+     * prop 에서 찾아 함께 든다(pageSource 가 감싸개까지 읽어 두었다).
+     */
+    for (const m of noArrow(src).matchAll(/<th\b[^>]*>\s*\{(\w+)\}\s*<\/th>/g)) {
+      /*
+       * <code>{label}</code> 같은 <b>흔한 이름</b>은 뺀다 — 감싸개가 넘겨 주는 prop 이 아니라
+       * 그 화면 안의 지역 변수인 경우가 많고(매출계획입력의 소계 머리가 그렇다),
+       * 그러면 조건 이름표의 label="적요" 까지 열로 주워 와 <b>없는 열이 있다</b>고 하게 된다.
+       */
+      if (m[1] === 'label' || m[1].length < 6) continue
+      for (const v of src.matchAll(new RegExp(m[1] + '="([^"]+)"', 'g'))) ours.add(flat(v[1]))
+    }
     for (const name of Object.keys(cols)) {
       const exempt = NO_COLUMN.has(screen + '|' + name)
       if (!exempt) checked++
