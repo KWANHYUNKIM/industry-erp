@@ -5,8 +5,8 @@ import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, PurchaseDoc, Warehouse } from '../../api/types'
-import { stockCostMap, sumStockValue } from '../../utils/stockValue'
+import type { Item, Warehouse } from '../../api/types'
+import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -91,7 +91,7 @@ export default function ReceiptStatusPage() {
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [items, setItems] = useState<Item[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -139,11 +139,12 @@ export default function ReceiptStatusPage() {
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
         /*
-         * <b>구매는 기간으로 못 좁힌다.</b> 아래 stockCostMap 이 <b>지난 입고 이력 전부</b>로
-         * 품목별 취득원가를 낸다 — 기간으로 자르면 그 기간에 안 사 온 품목의 금액이 통째로 빠진다.
-         * (경영자보고서·일보에서 같은 판단을 했다.)
+         * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+         * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+         * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+         * 이 화면이 안 옮겨져 있었다.
          */
-        api.get<PurchaseDoc[]>('/purchases'),
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<{ id: number; name: string }[]>('/employees'),
       ])
       setEmployees(emps.data)
@@ -233,10 +234,7 @@ export default function ReceiptStatusPage() {
     [mode, byItem, shown])
 
   /** 품목별 평가단가. 재고평가와 같은 규칙을 쓴다 — 화면마다 따로 매기면 한쪽만 어긋난다. */
-  const cost = useMemo(() => stockCostMap(items, purchases.map((d) => ({
-    purchaseDate: d.purchaseDate,
-    lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-  }))), [items, purchases])
+  const cost = useMemo(() => stockCostMapFromLast(items, purchases), [items, purchases])
 
   /** 생산금액 합계. 단가를 모르는 전표는 빼고 몇 건인지 함께 돌려준다. */
   const amount = useMemo(() => sumStockValue(

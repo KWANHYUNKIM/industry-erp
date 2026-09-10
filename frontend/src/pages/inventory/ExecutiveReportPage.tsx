@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
-import { stockCostMap, sumStockValue } from '../../utils/stockValue'
+import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
 import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
@@ -64,6 +64,8 @@ interface AdjustRow { adjustDate: string; type: string; itemId: number; quantity
 export default function ExecutiveReportPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  /* 평가단가 지도만 쓰는 자리 — 전표는 위 purchases 가 따로 든다(기간 매입액). */
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [balances, setBalances] = useState<PartnerBalance[]>([])
@@ -82,7 +84,7 @@ export default function ExecutiveReportPage() {
     setLoading(true); setError('')
     try {
       const y = yearBefore(to)
-      const [s, b, st, it, bal, un, po, sd, bd, adj] = await Promise.all([
+      const [s, b, lp, st, it, bal, un, po, sd, bd, adj] = await Promise.all([
         /*
          * <b>판매는 기간을 서버에 넘긴다.</b> 여태 전 기간을 받아 아래 salesP 에서 걸렀다 —
          * 이 화면 하나가 판매 전표 <b>전부</b>를 실어 오고 있었다(개발 자료에서도 1,900줄·1.7MB).
@@ -93,7 +95,12 @@ export default function ExecutiveReportPage() {
          * 안 사 온 품목의 재고자산이 통째로 빠진다.
          */
         api.get<SalesDoc[]>('/sales', { params: { from, to } }),
+        /*
+         * <b>구매 전표는 그대로 받는다</b> — 아래 buyP 가 이 기간 매입액을 센다.
+         * 다만 <b>평가단가 지도</b>는 전표가 아니라 lite 자리에서 받는다(바로 아래).
+         */
         api.get<PurchaseDoc[]>('/purchases'),
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<StockRow[]>('/stock'),
         api.get<Item[]>('/items'),
         /*
@@ -120,7 +127,8 @@ export default function ExecutiveReportPage() {
         api.get<DiscountRow[]>('/purchases/discounts', { params: { from, to } }),
         api.get<{ rows: AdjustRow[] }>('/stock-adjustments', { params: { from, to, all: true } }),
       ])
-      setSales(s.data); setPurchases(b.data); setStocks(st.data); setItems(it.data); setBalances(bal.data)
+      setSales(s.data); setPurchases(b.data); setLastPrices(lp.data)
+      setStocks(st.data); setItems(it.data); setBalances(bal.data)
       setUnsold(un.data); setOpenPo(po.data)
       setSaleDisc(sd.data); setBuyDisc(bd.data); setAdjusts(adj.data.rows)
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -147,7 +155,7 @@ export default function ExecutiveReportPage() {
      * 기간을 자르지 않은 <b>전체</b> 구매전표를 본다 — 이번 달에 안 샀다고 평가단가가
      * 사라지면 안 되기 때문이다.
      */
-    const costById = stockCostMap(items, purchases)
+    const costById = stockCostMapFromLast(items, lastPrices)
     const stockEval = sumStockValue(stocks.map((s) => ({
       quantity: s.quantity, unitCost: costById.get(s.itemId) ?? null,
     })))

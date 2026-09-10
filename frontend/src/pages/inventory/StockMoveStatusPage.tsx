@@ -305,7 +305,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
  * 그 품목을 <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다.
  * 그래서 "이 전표에는 단가가 없다" 는 것은 못 만드는 이유가 되지 않는다.
  * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
- * (<code>stockCostMap</code>: 마지막 입고단가 → 없으면 품목 구매단가).
+ * (<code>stockCostMapFromLast</code>: 마지막 입고단가 → 없으면 품목 구매단가).
  *
  * <p>단가를 모르는 품목은 <b>빈칸</b>이다. 0 으로 채우면 "값이 0원" 으로 읽혀
  * 모르는 것과 구별이 안 되고, 합계도 조용히 줄어든다.

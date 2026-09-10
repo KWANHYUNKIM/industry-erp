@@ -135,8 +135,16 @@ export default function ShipmentOrderPage() {
 
   async function load() {
     try {
+      const period: Record<string, string> = {}
+      if (condFrom) period.from = condFrom
+      if (condTo) period.to = condTo
       const [s, p, i, w, e, pj] = await Promise.all([
-        api.get<Shipment[]>('/shipments'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       * 기본값은 안 만들었다 — 이 화면의 원본 기간 기본값을 아직 안 쟀다.
+         */
+        api.get<Shipment[]>('/shipments', { params: period }),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
@@ -147,7 +155,9 @@ export default function ShipmentOrderPage() {
       setWarehouses(w.data); setEmployees(e.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [condFrom, condTo])
 
   function updateLine(idx: number, field: keyof LineInput, value: string) {
     setLines((ls) => {

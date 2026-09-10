@@ -7,8 +7,8 @@ import {
   actualConsume, materialDiff, standardConsume, workTime,
   type BomLine, type PriceOf,
 } from '../../utils/woEfficiency'
-import { stockCostMap } from '../../utils/stockValue'
-import type { Item, PurchaseDoc } from '../../api/types'
+import { stockCostMapFromLast } from '../../utils/stockValue'
+import type { Item } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
@@ -107,7 +107,7 @@ export default function WoEfficiencyPage() {
   const [boms, setBoms] = useState<BomRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [processes, setProcesses] = useState<ProcessRow[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [results, setResults] = useState<WorkResultRow[]>([])
   const [bor, setBor] = useState<BorRow[]>([])
   /** 하위공정(자재)을 펼친 작업지시 id */
@@ -170,7 +170,13 @@ export default function WoEfficiencyPage() {
         api.get<Item[]>('/items'),
         api.get<ProcessRow[]>('/processes'),
         api.get<WorkResultRow[]>('/work-results'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+         * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+         * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+         * 이 화면이 안 옮겨져 있었다.
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<BorRow[]>('/bor'),
       ])
       setOrders([...woRes.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)))
@@ -200,10 +206,7 @@ export default function WoEfficiencyPage() {
    * <p>모르는 것을 0원으로 채우지 않는다. 0으로 세면 자재를 두 배 써도 차이가 0으로 보인다.
    */
   const priceOf: PriceOf = useMemo(() => {
-    const m = stockCostMap(items, purchases.map((p) => ({
-      purchaseDate: p.purchaseDate,
-      lines: (p.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    })))
+    const m = stockCostMapFromLast(items, purchases)
     return (id: number) => m.get(id) ?? null
   }, [items, purchases])
 

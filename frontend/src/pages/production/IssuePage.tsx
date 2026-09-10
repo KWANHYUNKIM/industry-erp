@@ -194,7 +194,14 @@ export default function IssuePage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<MaterialIssue[]>('/material-issues')
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 불출을 통째로 받아 아래에서
+       * <code>r.issueDate &gt;= from</code> 으로 걸렀다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      const res = await api.get<MaterialIssue[]>('/material-issues', { params: period })
       setRows(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -222,7 +229,11 @@ export default function IssuePage() {
     }
   }
 
-  useEffect(() => { load(); loadRefs() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다(참조 자료는 기간과 상관없다). */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadRefs() }, [])
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다 — 지워진 사원이면 '-'. */
   const empName = (id: number | null) =>

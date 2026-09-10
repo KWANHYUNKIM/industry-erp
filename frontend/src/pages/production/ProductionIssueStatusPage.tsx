@@ -5,9 +5,9 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
-import type { Item, PurchaseDoc } from '../../api/types'
+import type { Item } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -166,7 +166,7 @@ export default function ProductionIssueStatusPage() {
   const [priceBasis, setPriceBasis] = useState<PriceBasis>('소모품목단가')
   const [boms, setBoms] = useState<BomRow[]>([])
   const [items, setItems] = useState<Item[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -178,7 +178,13 @@ export default function ProductionIssueStatusPage() {
       api.get<Warehouse[]>('/warehouses'),
       api.get<BomRow[]>('/boms'),
       api.get<Item[]>('/items'),
-      api.get<PurchaseDoc[]>('/purchases'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+       * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+       * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+       * 이 화면이 안 옮겨져 있었다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       api.get<CostRow[]>('/costs'),
     ])
       .then(([p, w, b, i, pu, c]) => {
@@ -252,10 +258,7 @@ export default function ProductionIssueStatusPage() {
    * 모르면 null 이다. 0 으로 채우면 자재를 두 배 써도 금액 차이가 0으로 보인다.
    */
   const evalPrice = useMemo(
-    () => stockCostMap(items, purchases.map((d) => ({
-      purchaseDate: d.purchaseDate,
-      lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    }))),
+    () => stockCostMapFromLast(items, purchases),
     [items, purchases],
   )
   const monthlyCost = useMemo(

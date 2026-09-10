@@ -7,7 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { printDocuments } from '../../utils/printDocument'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
@@ -140,11 +140,17 @@ export default function TransferStatusPage() {
        * 이번 달에 안 샀다고 그 품목의 입고단가가 사라지면 안 된다.
        */
       api.get<{ id: number; purchasePrice?: number }[]>('/items'),
-      api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+       * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+       * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+       * 이 화면이 안 옮겨져 있었다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
     ])
       .then(([t, w, it, pu]) => {
         setRows(t.data); setWarehouses(w.data)
-        setCostById(stockCostMap(it.data, pu.data))
+        setCostById(stockCostMapFromLast(it.data, pu.data))
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -217,7 +223,7 @@ export default function TransferStatusPage() {
    * <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다. 그래서 "창고이동에 단가를
    * 안 매긴다" 는 것은 못 만드는 이유가 되지 않았다(예전에 그렇게 적어 두었다).
    * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
-   * (<code>stockCostMap</code>: 마지막 입고단가 → 없으면 품목 구매단가).
+   * (<code>stockCostMapFromLast</code>: 마지막 입고단가 → 없으면 품목 구매단가).
    *
    * <p>단가를 모르는 품목은 <b>빈칸</b>이다 — 0 으로 채우면 "값이 0원" 으로 읽혀
    * 모르는 것과 구별이 안 된다.

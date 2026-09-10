@@ -79,6 +79,14 @@ export function stockCostMapFromLast(
   })]))
 }
 
+/**
+ * <b>옛 방식 — 화면은 이제 아무도 안 쓴다.</b> 전표 목록을 통째로 받아 접어서 지도를
+ * 만들었는데, 같은 날 전표가 둘일 때 <b>목록 차례에 기대어</b> 골랐다(날짜 내림차순으로
+ * 오는 것을 <code>&gt;=</code> 로 덮어써서 id 가 작은 쪽이 이겼다). 2026-09-10 에
+ * 서버가 규칙을 정하도록 <code>/purchases/item-prices</code> 와
+ * <code>stockCostMapFromLast</code> 로 옮겼다 — <b>새로 쓸 자리가 있으면 그쪽을 쓴다.</b>
+ * 여기 남겨 둔 것은 그 옛 규칙이 무엇이었는지 시험이 붙잡아 두기 때문이다.
+ */
 export function stockCostMap(
   items: { id: number; purchasePrice?: number }[],
   purchases: { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[],
