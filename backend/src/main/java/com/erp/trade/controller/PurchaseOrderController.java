@@ -35,7 +35,13 @@ public class PurchaseOrderController {
             @RequestParam(required = false) PurchaseOrderStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return status != null ? service.findByStatus(status) : service.findAll(from, to);
+        /*
+         * <b>상태와 기간이 함께 걸린다.</b> 예전에는 <code>status != null ? findByStatus(status)
+         * : findAll(from, to)</code> 였다 — 둘을 같이 주면 <b>기간이 조용히 버려졌다.</b>
+         * 400도 안 나고 200에 자료도 그럴듯해서, 부른 쪽은 좁힌 줄 알고 전 기간을 본다.
+         * 파라미터를 말없이 버리는 자리는 이 저장소가 여러 번 데인 꼴이다.
+         */
+        return service.findAll(status, from, to);
     }
 
     /** 발주 파이프라인 상태별 집계(건수·금액). 발주요청현황 상단 요약에 사용. */

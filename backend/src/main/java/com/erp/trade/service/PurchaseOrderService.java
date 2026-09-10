@@ -91,6 +91,24 @@ public class PurchaseOrderService {
     }
 
     /**
+     * 상태와 기간을 <b>함께</b> 건다. 하나만 주면 그것만 걸고, 둘 다 안 주면 전 기간이다.
+     *
+     * <p>예전에는 컨트롤러가 <code>status</code> 가 있으면 기간을 <b>말없이 버렸다</b> —
+     * 부른 쪽은 좁힌 줄 알고 전 기간을 본다. 200이 오고 자료도 그럴듯해 아무도 모른다.
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> findAll(PurchaseOrderStatus status, LocalDate from, LocalDate to) {
+        var rows = status != null ? findByStatus(status) : findAll(from, to);
+        if (status == null || (from == null && to == null)) return rows;
+        String f = from != null ? from.toString() : null;
+        String t = to != null ? to.toString() : null;
+        return rows.stream()
+                .filter(o -> f == null || o.orderDate().toString().compareTo(f) >= 0)
+                .filter(o -> t == null || o.orderDate().toString().compareTo(t) <= 0)
+                .toList();
+    }
+
+    /**
      * 발주 파이프라인을 상태별로 집계한다(건수·공급가액·부가세·합계).
      * 모든 상태를 항상 한 줄씩 반환하며, 자료가 없는 상태는 0으로 채운다.
      */

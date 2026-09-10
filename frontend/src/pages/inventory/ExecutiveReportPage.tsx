@@ -107,8 +107,15 @@ export default function ExecutiveReportPage() {
          * 경영자보고서가 그 값을 안 불러와서 원본 격자의 여섯 줄이 통째로 비어 있었다.
          */
         api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: y, to } }),
-        /* 미입고 발주는 <b>기간과 무관한 지금 상태</b>다 — 기간으로 자르면 지난달에 낸 발주가 빠진다. */
-        api.get<PurchaseOrderRow[]>('/purchase-orders'),
+        /*
+         * <b>이 줄이 보는 기간을 서버에도 보낸다.</b> 여기 "미입고 발주는 기간과 무관한
+         * 지금 상태다" 라고 적혀 있었는데 <b>사실이 아니었다</b> — 아래 unreceivedAmt 가
+         * <code>orderDate &gt;= yearBefore(to) &amp;&amp; &lt;= to</code> 로 <b>이미 자르고 있고</b>,
+         * 표에도 그 창이 [2025/09/10 ~ 2026/09/10] 로 찍힌다. 그런데 서버에는 아무것도 안 보내
+         * 발주를 통째로 받아 브라우저에서 걸렀다(2026-09-10 실측 2,298KB · 화면 합계 4,589KB).
+         * 미판매(/sales-orders/unsold)는 진작 같은 창을 보내고 있었다 — 이 줄만 빠져 있었다.
+         */
+        api.get<PurchaseOrderRow[]>('/purchase-orders', { params: { from: y, to } }),
         api.get<DiscountRow[]>('/sales/discounts', { params: { from, to } }),
         api.get<DiscountRow[]>('/purchases/discounts', { params: { from, to } }),
         api.get<{ rows: AdjustRow[] }>('/stock-adjustments', { params: { from, to, all: true } }),
