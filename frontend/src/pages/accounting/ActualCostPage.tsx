@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -177,15 +177,8 @@ export default function ActualCostPage() {
     setError('')
     const { from, to } = monthRange(period)
     try {
-      const [mv, lg, it, pu, ex, cs, pr, br] = await Promise.all([
+      const [mv, it, pu, ex, cs, pr, br] = await Promise.all([
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
-        /*
-         * <b>여기서는 자르면 안 된다.</b> 이 화면은 수불부 줄을 <b>합산해서</b> 실제원가를 낸다
-         * (아래 detail.reduce). 앞부분만 받으면 합계가 조용히 틀린다 — 느린 것보다 나쁘다.
-         * 재고수불부 화면은 사람이 눈으로 읽는 자리라 앞 5천 줄만 받고 [오천건이상조회] 로
-         * 그 위를 가지만, 더하는 자리는 처음부터 전부 받는다.
-         */
-        api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } }),
         api.get<Item[]>('/items'),
       /*
        * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 품목별 평가단가 지도
@@ -204,7 +197,6 @@ export default function ActualCostPage() {
         api.get<BorRow[]>('/bor'),
       ])
       setMovement(mv.data)
-      setLedger(lg.data.rows)
       setItems(it.data)
       setLastPrices(pu.data)
       setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data); setBors(br.data)
@@ -277,6 +269,26 @@ export default function ActualCostPage() {
    * 순서와 '모르는 구분을 버리지 않는' 규칙은 utils/costGroup 에 있다.
    */
   const groups = useMemo(() => groupByCategory(summary, (r) => r.categoryName), [summary])
+
+  /*
+   * <b>수불부 줄은 그 보기를 눌렀을 때 받는다.</b> 다섯 보기 중 [증가내역]·[감소내역]만
+   * 이 줄을 쓰는데, 화면을 열자마자 전 기간 줄을 통째로 받고 있었다
+   * (2026-09-10 실측 <b>14,190KB</b> · 화면 합계 14,284KB). 기본 보기인 [원가집계표] 는
+   * 그 줄을 한 번도 안 쓴다 — /stock/movement 가 낸 합으로 그린다.
+   *
+   * <p>받을 때는 <b>여전히 all:true</b> 다. 이 표는 줄을 합산해 실제원가를 내므로
+   * 앞부분만 받으면 합계가 조용히 틀린다 — 느린 것보다 나쁘다.
+   */
+  const needLedger = mode === '증가내역' || mode === '감소내역'
+  const ledgerFor = useRef('')
+  useEffect(() => {
+    if (!needLedger || ledgerFor.current === period) return
+    const { from, to } = monthRange(period)
+    ledgerFor.current = period
+    api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } })
+      .then((r) => setLedger(r.data.rows))
+      .catch((err) => { ledgerFor.current = ''; setError(extractErrorMessage(err)) })
+  }, [needLedger, period])
 
   const detail = useMemo(() => ledger
     .filter((r) => (mode === '증가내역' ? r.quantityChange > 0 : r.quantityChange < 0))
