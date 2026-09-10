@@ -41,10 +41,17 @@ export default function ConditionSearchPage() {
   async function loadBase() {
     setLoading(true); setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [p, s, pu, pr] = await Promise.all([
         api.get<Partner[]>('/partners'),
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       */
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
         api.get<Project[]>('/projects'),
       ])
       setPartners(p.data)
@@ -52,7 +59,9 @@ export default function ConditionSearchPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { loadBase() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadBase() }, [from, to])
 
   // 대상 거래처 집합(관계기준별)
   const targetPartners = useMemo<Partner[]>(() => {

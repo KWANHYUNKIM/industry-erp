@@ -135,7 +135,14 @@ export default function UnpurchasedStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<PurchaseOrder[]>('/purchase-orders')
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       */
+      const period: Record<string, string> = {}
+      if (filters.dateFrom) period.from = filters.dateFrom
+      if (filters.dateTo) period.to = filters.dateTo
+      const res = await api.get<PurchaseOrder[]>('/purchase-orders', { params: period })
       const flat: Row[] = []
       for (const o of res.data) {
         if (!OPEN_STATUS.includes(o.status)) continue   // 입고전환·취소 발주는 미구매 아님
@@ -170,7 +177,9 @@ export default function UnpurchasedStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
