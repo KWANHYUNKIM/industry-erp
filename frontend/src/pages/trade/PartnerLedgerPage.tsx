@@ -66,6 +66,14 @@ interface Entry {
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
+/** 그 날의 <b>하루 전</b>. 이월은 기간 시작 <b>전날</b>까지의 잔액이다. */
+const dayBefore = (d: string) => {
+  if (!d) return d
+  const t = new Date(`${d}T00:00:00`)
+  t.setDate(t.getDate() - 1)
+  return t.toISOString().slice(0, 10)
+}
+
 export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?: 'AR' | 'AP' | 'BOTH' }) {
   const title = fixedSide === 'AR' ? '거래처관리대장1(채권)'
     : fixedSide === 'AP' ? '거래처관리대장1(채무)' : '거래처관리대장'
@@ -77,6 +85,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  /**
+   * <b>기간 앞까지의 잔액</b> — 서버가 낸다(/ledger/partner-balances?asOf=). 이 값이
+   * 화면의 [이월]이 된다. 예전에는 기간 앞 전표를 다 받아 접었는데, 그러려고
+   * 전표를 통째로 받아야 했다.
+   */
+  const [openings, setOpenings] = useState<{ partnerId: number; receivable: number; payable: number }[]>([])
   /** 전표 id → 그 전표가 만든 회계전표번호. 반영 안 한 전표는 아예 없다. */
   const [postedSales, setPostedSales] = useState<Map<number, string>>(new Map())
   const [postedPurchases, setPostedPurchases] = useState<Map<number, string>>(new Map())
@@ -127,18 +141,28 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     setLoading(true)
     setError('')
     try {
-      const [s, p, t, js, jp, jt, pt] = await Promise.all([
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      const [s, p, t, ob, js, jp, jt, pt] = await Promise.all([
         /*
-         * <b>여기서는 기간을 못 보낸다.</b> 2026-09-10 에 보내 보고 되돌렸다 —
-         * 이 화면은 <b>[이월]</b>을 <code>e.date &lt; from</code> 인 전표로 낸다(아래 opening).
-         * 기간 밖을 안 받으면 이월이 통째로 0이 되어 <b>잔액이 딴 숫자</b>가 된다:
-         * 실제로 합계가 (3거래처) 39,041,591 → (2거래처) 3,093,090 으로 바뀌었다.
-         * 줄이려면 <b>서버가 기초잔액을 따로 내주는 것</b>이 먼저다
-         * (거래처관리대장의 /ledger/partner-movements 가 그렇게 한다).
+         * <b>전표는 기간만 받고, [이월]은 서버가 낸다.</b>
+         *
+         * <p>2026-09-10 에 기간만 보내 보고 한 번 되돌렸다 — 이 화면은 이월을
+         * <code>e.date &lt; from</code> 인 전표로 냈기 때문에, 기간 밖을 안 받으면
+         * 이월이 통째로 0이 되어 잔액이 딴 숫자가 됐다(합계가 39,041,591 →
+         * 3,093,090). 그때 "서버가 기초잔액을 내주는 것이 먼저다" 라고 적었고,
+         * 이번에 그 자리를 <code>/ledger/partner-balances?asOf=</code> 로 이었다.
+         *
+         * <p><b>두 방식이 같은 값을 내는지 자료로 맞대어 봤다</b> — 2026-08-01 기준
+         * 거래처 일곱에서 채권·채무 모두 <b>다른 것이 하나도 없었다</b>.
          */
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
-        api.get<Settlement[]>('/settlements').catch(() => ({ data: [] as Settlement[] })),
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+        api.get<Settlement[]>('/settlements', { params: period }).catch(() => ({ data: [] as Settlement[] })),
+        api.get<{ partnerId: number; receivable: number; payable: number }[]>(
+          '/ledger/partner-balances', { params: { asOf: dayBefore(from) } })
+          .catch(() => ({ data: [] as { partnerId: number; receivable: number; payable: number }[] })),
         // 회계전표번호를 붙이려면 반영 목록이 필요하다. trade 는 accounting 을 참조할 수
         // 없어(순환) 전표 응답에 번호가 없다 — 화면이 두 쪽을 이어 붙인다.
         api.get<Posted[]>('/accounting-reflection?kind=SALES').catch(() => ({ data: [] as Posted[] })),
@@ -147,6 +171,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         api.get<Partner[]>('/partners'),
       ])
       setSales(s.data); setPurchases(p.data); setSettlements(t.data)
+      setOpenings(ob.data)
       const toMap = (rows: Posted[]) =>
         new Map(rows.filter((r) => r.journalDocNo).map((r) => [r.id, r.journalDocNo as string]))
       setPostedSales(toMap(js.data)); setPostedPurchases(toMap(jp.data)); setPostedSettles(toMap(jt.data))
@@ -159,7 +184,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다(이월도 같이 다시 받는다). */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   const reset = () => {
     setFrom(init.from); setTo(init.to); setGroup('전표별'); setPartner(''); setBasis('개별거래처기준')
@@ -207,13 +234,26 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   /** 거래처마다 이월잔액 + 기간 안의 줄 + 소계. */
   const ledger = useMemo(() => {
     const partners = new Map<number, { partnerId: number; name: string; opening: number; entries: Entry[] }>()
+    /*
+     * <b>이월은 서버가 낸 기초잔액이다.</b> 묶는 규칙(대표거래처로 합산)이 줄과 같아야
+     * 하므로 <b>같은 rollupOf 로</b> 묶어 더한다. [전체] 로 보면 채권과 채무를 함께
+     * 세는 화면이라 이월도 둘을 더한다 — 줄 쪽 계산이 그렇게 되어 있다.
+     */
+    for (const b of openings) {
+      const t = rollupOf({ partnerId: b.partnerId, partnerName: '' } as Entry, basis, rollup)
+      const cur = partners.get(t.id) ?? { partnerId: t.id, name: t.name, opening: 0, entries: [] }
+      cur.opening += side === '채권' ? b.receivable
+        : side === '채무' ? b.payable
+        : b.receivable + b.payable
+      partners.set(t.id, cur)
+    }
     for (const e of bySide) {
       // 규칙은 utils/partnerRollup 에 있다 — 키를 잘못 잡으면 줄이 남의 거래처에 얹힌다.
       const t = rollupOf(e, basis, rollup)
       const cur = partners.get(t.id)
         ?? { partnerId: t.id, name: t.name, opening: 0, entries: [] }
-      if (e.date < from) cur.opening += e.increase - e.decrease
-      else if (e.date <= to) cur.entries.push(e)
+      /* 서버가 이미 기간만 주지만, 조건을 바꾼 직후 옛 자료가 잠깐 남는 것을 막는다. */
+      if (e.date >= from && e.date <= to) cur.entries.push(e)
       partners.set(t.id, cur)
     }
 
@@ -257,7 +297,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       })
       .filter((p) => p.rows.length > 0 || p.opening !== 0)
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [bySide, from, to, group, basis, rollup])
+  }, [bySide, openings, side, from, to, group, basis, rollup])
 
   const totals = useMemo(() => ledger.reduce(
     (s, p) => ({
