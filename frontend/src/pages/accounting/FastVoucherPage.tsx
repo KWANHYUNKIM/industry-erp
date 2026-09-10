@@ -6,7 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -59,8 +59,14 @@ export default function FastVoucherPage() {
    *
    * <p>기본은 <b>비워</b> 둔다 — 전표는 열자마자 최근 것을 찾는 일이 많지만, 지난 분기를 맞춰 보는 일도 잦다.
    */
-  const [pFrom, setPFrom] = useState('')
-  const [pTo, setPTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 그래서 화면을 열면 전 기간을 받았다.
+   * 2026-09-10 에 브라우저로 재 보니 이 화면 하나가 열자마자 받는 양이 <b>5,158KB</b> 였다.
+   * 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다(사용자가 정했다).
+   * 이전 자료는 기간을 넓히면 그대로 보인다.
+   */
+  const [pFrom, setPFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [pTo, setPTo] = useState(periodOf('금월(~오늘)')!.to)
   const [type, setType] = useState<FastVoucherType>(
     (TABS.find((v) => v.type === params.get('type'))?.type) ?? 'EXPENSE_REPORT')
   const [rows, setRows] = useState<FastVoucher[]>([])

@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -38,8 +38,14 @@ export default function CheckPage() {
    * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
    * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
    */
-  const [from2, setFrom2] = useState('')
-  const [to2, setTo2] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 그래서 화면을 열면 전 기간을 받았다.
+   * 2026-09-10 에 브라우저로 재 보니 이 화면 하나가 열자마자 받는 양이 <b>2,383KB</b> 였다.
+   * 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다(사용자가 정했다).
+   * 이전 자료는 기간을 넓히면 그대로 보인다.
+   */
+  const [from2, setFrom2] = useState(periodOf('금월(~오늘)')!.from)
+  const [to2, setTo2] = useState(periodOf('금월(~오늘)')!.to)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')

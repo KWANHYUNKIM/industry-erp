@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -32,8 +32,14 @@ export default function ContractPage() {
    *
    * <p>기본은 <b>비워</b> 둔다 — 계약은 <b>기간이 걸쳐 있는 것</b>이라, 올해로 잘라 놓으면 작년에 맺어 아직 살아 있는 계약이 사라진다.
    */
-  const [pFrom, setPFrom] = useState('')
-  const [pTo, setPTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 그래서 화면을 열면 전 기간을 받았다.
+   * 2026-09-10 에 브라우저로 재 보니 이 화면 하나가 열자마자 받는 양이 <b>2,334KB</b> 였다.
+   * 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다(사용자가 정했다).
+   * 이전 자료는 기간을 넓히면 그대로 보인다.
+   */
+  const [pFrom, setPFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [pTo, setPTo] = useState(periodOf('금월(~오늘)')!.to)
   const [rows, setRows] = useState<BusinessContract[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [tab, setTab] = useState<Tab>('전체')
