@@ -4819,5 +4819,113 @@
   "present": [
    "<tr key={m.partnerId}>"
   ]
+ },
+ "생산불출조회|전체": {
+  "claim": "생산불출 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+ },
+ "생산입고조회|결재중": {
+  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "생산입고조회|미확인": {
+  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "생산입고조회|확인": {
+  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "생산입고조회|전체": {
+  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+ },
+ "작업지시서조회|결재중": {
+  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+ },
+ "작업지시서조회|미확인": {
+  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+ },
+ "작업지시서조회|확인": {
+  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
+  "absent": [
+   "confirmStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+ },
+ "출하지시서조회|결재중": {
+  "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
+  "absent": [
+   "confirmStatus",
+   "ApprovalDocument"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "출하현황|정렬기준": {
+  "claim": "[구분]이 내역·집계로 그 축을 고른다",
+  "present": [
+   "내역",
+   "집계"
+  ]
+ },
+ "출하지시서현황|정렬기준": {
+  "claim": "[구분]이 내역·집계로 그 축을 고른다",
+  "present": [
+   "내역",
+   "집계"
+  ]
+ },
+ "판매현황|정렬기준": {
+  "claim": "[구분]이 내역·집계로 그 축을 고른다",
+  "present": [
+   "내역",
+   "집계"
+  ]
+ },
+ "출하지시서조회|미확인": {
+  "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
+  "absent": [
+   "confirmStatus",
+   "ApprovalDocument"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "출하지시서조회|확인": {
+  "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
+  "absent": [
+   "confirmStatus",
+   "ApprovalDocument"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+ },
+ "생산입고 III-소모품목 선택|소모": {
+  "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다",
+  "present": [
+   "생산입고 등록 (소모품목 직접 선택)",
+   "소모자재 선택"
+  ]
  }
 }
