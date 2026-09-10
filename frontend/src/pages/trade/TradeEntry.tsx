@@ -346,10 +346,24 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     setWarehouseId((prev) => prev || (w.data[0] ? String(w.data[0].id) : ''))
   }
   const loadDocs = () => api.get<(SalesDoc | PurchaseDoc)[]>(cfg.endpoint).then((r) => setDocs(r.data))
+  /*
+   * <b>지난 전표 목록은 쓸 때 받는다.</b> 이 화면은 전표를 <b>쓰는</b> 자리인데,
+   * 열자마자 판매 전표를 통째로 받고 있었다(2026-09-24 실측 3,645KB · 화면 합계 3,852KB).
+   * 그 목록을 쓰는 곳은 <b>모달 둘</b>(전표불러오기·거래내역보기)과
+   * <code>?edit=</code>·<code>?returnFrom=</code> 로 들어왔을 때뿐이다 —
+   * 새 전표를 쓰려고 연 사람은 그 3.6MB 를 한 번도 안 쓴다.
+   */
+  const docsAsked = useRef(false)
+  const ensureDocs = () => {
+    if (docsAsked.current) return
+    docsAsked.current = true
+    void loadDocs()
+  }
 
   useEffect(() => {
     loadRefs()
-    loadDocs()
+    /* 수정·반품으로 들어왔으면 그 전표를 찾아야 하니 그때는 받는다. */
+    if (editId || returnFromId) ensureDocs()
     void loadMyItems()
     setHasTemp(!!localStorage.getItem(tempKey))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1062,7 +1076,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         setSearchParams({}, { replace: true })
       }
       reset(true)
-      loadDocs()
+      /* 목록을 아직 안 받았으면 저장했다고 새로 받을 까닭이 없다 — 볼 자리가 안 열려 있다. */
+      if (docsAsked.current) void loadDocs()
       if (afterSaveTo) { const to = afterSaveTo; setAfterSaveTo(null); navigate(to) }
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -1359,7 +1374,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
           <button type="button" className="ec-btn ec-btn-sm" disabled={!partnerId}
                   title={partnerId ? undefined : '거래처를 먼저 고르세요.'}
-                  onClick={() => setHistoryOpen(true)}>
+                  onClick={() => { ensureDocs(); setHistoryOpen(true) }}>
             {mode === 'sales' ? '거래내역보기(판매)' : '거래내역보기(구매)'}
           </button>
           {/* 원본 순서: 거래내역보기 다음이 My품목이다. ▾ 로 목록을 펼치고, 본체를 누르면 통째로 담는다. */}
@@ -1429,7 +1444,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <b>구매입력은 이 버튼이 [할인] 바로 뒤에 있다</b>(사본 실측) — 한 컴포넌트가
             두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
           */}
-          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => { ensureDocs(); setSlipLoadOpen(true) }}>전표불러오기</button>
           {/* 원본 calcbySlip. 누를 때마다 켜고 끄며, 켜진 상태는 전표에 저장된다. */}
           <button
             type="button"
