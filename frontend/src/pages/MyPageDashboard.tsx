@@ -9,6 +9,12 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const STORAGE_KEY = 'mypage-widgets-v1'
 
 /** 대시보드에 쌓이는 데이터 묶음 */
+/**
+ * 위젯이 그리는 줄 수. <b>받는 수와 그리는 수를 한 곳에서</b> 정한다 —
+ * 둘로 흩어지면 요청은 여섯인데 표는 열을 그리려다 네 줄이 조용히 사라진다.
+ */
+const WIDGET_ROWS = 6
+
 interface DashData {
   stock: StockRow[]
   balances: PartnerBalance[]
@@ -119,7 +125,7 @@ const REGISTRY: WidgetDef[] = [
           <tbody>
             {d.stock.length === 0 ? (
               <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab' }}>재고 없음</td></tr>
-            ) : d.stock.slice(0, 6).map((s) => (
+            ) : d.stock.slice(0, WIDGET_ROWS).map((s) => (
               <tr key={`${s.itemId}-${s.warehouseId}`}>
                 <td style={{ fontFamily: 'monospace' }}>{s.itemCode}</td>
                 <td>{s.itemName}</td>
@@ -142,7 +148,7 @@ const REGISTRY: WidgetDef[] = [
         <tbody>
           {d.balances.length === 0 ? (
             <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>거래처 없음</td></tr>
-          ) : d.balances.slice(0, 6).map((b) => (
+          ) : d.balances.slice(0, WIDGET_ROWS).map((b) => (
             <tr key={b.partnerId}>
               <td>{b.name}</td>
               <td>{b.typeName}</td>
@@ -171,7 +177,7 @@ const REGISTRY: WidgetDef[] = [
         <tbody>
           {d.sales.length === 0 ? (
             <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>판매 내역 없음</td></tr>
-          ) : d.sales.slice(0, 6).map((s) => (
+          ) : d.sales.slice(0, WIDGET_ROWS).map((s) => (
             <tr key={s.id}>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
               <td>{dateText(s.saleDate)}</td>
@@ -191,7 +197,7 @@ const REGISTRY: WidgetDef[] = [
         <tbody>
           {d.purchases.length === 0 ? (
             <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>구매 내역 없음</td></tr>
-          ) : d.purchases.slice(0, 6).map((p) => (
+          ) : d.purchases.slice(0, WIDGET_ROWS).map((p) => (
             <tr key={p.id}>
               <td style={{ fontFamily: 'monospace' }}>{p.docNo}</td>
               <td>{dateText(p.purchaseDate)}</td>
@@ -306,8 +312,13 @@ export default function MyPageDashboard() {
     balances: () => api.get<PartnerBalance[]>('/ledger/partner-balances').then((r) => setBalances(r.data)),
     vat: () => api.get<VatSummary>('/accounting/vat-summary').then((r) => setVat(r.data)),
     profit: () => api.get<ProfitSummary>('/accounting/profit-summary').then((r) => setProfit(r.data)),
-    sales: () => api.get<SalesDoc[]>('/sales').then((r) => setSales(r.data)),
-    purchases: () => api.get<PurchaseDoc[]>('/purchases').then((r) => setPurchases(r.data)),
+    /*
+     * <b>보여 주는 만큼만 받는다.</b> 두 위젯은 최근 여섯 줄을 그리는데(slice(0, WIDGET_ROWS))
+     * 여태 전 기간을 받았다 — 로그인하고 첫 화면에서 판매 3.6MB · 구매 1.0MB 가
+     * 내려왔다(2026-09-10 실측). 두 목록 다 <b>최신순</b>이라 앞에서 여섯만 받으면 같은 줄이다.
+     */
+    sales: () => api.get<SalesDoc[]>('/sales', { params: { limit: WIDGET_ROWS } }).then((r) => setSales(r.data)),
+    purchases: () => api.get<PurchaseDoc[]>('/purchases', { params: { limit: WIDGET_ROWS } }).then((r) => setPurchases(r.data)),
   }), [])
 
   useEffect(() => {

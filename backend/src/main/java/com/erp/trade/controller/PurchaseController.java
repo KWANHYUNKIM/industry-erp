@@ -23,11 +23,13 @@ public class PurchaseController {
 
     private final PurchaseService purchaseService;
 
+    /** <b>limit</b> 은 최근 몇 건만 달라는 뜻이다 — 목록이 최신순이라 앞에서 자르면 그게 최근 건이다. */
     @GetMapping
     public List<PurchaseResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return purchaseService.findAll(from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Integer limit) {
+        return purchaseService.findAll(from, to, limit);
     }
 
     /**

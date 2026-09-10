@@ -124,12 +124,26 @@ public class SalesService {
      */
     @Transactional(readOnly = true)
     public List<SalesResponse> findAll(LocalDate from, LocalDate to) {
+        return findAll(from, to, null);
+    }
+
+    /**
+     * <b>limit</b> — 최근 몇 건만. 목록이 이미 최신순이라 앞에서 자르면 그게 최근 건이다.
+     *
+     * <p>자르는 자리는 <b>질의가 아니라 여기</b>다. 이 조회는 join fetch 라
+     * 페이지 크기를 질의에 붙이면 하이버네이트가 어차피 <b>메모리에서</b> 자른다
+     * (HHH000104). 여기서 아픈 것은 <b>내려보내는 양</b>이고 — 대시보드가 여섯 줄을
+     * 그리려고 3.6MB 를 받고 있었다 — 그건 이 자리에서 줄어든다.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findAll(LocalDate from, LocalDate to, Integer limit) {
         List<Sales> found = (from == null && to == null)
                 ? salesRepository.findAllWithRefs()
                 : salesRepository.findWithRefsByPeriod(
                         from != null ? from : LocalDate.of(1, 1, 1),
                         to != null ? to : LocalDate.of(9999, 12, 31));
-        return found.stream().map(SalesResponse::from).toList();
+        var stream = found.stream().map(SalesResponse::from);
+        return (limit != null && limit > 0) ? stream.limit(limit).toList() : stream.toList();
     }
 
     /**

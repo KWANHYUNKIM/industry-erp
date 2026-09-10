@@ -23,12 +23,19 @@ public class SalesController {
 
     private final SalesService salesService;
 
-    /** 판매 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
+    /**
+     * 판매 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
+     *
+     * <p><b>limit</b> 은 <b>최근 몇 건만</b> 달라는 뜻이다. 목록은 이미 최신순이라
+     * 앞에서 그만큼 자르면 그게 최근 건이다. MyPage 대시보드가 판매 위젯에 <b>여섯 줄</b>을
+     * 그리려고 전 기간을 받아 3.6MB 를 내려받고 있었다(2026-09-10 실측).
+     */
     @GetMapping
     public List<SalesResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return salesService.findAll(from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Integer limit) {
+        return salesService.findAll(from, to, limit);
     }
 
     /**

@@ -76,12 +76,19 @@ public class PurchaseService {
      */
     @Transactional(readOnly = true)
     public List<PurchaseResponse> findAll(LocalDate from, LocalDate to) {
+        return findAll(from, to, null);
+    }
+
+    /** <b>limit</b> — 최근 몇 건만. 자르는 자리가 질의가 아닌 까닭은 SalesService 에 적어 두었다. */
+    @Transactional(readOnly = true)
+    public List<PurchaseResponse> findAll(LocalDate from, LocalDate to, Integer limit) {
         List<Purchase> found = (from == null && to == null)
                 ? purchaseRepository.findAllWithRefs()
                 : purchaseRepository.findWithRefsByPeriod(
                         from != null ? from : LocalDate.of(1, 1, 1),
                         to != null ? to : LocalDate.of(9999, 12, 31));
-        return found.stream().map(PurchaseResponse::from).toList();
+        var stream = found.stream().map(PurchaseResponse::from);
+        return (limit != null && limit > 0) ? stream.limit(limit).toList() : stream.toList();
     }
 
     /**
