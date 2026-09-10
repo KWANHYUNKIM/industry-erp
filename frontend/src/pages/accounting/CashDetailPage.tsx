@@ -5,7 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -24,8 +24,14 @@ export default function CashDetailPage() {
    * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
    * 기본은 <b>비워</b> 둔다: 카드결제는 <b>미결제 건이 오래된 것도 살아 있다</b> — 잘라 놓으면 아직 안 낸 건이 사라진다.
    */
-  const [pFrom, setPFrom] = useState('')
-  const [pTo, setPTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 1,866KB:
+   * 카드대금 986KB + 계좌간이동 799KB). 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다.
+   * 아래 [미결제 합계]는 <b>다른 자리</b>에서 온다(/cash-details/card-payments/unpaid) —
+   * 기간과 무관한 지금 상태라 이 기본값에 흔들리지 않는다.
+   */
+  const [pFrom, setPFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [pTo, setPTo] = useState(periodOf('금월(~오늘)')!.to)
   const [tab, setTab] = useState<Tab>('계좌간이동')
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [cards, setCards] = useState<CreditCardRow[]>([])
