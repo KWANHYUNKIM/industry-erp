@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, Fragment } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
@@ -109,8 +110,12 @@ export default function ShipmentInquiryPage() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<Shipment[]>([])
   const [keyword, setKeyword] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 1,075KB).
+   * 같은 날 고친 회계 화면들과 같은 <b>금월(~오늘)</b> 로 맞춘다. 예전 자료는 기간을 넓히면 보인다.
+   */
+  const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
   const [tab, setTab] = useState<SendTab>('전체')
   const [shipNoCond, setShipNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')

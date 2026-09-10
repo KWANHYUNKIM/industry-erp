@@ -7,7 +7,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 
@@ -46,8 +46,12 @@ export default function StagedAdjustmentPage() {
    * 값을 골라 두면 <b>지금 보이던 줄이 소리 없이 사라진다.</b> 비워 두면 예전 그대로 전
    * 기간이고, 좁히는 것은 사람이 정한다.
    */
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 790KB).
+   * 같은 날 고친 회계 화면들과 같은 <b>금월(~오늘)</b> 로 맞춘다. 예전 자료는 기간을 넓히면 보인다.
+   */
+  const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

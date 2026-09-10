@@ -894,6 +894,8 @@ console.log('\n■ 대조표를 다 쓰고 있나')
       || f === 'unwitnessed-reasons.json'
       /* 화면이 아니라 <b>서버 자리</b>를 키로 쓴다. */
       || f === 'server-only-endpoints.json'
+      /* 화면 이름이 아니라 <b>우리 파일 경로</b>를 키로 쓴다 — 원본에 없는 우리 판단이라 그렇다. */
+      || f === 'open-with-all-period.json'
       || f === 'ecount-missing-columns.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
@@ -7182,6 +7184,56 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
   eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
 }
 
+// ── 1-p) 화면을 열자마자 전 기간을 받는 자리 ──────────────────────────────
+console.log('\n■ 화면을 열 때 기간 기본값이 있나')
+
+/*
+ * <b>기간 칸이 있는데 기본값이 비어 있으면, 화면을 여는 순간 전 기간이 내려온다.</b>
+ * 서버는 기간을 받을 줄 아는데 화면이 빈 값을 보내니 아무것도 안 걸러지는 것이다.
+ *
+ * <p>2026-09-10 에 브라우저로 재 보고 찾았다 — 정적 검사도 qa 하네스도 이걸 못 본다.
+ * 응답은 200이고 화면은 멀쩡히 그려지기 때문이다. 그날 잰 값:
+ * 빠른전표 5,158KB · 어음·기타 3,746KB · 수표 2,383KB · 계약 2,334KB ·
+ * 현금거래 1,866KB · 미출하현황 1,328KB · 출하조회 1,075KB · 단계별재고조정 790KB.
+ * (MyPage 는 다른 꼴이었다 — 여섯 줄을 그리려고 4.6MB 를 받고 있었다.)
+ *
+ * <p><b>기본값을 두면 안 되는 화면도 있다.</b> 자산대장은 취득일로 거르고 위에서
+ * [사용중 건수·취득가액]을 더하므로 금월로 열면 <b>가진 자산이 사라진 것처럼</b> 보이고,
+ * 미출하현황은 <b>지난달에 받아 아직 못 보낸 주문</b>이 핵심이다. 그런 자리는 목록에
+ * 이유와 함께 올린다 — 안 적으면 다음 사람이 또 재고 또 판단해야 한다.
+ */
+{
+  const OPEN_ALL = JSON.parse(readFileSync(join('qa', 'fixtures', 'open-with-all-period.json'), 'utf8'))
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/from:\s*([\w.]+)\s*\|\|\s*undefined/g)) {
+      const id = m[1]
+      const Q = String.fromCharCode(39)
+      /* 그 기간 상태의 초기값이 빈 글자인가 */
+      const empty = id.includes('.')
+        /*
+         * 객체에 담은 기간(cond.from)은 <b>from 과 to 가 함께 빈</b> 초기값만 본다 —
+         * 파일 어딘가의 from: '' 하나만 보면 다시 작성 단추의 초기화 객체까지 걸린다.
+         */
+        ? new RegExp('from:\\s*' + Q + Q + ',\\s*to:\\s*' + Q + Q).test(src)
+        : new RegExp('const \\[' + id + '[,\\]][^=]*=\\s*useState\\(\\s*' + Q + Q + '\\s*\\)').test(src)
+      if (!empty) continue
+      checked += 1
+      if (!OPEN_ALL[rel]) bad.push(`${rel} [${id}] — 기간 기본값이 비어 열자마자 전 기간을 받는다. 기본값을 주거나, 그러면 안 되는 화면이면 open-with-all-period.json 에 왜인지 적으세요`)
+    }
+  }
+  /* 없는 자리에 이유를 적어 두면 그 줄은 아무것도 안 지킨다 — 반대로도 건다. */
+  const ghosts = Object.keys(OPEN_ALL).filter((rel) => {
+    const src = pageSource(rel)
+    return !src || !/from:\s*[\w.]+\s*\|\|\s*undefined/.test(src)
+  })
+  eq(`기간을 안 주고 여는 화면 ${checked}개가 다 이유를 들고 있다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+  eq('적어 둔 화면이 다 실제로 그렇다', ghosts.join(', ') || '없음', '없음')
+}
 // ── 1-q') 화면→파일 지도가 둘인데 서로 어긋나지 않나 ─────────────────────
 console.log('\n■ 화면이 어느 파일인지 두 지도가 같게 말하나')
 
