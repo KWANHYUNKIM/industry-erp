@@ -118,7 +118,12 @@ export default function TimeCalcPage() {
       const [i, b, w] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<BorRow[]>('/bor'),
-        api.get<WoRow[]>('/work-orders'),
+        /*
+         * <b>보는 날 하루만 받는다.</b> 이 화면은 [기준일자] <b>하루</b>에 잡힌 작업지시를
+         * 담는데(아래 <code>o.orderDate === baseDate</code>), 여태 작업지시를 통째로 받아
+         * 브라우저에서 그 하루만 골랐다.
+         */
+        api.get<WoRow[]>('/work-orders', { params: { from: baseDate, to: baseDate } }),
       ])
       setItems(i.data)
       setBor(b.data)
@@ -129,7 +134,9 @@ export default function TimeCalcPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /* 기준일자를 바꾸면 그 날로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [baseDate])
 
   /** 품목 → 작업들(활성만). 순서대로. */
   const opsOf = useMemo(() => {

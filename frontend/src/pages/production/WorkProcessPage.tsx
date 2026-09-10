@@ -129,8 +129,15 @@ export default function WorkProcessPage() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [w, b, r] = await Promise.all([
-        api.get<WorkOrder[]>('/work-orders'),
+        /*
+         * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 작업지시를 <b>그 지시일로</b> 거른다
+         * (아래 <code>wo.orderDate &lt; from</code>) — 서버에 같은 창을 주면 된다.
+         */
+        api.get<WorkOrder[]>('/work-orders', { params: period }),
         api.get<BorRow[]>('/bor'),
         api.get<WorkResult[]>('/work-results'),
       ])
@@ -144,7 +151,9 @@ export default function WorkProcessPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /** 품목 → 작업(순서대로) */
   /** 사원 id → 이름. */

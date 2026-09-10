@@ -164,8 +164,19 @@ export default function WoProgressPage() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [wo, mi, pr, wr, bm, emps, parts, br, st] = await Promise.all([
-        api.get<WorkOrder[]>('/work-orders'),
+        /*
+         * <b>작업지시만 기간으로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이다
+         * (아래 <code>o.orderDate &lt; from</code>).
+         *
+         * <p><b>아래 /material-issues·/productions 는 안 좁힌다.</b> 둘 다
+         * <code>workOrderId</code> 로 묶어 진행을 센다 — 기간 안의 지시에 <b>그 밖의 날에
+         * 찍힌 불출·실적</b>이 있으면 그것도 세어야 한다. 잘랐다가는 진행이 덜 된 것처럼 보인다.
+         */
+        api.get<WorkOrder[]>('/work-orders', { params: period }),
         api.get<Issue[]>('/material-issues'),
         api.get<Production[]>('/productions'),
         api.get<WorkResult[]>('/work-results'),
@@ -188,7 +199,9 @@ export default function WoProgressPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)

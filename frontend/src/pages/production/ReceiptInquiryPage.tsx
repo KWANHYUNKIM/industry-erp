@@ -131,7 +131,14 @@ export default function ReceiptInquiryPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Row[]>('/productions')
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 실적을 <b>그 실적일로</b> 거른다
+       * (아래 <code>r.productionDate &gt;= from</code>) — 서버에 같은 창을 주면 된다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      const res = await api.get<Row[]>('/productions', { params: period })
       setRows([...res.data].sort((a, b) => (a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : b.id - a.id)))
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -140,7 +147,9 @@ export default function ReceiptInquiryPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /**
    * 원본은 목록 첫 칸에서 줄을 골라 [선택삭제] 한다(사본 실측: CHK_H 열).
