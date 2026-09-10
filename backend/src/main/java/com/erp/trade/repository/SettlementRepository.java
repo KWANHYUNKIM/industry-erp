@@ -30,6 +30,16 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
     List<PartnerAmount> sumByPartnerBetween(SettlementType type,
                                             java.time.LocalDate from, java.time.LocalDate to);
 
+    /**
+     * 기간 안의 정산 전표. <b>합계가 아니라 전표 하나하나</b>다 —
+     * 거래처관리대장의 [전표별] 원장이 수금·지급을 줄로 세울 때 쓴다.
+     */
+    @Query("select s from Settlement s join fetch s.partner " +
+            "where s.type = :type and s.settleDate between :from and :to " +
+            "order by s.settleDate, s.id")
+    List<Settlement> findByTypeAndSettleDateBetweenWithPartner(
+            SettlementType type, java.time.LocalDate from, java.time.LocalDate to);
+
     interface PartnerAmount {
         Long getPartnerId();
         BigDecimal getTotal();

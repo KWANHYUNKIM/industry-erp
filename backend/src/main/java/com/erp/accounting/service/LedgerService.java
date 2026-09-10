@@ -32,6 +32,15 @@ public class LedgerService {
     private final PurchaseRepository purchaseRepository;
     private final SettlementRepository settlementRepository;
     private final JournalLineRepository journalLineRepository;
+    /*
+     * <b>새 코드는 다른 모듈의 서비스를 거친다</b>(CLAUDE.md §4.2). 위 네 리포지토리는
+     * 그 규칙이 생기기 전부터 있던 자리라 그대로 두었다 — 전부 집계 쿼리(projection)여서
+     * 서비스로 옮기면 리포지토리 타입이 서비스 API 로 새어 나간다. 원장은 돈 화면이라
+     * 새 기능과 같은 판에서 갈아엎지 않는다.
+     */
+    private final com.erp.trade.service.SalesService salesService;
+    private final com.erp.trade.service.PurchaseService purchaseService;
+    private final com.erp.trade.service.SettlementService settlementService;
 
     /**
      * 채권·채무의 <b>통제계정</b> 코드.
@@ -97,6 +106,43 @@ public class LedgerService {
             m.put((Long) row[0], new Move((BigDecimal) row[1], (BigDecimal) row[2]));
         }
         return m;
+    }
+
+    /**
+     * <b>[전표별] 원장.</b> 기간 안의 전표를 날짜 차례로 늘어놓는다 —
+     * 채권이면 판매(올림)와 수금(내림), 채무면 구매(올림)와 지급(내림)이다.
+     *
+     * <p>잔액 누계는 화면이 <b>기초잔액에서부터</b> 더해 간다(기초는 partner-movements 가 낸다).
+     * 서버가 미리 더해 주지 않는 까닭은, 화면이 거래처를 하나로 좁히거나 날짜·달로 묶을 때
+     * <b>누계가 그때마다 다시 서야</b> 하기 때문이다.
+     */
+    @Transactional(readOnly = true)
+    public List<LedgerDtos.PartnerEntryResponse> partnerEntries(LocalDate from, LocalDate to,
+                                                                boolean receivableSide) {
+        List<LedgerDtos.PartnerEntryResponse> out = new java.util.ArrayList<>();
+        if (receivableSide) {
+            salesService.findAll(from, to).forEach(s -> out.add(new LedgerDtos.PartnerEntryResponse(
+                    s.saleDate(), s.docNo(), "판매", s.partnerId(), s.partnerName(),
+                    s.totalAmount(), BigDecimal.ZERO)));
+            settlementService.findBetween(SettlementType.RECEIPT, from, to)
+                    .forEach(s -> out.add(new LedgerDtos.PartnerEntryResponse(
+                            s.settleDate(), s.docNo(), "수금", s.partnerId(), s.partnerName(),
+                            BigDecimal.ZERO, s.amount())));
+        } else {
+            purchaseService.findAll(from, to).forEach(p -> out.add(new LedgerDtos.PartnerEntryResponse(
+                    p.purchaseDate(), p.docNo(), "구매", p.partnerId(), p.partnerName(),
+                    p.totalAmount(), BigDecimal.ZERO)));
+            settlementService.findBetween(SettlementType.PAYMENT, from, to)
+                    .forEach(s -> out.add(new LedgerDtos.PartnerEntryResponse(
+                            s.settleDate(), s.docNo(), "지급", s.partnerId(), s.partnerName(),
+                            BigDecimal.ZERO, s.amount())));
+        }
+        /* 날짜 차례. 같은 날이면 올린 것(판매·구매)을 먼저 세운다 — 원장을 읽는 차례다. */
+        out.sort(java.util.Comparator
+                .comparing(LedgerDtos.PartnerEntryResponse::date)
+                .thenComparing(e -> e.increase().signum() == 0 ? 1 : 0)
+                .thenComparing(e -> e.docNo() == null ? "" : e.docNo()));
+        return out;
     }
 
     /**

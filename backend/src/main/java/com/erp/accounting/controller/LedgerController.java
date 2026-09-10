@@ -34,6 +34,17 @@ public class LedgerController {
      * <p>{@code side=AR} 이면 채권(기초채권 · 재고매출 · 회계매출 · 수금합계 · 기타할인등차액 · 잔액),
      * {@code AP} 면 채무다. 원본 화면이 잔액을 이렇게 쪼개 보여 준다.
      */
+    /**
+     * 거래처관리대장 I 의 [집계구분] <b>[전표별]</b>. [일별]·[월별]은 화면이 이 줄을 묶는다.
+     */
+    @GetMapping("/partner-entries")
+    public List<LedgerDtos.PartnerEntryResponse> partnerEntries(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "AR") String side) {
+        return ledgerService.partnerEntries(from, to, !"AP".equalsIgnoreCase(side));
+    }
+
     @GetMapping("/partner-movements")
     public List<LedgerDtos.PartnerMovementResponse> partnerMovements(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

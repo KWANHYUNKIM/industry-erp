@@ -26,6 +26,17 @@ public class SettlementService {
     private final BusinessPartnerRepository partnerRepository;
     private final DocumentNoGenerator docNoGenerator;
 
+    /**
+     * 기간 안의 정산 전표를 <b>줄 단위로</b> 낸다(유형별).
+     * 거래처관리대장 I 의 [전표별] 원장이 수금·지급을 세울 때 쓰는 자리다 —
+     * 회계(accounting)가 이 서비스를 거쳐 부른다(다른 모듈의 리포지토리를 직접 안 쓴다).
+     */
+    @Transactional(readOnly = true)
+    public List<SettlementResponse> findBetween(SettlementType type, LocalDate from, LocalDate to) {
+        return settlementRepository.findByTypeAndSettleDateBetweenWithPartner(type, from, to)
+                .stream().map(SettlementResponse::from).toList();
+    }
+
     @Transactional(readOnly = true)
     public List<SettlementResponse> findAll() {
         return settlementRepository.findAllWithPartner().stream()

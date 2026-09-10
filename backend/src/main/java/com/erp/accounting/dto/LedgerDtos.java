@@ -22,6 +22,29 @@ public final class LedgerDtos {
      * 기타차액은 <b>나머지</b>다 — 우리가 이름 붙여 세지 못한 움직임이 있으면 여기 남는다.
      * 0 이 아니면 어딘가 빠뜨린 것이 있다는 뜻이라 숨기지 않는다.
      */
+    /**
+     * 거래처관리대장 I 의 <b>[전표별] 원장 한 줄</b>.
+     *
+     * <p>열 예외에 "원장을 전표·일·월 단위로 쪼개지 않는다" 고 적어 두었는데,
+     * 그건 <b>기능이 없다</b>는 말이었지 값이 없다는 말이 아니었다 — 판매·구매·정산 전표가
+     * 이미 일자와 전표번호와 금액을 다 들고 있다. 합계만 내던 화면은 <b>잔액이 왜 그 값인지</b>
+     * 를 못 보여 준다: 어느 전표가 올렸고 어느 수금이 내렸는지가 안 보인다.
+     *
+     * <p>[일별]·[월별]은 이 줄을 날짜/달로 묶은 것이라 <b>같은 자리에서 나온다.</b>
+     */
+    public record PartnerEntryResponse(
+            java.time.LocalDate date,
+            /** 전표번호. 묶음 줄(일별·월별)에서는 비어 있다. */
+            String docNo,
+            /** 판매 · 구매 · 수금 · 지급 */
+            String kind,
+            Long partnerId, String partnerName,
+            /** 채권이면 판매가, 채무면 구매가 올린다 */
+            BigDecimal increase,
+            /** 채권이면 수금이, 채무면 지급이 내린다 */
+            BigDecimal decrease
+    ) {}
+
     public record PartnerMovementResponse(
             Long partnerId, String code, String name, String manager,
             /** 기간 시작 전날까지의 잔액 */

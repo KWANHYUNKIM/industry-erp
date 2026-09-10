@@ -3772,12 +3772,6 @@
    "<option value=\"REJECTED\">반려</option>"
   ]
  },
- "거래처관리대장 I|전표별": {
-  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다",
-  "present": [
-   "<tr key={m.partnerId}>"
-  ]
- },
  "구매현황|진행상태": {
   "claim": "구매 전표에 확인상태 자체가 없다 — 확인은 판매전표에만 있다",
   "absent": [
@@ -4238,12 +4232,6 @@
    "<th>질문유형</th>"
   ],
   "file": "groupware/SurveyInputPage.tsx"
- },
- "거래처관리대장 I|일별": {
-  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다(위 [거래처관리대장 I|전표별+내역] 과 같은 사실이다)",
-  "present": [
-   "<tr key={m.partnerId}>"
-  ]
  },
  "생산입고 III-소모품목 선택|생산": {
   "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다(위 [생산입고II-소모품목 선택|소모] 과 같은 사실이다)",
@@ -4806,12 +4794,6 @@
    "parent"
   ],
   "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
- },
- "거래처관리대장 I|월별": {
-  "claim": "원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다",
-  "present": [
-   "<tr key={m.partnerId}>"
-  ]
  },
  "생산불출조회|전체": {
   "claim": "생산불출 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
