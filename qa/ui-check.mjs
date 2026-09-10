@@ -7124,6 +7124,69 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
   eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
 }
 
+// ── 1-r) 원본에 없는데 우리가 그리는 조건 ────────────────────────────────
+console.log('\n■ 원본에 없는 조건을 우리가 만들지 않았나')
+
+/*
+ * <b>대조는 지금까지 한 방향만 재고 있었다.</b> "원본에 있는데 우리에게 없는 것" 은
+ * 열도 조건도 세고 있었는데, <b>우리가 원본에 없는 것을 만든</b> 자리는 아무도 안 봤다 —
+ * 조건 차례 검사(2-p)는 우리에 없는 조건을 건너뛸 뿐이고, 더 그린 조건은 볼 자리가 없다.
+ *
+ * <p>그래서 채권/채무현황 [데이터 보기형식]은 <b>사람 눈에 우연히</b> 걸렸다. 2026-09-10 에
+ * 이 방향을 처음 재 보니 서른일곱이 나왔고, 그중 BOR 은 <b>셸이 그리는 검색 상자와 같은
+ * 상태를 조건 줄로 한 번 더 그려</b> 같은 칸이 화면에 두 번 서 있었다.
+ *
+ * <p>우리 칸을 두는 것 자체는 잘못이 아니다 — 원본에 없어도 우리 업무에 필요한 칸이 있다.
+ * <b>왜 두는지 적혀 있지 않은 것</b>이 문제다. 그래서 목록(our-own-conditions.json)에
+ * 이유와 함께 올리게 한다. 새 조건을 원본 대조 없이 슬쩍 늘리면 여기서 걸린다.
+ *
+ * <p>한 파일이 원본 여러 화면을 겸하면 <b>그 화면들의 조건을 합쳐</b> 허용 집합으로 둔다 —
+ * 겸하는 쪽에만 있는 칸을 "우리가 만든 것" 으로 잘못 세지 않기 위해서다.
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
+  const mine = JSON.parse(readFileSync(join('qa', 'fixtures', 'our-own-conditions.json'), 'utf8'))
+  const MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+
+  /* 파일 → 그 파일이 겸하는 원본 화면들 */
+  const byFile = new Map()
+  for (const [screen, rel] of MAP) {
+    if (!rel) continue
+    if (!byFile.has(rel)) byFile.set(rel, [])
+    byFile.get(rel).push(screen)
+  }
+
+  const bad = []
+  const seenFile = new Set()
+  let checked = 0
+  for (const screen of Object.keys(cap)) {
+    const rel = MAP.get(screen)
+    if (!rel || seenFile.has(rel) || PENDING.has(screen)) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    seenFile.add(rel)
+    const allowed = new Set()
+    for (const s of byFile.get(rel) ?? [screen]) for (const f of cap[s] ?? []) allowed.add(f)
+    for (const m of new Set([...src.matchAll(/<EcCond label="([^"]+)"/g)].map((x) => x[1]))) {
+      if (allowed.has(m)) continue
+      checked += 1
+      if (!mine[`${screen}|${m}`]) bad.push(`${screen} [${m}] — 원본 조건표에 없다. 우리 칸이면 왜 두는지 our-own-conditions.json 에 적으세요`)
+    }
+  }
+
+  /* 없는 자리에 이유를 적어 두면 그 줄은 영원히 아무것도 안 지킨다 — 반대로도 건다. */
+  const ghosts = Object.keys(mine).filter((k) => !k.startsWith('_'))
+    .filter((k) => {
+      const [screen, name] = k.split('|')
+      const rel = MAP.get(screen)
+      const src = rel ? pageSource(rel) : null
+      return !src || !src.includes(`<EcCond label="${name}"`)
+    })
+
+  eq(`우리가 더 둔 조건 ${checked}개가 다 이유를 들고 있다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+  eq(`적어 둔 우리 조건 ${ghosts.length ? '' : Object.keys(mine).length - 1 + '개가 '}다 실제로 그려진다`,
+    ghosts.join(', ') || '없음', '없음')
+}
 // ── 1-s) 고정 이름을 표현식에 담은 머리 ──────────────────────────────────
 console.log('\n■ 머리에 적힌 이름을 검사가 읽을 수 있나')
 
