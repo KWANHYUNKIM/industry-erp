@@ -83,7 +83,16 @@ export default function ExecutiveReportPage() {
     try {
       const y = yearBefore(to)
       const [s, b, st, it, bal, un, po, sd, bd, adj] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
+        /*
+         * <b>판매는 기간을 서버에 넘긴다.</b> 여태 전 기간을 받아 아래 salesP 에서 걸렀다 —
+         * 이 화면 하나가 판매 전표 <b>전부</b>를 실어 오고 있었다(개발 자료에서도 1,900줄·1.7MB).
+         * 화면이 판매로 하는 일은 기간 매출을 세는 것뿐이라 좁혀도 숫자가 달라지지 않는다.
+         *
+         * <p><b>구매는 못 좁힌다.</b> 기간 매입을 세는 데도 쓰지만 <code>stockCostMap</code> 이
+         * <b>지난 입고 이력 전부</b>로 품목별 취득원가를 낸다 — 기간으로 자르면 이번 달에
+         * 안 사 온 품목의 재고자산이 통째로 빠진다.
+         */
+        api.get<SalesDoc[]>('/sales', { params: { from, to } }),
         api.get<PurchaseDoc[]>('/purchases'),
         api.get<StockRow[]>('/stock'),
         api.get<Item[]>('/items'),
@@ -98,6 +107,7 @@ export default function ExecutiveReportPage() {
          * 경영자보고서가 그 값을 안 불러와서 원본 격자의 여섯 줄이 통째로 비어 있었다.
          */
         api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: y, to } }),
+        /* 미입고 발주는 <b>기간과 무관한 지금 상태</b>다 — 기간으로 자르면 지난달에 낸 발주가 빠진다. */
         api.get<PurchaseOrderRow[]>('/purchase-orders'),
         api.get<DiscountRow[]>('/sales/discounts', { params: { from, to } }),
         api.get<DiscountRow[]>('/purchases/discounts', { params: { from, to } }),
