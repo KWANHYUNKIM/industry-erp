@@ -16,6 +16,7 @@ import { findDataTable } from '../../utils/tableExport'
 import { useShortcut } from '../../utils/useShortcut'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -1838,6 +1839,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           이 거래처의 최근 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져옵니다.
         </p>
         <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+          {/* 고르는 창이라 합계가 없다 — 몇 중 몇인지만 적는다. 안 적으면 찾는 전표가
+              없다고 읽는다. */}
+          <EcRowCap capped={partnerDocs.length > 30} shown={30} total={partnerDocs.length} sums={false}
+                    hint="거래처를 바꾸거나 기간을 좁혀 보세요." />
           <table className="w-full text-left">
             <thead>
               <tr><th>전표번호</th><th>일자</th><th>품목</th><th style={{ textAlign: 'right' }}>합계</th></tr>
@@ -1845,7 +1850,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <tbody>
               {partnerDocs.length === 0 ? (
                 <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : partnerDocs.slice(0, 30).map((d) => (
+              ) : capRows(partnerDocs, 30).rows.map((d) => (
                 <tr
                   key={d.id} style={{ cursor: 'pointer' }}
                   onClick={() => copyFromDoc(d, () => setHistoryOpen(false))}
@@ -1868,6 +1873,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           거래처도 그 전표의 것으로 맞춰집니다. (거래처별로 보려면 툴바 [거래내역보기]를 쓰세요.)
         </p>
         <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+          {/* 고르는 창이라 합계가 없다 — 몇 중 몇인지만 적는다. 안 적으면 찾는 전표가
+              없다고 읽는다. */}
+          <EcRowCap capped={docs.length > 50} shown={50} total={docs.length} sums={false}
+                    hint="전표번호로 찾아 보세요." />
           <table className="w-full text-left">
             <thead>
               <tr>
@@ -1878,7 +1887,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <tbody>
               {docs.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : docs.slice(0, 50).map((d) => (
+              ) : capRows(docs, 50).rows.map((d) => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => copyFromDoc(d, () => setSlipLoadOpen(false))}>
                   <td style={{ fontFamily: 'ui-monospace, monospace' }}>{d.docNo}</td>
                   <td>{(d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate}</td>

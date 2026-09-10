@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /** 재고 II > 출력물 — 실제 데이터 기반 장표 미리보기/인쇄
  *  (/api/stock, /api/stock/transactions, /api/sales, /api/purchases, /api/ledger/partner-balances 연동) */
@@ -191,6 +192,10 @@ export default function ReportsPage() {
             </div>
           </div>
           <div style={{ maxHeight: 320, overflow: 'auto', padding: 8 }}>
+            {/* 미리보기라도 <b>몇 중 몇</b>인지는 적는다 — 안 적으면 30줄이 전부인 줄 안다. */}
+            <EcRowCap capped={preview.data.rows.length > 30} shown={30}
+                      total={preview.data.rows.length} sums={false}
+                      hint="내려받으면 전부 들어 있습니다." />
             <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
@@ -202,7 +207,7 @@ export default function ReportsPage() {
               <tbody>
                 {preview.data.rows.length === 0 ? (
                   <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
-                ) : preview.data.rows.slice(0, 30).map((row, ri) => (
+                ) : capRows(preview.data.rows, 30).rows.map((row, ri) => (
                   <tr key={ri}>
                     {row.map((c, ci) => (
                       <td key={ci} style={preview.data.rightCols.includes(ci) ? { textAlign: 'right' } : undefined}>{c}</td>

@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf, ORDER_STAGE_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 영업 > 오더관리진행단계.
@@ -154,6 +155,8 @@ export default function OrderStagePage() {
     /* 원본 [수정일자순(정렬)] — 켜면 나중에 고친 오더가 위다. 안 켜면 서버가 준 차례 그대로. */
     .slice()
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
+  /* 그리는 줄만 자른다 — 자른 것은 표 위에 적는다. 세는 줄은 안 줄인다. */
+  const capped = capRows(shown, 200)
 
   const detail = detailId != null ? orders.find((o) => o.id === detailId) ?? null : null
   /** [선택상세보기] — 고른 줄을 <b>한 창에 이어서</b> 편다. 한 건씩 열었다 닫으면 견줄 수가 없다. */
@@ -278,6 +281,8 @@ export default function OrderStagePage() {
       </ul>
 
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="검색어나 유형으로 좁혀 보세요." />
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>
             <tr>
@@ -303,7 +308,7 @@ export default function OrderStagePage() {
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.slice(0, 200).map((o, i) => {
+            ) : capped.rows.map((o, i) => {
               const steps = o.orderTypeId != null ? (stepsOf.get(o.orderTypeId) ?? []) : []
               const at = steps.findIndex((s) => s.stageId === o.stageId)
               const done = steps.length > 0 && at === steps.length - 1

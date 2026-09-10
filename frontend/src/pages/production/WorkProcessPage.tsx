@@ -5,6 +5,7 @@ import { WORK_PROCESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -238,6 +239,8 @@ export default function WorkProcessPage() {
   }
 
   const totalRemain = rows.reduce((n, r) => n + r.remainQty, 0)
+  /* 그리는 줄만 자른다 — 위 합계는 rows 전부로 낸 값이다. 자른 것은 표 위에 적는다. */
+  const capped = capRows(rows, 300)
 
   return (
     <EcListShell
@@ -320,6 +323,8 @@ export default function WorkProcessPage() {
       </div>
 
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="품목이나 공정으로 좁혀 보세요." />
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
@@ -345,7 +350,7 @@ export default function WorkProcessPage() {
               <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
                 처리할 작업이 없습니다. 품목에 BOR(작업소요시간)이 있어야 여기 나옵니다.
               </td></tr>
-            ) : rows.slice(0, 300).map((r, i) => (
+            ) : capped.rows.map((r, i) => (
               <tr key={r.key}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.wo.orderNo}</td>

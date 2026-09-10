@@ -7,6 +7,7 @@ import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 영업 > 결제내역자료비교.
@@ -193,6 +194,9 @@ export default function PaymentComparePage() {
 
   const mismatchCount = useMemo(
     () => shown.filter((r) => Math.abs(r.saleTotal - r.payTotal) >= 0.005).length, [shown])
+  /* 그리는 줄만 자른다 — 아래 합계는 자르기 전 전부로 낸 값이다. 자른 것은 표 위에 적는다. */
+  const capped = capRows(shown, 300)
+
   const totals = useMemo(() => shown.reduce(
     (a, r) => ({ sale: a.sale + r.saleTotal, pay: a.pay + r.payTotal }),
     { sale: 0, pay: 0 },
@@ -255,6 +259,8 @@ export default function PaymentComparePage() {
       </div>
       {/* 원본은 [결제내역] 과 [판매전표II] 를 좌우로 놓고 맨 끝에 차이를 둔다. */}
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="기간을 좁혀 보세요." />
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
@@ -276,7 +282,7 @@ export default function PaymentComparePage() {
               <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.slice(0, 300).map((r, i) => {
+            ) : capped.rows.map((r, i) => {
               const diff = r.saleTotal - r.payTotal
               const same = Math.abs(diff) < 0.005
               return (

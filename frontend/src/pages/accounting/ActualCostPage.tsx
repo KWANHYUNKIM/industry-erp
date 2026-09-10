@@ -6,6 +6,7 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { groupByCategory } from '../../utils/costGroup'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 import type { Item } from '../../api/types'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -295,6 +296,13 @@ export default function ActualCostPage() {
     .filter((r) => hit(r.itemCode, r.itemName, r.itemId))
     .sort((a, b) => (a.transactionDate < b.transactionDate ? 1 : a.transactionDate > b.transactionDate ? -1 : b.id - a.id)),
   [ledger, mode, keyword, withInactive, inactive, withUntracked, untracked])
+
+  /*
+   * <b>그리는 줄만 자른다.</b> 아래 합계는 <code>detail</code> 전부를 더하므로 숫자는 안 변한다 —
+   * 6만 줄을 한 번에 깔면 탭이 얼어붙기 때문에 표만 줄이는 것이다(2026-09-10 실측
+   * 63,486줄에서 렌더러가 멈췄다). 자른 것은 표 위에 적는다.
+   */
+  const detailShown = useMemo(() => capRows(detail), [detail])
 
   /**
    * <b>배부 전</b> — 노무비/경비등록의 공정·창고별 총액. 그 달 것만 본다.
@@ -619,6 +627,8 @@ export default function ActualCostPage() {
         </div>
       ) : (
         <div className="overflow-x-auto">
+          <EcRowCap capped={detailShown.capped} shown={detailShown.rows.length} total={detailShown.total}
+                    hint="기준월을 좁히거나 품목으로 찾으세요." />
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
@@ -638,7 +648,7 @@ export default function ActualCostPage() {
                 <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
               ) : detail.length === 0 ? (
                 <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : detail.map((r, i) => {
+              ) : detailShown.rows.map((r, i) => {
                 /* 거래에 단가가 남아 있으면 그것이 맞다 — 평가단가는 그 자리를 메우는 값일 뿐이다. */
                 const price = r.unitPrice != null && r.unitPrice > 0 ? r.unitPrice : (priceOf.get(r.itemId) ?? null)
                 const qty = Math.abs(r.quantityChange)

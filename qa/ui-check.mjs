@@ -7218,6 +7218,46 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
  * 이유와 함께 올린다 — 안 적으면 다음 사람이 또 재고 또 판단해야 한다.
  */
 {
+/*
+ * <b>표에서 조용히 줄을 버리지 않는다.</b>
+ *
+ * <p>브라우저는 표 한 장에 몇만 줄을 깔면 멈춘다 — 원가집계표 [감소내역]이 63,486줄을
+ * 한 번에 그려 <b>탭이 얼어붙었다</b>(2026-09-10 실측). 그래서 자르는 것은 맞다.
+ * 문제는 <b>말없이</b> 자르는 것이다: 이 저장소에 <code>slice(0, 300)</code> 로 그냥 버리는
+ * 화면이 셋 있었다(공정별재공·오더관리진행단계·결제내역자료비교). 자른 줄 모르면
+ * 사람은 <b>표에 보이는 것이 전부</b>라고 읽는다 — 회계전표조회가 서버에서 자를 때
+ * "몇 중 몇" 을 반드시 적는 것과 같은 규칙이 화면 쪽에도 있어야 한다.
+ *
+ * <p>그리는 자리에서 <code>.slice(0, N)</code> 을 쓰면 그 파일에 <code>EcRowCap</code> 이
+ * 함께 있어야 한다. 상한을 두는 것은 좋다 — 안 적는 것이 문제다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const src = readFileSync(f, 'utf8')
+    /*
+     * <b>두 꼴을 다 센다.</b> 옛 꼴(<code>.slice(0, N).map(</code>)만 세게 두었더니,
+     * 그 자리를 <code>capRows</code> 로 다 옮긴 순간 <b>세는 것이 0이 되었다</b> —
+     * 통과했다고 안심하는데 실은 아무것도 안 재는 검사가 된다(이 저장소가 여러 번
+     * 데인 함정이다). 그래서 <b>자르는 두 길</b>을 함께 본다.
+     */
+    const ways = [
+      ...src.matchAll(/\.slice\(\s*0\s*,\s*(\d{2,})\s*\)\s*\.map\(/g),
+      ...src.matchAll(/capRows\(\s*[\w.]+\s*(?:,\s*(\d+)\s*)?\)/g),
+    ]
+    for (const m of ways) {
+      checked += 1
+      if (!src.includes('EcRowCap capped') && !src.includes('<EcRowCap')) {
+        bad.push(`${rel} — 표에 앞 ${m[1] ?? '몇'}줄만 그리면서 그 사실을 안 적는다. components/EcRowCap 을 쓰세요`)
+      }
+    }
+  }
+  eq(`표를 앞줄만 그리는 자리 ${checked}곳이 다 그 사실을 적는다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+
   const OPEN_ALL = JSON.parse(readFileSync(join('qa', 'fixtures', 'open-with-all-period.json'), 'utf8'))
   const bad = []
   let checked = 0
