@@ -44,6 +44,13 @@ public class WorkOrderService {
         return findAll(null, null);
     }
 
+    /** 고르는 칸에 쓸 목록 — 지시번호와 품목만 낸다. */
+    @Transactional(readOnly = true)
+    public List<com.erp.production.dto.ProductionDtos.WorkOrderOption> findOptions() {
+        return workOrderRepository.findAllWithRefs().stream()
+                .map(com.erp.production.dto.ProductionDtos.WorkOrderOption::from).toList();
+    }
+
     /**
      * 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다).
      *

@@ -76,6 +76,11 @@ const emptyLine = (): WrLine => ({
 
 export default function WorkResultPage() {
   const [rows, setRows] = useState<WorkResult[]>([])
+  /*
+   * <b>고르는 칸에 쓸 것만 받는다.</b> 이 화면이 작업지시로 하는 일은 &lt;select&gt; 에
+   * 지시번호와 품목을 그리는 것뿐인데, 여태 작업지시 목록을 통째로 받았다
+   * (2026-09-24 실측 937KB). /work-orders/options 는 네 칸만 낸다.
+   */
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -122,7 +127,7 @@ export default function WorkResultPage() {
   async function loadRefs() {
     try {
       const [wo, pr, rs, wh, it, pj] = await Promise.all([
-        api.get<WorkOrder[]>('/work-orders'),
+        api.get<WorkOrder[]>('/work-orders/options'),
         api.get<Process[]>('/processes'),
         api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
         api.get<Warehouse[]>('/warehouses'),

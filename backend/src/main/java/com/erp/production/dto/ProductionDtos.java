@@ -47,6 +47,20 @@ public final class ProductionDtos {
         }
     }
 
+    /**
+     * <b>고르는 칸에 쓸 작업지시.</b> 화면이 <code>&lt;select&gt;</code> 에 그리는 것은
+     * 지시번호와 품목뿐인데, 그걸 그리려고 작업지시 목록을 통째로 받고 있었다
+     * (2026-09-24 실측 937KB — 작업내역입력·생산불출 두 화면이 열 때마다).
+     */
+    public record WorkOrderOption(
+            Long id, String orderNo, String productCode, String productName
+    ) {
+        public static WorkOrderOption from(com.erp.production.domain.WorkOrder w) {
+            return new WorkOrderOption(w.getId(), w.getOrderNo(),
+                    w.getProduct().getCode(), w.getProduct().getName());
+        }
+    }
+
     public record WorkOrderResponse(
             Long id, String orderNo,
             Long productId, String productCode, String productName, String productUnit,

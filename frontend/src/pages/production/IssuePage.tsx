@@ -99,6 +99,11 @@ export default function IssuePage() {
   const [rows, setRows] = useState<MaterialIssue[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /*
+   * <b>고르는 칸에 쓸 것만 받는다.</b> 이 화면이 작업지시로 하는 일은 &lt;select&gt; 에
+   * 지시번호와 품목을 그리는 것뿐인데, 여태 작업지시 목록을 통째로 받았다
+   * (2026-09-24 실측 937KB). /work-orders/options 는 네 칸만 낸다.
+   */
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   /** 원본은 일자와 번호를 '2026/08/29 -1' 로 한 칸에 적는다(판매조회·견적서와 같은 규칙). */
   const dateNo = (r: { issueDate: string; issueNo: string }) => {
@@ -203,7 +208,7 @@ export default function IssuePage() {
       const [it, wh, wo, emp, pj] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
-        api.get<WorkOrder[]>('/work-orders'),
+        api.get<WorkOrder[]>('/work-orders/options'),
         api.get<EmployeeLite[]>('/employees'),
         api.get<Project[]>('/projects'),
       ])

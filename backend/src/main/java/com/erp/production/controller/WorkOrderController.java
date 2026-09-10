@@ -23,6 +23,15 @@ public class WorkOrderController {
     private final WorkOrderService workOrderService;
 
     /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
+    /**
+     * 고르는 칸에 쓸 목록. 화면이 <code>&lt;select&gt;</code> 하나를 그리려고
+     * 작업지시 전체(937KB)를 받던 자리를 대신한다.
+     */
+    @GetMapping("/options")
+    public List<com.erp.production.dto.ProductionDtos.WorkOrderOption> options() {
+        return workOrderService.findOptions();
+    }
+
     @GetMapping
     public List<WorkOrderResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
