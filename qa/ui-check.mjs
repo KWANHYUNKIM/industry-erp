@@ -398,7 +398,12 @@ const choiceNames = (src) => {
  */
 const noArrow = (h) => h.replace(/=>/g, '  ')
 
-const MARK_TAIL = '(?:\u25bc|\\{sort\\.mark\\([^)]*\\)\\})?'
+/*
+ * 정렬표시를 그리는 식. 한 화면이 표를 둘 이상 들면 이름을 갈라 둔다
+ * (창고이동입력의 <code>transferSort</code>·<code>adjustSort</code>). 예전에는 <code>sort.mark</code> 하나만 읽어
+ * 그런 자리의 열은 <b>이름이 글자로 적혀 있는데도</b> 못 찾았다(2026-09-10).
+ */
+const MARK_TAIL = '(?:▼|\\{[A-Za-z]*[Ss]ort\\.mark\\([^}]*\\)\\})?'
 
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
 
@@ -6387,7 +6392,7 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * 등록 창 밖의 것만 조건으로 친다.
        */
       const asThLabel = [...noHead.matchAll(new RegExp(
-        '<th\\b[^>]*>' + n + '\\s*\\*?</th>|<CodePickerField[^>]{0,60}label="' + n + '"', 'g'))]
+        '<th\\b[^>]*>(?:' + n + '|\\{[^{}]*\'' + n + '\'[^{}]*\\})\\s*(?:<span[^>]*>\\*</span>)?\\s*\\*?</th>|<CodePickerField[^>]{0,60}label="' + n + '"', 'g'))]
         .some((m) => !inModal(flat, m.index) && !/hideLabel/.test(m[0]))
       if (!asCond.test(flat) && !asThLabel) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
     }
@@ -7117,6 +7122,50 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
   /* 뒤바꿔 읽었던 그 둘은 못 박아 둔다. */
   eq('ESD006M 은 판매입력이다', codes.ESD006M, '판매입력')
   eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
+}
+
+// ── 1-s) 고정 이름을 표현식에 담은 머리 ──────────────────────────────────
+console.log('\n■ 머리에 적힌 이름을 검사가 읽을 수 있나')
+
+/*
+ * <b>글자로 적으면 될 이름을 표현식에 담으면 검사가 그 열을 못 본다.</b>
+ *
+ * <p>열 이름을 찾는 자리(thFor)는 세 꼴만 읽는다 — 글자 그대로,
+ * <code>&lt;th&gt;{'{'}…'이름'…{'}'}&lt;/th&gt;</code>, 그리고 거기에 정렬표시 식이 하나 더
+ * 붙은 것. <b>표현식 뒤에 글자가 더 붙으면 못 읽는다.</b>
+ *
+ * <p>2026-09-10 에 월별이익현황이 그랬다 — 원본이 <b>두 칸</b>으로 두는 [이익]·[이익율]을
+ * 한 칸에 <code>{'{'}'이익'{'}'} ({'{'}'이익율'{'}'})</code> 로 합쳐 그려 놓아서,
+ * 정렬 대조표에 [이익율]=우 가 진작 적혀 있었는데도 <b>맞춰 볼 머리가 없어</b>
+ * 두 열이 통째로 검사 밖에 있었다. 검사는 조용했고 열은 원본과 달랐다.
+ *
+ * <p>화면에 따라 이름이 갈리는 머리(삼항)는 <b>정상</b>이다 — 그건 위 두 번째 꼴로 읽힌다.
+ * 여기서 잡는 것은 <b>읽을 수 없는 자리에 이름을 숨긴 것</b>뿐이다.
+ */
+{
+  const HANGUL = /[가-힣]/
+  const bad = []
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!f.endsWith('.tsx')) continue
+    /* 속성에 든 화살표(=>)의 > 를 태그 끝으로 읽지 않게 다른 검사와 같은 손질을 먼저 한다. */
+    const src = noArrow(readFileSync(f, 'utf8'))
+    for (const m of src.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)) {
+      const inner = m[1].trim()
+      if (!/\{[^{}]*'[^']*'[^{}]*\}/.test(inner)) continue          /* 따옴표 이름이 없으면 볼 것 없다 */
+      if (/^\{[^{}]*\}$/.test(inner)) continue                       /* 식 하나 — 읽힌다 */
+      if (/^\{[^{}]*\}\s*\{[^{}]*\}$/.test(inner)) continue          /* 식 + 정렬표시 — 읽힌다 */
+      if (new RegExp('^[^{}]*' + MARK_TAIL + '$').test(inner)) continue   /* 글자 + 정렬표시 — 읽힌다 */
+      /* 필수 표시(<span>*</span>)가 붙은 폼 이름표 — 이름은 식 하나에 다 있어 읽힌다. */
+      if (/^\{[^{}]*\}\s*<span[^>]*>\*<\/span>$/.test(inner)) continue
+      /* 열리고 닫히는 것이 엇갈리면 한 덩어리가 통째로 잡힌다 — 그건 머리가 아니다. */
+      if (/<th\b|<\/tr>|<thead\b/.test(inner)) continue
+      const names = [...inner.matchAll(/'([^']*)'/g)].map((n) => n[1]).filter((n) => HANGUL.test(n))
+      if (!names.length) continue
+      bad.push(`${f.split(String.fromCharCode(92)).join('/')} — <th>${inner.replace(/\s+/g, ' ').slice(0, 60)}</th> ` +
+        `(숨은 이름: ${names.join('·')}) — 글자 그대로 적거나 열을 가르세요`)
+    }
+  }
+  eq('머리의 이름이 다 읽히는 자리에 있다', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────

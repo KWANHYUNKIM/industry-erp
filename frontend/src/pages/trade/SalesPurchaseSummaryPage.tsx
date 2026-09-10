@@ -374,9 +374,9 @@ export default function SalesPurchaseSummaryPage() {
           <tr>
             <th style={{ width: 34 }}></th>
             <th>{groupBy === 'partner' ? '거래처' : '품목'}</th>
-            <th style={{ textAlign: 'right' }}>매출{groupBy === 'partner' ? '건수' : '수량'}</th>
+            <th style={{ textAlign: 'right' }}>{groupBy === 'partner' ? '매출건수' : '매출수량'}</th>
             <th style={{ textAlign: 'right' }}>매출공급가</th>
-            <th style={{ textAlign: 'right' }}>매입{groupBy === 'partner' ? '건수' : '수량'}</th>
+            <th style={{ textAlign: 'right' }}>{groupBy === 'partner' ? '매입건수' : '매입수량'}</th>
             <th style={{ textAlign: 'right' }}>매입공급가</th>
             <th style={{ textAlign: 'right' }}>순액</th>
           </tr>

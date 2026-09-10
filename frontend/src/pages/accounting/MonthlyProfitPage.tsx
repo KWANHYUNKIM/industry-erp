@@ -250,7 +250,7 @@ export default function MonthlyProfitPage() {
     월별: ['월'],
   }
   const heads = HEADS[mode]
-  const colCount = 1 + heads.length + 1 + 6
+  const colCount = 1 + heads.length + 1 + 7
 
   /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
   const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
@@ -441,12 +441,22 @@ export default function MonthlyProfitPage() {
                 우리 다섯째 [월별]은 우리 것이다. 기본값(품목별)은 같다.
                 우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
                 [건수]도 원본에 없는 우리 열이다.
+
+                <p><b>2026-09-10 — [이익]과 [이익율]은 원본에서 두 칸인데 우리는 한 칸에
+                합쳐 그리고 있었다.</b> 머리를 <code>{'{'}'이익'{'}'} ({'{'}'이익율'{'}'})</code> 로
+                적어 두었는데, 정렬 검사는 <code>&lt;th&gt;{'{'}'이름'{'}'}&lt;/th&gt;</code> 처럼
+                <b>표현식 하나만</b> 든 머리는 읽지만 뒤에 글자가 붙으면 못 읽는다 —
+                그래서 이 두 열은 <b>검사에서 통째로 빠져 있었다</b>(정렬 대조표에는
+                [이익율]=우 가 진작 적혀 있었는데 맞춰 볼 머리가 없었다).
+                고정 이름을 표현식에 담으면 <b>검사가 조용해질 뿐 맞는 것이 아니다.</b>
+                두 칸으로 가르고 머리를 글자 그대로 적었다.
               */}
               <th style={{ textAlign: 'right', width: 70 }}>건수</th>
               <th style={{ textAlign: 'right', width: 90 }}>수량</th>
               <th style={{ textAlign: 'right', width: 130 }}>판매액</th>
               <th style={{ textAlign: 'right', width: 130 }}>원가</th>
-              <th style={{ textAlign: 'right', width: 140 }}>{'이익'} ({'이익율'})</th>
+              <th style={{ textAlign: 'right', width: 130 }}>이익</th>
+              <th style={{ textAlign: 'right', width: 90 }}>이익율</th>
               <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
               <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
             </tr>
@@ -473,12 +483,10 @@ export default function MonthlyProfitPage() {
                     {r.cost === null ? '—' : won(r.cost)}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color }}>
-                    {r.profit === null ? '—' : (
-                      <>
-                        {won(r.profit)}
-                        <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(r.profit, r.revenue)}%)</span>
-                      </>
-                    )}
+                    {r.profit === null ? '—' : won(r.profit)}
+                  </td>
+                  <td style={{ textAlign: 'right', color: r.profit === null ? '#c9ced6' : '#9aa1ab' }}>
+                    {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
                   </td>
                   <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
                     {r.extra === 0 ? '—' : won(r.extra)}
@@ -493,19 +501,17 @@ export default function MonthlyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
+                <td colSpan={colCount - 7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.qty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#a5561b' }}>
                   {allUnknown ? '—' : won(totals.cost)}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c' }}>
-                  {allUnknown ? '—' : (
-                    <>
-                      {won(totals.profit)}
-                      <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>
-                    </>
-                  )}
+                  {allUnknown ? '—' : won(totals.profit)}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#9aa1ab' }}>
+                  {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: extraTotals.extra === 0 ? '#c9ced6' : '#a5561b' }}>
                   {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}

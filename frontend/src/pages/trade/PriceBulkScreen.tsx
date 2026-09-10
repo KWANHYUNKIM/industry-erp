@@ -408,8 +408,8 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                      onChange={() => setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))} />
             </th>
             <th>품목코드</th><th>품목명</th>
-            <th style={{ textAlign: 'right' }}>{sale ? '판매' : '구매'}평균단가</th>
-            <th style={{ textAlign: 'right' }}>현재{sale ? '판매' : '구매'}단가</th>
+            <th style={{ textAlign: 'right' }}>{sale ? '판매평균단가' : '구매평균단가'}</th>
+            <th style={{ textAlign: 'right' }}>{sale ? '현재판매단가' : '현재구매단가'}</th>
             <th style={{ textAlign: 'right' }}>변경단가</th>
             <th style={{ textAlign: 'right' }}>증감</th>
             <th style={{ textAlign: 'right' }}>증감율(%)</th>
