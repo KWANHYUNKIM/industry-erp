@@ -6,6 +6,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 const today = () => ymd(new Date())
 
@@ -99,7 +100,17 @@ export default function QualityInspectionPage() {
     품목명: (r) => r.itemName,
     판정: (r) => r.resultName,
   })
+  /*
+   * <b>그리는 줄만 자른다.</b> 이 화면은 검사 <b>전부</b>를 받아 전부 그린다 —
+   * 2026-09-10 실측 2,316줄·2,145KB 다. 표가 길어지면 브라우저가 멈추므로 앞줄만 그리고
+   * 그 사실을 적는다. <b>거르는 것은 그대로다</b> — 검색어는 전부에서 찾는다.
+   *
+   * <p>기간 조건을 새로 만들지는 않았다. 형제 화면인 <b>품질검사현황</b>은 원본 실측대로
+   * [금월(~오늘)] 로 여는데(ecount-period-default.json), <b>이 화면의 원본 조건은 아직
+   * 안 쟀다</b> — 원본에 기간이 있는지 모르는 채로 만들면 지어내는 것이 된다.
+   */
   const shown = sort.sorted
+  const capped = capRows(shown)
   const inputCls = 'ec-input'
 
   return (
@@ -166,6 +177,8 @@ export default function QualityInspectionPage() {
         </div>
       )}</Modal>
 
+      <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total} sums={false}
+                hint="검색어로 좁혀 보세요 — 검색은 전부에서 찾습니다." />
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -188,7 +201,7 @@ export default function QualityInspectionPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : capped.rows.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
