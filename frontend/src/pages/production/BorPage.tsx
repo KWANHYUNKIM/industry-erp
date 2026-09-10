@@ -70,6 +70,13 @@ export default function BorPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 BOR(작업소요시간)은 <b>[생산품목]·[생산공정]을 따로</b> 묻는다(대조표 실측).
+   * 우리는 둘을 키워드 한 칸으로 합쳐 두었는데, 그 칸이 <b>셸이 그리는 검색 상자와
+   * 같은 상태</b>라 같은 칸이 화면에 두 번 서 있었다 — 한쪽에 치면 다른 쪽이 같이 변했다.
+   */
+  const [itemCond, setItemCond] = useState('')
+  const [processCond, setProcessCond] = useState('')
   const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
@@ -150,6 +157,8 @@ export default function BorPage() {
   const shown = rows.filter((r) => !keyword
     || r.productName.includes(keyword) || r.productCode.includes(keyword)
     || r.processName.includes(keyword) || r.workName.includes(keyword))
+    .filter((r) => !itemCond || String(r.productId) === itemCond)
+    .filter((r) => !processCond || String(r.processId) === processCond)
     .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
 
   /** 품목별 1개당 표준시간 합. 원본은 품목 아래에 작업을 늘어놓으므로 소계가 뜻을 갖는다. */
@@ -242,11 +251,27 @@ export default function BorPage() {
       )}</Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="생산품목·공정" pick>
-          <input className="ec-input" placeholder="품목·공정·작업명 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+        {/* 원본 차례: <b>생산품목 · 생산공정 · 생산수량</b>(대조표 실측). */}
+        {/* 마스터를 고르는 조건은 코드도움으로 든다(이 저장소의 규칙 — ui-check 가 지킨다). */}
+        <EcCond label="생산품목" pick>
+          <CodePickerField
+            hideLabel label="생산품목" placeholder="생산품목 선택" emptyLabel="선택 해제" width={200}
+            value={itemCond} onChange={setItemCond}
+            items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.categoryName }))}
+          />
         </EcCond>
-        <EcCond label="로트수량">
+        <EcCond label="생산공정" pick>
+          <CodePickerField
+            hideLabel label="생산공정" placeholder="생산공정 선택" emptyLabel="선택 해제" width={180}
+            value={processCond} onChange={setProcessCond}
+            items={processes.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.workcenter ?? undefined }))}
+          />
+        </EcCond>
+        {/*
+          원본은 이 칸을 <b>[생산수량]</b> 이라 부른다 — 우리 표의 열 이름도 [생산수량] 인데
+          조건에서만 [로트수량] 이라 불러 같은 값이 두 이름으로 서 있었다.
+        */}
+        <EcCond label="생산수량">
           <input className="ec-input text-right" type="number" value={lotSize}
                  onChange={(e) => setLotSize(e.target.value)} style={{ width: 100 }} />
           <span style={{ fontSize: 11.5, color: '#8a929c' }}>이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>
