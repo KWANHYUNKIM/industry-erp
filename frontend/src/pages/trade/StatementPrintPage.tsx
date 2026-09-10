@@ -90,8 +90,15 @@ export default function StatementPrintPage() {
     setLoading(true)
     setError('')
     try {
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       */
+      const period: Record<string, string> = {}
+      if (fromDate) period.from = fromDate
+      if (toDate) period.to = toDate
       const [salesRes, partnerRes] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
+        api.get<SalesDoc[]>('/sales', { params: period }),
         api.get<Partner[]>('/partners'),
       ])
       setPartners(partnerRes.data)
@@ -106,10 +113,12 @@ export default function StatementPrintPage() {
     }
   }
 
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     load()
     loadSupplierParty().then(setSupplier)
-  }, [])
+  }, [fromDate, toDate])
 
   /**
    * 미수금은 <b>기준일자 끝</b> 시점의 채권 잔액이다. 지금 시점으로 잡으면

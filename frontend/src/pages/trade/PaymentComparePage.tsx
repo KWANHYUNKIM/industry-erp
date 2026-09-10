@@ -103,9 +103,17 @@ export default function PaymentComparePage() {
   async function load() {
     setLoading(true)
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [res, sl] = await Promise.all([
-        api.get<SettlementRow[]>('/settlements'),
-        api.get<SalesDoc[]>('/sales'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+         * 판매는 saleDate, 결제는 settleDate 로 거른다 — 둘 다 자기 날짜다.
+         */
+        api.get<SettlementRow[]>('/settlements', { params: period }),
+        api.get<SalesDoc[]>('/sales', { params: period }),
       ])
       const list = [...res.data].sort((a, b) => (a.settleDate < b.settleDate ? 1 : a.settleDate > b.settleDate ? -1 : 0))
       setRows(list)
@@ -117,7 +125,9 @@ export default function PaymentComparePage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   useEffect(() => {
     api.get<{ fiscalStart?: string } | null>('/preferences')

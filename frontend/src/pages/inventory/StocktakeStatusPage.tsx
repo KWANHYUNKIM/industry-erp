@@ -102,8 +102,15 @@ export default function StocktakeStatusPage() {
   function load() {
     setLoading(true)
     setError('')
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 실사를 통째로 받아 아래에서
+     * <code>r.requestDate &gt;= cond.from</code> 으로 걸렀다.
+     */
+    const period: Record<string, string> = {}
+    if (cond.from) period.from = cond.from
+    if (cond.to) period.to = cond.to
     Promise.all([
-      api.get<Staged[]>('/staged-adjustments'),
+      api.get<Staged[]>('/staged-adjustments', { params: period }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<Item[]>('/items'),
     ])
@@ -112,7 +119,9 @@ export default function StocktakeStatusPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   const shown = rows
     .filter((r) => !cond.from || r.requestDate >= cond.from)

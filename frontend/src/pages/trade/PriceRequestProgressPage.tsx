@@ -124,11 +124,20 @@ export default function PriceRequestProgressPage() {
 
   async function load() {
     setLoading(true); setError('')
-    try { setRows((await api.get<PurchaseOrder[]>('/purchase-orders')).data) }
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+     * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+     */
+    const period: Record<string, string> = {}
+    if (from) period.from = from
+    if (to) period.to = to
+    try { setRows((await api.get<PurchaseOrder[]>('/purchase-orders', { params: period })).data) }
     catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
   /* 거래처 마스터에서 [관리담당자]를 가져와 거래처명으로 잇는다 — 전표는 이름만 들고 온다. */
   useEffect(() => {
     api.get<{ name: string; manager: string | null }[]>('/partners')

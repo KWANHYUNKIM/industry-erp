@@ -171,8 +171,17 @@ export default function AsManagePage() {
 
   async function load() {
     try {
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 접수를 통째로 받아 아래에서
+       * <code>receiptDate</code> 로 걸렀다. 기본값은 안 만들었다 — 이 화면의 원본
+       * 기간 기본값을 아직 안 쟀다. 비워 두면 예전 그대로 전 기간이고,
+       * 사람이 좁히면 그만큼만 받는다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [a, p, i, w, pj] = await Promise.all([
-        api.get<AsRow[]>('/as-requests'),
+        api.get<AsRow[]>('/as-requests', { params: period }),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
@@ -181,7 +190,9 @@ export default function AsManagePage() {
       setRows(a.data); setPartners(p.data); setItems(i.data); setWarehouses(w.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   async function openParts(r: AsRow) {
     setPartsFor(r); setPartError(''); setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
