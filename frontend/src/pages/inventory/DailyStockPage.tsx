@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, PurchaseDoc, StockRow, Warehouse } from '../../api/types'
+import type { Item, StockRow, Warehouse } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
 import { costOf as pickCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -65,7 +65,7 @@ export default function DailyStockPage() {
   const pickers = useCondPickers(['items'])
   const [stock, setStock] = useState<StockRow[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   /* [품목구분]·[품목그룹1]·[기타] — 셋 다 품목 마스터의 값이라 재고 줄의 itemId 로 잇는다. */
@@ -105,13 +105,19 @@ export default function DailyStockPage() {
       const [s, w, p, i] = await Promise.all([
         api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
         api.get<Warehouse[]>('/warehouses'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을
+         * 서버가 한다 — 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>(같은 날이면
+         * id 가 작은 쪽이 이긴다)이었다. /purchases/item-prices 는 나중에 적은 전표를
+         * 마지막 입고로 본다(2026-09-10 에 정한 규칙).
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
         api.get<Item[]>('/items'),
       ])
       setStock(s.data)
       setWarehouses(w.data)
-      setPurchases(p.data)
+      setLastPrices(p.data)
       setItems(i.data)
       setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
 
@@ -129,15 +135,9 @@ export default function DailyStockPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [cond.date])
 
-  /** 그 품목을 마지막으로 산 구매 라인의 단가. 구매 이력이 없으면 null. */
-  const lastPurchasePrice = useMemo(() => {
-    const m = new Map<number, { date: string; price: number }>()
-    purchases.forEach((d) => d.lines.forEach((l) => {
-      const cur = m.get(l.itemId)
-      if (!cur || d.purchaseDate >= cur.date) m.set(l.itemId, { date: d.purchaseDate, price: l.unitPrice })
-    }))
-    return m
-  }, [purchases])
+  /** 그 품목을 마지막으로 산 단가. 구매 이력이 없으면 없다. 서버가 정한 값이다. */
+  const lastPurchasePrice = useMemo(
+    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
 
   const costOf = useMemo(() => new Map(costs.map((c) => [c.itemId, c.standardTotal])), [costs])
 
@@ -146,7 +146,7 @@ export default function DailyStockPage() {
     // 규칙은 utils/costBasis 에 있다 — 이익현황과 같은 규칙을 쓴다.
     return pickCost(basis, {
       monthlyCost: costOf.get(itemId) ?? null,
-      lastPurchasePrice: lastPurchasePrice.get(itemId)?.price ?? null,
+      lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
       itemPurchasePrice: unitPrices.get(itemId) ?? null,
     })
   }

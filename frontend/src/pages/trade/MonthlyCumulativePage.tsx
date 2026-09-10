@@ -108,20 +108,34 @@ export default function MonthlyCumulativePage() {
     setLoading(true); setError('')
     try {
       /*
-       * 기간을 안 걸고 통째로 받는다 — 누계는 [기간]·[월]·[년] 세 범위를 한꺼번에
-       * 세야 해서, 서버에 한 범위를 걸면 나머지 둘이 못 선다(판매·구매도 그래서 통째다).
+       * <b>세 범위를 다 덮는 한 창</b>을 보낸다. 여기 "기간을 안 걸고 통째로 받는다 —
+       * 누계는 [기간]·[월]·[년] 세 범위를 한꺼번에 세야 해서" 라고 적혀 있었는데,
+       * 그 셋은 <b>다 같은 날(to)에서 끝나고</b> 시작만 다르다(기간 from · 그 달 1일 ·
+       * 그 해 1월 1일). 그러니 <b>가장 이른 시작부터 to 까지</b>면 셋이 다 선다.
+       *
+       * <p>아래 달별 표는 고른 <b>해 전체</b>를 열두 달로 펴므로, 창을 그 해까지 넓힌다.
+       * 사람이 기간을 지난해로 잡아도 [기간 누계]가 서도록 min·max 로 감싼다.
        */
+      const yearFrom = `${year}-01-01`, yearTo = `${year}-12-31`
+      const period = {
+        from: [from, to.slice(0, 8) + '01', to.slice(0, 4) + '-01-01', yearFrom]
+          .filter(Boolean).sort()[0],
+        to: [to, yearTo].filter(Boolean).sort().slice(-1)[0],
+      }
       const [s, b, pr, tr] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'), api.get<PurchaseDoc[]>('/purchases'),
-        api.get<ProductionRow[]>('/productions'),
-        api.get<TransferRow[]>('/stock-transfers'),
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+        api.get<ProductionRow[]>('/productions', { params: period }),
+        api.get<TransferRow[]>('/stock-transfers', { params: period }),
       ])
       setSales(s.data); setPurchases(b.data)
       setProductions(pr.data); setTransfers(tr.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 창을 정하는 값이 바뀌면 그 창으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year, from, to])
 
   /**
    * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
