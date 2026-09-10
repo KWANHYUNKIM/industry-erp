@@ -7225,8 +7225,14 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
     if (!f.endsWith('.tsx')) continue
     const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
     const src = readFileSync(f, 'utf8')
-    for (const m of src.matchAll(/from:\s*([\w.]+)\s*\|\|\s*undefined/g)) {
-      const id = m[1]
+    /*
+     * <b>기간을 담는 꼴이 하나가 아니다.</b> 처음에는 <code>from: x || undefined</code> 만
+     * 봤는데, 어음관리는 <code>if (pFrom) params.from = pFrom</code> 으로 담는다 —
+     * 같은 일을 하는데 검사가 <b>못 보고 지나갔다</b>(2026-09-10 에 브라우저로 재다가 찾았다.
+     * 어음 5,000장 6,558KB). 지각현황·출퇴근통합도 같은 꼴로 숨어 있었다.
+     */
+    for (const m of src.matchAll(/from:\s*([\w.]+)\s*\|\|\s*undefined|params\.from\s*=\s*([\w.]+)/g)) {
+      const id = m[1] ?? m[2]
       const Q = String.fromCharCode(39)
       /* 그 기간 상태의 초기값이 빈 글자인가 */
       const empty = id.includes('.')
@@ -7244,7 +7250,7 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
   /* 없는 자리에 이유를 적어 두면 그 줄은 아무것도 안 지킨다 — 반대로도 건다. */
   const ghosts = Object.keys(OPEN_ALL).filter((rel) => {
     const src = pageSource(rel)
-    return !src || !/from:\s*[\w.]+\s*\|\|\s*undefined/.test(src)
+    return !src || !/from:\s*[\w.]+\s*\|\|\s*undefined|params\.from\s*=\s*[\w.]+/.test(src)
   })
   eq(`기간을 안 주고 여는 화면 ${checked}개가 다 이유를 들고 있다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
   eq('적어 둔 화면이 다 실제로 그렇다', ghosts.join(', ') || '없음', '없음')

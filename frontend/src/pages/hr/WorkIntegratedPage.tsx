@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { dateText } from '../../utils/dateText'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useDeptGroups } from '../../utils/deptGroups'
+import { periodOf } from '../../components/EcPeriodPicks'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -48,8 +49,14 @@ const catColor: Record<string, string> = { 회의: '#2b6cb0', 출장: '#a5561b',
 export default function WorkIntegratedPage() {
   const [att, setAtt] = useState<AttendanceRow[]>([])
   const [events, setEvents] = useState<ScheduleEvent[]>([])
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>금월로 연다.</b> 여태 빈 기간으로 열어 전 기간 근태를 받았다 — 형제 화면인
+   * 근태종류별현황이 이미 [금월(~오늘)] 로 열고 있어 <b>같은 자리에서 다른 달을 보고</b>
+   * 있었다. 검사(1-p)가 이 꼴을 못 보고 있어 여태 안 걸렸다.
+   */
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 조건 <b>[적요]</b>. 근태에 적어 둔 메모(note)가 응답에 진작 실려 오는데

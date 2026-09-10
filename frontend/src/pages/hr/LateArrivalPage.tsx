@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useDeptGroups } from '../../utils/deptGroups'
 
@@ -41,8 +41,14 @@ const START_MIN = toMinutes(WORK_START)!
 
 export default function LateArrivalPage() {
   const [rows, setRows] = useState<AttendanceRow[]>([])
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>금월로 연다.</b> 여태 빈 기간으로 열어 전 기간 근태를 받았다 — 형제 화면인
+   * 근태종류별현황이 이미 [금월(~오늘)] 로 열고 있어 <b>같은 자리에서 다른 달을 보고</b>
+   * 있었다. 검사(1-p)가 이 꼴을 못 보고 있어 여태 안 걸렸다.
+   */
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 조건은 <b>[사원명]과 [부서]가 따로</b>다. 우리는 한 칸으로 둘을 함께 훑어서
