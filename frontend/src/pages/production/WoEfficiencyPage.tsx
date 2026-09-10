@@ -151,8 +151,20 @@ export default function WoEfficiencyPage() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes, borRes] = await Promise.all([
-        api.get<WorkOrderRow[]>('/work-orders'),
+        /*
+         * <b>작업지시만 기간으로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이다
+         * (아래 <code>r.orderDate &lt; from</code>).
+         *
+         * <p><b>아래 /productions·/purchases 는 안 좁힌다.</b> 생산실적은
+         * <code>workOrderId</code> 로 묶어 합치므로(producedByWo), 기간 안의 지시에
+         * <b>다음 달에 찍힌 실적</b>이 있으면 그것도 세어야 한다 — 잘랐다가는
+         * 효율이 조용히 낮게 나온다.
+         */
+        api.get<WorkOrderRow[]>('/work-orders', { params: period }),
         api.get<ProductionRow[]>('/productions'),
         api.get<BomRow[]>('/boms'),
         api.get<Item[]>('/items'),
@@ -176,7 +188,9 @@ export default function WoEfficiencyPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /**
    * 자재 단가는 재고자산평가와 <b>같은 규칙</b>을 쓴다 — 마지막 입고단가, 없으면 품목의

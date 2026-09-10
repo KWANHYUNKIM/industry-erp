@@ -139,8 +139,17 @@ export default function WoStatusPage() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [res, emps] = await Promise.all([
-        api.get<Row[]>('/work-orders'),
+        /*
+         * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 <b>작업지시를 그 지시일로</b> 거른다
+         * (아래 <code>r.orderDate &gt;= from</code>) — 서버에 같은 창을 주면 된다.
+         * 실적을 거르는 화면이었다면 못 보낸다: 지난달 지시에 이번 달 실적이 붙는 일이
+         * 흔해서 지시를 기간으로 자르면 그 실적이 갈 곳을 잃는다.
+         */
+        api.get<Row[]>('/work-orders', { params: period }),
         api.get<{ id: number; name: string }[]>('/employees'),
       ])
       const sorted = [...res.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id))
@@ -153,7 +162,9 @@ export default function WoStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /** 담당자 이름. 서버가 못 붙여서 화면이 붙인다 — 지워진 사원이면 '-'. */
   const empName = (id: number | null) =>
