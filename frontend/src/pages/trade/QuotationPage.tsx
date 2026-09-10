@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
+import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../api/types'
@@ -603,6 +604,22 @@ export default function QuotationPage() {
                         ))}
                       </tbody>
                     </table>
+                    {/*
+                      <b>추가항목(사용자정의).</b> 원본 견적서조회에는 [문자형식1~5]·[장문형식1]이
+                      <b>칸 이름째로</b> 박혀 있다(사본 실측). 우리는 반대로 — Self-Customizing >
+                      사용자정의필드에서 [견적서]로 <b>이름을 지어</b> 정의하면 여기 뜬다.
+
+                      <p>열 예외에 그렇게 적어 두었는데, 정작 이 화면이
+                      <code>/custom-fields</code> 를 <b>한 번도 안 불렀다</b> — 정의해도 뜰 자리가
+                      없었으니 이유가 아니라 <b>할 일</b>이었다. 발주서에서 똑같은 것을 잡았다.
+                      정의가 없으면 아무것도 안 그린다(안 쓰는 회사의 화면은 그대로다).
+
+                      <p>줄(격자 열)은 아직이다 — 원본 견적 격자의 추가 칸은 따로 재야 하고,
+                      입력 격자를 손봐야 하는 별개의 일이라 여기서 반만 만들어 두지 않는다.
+                    */}
+                    <div style={{ padding: '0 6px 8px' }}>
+                      <CustomFieldsPanel entityType="QUOTE" entityId={q.id} />
+                    </div>
                   </td>
                 </tr>
               )}
