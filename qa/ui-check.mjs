@@ -1271,7 +1271,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['결제내역자료비교', 'trade/PaymentComparePage.tsx'],
     ['구매할인현황', 'trade/PurchaseDiscountPage.tsx'],
     ['수금현황', 'trade/CollectionPage.tsx'],
-    ['지급현황', 'trade/CollectionPage.tsx'],
+    /* 메뉴 [지급현황]은 /sales/payment 로 간다 — 수금현황과 같은 파일이 아니다(2026-09-10 바로잡음). */
+    ['지급현황', 'trade/PaymentPage.tsx'],
     ['업무일지', 'groupware/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
     ['품질검사요청조회', 'quality/QualityRequestPage.tsx'],
@@ -1331,8 +1332,13 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     /* 창고이동조회는 2026-09-07 에 원본(E040502)을 열어 간편검색 칸에서 직접 쟀다. */
     ['창고이동조회', 'inventory/TransferStatusPage.tsx'],
     /* 할인현황 셋은 얇은 껍데기가 DiscountStatusPage 를 부른다 — 기간은 그 안에서 정한다. */
-    ['판매할인현황', 'trade/DiscountStatusPage.tsx'],
-    ['외주비할인현황', 'trade/DiscountStatusPage.tsx'],
+    /*
+     * 셋은 <b>파일이 다 다르다</b> — 메뉴가 /sales/sales-discount · /sales/purchase-discount ·
+     * /sales/outsourcing-discount 로 따로 간다. 여기 둘을 DiscountStatusPage 로 적어 두어
+     * <b>사용자가 안 여는 파일</b>의 기본값을 재고 있었다(2026-09-10 바로잡음).
+     */
+    ['판매할인현황', 'trade/SalesDiscountPage.tsx'],
+    ['외주비할인현황', 'trade/OutsourcingDiscountPage.tsx'],
   ])
 
   /**
@@ -1352,9 +1358,13 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     if (NOT_YET.has(fam)) continue
     const rel = FILE_OF.get(fam)
     if (!rel) { bad.push(fam + '  (어느 화면인지 안 이어 놓았다)'); continue }
-    const file = 'frontend/src/pages/' + rel
-    if (!existsSync(file)) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
-    const src = readFileSync(file, 'utf8')
+    /*
+     * <b>감싸기만 하는 파일이면 감싸인 쪽까지 읽는다.</b> 판매·외주비할인현황과 지급현황은
+     * 열 줄짜리 감싸개라(<code>&lt;DiscountStatusPage kind="SALES" …/&gt;</code>) 그 파일만 보면
+     * 기간 기본값이 <b>아예 없는 것처럼</b> 보인다. 다른 검사들이 쓰는 pageSource 를 여기서도 쓴다.
+     */
+    const src = pageSource(rel)
+    if (!src) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
     checked++
     // 그 화면이 쓰는 periodOf 라벨 가운데 원본 기본값이 하나라도 있으면 통과.
     // periodOf('이번기수', new Date(), fiscalStart) 처럼 인자가 더 붙기도 한다.
@@ -7124,6 +7134,46 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
   eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
 }
 
+// ── 1-q') 화면→파일 지도가 둘인데 서로 어긋나지 않나 ─────────────────────
+console.log('\n■ 화면이 어느 파일인지 두 지도가 같게 말하나')
+
+/*
+ * <b>같은 것을 두 곳에 적어 두면 갈라진다.</b> 화면 이름 → 우리 파일 지도가 둘이다 —
+ * <code>.ordermap.json</code> 과, 기본값 검사들이 안에 손으로 들고 있는 <code>FILE_OF</code>.
+ *
+ * <p>2026-09-10 에 맞대 보니 <b>넷이 어긋나 있었다</b>. 셋은 FILE_OF 가 틀렸다 —
+ * 판매할인현황·외주비할인현황·지급현황을 <b>감싸인 쪽 파일</b>로 적어 두어,
+ * 기간 기본값 검사가 <b>사용자가 여는 파일이 아닌 것</b>을 재고 있었다. 라우트가 심판이다
+ * (/sales/sales-discount · /sales/outsourcing-discount · /sales/payment).
+ * 바로잡고 나니 그 검사가 셋을 못 찾는다고 했고, 그건 감싸개를 안 따라가서였다 —
+ * pageSource 로 바꾸니 통과했다. <b>지도가 틀리면 검사는 조용히 딴 것을 잰다.</b>
+ *
+ * <p>남은 하나(거래처관리대장 I)는 <b>아직 못 가렸다</b> — 우리 화면 둘이 다 대장 꼴이라
+ * 어느 쪽이 원본 [거래처관리대장 I] 인지 원본을 열어 봐야 한다. 이유와 함께 예외로 둔다.
+ */
+{
+  const src = readFileSync(join('qa', 'ui-check.mjs'), 'utf8')
+  const OM = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+
+  /** 아직 못 가린 짝 — 왜인지 적는다. */
+  const UNSETTLED = new Map([
+    ['거래처관리대장 I', '우리 화면 둘(LedgerPage·PartnerLedgerPage)이 다 대장 꼴이라 어느 쪽이 원본 [거래처관리대장 I] 인지 못 가렸다. 원본을 열 때 가린다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const m of src.matchAll(/const FILE_OF = new Map\(\[([\s\S]*?)\n {2}\]\)/g)) {
+    for (const e of m[1].matchAll(/\['([^']+)',\s*'([^']+)'\]/g)) {
+      const [, screen, rel] = e
+      if (!OM.has(screen)) { bad.push(`${screen} — FILE_OF 에는 있는데 .ordermap 에 없다`); continue }
+      checked += 1
+      if (OM.get(screen) === rel) continue
+      if (UNSETTLED.has(screen)) continue
+      bad.push(`${screen} — FILE_OF [${rel}] · .ordermap [${OM.get(screen)}]`)
+    }
+  }
+  eq(`두 지도가 겹쳐 든 화면 ${checked}개를 같게 말한다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
 // ── 1-r) 원본에 없는데 우리가 그리는 조건 ────────────────────────────────
 console.log('\n■ 원본에 없는 조건을 우리가 만들지 않았나')
 
