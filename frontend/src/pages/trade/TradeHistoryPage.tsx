@@ -90,10 +90,21 @@ export default function TradeHistoryPage() {
   async function load() {
     setLoading(true); setError('')
     try {
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래 shown 에서
+       * <code>r.date &lt; from</code> 으로 걸렀다 — 화면은 [기간]을 묻고 서버에는
+       * 아무것도 안 보내는 꼴이었다. 두 자리가 <b>같은 창</b>을 보게 한다.
+       *
+       * <p>기본값은 안 만들었다 — 이 화면의 <b>원본 기간 기본값을 아직 안 쟀다</b>.
+       * 비워 두면 예전 그대로 전 기간이고, 사람이 좁히면 그만큼만 받는다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [p, s, b] = await Promise.all([
         api.get<Partner[]>('/partners'),
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
       ])
       setPartners(p.data)
       const merged: Row[] = []
@@ -123,7 +134,9 @@ export default function TradeHistoryPage() {
     } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다 — 안 그러면 서버 창과 화면 창이 어긋난다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()

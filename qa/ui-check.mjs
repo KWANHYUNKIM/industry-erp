@@ -896,6 +896,8 @@ console.log('\n■ 대조표를 다 쓰고 있나')
       || f === 'server-only-endpoints.json'
       /* 화면 이름이 아니라 <b>우리 파일 경로</b>를 키로 쓴다 — 원본에 없는 우리 판단이라 그렇다. */
       || f === 'open-with-all-period.json'
+      /* 화면 이름이 아니라 <b>수 하나</b>다(못 박아 늘지만 않게 하는 자리). */
+      || f === 'period-not-sent.json'
       || f === 'ecount-missing-columns.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
@@ -7250,6 +7252,54 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
     }
   }
   eq(`조건을 둘 이상 받는 자리 ${checked}곳이 다 그것을 쓴다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+
+/*
+ * <b>화면은 [기간]을 묻는데 서버에는 안 보내는 자리.</b>
+ *
+ * <p>서버가 <code>LocalDate from</code> 을 받을 줄 아는 경로를, 기간 조건을 그리는 화면이
+ * <code>params</code> 없이 부르면 <b>전 기간이 통째로 내려온다</b>. 그리고 화면이
+ * 브라우저에서 다시 거른다 — 숫자는 맞지만 받는 것은 전부다. 응답은 200이고 표도
+ * 멀쩡해서 <b>정적 검사도 qa 하네스도 이걸 못 본다.</b>
+ *
+ * <p>2026-09-10 에 처음 세었더니 <b>쉰아홉 자리</b>였다. 한 판에 다 고칠 수 없으니
+ * <b>수를 못 박아 늘지만 않게</b> 한다(재고수불부·무증거 이유와 같은 방식).
+ * 줄이는 것은 언제든 좋다 — 줄이면 이 수도 같이 내린다.
+ *
+ * <p><b>기본값을 주는 것과는 다른 일이다.</b> 여기서 잡는 것은 "고른 기간을 안 보낸다" 이고,
+ * 빈 기간으로 여는 것은 위 open-with-all-period 검사가 따로 본다. 한 화면이 둘 다인
+ * 경우도 있다(거래이력조회가 그랬다).
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'period-not-sent.json'), 'utf8'))
+  const takes = new Set()
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,900}?)\{/g)) {
+      const sub = m[1] ?? ''
+      if (sub.includes('{')) continue
+      if (/LocalDate\s+from/.test(m[2])) takes.add((base + sub).replace('/api', ''))
+    }
+  }
+  const hits = new Set()
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!f.endsWith('.tsx') && !f.endsWith('.ts')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/')[1]
+    const src = readFileSync(f, 'utf8')
+    /* 기간을 <b>묻는</b> 화면만 본다 — 안 묻는 화면이 전부 받는 것은 딴 이야기다. */
+    if (!/periodOf\(|EcPeriodPicks|const \[from, setFrom\]|dateLabel=/.test(src)) continue
+    for (const m of src.matchAll(/api\.get<[^>]*>\(\s*'([^']+)'\s*([,)])/g)) {
+      if (m[2] === ',') continue
+      const path = m[1].split('?')[0]
+      if (takes.has(path)) hits.add(`${rel}  ${path}`)
+    }
+  }
+  eq(`고른 기간을 서버에 안 보내는 자리가 ${cap.gap}곳을 넘지 않는다 (지금 ${hits.size}곳)`,
+    hits.size <= cap.gap ? '없음'
+      : `${hits.size - cap.gap}곳 늘었다 — 그 기간을 서버에도 보내거나, 이 수를 올리며 왜인지 커밋에 적으세요`,
+    '없음')
 }
 
 /*
