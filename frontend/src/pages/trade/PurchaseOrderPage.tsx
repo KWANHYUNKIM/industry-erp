@@ -135,8 +135,21 @@ export default function PurchaseOrderPage() {
 
   function load() {
     setError('')
-    api.get<PurchaseOrder[]>('/purchase-orders').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 발주를 통째로 받아 아래 shown 에서
+     * <code>r.orderDate &gt;= from</code> 으로 걸렀다 — 화면은 [기간]을 묻고 서버에는
+     * 아무것도 안 보내는 꼴이었다. 탭 수(tabCount)도 이 rows 로 세므로 같은 창이 된다.
+     */
+    const period: Record<string, string> = {}
+    if (from) period.from = from
+    if (to) period.to = to
+    api.get<PurchaseOrder[]>('/purchase-orders', { params: period })
+      .then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
+
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   useEffect(() => {
     load()

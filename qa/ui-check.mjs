@@ -7288,7 +7288,16 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
     if (!f.endsWith('.tsx') && !f.endsWith('.ts')) continue
     const rel = f.split(sep).join('/').split('frontend/src/')[1]
     const src = readFileSync(f, 'utf8')
-    /* 기간을 <b>묻는</b> 화면만 본다 — 안 묻는 화면이 전부 받는 것은 딴 이야기다. */
+    /*
+     * 기간을 <b>묻는</b> 화면만 본다 — 안 묻는 화면이 전부 받는 것은 딴 이야기다.
+     *
+     * <p>이 잣대는 <b>느슨하다</b>: 파일에 periodOf·EcPeriodPicks 가 보이면 묻는다고 친다.
+     * 그래서 <b>폼에 날짜를 적는 화면</b>(수주서입력의 [수주일] 등)까지 걸린다.
+     * 조여 보았더니 이번엔 <b>연도로 묻는 화면</b>(월별채권채무·현황누계표)이 빠져
+     * 더 나빴다 — 그건 안 보는 쪽이 위험하다. 그래서 느슨하게 두고
+     * <b>안 묻는 화면은 이름과 이유로 적어 뺀다.</b>
+     */
+    if (cap['안 묻는 화면']?.[rel]) continue
     if (!/periodOf\(|EcPeriodPicks|const \[from, setFrom\]|dateLabel=/.test(src)) continue
     for (const m of src.matchAll(/api\.get<[^>]*>\(\s*'([^']+)'\s*([,)])/g)) {
       if (m[2] === ',') continue
