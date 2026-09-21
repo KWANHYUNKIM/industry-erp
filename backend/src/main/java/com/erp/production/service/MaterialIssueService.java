@@ -43,10 +43,34 @@ public class MaterialIssueService {
 
     @Transactional(readOnly = true)
     public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to) {
+        return findAll(itemId, from, to, null, null);
+    }
+
+    /**
+     * 목록. 기간 축이 <b>둘</b>이다 — <b>from·to 는 불출일</b>, <b>woFrom·woTo 는 지시일</b>.
+     *
+     * <p>뒤는 작업지시별로 묶어 진행을 세는 화면이 쓴다. 그 화면의 기간은 지시일이고,
+     * 기간 안의 지시에 <b>그 밖의 날에 찍힌 불출</b>이 있으면 그것까지 세어야 한다 —
+     * 불출일로 자르면 덜 낸 것처럼 보인다. 생산실적과 같은 규칙이라
+     * <b>둘을 함께 주면 거절한다</b>(ProductionService.findAll 참고).
+     *
+     * <p>지시가 없는 불출(기타 불출)은 지시일로 물으면 <b>빠진다</b> — 묻는 것이
+     * "이 지시가 얼마나 났나" 라서, 지시에 안 붙은 줄은 그 질문의 답이 아니다.
+     */
+    @Transactional(readOnly = true)
+    public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to,
+                                               LocalDate woFrom, LocalDate woTo) {
+        boolean byOrder = woFrom != null || woTo != null;
+        if (byOrder && (from != null || to != null)) {
+            throw ApiException.badRequest("불출일(from·to)과 지시일(woFrom·woTo)을 함께 줄 수 없습니다. 한 축만 고르세요.");
+        }
         return materialIssueRepository.findAllWithRefs().stream()
                 .filter(mi -> itemId == null || mi.getItem().getId().equals(itemId))
-                .filter(mi -> from == null || !mi.getIssueDate().isBefore(from))
-                .filter(mi -> to == null || !mi.getIssueDate().isAfter(to))
+                .filter(mi -> !byOrder || (mi.getWorkOrder() != null
+                        && (woFrom == null || !mi.getWorkOrder().getOrderDate().isBefore(woFrom))
+                        && (woTo == null || !mi.getWorkOrder().getOrderDate().isAfter(woTo))))
+                .filter(mi -> byOrder || from == null || !mi.getIssueDate().isBefore(from))
+                .filter(mi -> byOrder || to == null || !mi.getIssueDate().isAfter(to))
                 .map(MaterialIssueResponse::from)
                 .toList();
     }

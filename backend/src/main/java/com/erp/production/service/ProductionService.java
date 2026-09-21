@@ -59,7 +59,37 @@ public class ProductionService {
      */
     @Transactional(readOnly = true)
     public List<ProductionResponse> findAll(LocalDate from, LocalDate to) {
-        var found = (from == null && to == null)
+        return findAll(from, to, null, null);
+    }
+
+    /**
+     * 목록. 기간은 <b>두 축</b>으로 물을 수 있다.
+     *
+     * <ul>
+     *   <li><b>from·to — 생산일.</b> 그 날에 찍힌 실적을 본다(예전 그대로다).</li>
+     *   <li><b>woFrom·woTo — 지시일.</b> 그 기간에 <b>지시된</b> 작업의 실적을 본다.
+     *       생산일이 기간 밖이어도 따라온다.</li>
+     * </ul>
+     *
+     * <p>축이 둘인 까닭은 <b>묻는 질문이 다르기</b> 때문이다. 작업지시별로 묶어 진행을 세는
+     * 화면은 "이 지시가 얼마나 됐나" 를 묻는다 — 생산일로 자르면 진행이 덜 된 것처럼 보인다.
+     * 생산 목록은 "그날 무엇을 만들었나" 를 묻는다.
+     *
+     * <p><b>둘을 함께 주면 거절한다.</b> 교집합인지 합집합인지 부르는 쪽마다 다르게 읽을
+     * 자리라, 조용히 한쪽으로 정하면 <b>표가 틀려도 200 이 온다</b>. 둘 다 필요하면
+     * 두 번 부르고 합친다(작업지시진행현황이 그렇게 한다).
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionResponse> findAll(LocalDate from, LocalDate to, LocalDate woFrom, LocalDate woTo) {
+        boolean byOrder = woFrom != null || woTo != null;
+        if (byOrder && (from != null || to != null)) {
+            throw ApiException.badRequest("생산일(from·to)과 지시일(woFrom·woTo)을 함께 줄 수 없습니다. 한 축만 고르세요.");
+        }
+        var found = byOrder
+                ? productionRepository.findWithRefsByOrderPeriod(
+                        woFrom != null ? woFrom : LocalDate.of(1, 1, 1),
+                        woTo != null ? woTo : LocalDate.of(9999, 12, 31))
+                : (from == null && to == null)
                 ? productionRepository.findAllWithRefs()
                 : productionRepository.findWithRefsByPeriod(
                         from != null ? from : LocalDate.of(1, 1, 1),

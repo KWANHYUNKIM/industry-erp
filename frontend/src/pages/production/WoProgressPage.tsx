@@ -167,18 +167,32 @@ export default function WoProgressPage() {
       const period: Record<string, string> = {}
       if (from) period.from = from
       if (to) period.to = to
-      const [wo, mi, pr, wr, bm, emps, parts, br, st] = await Promise.all([
-        /*
-         * <b>작업지시만 기간으로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이다
-         * (아래 <code>o.orderDate &lt; from</code>).
-         *
-         * <p><b>아래 /material-issues·/productions 는 안 좁힌다.</b> 둘 다
-         * <code>workOrderId</code> 로 묶어 진행을 센다 — 기간 안의 지시에 <b>그 밖의 날에
-         * 찍힌 불출·실적</b>이 있으면 그것도 세어야 한다. 잘랐다가는 진행이 덜 된 것처럼 보인다.
-         */
+      /*
+       * <b>불출·실적은 지시일로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이고
+       * (아래 <code>o.orderDate &lt; from</code>), 둘 다 <code>workOrderId</code> 로 묶어
+       * 진행을 센다 — 기간 안의 지시에 <b>그 밖의 날에 찍힌 불출·실적</b>이 있으면
+       * 그것까지 세어야 한다. <b>불출일·생산일로 자르면 진행이 덜 된 것처럼 보인다.</b>
+       *
+       * <p>그래서 여태 둘 다 전 기간을 통째로 받았다(2026-09-21 실측 생산실적 202KB).
+       * 서버에 <code>woFrom·woTo</code>(지시일) 축을 두어, 세는 규칙은 그대로 두고
+       * 받는 것만 이 기간의 지시로 줄였다.
+       */
+      const woPeriod: Record<string, string> = {}
+      if (from) woPeriod.woFrom = from
+      if (to) woPeriod.woTo = to
+      const [wo, mi, pr, prByDate, wr, bm, emps, parts, br, st] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders', { params: period }),
-        api.get<Issue[]>('/material-issues'),
-        api.get<Production[]>('/productions'),
+        api.get<Issue[]>('/material-issues', { params: woPeriod }),
+        api.get<Production[]>('/productions', { params: woPeriod }),
+        /*
+         * <b>생산실적은 한 번 더 받는다 — 이번엔 생산일로.</b> 아래 <code>prodOf</code> 가
+         * 그리는 원본 [생산] 네 칸은 <b>이 기간에 찍힌 실적</b>을 묻는 자리라,
+         * 그 지시가 언제 난 것인지와 <b>상관이 없다</b>(지난달 지시를 이번 달에 만든 것도
+         * 그 칸에 보여야 한다). 두 축을 한 번에 물으면 서버가 거절한다 — 교집합인지
+         * 합집합인지 읽는 쪽마다 달라 <b>틀려도 200 이 오기</b> 때문이다. 그래서 두 번 묻고
+         * <b>id 로 합친다</b>.
+         */
+        api.get<Production[]>('/productions', { params: period }),
         api.get<WorkResult[]>('/work-results'),
         api.get<Bom[]>('/boms'),
         api.get<{ id: number; name: string }[]>('/employees'),
@@ -187,7 +201,10 @@ export default function WoProgressPage() {
         api.get<BorRow[]>('/bor'),
         api.get<StockRow[]>('/stock'),
       ])
-      setOrders(wo.data); setIssues(mi.data); setProductions(pr.data)
+      /* 두 축이 겹치는 줄(이 기간에 지시나고 이 기간에 만든 것)은 한 번만 남긴다. */
+      const merged = new Map<number, Production>()
+      for (const p of [...pr.data, ...prByDate.data]) merged.set(p.id, p)
+      setOrders(wo.data); setIssues(mi.data); setProductions([...merged.values()])
       setResults(wr.data); setBoms(bm.data); setEmployees(emps.data)
       setBors(br.data); setStocks(st.data)
       // 거래처명 → 관리담당자. 작업지시에는 거래처명만 오므로 이름으로 잇는다.

@@ -154,18 +154,22 @@ export default function WoEfficiencyPage() {
       const period: Record<string, string> = {}
       if (from) period.from = from
       if (to) period.to = to
+      /*
+       * <b>생산실적은 지시일로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이고
+       * (아래 <code>r.orderDate &lt; from</code>), 실적은 <code>workOrderId</code> 로 묶어
+       * 합치므로(producedByWo), 기간 안의 지시에 <b>다음 달에 찍힌 실적</b>이 있으면
+       * 그것까지 세어야 한다 — <b>생산일</b>로 자르면 효율이 조용히 낮게 나온다.
+       *
+       * <p>그래서 여태 전 기간을 통째로 받았다(2026-09-21 실측 202KB). 서버에
+       * <code>woFrom·woTo</code>(지시일) 축을 두어, <b>세는 규칙은 그대로 두고</b>
+       * 받는 것만 이 기간의 지시로 줄였다.
+       */
+      const woPeriod: Record<string, string> = {}
+      if (from) woPeriod.woFrom = from
+      if (to) woPeriod.woTo = to
       const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes, borRes] = await Promise.all([
-        /*
-         * <b>작업지시만 기간으로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이다
-         * (아래 <code>r.orderDate &lt; from</code>).
-         *
-         * <p><b>아래 /productions·/purchases 는 안 좁힌다.</b> 생산실적은
-         * <code>workOrderId</code> 로 묶어 합치므로(producedByWo), 기간 안의 지시에
-         * <b>다음 달에 찍힌 실적</b>이 있으면 그것도 세어야 한다 — 잘랐다가는
-         * 효율이 조용히 낮게 나온다.
-         */
         api.get<WorkOrderRow[]>('/work-orders', { params: period }),
-        api.get<ProductionRow[]>('/productions'),
+        api.get<ProductionRow[]>('/productions', { params: woPeriod }),
         api.get<BomRow[]>('/boms'),
         api.get<Item[]>('/items'),
         api.get<ProcessRow[]>('/processes'),

@@ -22,12 +22,18 @@ public class MaterialIssueController {
 
     private final MaterialIssueService materialIssueService;
 
+    /**
+     * 목록. <b>from·to 는 불출일</b>, <b>woFrom·woTo 는 지시일</b>이다 —
+     * 작업지시별로 묶어 세는 화면이 뒤를 쓴다. 함께 주면 거절한다(MaterialIssueService 참고).
+     */
     @GetMapping
     public List<MaterialIssueResponse> list(
             @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return materialIssueService.findAll(itemId, from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate woFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate woTo) {
+        return materialIssueService.findAll(itemId, from, to, woFrom, woTo);
     }
 
     @PostMapping

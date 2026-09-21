@@ -26,11 +26,17 @@ public class ProductionController {
     private final ProductionService productionService;
 
     /** 목록. 기간을 주면 그만큼만 준다(안 주면 전 기간 — 예전 그대로다). */
+    /**
+     * 목록. <b>from·to 는 생산일</b>, <b>woFrom·woTo 는 지시일</b>이다 —
+     * 작업지시별로 묶어 세는 화면이 뒤를 쓴다. 함께 주면 거절한다(ProductionService 참고).
+     */
     @GetMapping
     public List<ProductionResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return productionService.findAll(from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate woFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate woTo) {
+        return productionService.findAll(from, to, woFrom, woTo);
     }
 
     /** 생산수량에 대한 예상 소요자재 */
