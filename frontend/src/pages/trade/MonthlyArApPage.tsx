@@ -210,15 +210,30 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       }
       return r
     }
+    /*
+     * <b>거래처별 이월도 서버가 낸 잔액에서 온다</b>(2026-09-21 고침).
+     *
+     * <p>여기서는 예전에 <code>y &lt; year</code> 인 전표를 접어 이월을 냈다. 그런데 앞 커밋
+     * (38203b0, 전월이월도 서버가 낸다)이 전표를 <b>그 해 것만</b> 받게 바꿨다 — 위 월별 합계는
+     * 서버 이월로 옮겼는데 <b>이 자리를 빠뜨려</b>, 거래처별 이월이 <b>늘 0</b> 이었다.
+     * 표에 이월 칸이 두 줄에 걸쳐 합쳐져 있어 눈에 안 띄었다. [잔액] 줄을 원본대로 세우자
+     * 그 칸이 제 자리(잔액 줄의 이월)에 서면서 드러났다.
+     *
+     * <p>거르는 잣대는 전표와 <b>같다</b>(docs.mine) — 그 해에 거래가 없는 거래처도
+     * 이월이 있으면 줄이 선다(아래 filter 가 opening ≠ 0 을 남긴다).
+     */
+    for (const b of openings) {
+      if (!docs.mine(b.name)) continue
+      const amt = mode === 'AR' ? b.receivable : b.payable
+      if (amt) seat(b.name).opening += amt
+    }
     for (const d of docs.inc) {
       const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
-      if (y < year) r.opening += d.amt
-      else if (y === year) r.inc[mo] += d.amt
+      if (y === year) r.inc[mo] += d.amt
     }
     for (const d of docs.dec) {
       const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
-      if (y < year) r.opening -= d.amt
-      else if (y === year) r.dec[mo] += d.amt
+      if (y === year) r.dec[mo] += d.amt
     }
     const out = [...m.values()]
     for (const r of out) {
@@ -229,7 +244,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     return out.filter((r) => r.opening !== 0 || r.closing !== 0
         || r.inc.some(Boolean) || r.dec.some(Boolean))
       .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-  }, [docs, partnerRows, year])
+  }, [docs, partnerRows, year, openings, mode])
 
   /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
   const managers = useMemo(
@@ -311,11 +326,24 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
-        원본 격자(2026-09-09 E040713 실측): 거래처코드 · 거래처명 · 구분 · 이월잔액 ·
-        (기간의 달마다 한 열) · 잔액. 거래처 하나가 <b>두 줄</b>을 쓴다.
-        원본은 [이월잔액]·[잔액]을 두 줄에 따로 두는데, 이 회사에 자료가 없어
-        <b>아래 줄에 무엇이 들어가는지 못 읽었다</b> — 지어내지 않고 두 줄을 합쳐 둔다
-        (합친 칸은 틀릴 수가 없다).
+        원본 격자(E040713): 거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액.
+
+        <b>2026-09-21 에 자료가 있는 기간으로 다시 쟀다.</b> 2026-09-09 에는 그 회사 자료가 없어
+        "원본은 [이월잔액]·[잔액]을 두 줄에 따로 두는데 아래 줄에 무엇이 드는지 못 읽었다" 고
+        적고 두 칸을 합쳐 두었다. 2025/10~2026/09 로 열어 보니 거래처 하나가 <b>다섯 줄</b>이다:
+        <b>매출 · 수금 · 기타할인등차액 · 잔액 · 미회수액</b>. 시작을 2026/05 로 당겨 앞선 매출을
+        이월로 넣어 보니 <b>이월잔액은 [잔액] 줄에만</b> 서고(명현농장 26,400,000) 매출·수금 줄의
+        이월 칸은 빈다. 끝의 [잔액] 열은 매출·수금 줄에서는 <b>기간의 합</b>, 잔액 줄에서는
+        <b>기말 잔액</b>이다.
+
+        <p>만든 것: 매출 · 수금 · <b>잔액</b> 세 줄. 안 만든 둘 —
+        <b>[기타할인등차액]</b>: 우리 정산은 수금·지급 두 갈래뿐이라(SettlementType) 할인·차액을
+        담을 자리가 없다. 늘 빈 줄을 그리면 '할인 0' 으로 읽히니 줄을 안 둔다.
+        <b>[미회수액]</b>: 원본은 그 달 매출 중 아직 못 받은 몫을 달 칸에 찍는다(누계로 맞춰 봤다:
+        2026/06 212,900,000 = 노른터 60,000,000 + 예림종돈 53,900,000 + 예림육종 99,000,000).
+        그러려면 수금이 <b>어느 달 매출을 갚았는지</b>를 알아야 하는데 정산이 그걸 안 든다 —
+        채권현황 [청구금액]과 같은 까닭이다. 순서대로 갚았다고 치면 셈은 되지만 그건 배분 규칙을
+        지어내는 일이다(실측 자료에 일부만 갚은 거래처가 없어 원본 규칙도 못 가렸다).
       */}
       <div className="overflow-x-auto" ref={tableRef}>
       <table className="w-full text-left">
@@ -336,28 +364,54 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : byPartner.length === 0 ? (
             <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : byPartner.flatMap((r) => [
-            <tr key={`${r.name}-inc`}>
-              <td rowSpan={2} style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td rowSpan={2} style={{ fontWeight: 600 }}>{r.name}</td>
-              <td>{incWord}</td>
-              <td rowSpan={2} style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.opening)}</td>
-              {MONTHS.map((mo) => (
-                <td key={mo} style={{ textAlign: 'right', color: r.inc[mo] ? incColor : '#c5cbd3' }}>
-                  {r.inc[mo] ? won(r.inc[mo]) : ''}
-                </td>
-              ))}
-              <td rowSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
-            </tr>,
-            <tr key={`${r.name}-dec`}>
-              <td>{decWord}</td>
-              {MONTHS.map((mo) => (
-                <td key={mo} style={{ textAlign: 'right', color: r.dec[mo] ? decColor : '#c5cbd3' }}>
-                  {r.dec[mo] ? won(r.dec[mo]) : ''}
-                </td>
-              ))}
-            </tr>,
-          ])}
+          ) : byPartner.flatMap((r) => {
+            /*
+             * <b>줄마다 [이월잔액]·[잔액] 칸의 뜻이 다르다</b> — 2026-09-21 원본 실측.
+             * 매출·수금 줄은 이월이 <b>비고</b> 끝 칸이 <b>그 기간의 합</b>이다. 이월과 기말 잔액은
+             * <b>[잔액] 줄</b>에 선다. 예전에는 뜻을 몰라 두 칸을 매출·수금 두 줄에 걸쳐 합쳐 두었다.
+             */
+            const sumInc = MONTHS.reduce((s, mo) => s + r.inc[mo], 0)
+            const sumDec = MONTHS.reduce((s, mo) => s + r.dec[mo], 0)
+            /* [잔액] 줄 — 달마다 <b>그 달 말의 누적 잔액</b>이다. 0 인 달은 원본처럼 비운다. */
+            const running: number[] = []
+            let bal = r.opening
+            for (const mo of MONTHS) { bal += r.inc[mo] - r.dec[mo]; running[mo] = bal }
+            const blank = '#c5cbd3'
+            return [
+              <tr key={`${r.name}-inc`}>
+                <td rowSpan={3} style={{ fontFamily: 'monospace' }}>{r.code}</td>
+                <td rowSpan={3} style={{ fontWeight: 600 }}>{r.name}</td>
+                <td>{incWord}</td>
+                <td style={{ textAlign: 'right' }} />
+                {MONTHS.map((mo) => (
+                  <td key={mo} style={{ textAlign: 'right', color: r.inc[mo] ? incColor : blank }}>
+                    {r.inc[mo] ? won(r.inc[mo]) : ''}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'right', color: sumInc ? incColor : blank }}>{sumInc ? won(sumInc) : ''}</td>
+              </tr>,
+              <tr key={`${r.name}-dec`}>
+                <td>{decWord}</td>
+                <td style={{ textAlign: 'right' }} />
+                {MONTHS.map((mo) => (
+                  <td key={mo} style={{ textAlign: 'right', color: r.dec[mo] ? decColor : blank }}>
+                    {r.dec[mo] ? won(r.dec[mo]) : ''}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'right', color: sumDec ? decColor : blank }}>{sumDec ? won(sumDec) : ''}</td>
+              </tr>,
+              <tr key={`${r.name}-bal`} style={{ background: '#f7f9fb' }}>
+                <td>잔액</td>
+                <td style={{ textAlign: 'right', color: r.opening ? '#5a626e' : blank }}>{r.opening ? won(r.opening) : ''}</td>
+                {MONTHS.map((mo) => (
+                  <td key={mo} style={{ textAlign: 'right', color: running[mo] ? undefined : blank }}>
+                    {running[mo] ? won(running[mo]) : ''}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.closing ? won(r.closing) : ''}</td>
+              </tr>,
+            ]
+          })}
         </tbody>
       </table>
       </div>
