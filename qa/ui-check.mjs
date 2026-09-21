@@ -46,6 +46,15 @@ const SEP = /[\\/]/
 const ALL_REASON_KEYS = new Set()
 const collectReasons = (m) => { for (const k of m.keys()) ALL_REASON_KEYS.add(k) }
 
+/**
+ * <b>정렬 대조(1-g)가 찾아낸 "원본에 있는데 우리에게 없는 열".</b>
+ *
+ * <p>여기서 재 놓고 <b>판정은 아래 열 대조(2-h)에서</b> 한다 — 이유 지도(NO_COLUMN)가
+ * 그 블록 안에 있기 때문이다. 검사 차례가 바뀌어 안 채워진 채로 판정하면
+ * <b>아무것도 안 재면서 조용히 통과</b>하므로, 쓰는 쪽에서 null 인지 먼저 건다.
+ */
+let MISSING_COLUMNS = null
+
 const walk = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f)
   return statSync(p).isDirectory() ? walk(p) : [p]
@@ -897,8 +906,7 @@ console.log('\n■ 대조표를 다 쓰고 있나')
       /* 화면 이름이 아니라 <b>우리 파일 경로</b>를 키로 쓴다 — 원본에 없는 우리 판단이라 그렇다. */
       || f === 'open-with-all-period.json'
       /* 화면 이름이 아니라 <b>수 하나</b>다(못 박아 늘지만 않게 하는 자리). */
-      || f === 'period-not-sent.json'
-      || f === 'ecount-missing-columns.json') continue
+      || f === 'period-not-sent.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
     if (Array.isArray(j)) continue
@@ -1919,12 +1927,16 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    *       앞엣것(ESD006M)을 따라서 그 표가 없다.</li>
    * </ul>
    */
-  const knownMissing = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-missing-columns.json'), 'utf8'))
-  const grown = missing.filter((x) => !knownMissing.includes(x))
-  const stale = knownMissing.filter((x) => !missing.includes(x))
-  eq(`원본에 있는데 우리에게 없는 열이 늘지 않았다 (아직 ${knownMissing.length}개 남음)`,
-    grown.join('\n') || '없음', '없음')
-  eq('채워 놓고 목록에 남겨 둔 열이 없다', stale.join('\n') || '없음', '없음')
+  /*
+   * <p><b>2026-09-21 — 목록을 지웠다.</b> 마흔을 하나씩 열어 보니 <b>마흔이 다</b>
+   * 아래 열 대조(2-h)의 <code>NO_COLUMN</code> 에 이미 이유가 적혀 있었다. 이유 없는 것은
+   * <b>하나도 없었다.</b> 두 검사가 같은 사실을 두 번 세고 있었고, <b>한쪽만 이유를 알았다</b> —
+   * 그래서 이 목록만 보는 사람은 "아직 안 만든 마흔 개" 로 읽고 같은 조사를 처음부터
+   * 되풀이한다(위 &lt;ul&gt; 이 그 흔적이고, 2026-09-21 에 또 한 번 되풀이했다).
+   * 이제 이 자리는 <b>NO_COLUMN 을 그대로 본다</b>(아래 2-h 로 옮겼다) — 이유가 있으면 빠지고,
+   * 이유 없이 없는 열은 <code>pending-columns.json</code> 에 적힌 것만 봐준다.
+   */
+  MISSING_COLUMNS = missing
 }
 
 // ── 1-h) 원본이 합계를 찍는 자리에 우리도 찍나 ────────────────────────────
@@ -2906,6 +2918,32 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     grown.join('\n') || '없음', '없음')
   eq('만들어 놓고 목록에 남겨 둔 열이 없다', gone.join('\n') || '없음', '없음')
   eq(`열 예외 ${NO_COLUMN.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
+
+  /*
+   * <b>정렬 대조가 찾은 "없는 열" 도 같은 이유 지도로 판정한다.</b>
+   *
+   * <p>그쪽(1-g)은 원본 <b>정렬 대조표</b>에서 열 이름을 얻고 이쪽(2-h)은 <b>열 대조표</b>에서
+   * 얻는다 — 재는 자리가 달라 둘 다 필요하다. 그런데 판정까지 따로 두었더니 <b>같은 열을
+   * 두 번 세면서 한쪽만 이유를 아는</b> 꼴이 되었다: 1-g 가 마흔 개를 이유 없는 목록
+   * (ecount-missing-columns.json)에 쌓아 두었는데, 2026-09-21 에 마흔을 다 열어 보니
+   * <b>마흔이 다</b> 여기 NO_COLUMN 에 이유가 있었다. 이유 없는 것은 하나도 없었다.
+   *
+   * <p>그 목록은 지웠다. 이제 <b>이유가 있으면 빠지고</b>, 이유 없이 없는 열은
+   * <code>pending-columns.json</code>(2-h 가 이미 쓰는 그 목록)에 적힌 것만 봐준다.
+   * 둘 중 어디에도 없는 열이 새로 생기면 <b>그 자리에서 걸린다</b> — 목록에 한 줄
+   * 덧붙이는 것으로는 못 넘어가고, 이유를 적거나 열을 만들어야 한다.
+   */
+  if (MISSING_COLUMNS === null) {
+    eq('정렬 대조가 찾은 없는 열을 판정할 수 있다', '1-g 가 아직 안 돌았다 — 검사 차례가 바뀌었다', '없음')
+  } else {
+    const unexcused = MISSING_COLUMNS.filter((x) => {
+      const i = x.indexOf('  ')
+      const key = x.slice(0, i) + '|' + x.slice(i + 2).replace(/^\[/, '').replace(/\]$/, '')
+      return !NO_COLUMN.has(key) && !TODO.includes(x)
+    })
+    eq(`정렬 대조가 찾은 없는 열 ${MISSING_COLUMNS.length}개가 다 이유를 들고 있다`,
+      unexcused.join('\n') || '없음', '없음')
+  }
 }
 
 // ── 2-i) 원본 화면의 버튼 ↔ 우리 버튼 ─────────────────────────────────────
