@@ -468,11 +468,13 @@ main table,
 .ec-cond > li {
   display: flex;
   align-items: center;
-  min-height: 34px;
+  /* 2026-09-21 재고현황 실측: 행 간격 38(기준일자 줄만 41). 34 로 두어 줄이 원본보다 촘촘했다. */
+  min-height: 38px;
 }
 .ec-cond > li > .title {
   flex: 0 0 134px;
-  padding: 3px 3px 3px 12px;
+  /* 원본 라벨 여백 3px 3px 3px 10px — 전표 폼(.ec-form)과 같다. */
+  padding: 3px 3px 3px 10px;
   font-size: 12px;
   color: var(--ec-label);
   white-space: nowrap;
