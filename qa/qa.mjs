@@ -4191,6 +4191,13 @@ async function scenarioNoUnboundedList() {
    * 프로젝트마다 한 줄이라 <b>기간을 좁혀도 줄 수가 같다</b> — 숫자만 바뀐다. 줄 수만 보고
    * "안 받는다" 고 세면 고칠 것이 없는 자리가 목록에 남는다(실제로 그랬다).
    * 그래서 <b>컨트롤러가 그 자리에서 LocalDate 를 받는지</b>를 먼저 본다.
+   *
+   * <p><b>기간의 축이 날짜만은 아니다</b>(2026-09-21). <code>LocalDate from</code> 만 찾았더니,
+   * <b>고쳐 놓은 자리 둘이 목록에 그대로 남았다</b> — 생산계획은 축이 주차 문자열이라
+   * <code>weekFrom·weekTo</code> 를 받고(2026-09-10 에 그렇게 고쳤다), 매출계획은
+   * <code>year</code> 를 받는다. 둘 다 <b>고른 기간만큼만</b> 내주는데 검사가 못 알아봐,
+   * 목록을 읽는 사람은 안 고친 자리로 읽는다(픽스처에 "남았다고 안 고친 것이 아니다" 라고
+   * 적어 두어야 했던 까닭이다). 세 축을 다 알아보게 한다.
    */
   const 기간받는자리 = new Set()
   for (const f of walk(SRC)) {
@@ -4200,7 +4207,9 @@ async function scenarioNoUnboundedList() {
     for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,600}?)\{/g)) {
       const sub = m[1] ?? ''
       if (sub.includes('{')) continue
-      if (/LocalDate\s+from/.test(m[2])) 기간받는자리.add((base + sub).replace('/api', ''))
+      if (/LocalDate\s+from|String\s+weekFrom|Integer\s+year/.test(m[2])) {
+        기간받는자리.add((base + sub).replace('/api', ''))
+      }
     }
   }
 
