@@ -7284,6 +7284,14 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
     }
   }
   const hits = new Set()
+  /*
+   * <b>화면은 기간을 묻는데, 그 자리에 걸 기간이 아닌 것</b>도 있다. 위 "안 묻는 화면" 은
+   * 파일째 빼는 것이라 여기엔 못 쓴다 — 재고잔량분석표는 [기준일]을 <b>묻고</b> /stock 에는
+   * 제대로 보낸다. 같은 화면의 <b>한 자리</b>만 성격이 다르다(/sales-orders/unsold 의
+   * from·to 는 수주일로 거른다). 그래서 자리 단위로 이름과 이유를 적어 뺀다.
+   */
+  const 안걸리는자리 = cap['기간이 안 걸리는 자리'] ?? {}
+  const 든자리 = new Set()
   for (const f of walk(join('frontend', 'src'))) {
     if (!f.endsWith('.tsx') && !f.endsWith('.ts')) continue
     const rel = f.split(sep).join('/').split('frontend/src/')[1]
@@ -7302,13 +7310,32 @@ console.log('\n■ 화면을 열 때 기간 기본값이 있나')
     for (const m of src.matchAll(/api\.get<[^>]*>\(\s*'([^']+)'\s*([,)])/g)) {
       if (m[2] === ',') continue
       const path = m[1].split('?')[0]
-      if (takes.has(path)) hits.add(`${rel}  ${path}`)
+      if (!takes.has(path)) continue
+      const key = `${rel}  ${path}`
+      if (안걸리는자리[key]) { 든자리.add(key); continue }
+      hits.add(key)
     }
   }
   eq(`고른 기간을 서버에 안 보내는 자리가 ${cap.gap}곳을 넘지 않는다 (지금 ${hits.size}곳)`,
     hits.size <= cap.gap ? '없음'
       : `${hits.size - cap.gap}곳 늘었다 — 그 기간을 서버에도 보내거나, 이 수를 올리며 왜인지 커밋에 적으세요`,
     '없음')
+  /*
+   * <b>빼 둔 것이 아직 그 자리에 있나.</b> 없는 자리에 이유를 적어 두면 그 줄은 아무것도
+   * 안 지키면서 수만 깎는다 — open-with-all-period 에서 같은 반대 방향 못을 이미 박았다.
+   */
+  eq(`기간이 안 걸린다고 적어 둔 자리 ${Object.keys(안걸리는자리).length}곳이 다 실제로 그렇다`,
+    Object.keys(안걸리는자리).filter((k) => !든자리.has(k)).join(', ') || '없음', '없음')
+  /*
+   * "안 묻는 화면" 도 마찬가지다. 화면이 기간을 묻게 바뀌거나 파일이 사라지면
+   * 그 줄은 <b>조용히 한 자리를 가린다</b>.
+   */
+  const 사라진화면 = Object.keys(cap['안 묻는 화면'] ?? {}).filter((rel) => {
+    const p = join('frontend', 'src', ...rel.split('/'))
+    return !existsSync(p) || !/periodOf\(|EcPeriodPicks|const \[from, setFrom\]|dateLabel=/
+      .test(readFileSync(p, 'utf8'))
+  })
+  eq('기간을 안 묻는다고 적어 둔 화면이 다 실제로 그렇다', 사라진화면.join(', ') || '없음', '없음')
 }
 
 /*
