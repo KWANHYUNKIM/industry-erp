@@ -608,21 +608,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
             */}
-            {/* 원본은 [일자-No.] 를 가운데로, [회계반영여부]·[인쇄] 를 왼쪽으로,
-                [불러온전표] 를 오른쪽으로 찍는다(2026-09-09 구매조회 실측). */}
-            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            {/* 칸 정렬 — 2026-09-21 구매조회에서 <b>글자가 칸 안 어디에 앉는지</b>(Range)로 잰 값:
+                [일자-No.] 왼쪽, [거래유형명]·[회계반영여부]·[인쇄]·[불러온전표] 가운데.
+                09-09 대조표는 가운데·좌·좌·좌·우 였는데 글자 위치로 다시 재니 틀렸다. */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             <th>거래처명</th>
             <th>품목명(요약)</th>
             <th style={{ textAlign: 'right' }}>금액합계</th>
             {/* 원본 구매조회에만 있는 열이다 — 판매조회에는 없다. 실측으로 확인했다. */}
             {!isSales && <th>프로젝트명</th>}
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
-            <th>거래유형명</th>
+            <th style={{ textAlign: 'center' }}>거래유형명</th>
             <th>창고명</th>
-            <th>회계반영여부</th>
-            <th>인쇄</th>
+            <th style={{ textAlign: 'center' }}>회계반영여부</th>
+            <th style={{ textAlign: 'center' }}>인쇄</th>
             {/* 이 전표가 어느 수주/발주에서 왔는지 */}
-            <th style={{ textAlign: 'right' }}>불러온전표</th>
+            <th style={{ textAlign: 'center' }}>불러온전표</th>
             {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
             <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th>담당</th>
             {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
@@ -659,16 +660,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 </td>
                 <td style={{ textAlign: 'right' }}>{won(d.totalAmount)}</td>
                 {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
-                <td>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
+                <td style={{ textAlign: 'center' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
-                <td>
+                <td style={{ textAlign: 'center' }}>
                   {d.accountingReflected ? '반영' : '미반영'}
                 </td>
-                <td onClick={(e) => e.stopPropagation()}>
+                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   {/* 원본 [인쇄]는 버튼이 아니라 링크 글자다. */}
                   <button type="button" className="ec-link" onClick={() => printOne(d)}>인쇄</button>
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td style={{ textAlign: 'center' }}>
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
                     const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
