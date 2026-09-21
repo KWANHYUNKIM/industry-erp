@@ -157,7 +157,7 @@ export default function CodePickerField({
       ) : (
       <div style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
-          className="ec-input"
+          className="ec-input ec-pick-input"
           readOnly
           disabled={disabled}
           value={display}
