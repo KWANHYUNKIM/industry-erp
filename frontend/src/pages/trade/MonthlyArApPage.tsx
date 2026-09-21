@@ -275,23 +275,27 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       <div className="overflow-x-auto" ref={tableRef}>
       {/*
         <b>출력물 격자</b>(index.css .ec-report) — 원본 실측값으로 맞췄다(2026-09-21).
+        열 폭도 원본대로 박는다: <b>거래처코드 100 · 거래처명 115 · 구분 100 · 이월잔액 100 ·
+        달마다 100 · 잔액 100px</b>, table-layout fixed, 표 폭은 그 합이다(원본 금월 판 615px =
+        달 한 열. 달이 늘면 100px 씩 늘어난다).
         거래처 하나가 세 줄이라 줄무늬는 <b>덩어리마다</b> 건다(줄에 ec-stripe).
         원본은 숫자를 <b>검정</b>으로, 거래처 코드·이름을 <b>보통 굵기의 맑은 고딕</b>으로 찍는다 —
         예전의 파랑·갈색 숫자와 굵은 이름·고정폭 코드는 우리가 덧칠한 것이었다.
       */}
+      <div className="ec-report-frame">
       <EcReportHead title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
                     period={reportPeriod(`${year}-01-01`, `${year}-12-31`)} />
-      <table className="w-full text-left ec-report">
+      <table className="text-left ec-report ec-report-fixed">
         <thead>
           <tr>
-            <th style={{ width: 110 }}>거래처코드</th>
-            <th style={{ minWidth: 140 }}>거래처명</th>
-            <th style={{ width: 70 }}>구분</th>
-            <th style={{ textAlign: 'right', width: 120 }}>이월잔액</th>
+            <th style={{ width: 100 }}>거래처코드</th>
+            <th style={{ width: 115 }}>거래처명</th>
+            <th style={{ width: 100 }}>구분</th>
+            <th style={{ textAlign: 'right', width: 100 }}>이월잔액</th>
             {MONTHS.map((mo) => (
-              <th key={mo} style={{ textAlign: 'right', width: 110 }}>{year}/{String(mo).padStart(2, '0')}</th>
+              <th key={mo} style={{ textAlign: 'right', width: 100 }}>{year}/{String(mo).padStart(2, '0')}</th>
             ))}
-            <th style={{ textAlign: 'right', width: 130 }}>잔액</th>
+            <th style={{ textAlign: 'right', width: 100 }}>잔액</th>
           </tr>
         </thead>
         <tbody>
@@ -351,6 +355,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         </tbody>
       </table>
       <EcReportFoot />
+      </div>
       </div>
 
       {/*
