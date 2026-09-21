@@ -34,7 +34,11 @@ export default function EcPeriodPicks({
         <button
           key={label}
           type="button"
-          className="ec-btn"
+          /*
+           * 원본 모양은 <b>테두리·배경 없는 글자 버튼</b>이다(index.css .ec-btn-pick,
+           * 2026-09-21 재고현황 getComputedStyle 실측: 50×22 · 여백 5px · 둥글기 5).
+           */
+          className="ec-btn ec-btn-pick"
           onClick={() => {
             const r = periodOf(label, new Date(), fiscalStart)
             // 시작일을 바꾸지 않는 버튼('종료일')은 빈 from 을 준다. 그대로 넣으면 시작일이 지워진다.
