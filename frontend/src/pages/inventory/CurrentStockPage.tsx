@@ -259,8 +259,9 @@ export default function CurrentStockPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="overflow-x-auto">
+        <div className="ec-report-frame">
         <EcReportHead title="재고현황" period={reportPeriod(cond.date)} />
-        <table className="w-full text-left ec-report">
+        <table className="text-left ec-report ec-report-fixed">
           {/*
             <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040701) getComputedStyle 실측.
             머리 700·6/3/3·가운데, 본문 3px·17.14, <b>줄무늬 없음</b>, 합계줄 700·회색·<b>[합계] 가운데</b>.
@@ -269,10 +270,15 @@ export default function CurrentStockPage() {
             안전재고 미달의 빨강·줄 색은 남긴다 — 원본 이 화면에 없는 우리 열([안전재고]·[상태])에
             딸린 표시라 견줄 원본이 없다.
           */}
+          {/*
+            열 폭 — 원본 <b>width:750px · table-layout:fixed · 200 / 450 / 100</b>(품목코드 · 품목명[규격] ·
+            재고수량, 2026-09-21 실측). 번호·창고·안전재고·상태는 원본에 없는 우리 열이라 잴 원본이
+            없다 — 글자가 들어갈 만큼만 좁게 둔다.
+          */}
           <colgroup>
-            <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '11%' }} /><col style={{ width: '11%' }} /><col style={{ width: '8%' }} />
+            <col style={{ width: 34 }} /><col style={{ width: 200 }} /><col style={{ width: 450 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 100 }} /><col style={{ width: 80 }} /><col style={{ width: 50 }} />
           </colgroup>
           <thead>
             <tr>
@@ -333,6 +339,7 @@ export default function CurrentStockPage() {
           )}
         </table>
         <EcReportFoot />
+        </div>
 
         {/*
           원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —
