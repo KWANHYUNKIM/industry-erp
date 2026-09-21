@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { Link, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
@@ -340,7 +341,17 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
-      <table ref={tableRef} className="w-full text-left ec-report ec-report-stripe">
+      /*
+        머리글·꼬리와 열 폭은 <b>채권현황(E040721)만</b> 원본대로 둔다 — 2026-09-21 실측
+        (표 width 718px · table-layout fixed · 열 106 / 291 / 107 / 107 / 107px =
+        거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계). 채무현황·채권/채무현황은 열 폭을
+        아직 안 재서 예전처럼 화면 폭이다. 번호·거래처그룹·관리담당자는 원본에 없는 우리 열이다.
+      */
+      <div className={screen === 'AR' ? 'ec-report-frame' : undefined}>
+      {screen === 'AR' && <EcReportHead title="채권현황" period={reportPeriod(asOf)} />}
+      <table ref={tableRef} className={screen === 'AR'
+        ? 'text-left ec-report ec-report-stripe ec-report-fixed'
+        : 'w-full text-left ec-report ec-report-stripe'}>
         {/*
           <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040721) getComputedStyle 실측.
           머리 700 · 가운데, 본문 3px · 줄 간격 17.14px, 줄무늬, 합계줄 굵게·회색·<b>이름은 가운데</b>.
@@ -349,10 +360,10 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         */}
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>거래처코드</th>
-          <th>거래처명</th>
-          <th style={{ width: 130 }}>거래처그룹</th>
-          <th style={{ width: 100 }}>관리담당자</th>
+          <th style={{ width: screen === 'AR' ? 106 : 110 }}>거래처코드</th>
+          <th style={screen === 'AR' ? { width: 291 } : undefined}>거래처명</th>
+          <th style={{ width: screen === 'AR' ? 110 : 130 }}>거래처그룹</th>
+          <th style={{ width: screen === 'AR' ? 90 : 100 }}>관리담당자</th>
           {/*
             원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
             아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
@@ -367,7 +378,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             우리는 청구·미청구를 못 가르므로(아래 예외) 한 쪽에 한 칸씩만 두는데,
             마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
           */}
-          {mode !== 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>합계</th>}
+          {mode !== 'BOTH' && <th style={{ width: screen === 'AR' ? 107 : 130, textAlign: 'right' }}>합계</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>차액</th>}
@@ -409,6 +420,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           </tfoot>
         )}
       </table>
+      {screen === 'AR' && <EcReportFoot />}
+      </div>
       )}
 
       {shown.length > 0 && (
