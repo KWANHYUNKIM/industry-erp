@@ -370,9 +370,15 @@ export default function DefectReportPage() {
                       .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))
                       .sort((a, b) => b.value - a.value)} />
       ) : (
-      <>
+      <div className="ec-report-frame">
       <EcReportHead title="불량률파악보고서" period={reportPeriod(from, to)} />
-      <table className="w-full text-left ec-report">
+      {/*
+        열 폭 — 원본 <b>width:890px · table-layout:fixed · 110 / 110 / 110 / 230 / 110 / 110 / 110</b>
+        (창고코드 · 창고명 · 품목코드 · 품목명[규격명] · 생산수량 · 불량수량 · 불량률, 2026-09-21 실측).
+        우리 [불량처리]가 원본 [불량수량] 자리라 110 을 준다. 번호·단위·검사수량·검사불량·폐기는
+        원본에 없는 우리 열이라 잴 원본이 없다 — 좁게 둔다.
+      */}
+      <table className="text-left ec-report ec-report-fixed">
         {/*
           <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040512) getComputedStyle 실측.
           이 화면은 <b>줄무늬가 없다</b>(회색은 소계·합계줄뿐) — 채권현황과 달라 stripe 를 안 켠다.
@@ -396,18 +402,18 @@ export default function DefectReportPage() {
               검사 안 한 생산분까지 센 것처럼 읽혀 거짓이 된다(예외에 적었다).
               [단위]·[불량처리]·[폐기]는 우리 열이다.
             */}
-            <th style={{ width: 90 }}>창고코드</th>
-            <th style={{ width: 120 }}>창고명</th>
-            <th>품목코드</th>
-            <th>품목명[규격명]</th>
+            <th style={{ width: 110 }}>창고코드</th>
+            <th style={{ width: 110 }}>창고명</th>
+            <th style={{ width: 110 }}>품목코드</th>
+            <th style={{ width: 230 }}>품목명[규격명]</th>
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
             {/* 원본 차례: 품목명[규격명] 다음이 [생산수량]이다(2026-09-21 실측). */}
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>검사수량</th>
-            <th style={{ textAlign: 'right' }}>검사불량</th>
-            <th style={{ textAlign: 'right' }}>불량률</th>
-            <th style={{ textAlign: 'right' }}>불량처리</th>
-            <th style={{ textAlign: 'right' }}>폐기</th>
+            <th style={{ textAlign: 'right', width: 110 }}>생산수량</th>
+            <th style={{ textAlign: 'right', width: 80 }}>검사수량</th>
+            <th style={{ textAlign: 'right', width: 80 }}>검사불량</th>
+            <th style={{ textAlign: 'right', width: 110 }}>불량률</th>
+            <th style={{ textAlign: 'right', width: 110 }}>불량처리</th>
+            <th style={{ textAlign: 'right', width: 70 }}>폐기</th>
           </tr>
         </thead>
         <tbody>
@@ -461,7 +467,7 @@ export default function DefectReportPage() {
         )}
       </table>
       <EcReportFoot />
-      </>
+      </div>
       )}
     </EcListShell>
   )
