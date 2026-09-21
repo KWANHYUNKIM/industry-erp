@@ -176,8 +176,14 @@ main table,
   padding: 3px !important;
   line-height: 1.428571 !important;
 }
-/* 줄무늬 — 한 줄씩. 여러 줄이 한 덩어리인 표(월별채권증감내역)는 덩어리마다 ec-stripe 를 단다. */
-#root table.ec-report:not(.ec-report-blocks) tbody tr:nth-child(even) td,
+/*
+ * 줄무늬는 <b>출력물 공통이 아니다</b> — 화면마다 잰 대로 켠다(2026-09-21).
+ *   채권현황        줄마다 번갈아 회색        → ec-report-stripe
+ *   월별채권증감내역 거래처 덩어리마다 번갈아  → 줄에 ec-stripe
+ *   불량률파악보고서 줄무늬 없음(회색은 소계·합계줄뿐) → 아무것도 안 단다
+ * 처음에는 줄무늬를 기본으로 켰다가 세 번째 화면을 재고 나서 뺐다.
+ */
+#root table.ec-report.ec-report-stripe tbody tr:nth-child(even) td,
 #root table.ec-report tbody tr.ec-stripe td {
   background: var(--ec-report-stripe);
 }

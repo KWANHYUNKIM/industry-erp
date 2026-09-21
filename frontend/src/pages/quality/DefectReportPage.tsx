@@ -369,7 +369,14 @@ export default function DefectReportPage() {
                       .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))
                       .sort((a, b) => b.value - a.value)} />
       ) : (
-      <table className="w-full text-left">
+      <table className="w-full text-left ec-report">
+        {/*
+          <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040512) getComputedStyle 실측.
+          이 화면은 <b>줄무늬가 없다</b>(회색은 소계·합계줄뿐) — 채권현황과 달라 stripe 를 안 켠다.
+          원본은 수량을 <b>검정·보통 굵기</b>로 찍는다. 빨강·갈색·보라 수량은 우리가 덧칠한 것이었다.
+          <b>[불량률] 칸 모양은 못 쟀다</b> — 원본 자료에서 그 칸이 줄마다 비어 있었다. 그래서 그 칸만
+          예전 모양(색·굵기)을 둔다.
+        */}
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
@@ -409,43 +416,43 @@ export default function DefectReportPage() {
             ...g.rows.map((r, i) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: r.warehouseCode ? undefined : '#c5cbd3' }}>{r.warehouseCode}</td>
+              <td>{r.warehouseCode}</td>
               <td style={{ color: r.warehouseName === '(미지정)' ? '#9aa1ab' : undefined }}>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
               {/* 원본도 생산이 없는 줄은 <b>빈칸</b>이다(송풍기 줄) — 0 으로 찍지 않는다. */}
-              <td style={{ textAlign: 'right', color: r.producedQty ? undefined : '#c5cbd3' }}>{r.producedQty ? won(r.producedQty) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{r.producedQty ? won(r.producedQty) : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>
-              <td style={{ textAlign: 'right', color: r.inspectDefect ? '#c60a2e' : '#c5cbd3' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : ''}</td>
-              <td style={{ textAlign: 'right', color: r.defectHandled ? '#a5561b' : '#c5cbd3' }}>{r.defectHandled ? won(r.defectHandled) : ''}</td>
-              <td style={{ textAlign: 'right', color: r.disposed ? '#6b3fb0' : '#c5cbd3' }}>{r.disposed ? won(r.disposed) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{r.defectHandled ? won(r.defectHandled) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{r.disposed ? won(r.disposed) : ''}</td>
             </tr>
             )),
             /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률 칸은 비운다(위 groups 주석). */
-            <tr key={'sub' + gi} style={{ background: '#f2f5f8', fontWeight: 600 }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>{g.label} 계</td>
+            <tr key={'sub' + gi} className="ec-total">
+              <td colSpan={5} style={{ textAlign: 'center' }}>{g.label} 계</td>
               <td />
               <td style={{ textAlign: 'right' }}>{g.sums.produced ? won(g.sums.produced) : ''}</td>
               <td style={{ textAlign: 'right' }}>{g.sums.inspected ? won(g.sums.inspected) : ''}</td>
-              <td style={{ textAlign: 'right', color: g.sums.defect ? '#c60a2e' : undefined }}>{g.sums.defect ? won(g.sums.defect) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{g.sums.defect ? won(g.sums.defect) : ''}</td>
               <td />
-              <td style={{ textAlign: 'right', color: g.sums.handled ? '#a5561b' : undefined }}>{g.sums.handled ? won(g.sums.handled) : ''}</td>
-              <td style={{ textAlign: 'right', color: g.sums.disposed ? '#6b3fb0' : undefined }}>{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{g.sums.handled ? won(g.sums.handled) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
             </tr>,
           ])}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
+            <tr>
+              <td colSpan={6} style={{ textAlign: 'center' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(totals.produced)}</td>
               <td style={{ textAlign: 'right' }}>{won(totals.inspected)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(totals.defect)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.defect)}</td>
               <td style={{ textAlign: 'right', color: rateColor(overallRate) }}>{overallRate.toFixed(2)}%</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.handled)}</td>
-              <td style={{ textAlign: 'right', color: '#6b3fb0' }}>{won(totals.disposed)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.handled)}</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.disposed)}</td>
             </tr>
           </tfoot>
         )}

@@ -274,11 +274,11 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       <div className="overflow-x-auto" ref={tableRef}>
       {/*
         <b>출력물 격자</b>(index.css .ec-report) — 원본 실측값으로 맞췄다(2026-09-21).
-        거래처 하나가 세 줄이라 줄무늬는 <b>덩어리마다</b> 건다(ec-report-blocks + ec-stripe).
+        거래처 하나가 세 줄이라 줄무늬는 <b>덩어리마다</b> 건다(줄에 ec-stripe).
         원본은 숫자를 <b>검정</b>으로, 거래처 코드·이름을 <b>보통 굵기의 맑은 고딕</b>으로 찍는다 —
         예전의 파랑·갈색 숫자와 굵은 이름·고정폭 코드는 우리가 덧칠한 것이었다.
       */}
-      <table className="w-full text-left ec-report ec-report-blocks">
+      <table className="w-full text-left ec-report">
         <thead>
           <tr>
             <th style={{ width: 110 }}>거래처코드</th>

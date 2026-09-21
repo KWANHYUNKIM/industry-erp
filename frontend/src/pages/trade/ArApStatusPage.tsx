@@ -340,7 +340,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
-      <table ref={tableRef} className="w-full text-left ec-report">
+      <table ref={tableRef} className="w-full text-left ec-report ec-report-stripe">
         {/*
           <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040721) getComputedStyle 실측.
           머리 700 · 가운데, 본문 3px · 줄 간격 17.14px, 줄무늬, 합계줄 굵게·회색·<b>이름은 가운데</b>.
