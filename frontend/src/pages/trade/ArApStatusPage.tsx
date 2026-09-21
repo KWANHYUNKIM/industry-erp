@@ -340,7 +340,13 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
-      <table ref={tableRef} className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left ec-report">
+        {/*
+          <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040721) getComputedStyle 실측.
+          머리 700 · 가운데, 본문 3px · 줄 간격 17.14px, 줄무늬, 합계줄 굵게·회색·<b>이름은 가운데</b>.
+          원본은 숫자를 <b>맑은 고딕</b>으로, 거래처명을 <b>검정·보통 굵기</b>로 찍는다 — 고정폭 숫자와
+          파란 굵은 이름은 우리가 덧칠한 것이었다.
+        */}
         <thead><tr>
           <th style={{ width: 34 }}></th>
           <th style={{ width: 110 }}>거래처코드</th>
@@ -374,18 +380,18 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           ) : shown.map((r, i) => (
             <tr key={r.partnerId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+              <td>{r.code}</td>
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
-              <td style={{ fontWeight: 600 }}>
-                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'var(--ec-blue)' }}>{r.name}</Link>
+              <td>
+                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
                 {!r.active && <span style={{ color: '#c60a2e', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
               </td>
               <td style={{ color: '#5a626e' }}>{r.partnerGroupName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{r.manager ?? ''}</td>
-              {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(r.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(r.payable)}</td>}
+              {showR && <td style={{ textAlign: 'right' }}>{won(r.receivable)}</td>}
+              {showP && <td style={{ textAlign: 'right' }}>{won(r.payable)}</td>}
               {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(r.receivable - r.payable)}</td>
+                <td style={{ textAlign: 'right' }}>{won(r.receivable - r.payable)}</td>
               )}
             </tr>
           ))}
@@ -393,11 +399,11 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-              {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.payable)}</td>}
+              <td colSpan={5} style={{ textAlign: 'center' }}>합계</td>
+              {showR && <td style={{ textAlign: 'right' }}>{won(total.receivable)}</td>}
+              {showP && <td style={{ textAlign: 'right' }}>{won(total.payable)}</td>}
               {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable - total.payable)}</td>
+                <td style={{ textAlign: 'right' }}>{won(total.receivable - total.payable)}</td>
               )}
             </tr>
           </tfoot>

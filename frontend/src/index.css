@@ -146,6 +146,47 @@ main table,
 #root table:not(.no-ec) tbody tr:hover {
   background: var(--ec-blue-light) !important;
 }
+
+/*
+ * <b>원본 [출력물] 격자</b> — 조회 목록 격자와 <b>다르다</b>(2026-09-21 getComputedStyle 실측).
+ *
+ * 위 전역 격자(머리 10/3/8 · 굵기 400)는 <b>조회 목록</b>(판매조회 E040206) 값이다.
+ * 출력물(월별채권증감내역 E040713 · 채권현황 E040721)은 두 화면이 글자 하나까지 같게
+ * 머리 <b>700 · 6px 3px 3px · 27px · 가운데</b>, 본문 <b>3px · 24px</b>, 합계줄 <b>700 · 회색</b>이고
+ * 줄이 <b>번갈아 회색</b>(rgb 243,243,243)이다. 전역을 바꾸면 조회 목록이 틀어지므로 따로 둔다.
+ *
+ * 숫자 열 머리도 <b>가운데</b>다(청구금액·미청구금액·합계를 재 봤다) — 칸은 오른쪽인데 머리는
+ * 가운데라, 화면 코드가 머리에 인라인 오른쪽 정렬을 줘도 여기서 덮는다.
+ */
+:root {
+  --ec-report-stripe: rgb(243, 243, 243);
+}
+/*
+ * 줄 간격은 원본이 <b>17.1429px</b>(12px × 20/14) 다 — 우리 기본(Tailwind 1.5 = 18px)이면
+ * 줄마다 1px 씩 커져 같은 자료가 원본보다 길게 늘어진다. 원본 칸 높이 머리 27 · 본문 24.
+ */
+#root table.ec-report thead th {
+  font-weight: 700 !important;
+  padding: 6px 3px 3px !important;
+  text-align: center !important;
+  line-height: 1.428571 !important;
+}
+#root table.ec-report tbody td,
+#root table.ec-report tfoot td {
+  padding: 3px !important;
+  line-height: 1.428571 !important;
+}
+/* 줄무늬 — 한 줄씩. 여러 줄이 한 덩어리인 표(월별채권증감내역)는 덩어리마다 ec-stripe 를 단다. */
+#root table.ec-report:not(.ec-report-blocks) tbody tr:nth-child(even) td,
+#root table.ec-report tbody tr.ec-stripe td {
+  background: var(--ec-report-stripe);
+}
+/* 합계·누계 줄 — 굵게, 회색, 이름 칸은 가운데. */
+#root table.ec-report tfoot td,
+#root table.ec-report tbody tr.ec-total td {
+  font-weight: 700;
+  background: var(--ec-report-stripe);
+}
 /* 목록 표를 살짝 띄워 카드처럼 (이카운트 격자 유지 + 입체감) */
 #root table:not(.no-ec) {
   box-shadow: var(--ec-shadow);

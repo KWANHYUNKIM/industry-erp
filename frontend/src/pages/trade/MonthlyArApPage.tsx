@@ -272,7 +272,13 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         지어내는 일이다(실측 자료에 일부만 갚은 거래처가 없어 원본 규칙도 못 가렸다).
       */}
       <div className="overflow-x-auto" ref={tableRef}>
-      <table className="w-full text-left">
+      {/*
+        <b>출력물 격자</b>(index.css .ec-report) — 원본 실측값으로 맞췄다(2026-09-21).
+        거래처 하나가 세 줄이라 줄무늬는 <b>덩어리마다</b> 건다(ec-report-blocks + ec-stripe).
+        원본은 숫자를 <b>검정</b>으로, 거래처 코드·이름을 <b>보통 굵기의 맑은 고딕</b>으로 찍는다 —
+        예전의 파랑·갈색 숫자와 굵은 이름·고정폭 코드는 우리가 덧칠한 것이었다.
+      */}
+      <table className="w-full text-left ec-report ec-report-blocks">
         <thead>
           <tr>
             <th style={{ width: 110 }}>거래처코드</th>
@@ -290,7 +296,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : byPartner.length === 0 ? (
             <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : byPartner.flatMap((r) => {
+          ) : byPartner.flatMap((r, ri) => {
             /*
              * <b>줄마다 [이월잔액]·[잔액] 칸의 뜻이 다르다</b> — 2026-09-21 원본 실측.
              * 매출·수금 줄은 이월이 <b>비고</b> 끝 칸이 <b>그 기간의 합</b>이다. 이월과 기말 잔액은
@@ -302,39 +308,40 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             const running: number[] = []
             let bal = r.opening
             for (const mo of MONTHS) { bal += r.inc[mo] - r.dec[mo]; running[mo] = bal }
-            const blank = '#c5cbd3'
+            /* 원본은 거래처 덩어리마다 번갈아 회색이다(경지양돈 덩어리가 rgb(243,243,243)). */
+            const stripe = ri % 2 === 1 ? 'ec-stripe' : undefined
             return [
-              <tr key={`${r.name}-inc`}>
-                <td rowSpan={3} style={{ fontFamily: 'monospace' }}>{r.code}</td>
-                <td rowSpan={3} style={{ fontWeight: 600 }}>{r.name}</td>
+              <tr key={`${r.name}-inc`} className={stripe}>
+                <td rowSpan={3}>{r.code}</td>
+                <td rowSpan={3}>{r.name}</td>
                 <td>{incWord}</td>
                 <td style={{ textAlign: 'right' }} />
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right', color: r.inc[mo] ? incColor : blank }}>
+                  <td key={mo} style={{ textAlign: 'right' }}>
                     {r.inc[mo] ? won(r.inc[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right', color: sumInc ? incColor : blank }}>{sumInc ? won(sumInc) : ''}</td>
+                <td style={{ textAlign: 'right' }}>{sumInc ? won(sumInc) : ''}</td>
               </tr>,
-              <tr key={`${r.name}-dec`}>
+              <tr key={`${r.name}-dec`} className={stripe}>
                 <td>{decWord}</td>
                 <td style={{ textAlign: 'right' }} />
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right', color: r.dec[mo] ? decColor : blank }}>
+                  <td key={mo} style={{ textAlign: 'right' }}>
                     {r.dec[mo] ? won(r.dec[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right', color: sumDec ? decColor : blank }}>{sumDec ? won(sumDec) : ''}</td>
+                <td style={{ textAlign: 'right' }}>{sumDec ? won(sumDec) : ''}</td>
               </tr>,
-              <tr key={`${r.name}-bal`} style={{ background: '#f7f9fb' }}>
+              <tr key={`${r.name}-bal`} className={stripe}>
                 <td>잔액</td>
-                <td style={{ textAlign: 'right', color: r.opening ? '#5a626e' : blank }}>{r.opening ? won(r.opening) : ''}</td>
+                <td style={{ textAlign: 'right' }}>{r.opening ? won(r.opening) : ''}</td>
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right', color: running[mo] ? undefined : blank }}>
+                  <td key={mo} style={{ textAlign: 'right' }}>
                     {running[mo] ? won(running[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.closing ? won(r.closing) : ''}</td>
+                <td style={{ textAlign: 'right' }}>{r.closing ? won(r.closing) : ''}</td>
               </tr>,
             ]
           })}
