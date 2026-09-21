@@ -4,6 +4,7 @@ import com.erp.inventory.domain.StockTransaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -161,5 +162,37 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
     BigDecimal sumChangeBeforeOfItems(@Param("itemIds") List<Long> itemIds,
                                       @Param("warehouseId") Long warehouseId,
                                       @Param("date") LocalDate date);
+
+    /*
+     * 잔량재집계 — <b>DB 안에서</b> 누적한다.
+     *
+     * <p>예전에는 기간의 거래를 품목·창고째 엔티티로 전부 꺼내 자바에서 누적하고 dirty checking 으로
+     * 고쳤다. 거래 30만 건(QA 가 쌓은 개발 DB)에서 전 기간 재집계가 힙 1GB·2GB 를 넘겨 OOM 이 나고,
+     * 29만 줄을 고칠 때는 5분을 넘겼다. 누적은 창 함수 하나로 되고, 고칠 줄만 UPDATE 한 번으로 고친다.
+     *
+     * <p>누적 차례는 {@link #findLedger} 와 같다 — 일자·id 순, 기초재고는 {@code from} 이전 변동의 합.
+     */
+    String RECALC_RUNNING =
+            "with o as (select item_id, warehouse_id, sum(quantity_change) op from stock_transactions " +
+            "           where transaction_date < :from group by item_id, warehouse_id), " +
+            "r as (select t.id, t.item_id, t.warehouse_id, t.balance_after, " +
+            "             coalesce(o.op, 0) + sum(t.quantity_change) over " +
+            "               (partition by t.item_id, t.warehouse_id order by t.transaction_date, t.id) run " +
+            "      from stock_transactions t " +
+            "      left join o on o.item_id = t.item_id and o.warehouse_id = t.warehouse_id " +
+            "      where t.transaction_date >= :from and t.transaction_date <= :to) ";
+
+    /** (품목,창고)별 [itemId, warehouseId, 기간 거래 수, 잔량이 어긋난 거래 수]. */
+    @Query(value = RECALC_RUNNING +
+            "select item_id, warehouse_id, count(*), count(*) filter (where balance_after <> run) " +
+            "from r group by item_id, warehouse_id", nativeQuery = true)
+    List<Object[]> recalcBalanceStats(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 어긋난 거래의 잔량만 고친다. 반환: 고친 줄 수. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = RECALC_RUNNING +
+            "update stock_transactions t set balance_after = r.run, updated_at = now() " +
+            "from r where t.id = r.id and t.balance_after <> r.run", nativeQuery = true)
+    int recalcBalanceApply(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
 }

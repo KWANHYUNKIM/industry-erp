@@ -334,44 +334,38 @@ public class StockService {
      */
     @Transactional
     public StockDtos.StockRecalcResult recalculate(LocalDate from, LocalDate to, boolean apply) {
-        List<StockTransaction> txs = transactionRepository.findLedger(null, null, from, to);
-
-        // (품목,창고)별로 모아 기초재고에서부터 일자순 누적으로 잔량을 다시 매긴다
-        Map<String, List<StockTransaction>> grouped = txs.stream()
-                .collect(Collectors.groupingBy(t -> t.getItem().getId() + ":" + t.getWarehouse().getId(),
-                        LinkedHashMap::new, Collectors.toList()));
-
         Map<String, int[]> mismatchByKey = new LinkedHashMap<>();   // key → [기간거래수, 잔량어긋난건수]
         Map<String, BigDecimal> openingByKey = new LinkedHashMap<>();
         int balanceMismatch = 0;
+        int scannedTx = 0;
+
+        /*
+         * 누적은 DB 가 한다(StockTransactionRepository.RECALC_RUNNING). 기간 거래를 엔티티로 다 꺼내
+         * 자바에서 누적하던 때는 거래 30만 건에서 힙이 모자라고 고칠 줄이 많으면 5분을 넘겼다.
+         */
+        for (Object[] r : transactionRepository.recalcBalanceStats(from, to)) {
+            String key = ((Number) r[0]).longValue() + ":" + ((Number) r[1]).longValue();
+            int count = ((Number) r[2]).intValue();
+            int fixed = ((Number) r[3]).intValue();
+            mismatchByKey.put(key, new int[] { count, fixed });
+            scannedTx += count;
+            balanceMismatch += fixed;
+        }
 
         /*
          * 기초재고는 <b>한 번에 묶어</b> 묻는다. 예전에는 (품목,창고) 무리마다
          * {@code sumChangeBefore} 를 한 번씩 불러서, 이번 달만 재집계해도 1.3초,
          * 석 달이면 5.6초가 걸렸다 — 무리가 늘수록 질의도 그만큼 늘었다.
          */
-        Map<String, BigDecimal> openingAll = new LinkedHashMap<>();
         for (Object[] r : transactionRepository.aggregateOpeningByItemWarehouse(from)) {
-            openingAll.put(((Number) r[0]).longValue() + ":" + ((Number) r[1]).longValue(), toBig(r[2]));
+            String key = ((Number) r[0]).longValue() + ":" + ((Number) r[1]).longValue();
+            if (mismatchByKey.containsKey(key)) {
+                openingByKey.put(key, toBig(r[2]));
+            }
         }
 
-        for (Map.Entry<String, List<StockTransaction>> e : grouped.entrySet()) {
-            List<StockTransaction> list = e.getValue();
-            BigDecimal running = openingAll.getOrDefault(e.getKey(), BigDecimal.ZERO);
-            openingByKey.put(e.getKey(), running);
-
-            int fixed = 0;
-            for (StockTransaction t : list) {
-                running = running.add(t.getQuantityChange());
-                if (t.getBalanceAfter().compareTo(running) != 0) {
-                    fixed++;
-                    if (apply) {
-                        t.setBalanceAfter(running);
-                    }
-                }
-            }
-            balanceMismatch += fixed;
-            mismatchByKey.put(e.getKey(), new int[] { list.size(), fixed });
+        if (apply && balanceMismatch > 0) {
+            transactionRepository.recalcBalanceApply(from, to);
         }
 
         /*
@@ -411,7 +405,7 @@ public class StockService {
 
         return new StockDtos.StockRecalcResult(
                 from.toString().substring(0, 7), to.toString().substring(0, 7),
-                apply, txs.size(), balanceMismatch, quantityMismatch, rows);
+                apply, scannedTx, balanceMismatch, quantityMismatch, rows);
     }
 
     /** 유형과 방향으로 실제 증감량(부호 있음) 계산 */
