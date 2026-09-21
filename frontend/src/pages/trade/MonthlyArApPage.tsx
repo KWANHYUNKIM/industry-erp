@@ -7,6 +7,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { monthRows, partnerYearRows, type MonthRow, type PartnerYearRow } from '../../utils/monthlyArAp'
 
 /**
  * 영업관리 > 월별채권/채무증감내역 (이카운트 E040713·E040714)
@@ -27,27 +28,10 @@ interface Settlement {
 /** /ledger/partner-balances 한 줄 — 그 시점의 거래처별 채권·채무. */
 interface Opening { partnerId: number; name: string; receivable: number; payable: number }
 
-interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
-
-/**
- * 원본 격자 한 덩어리(2026-09-09 E040713 실측):
- * <b>거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액</b>.
- * 거래처 하나가 <b>두 줄</b>을 쓴다 - [매출]/[수금](채무면 [매입]/[지급]).
- */
-interface PartnerYearRow {
-  code: string
-  name: string
-  opening: number
-  inc: number[]
-  dec: number[]
-  closing: number
-}
-
 const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본은 기간의 달마다 열을 하나씩 둔다. 우리 기간은 한 해라 열둘이다. */
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
-const ym = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) })
 
 export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: Mode }) {
   const [year, setYear] = useState<number>(thisYear())
@@ -168,82 +152,24 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     return { inc: incDocs, dec: decDocs, mine }
   }, [sales, purchases, settlements, mode, partner, manager, rollUp, partnerRows, partnerGroup])
 
-  const rows = useMemo<MonthRow[]>(() => {
-    /*
-     * 연초 이전 누적 순잔액 = 전월이월(1월). <b>서버가 낸 잔액</b>을 쓴다.
-     * 거르는 잣대는 줄과 <b>같아야 한다</b> — 아래 docs 가 거래처 이름으로 걸렀으니
-     * 이월도 같은 이름 집합으로 거른다. 안 그러면 이월만 남의 거래처를 품는다.
-     */
-    const opening = openings
-      .filter((b) => docs.mine(b.name))
-      .reduce((n, b) => n + (mode === 'AR' ? b.receivable : b.payable), 0)
-
-    const inc = new Array(13).fill(0)
-    const dec = new Array(13).fill(0)
-    for (const d of docs.inc) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) inc[m] += d.amt }
-    for (const d of docs.dec) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) dec[m] += d.amt }
-
-    const out: MonthRow[] = []
-    let carry = opening
-    for (let m = 1; m <= 12; m++) {
-      const closing = carry + inc[m] - dec[m]
-      out.push({ month: m, opening: carry, increase: inc[m], decrease: dec[m], closing })
-      carry = closing
-    }
-    return out
-  }, [docs, year])
+  /* 셈은 utils/monthlyArAp 에 있다 — 거래처별 표와 늘 맞아야 해서 테스트로 못 박았다. */
+  const rows = useMemo<MonthRow[]>(
+    () => monthRows(docs.inc, docs.dec, openings, docs.mine, mode, year),
+    [docs, openings, mode, year])
 
   /**
    * 원본 격자 - <b>거래처별 × 달</b>. 우리는 온 회사를 달마다 한 줄로만 보여 주고 있어서
    * <b>어느 거래처가 그 달을 밀었는지</b>를 이 화면에서 볼 수가 없었다(조건으로 하나씩
    * 골라 보는 수밖에 없었다). 위 <code>rows</code> 와 같은 자료를 거래처로 갈라 센다.
    */
+  /*
+   * 거래처별 이월은 <b>서버가 낸 잔액에서만</b> 온다(2026-09-21 고침 — 전에는 전 해 전표를 접어
+   * 냈는데 그런 전표가 더는 오지 않아 <b>늘 0</b> 이었다). 월별 합계와 늘 맞는지를
+   * utils/monthlyArAp.test.ts 가 지킨다.
+   */
   const byPartner = useMemo<PartnerYearRow[]>(() => {
     const codeOf = new Map(partnerRows.map((p) => [p.name, p.code]))
-    const m = new Map<string, PartnerYearRow>()
-    const seat = (name: string) => {
-      let r = m.get(name)
-      if (!r) {
-        r = { code: codeOf.get(name) ?? '', name, opening: 0,
-          inc: new Array(13).fill(0), dec: new Array(13).fill(0), closing: 0 }
-        m.set(name, r)
-      }
-      return r
-    }
-    /*
-     * <b>거래처별 이월도 서버가 낸 잔액에서 온다</b>(2026-09-21 고침).
-     *
-     * <p>여기서는 예전에 <code>y &lt; year</code> 인 전표를 접어 이월을 냈다. 그런데 앞 커밋
-     * (38203b0, 전월이월도 서버가 낸다)이 전표를 <b>그 해 것만</b> 받게 바꿨다 — 위 월별 합계는
-     * 서버 이월로 옮겼는데 <b>이 자리를 빠뜨려</b>, 거래처별 이월이 <b>늘 0</b> 이었다.
-     * 표에 이월 칸이 두 줄에 걸쳐 합쳐져 있어 눈에 안 띄었다. [잔액] 줄을 원본대로 세우자
-     * 그 칸이 제 자리(잔액 줄의 이월)에 서면서 드러났다.
-     *
-     * <p>거르는 잣대는 전표와 <b>같다</b>(docs.mine) — 그 해에 거래가 없는 거래처도
-     * 이월이 있으면 줄이 선다(아래 filter 가 opening ≠ 0 을 남긴다).
-     */
-    for (const b of openings) {
-      if (!docs.mine(b.name)) continue
-      const amt = mode === 'AR' ? b.receivable : b.payable
-      if (amt) seat(b.name).opening += amt
-    }
-    for (const d of docs.inc) {
-      const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
-      if (y === year) r.inc[mo] += d.amt
-    }
-    for (const d of docs.dec) {
-      const r = seat(d.name); const { y, mo } = { y: Number(d.date.slice(0, 4)), mo: Number(d.date.slice(5, 7)) }
-      if (y === year) r.dec[mo] += d.amt
-    }
-    const out = [...m.values()]
-    for (const r of out) {
-      r.closing = r.opening
-      for (let i = 1; i <= 12; i++) r.closing += r.inc[i] - r.dec[i]
-    }
-    /* 그 해에 아무 일도 없고 이월도 0 인 거래처는 줄을 만들지 않는다. */
-    return out.filter((r) => r.opening !== 0 || r.closing !== 0
-        || r.inc.some(Boolean) || r.dec.some(Boolean))
-      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    return partnerYearRows(docs.inc, docs.dec, openings, docs.mine, mode, year, (n) => codeOf.get(n) ?? '')
   }, [docs, partnerRows, year, openings, mode])
 
   /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
