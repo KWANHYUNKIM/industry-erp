@@ -143,6 +143,40 @@ main table,
   padding: 6px 3px !important;
   font-size: 12px !important;
 }
+/*
+ * <b>머리는 가운데, 줄 간격은 17.1429px</b> — 2026-09-21 원본 getComputedStyle 실측.
+ *
+ * 격자 계열(조회 목록 · 출력물)과 상관없이 잰 화면이 <b>전부</b> 그랬다: 판매조회 · 판매현황 ·
+ * 월별채권증감내역 · 채권현황 · 불량률파악보고서 · 재고현황 — 여섯이 머리를 모두 가운데 두고
+ * (숫자 열 머리도 — 칸은 오른쪽인데 머리는 가운데다), 줄 간격이 모두 12px × 20/14 다.
+ * 우리는 머리를 왼쪽(표의 text-left 를 물려받음)에, 줄 간격을 Tailwind 기본 1.5(18px)로 두어
+ * 줄마다 1px 씩 길어지고 머리가 칸마다 들쭉날쭉했다.
+ *
+ * 화면 코드가 머리에 준 인라인 정렬(textAlign: 'right' 등)도 여기서 덮는다 — 원본이 그렇다.
+ * thead 의 th 만 건드린다(입력 폼이 tbody 안에 쓰는 이름표 th 는 그대로다).
+ */
+#root table:not(.no-ec) thead th {
+  text-align: center !important;
+  line-height: 1.428571 !important;
+}
+#root table:not(.no-ec) tbody td,
+#root table:not(.no-ec) tfoot td {
+  line-height: 1.428571 !important;
+}
+/* 합계줄 칸도 본문과 같은 여백이다(원본 [총합계] 6px 3px). 출력물(.ec-report)은 뒤에서 3px 로 덮는다. */
+#root table:not(.no-ec) tfoot td {
+  padding: 6px 3px !important;
+  border: 1px solid var(--ec-border) !important;
+  font-size: 12px !important;
+}
+/* 조회 목록 계열의 합계줄(판매현황 [총합계]) — 보통 굵기, 회색 247, 이름 가운데. 칸마다 칠한다(원본이 그렇다). */
+:root {
+  --ec-list-total-bg: rgb(247, 247, 247);
+}
+#root table:not(.no-ec) tr.ec-list-total td {
+  background: var(--ec-list-total-bg);
+  font-weight: 400;
+}
 #root table:not(.no-ec) tbody tr:hover {
   background: var(--ec-blue-light) !important;
 }

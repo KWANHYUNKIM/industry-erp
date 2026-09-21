@@ -653,13 +653,17 @@ export default function SalesStatusPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>총합계 ({shown.length}줄)</td>
+            {/*
+              원본 [총합계](2026-09-21 E040207 실측): <b>보통 굵기</b> · 회색 rgb(247,247,247) · 이름 <b>가운데</b>,
+              글자는 '총합계' 하나다. 굵은 글씨와 뒤에 붙인 줄 수는 우리가 덧칠한 것이었다.
+            */}
+            <tr className="ec-list-total">
+              <td colSpan={3} style={{ textAlign: 'center' }}>총합계</td>
               <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
               <td></td>
               <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+              <td style={{ textAlign: 'right' }}>
                 {(totals.supply + totals.vat).toLocaleString()}
               </td>
               <td colSpan={2}></td>
