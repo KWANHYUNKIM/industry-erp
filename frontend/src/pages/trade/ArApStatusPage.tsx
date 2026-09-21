@@ -72,9 +72,14 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
    * 우리는 이 화면을 <b>채권/채무</b>로 열고 있었다 — 원본과 다른 숫자가 첫 화면에 보였다.
    */
   const defaultMode: Mode = screen === 'AP' ? 'PAYABLE' : 'RECEIVABLE'
-  /** 원본 열 폭·머리글을 잰 화면 — 채권현황·채무현황(2026-09-21). 채권/채무현황은 아직 안 쟀다. */
-  const fixedFrame = screen === 'AR' || screen === 'AP'
   const [mode, setMode] = useState<Mode>(defaultMode)
+  /**
+   * 원본 열 폭·머리글을 잰 판 — 2026-09-21. 채권현황·채무현황, 그리고 <b>채권/채무현황의 기본 판</b>
+   * ([구분] 채권). 원본 채권/채무현황은 기본 [구분]이 채권이고 그때 큰 제목이 <b>'채권현황'</b>,
+   * 표도 채권현황과 같다(718px · 106/291/107/107/107). [구분]을 채무·채권채무로 바꾼 판은
+   * 조건을 건드려야 해서 안 쟀다 — 그 판은 예전처럼 화면 폭이다.
+   */
+  const fixedFrame = screen === 'AR' || screen === 'AP' || (screen === 'AR_AP' && mode === 'RECEIVABLE')
   /*
    * 원본 기준일자는 <b>한 날짜</b>인데 <b>기본값이 화면마다 다르다</b> —
    * 채권현황·채무현황(E040721)은 <b>금월(~오늘)</b>(2026-09-02 실측)이고,
