@@ -72,6 +72,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
    * 우리는 이 화면을 <b>채권/채무</b>로 열고 있었다 — 원본과 다른 숫자가 첫 화면에 보였다.
    */
   const defaultMode: Mode = screen === 'AP' ? 'PAYABLE' : 'RECEIVABLE'
+  /** 원본 열 폭·머리글을 잰 화면 — 채권현황·채무현황(2026-09-21). 채권/채무현황은 아직 안 쟀다. */
+  const fixedFrame = screen === 'AR' || screen === 'AP'
   const [mode, setMode] = useState<Mode>(defaultMode)
   /*
    * 원본 기준일자는 <b>한 날짜</b>인데 <b>기본값이 화면마다 다르다</b> —
@@ -342,16 +344,20 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
       /*
-        머리글·꼬리와 열 폭은 <b>채권현황(E040721)만</b> 원본대로 둔다 — 2026-09-21 실측
-        (표 width 718px · table-layout fixed · 열 106 / 291 / 107 / 107 / 107px =
-        거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계). 채무현황·채권/채무현황은 열 폭을
+        머리글·꼬리와 열 폭은 <b>채권현황(E040721)·채무현황(E040722)</b>을 원본대로 둔다 —
+        2026-09-21 실측, 두 화면이 같다(표 width 718px · table-layout fixed · 열 106 / 291 / 107 /
+        107 / 107px = 거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계). 채권/채무현황은 열 폭을
         아직 안 재서 예전처럼 화면 폭이다. 번호·거래처그룹·관리담당자는 원본에 없는 우리 열이다.
+
+        <b>줄무늬는 없다</b> — 두 화면 다 본문 줄이 모두 투명이고 회색은 합계줄뿐이다(채권현황 7줄,
+        채무현황 수십 줄을 줄 차례대로 읽었다). 처음에는 첫 여덟 줄의 배경을 <b>중복 없이 모은
+        목록</b>으로 보고 거기 섞인 합계줄의 회색을 줄무늬로 잘못 읽어 넣었다가 뺐다.
       */
-      <div className={screen === 'AR' ? 'ec-report-frame' : undefined}>
-      {screen === 'AR' && <EcReportHead title="채권현황" period={reportPeriod(asOf)} />}
-      <table ref={tableRef} className={screen === 'AR'
-        ? 'text-left ec-report ec-report-stripe ec-report-fixed'
-        : 'w-full text-left ec-report ec-report-stripe'}>
+      <div className={fixedFrame ? 'ec-report-frame' : undefined}>
+      {fixedFrame && <EcReportHead title={screen === 'AP' ? '채무현황' : '채권현황'} period={reportPeriod(asOf)} />}
+      <table ref={tableRef} className={fixedFrame
+        ? 'text-left ec-report ec-report-fixed'
+        : 'w-full text-left ec-report'}>
         {/*
           <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040721) getComputedStyle 실측.
           머리 700 · 가운데, 본문 3px · 줄 간격 17.14px, 줄무늬, 합계줄 굵게·회색·<b>이름은 가운데</b>.
@@ -360,10 +366,10 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         */}
         <thead><tr>
           <th style={{ width: 34 }}></th>
-          <th style={{ width: screen === 'AR' ? 106 : 110 }}>거래처코드</th>
-          <th style={screen === 'AR' ? { width: 291 } : undefined}>거래처명</th>
-          <th style={{ width: screen === 'AR' ? 110 : 130 }}>거래처그룹</th>
-          <th style={{ width: screen === 'AR' ? 90 : 100 }}>관리담당자</th>
+          <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>
+          <th style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
+          <th style={{ width: fixedFrame ? 110 : 130 }}>거래처그룹</th>
+          <th style={{ width: fixedFrame ? 90 : 100 }}>관리담당자</th>
           {/*
             원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
             아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
@@ -378,7 +384,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             우리는 청구·미청구를 못 가르므로(아래 예외) 한 쪽에 한 칸씩만 두는데,
             마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
           */}
-          {mode !== 'BOTH' && <th style={{ width: screen === 'AR' ? 107 : 130, textAlign: 'right' }}>합계</th>}
+          {mode !== 'BOTH' && <th style={{ width: fixedFrame ? 107 : 130, textAlign: 'right' }}>합계</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
           {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>차액</th>}
@@ -420,7 +426,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           </tfoot>
         )}
       </table>
-      {screen === 'AR' && <EcReportFoot />}
+      {fixedFrame && <EcReportFoot />}
       </div>
       )}
 
