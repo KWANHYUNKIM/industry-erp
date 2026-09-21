@@ -183,6 +183,14 @@ main table,
   text-align: center !important;
   line-height: 1.428571 !important;
 }
+/*
+ * 조회 목록(판매조회·구매조회)의 머리는 <b>굵다</b> — 2026-09-21 판매조회 실측: th·안쪽 span 모두 700.
+ * 위의 400 은 전표 입력 격자에서 잰 값이라(50b2975) 조회 목록에는 맞지 않았다.
+ * 다른 목록 화면은 아직 재지 않아 이 격자에만 건다(.ec-list-grid).
+ */
+#root table.ec-list-grid thead th {
+  font-weight: 700 !important;
+}
 #root table:not(.no-ec) tbody td,
 #root table:not(.no-ec) tfoot td {
   line-height: 1.428571 !important;

@@ -593,7 +593,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </span>
       </div>
 
-      <table ref={listRef} className="w-full text-left">
+      <table ref={listRef} className="w-full text-left ec-list-grid">
         <thead>
           <tr>
             {/* 원본 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 전표 입력 그리드와 같은 규칙. */}
