@@ -258,7 +258,15 @@ export default function CurrentStockPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
+        <table className="w-full text-left ec-report">
+          {/*
+            <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040701) getComputedStyle 실측.
+            머리 700·6/3/3·가운데, 본문 3px·17.14, <b>줄무늬 없음</b>, 합계줄 700·회색·<b>[합계] 가운데</b>.
+            수량은 <b>검정·보통 굵기, 숫자만</b>이다(원본 합계 32,952 · 음수도 검정 -2) — 굵은 수량과
+            뒤에 붙인 단위 글자는 우리가 덧칠한 것이었다.
+            안전재고 미달의 빨강·줄 색은 남긴다 — 원본 이 화면에 없는 우리 열([안전재고]·[상태])에
+            딸린 표시라 견줄 원본이 없다.
+          */}
           <colgroup>
             <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
             <col style={{ width: '14%' }} />
@@ -294,13 +302,13 @@ export default function CurrentStockPage() {
             ) : (
               shown.map((r, idx) => (
                 <tr key={`${r.itemId}-${r.warehouseId}`} style={r.belowSafety ? { background: '#fdf1f3' } : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  <td style={{ textAlign: 'center', color: '#8a929c' }}>{idx + 1}</td>
+                  <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                   <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: r.belowSafety ? '#c60a2e' : undefined }}>
-                    {r.quantity.toLocaleString()} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.unit}</span>
+                  <td style={{ textAlign: 'right', color: r.belowSafety ? '#c60a2e' : undefined }}>
+                    {r.quantity.toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.safetyStock.toLocaleString()}</td>
                   <td style={{ textAlign: 'center' }}>
@@ -315,9 +323,9 @@ export default function CurrentStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totalQty.toLocaleString()}</td>
-                <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
+                <td style={{ textAlign: 'right' }}>{totalQty.toLocaleString()}</td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}
