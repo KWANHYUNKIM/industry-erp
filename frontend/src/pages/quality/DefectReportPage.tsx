@@ -9,6 +9,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /** 원본 [생산수량]의 재료. 이 화면이 쓰는 칸만 든다. */
 interface ProductionRow {
@@ -229,10 +230,40 @@ export default function DefectReportPage() {
       .filter((r) => !categoryCond || (itemById.get(r.itemId)?.categoryName ?? '') === categoryCond)
       .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
       .filter((r) => !specCond || (itemById.get(r.itemId)?.spec ?? '').includes(specCond))
-      .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
+      /*
+       * <b>표의 차례는 창고 × 품목코드다</b> — 2026-09-21 원본 실측. 여태 <b>불량률 높은 순</b>
+       * 하나로 세웠는데, 원본은 창고로 묶고 그 안에서 <b>품목코드 오름차순</b>으로 세운다
+       * (완제품제조: AQD · AQD_BD · AQD_C · AQD_CT · AQD_CV · AQD_OS · AQD_PP).
+       * 창고별 소계줄이 있으니 표가 창고로 묶여야 소계가 설 자리가 생긴다.
+       *
+       * <p><b>창고 사이의 차례는 못 쟀다</b> — 원본은 200 · 201 · 100 순이라 창고코드 순이
+       * 아니었다(창고 마스터의 등록·정렬 순서일 수 있다). 여기서는 <b>창고명 오름차순</b>으로
+       * 두고 '(미지정)' 을 맨 뒤로 보낸다(subtotalBy 의 규칙). 재면 그때 맞춘다.
+       *
+       * <p>불량률 높은 순은 <b>그래프</b>가 그대로 들고 간다 — 거기서는 무엇이 자주 틀리는지가
+       * 읽는 목적이라 순서가 뜻을 지닌다.
+       */
+      .sort((a, b) => a.itemCode.localeCompare(b.itemCode))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inspections, adjustments, productions, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond,
       categoryCond, itemGroupCond, specCond, itemById, mgmt.groupOptions])
+
+  /**
+   * 원본 격자의 <b>창고별 소계줄</b> — 2026-09-21 실측('반제품제조 계 312' · '완제품제조 계 212' ·
+   * '제품자재창고 계 2'). 우리 표에는 없어서 창고가 여럿이면 <b>어느 창고가 얼마인지</b>를
+   * 사람이 눈으로 더해야 했다.
+   *
+   * <p><b>소계의 불량률 칸은 비운다.</b> 원본에서 그 칸에 값이 서는지는 <b>못 봤다</b> —
+   * 실측한 세 소계가 다 한쪽 수만 가졌다(생산만 있거나 불량만 있거나). 모르는 것을
+   * 지어내느니 비워 둔다. 합계줄은 원본이 실제로 값을 찍어(524 · 2 · <b>0</b>) 그대로 낸다.
+   */
+  const groups = useMemo(() => subtotalBy(rows, (r) => r.warehouseName, {
+    produced: (r) => r.producedQty,
+    inspected: (r) => r.inspectedQty,
+    defect: (r) => r.inspectDefect,
+    handled: (r) => r.defectHandled,
+    disposed: (r) => r.disposed,
+  }), [rows])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
     produced: s.produced + r.producedQty,
@@ -332,9 +363,11 @@ export default function DefectReportPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
+        /* 표는 창고 순이지만 <b>그래프는 불량률 높은 순</b>이다 — 위 정렬 주석 참고. */
         <EcBarChart unit=" %" emptyText="검사한 품목이 없습니다."
                     rows={rows.filter((r) => r.inspectedQty > 0)
-                      .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))} />
+                      .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))
+                      .sort((a, b) => b.value - a.value)} />
       ) : (
       <table className="w-full text-left">
         <thead>
@@ -372,7 +405,8 @@ export default function DefectReportPage() {
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r, i) => (
+          ) : groups.flatMap((g, gi) => [
+            ...g.rows.map((r, i) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: r.warehouseCode ? undefined : '#c5cbd3' }}>{r.warehouseCode}</td>
@@ -388,7 +422,19 @@ export default function DefectReportPage() {
               <td style={{ textAlign: 'right', color: r.defectHandled ? '#a5561b' : '#c5cbd3' }}>{r.defectHandled ? won(r.defectHandled) : ''}</td>
               <td style={{ textAlign: 'right', color: r.disposed ? '#6b3fb0' : '#c5cbd3' }}>{r.disposed ? won(r.disposed) : ''}</td>
             </tr>
-          ))}
+            )),
+            /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률 칸은 비운다(위 groups 주석). */
+            <tr key={'sub' + gi} style={{ background: '#f2f5f8', fontWeight: 600 }}>
+              <td colSpan={5} style={{ textAlign: 'right' }}>{g.label} 계</td>
+              <td />
+              <td style={{ textAlign: 'right' }}>{g.sums.produced ? won(g.sums.produced) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{g.sums.inspected ? won(g.sums.inspected) : ''}</td>
+              <td style={{ textAlign: 'right', color: g.sums.defect ? '#c60a2e' : undefined }}>{g.sums.defect ? won(g.sums.defect) : ''}</td>
+              <td />
+              <td style={{ textAlign: 'right', color: g.sums.handled ? '#a5561b' : undefined }}>{g.sums.handled ? won(g.sums.handled) : ''}</td>
+              <td style={{ textAlign: 'right', color: g.sums.disposed ? '#6b3fb0' : undefined }}>{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
+            </tr>,
+          ])}
         </tbody>
         {rows.length > 0 && (
           <tfoot>

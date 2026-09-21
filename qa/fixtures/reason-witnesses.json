@@ -2872,9 +2872,10 @@
   "in": "backend/src/main/java/com/erp/production/domain/Production.java"
  },
  "불량률파악보고서|정렬/소계기준": {
-  "claim": "이 표는 불량률 높은 순 하나로 세운다 — 고를 축이 없다",
+  "claim": "원본이 실제로 쓰는 축(창고)으로 소계를 둔다 — 고르게 하는 [설정] 팝업의 후보는 아직 못 쟀다",
   "present": [
-   "b.defectRate - a.defectRate"
+   "subtotalBy(rows",
+   "계</td>"
   ],
   "file": "quality/DefectReportPage.tsx"
  },
