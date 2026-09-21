@@ -191,6 +191,27 @@ main table,
 #root table.ec-list-grid thead th {
   font-weight: 700 !important;
 }
+/*
+ * 조회 목록 본문 — 2026-09-21 구매조회 실측(줄마다 읽음):
+ * 줄무늬는 <b>한 줄 건너</b> (249,249,249), 본문 칸에는 <b>세로선이 없고</b> 아래 선 1px 만 있다
+ * (머리는 세로선이 있다). 줄무늬는 펼침 줄이 끼어도 흔들리지 않게 nth-child 가 아니라 화면이 준 차례로 붙인다.
+ */
+#root table.ec-list-grid > tbody > tr > td {
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+}
+#root table.ec-list-grid > tbody > tr.ec-list-alt > td {
+  background-color: rgb(249, 249, 249);
+}
+/* 격자 안의 링크 글자(원본 [인쇄]·일자-No) — 색 (25,53,140), 밑줄 없음. */
+.ec-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: rgb(25, 53, 140);
+  cursor: pointer;
+}
 #root table:not(.no-ec) tbody td,
 #root table:not(.no-ec) tfoot td {
   line-height: 1.428571 !important;

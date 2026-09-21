@@ -634,7 +634,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((d, i) => (
             <Fragment key={d.id}>
-              <tr onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
+              <tr className={i % 2 ? 'ec-list-alt' : undefined}
+                  onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
                 <td
                   style={{
                     textAlign: 'center',
@@ -648,24 +649,26 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 >
                   {i + 1}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>
+                {/* 원본: 일자-No 는 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴이다(2026-09-21 구매조회 실측). */}
+                <td style={{ color: 'rgb(25, 53, 140)' }}>
                   {openId === d.id ? '▾ ' : '▸ '}{dateNo(d)}
                 </td>
                 <td>{d.partnerName}</td>
-                <td style={{ color: '#5a626e' }}>
+                <td>
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
+                <td style={{ textAlign: 'right' }}>{won(d.totalAmount)}</td>
                 {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
-                <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
+                <td>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
                 <td>{d.warehouseName}</td>
-                <td style={{ color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
+                <td>
                   {d.accountingReflected ? '반영' : '미반영'}
                 </td>
                 <td onClick={(e) => e.stopPropagation()}>
-                  <button className="ec-btn ec-btn-sm" onClick={() => printOne(d)}>인쇄</button>
+                  {/* 원본 [인쇄]는 버튼이 아니라 링크 글자다. */}
+                  <button type="button" className="ec-link" onClick={() => printOne(d)}>인쇄</button>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: '#8a929c', textAlign: 'right' }}>
+                <td style={{ textAlign: 'right' }}>
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
                     const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
