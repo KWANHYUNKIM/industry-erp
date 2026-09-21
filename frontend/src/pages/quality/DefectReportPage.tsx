@@ -10,6 +10,14 @@ import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
+/** 원본 [생산수량]의 재료. 이 화면이 쓰는 칸만 든다. */
+interface ProductionRow {
+  productId: number; productCode: string; productName: string; productUnit: string
+  warehouseName: string
+  producedQty: number; productionDate: string
+  projectName: string | null
+}
+
 /**
  * 재고 II > 품질관리 — 불량률파악보고서 (이카운트 E040512)
  * 품질검사(검사수량·불량)와 기타이동의 불량처리·폐기 수량을 품목별로 모아 불량률을 파악한다.
@@ -28,6 +36,23 @@ interface Row {
   warehouseName: string; warehouseCode: string
   /** 원본 격자가 [품목명[규격명]] 한 칸으로 적는다 — 규격을 줄에 실어 둔다. */
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
+  /**
+   * 원본 격자의 <b>[생산수량]</b> — 2026-09-21 원본(E040512) 실측으로 뜻을 가렸다.
+   *
+   * <p>여태 '우리 숫자는 검사에서 나온다 — 검사 안 한 생산분은 줄에 없어 생산수량이라
+   * 부르면 거짓이 된다' 고 적어 두고 안 만들었다. <b>그 판단이 틀렸다.</b> 원본의 이 칸은
+   * 검사와 아무 상관이 없고 <b>생산실적 수량</b>이다. 실측 판(2024/01/01~2026/09/21):
+   * 반제품제조 창고에 AQD 몸체 156 · AQD 뚜껑 156(계 312), 완제품제조에 AQD 133 …(계 212),
+   * 합계 524. 그리고 <b>제품자재창고의 송풍기 줄은 생산수량이 비어 있고 불량수량만 2</b> 다 —
+   * 두 칸이 서로 다른 자료에서 오고, 줄은 <b>둘의 합집합</b>이라는 증거다.
+   *
+   * <p><b>안 잰 것</b>: 원본이 생산실적의 <b>받는창고</b>로 묶는지 <b>생산된공장</b>으로 묶는지는
+   * 못 쟀다(생산입고조회 C000032 가 "작업 진행중 오류" 를 내 열리지 않았다 — 보드에 적힌
+   * 그 화면 문제 그대로다). 우리는 <b>받는창고</b>로 둔다: 같은 줄의 불량처리 수량도
+   * '그 창고에 있던 재고' 를 빼는 것이라 축이 같다. 합계는 어느 쪽으로 묶어도 같고,
+   * <b>창고별로 갈리는 줄만</b> 달라질 수 있다. 재면 그때 맞춘다.
+   */
+  producedQty: number
   inspectedQty: number; inspectDefect: number; defectRate: number
   defectHandled: number; disposed: number
 }
@@ -40,6 +65,7 @@ export default function DefectReportPage() {
   const pickers = useCondPickers(['items', 'warehouses', 'projects'])
   const [inspections, setInspections] = useState<QualityInspection[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
+  const [productions, setProductions] = useState<ProductionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -92,7 +118,7 @@ export default function DefectReportPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [q, a, d, it] = await Promise.all([
+      const [q, a, d, it, p] = await Promise.all([
         /*
          * <b>검사도 기간을 서버에 넘긴다.</b> 바로 아래 재고조정은 진작 넘기고 있었는데
          * 이것만 전 기간을 받아 아래 inPeriod 로 걸렀다 — 옆줄이 하는 일을 이 줄만 안 했다.
@@ -101,8 +127,15 @@ export default function DefectReportPage() {
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
         api.get<Item[]>('/items'),
+        /*
+         * 원본 [생산수량]의 재료 — <b>생산실적</b>이다(위 Row.producedQty 주석의 실측).
+         * 기간은 <b>생산일</b>로 보낸다: 이 화면의 [기준일자]가 검사·불량처리에 거는 것과
+         * 같은 축이다(작업지시가 언제 났는지를 묻는 자리가 아니다).
+         */
+        api.get<ProductionRow[]>('/productions', { params: { from, to } }),
       ])
       setInspections(q.data); setAdjustments(a.data.rows); setDefectTypes(d.data); setItems(it.data)
+      setProductions(p.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -134,6 +167,7 @@ export default function DefectReportPage() {
       if (!r) {
         r = { warehouseName: w, warehouseCode: w === '(미지정)' ? '' : codeOfWarehouse(w),
           itemId, itemCode: code, itemName: name, spec: items.find((x) => x.id === itemId)?.spec ?? null, unit,
+          producedQty: 0,
           inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }
         map.set(key, r)
       }
@@ -168,6 +202,24 @@ export default function DefectReportPage() {
       if (a.type === 'DEFECT') r.defectHandled += qty
       else r.disposed += qty
     }
+    /*
+     * 원본 <b>[생산수량]</b>. 검사·불량처리와 <b>같은 줄에 얹는다</b> — 원본에서 줄은
+     * 둘의 합집합이라(송풍기 줄이 생산수량 없이 불량수량만 2였다), 생산만 있는 품목도
+     * 줄이 선다.
+     *
+     * <p>조건은 <b>검사·불량처리와 겹치는 것만</b> 건다. [불량유형]으로 물었으면 생산은
+     * 답하지 않는다 — 검사에만 있는 축이라, 끼워 주면 무엇으로 걸린 표인지 알 수 없다
+     * (바로 위 재고조정이 같은 까닭으로 빠진다). [검사자]도 마찬가지다.
+     * [처리방법]은 불량을 어떻게 뺐나를 묻는 것이라 생산과 상관이 없다.
+     */
+    for (const p of productions) {
+      if (!inPeriod(p.productionDate)) continue
+      if (defectTypeCond || inspectorCond) continue
+      if (whCond && p.warehouseName !== whCond) continue
+      if (projCond && (p.projectName ?? '') !== projCond) continue
+      const r = get(p.warehouseName, p.productId, p.productCode, p.productName, p.productUnit)
+      r.producedQty += p.producedQty
+    }
     const kw = keyword.trim()
     const out = [...map.values()]
     for (const r of out) r.defectRate = r.inspectedQty > 0 ? (r.inspectDefect / r.inspectedQty) * 100 : 0
@@ -179,13 +231,14 @@ export default function DefectReportPage() {
       .filter((r) => !specCond || (itemById.get(r.itemId)?.spec ?? '').includes(specCond))
       .sort((a, b) => b.defectRate - a.defectRate || (b.inspectDefect + b.defectHandled + b.disposed) - (a.inspectDefect + a.defectHandled + a.disposed))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspections, adjustments, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond,
+  }, [inspections, adjustments, productions, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond,
       categoryCond, itemGroupCond, specCond, itemById, mgmt.groupOptions])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
+    produced: s.produced + r.producedQty,
     inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
     handled: s.handled + r.defectHandled, disposed: s.disposed + r.disposed,
-  }), { inspected: 0, defect: 0, handled: 0, disposed: 0 }), [rows])
+  }), { produced: 0, inspected: 0, defect: 0, handled: 0, disposed: 0 }), [rows])
   const overallRate = totals.inspected > 0 ? (totals.defect / totals.inspected) * 100 : 0
   const reset = () => { setFrom(''); setTo(''); setKeyword('') }
 
@@ -305,6 +358,8 @@ export default function DefectReportPage() {
             <th>품목코드</th>
             <th>품목명[규격명]</th>
             <th style={{ textAlign: 'center', width: 46 }}>단위</th>
+            {/* 원본 차례: 품목명[규격명] 다음이 [생산수량]이다(2026-09-21 실측). */}
+            <th style={{ textAlign: 'right' }}>생산수량</th>
             <th style={{ textAlign: 'right' }}>검사수량</th>
             <th style={{ textAlign: 'right' }}>검사불량</th>
             <th style={{ textAlign: 'right' }}>불량률</th>
@@ -314,9 +369,9 @@ export default function DefectReportPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -325,6 +380,8 @@ export default function DefectReportPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
+              {/* 원본도 생산이 없는 줄은 <b>빈칸</b>이다(송풍기 줄) — 0 으로 찍지 않는다. */}
+              <td style={{ textAlign: 'right', color: r.producedQty ? undefined : '#c5cbd3' }}>{r.producedQty ? won(r.producedQty) : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>
               <td style={{ textAlign: 'right', color: r.inspectDefect ? '#c60a2e' : '#c5cbd3' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : ''}</td>
@@ -337,6 +394,7 @@ export default function DefectReportPage() {
           <tfoot>
             <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
               <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
+              <td style={{ textAlign: 'right' }}>{won(totals.produced)}</td>
               <td style={{ textAlign: 'right' }}>{won(totals.inspected)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(totals.defect)}</td>
               <td style={{ textAlign: 'right', color: rateColor(overallRate) }}>{overallRate.toFixed(2)}%</td>
