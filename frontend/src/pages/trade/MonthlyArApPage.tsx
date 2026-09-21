@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -278,6 +279,8 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         원본은 숫자를 <b>검정</b>으로, 거래처 코드·이름을 <b>보통 굵기의 맑은 고딕</b>으로 찍는다 —
         예전의 파랑·갈색 숫자와 굵은 이름·고정폭 코드는 우리가 덧칠한 것이었다.
       */}
+      <EcReportHead title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
+                    period={reportPeriod(`${year}-01-01`, `${year}-12-31`)} />
       <table className="w-full text-left ec-report">
         <thead>
           <tr>
@@ -347,6 +350,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           })}
         </tbody>
       </table>
+      <EcReportFoot />
       </div>
 
       {/*

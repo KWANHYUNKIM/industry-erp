@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow } from '../../api/types'
 import EcListShell from '../../components/EcListShell'
@@ -258,6 +259,7 @@ export default function CurrentStockPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="overflow-x-auto">
+        <EcReportHead title="재고현황" period={reportPeriod(cond.date)} />
         <table className="w-full text-left ec-report">
           {/*
             <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040701) getComputedStyle 실측.
@@ -330,6 +332,7 @@ export default function CurrentStockPage() {
             </tfoot>
           )}
         </table>
+        <EcReportFoot />
 
         {/*
           원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —

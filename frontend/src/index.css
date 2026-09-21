@@ -221,6 +221,31 @@ main table,
 #root table.ec-report tbody tr.ec-stripe td {
   background: var(--ec-report-stripe);
 }
+/*
+ * 출력물 머리글·꼬리(EcReportFrame) — 2026-09-21 원본 재고현황 실측.
+ * 제목 24px·700·가운데. 제목 윗선에서 회사명 줄까지 59px, 회사명 줄에서 표까지 6px.
+ * 회사명 줄·꼬리는 12px·400·검정이고 양 끝에 붙는다.
+ */
+#root .ec-report-head { margin-top: 12px; }
+#root .ec-report-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #000;
+  text-align: center;
+  line-height: 34px;
+  margin-bottom: 25px;
+}
+#root .ec-report-meta,
+#root .ec-report-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 400;
+  color: #000;
+  line-height: 17px;
+}
+#root .ec-report-meta { margin-bottom: 6px; }
+#root .ec-report-foot { margin-top: 6px; white-space: pre; }
 /* 합계·누계 줄 — 굵게, 회색, 이름 칸은 가운데. */
 #root table.ec-report tfoot td,
 #root table.ec-report tbody tr.ec-total td {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CommonCode, Item, QualityInspection, StockAdjustment } from '../../api/types'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -369,6 +370,8 @@ export default function DefectReportPage() {
                       .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))
                       .sort((a, b) => b.value - a.value)} />
       ) : (
+      <>
+      <EcReportHead title="불량률파악보고서" period={reportPeriod(from, to)} />
       <table className="w-full text-left ec-report">
         {/*
           <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040512) getComputedStyle 실측.
@@ -457,6 +460,8 @@ export default function DefectReportPage() {
           </tfoot>
         )}
       </table>
+      <EcReportFoot />
+      </>
       )}
     </EcListShell>
   )
