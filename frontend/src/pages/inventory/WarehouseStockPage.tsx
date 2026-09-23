@@ -322,8 +322,8 @@ export default function WarehouseStockPage() {
         줄 간격 17.14 · <b>줄무늬 없음</b>(줄마다 읽음 — 회색 한 줄은 마우스가 올라간 hover 였다).
         합계줄 700 · 회색 243 · [합계] 가운데. 번호 열은 원본에 <b>없다</b> — 두 격자 모두 품목코드부터다.
 
+        재고현황과 <b>다른</b> 것: 머리가 <b>보통 굵기(400)</b>다(바탕 247,248,249 · 6/3/3 · 27px 은 같다).
         .ec-report 가 머리를 700 으로 덮으므로 ec-report-head400 변형(index.css)을 붙였다.
-        .ec-report 가 머리를 700 으로 덮어서 여기서는 못 맞췄다 — 공용 CSS 에 400 변형이 필요하다.
       */}
       <div ref={tableRef} className="overflow-x-auto">
         <div className="ec-report-frame">
