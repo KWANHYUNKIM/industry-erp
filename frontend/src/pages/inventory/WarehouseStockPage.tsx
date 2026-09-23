@@ -8,6 +8,21 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+
+/** 원본 [횡] 음수 칸 바탕 — 2026-09-23 E040711 실측(bg-danger). 공용 토큰이 아직 없다. */
+const NEG_BG = 'rgb(246, 215, 215)'
+/** 원본 [횡] 사용중단 창고 머리 글자색 — 2026-09-23 E040711 실측([공구 창고]). */
+const INACTIVE_HEAD = 'rgb(173, 181, 189)'
+
+/** [횡] 수량 칸 — 0 은 빈칸, 음수는 분홍 바탕(원본 그대로). */
+function QtyCell({ q }: { q: number }) {
+  return (
+    <td style={{ textAlign: 'right', background: q < 0 ? NEG_BG : undefined }}>
+      {q === 0 ? '' : q.toLocaleString()}
+    </td>
+  )
+}
 
 /**
  * 재고 > 창고별재고현황 (이카운트 E040711)
@@ -170,8 +185,8 @@ export default function WarehouseStockPage() {
     setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: true, inactiveWarehouse: true, withUntracked: false, safety: false, rollUp: false, category: '', itemGroup: '' })
   }
 
-  const flatCols = 6 + (cond.safety ? 1 : 0)
-  const wideCols = 5 + shownWarehouses.length + 1 + (cond.safety ? 1 : 0)
+  const flatCols = 5 + (cond.safety ? 1 : 0)
+  const wideCols = 4 + shownWarehouses.length + (cond.safety ? 1 : 0)
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
@@ -300,31 +315,48 @@ export default function WarehouseStockPage() {
         재고수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(grandTotal)}</b>
       </div>
 
+      {/*
+        <b>출력물 격자 — 2026-09-23 원본(E040711) getComputedStyle 실측</b>, 자료 든 판(기준일자 오늘).
+        머리글·꼬리는 재고현황(E040701)과 같다: 제목 24/700 가운데(제목 폭 1255 ≈ 표 1263),
+        [회사명 : …]·기준일자(2026/09/23) 한 줄, 아래 [P.1]·출력 시각. 본문 12/400 검정 · 3px · 24px ·
+        줄 간격 17.14 · <b>줄무늬 없음</b>(줄마다 읽음 — 회색 한 줄은 마우스가 올라간 hover 였다).
+        합계줄 700 · 회색 243 · [합계] 가운데. 번호 열은 원본에 <b>없다</b> — 두 격자 모두 품목코드부터다.
+
+        .ec-report 가 머리를 700 으로 덮으므로 ec-report-head400 변형(index.css)을 붙였다.
+        .ec-report 가 머리를 700 으로 덮어서 여기서는 못 맞췄다 — 공용 CSS 에 400 변형이 필요하다.
+      */}
       <div ref={tableRef} className="overflow-x-auto">
+        <div className="ec-report-frame">
+        <EcReportHead title="창고별재고현황" period={reportPeriod(cond.date)} />
         {mode === '종' ? (
-          <table className="w-full text-left">
+          <table className="text-left ec-report ec-report-fixed ec-report-head400">
+            {/*
+              [종] 열 폭 — 원본 <b>678px · fixed · 96 / 222 / 120 / 120 / 120</b>
+              (품목코드 · 품목명[규격] · 창고코드 · 창고명 · 재고수량). [안전재고]는 켜서 재지 못했다.
+            */}
+            <colgroup>
+              <col style={{ width: 96 }} /><col style={{ width: 222 }} /><col style={{ width: 120 }} />
+              <col style={{ width: 120 }} /><col style={{ width: 120 }} />
+              {cond.safety && <col style={{ width: 100 }} />}
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: '4%' }}></th>
                 {/*
                   <b>창고별재고현황(E040711) [창고별(종)] 2026-09-09 원본 격자 실측</b> —
                   [품목코드 · 품목명[규격] · <b>창고코드</b> · <b>창고명</b> · 재고수량].
-                  우리는 (1) 품목명과 규격을 두 칸으로 갈라 두었고 — 이 화면의 [종]에서는
-                  원본이 대괄호로 합친다(같은 화면 [횡]에서는 [규격]을 따로 둔다. 원본이
-                  그렇게 갈라 놓았다), (2) 창고를 <b>이름 한 칸</b>으로만 두었다 —
-                  원본은 코드와 이름을 나란히 둔다.
-                  (원본 [종]에는 표시형식용 열 둘이 더 붙는다 — [품목명]·[품목코드(품명,
-                  규격,단위포함)]. 같은 값을 다르게 적어 보여 주는 칸이라 옮기지 않는다.)
+                  원본은 규격을 품목명 뒤 대괄호에 붙이고, 창고는 코드와 이름을 나란히 둔다.
+                  (원본 [종]에는 표시형식용 숨은 열 둘이 더 있다 — [품목명]·[품목코드(품명,
+                  규격,단위포함)]. 높이 0 으로 안 보이는 칸이라 옮기지 않는다.)
                   <b>대조표(ecount-column-align.json)의 이 화면 차례는 [종] 기준</b>이다 —
                   한 화면이 격자 둘을 갈아 끼우는데 대조표는 화면마다 한 줄이라, [횡]에만
                   있는 이름([품목명]·[규격])은 뒤에 잇대어 두었다.
                 */}
-                <th style={{ width: '14%' }}>품목코드</th>
+                <th>품목코드</th>
                 <th>품목명[규격]</th>
-                <th style={{ width: '10%' }}>창고코드</th>
-                <th style={{ width: '18%' }}>창고명</th>
-                <th style={{ width: '12%', textAlign: 'right' }}>재고수량</th>
-                {cond.safety && <th style={{ width: '11%', textAlign: 'right' }}>안전재고</th>}
+                <th>창고코드</th>
+                <th>창고명</th>
+                <th style={{ textAlign: 'right' }}>재고수량</th>
+                {cond.safety && <th style={{ textAlign: 'right' }}>안전재고</th>}
               </tr>
             </thead>
             <tbody>
@@ -332,57 +364,65 @@ export default function WarehouseStockPage() {
                 <tr><td colSpan={flatCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : flatRows.length === 0 ? (
                 <tr><td colSpan={flatCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
-              ) : flatRows.map((r, i) => {
-                // 같은 품목이 이어지면 품목 칸을 비워 창고 축이 눈에 들어오게 한다.
-                const first = i === 0 || flatRows[i - 1].item.id !== r.item.id
-                return (
-                  <tr key={`${r.item.id}-${r.warehouse.id}`}>
-                    <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{first ? r.item.code : ''}</td>
-                    {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
-                    <td>{first ? r.item.name + (r.item.spec ? ` [${r.item.spec}]` : '') : ''}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.warehouse.code}</td>
-                    <td>{r.warehouse.name}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {num(r.qty)} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.item.unit}</span>
-                    </td>
-                    {cond.safety && <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.item.safetyStock)}</td>}
-                  </tr>
-                )
-              })}
+              ) : flatRows.map((r) => (
+                /*
+                  원본 [종]은 같은 품목이 이어져도 품목코드·품목명을 <b>줄마다 다시 찍는다</b>
+                  (16mm새들 · 17.242 가 두 줄 모두 코드를 단다). 우리는 비워 두었었다.
+                  창고코드만 링크색(25,53,140)이고 나머지는 검정 400, 음수도 검정·바탕 없음이다.
+                */
+                <tr key={`${r.item.id}-${r.warehouse.id}`}>
+                  <td>{r.item.code}</td>
+                  <td>{r.item.name + (r.item.spec ? ` [${r.item.spec}]` : '')}</td>
+                  <td><span className="ec-link" style={{ cursor: 'default' }}>{r.warehouse.code}</span></td>
+                  <td>{r.warehouse.name}</td>
+                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
+                  {cond.safety && <td style={{ textAlign: 'right' }}>{num(r.item.safetyStock)}</td>}
+                </tr>
+              ))}
             </tbody>
             {flatRows.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(grandTotal)}</td>
-                  {cond.safety && <td style={{ background: '#f5f7fa' }}></td>}
+                  {/* 원본 [합계]는 앞 네 칸을 합친 칸의 가운데다(colSpan 4). */}
+                  <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
+                  <td style={{ textAlign: 'right' }}>{num(grandTotal)}</td>
+                  {cond.safety && <td></td>}
                 </tr>
               </tfoot>
             )}
           </table>
         ) : (
-          <table className="w-full text-left">
+          <table className="text-left ec-report ec-report-fixed ec-report-head400">
+            {/*
+              [횡] 열 폭 — 원본 <b>fixed · 96 / 222 / 104 / 120 + 창고마다 120</b>
+              (품목코드 · 품목명 · 규격 · 재고수량 · 창고들; 창고 여섯이면 1262px). [단위]·번호 열은
+              원본에 없어 뺐다. [안전재고]는 켜서 재지 못했다.
+            */}
+            <colgroup>
+              <col style={{ width: 96 }} /><col style={{ width: 222 }} /><col style={{ width: 104 }} />
+              <col style={{ width: 120 }} />
+              {shownWarehouses.map((w) => <col key={w.id} style={{ width: 120 }} />)}
+              {cond.safety && <col style={{ width: 100 }} />}
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: 40 }}></th>
                 {/*
                   <b>[창고별(횡)] 2026-09-09 원본 격자 실측</b> —
                   [품목코드 · 품목명 · <b>규격</b> · <b>재고수량</b> · 창고들…].
-                  우리는 (1) 규격 칸을 [규격정보]라 불렀고, (2) 품목 합계를 창고들
-                  <b>뒤</b>에 [합계]로 두었다 — 원본은 창고들 <b>앞</b>에 두고
-                  <b>[재고수량]</b> 이라 부른다(창고가 여럿이면 오른쪽 끝까지 밀려
-                  가로로 긁어야 총량이 보였다). [단위]는 우리가 더 두는 열이다.
+                  품목 합계는 창고들 <b>앞</b>의 [재고수량] 이다.
+                  사용중단 창고의 머리는 <b>흐린 회색</b>(173,181,189)이다(2026-09-23 [공구 창고]).
+                  (원본 앞 네 머리는 정렬 링크라 링크색·▼ 이 붙는다 — 우리는 이 격자에 정렬이 없어 옮기지 않았다.)
                 */}
-                <th style={{ width: 120 }}>품목코드</th>
-                <th style={{ minWidth: 160 }}>품목명</th>
-                <th style={{ width: 120 }}>규격</th>
-                <th style={{ width: 60 }}>단위</th>
-                <th style={{ textAlign: 'right', width: 110 }}>재고수량</th>
+                <th>품목코드</th>
+                <th>품목명</th>
+                <th>규격</th>
+                <th style={{ textAlign: 'right' }}>재고수량</th>
                 {shownWarehouses.map((w) => (
-                  <th key={w.id} style={{ textAlign: 'right', width: 110 }}>{w.name}</th>
+                  <th key={w.id} style={{ textAlign: 'right' }}>
+                    <span style={w.active ? undefined : { color: INACTIVE_HEAD }}>{w.name}</span>
+                  </th>
                 ))}
-                {cond.safety && <th style={{ textAlign: 'right', width: 100 }}>안전재고</th>}
+                {cond.safety && <th style={{ textAlign: 'right' }}>안전재고</th>}
               </tr>
             </thead>
             <tbody>
@@ -390,36 +430,39 @@ export default function WarehouseStockPage() {
                 <tr><td colSpan={wideCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
               ) : shownItems.length === 0 ? (
                 <tr><td colSpan={wideCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
-              ) : shownItems.map((it, i) => (
+              ) : shownItems.map((it) => (
+                /*
+                  원본 [횡] 본문(2026-09-23): 품목코드·품목명은 링크색(25,53,140), 나머지 검정 400.
+                  수량이 <b>0 이면 빈칸</b>, <b>음수면 칸 바탕이 분홍</b>(246,215,215 · 글자는 검정)이다 —
+                  [재고수량] 칸도 창고 칸도 같다. 우리는 0 을 회색 글자로 찍고 재고수량을 굵은 파랑으로 칠했다.
+                */
                 <tr key={it.id}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
-                  <td>{it.name}</td>
+                  <td><span className="ec-link" style={{ cursor: 'default' }}>{it.code}</span></td>
+                  <td><span className="ec-link" style={{ cursor: 'default' }}>{it.name}</span></td>
                   <td>{it.spec ?? ''}</td>
-                  <td>{it.unit}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{num(itemTotal(it.id))}</td>
-                  {shownWarehouses.map((w) => {
-                    const q = qtyOf.get(`${it.id}:${w.id}`) ?? 0
-                    return <td key={w.id} style={{ textAlign: 'right', color: q === 0 ? '#c2c8d0' : undefined }}>{num(q)}</td>
-                  })}
-                  {cond.safety && <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(it.safetyStock)}</td>}
+                  <QtyCell q={itemTotal(it.id)} />
+                  {shownWarehouses.map((w) => <QtyCell key={w.id} q={qtyOf.get(`${it.id}:${w.id}`) ?? 0} />)}
+                  {cond.safety && <td style={{ textAlign: 'right' }}>{num(it.safetyStock)}</td>}
                 </tr>
               ))}
             </tbody>
             {shownItems.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(grandTotal)}</td>
+                  {/* 원본 [합계]는 앞 세 칸을 합친 칸의 가운데다. 합계줄 음수는 분홍 없이 회색 바탕 그대로다. */}
+                  <td colSpan={3} style={{ textAlign: 'center' }}>합계</td>
+                  <td style={{ textAlign: 'right' }}>{num(grandTotal)}</td>
                   {shownWarehouses.map((w) => (
-                    <td key={w.id} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(warehouseTotal(w.id))}</td>
+                    <td key={w.id} style={{ textAlign: 'right' }}>{num(warehouseTotal(w.id))}</td>
                   ))}
-                  {cond.safety && <td style={{ background: '#f5f7fa' }}></td>}
+                  {cond.safety && <td></td>}
                 </tr>
               </tfoot>
             )}
           </table>
         )}
+        <EcReportFoot />
+        </div>
       </div>
     </EcListShell>
   )

@@ -591,7 +591,23 @@ export default function SalesStatusPage() {
           </tfoot>
         </table>
       ) : (
-        <table className="w-full text-left">
+        <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+          {/*
+            <b>2026-09-23 원본(E040207) getComputedStyle 실측</b> — 이 화면 격자는 <b>출력물(.ec-report)이 아니라
+            조회 목록 모양</b>이다: 머리 400·10/3/8·36px·가운데·배경 (247,248,249), 본문 12px 400 검정·6px 3px·30px·
+            줄간격 17.14·<b>세로선 없음</b>, 줄무늬 <b>한 줄 건너 (249,249,249)</b>(줄 차례대로 읽음, 소계·총합계 줄도
+            차례에 든다), 머리글(회사명·기간)·꼬리([P.1]) <b>없음</b>.
+            열 폭 — <b>table-layout:fixed</b>, 표는 화면 폭을 채우고 &lt;col&gt; 은 750 기준 비율
+            <b>100 / 144 / 81 / 91 / 91 / 81 / 86 / 76</b>(일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 부가세 ·
+            합계 · 거래처명; 2266px 폭에서 302 / 435 / 245 / 275 / 275 / 245 / 260 / 230 으로 늘어나 있었다).
+            [창고명]은 원본에 없는 우리 열이라 잴 값이 없다 — 거래처명과 같은 76 으로 둔다.
+            원본에 없는 순번 열은 뺐다.
+          */}
+          <colgroup>
+            {[100, 144, 81, 91, 91, 81, 86, 76, 76].map((w, i) => (
+              <col key={i} style={{ width: `${(w / 826) * 100}%` }} />
+            ))}
+          </colgroup>
           <thead>
             {/*
               원본 열 차례(2026-09-09 실측): 일자-No. · 품목명(규격) · 수량 · <b>단가</b> ·
@@ -599,76 +615,76 @@ export default function SalesStatusPage() {
               [단가]는 우리에게 아예 없던 열이다 — 줄에는 진작 실려 오던 값이다.
               [창고명]은 원본에 없지만 우리가 더 두는 것이라 맨 뒤에 붙인다.
             */}
+            {/* 머리의 인라인 정렬은 칸 정렬을 적어 두는 것이다(ui-check 가 읽는다) — 보이는 머리는 index.css 가 가운데로 덮는다. */}
             <tr>
-              <th style={{ width: 34 }}></th>
-              {/* 원본은 [일자-No.] 를 가운데로 찍는다(2026-09-09 실측). */}
-              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
+              <th style={{ textAlign: 'center' }}>일자-No.</th>
               <th>품목명(규격)</th>
-              <th style={{ width: 100, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>단가</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 120, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th style={{ textAlign: 'right' }}>수량</th>
+              <th style={{ textAlign: 'right' }}>단가</th>
+              <th style={{ textAlign: 'right' }}>공급가액</th>
+              <th style={{ textAlign: 'right' }}>부가세</th>
+              <th style={{ textAlign: 'right' }}>합계</th>
               <th>거래처명</th>
-              <th style={{ width: 110 }}>창고명</th>
+              <th>창고명</th>
             </tr>
           </thead>
           <tbody>
             {/*
               원본은 <b>달이 바뀌는 자리에 '2026/08 계'</b> 를 끼우고 맨 끝에 <b>'총합계'</b> 를
-              둔다(2026-09-09 실측). 우리는 줄만 늘어놓고 있어서 "이번 달 얼마 팔았나" 를
-              눈으로 세야 했다. 소계는 목록을 만들면서 같이 넣는다(lineRows).
+              둔다(2026-09-09 실측). 소계는 목록을 만들면서 같이 넣는다(lineRows).
+              소계·총합계 줄(2026-09-23 실측): 칸마다 회색 (247,247,247) — ec-list-total —, 칸은 400 인데
+              <b>안쪽 글자가 700</b>이다(2026-09-21 에 칸만 재고 '보통 굵기' 라 적었던 것은 틀렸다).
+              이름은 <b>일자-No.·품목명 두 칸을 합쳐 가운데</b>.
+              빈 목록(2026-09-23 실측): '등록된 데이터가 없습니다.' <b>검정·가운데·보통 줄 높이</b>, 총합계 줄은 안 나온다.
+              본문 숫자는 전부 <b>검정 400</b>이다 — 단가·부가세를 회색으로, 합계를 굵은 파랑으로 칠한 것은 우리 덧칠이었다.
+              일자-No. 는 가운데·링크색 (25,53,140)·보통 글꼴(고정폭 아님).
             */}
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center' }}>불러오는 중…</td></tr>
             /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : lineRows.map((x) => x.kind === 'subtotal' ? (
-              <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>{x.month} 계</td>
-                <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.price.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{(x.supply + x.vat).toLocaleString()}</td>
+              <tr><td colSpan={9} style={{ textAlign: 'center' }}>등록된 데이터가 없습니다.</td></tr>
+            ) : lineRows.map((x, i) => x.kind === 'subtotal' ? (
+              <tr key={x.key} className="ec-list-total">
+                <td colSpan={2} style={{ textAlign: 'center', fontWeight: 700 }}>{x.month} 계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.qty.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.price.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{(x.supply + x.vat).toLocaleString()}</td>
                 <td colSpan={2}></td>
               </tr>
             ) : (
-              <tr key={x.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.docNo}</td>
+              <tr key={x.key} style={i % 2 ? { background: 'rgb(249, 249, 249)' } : undefined}>
+                <td style={{ textAlign: 'center' }}>
+                  <span className="ec-link">{dateText(x.r.date)} {x.r.docNo}</span>
+                </td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 없는 품목은 이름만 찍는다. */}
                 <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
                 <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{x.r.unitPrice.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{x.r.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
-                  {(x.r.supply + x.r.vat).toLocaleString()}
-                </td>
+                <td style={{ textAlign: 'right' }}>{x.r.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{(x.r.supply + x.r.vat).toLocaleString()}</td>
                 <td>{x.r.partner}</td>
                 <td>{x.r.warehouseName}</td>
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            {/*
-              원본 [총합계](2026-09-21 E040207 실측): <b>보통 굵기</b> · 회색 rgb(247,247,247) · 이름 <b>가운데</b>,
-              글자는 '총합계' 하나다. 굵은 글씨와 뒤에 붙인 줄 수는 우리가 덧칠한 것이었다.
-            */}
-            <tr className="ec-list-total">
-              <td colSpan={3} style={{ textAlign: 'center' }}>총합계</td>
-              <td style={{ textAlign: 'right' }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-              <td></td>
-              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>
-                {(totals.supply + totals.vat).toLocaleString()}
-              </td>
-              <td colSpan={2}></td>
-            </tr>
-          </tfoot>
+          {!loading && lineRows.length > 0 && (
+            <tfoot>
+              {/* 원본 [총합계] — 칸 회색 247, 글자 700, 이름은 두 칸 합쳐 가운데(2026-09-23 실측). */}
+              <tr className="ec-list-total">
+                <td colSpan={2} style={{ textAlign: 'center', fontWeight: 700 }}>총합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+                <td></td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.supply.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       )}
     </EcListShell>

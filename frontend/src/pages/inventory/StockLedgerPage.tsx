@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
@@ -10,6 +10,7 @@ import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -432,8 +433,40 @@ export default function StockLedgerPage() {
         </div>
       </div>
 
-      <div ref={tableRef}>
-      <table className="w-full text-left">
+      <div className="overflow-x-auto">
+      <div className="ec-report-frame" ref={tableRef}>
+      <EcReportHead title="재고수불부" period={reportPeriod(filters.from, filters.to)} />
+      {/*
+        <b>출력물 격자</b>(index.css .ec-report) — 2026-09-23 원본(E040702) getComputedStyle 실측,
+        자료 든 판(전월+금월 2026/08/01~09/23, 품목 269개 = 표 269개):
+        <ul>
+          <li>표 <b>width:649px · table-layout:fixed · border-collapse</b>, 열 폭
+              <b>99 / 184 / 129 / 79 / 79 / 79</b> (일자·거래처명·적요·입고수량·출고수량·재고수량).</li>
+          <li>머리 12px·700·검정·배경 (247,248,249)·6px 3px 3px·27px·가운데, 윗선 (155,176,190).</li>
+          <li>본문 12px·<b>400·검정</b>·3px·24px·줄간격 17.14, 맑은 고딕. 일자 가운데, 글자 왼쪽, 수량 오른쪽.
+              <b>줄무늬 없음</b>(줄마다 읽음 — 본문은 모두 투명, 회색은 계·합계줄뿐).</li>
+          <li>맨 윗줄 <b>[전일재고]</b> — 일자~적요 세 칸을 덮고 가운데, 줄 전체 700, 글자만 빨강
+              rgb(215,62,62)(안쪽 span). 재고수량 칸에 기초 수량.</li>
+          <li><b>[2026/08  계]</b>(달마다) · <b>[합계]</b> — 세 칸을 덮고 가운데, 700, 배경 (243,243,243).
+              재고수량 칸은 그 시점 잔량.</li>
+          <li>숫자: 천 단위 쉼표, 입고·출고가 없으면 <b>빈칸</b>(0 을 안 찍는다), 음수는 검정 '-50'.
+              날짜 2026/08/03.</li>
+        </ul>
+        여태 입고 파랑·출고 주황·굵은 잔량·회색 적요·등폭 날짜로 덧칠했었다 — 원본은 모두 검정 보통이다.
+        원본은 품목마다 표를 따로 찍지만(머리글 "회사명 : … / 품목명 (코드)", 꼬리 [P.n]) 우리는 한 표에
+        편다(위 주석). 그래서 [#]·[유형]·[품목]·[창고]·[단가]·[금액] 은 원본에 없는 우리 열이라 잴 폭이
+        없다 — 글자가 들어갈 만큼만 둔다. [전일재고]·기말 잔량은 품목·창고를 모두 골랐을 때만
+        뜻이 있어(summary.singleScope) 그때만 찍는다.
+      */}
+      <table className="text-left ec-report ec-report-fixed">
+        <colgroup>
+          <col style={{ width: 34 }} /><col style={{ width: 99 }} /><col style={{ width: 50 }} />
+          <col style={{ width: 200 }} /><col style={{ width: 100 }} />
+          <col style={{ width: 184 }} /><col style={{ width: 129 }} />
+          <col style={{ width: 79 }} /><col style={{ width: 79 }} /><col style={{ width: 79 }} />
+          {showPrice && <col style={{ width: 90 }} />}
+          {showPrice && <col style={{ width: 100 }} />}
+        </colgroup>
         <thead>
           <tr>
             {/*
@@ -451,12 +484,13 @@ export default function StockLedgerPage() {
               백엔드는 그대로다.
               [유형]·[단가]·[금액]은 우리 열이다.
             */}
-            <th style={{ width: 34 }}></th>
+            <th></th>
+            {/* 머리 정렬은 칸 정렬을 적어 둔다 — 화면에는 .ec-report 가 전부 가운데로 덮는다(원본도 머리는 가운데). */}
             <th style={{ textAlign: 'center' }}>일자</th>
-            <th style={{ textAlign: 'center', width: 60 }}>유형</th>
+            <th style={{ textAlign: 'center' }}>유형</th>
             <th>품목</th>
             <th>창고</th>
-            <th style={{ width: 140 }}>거래처명</th>
+            <th>거래처명</th>
             <th>적요</th>
             <th style={{ textAlign: 'right' }}>입고수량</th>
             <th style={{ textAlign: 'right' }}>출고수량</th>
@@ -467,51 +501,112 @@ export default function StockLedgerPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={showPrice ? 12 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={showPrice ? 12 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
               {rows.length === 0 ? '해당 기간의 입출고 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
-            const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
-            const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
+          ) : (() => {
+            const out: ReactElement[] = []
+            /* 원본 맨 윗줄 [전일재고] — 품목·창고를 모두 골랐을 때만 기초가 뜻이 있다. */
+            if (summary.singleScope && summary.opening != null) {
+              out.push(
+                <tr key="opening" style={{ fontWeight: 700 }}>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>
+                    {/* 원본 글자색 rgb(215,62,62) — 2026-09-23 E040702 실측(안쪽 span). */}
+                    <span style={{ color: 'rgb(215, 62, 62)' }}>전일재고</span>
+                  </td>
+                  <td></td><td></td>
+                  <td style={{ textAlign: 'right' }}>{num(summary.opening)}</td>
+                  {showPrice && <td></td>}
+                  {showPrice && <td></td>}
+                </tr>,
+              )
+            }
             /*
-             * 원본 [단가표시]가 고른 단가로 [단가]·[금액]을 낸다. 품목 마스터에 그 단가를
-             * 안 정했으면(0) <b>모른다</b>로 둔다 — 0 으로 쓰면 금액이 0 이 되어
-             * "값이 없는 것" 과 "공짜로 오간 것" 이 화면에서 같아진다.
+             * 원본 [2026/08  계] — 달이 바뀔 때마다 그 달 입고·출고 합과 달말 잔량.
+             * [품목명(정렬)] 을 켜면 달이 섞이므로 달 계를 끼우지 않는다.
              */
-            const master = priceBasis === '전표단가' ? null : itemById.get(r.itemId)
-            const basePrice = priceBasis === '전표단가' ? r.unitPrice
-              : priceBasis === '판매단가' ? (master?.unitPrice || null)
-                : (master?.purchasePrice || null)
-            const amount = basePrice != null ? Math.abs(r.quantityChange) * basePrice : null
-            const bal = runningById.get(r.id)
-            const c = TYPE_COLOR[r.type]
-            return (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.transactionDate)}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
-                </td>
-                <td>{r.itemName}</td>
-                <td>{r.warehouseName}</td>
-                <td style={{ color: '#5a626e' }}>{partnerOf(r.note)}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
-                {showPrice && (
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{basePrice != null ? num(basePrice) : ''}</td>
-                )}
-                {showPrice && (
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
-                )}
-              </tr>
-            )
-          })}
+            const monthly = !byItemName
+            let mIn = 0, mOut = 0, mLastId: number | null = null
+            const pushMonth = (ym: string) => {
+              const bal = summary.singleScope && mLastId != null ? runningById.get(mLastId) : undefined
+              out.push(
+                <tr key={`m-${ym}`} className="ec-total">
+                  <td colSpan={7} style={{ textAlign: 'center' }}>{`${ym.replace('-', '/')}  계`}</td>
+                  <td style={{ textAlign: 'right' }}>{mIn ? num(mIn) : ''}</td>
+                  <td style={{ textAlign: 'right' }}>{mOut ? num(mOut) : ''}</td>
+                  <td style={{ textAlign: 'right' }}>{bal != null ? num(bal) : ''}</td>
+                  {showPrice && <td></td>}
+                  {showPrice && <td></td>}
+                </tr>,
+              )
+              mIn = 0; mOut = 0
+            }
+            shown.forEach((r, i) => {
+              const ym = r.transactionDate.slice(0, 7)
+              if (monthly && i > 0 && shown[i - 1].transactionDate.slice(0, 7) !== ym) {
+                pushMonth(shown[i - 1].transactionDate.slice(0, 7))
+              }
+              const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
+              const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
+              mIn += inQ; mOut += outQ; mLastId = r.id
+              /*
+               * 원본 [단가표시]가 고른 단가로 [단가]·[금액]을 낸다. 품목 마스터에 그 단가를
+               * 안 정했으면(0) <b>모른다</b>로 둔다 — 0 으로 쓰면 금액이 0 이 되어
+               * "값이 없는 것" 과 "공짜로 오간 것" 이 화면에서 같아진다.
+               */
+              const master = priceBasis === '전표단가' ? null : itemById.get(r.itemId)
+              const basePrice = priceBasis === '전표단가' ? r.unitPrice
+                : priceBasis === '판매단가' ? (master?.unitPrice || null)
+                  : (master?.purchasePrice || null)
+              const amount = basePrice != null ? Math.abs(r.quantityChange) * basePrice : null
+              const bal = runningById.get(r.id)
+              const c = TYPE_COLOR[r.type]
+              out.push(
+                <tr key={r.id}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center' }}>{dateText(r.transactionDate)}</td>
+                  {/* [유형] 은 원본에 없는 우리 열이라 색 표시를 남긴다. */}
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
+                  </td>
+                  <td>{r.itemName}</td>
+                  <td>{r.warehouseName}</td>
+                  <td>{partnerOf(r.note)}</td>
+                  <td>{r.note ?? ''}</td>
+                  <td style={{ textAlign: 'right' }}>{inQ ? num(inQ) : ''}</td>
+                  <td style={{ textAlign: 'right' }}>{outQ ? num(outQ) : ''}</td>
+                  <td style={{ textAlign: 'right' }}>{bal != null ? num(bal) : ''}</td>
+                  {showPrice && (
+                    <td style={{ textAlign: 'right' }}>{basePrice != null ? num(basePrice) : ''}</td>
+                  )}
+                  {showPrice && (
+                    <td style={{ textAlign: 'right' }}>{amount != null ? num(amount) : ''}</td>
+                  )}
+                </tr>,
+              )
+            })
+            if (monthly) pushMonth(shown[shown.length - 1].transactionDate.slice(0, 7))
+            return out
+          })()}
         </tbody>
+        {/* 원본 [합계] — 세 칸을 덮고 가운데, 700·회색(.ec-report tfoot). 재고수량 칸은 기말 잔량. */}
+        {!loading && shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={7} style={{ textAlign: 'center' }}>합계</td>
+              <td style={{ textAlign: 'right' }}>{summary.inQty ? num(summary.inQty) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{summary.outQty ? num(summary.outQty) : ''}</td>
+              <td style={{ textAlign: 'right' }}>{summary.closing != null ? num(summary.closing) : ''}</td>
+              {showPrice && <td></td>}
+              {showPrice && <td></td>}
+            </tr>
+          </tfoot>
+        )}
       </table>
+      <EcReportFoot />
+      </div>
       </div>
     </EcListShell>
   )
