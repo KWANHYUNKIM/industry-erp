@@ -101,7 +101,13 @@ public class SalesOrderService {
     /** 미출하현황. 기간을 주면 그 기간에 받은 주문만 본다. */
     @Transactional(readOnly = true)
     public List<UnshippedLineResponse> findUnshipped(LocalDate from, LocalDate to) {
-        List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
+        /*
+         * 완료 주문도 본다(취소만 뺀다). 주문은 판매로 다 끊으면 완료가 되는데(refreshProgress),
+         * 물건은 아직 안 나갔을 수 있다 — 원본도 미출하는 주문 진행상태가 아니라 출하 쪽으로 센다.
+         * 출하로 완료된 주문은 남은 수량이 0 이라 어차피 안 나온다.
+         */
+        List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS,
+                SalesOrderStatus.COMPLETED);
         Map<Long, BigDecimal> committed = new HashMap<>();
         for (Object[] row : shipmentLineRepository.sumQuantityByOrderLineAll(
                 List.of(ShipmentStatus.READY, ShipmentStatus.SHIPPED))) {
@@ -267,6 +273,49 @@ public class SalesOrderService {
         }
         order.setStage(steps.get(current + 1).getStage());
         return SalesOrderResponse.from(order);
+    }
+
+    /**
+     * 주문 진행상태를 <b>출하와 판매 둘 다</b>로 다시 정한다. 출하·판매 전표가 바뀔 때마다 부른다.
+     *
+     * <p>예전엔 출하완료로만 닫혀서, 주문을 판매로 다 끊어도(출하 없이) 계속 '진행중' 이었다.
+     * 원본 이카운트는 판매입력이 주문서를 불러오면 주문을 완료로 닫는다(진행상태변경설정의 자동변경).
+     * 두 쪽이 따로 상태를 바꾸면 출하 재계산이 판매로 닫힌 주문을 다시 열어 버리므로, 여기 한 곳에서만 정한다.
+     *
+     * <ul>
+     *   <li>전 라인 출하완료 <b>또는</b> 전 품목 판매 → 완료</li>
+     *   <li>아니면 완료였던 것만 진행중으로 되돌린다(출하 취소·판매 삭제)</li>
+     *   <li>무엇이라도 나갔으면 접수 → 진행중</li>
+     * </ul>
+     * 판매는 수주 <b>헤더</b>만 가리키므로 품목으로 맞춘다(미판매현황·잔량 검사와 같은 규칙).
+     */
+    @Transactional
+    public void refreshProgress(SalesOrder order) {
+        if (order.getStatus() == SalesOrderStatus.CANCELED || order.getLines().isEmpty()) return;
+
+        boolean allShipped = true, moved = false;
+        Map<Long, BigDecimal> ordered = new HashMap<>();
+        for (SalesOrderLine l : order.getLines()) {
+            BigDecimal shipped = l.getShippedQty() != null ? l.getShippedQty() : BigDecimal.ZERO;
+            if (shipped.compareTo(l.getQuantity()) < 0) allShipped = false;
+            if (shipped.signum() > 0) moved = true;
+            ordered.merge(l.getItem().getId(), l.getQuantity(), BigDecimal::add);
+        }
+        Map<Long, BigDecimal> sold = new HashMap<>();
+        for (SalesLineRepository.OrderItemAggregate a : salesLineRepository.aggregateSoldByOrder(order.getId(), null)) {
+            sold.merge(a.getItemId(), a.getQty(), BigDecimal::add);
+        }
+        if (sold.values().stream().anyMatch(q -> q.signum() > 0)) moved = true;
+        boolean allSold = ordered.entrySet().stream()
+                .allMatch(e -> sold.getOrDefault(e.getKey(), BigDecimal.ZERO).compareTo(e.getValue()) >= 0);
+
+        if (allShipped || allSold) {
+            order.setStatus(SalesOrderStatus.COMPLETED);
+        } else if (order.getStatus() == SalesOrderStatus.COMPLETED) {
+            order.setStatus(SalesOrderStatus.IN_PROGRESS);
+        } else if (order.getStatus() == SalesOrderStatus.RECEIVED && moved) {
+            order.setStatus(SalesOrderStatus.IN_PROGRESS);
+        }
     }
 
     @Transactional

@@ -400,6 +400,49 @@ async function scenarioSaleWithinOrder(f) {
 }
 
 /**
+ * <b>주문을 판매로 다 끊으면 주문이 완료로 닫힌다</b> (QA 기록 #19, 8회차).
+ *
+ * 예전엔 출하완료로만 닫혀서 판매로 다 끊어도 계속 '진행중' 이었다. 원본 이카운트는 판매입력이
+ * 주문서를 불러오면 주문을 완료로 닫는다(진행상태변경설정 '자동변경'). 출하·판매가 서로의 완료를
+ * 뒤집지 않는지(출하 취소가 판매로 닫힌 주문을 다시 열지 않는지)도 같이 본다.
+ * 미출하는 주문 상태가 아니라 출하로 센다 — 판매로 닫혀도 안 나간 물건은 미출하에 남는다.
+ */
+async function scenarioOrderClosesBySales(f) {
+  section('■ 판매로 다 끊은 주문은 완료')
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-13',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
+  })
+  const lineId = order.lines[0].lineId
+  const statusOf = async () => (await must('GET', '/sales-orders')).find((o) => o.id === order.id).statusName
+  const sale = (qty) => must('POST', '/sales', {
+    saleDate: '2026-07-13', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: qty, unitPrice: 1000, sourceOrderId: order.id }],
+  })
+
+  const s1 = await sale(6)
+  eq('일부만 판매하면 진행중', await statusOf(), '진행중')
+  const s2 = await sale(4)
+  eq('주문수량만큼 판매하면 완료', await statusOf(), '완료')
+  eq('판매로 닫혀도 안 나간 물건은 미출하에 남는다',
+    (await must('GET', '/sales-orders/unshipped')).find((r) => r.orderLineId === lineId)?.unshippedQty, 10)
+
+  const ship = await must('POST', `/sales-orders/${order.id}/ship`, {})
+  await must('PATCH', `/shipments/${ship.id}/status`, { status: 'SHIPPED' })
+  eq('출하까지 끝나면 미출하에서 빠진다',
+    (await must('GET', '/sales-orders/unshipped')).filter((r) => r.orderLineId === lineId).length, 0)
+  await must('PATCH', `/shipments/${ship.id}/status`, { status: 'CANCELED' })
+  eq('출하를 취소해도 판매로 닫힌 주문은 완료 그대로', await statusOf(), '완료')
+
+  await must('DELETE', `/sales/${s2.id}`)
+  eq('판매를 지우면 다시 진행중', await statusOf(), '진행중')
+
+  await must('DELETE', `/shipments/${ship.id}`)
+  await must('DELETE', `/sales/${s1.id}`)
+  await must('DELETE', `/sales-orders/${order.id}`)
+}
+
+/**
  * <b>미출하현황이 말하는 미출하수량 = 실제로 낼 수 있는 잔량.</b>
  *
  * 예전에는 미출하수량을 "주문 − 출하<b>완료</b>" 로 냈다. 출하지시(READY)만 낸 수량은
@@ -9161,6 +9204,7 @@ async function main() {
   await scenarioUnsold(fixtures)
   await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioSaleWithinOrder(fixtures)
+  await scenarioOrderClosesBySales(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPriceBulkField(fixtures)
   await scenarioSpecialPrice(fixtures)

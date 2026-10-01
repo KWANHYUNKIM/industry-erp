@@ -15,6 +15,7 @@ import com.erp.trade.shipment.dto.ShipmentDtos.ShipLineRequest;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.trade.salesorder.SalesOrderRepository;
+import com.erp.trade.salesorder.SalesOrderService;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.hr.employee.EmployeeService;
@@ -40,6 +41,7 @@ public class ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final ShipmentLineRepository shipmentLineRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final SalesOrderService salesOrderService;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final WarehouseService warehouseService;
@@ -238,24 +240,18 @@ public class ShipmentService {
         return ShipmentResponse.from(shipment);
     }
 
-    /** 주문 라인의 누적 출하수량을 실제 출하완료분으로 다시 채우고, 주문 상태를 갱신한다. */
+    /**
+     * 주문 라인의 누적 출하수량을 실제 출하완료분으로 다시 채우고, 주문 상태를 갱신한다.
+     * 상태는 판매 쪽도 같이 봐야 하므로 여기서 정하지 않고 {@link SalesOrderService#refreshProgress} 에 맡긴다.
+     */
     private void recalcOrderProgress(SalesOrder order) {
         if (order.getStatus() == SalesOrderStatus.CANCELED || order.getLines().isEmpty()) return;
 
         Map<Long, BigDecimal> shipped = sumByOrderLine(order.getId(), SHIPPED_ONLY);
-        boolean allDone = true;
         for (SalesOrderLine line : order.getLines()) {
-            BigDecimal qty = shipped.getOrDefault(line.getId(), BigDecimal.ZERO);
-            line.setShippedQty(qty);
-            if (qty.compareTo(line.getQuantity()) < 0) allDone = false;
+            line.setShippedQty(shipped.getOrDefault(line.getId(), BigDecimal.ZERO));
         }
-
-        if (allDone) {
-            order.setStatus(SalesOrderStatus.COMPLETED);
-        } else if (order.getStatus() == SalesOrderStatus.COMPLETED) {
-            // 출하완료를 되돌린 경우 주문도 다시 진행중으로
-            order.setStatus(SalesOrderStatus.IN_PROGRESS);
-        }
+        salesOrderService.refreshProgress(order);
     }
 
     private BigDecimal remaining(SalesOrderLine line, Map<Long, BigDecimal> committed) {

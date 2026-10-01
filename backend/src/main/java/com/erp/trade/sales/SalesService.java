@@ -17,6 +17,7 @@ import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.trade.mall.MallOrderRepository;
 import com.erp.trade.salesorder.SalesOrderRepository;
+import com.erp.trade.salesorder.SalesOrderService;
 import com.erp.trade.taxinvoice.TaxInvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +30,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +62,7 @@ public class SalesService {
     private final TaxInvoiceRepository taxInvoiceRepository;
     // 명세 라인의 근거전표(수주). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
     private final SalesOrderRepository salesOrderRepository;
+    private final SalesOrderService salesOrderService;
     private final SalesLineRepository salesLineRepository;
     private final MallOrderRepository mallOrderRepository;
 
@@ -189,7 +193,9 @@ public class SalesService {
                 .build();
 
         applyContent(sales, req, username);
-        return SalesResponse.from(salesRepository.save(sales));
+        Sales saved = salesRepository.save(sales);
+        refreshOrders(sourceOrders(saved));
+        return SalesResponse.from(saved);
     }
 
     /**
@@ -208,6 +214,8 @@ public class SalesService {
         // 되돌리기는 반드시 '바꾸기 전' 창고·일자로 해야 한다. 창고를 옮기는 수정이면
         // 옛 창고에 되돌리고 새 창고에서 빼야 재고가 맞는다.
         revertStock(sales, "판매수정 원복", username);
+        // 근거 주문을 바꾸는 수정이면 옛 주문도 다시 봐야 한다(닫혀 있던 것이 열린다).
+        Set<SalesOrder> touchedOrders = new HashSet<>(sourceOrders(sales));
         sales.getLines().clear();
 
         sales.setPartner(resolvePartner(req.partnerId()));
@@ -215,6 +223,8 @@ public class SalesService {
         if (req.saleDate() != null) sales.setSaleDate(req.saleDate());
 
         applyContent(sales, req, username);
+        touchedOrders.addAll(sourceOrders(sales));
+        refreshOrders(touchedOrders);
         return SalesResponse.from(sales);
     }
 
@@ -225,6 +235,7 @@ public class SalesService {
         ensureEditable(sales, "삭제");
 
         revertStock(sales, "판매삭제 원복", username);
+        Set<SalesOrder> touchedOrders = sourceOrders(sales);
         salesRepository.delete(sales);
         try {
             // 다른 모듈(전자결재 첨부 전표)이 이 전표를 참조하고 있으면 여기서 FK 제약에 걸린다.
@@ -234,6 +245,24 @@ public class SalesService {
         } catch (DataIntegrityViolationException e) {
             throw ApiException.badRequest("다른 문서(전자결재 등)가 참조 중이라 삭제할 수 없습니다: " + sales.getDocNo());
         }
+        refreshOrders(touchedOrders);
+    }
+
+    /** 이 전표의 줄들이 근거로 삼은 주문들. */
+    private static Set<SalesOrder> sourceOrders(Sales sales) {
+        Set<SalesOrder> out = new HashSet<>();
+        for (SalesLine l : sales.getLines()) if (l.getSourceOrder() != null) out.add(l.getSourceOrder());
+        return out;
+    }
+
+    /**
+     * 판매로 주문이 다 끊겼는지 다시 본다 — 원본은 판매가 주문서를 불러오면 주문을 완료로 닫는다.
+     * 잔량 합계 쿼리가 방금 바꾼 줄을 보도록 먼저 flush 한다.
+     */
+    private void refreshOrders(Set<SalesOrder> orders) {
+        if (orders.isEmpty()) return;
+        salesRepository.flush();
+        orders.forEach(salesOrderService::refreshProgress);
     }
 
 
