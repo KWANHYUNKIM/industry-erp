@@ -1005,6 +1005,31 @@ async function scenarioQuotationWarehouseProject(f) {
   eq('수주에서 출하를 만들면 <b>프로젝트가 따라간다</b>', shp.projectName, proj.name)
   eq('수주에서 출하를 만들면 <b>창고가 따라간다</b>', shp.warehouseName, f.warehouse.name)
 
+  /*
+   * <b>프로젝트별 손익이 그 프로젝트 전표로 맞게 늘어나는가.</b> 손익은 판매 공급가 − 구매 공급가 − 비용이다.
+   * 판매 하나·구매 하나·비용 하나를 프로젝트에 달고 앞뒤 차이를 잰다(QA 가 돌 때마다 쌓이므로 절대값이 아니라 차이).
+   */
+  const PERIOD = 'from=2026-03-01&to=2026-03-31'
+  const rowOf = async () => (await must('GET', `/projects/profit?${PERIOD}`)).rows.find((r) => r.projectId === proj.id)
+    ?? { revenue: 0, purchaseCost: 0, expense: 0, profit: 0 }
+  const before = await rowOf()
+  const pSale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-03-02', taxable: true, projectId: proj.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 30000 }],
+  })
+  const pBuy = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-03-02', taxable: true, projectId: proj.id,
+    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 5000 }],
+  })
+  const acct = (await must('GET', '/accounts')).find((a) => a.code === '812') ?? (await must('GET', '/accounts'))[0]
+  await must('POST', '/expenses', { accountId: acct.id, expenseDate: '2026-03-02', content: 'QA 프로젝트 비용', amount: 3000, projectId: proj.id })
+  const after = await rowOf()
+  const d = (k) => Number(after[k]) - Number(before[k])
+  eq('프로젝트 손익: 매출이 판매 공급가만큼 는다', d('revenue'), Number(pSale.supplyAmount))
+  eq('프로젝트 손익: 구매원가가 구매 공급가만큼 는다', d('purchaseCost'), Number(pBuy.supplyAmount))
+  eq('프로젝트 손익: 비용이 비용 전표만큼 는다', d('expense'), 3000)
+  eq('프로젝트 손익: 이익 = 매출 − 원가 − 비용', d('profit'), 30000 - 10000 - 3000)
+
   const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
     `${again?.warehouseName}/${again?.projectName}`, `${f.warehouse.name}/${proj.name}`)
@@ -3438,6 +3463,21 @@ function scenarioSourceRules() {
     .map(([f]) => baseName(f))
     .sort()
   eq('EAGER 는 User.roles 하나뿐 (§5.2)', eager.join(',') || '없음', 'User.java')
+
+  // §4.1 — 기반층이 위층을 참조하면 순환이 된다. inventory 는 아무 모듈도, settings 도 아무 모듈도,
+  // auth 는 settings 만(회사코드 로그인). inventory 의 ProjectController 가 accounting 을 부르던
+  // 것이 이 검사 없이 남아 있었다(2026-10-01, /api/projects/profit 을 accounting 으로 옮김).
+  const MODULES = ['common', 'auth', 'inventory', 'trade', 'production', 'accounting', 'quality', 'hr', 'groupware', 'settings']
+  const ALLOWED = { inventory: ['common'], settings: ['common'], auth: ['common', 'settings'] }
+  const badDeps = []
+  for (const [f, src] of sources) {
+    const mod = f.split(sep).join('/').match(/com\/erp\/(\w+)\//)?.[1]
+    if (!ALLOWED[mod]) continue
+    for (const [, dep] of src.matchAll(/^import\s+(?:static\s+)?com\.erp\.(\w+)\./gm)) {
+      if (dep !== mod && MODULES.includes(dep) && !ALLOWED[mod].includes(dep)) badDeps.push(`${baseName(f)}→${dep}`)
+    }
+  }
+  eq('기반층(inventory·settings·auth)이 위층 모듈을 참조하지 않는다 (§4.1)', [...new Set(badDeps)].sort().join(',') || '없음', '없음')
 
   // 채번을 count()+1 로 하면 중간 것을 지웠을 때 이미 쓰는 번호를 가리키고,
   // 동시에 부르면 같은 번호를 준다. 번호 공간 락 없이 쓰면 안 된다.
