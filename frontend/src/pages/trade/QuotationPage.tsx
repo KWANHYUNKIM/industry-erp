@@ -631,7 +631,7 @@ export default function QuotationPage() {
       </table>
       )}
 
-      {showForm && <QuotationForm items={items} partners={partners} warehouses={warehouses} projects={projects} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('견적서를 작성했습니다.'); load() }} />}
+      {showForm && <QuotationForm items={items} partners={partners} warehouses={warehouses} projects={projects} onClose={() => setShowForm(false)} onSaved={(msg) => { setShowForm(false); flash(msg); load() }} />}
     </EcListShell>
   )
 }
@@ -640,7 +640,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
   items: Item[]; partners: Partner[]
   warehouses: { id: number; code: string; name: string }[]
   projects: { id: number; code: string; name: string }[]
-  onClose: () => void; onSaved: () => void
+  onClose: () => void; onSaved: (msg: string) => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [quoteDate, setQuoteDate] = useState(today())
@@ -673,11 +673,11 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
     setSaving(true)
     try {
-      await api.post('/quotations', { partnerId: Number(partnerId), quoteDate,
+      const res = await api.post<{ quoteNo: string; totalAmount: number }>('/quotations', { partnerId: Number(partnerId), quoteDate,
         warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
         projectId: fProject ? Number(fProject) : undefined,
         validUntil: validUntil || undefined, taxable: true, lines: payload })
-      onSaved()
+      onSaved(`${res.data.quoteNo} 견적서 작성 완료 (합계 ${res.data.totalAmount.toLocaleString('ko-KR')}원)`)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

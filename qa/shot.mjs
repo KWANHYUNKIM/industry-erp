@@ -10,6 +10,7 @@
  *               js:<식>             페이지에서 그대로 평가한다
  *               wait:<ms>
  *               click:<글자>        글자(또는 title)가 그것으로 시작하는 첫 버튼을 누른다
+ *               clicklast:<글자>    같은데 마지막 버튼 — 조건 판과 입력 폼에 같은 이름 버튼이 있을 때(폼이 아래에 그려진다)
  *               pickrow:<코드|@키>  열린 코드도움 팝업에서 칸 하나가 그 코드인 행을 고른다
  *               set:<선택자>[#n]|<값>  입력칸에 값을 넣는다(React 가 알아채도록 input 이벤트까지). #n 은 n 번째(0부터)
  *               choose:<선택자>[#n]|<보이는 글자>  드롭다운에서 그 글자의 항목을 고른다(id 는 환경마다 달라서)
@@ -49,10 +50,11 @@ try {
         await b.waitFor(`[...document.querySelectorAll('tr')].some(tr => tr.innerText.includes(${JSON.stringify(code)}))`)
         await b.evaluate(`[...document.querySelectorAll('tr')].find(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)})).click(); true`)
         await sleep(600)
-      } else if (kind === 'click') {
+      } else if (kind === 'click' || kind === 'clicklast') {
         const label = rest.join(':')
         const ok = await b.evaluate(`(() => { const t = ${JSON.stringify(label)};
-          const el = [...document.querySelectorAll('button')].find((x) => !x.disabled && ((x.textContent || '').trim().startsWith(t) || (x.title || '').startsWith(t)));
+          const all = [...document.querySelectorAll('button')].filter((x) => !x.disabled && ((x.textContent || '').trim().startsWith(t) || (x.title || '').startsWith(t)));
+          const el = ${kind === 'clicklast' ? 'all[all.length - 1]' : 'all[0]'};
           if (el) el.click(); return !!el })()`)
         if (!ok) throw new Error('누를 버튼이 없다: ' + label)
         await sleep(500)
