@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -303,10 +305,9 @@ function ContractForm({ partners, onError, onSaved }: {
           </select>
         </Field>
         <Field label="거래처 *">
-          <select className="ec-input" value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 160 }}>
-            <option value="">선택하세요</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={160} emptyLabel="선택 안 함" placeholder="선택하세요"
+                           value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                           items={partnerCodeItems(partners)} />
         </Field>
         <Field label="시작일 *">
           <input className="ec-input" type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} style={{ width: 140 }} />

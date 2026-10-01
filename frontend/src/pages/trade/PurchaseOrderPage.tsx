@@ -8,6 +8,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
@@ -883,10 +884,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>매입처<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">매입처 선택</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <CodePickerField label="매입처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매입처 선택"
+                                   value={partnerId} onChange={setPartnerId}
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
@@ -965,10 +965,9 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   </td>
                   <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
                   <td>
-                    <select className="ec-input" value={l.partnerId} onChange={(e) => setLine(i, { partnerId: e.target.value })} style={{ width: '100%' }}>
-                      <option value="">(헤더 매입처)</option>
-                      {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <CodePickerField label="매입처" hideLabel fill emptyLabel="(헤더 매입처)" placeholder="(헤더 매입처)"
+                                     value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })}
+                                     items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                   </td>
                   {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
                   <td style={{ textAlign: 'right', color: '#5a626e' }}>{stockCell(stockAllOf(l.itemId))}</td>

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, SpecialPrice, SpecialPriceResolve, SpecialPriceType } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 회계/재고 기초등록 > 특별단가등록 (이카운트 E040124)
@@ -187,10 +189,9 @@ export default function SpecialPricePage() {
           <option value="">품목 선택</option>
           {items.map((i) => <option key={i.id} value={i.id}>[{i.code}] {i.name}</option>)}
         </select>
-        <select className={inputCls} value={rv.partnerId} onChange={(e) => setRv((s) => ({ ...s, partnerId: e.target.value }))} style={{ width: 200 }}>
-          <option value="">거래처 선택</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <CodePickerField label="거래처" hideLabel width={200} emptyLabel="선택 안 함" placeholder="거래처 선택"
+                         value={rv.partnerId} onChange={(v) => setRv((s) => ({ ...s, partnerId: v }))}
+                         items={partnerCodeItems(partners)} />
         {rv.partnerId && <span style={{ fontSize: 11.5, color: '#8a929c' }}>단가그룹: {rvGroupHint || '(미지정)'}</span>}
         <button className="ec-btn" onClick={doResolve}>조회</button>
         {rvResult && (
@@ -220,10 +221,9 @@ export default function SpecialPricePage() {
               </select></label>
             {form.scope === 'partner' ? (
               <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처 *</div>
-                <select className={inputCls} value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 220 }}>
-                  <option value="">선택하세요</option>
-                  {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select></label>
+                <CodePickerField label="거래처" hideLabel width={220} emptyLabel="선택 안 함" placeholder="선택하세요"
+                                 value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                                 items={partnerCodeItems(partners)} /></label>
             ) : (
               <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>특별단가그룹 *</div>
                 <select className={inputCls} value={form.priceGroup} onChange={(e) => set('priceGroup', e.target.value)} style={{ width: 160 }}>

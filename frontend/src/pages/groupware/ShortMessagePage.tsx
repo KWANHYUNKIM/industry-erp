@@ -275,10 +275,9 @@ function ComposeForm({ users, partners, onDone }: { users: User[]; partners: Par
       </label>
       <label>
         <div style={{ color: '#5a626e', marginBottom: 4 }}>거래처 (선택)</div>
-        <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-          <option value="">지정 안 함</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <CodePickerField label="거래처" hideLabel width={220} emptyLabel="지정 안 함" placeholder="지정 안 함"
+                         value={partnerId} onChange={setPartnerId}
+                         items={partnerCodeItems(partners)} />
       </label>
       <div style={{ textAlign: 'right' }}>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>

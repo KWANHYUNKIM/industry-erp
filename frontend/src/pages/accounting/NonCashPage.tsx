@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -268,10 +270,9 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
           <input className="ec-input" type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
         </Field>
         <Field label="거래처">
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 150 }}>
-            <option value="">선택 안함</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                           value={partnerId} onChange={setPartnerId}
+                           items={partnerCodeItems(partners)} />
         </Field>
         <Field label="적요">
           <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: 180 }} />

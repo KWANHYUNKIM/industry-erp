@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { MallAccount, MallAccountType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰등록 (이카운트 C000664)
@@ -96,10 +98,9 @@ export default function MallAccountPage() {
                 <option value="MALL">쇼핑몰</option><option value="SOLUTION">통합관리솔루션</option>
               </select></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매전환 거래처</div>
-              <select className={inputCls} value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 200 }}>
-                <option value="">(미지정)</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select></label>
+              <CodePickerField label="판매전환 거래처" hideLabel width={200} emptyLabel="(미지정)" placeholder="(미지정)"
+                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매자 ID</div>
               <input className={inputCls} value={form.sellerId} onChange={(e) => set('sellerId', e.target.value)} style={{ width: 150 }} /></label>
             <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>

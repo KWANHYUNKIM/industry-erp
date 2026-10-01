@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { periodOf } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -829,10 +830,9 @@ function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
         </select>
       </Field>
       <Field label="거래처">
-        <select className="ec-input" value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 150 }}>
-          <option value="">선택 안함</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                         value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                         items={partnerCodeItems(partners)} />
       </Field>
       <Field label="적요">
         <input className="ec-input" value={form.description} onChange={(e) => set('description', e.target.value)} style={{ width: 160 }} />

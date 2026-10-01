@@ -13,6 +13,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -697,10 +698,13 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>거래처<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">매출처 선택</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  {/*
+                    드롭다운이었다 — 거래처가 수백 곳이면 스크롤로 찾아야 했고, 다른 입력칸(창고·프로젝트·품목)은
+                    다 코드도움이라 이 칸만 달랐다. 코드·이름·대표자·전화로 찾는 공용 코드도움으로. 매입 전용 거래처는 뺀다.
+                  */}
+                  <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                                   value={partnerId} onChange={setPartnerId}
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>견적일</th>
                 <td><input type="date" className="ec-input" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>

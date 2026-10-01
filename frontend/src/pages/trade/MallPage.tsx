@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -498,10 +499,9 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
           <tr>
             <th style={{ background: '#f5f7fa' }}>거래처(몰)<span style={{ color: '#c60a2e' }}>*</span></th>
             <td>
-              <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-                <option value="">매출처 선택</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <CodePickerField label="거래처(몰)" hideLabel width={220} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                               value={partnerId} onChange={setPartnerId}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
             </td>
           </tr>
           <tr>

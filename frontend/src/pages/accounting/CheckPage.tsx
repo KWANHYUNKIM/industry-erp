@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -271,10 +273,9 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
           <input className="ec-input" value={form.bankName} onChange={(e) => set('bankName', e.target.value)} style={{ width: 110 }} placeholder="국민은행" />
         </Field>
         <Field label="거래처">
-          <select className="ec-input" value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 150 }}>
-            <option value="">선택 안함</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                           value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                           items={partnerCodeItems(partners)} />
         </Field>
         {isIssued && (
           <Field label="발행계좌(당좌) *">

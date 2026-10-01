@@ -2,8 +2,10 @@ import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -388,10 +390,9 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>Buyer<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-                    <option value="">수입자 선택</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <CodePickerField label="수입자" hideLabel width={220} emptyLabel="선택 안 함" placeholder="수입자 선택"
+                                   value={partnerId} onChange={setPartnerId}
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
                 <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>

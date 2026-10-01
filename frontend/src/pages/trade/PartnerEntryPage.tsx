@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, PurchaseDoc, SalesDoc } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -122,15 +124,9 @@ export default function PartnerEntryPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <span style={{ fontSize: 12.5, color: '#5a626e' }}>거래처</span>
-        <select
-          className="ec-input"
-          style={{ width: 220 }}
-          value={partnerId}
-          onChange={(e) => setPartnerId(e.target.value ? Number(e.target.value) : '')}
-        >
-          <option value="">전체</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-        </select>
+        <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" placeholder="거래처"
+                         value={String(partnerId)} onChange={(v) => setPartnerId(v ? Number(v) : '')}
+                         items={partnerCodeItems(partners)} />
         {selectedPartner && (
           <span style={{ fontSize: 12.5, color: '#8a929c' }}>
             {selectedPartner.typeName}{selectedPartner.manager ? ` · 담당 ${selectedPartner.manager}` : ''}{selectedPartner.phone ? ` · ${selectedPartner.phone}` : ''}

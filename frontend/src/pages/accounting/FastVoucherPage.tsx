@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import { useSearchParams } from 'react-router-dom'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -326,10 +328,9 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
           </Field>
         )}
         <Field label="거래처">
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 150 }}>
-            <option value="">선택 안함</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                           value={partnerId} onChange={setPartnerId}
+                           items={partnerCodeItems(partners)} />
         </Field>
         <Field label="적요">
           <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: 200 }} />

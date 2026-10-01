@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef} from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { CrmActivity, CrmStage, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
@@ -122,10 +124,9 @@ export default function CrmPage() {
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>일자</div>
               <input className="ec-input" type="date" value={form.activityDate} onChange={(e) => set('activityDate', e.target.value)} style={{ width: 140 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>고객사 *</div>
-              <select className="ec-input" value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 200 }}>
-                <option value="">선택하세요</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-              </select></label>
+              <CodePickerField label="고객사" hideLabel width={200} emptyLabel="선택 안 함" placeholder="선택하세요"
+                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                               items={partnerCodeItems(partners)} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>담당연락처</div>
               <input className="ec-input" value={form.contactName} onChange={(e) => set('contactName', e.target.value)} style={{ width: 110 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>영업담당</div>
