@@ -1,4 +1,4 @@
-package com.erp.groupware.workspace;
+package com.erp.accounting.promissorynote;
 
 /** 어음 상태. 보유 중인 어음만 결제·할인·부도로 넘어갈 수 있다. */
 public enum NoteStatus {

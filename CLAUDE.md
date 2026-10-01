@@ -16,7 +16,7 @@
 
 | 모듈 | 책임 | 대표 엔티티 |
 |------|------|-------------|
-| `common` | 공통 기반. 다른 모듈을 몰라야 함. 메타/헬스 등 인프라 엔드포인트 포함 | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
+| `common` | 공통 기반. 다른 모듈을 몰라야 함(여러 모듈을 아우르는 메타 엔드포인트는 `config`) | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
 | `auth` | 사용자·역할·인증·권한 | `User`, `Role`, `Permission` |
 | `inventory` | 품목·창고·재고·프로젝트 (기초 마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem`, `Project` |
 | `trade` | 판매·구매·거래처·정산·출하·세금계산서·단가일괄 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment`, `TaxInvoice` |
@@ -91,8 +91,15 @@ controller  →  service  →  repository  →  domain
 
 ### 4.1 의존 방향은 단방향이어야 합니다
 
-현재 코드에서 실제로 측정한 모듈 의존 간선입니다. **순환이 없습니다(DAG).**
-이 성질을 깨는 의존을 새로 만들지 마세요.
+설계상 허용하는 모듈 의존 간선입니다. 목표는 **순환 없는 DAG** 입니다.
+이 표에 없는 의존을 새로 만들지 마세요 — `node qa/arch-check.mjs` 가 import 를 재서 막습니다(래칫).
+
+> **2026-10-01(QA 13회차) 실측 — 표 밖의 간선이 아직 있습니다(부채).** 이 문서는 한동안 "순환이 없다"고 했지만
+> 실제로는 순환이 넷이었습니다. 어음 enum 이 groupware 에 잘못 놓여 생긴 accounting↔groupware 와
+> common 이 다른 모듈을 참조하던 것(MetaController → config 로)은 그날 끊었고, 남은 것은 `qa/arch-check.mjs` 의
+> `KNOWN` 에 적어 두었습니다: `trade→accounting`(수출의 통화), `trade→hr`·`hr→trade`(담당자 Employee · 사원 실적),
+> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting↔trade · accounting↔hr ·
+> hr↔trade 순환이 남아 있습니다.** 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
 
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
@@ -116,7 +123,8 @@ controller  →  service  →  repository  →  domain
   주소는 그대로 두고 `accounting/project/ProjectProfitController` 로 옮겼다.)
 - `auth`는 `settings` 하나에만 의존합니다(로그인 시 회사코드 → 회사). 그래서 **`settings`는 `auth`를 참조할 수 없습니다.**
   회사를 만들 때 관리자 계정을 심는 일은 인프라 패키지 `tenant`(`TenantSeeder`)가 맡습니다.
-- `common`은 모두가 의존하고 아무것도 의존하지 않습니다.
+- `common`은 모두가 의존하고 아무것도 의존하지 않습니다. 여러 모듈을 아우르는 인프라 엔드포인트(`/api/meta`)는
+  `common` 이 아니라 `config` 에 둡니다.
 - `settings`는 다른 모듈에 의존하지 않습니다. 그대로 유지하세요.
 - 새 의존을 추가하기 전에 위 표에서 반대 방향 간선이 이미 있는지 확인하세요.
   예를 들어 `inventory`가 `trade`를 참조하면 `trade → inventory`와 맞물려 순환이 됩니다.

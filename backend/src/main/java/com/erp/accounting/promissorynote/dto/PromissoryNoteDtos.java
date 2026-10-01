@@ -1,8 +1,8 @@
 package com.erp.accounting.promissorynote.dto;
 
 import com.erp.accounting.promissorynote.PromissoryNote;
-import com.erp.groupware.workspace.NoteStatus;
-import com.erp.groupware.workspace.NoteType;
+import com.erp.accounting.promissorynote.NoteStatus;
+import com.erp.accounting.promissorynote.NoteType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

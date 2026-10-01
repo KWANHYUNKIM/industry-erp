@@ -1,7 +1,5 @@
 package com.erp.accounting.promissorynote;
 
-import com.erp.groupware.workspace.NoteStatus;
-import com.erp.groupware.workspace.NoteType;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -6,8 +6,6 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.account.Account;
 import com.erp.trade.partner.BusinessPartner;
-import com.erp.groupware.workspace.NoteStatus;
-import com.erp.groupware.workspace.NoteType;
 import com.erp.accounting.bankcard.dto.BankCardDtos.BankTxnRequest;
 import com.erp.accounting.promissorynote.dto.PromissoryNoteDtos.CreateNoteRequest;
 import com.erp.accounting.promissorynote.dto.PromissoryNoteDtos.DiscountRequest;

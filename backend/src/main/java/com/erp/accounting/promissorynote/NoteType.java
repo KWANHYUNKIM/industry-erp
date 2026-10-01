@@ -1,4 +1,4 @@
-package com.erp.groupware.workspace;
+package com.erp.accounting.promissorynote;
 
 /** 어음 구분. 받을어음은 자산, 지급어음은 부채다. */
 public enum NoteType {
