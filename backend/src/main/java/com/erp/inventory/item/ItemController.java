@@ -23,6 +23,14 @@ public class ItemController {
         return itemService.findAll();
     }
 
+    /** 품목명·규격 자동완성 — 로그인한 회사의 품목에서만 찾는다. */
+    @GetMapping("/suggest")
+    public List<String> suggest(@RequestParam String field,
+                                @RequestParam(defaultValue = "") String q,
+                                @RequestParam(defaultValue = "10") int limit) {
+        return itemService.suggest(field, q, limit);
+    }
+
     @GetMapping("/{id}")
     public ItemResponse get(@PathVariable Long id) {
         return itemService.findById(id);

@@ -12,6 +12,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import { dateText } from '../../utils/dateText'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -361,8 +362,8 @@ export default function UnorderedStatusPage() {
                  onChange={(e) => setF({ validTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" placeholder="규격 일부" value={filters.spec}
-                 onChange={(e) => setF({ spec: e.target.value })} style={{ width: 180 }} />
+          <ItemSuggestInput field="spec" value={filters.spec} placeholder="규격 일부"
+                            onChange={(v) => setF({ spec: v })} width={180} />
         </EcCond>
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}

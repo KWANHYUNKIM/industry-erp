@@ -11,6 +11,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 생산관리 > 생산입고현황 — 생산입고 전표(/api/productions)를 기간·조건으로 본다.
@@ -323,8 +324,8 @@ export default function ReceiptStatusPage() {
                  onChange={(e) => setNote(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" value={specCond}
-                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={specCond}
+                            onChange={(v) => setSpecCond(v)} width={140} />
         </EcCond>
         <EcCond label="최초작성자" pick>
           <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"

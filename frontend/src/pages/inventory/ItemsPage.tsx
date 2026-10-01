@@ -11,6 +11,8 @@ import GroupMasterModal from '../../components/GroupMasterModal'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
 
 const inputCls = 'ec-input w-full'
 
@@ -80,6 +82,8 @@ export default function ItemsPage() {
   const [uploading, setUploading] = useState(false)
 
   async function load() {
+    // 등록·수정·삭제 뒤 load() 를 부른다 — 그때 품목명·규격 자동완성의 옛 후보도 버린다.
+    clearItemSuggestCache()
     setLoading(true)
     try {
       const [i, c, m, g, pt] = await Promise.all([
@@ -414,12 +418,12 @@ export default function ItemsPage() {
       {/* 원본 조건 차례: 품목명 · 규격명 · 단위 · 품목구분 · 구매처 · … · 검색창내용 (사본 실측) */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="품목명">
-          <input className="ec-input" value={cond.name}
-                 onChange={(e) => setC({ name: e.target.value })} style={{ width: 160 }} />
+          <ItemSuggestInput field="name" value={cond.name}
+                            onChange={(v) => setC({ name: v })} width={160} />
         </EcCond>
         <EcCond label="규격명">
-          <input className="ec-input" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={cond.spec}
+                            onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
         <EcCond label="품목구분">
           <select className="ec-input" value={cond.category}
@@ -491,11 +495,11 @@ export default function ItemsPage() {
               </div>
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm text-slate-600">품명 *</label>
-                <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+                <ItemSuggestInput field="name" width="100%" value={form.name} onChange={(v) => set('name', v)} />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-slate-600">규격</label>
-                <input className={inputCls} value={form.spec} onChange={(e) => set('spec', e.target.value)} />
+                <ItemSuggestInput field="spec" width="100%" value={form.spec} onChange={(v) => set('spec', v)} />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-slate-600">단위 *</label>

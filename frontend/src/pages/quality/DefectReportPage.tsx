@@ -11,6 +11,7 @@ import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /** 원본 [생산수량]의 재료. 이 화면이 쓰는 칸만 든다. */
 interface ProductionRow {
@@ -348,8 +349,8 @@ export default function DefectReportPage() {
                            items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" value={specCond}
-                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={specCond}
+                            onChange={(v) => setSpecCond(v)} width={140} />
         </EcCond>
       </EcStatusPanel>
 

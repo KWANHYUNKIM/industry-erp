@@ -10,6 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 미출하현황 (이카운트 E040228)
@@ -382,8 +383,8 @@ export default function UnshippedPage() {
                  onChange={(e) => setC({ ordQtyTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={cond.spec}
+                            onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
         {/*
           원본 [진행상태]는 전표의 <b>결재 단계</b>(결재중·미확인·확인)를 고르는 칸이다.

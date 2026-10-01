@@ -12,6 +12,7 @@ import { subtotalBy } from '../../utils/subtotalBy'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 구매관리 > 발주 파이프라인 현황 — 한 컴포넌트를 진입 상태만 바꿔 재사용한다.
@@ -578,8 +579,8 @@ export default function PurchaseRequestStatusPage({
           단가요청현황은 적요 · 규격 순이다 — 조건이 더 많은 발주계획현황에 맞춘다.
         */}
         <EcCond label="규격">
-          <input className="ec-input" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={cond.spec}
+                            onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
         {/* 원본 차례: 규격 · <b>수량 · 단가 · 공급가액 · 부가세</b> (발주계획현황). */}
         <EcCond label="수량">

@@ -9,6 +9,7 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { printDocuments } from '../../utils/printDocument'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 재고 II > 품질관리 — 품질검사요청 (이카운트 C000692·E040628~E040631)
@@ -308,8 +309,8 @@ export default function QualityRequestPage() {
         </EcCond>
         {/* 원본 차례: … 적요 · (최종수정자·발송여부·오더관리번호) · <b>규격</b> · … */}
         <EcCond label="규격">
-          <input className="ec-input" value={specCond} placeholder="전체"
-                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={specCond} placeholder="전체"
+                            onChange={(v) => setSpecCond(v)} width={140} />
         </EcCond>
       </ul>
 

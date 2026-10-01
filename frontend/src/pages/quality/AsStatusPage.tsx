@@ -7,6 +7,7 @@ import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPick
 import EcBarChart from '../../components/EcBarChart'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
@@ -402,8 +403,8 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+        <ItemSuggestInput field="name" value={draft.item} placeholder="품목명 일부"
+                          onChange={(v) => onChange({ item: v })} width={220} />
       </div>
       <div style={rowStyle}>
         <span style={label}>품목구분</span>

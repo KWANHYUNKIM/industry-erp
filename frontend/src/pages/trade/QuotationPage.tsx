@@ -13,6 +13,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -426,8 +427,8 @@ export default function QuotationPage() {
           장문형식1 · 참조 · 결제조건) · <b>유효기간</b> · <b>작성자</b> · …
         */}
         <EcCond label="규격">
-          <input className="ec-input" style={{ width: 130 }} value={specCond}
-                 onChange={(e) => setSpecCond(e.target.value)} placeholder="전체" />
+          <ItemSuggestInput field="spec" value={specCond} placeholder="전체"
+                            onChange={(v) => setSpecCond(v)} width={130} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"

@@ -213,6 +213,29 @@ public class ItemService {
                 .toList();
     }
 
+    /**
+     * 품목명·규격 자동완성. field 는 name | spec. q 가 비면 많이 쓰는 값부터.
+     * 사용자가 친 % · _ 는 글자 그대로 찾는다(like 와일드카드로 먹히면 '10%' 가 엉뚱한 것까지 띄운다).
+     */
+    @Transactional(readOnly = true)
+    public List<String> suggest(String field, String q, int limit) {
+        PageRequest page = PageRequest.of(0, Math.max(1, Math.min(limit, 20)));
+        boolean spec = switch (field) {
+            case "name" -> false;
+            case "spec" -> true;
+            default -> throw ApiException.badRequest("field 는 name 또는 spec 입니다: " + field);
+        };
+        String text = q == null ? "" : q.trim().toLowerCase();
+        if (text.isEmpty()) {
+            return spec ? itemRepository.frequentSpecs(page) : itemRepository.frequentNames(page);
+        }
+        String escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        String like = "%" + escaped + "%";
+        String prefix = escaped + "%";
+        return spec ? itemRepository.suggestSpecs(like, prefix, page)
+                    : itemRepository.suggestNames(like, prefix, page);
+    }
+
     @Transactional(readOnly = true)
     public long searchCount(String like) {
         return itemRepository.searchCount(like);

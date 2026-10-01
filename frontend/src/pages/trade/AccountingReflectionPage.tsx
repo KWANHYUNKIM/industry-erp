@@ -12,6 +12,7 @@ import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { periodOf } from '../../components/EcPeriodPicks'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -564,8 +565,8 @@ export default function AccountingReflectionPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" value={specCond}
-                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={specCond}
+                            onChange={(v) => setSpecCond(v)} width={140} />
         </EcCond>
         {/* 원본이 화면마다 달리 부른다 — 일괄회계반영은 [작성자], 회계미반영현황은 [최초작성자]. */}
         <EcCond label={view === 'batch' ? '작성자' : '최초작성자'} pick>

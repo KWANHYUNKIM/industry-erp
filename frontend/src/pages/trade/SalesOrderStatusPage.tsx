@@ -10,6 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 import EcBarChart from '../../components/EcBarChart'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 주문서현황 (이카운트 E040209)
@@ -406,8 +407,8 @@ export default function SalesOrderStatusPage() {
         */}
         {/* 원본 차례: [검색창내용] 다음이 <b>[규격]</b> 이다(2026-09-08 실측). */}
         <EcCond label="규격">
-          <input className="ec-input" placeholder="규격" value={filters.spec}
-                 onChange={(e) => setF({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={filters.spec} placeholder="규격"
+                            onChange={(v) => setF({ spec: v })} width={140} />
         </EcCond>
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}

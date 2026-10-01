@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -282,8 +283,8 @@ export default function UnsoldStatusPage() {
           </select>
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" placeholder="규격" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={cond.spec} placeholder="규격"
+                            onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
         <EcCond label="진행상태">
           <select className="ec-input" value={cond.status} style={{ width: 120 }}

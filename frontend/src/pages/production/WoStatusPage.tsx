@@ -11,6 +11,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -318,8 +319,8 @@ export default function WoStatusPage() {
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="규격">
-          <input className="ec-input" value={specCond}
-                 onChange={(e) => setSpecCond(e.target.value)} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={specCond}
+                            onChange={(v) => setSpecCond(v)} width={140} />
         </EcCond>
         <EcCond label="수량">
           <input className="ec-input" type="number" value={qtyFrom}

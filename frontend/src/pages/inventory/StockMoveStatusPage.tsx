@@ -11,6 +11,7 @@ import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 재고 > 기타이동현황 — 자가사용(E040506) · 불량처리(E040509) · 대체사용(E040510) ·
@@ -447,8 +448,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
           한 파일이라 하나만 고를 수 있어 <b>둘이 겹치는</b> 대체사용·폐기 차례를 따른다.
         */}
         <EcCond label="규격">
-          <input className="ec-input" value={cond.spec}
-                 onChange={(e) => setC({ spec: e.target.value })} style={{ width: 140 }} />
+          <ItemSuggestInput field="spec" value={cond.spec}
+                            onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}

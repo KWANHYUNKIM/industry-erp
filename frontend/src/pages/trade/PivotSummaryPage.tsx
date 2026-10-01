@@ -10,6 +10,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import { ymd } from '../../components/EcPeriodPicks'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 집계표 (이카운트 E040710)
@@ -342,8 +343,8 @@ export default function PivotSummaryPage() {
                          items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         {/* 원본 차례: … 거래처관리담당자 · (외화종류) · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요 · 부대비용 … */}
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>규격</span>
-        <input className="ec-input" value={specCond} placeholder="규격"
-               onChange={(e) => setSpecCond(e.target.value)} style={{ width: 120 }} />
+        <ItemSuggestInput field="spec" value={specCond} placeholder="규격"
+                          onChange={(v) => setSpecCond(v)} width={120} />
         {/*
           이름표를 <b>글자 그대로</b> 적는다 — 배열을 map 으로 돌리면 화면에는 뜨지만
           대조 검사가 소스에서 이름을 못 찾아 '없다' 고 말한다(실제로 그랬다).

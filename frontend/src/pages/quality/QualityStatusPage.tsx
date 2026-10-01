@@ -7,6 +7,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -316,8 +317,8 @@ function SearchPanel({
       */}
       <div style={rowStyle}>
         <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+        <ItemSuggestInput field="name" value={draft.item} placeholder="품목명 일부"
+                          onChange={(v) => onChange({ item: v })} width={220} />
       </div>
       <div style={rowStyle}>
         <span style={label}>품목구분</span>
@@ -342,8 +343,8 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>규격</span>
-        <input className="ec-input" placeholder="규격 일부" value={draft.spec}
-          onChange={(e) => onChange({ spec: e.target.value })} style={{ width: 220 }} />
+        <ItemSuggestInput field="spec" value={draft.spec} placeholder="규격 일부"
+                          onChange={(v) => onChange({ spec: v })} width={220} />
       </div>
       {/* 원본은 검사자를 <b>[담당자]</b> 라 부른다 — 이름을 원본에 맞춘다. */}
       <div style={rowStyle}>

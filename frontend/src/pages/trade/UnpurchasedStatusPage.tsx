@@ -8,6 +8,7 @@ import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 구매관리 > 미구매현황 (이카운트 E040307)
@@ -552,8 +553,8 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>품목</span>
-        <input className="ec-input" placeholder="품목명 일부" value={draft.item}
-          onChange={(e) => onChange({ item: e.target.value })} style={{ width: 220 }} />
+        <ItemSuggestInput field="name" value={draft.item} placeholder="품목명 일부"
+                          onChange={(v) => onChange({ item: v })} width={220} />
       </div>
       <div style={rowStyle}>
         <span style={label}>담당자</span>
@@ -593,8 +594,8 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>규격</span>
-        <input className="ec-input" placeholder="규격 일부" value={draft.spec}
-          onChange={(e) => onChange({ spec: e.target.value })} style={{ width: 180 }} />
+        <ItemSuggestInput field="spec" value={draft.spec} placeholder="규격 일부"
+                          onChange={(v) => onChange({ spec: v })} width={180} />
       </div>
       <div style={rowStyle}>
         <span style={label}>수량</span>
