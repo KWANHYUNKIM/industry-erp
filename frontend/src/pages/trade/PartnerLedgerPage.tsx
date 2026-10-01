@@ -241,7 +241,15 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
      * 세는 화면이라 이월도 둘을 더한다 — 줄 쪽 계산이 그렇게 되어 있다.
      */
     for (const b of openings) {
-      const t = rollupOf({ partnerId: b.partnerId, partnerName: '' } as Entry, basis, rollup)
+      /*
+       * 이월에도 <b>줄과 같은 조건</b>을 건다. 예전엔 줄만 거르고 이월은 전부 넣어서,
+       * 거래처 하나를 골라도 이월이 있는 다른 거래처가 줄줄이 붙었다(2026-10-01, 1곳을 골랐는데
+       * '거래처 3곳 · 이월 25,822,000'). 이름도 비워 넘겨 그 묶음은 머리글이 빈칸이었다.
+       */
+      if (partner && String(b.partnerId) !== partner) continue
+      const name = rollup.get(b.partnerId)?.name ?? ''
+      if (partnerGroup && pgroups.groupOfName(name) !== partnerGroup) continue
+      const t = rollupOf({ partnerId: b.partnerId, partnerName: name } as Entry, basis, rollup)
       const cur = partners.get(t.id) ?? { partnerId: t.id, name: t.name, opening: 0, entries: [] }
       cur.opening += side === '채권' ? b.receivable
         : side === '채무' ? b.payable
@@ -298,7 +306,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       })
       .filter((p) => p.rows.length > 0 || p.opening !== 0)
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [bySide, openings, side, from, to, group, basis, rollup])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [bySide, openings, side, from, to, group, basis, rollup, partner, partnerGroup, pgroups.groupOptions])
 
   const totals = useMemo(() => ledger.reduce(
     (s, p) => ({
