@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef} from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -102,9 +103,10 @@ export default function LeaveInputPage() {
     if (valid.length === 0) return setError('사원과 근태(일)를 1줄 이상 입력하세요.')
     setSaving(true)
     let done = 0
+    const nos: string[] = []
     try {
       for (const l of valid) {
-        await api.post('/hr/vacations', {
+        const res = await api.post<{ docNo: string }>('/hr/vacations', {
           userId: Number(l.userId),
           type: l.type,
           startDate: l.startDate,
@@ -113,8 +115,10 @@ export default function LeaveInputPage() {
           reason: l.reason || null,
         })
         done += 1
+        nos.push(res.data.docNo)
       }
-      setOk(`${done}건 저장했습니다.`)
+      // 번호를 같이 — 서버가 매기는 근태번호다. 몇 번으로 들어갔는지 알아야 근태조회에서 찾는다.
+      setOk(`${done}건 저장했습니다 (${nos.join(', ')})`)
       setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)])
     } catch (err) {
       // 몇 줄은 이미 들어갔을 수 있다 — 몇 건이 저장됐는지 같이 알려 준다.
@@ -239,13 +243,10 @@ export default function LeaveInputPage() {
                          onChange={(e) => setLine(l.key, { endDate: e.target.value })} />
                 </td>
                 <td>
-                  <select className="ec-input" value={l.userId}
-                          onChange={(e) => setLine(l.key, { userId: e.target.value })}>
-                    <option value="">선택</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}{u.department ? ` (${u.department})` : ''}</option>
-                    ))}
-                  </select>
+                  {/* 드롭다운이었다 — 근태입력처럼 코드도움으로(원본도 사원 칸은 코드도움이다). QA 17회차 */}
+                  <CodePickerField label="사원" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                                   value={l.userId} onChange={(v) => setLine(l.key, { userId: v })}
+                                   items={users.map((u) => ({ value: String(u.id), name: u.name, sub: u.department }))} />
                 </td>
                 <td>
                   <select className="ec-input" value={l.type}
