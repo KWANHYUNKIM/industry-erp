@@ -119,6 +119,11 @@ export default function SecurityPage() {
       {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-blue-dark)', margin: '6px 0 4px' }}>비밀번호 / 접속 정책</div>
+      {/*
+        QA 20회차: 이 정책들은 저장만 되고 아무 데서도 쓰지 않았다 — 화면은 지키는 것처럼 보였다.
+        최소 비밀번호 길이는 이제 사용자 등록·비밀번호 변경에서 지킨다. 나머지는 적용 전이라 (미적용) 으로 밝힌다.
+      */}
+      <p style={{ margin: '0 0 6px', fontSize: 11.5, color: '#8a929c' }}>최소 비밀번호 길이는 사용자 등록·비밀번호 변경에 적용됩니다. <b style={{ color: '#c07a00' }}>(미적용)</b> 항목은 저장만 되고 아직 로그인·세션에 반영되지 않습니다.</p>
       {loading ? (
         <p style={{ color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
       ) : (
@@ -127,21 +132,21 @@ export default function SecurityPage() {
             <input className="ec-input" value={policy.pwLength} onChange={(e) => set('pwLength', e.target.value)} style={{ width: 50 }} /> 자
           </label>
           <label style={{ fontSize: 12.5 }}>비밀번호 변경주기&nbsp;
-            <input className="ec-input" value={policy.pwCycleDays} onChange={(e) => set('pwCycleDays', e.target.value)} style={{ width: 50 }} /> 일
+            <input className="ec-input" value={policy.pwCycleDays} onChange={(e) => set('pwCycleDays', e.target.value)} style={{ width: 50 }} /> 일<span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 로그인·세션에 적용하지 않습니다.">(미적용)</span>
           </label>
           <label style={{ fontSize: 12.5 }}>로그인 실패 잠금&nbsp;
-            <input className="ec-input" value={policy.loginFailLimit} onChange={(e) => set('loginFailLimit', e.target.value)} style={{ width: 50 }} /> 회
+            <input className="ec-input" value={policy.loginFailLimit} onChange={(e) => set('loginFailLimit', e.target.value)} style={{ width: 50 }} /> 회<span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 로그인·세션에 적용하지 않습니다.">(미적용)</span>
           </label>
           <label style={{ fontSize: 12.5 }}>세션 자동종료&nbsp;
-            <input className="ec-input" value={policy.sessionTimeout} onChange={(e) => set('sessionTimeout', e.target.value)} style={{ width: 50 }} /> 분
+            <input className="ec-input" value={policy.sessionTimeout} onChange={(e) => set('sessionTimeout', e.target.value)} style={{ width: 50 }} /> 분<span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 로그인·세션에 적용하지 않습니다.">(미적용)</span>
           </label>
           <label style={{ fontSize: 12.5, cursor: 'pointer' }}>
             <input type="checkbox" checked={policy.ipRestrict} onChange={(e) => set('ipRestrict', e.target.checked)} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-            허용 IP 대역 제한
+            허용 IP 대역 제한<span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 로그인·세션에 적용하지 않습니다.">(미적용)</span>
           </label>
           <label style={{ fontSize: 12.5, cursor: 'pointer' }}>
             <input type="checkbox" checked={policy.twoFactor} onChange={(e) => set('twoFactor', e.target.checked)} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-            2단계 인증(OTP) 사용
+            2단계 인증(OTP) 사용<span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 로그인·세션에 적용하지 않습니다.">(미적용)</span>
           </label>
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '정책 저장'}</button>
         </div>

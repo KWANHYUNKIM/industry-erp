@@ -6,6 +6,7 @@ import com.erp.auth.user.dto.UserDtos.CreateUserRequest;
 import com.erp.auth.user.dto.UserDtos.UpdateUserRequest;
 import com.erp.auth.user.dto.UserDtos.UserResponse;
 import com.erp.auth.role.RoleRepository;
+import com.erp.settings.securitypolicy.SecurityPolicyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -26,6 +27,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityPolicyService securityPolicyService;
 
     @Transactional(readOnly = true)
     public List<UserResponse> findAll() {
@@ -44,6 +46,7 @@ public class UserService {
         if (userRepository.existsByUsername(request.username())) {
             throw ApiException.conflict("이미 사용 중인 아이디입니다: " + request.username());
         }
+        requirePasswordPolicy(request.password());
 
         User user = User.builder()
                 .username(request.username())
@@ -87,9 +90,21 @@ public class UserService {
             user.setRoles(resolveRoles(request.roleNames()));
         }
         if (StringUtils.hasText(request.password())) {
+            requirePasswordPolicy(request.password());
             user.setPassword(passwordEncoder.encode(request.password()));
         }
         return UserResponse.from(user);
+    }
+
+    /**
+     * 보안정책의 비밀번호 최소 길이를 지킨다. 예전엔 Self-Customizing > 보안정책에서 길이를 바꿔도 아무 데서도
+     * 쓰지 않아, 화면은 지키는 것처럼 보이는데 4자 비밀번호가 그대로 만들어졌다(QA 20회차).
+     */
+    private void requirePasswordPolicy(String password) {
+        Integer min = securityPolicyService.get().pwLength();
+        if (min != null && password != null && password.length() < min) {
+            throw ApiException.badRequest("비밀번호는 최소 " + min + "자 이상이어야 합니다(보안정책).");
+        }
     }
 
     /**

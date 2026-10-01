@@ -1239,7 +1239,17 @@ async function scenarioSettings() {
   const sp = await must('GET', '/security-policy')
   await must('PUT', '/security-policy', { ...sp, pwLength: 12 })
   eq('보안정책이 재조회 후에도 유지', (await must('GET', '/security-policy')).pwLength, 12)
-  await must('PUT', '/security-policy', sp) // 원복
+  /*
+   * 저장만 되고 쓰이지 않던 정책(20회차) — 최소 길이는 이제 사용자 등록에서 지킨다.
+   * 실패해도 정책은 원복해야 하므로 try/finally.
+   */
+  try {
+    await rejects('정책보다 짧은 비밀번호로는 사용자를 못 만든다', 'POST', '/users', {
+      username: `${P.toLowerCase()}pwshort`, password: 'abcd123456', name: 'QA짧은비번',
+    }, '최소 12자')
+  } finally {
+    await must('PUT', '/security-policy', sp) // 원복
+  }
 }
 
 /** 견적 → 발송 → 수주전환 (영업 흐름 시작점) */
