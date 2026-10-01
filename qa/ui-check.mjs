@@ -6363,6 +6363,31 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
   eq('거래처·품목·창고 코드도움은 이름이 아니라 id 를 담는다', bad.join('\n') || '없음', '없음')
 }
 
+/*
+ * 창(Modal) 안의 폼이 낸 오류가 창 <b>뒤</b>에 뜨면 안 보인다 — [저장]을 눌러도 아무 일도 안 일어나는 것처럼
+ * 보인다(15회차, 64화면이 그랬다). 화면에 error 상태가 있으면, 그 화면의 창은 error={error} 를 받거나
+ * 창 안에서 직접 {error && …} 를 그려야 한다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    if (!/const \[error, setError\]/.test(src)) continue
+    for (const m of src.matchAll(/<Modal\b[^>]*>/g)) {
+      checked++
+      const end = src.indexOf('</Modal>', m.index)
+      const body = src.slice(m.index, end > 0 ? end : undefined)
+      if (/\berror=\{/.test(m[0]) || /\{\s*error\s*&&/.test(body)) continue
+      // 그 창이 들어 있는 함수에 error 가 없으면(결과 보기 창 같은 하위 컴포넌트) 볼 것이 없다
+      const fnStart = src.lastIndexOf('function ', m.index)
+      if (fnStart >= 0 && !/\berror\b/.test(src.slice(fnStart, m.index))) continue
+      bad.push(`${f.split(sep).pop()}  ${src.slice(0, m.index).split('\n').length}행 — 창에 error={error} 가 없다`)
+    }
+  }
+  eq(`화면 오류가 창 ${checked}개 안에도 뜬다`, bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-q) 고를 수는 있는데 아무 일도 안 하는 조건 ─────────────────────────
 console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
 
