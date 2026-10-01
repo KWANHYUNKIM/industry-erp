@@ -122,6 +122,8 @@ export default function ProductionResultPage() {
   }, [workOrderId, qty])
 
   const selectable = orders.filter((o) => o.status !== 'COMPLETED' && o.remainingQty > 0)
+  /** 작업지시 코드도움 — 지시번호·제품명으로 찾고 잔여 수량을 옆에 보인다. */
+  const orderPicks = selectable.map((o) => ({ value: String(o.id), code: o.orderNo, name: o.productName, sub: `잔여 ${won(o.remainingQty)}` }))
   const selectedOrder = orders.find((o) => String(o.id) === workOrderId)
   // 비워 두면 작업지시의 창고를 쓴다 — 어디로 가는지 빈칸에 미리 적어 준다.
   const orderWarehouse = selectedOrder?.warehouseName ?? ''
@@ -230,13 +232,10 @@ export default function ProductionResultPage() {
                           <tr key={l.key}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                             <td>
-                              <select className="ec-input" value={l.workOrderId} style={{ width: '100%' }}
-                                      onChange={(e) => setProdLine(l.key, { workOrderId: e.target.value })}>
-                                <option value="">선택하세요</option>
-                                {selectable.map((o) => (
-                                  <option key={o.id} value={o.id}>{o.orderNo} · {o.productName} (잔여 {o.remainingQty})</option>
-                                ))}
-                              </select>
+                              {/* 긴 드롭다운이었다 — 열린 작업지시가 수백 건이면 스크롤로 찾아야 했다(QA 10회차). */}
+                              <CodePickerField label="작업지시" hideLabel fill placeholder="선택하세요" emptyLabel="선택 해제"
+                                               value={l.workOrderId} onChange={(v) => setProdLine(l.key, { workOrderId: v })}
+                                               items={orderPicks} />
                             </td>
                             <td>
                               <input type="number" step="any" className="ec-input" style={{ textAlign: 'right' }}

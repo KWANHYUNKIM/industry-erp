@@ -128,6 +128,27 @@ public class StockAdjustmentService {
         return AdjustmentResponse.from(adjustmentRepository.save(adjustment));
     }
 
+    /**
+     * 재고조정·자가사용·불량·대체·폐기 삭제. 예전엔 지울 길이 없어서, 잘못 넣으면 반대로 한 번 더 넣는
+     * 수밖에 없었다(QA 10회차) — 창고이동이 그랬던 것과 같다(StockTransferService.delete).
+     *
+     * <p>바뀐 수량을 반대로 되돌리고 수불이력은 지우지 않고 반대 거래를 남긴다. 되돌릴 재고가 모자라면
+     * (조정으로 늘린 뒤 이미 나갔으면) applyDelta 가 막는다.
+     */
+    @Transactional
+    public void delete(Long id, String username) {
+        StockAdjustment a = adjustmentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
+        BigDecimal back = a.getQuantityChange().negate();
+        if (back.signum() != 0) {
+            StockTransactionType type = a.getType() == StockAdjustmentType.ADJUST ? StockTransactionType.ADJUST
+                    : back.signum() > 0 ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND;
+            stockService.applyDelta(a.getItem(), a.getWarehouse(), back, type, null, a.getAdjustDate(),
+                    a.getType().getDisplayName() + "취소 " + a.getAdjustNo(), username);
+        }
+        adjustmentRepository.delete(a);
+    }
+
     private BigDecimal required(BigDecimal value, String message) {
         if (value == null) {
             throw ApiException.badRequest(message);

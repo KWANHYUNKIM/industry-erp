@@ -10,8 +10,9 @@
  *               js:<식>             페이지에서 그대로 평가한다
  *               wait:<ms>
  *               click:<글자>        글자(또는 title)가 그것으로 시작하는 첫 버튼을 누른다
- *               pickrow:<코드>      열린 코드도움 팝업에서 칸 하나가 그 코드인 행을 고른다
+ *               pickrow:<코드|@키>  열린 코드도움 팝업에서 칸 하나가 그 코드인 행을 고른다
  *               set:<선택자>[#n]|<값>  입력칸에 값을 넣는다(React 가 알아채도록 input 이벤트까지). #n 은 n 번째(0부터)
+ *               choose:<선택자>[#n]|<보이는 글자>  드롭다운에서 그 글자의 항목을 고른다(id 는 환경마다 달라서)
  *               expect:<식>         참이 아니면 실패로 끝낸다 — 화면을 사람처럼 써 보는 시험에 쓴다
  *               apidel:<목록주소>|<번호정규식>|<번호필드>  화면에 뜬 전표번호를 목록에서 찾아 API 로 지운다
  *                                   — 화면 시험이 전표를 쌓지 않게 끝에 둔다(예: apidel:/sales|SO-[0-9]{8}-[0-9]{4}|docNo)
@@ -56,7 +57,9 @@ try {
         if (!ok) throw new Error('누를 버튼이 없다: ' + label)
         await sleep(500)
       } else if (kind === 'pickrow') {
-        const code = rest.join(':')
+        // @키 면 sessionStorage 에 담아 둔 코드(앞 화면에서 만든 전표번호 등)
+        const raw = rest.join(':')
+        const code = raw.startsWith('@') ? await b.evaluate(`sessionStorage.getItem(${JSON.stringify(raw.slice(1))})`) : raw
         await b.waitFor(`[...document.querySelectorAll('tr')].some(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)}))`)
         await b.evaluate(`[...document.querySelectorAll('tr')].find(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)})).click(); true`)
         await sleep(500)
@@ -68,6 +71,15 @@ try {
           Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(v.join('|'))});
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
         if (!ok) throw new Error('입력칸이 없다: ' + sel)
+        await sleep(200)
+      } else if (kind === 'choose') {
+        const [selN, ...v] = rest.join(':').split('|')
+        const [sel, nth] = selN.split('#')
+        const ok = await b.evaluate(`(() => { const el = document.querySelectorAll(${JSON.stringify(sel)})[${Number(nth ?? 0)}]; if (!el) return false;
+          const o = [...el.options].find((x) => x.text.trim() === ${JSON.stringify(v.join('|'))}); if (!o) return false;
+          Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, o.value);
+          el.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
+        if (!ok) throw new Error('고를 항목이 없다: ' + step)
         await sleep(200)
       } else if (kind === 'expect') {
         const expr = rest.join(':')

@@ -74,6 +74,18 @@ export default function TransferPage() {
     }
   }
 
+  /** 재고조정·폐기 등도 지울 자리가 없었다(QA 10회차) — 창고이동과 같이 서버가 바뀐 재고를 되돌린다. */
+  async function removeAdjustment(r: { id: number; adjustNo: string; typeName?: string }) {
+    if (!confirm(`'${r.adjustNo}' 을(를) 삭제할까요? 바뀐 재고도 되돌아갑니다.`)) return
+    try {
+      await api.delete(`/stock-adjustments/${r.id}`)
+      setOk(`${r.adjustNo} 삭제 — 재고를 되돌렸습니다.`)
+      load()
+    } catch (err) {
+      alert(extractErrorMessage(err))
+    }
+  }
+
   async function load() {
     setLoading(true)
     try {
@@ -109,9 +121,12 @@ export default function TransferPage() {
     setError('')
   }
 
-  async function saved() {
+  /** 저장 결과 안내. 예전엔 창이 닫히고 목록만 다시 떠서 어느 번호로 들어갔는지 안 보였다(QA 10회차). */
+  const [ok, setOk] = useState('')
+  async function saved(msg: string) {
     setShowForm(false)
     setError('')
+    setOk(msg)
     await load()
   }
 
@@ -228,6 +243,7 @@ export default function TransferPage() {
       </ul>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
         ? <TransferForm items={items} warehouses={warehouses} projects={projects} employees={employees} onError={setError} onSaved={saved} />
@@ -299,13 +315,14 @@ export default function TransferPage() {
               <th style={{ width: 90, textAlign: 'right' }}>증감</th>
               <th style={{ width: 90, textAlign: 'right' }}>처리후</th>
               <th>사유</th>
+              <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownAdjustments.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : adjustSort.sorted.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -319,6 +336,9 @@ export default function TransferPage() {
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.afterQty)} {r.unit}</td>
                 <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => removeAdjustment(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -331,7 +351,7 @@ export default function TransferPage() {
 function TransferForm({ items, warehouses, projects, employees, onError, onSaved }: {
   items: Item[]; warehouses: Warehouse[]
   projects: CodeRow[]; employees: CodeRow[]
-  onError: (m: string) => void; onSaved: () => void
+  onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
   const [form, setForm] = useState({
     transferDate: today(), itemId: '', quantity: '', reason: '',
@@ -348,7 +368,7 @@ function TransferForm({ items, warehouses, projects, employees, onError, onSaved
     if (form.fromWarehouseId === form.toWarehouseId) return onError('출고창고와 입고창고가 같을 수 없습니다.')
     if (!form.quantity || Number(form.quantity) <= 0) return onError('이동수량을 입력하세요.')
     try {
-      await api.post('/stock-transfers', {
+      const res = await api.post<{ transferNo: string; itemName: string; quantity: number; fromWarehouseName: string; toWarehouseName: string }>('/stock-transfers', {
         itemId: Number(form.itemId),
         fromWarehouseId: Number(form.fromWarehouseId),
         toWarehouseId: Number(form.toWarehouseId),
@@ -358,7 +378,8 @@ function TransferForm({ items, warehouses, projects, employees, onError, onSaved
         employeeId: form.employeeId ? Number(form.employeeId) : undefined,
         reason: form.reason || undefined,
       })
-      onSaved()
+      const r = res.data
+      onSaved(`${r.transferNo} 이동 완료 · ${r.itemName} ${Number(r.quantity).toLocaleString()} (${r.fromWarehouseName} → ${r.toWarehouseName})`)
     } catch (err) {
       onError(extractErrorMessage(err))
     }
@@ -414,7 +435,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
   type: StockAdjustmentType; label: string
   items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
   projects: CodeRow[]; employees: CodeRow[]
-  onError: (m: string) => void; onSaved: () => void
+  onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
   const [form, setForm] = useState({
     adjustDate: today(), itemId: '', quantity: '', actualQty: '', reason: '',
@@ -443,7 +464,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
       return onError('수량을 입력하세요.')
     }
     try {
-      await api.post('/stock-adjustments', {
+      const res = await api.post<{ adjustNo: string; typeName: string; itemName: string; warehouseName: string }>('/stock-adjustments', {
         type,
         itemId: Number(form.itemId),
         warehouseId: Number(form.warehouseId),
@@ -454,7 +475,8 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
         employeeId: form.employeeId ? Number(form.employeeId) : undefined,
         reason: form.reason || undefined,
       })
-      onSaved()
+      const r = res.data
+      onSaved(`${r.adjustNo} ${r.typeName} 완료 · ${r.itemName} (${r.warehouseName})`)
     } catch (err) {
       onError(extractErrorMessage(err))
     }

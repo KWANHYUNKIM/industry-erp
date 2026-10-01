@@ -25,6 +25,40 @@
         "click:등록",
         "expect:document.body.innerText.includes('제품을 선택하세요.')"
       ]
+    },
+    {
+      "name": "생산 흐름 ① 작업지시 2개 등록(다음 화면에서 생산할 것)",
+      "path": "/production/work-orders",
+      "steps": [
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock0',String(x?x.quantity:0));return true})",
+        "click:신규",
+        "click:제품 선택",
+        "pickrow:QA-PROD",
+        "click:창고 * 선택",
+        "pickrow:QA-WH",
+        "set:form input[type=number]|2",
+        "click:등록",
+        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaWO', document.body.innerText.match(/WO-[0-9]{8}-[0-9]{4}(?= 작업지시 등록 완료)/)[0]); true"
+      ]
+    },
+    {
+      "name": "생산 흐름 ② 생산입고 — 작업지시를 코드도움으로 골라 2개 생산하면 번호와 함께 '생산 완료', 완제품 재고가 2 는다",
+      "path": "/production/result",
+      "steps": [
+        "click:작업지시 선택",
+        "pickrow:@qaWO",
+        "set:table input[type=number]#0|2",
+        "click:생산 등록",
+        "expect:/생산 완료 .*\\(PR-[0-9]{8}-[0-9]{4}\\)/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaProd', document.body.innerText.match(/PR-[0-9]{8}-[0-9]{4}/)[0]); true",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock1',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaStock1')) - Number(sessionStorage.getItem('qaStock0')) === 2",
+        "apidel:/productions|@qaProd|prodNo",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock2',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaStock2')) === Number(sessionStorage.getItem('qaStock0'))",
+        "apidel:/work-orders|@qaWO|orderNo"
+      ]
     }
   ]
 }

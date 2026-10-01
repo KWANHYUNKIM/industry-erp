@@ -43,4 +43,11 @@ public class StockAdjustmentController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(stockAdjustmentService.create(req, principal.getUsername()));
     }
+
+    /** 삭제 — 바뀐 재고를 되돌린다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        stockAdjustmentService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

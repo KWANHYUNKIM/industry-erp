@@ -1457,6 +1457,19 @@ async function scenarioAdjustment(f) {
 
   eq('기타이동 목록에 3건이 남음',
     (await must('GET', '/stock-adjustments')).rows.filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
+
+  /*
+   * 지우면 바뀐 재고가 되돌아온다(10회차 — 그 전엔 지울 길이 없어 반대로 한 번 더 넣어야 했다).
+   * 나중 것부터 지운다: 재고조정은 '그때 현재고' 기준이라 앞의 차감을 먼저 되돌리면 숫자가 달라진다.
+   * 덕분에 이 시나리오가 돌 때마다 기타이동 3건이 쌓이던 것도 없어진다.
+   */
+  await must('DELETE', `/stock-adjustments/${counted.id}`)
+  eq('재고조정을 지우면 조정 전으로', await stockOf(), before - 8)
+  await must('DELETE', `/stock-adjustments/${defect.id}`)
+  await must('DELETE', `/stock-adjustments/${selfUse.id}`)
+  eq('다 지우면 처음 재고로', await stockOf(), before)
+  eq('목록에서도 빠진다',
+    (await must('GET', '/stock-adjustments')).rows.filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 0)
 }
 
 async function scenarioWithholding() {

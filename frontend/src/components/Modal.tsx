@@ -34,6 +34,7 @@ export default function Modal({
       }}
     >
       <div
+        role="dialog" aria-modal="true" aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff', borderRadius: 6, width, maxWidth: '96vw',
