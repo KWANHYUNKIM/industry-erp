@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { WithholdingReceipt, WithholdingStatement } from '../../api/types'
+import type { WithholdingReceipt, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')

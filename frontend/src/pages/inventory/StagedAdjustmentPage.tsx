@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
+import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { EcCond } from '../../components/EcStatusPanel'

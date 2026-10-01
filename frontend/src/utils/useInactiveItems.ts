@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from './../api/client'
+import { api } from '../api/client'
 
 /**
  * 원가 화면들이 <b>기본으로 빼고 보여 주는</b> 품목들.

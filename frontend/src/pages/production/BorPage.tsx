@@ -4,7 +4,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 
 /**
  * 생산관리 > BOR(작업소요시간).

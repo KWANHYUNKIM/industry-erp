@@ -7,7 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { QuestionType, SurveyDoc } from '../../api/types'
+import type { QuestionType, SurveyDoc } from '../../types/api'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사입력 (이카운트 E070256)

@@ -2,10 +2,10 @@ import { useEffect, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { useAuth } from '../../auth/AuthContext'
+import { useAuth } from '../../features/auth/AuthContext'
 import EcListShell from '../../components/EcListShell'
-import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
-import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../api/types'
+import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../features/approval/components/ApprovalDetailModal'
+import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../types/api'
 
 /**
  * 그룹웨어 > 공유정보 > 주요전달사항 (이카운트 E070205)

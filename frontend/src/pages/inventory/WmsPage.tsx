@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { AllocationRow, Item, LocationStock, Warehouse, WarehouseLocation, WmsOverview } from '../../api/types'
+import type { AllocationRow, Item, LocationStock, Warehouse, WarehouseLocation, WmsOverview } from '../../types/api'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 

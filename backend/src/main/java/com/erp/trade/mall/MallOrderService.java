@@ -1,0 +1,236 @@
+package com.erp.trade.mall;
+
+import com.erp.trade.sales.SalesService;
+import com.erp.common.ApiException;
+import com.erp.trade.mall.dto.MallOrderDtos.CollectOrderRequest;
+import com.erp.trade.mall.dto.MallOrderDtos.ConvertRequest;
+import com.erp.trade.mall.dto.MallOrderDtos.MallOrderResponse;
+import com.erp.trade.mall.dto.MallOrderDtos.MallOverview;
+import com.erp.trade.mall.dto.MallOrderDtos.MallSummary;
+import com.erp.trade.mall.dto.MallOrderDtos.MapItemRequest;
+import com.erp.trade.sales.dto.SalesDtos.CreateSalesRequest;
+import com.erp.trade.sales.dto.SalesDtos.SalesLineRequest;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import com.erp.inventory.item.ItemService;
+import com.erp.trade.mall.dto.MallOrderDtos;
+import com.erp.trade.sales.dto.SalesDtos;
+
+/**
+ * 쇼핑몰 주문. 외부몰에서 수집한 주문을 확인하고 판매전표로 전환한다.
+ *
+ * <p>재고 차감과 채권 계상은 판매전표(SalesService)가 한다. 쇼핑몰이 재고를 직접 건드리면
+ * 같은 사실을 두 곳이 기록하게 되고, 두 숫자는 반드시 갈라진다.
+ */
+@Service
+@RequiredArgsConstructor
+public class MallOrderService {
+
+    private final MallOrderRepository orderRepository;
+    private final ItemService itemService;
+    private final SalesService salesService;
+    private final MallItemMappingService mappingService;
+
+    @Transactional(readOnly = true)
+    public MallOverview overview() {
+        List<MallOrder> orders = orderRepository.findAllWithRefs();
+        List<MallOrderResponse> rows = orders.stream().map(MallOrderResponse::from).toList();
+
+        Map<String, MallSummary> byMall = new LinkedHashMap<>();
+        for (MallOrderResponse o : rows) {
+            MallSummary prev = byMall.get(o.mall());
+            int count = (prev != null ? prev.orderCount() : 0) + 1;
+            BigDecimal amount = (prev != null ? prev.totalAmount() : BigDecimal.ZERO).add(o.totalAmount());
+            int unconverted = (prev != null ? prev.unconverted() : 0)
+                    + (o.status() == MallOrderStatus.RECEIVED || o.status() == MallOrderStatus.CONFIRMED ? 1 : 0);
+            byMall.put(o.mall(), new MallSummary(o.mall(), count, amount, unconverted));
+        }
+
+        return new MallOverview(
+                rows.size(),
+                rows.stream().map(MallOrderResponse::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                (int) rows.stream().filter(o -> o.itemId() == null && o.status() != MallOrderStatus.CANCELLED).count(),
+                (int) rows.stream().filter(o -> o.status() == MallOrderStatus.RECEIVED
+                        || o.status() == MallOrderStatus.CONFIRMED).count(),
+                new ArrayList<>(byMall.values()),
+                rows);
+    }
+
+    /** 주문 수집. 몰 API 연동이 붙기 전까지 이 진입점이 그 자리다. */
+    @Transactional
+    public MallOrderResponse collect(CollectOrderRequest req, String username) {
+        if (req.quantity().signum() <= 0) {
+            throw ApiException.badRequest("수량은 0보다 커야 합니다.");
+        }
+        if (req.unitPrice().signum() < 0) {
+            throw ApiException.badRequest("단가는 0 이상이어야 합니다.");
+        }
+        // 같은 주문을 두 번 수집하면 판매도 재고도 두 번 잡힌다.
+        if (orderRepository.existsByMallAndMallOrderNo(req.mall().trim(), req.mallOrderNo().trim())) {
+            throw ApiException.conflict("이미 수집된 주문입니다: " + req.mall() + " / " + req.mallOrderNo());
+        }
+
+        // 품목 결정: 명시된 itemId 우선, 없으면 (몰, 몰품목코드) 매핑으로 자동연결.
+        Long itemId = req.itemId();
+        if (itemId == null) {
+            itemId = mappingService.resolveItemId(req.mall().trim(), req.mallProductCode()).orElse(null);
+        }
+
+        MallOrder o = MallOrder.builder()
+                .mall(req.mall().trim())
+                .mallOrderNo(req.mallOrderNo().trim())
+                .orderDate(req.orderDate())
+                .status(MallOrderStatus.RECEIVED)
+                .buyerName(req.buyerName().trim())
+                .buyerPhone(req.buyerPhone())
+                .address(req.address())
+                .productName(req.productName().trim())
+                .mallProductCode(req.mallProductCode() != null ? req.mallProductCode().trim() : null)
+                .item(itemId != null ? itemService.get(itemId) : null)
+                .quantity(req.quantity())
+                .unitPrice(req.unitPrice())
+                .totalAmount(req.quantity().multiply(req.unitPrice()))
+                .remark(req.remark())
+                .createdBy(username)
+                .build();
+        return MallOrderResponse.from(orderRepository.save(o));
+    }
+
+    /** 몰 상품 ↔ 우리 품목 매핑. 전환 전에만 바꿀 수 있다. */
+    @Transactional
+    public MallOrderResponse mapItem(Long id, MapItemRequest req) {
+        MallOrder o = getOpen(id);
+        o.setItem(itemService.get(req.itemId()));
+        return MallOrderResponse.from(o);
+    }
+
+    /** 수집 → 확인 */
+    @Transactional
+    public MallOrderResponse confirm(Long id) {
+        MallOrder o = getOpen(id);
+        if (o.getStatus() != MallOrderStatus.RECEIVED) {
+            throw ApiException.conflict("수집 상태의 주문만 확인할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setStatus(MallOrderStatus.CONFIRMED);
+        return MallOrderResponse.from(o);
+    }
+
+    @Transactional
+    public MallOrderResponse cancel(Long id) {
+        MallOrder o = getOpen(id);
+        o.setStatus(MallOrderStatus.CANCELLED);
+        return MallOrderResponse.from(o);
+    }
+
+    /**
+     * 판매전환. 판매전표를 만들고 연결한다. 재고 차감·채권 계상은 판매전표가 한다.
+     * 품목 매핑이 없으면 무엇을 팔았는지 모르는 채로 재고를 깎게 되므로 거부한다.
+     */
+    @Transactional
+    public SalesResponse convert(Long id, ConvertRequest req, String username) {
+        MallOrder o = getOpen(id);
+        if (o.getStatus() != MallOrderStatus.CONFIRMED) {
+            throw ApiException.conflict("확인된 주문만 판매전환할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        if (o.getItem() == null) {
+            throw ApiException.badRequest("몰 상품이 품목과 매핑되지 않았습니다: " + o.getProductName());
+        }
+
+        SalesResponse sales = salesService.create(new CreateSalesRequest(
+                req.partnerId(),
+                req.warehouseId(),
+                o.getOrderDate(),
+                req.taxable() != null ? req.taxable() : Boolean.TRUE,
+                Boolean.FALSE,  // 몰 주문 전환은 늘 일반 판매다. 몰 반품은 MallOrder 쪽에서 따로 다룬다.
+                o.getMall() + " 주문 " + o.getMallOrderNo() + " (" + o.getBuyerName() + ")",
+                null,   // 몰 주문에는 프로젝트 개념이 없다
+                null,   // 담당 사원도 없다 — 몰이 판 것이지 누가 판 게 아니다
+                null,   // 거래별부가세계산: 몰 주문은 한 줄짜리라 라인별/거래별 결과가 같다
+                List.of(new SalesLineRequest(o.getItem().getId(), o.getQuantity(), o.getUnitPrice(), o.getRemark(), null, null, null))
+        ), username);
+
+        o.setStatus(MallOrderStatus.CONVERTED);
+        o.setSales(salesService.get(sales.id()));
+        return sales;
+    }
+
+    /**
+     * 배송처리. 판매전환된 주문을 실제 발송 처리한다(택배사·송장). 재고·채권은 이미 판매전표가 처리했으므로
+     * 여기서는 이행 상태만 기록한다.
+     */
+    @Transactional
+    public MallOrderResponse ship(Long id, com.erp.trade.mall.dto.MallOrderDtos.ShipRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.CONVERTED) {
+            throw ApiException.conflict("판매전환된 주문만 배송처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCourier(req.courier().trim());
+        o.setTrackingNo(req.trackingNo().trim());
+        o.setShippedAt(req.shippedAt() != null ? req.shippedAt() : java.time.LocalDate.now());
+        o.setStatus(MallOrderStatus.SHIPPED);
+        return MallOrderResponse.from(o);
+    }
+
+    /**
+     * 반품처리. 배송된 주문을 반품 상태로 기록한다.
+     * 재고 환입·채권 취소 같은 재무 반전은 판매전표(sales) 측 별개 트랙 — 몰이 중복 기록하지 않는다.
+     */
+    @Transactional
+    public MallOrderResponse returnOrder(Long id, com.erp.trade.mall.dto.MallOrderDtos.CloseRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.SHIPPED) {
+            throw ApiException.conflict("배송된 주문만 반품처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCloseReason(req.reason().trim());
+        o.setClosedAt(req.closedAt() != null ? req.closedAt() : java.time.LocalDate.now());
+        o.setStatus(MallOrderStatus.RETURNED);
+        return MallOrderResponse.from(o);
+    }
+
+    /**
+     * 교환처리. 배송된 주문을 교환 상태로 기록한다(재발송 택배정보 선택).
+     * 교환은 동일 상품을 바꿔 보내는 것이라 판매전표(매출)는 유지한다.
+     */
+    @Transactional
+    public MallOrderResponse exchange(Long id, com.erp.trade.mall.dto.MallOrderDtos.CloseRequest req) {
+        MallOrder o = get(id);
+        if (o.getStatus() != MallOrderStatus.SHIPPED) {
+            throw ApiException.conflict("배송된 주문만 교환처리할 수 있습니다. 현재: " + o.getStatus().getDisplayName());
+        }
+        o.setCloseReason(req.reason().trim());
+        o.setClosedAt(req.closedAt() != null ? req.closedAt() : java.time.LocalDate.now());
+        if (req.courier() != null && !req.courier().isBlank()) {
+            o.setCourier(req.courier().trim());
+        }
+        if (req.trackingNo() != null && !req.trackingNo().isBlank()) {
+            o.setTrackingNo(req.trackingNo().trim());
+        }
+        o.setStatus(MallOrderStatus.EXCHANGED);
+        return MallOrderResponse.from(o);
+    }
+
+    /** 전환·취소된 주문은 더 이상 손대지 않는다. 판매전표가 이미 재고를 움직였기 때문이다. */
+    private MallOrder getOpen(Long id) {
+        MallOrder o = get(id);
+        if (o.getStatus() == MallOrderStatus.CONVERTED) {
+            throw ApiException.conflict("이미 판매전환된 주문입니다: " + o.getMallOrderNo());
+        }
+        if (o.getStatus() == MallOrderStatus.CANCELLED) {
+            throw ApiException.conflict("취소된 주문입니다: " + o.getMallOrderNo());
+        }
+        return o;
+    }
+
+    private MallOrder get(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("몰 주문을 찾을 수 없습니다. id=" + id));
+    }
+}

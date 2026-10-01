@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api } from '../../api/client'
-import type { CollectSource } from '../../api/types'
+import type { CollectSource } from '../../types/api'
 
 /**
  * 데이터센터 > 데이터수집 — 모듈별 실데이터 수집 현황.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, QualityInspectionType, QualityResult } from '../../api/types'
+import type { CommonCode, Item, QualityInspection, QualityInspectionType, QualityResult } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'

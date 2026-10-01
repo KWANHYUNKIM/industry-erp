@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 import { subtotalBy } from '../../utils/subtotalBy'
 
 /**

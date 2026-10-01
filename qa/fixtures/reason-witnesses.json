@@ -44,7 +44,7 @@
    "currency",
    "Currency"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "내결재관리|My도장/서명": {
   "claim": "결재 도장 이미지를 만들지 않는다",
@@ -197,7 +197,7 @@
   "absent": [
    "private String currency"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "외화등록|환율": {
   "claim": "환율은 날짜별 고시라 [고시환율] 탭에서 따로 든다",
@@ -227,7 +227,7 @@
   "absent": [
    "repairType"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "거래이력조회|메뉴": {
   "claim": "우리 화면은 그 거래처의 거래 내역이라 감사 기록의 값이 없다",
@@ -255,21 +255,21 @@
   "absent": [
    "Warehouse"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|품목그룹설정": {
   "claim": "품목그룹으로 좁히는 특별단가를 만들지 않는다",
   "absent": [
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|특별단가그룹코드": {
   "claim": "단가그룹은 이름만 든다 — 코드 마스터가 아니다",
   "absent": [
    "PriceGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "외화등록|금액소수점": {
   "claim": "통화별 소수점 자릿수를 우리 마스터가 안 든다",
@@ -277,7 +277,7 @@
    "decimal",
    "Scale"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/Currency.java"
+  "in": "backend/src/main/java/com/erp/accounting/currency/Currency.java"
  },
  "계좌등록|검색창내용": {
   "claim": "계좌 마스터에 찾기용 별칭 칸이 없다",
@@ -286,7 +286,7 @@
    "Alias",
    "searchKey"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
+  "in": "backend/src/main/java/com/erp/accounting/bankcard/BankAccount.java"
  },
  "품목등록|생산공정": {
   "claim": "품목 마스터에 공정을 매어 두지 않는다 — 공정은 작업지시가 든다",
@@ -294,7 +294,7 @@
    "process",
    "Process"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "실제원가현황|생산공정": {
   "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
@@ -302,7 +302,7 @@
    "process",
    "Process"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "표준원가현황|생산공정": {
   "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
@@ -310,7 +310,7 @@
    "process",
    "Process"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "차이분석|생산공정": {
   "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
@@ -318,7 +318,7 @@
    "process",
    "Process"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "발주서|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다",
@@ -327,7 +327,7 @@
    "sentDate",
    "sendMail"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "건설예정공정표|업무지원AI": {
   "claim": "업무지원 AI 를 붙이지 않았다",
@@ -383,7 +383,7 @@
    "currency",
    "Currency"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "생산계획/MRP생성|생성일자": {
   "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
@@ -413,21 +413,21 @@
    "attrNum",
    "userNum"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "입고단가(VAT포함)": {
   "claim": "생산실적에 단가 칸이 없다",
   "absent": [
    "unitPrice"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "입고단가": {
   "claim": "생산실적에 단가 칸이 없다",
   "absent": [
    "unitPrice"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "선입선출(판매)": {
   "claim": "입고 레이어를 남기지 않아 선입선출로 못 센다",
@@ -444,7 +444,7 @@
    "process",
    "Process"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "원가생성_수정|창고코드": {
   "claim": "원가를 창고 단위로 쌓지 않는다",
@@ -452,7 +452,7 @@
    "warehouse",
    "Warehouse"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "원가생성_수정|창고명": {
   "claim": "원가를 창고 단위로 쌓지 않는다",
@@ -460,70 +460,70 @@
    "warehouse",
    "Warehouse"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/ItemCost.java"
+  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
  "발주서|결재중": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "발주서|미확인": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "발주서|확인": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "발주서조회|결재중": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "발주서조회|미확인": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "발주서조회|확인": {
   "claim": "발주 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "A/S접수|전체": {
   "claim": "A/S 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수|확인": {
   "claim": "A/S 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "창고이동조회|전체": {
   "claim": "창고이동 전표에 결재·확인 상태가 없다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
  "발주서입력|관리항목": {
   "claim": "발주 줄에 관리항목을 달지 않는다",
@@ -531,7 +531,7 @@
    "managementItem",
    "ManagementItem"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "품질검사현황|출처(요청)구분": {
   "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
@@ -539,7 +539,7 @@
    "sourceType",
    "SourceType"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "거래처관리대장 II|거래처계층그룹": {
   "claim": "거래처그룹이 평면이다 — 그룹 위에 그룹이 없다",
@@ -547,7 +547,7 @@
    "parent",
    "Parent"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PartnerGroup.java"
+  "in": "backend/src/main/java/com/erp/trade/partner/PartnerGroup.java"
  },
  "출하현황|시리얼/로트No.": {
   "claim": "출하 라인에 로트를 달지 않는다",
@@ -555,7 +555,7 @@
    "lot",
    "Lot"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/ShipmentLine.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/ShipmentLine.java"
  },
  "작업지시서입력|첨부": {
   "claim": "작업지시에 붙임 파일을 달지 않는다",
@@ -564,7 +564,7 @@
    "Attachment",
    "StoredFile"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "구매단가일괄변경|프로젝트": {
   "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다",
@@ -572,7 +572,7 @@
    "project",
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PriceBulkDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/price/dto/PriceBulkDtos.java"
  },
  "창고등록|추가사업장": {
   "claim": "한 회사 안에 사업장이 여럿일 수 없다",
@@ -580,7 +580,7 @@
    "businessPlace",
    "BusinessPlace"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Warehouse.java"
+  "in": "backend/src/main/java/com/erp/inventory/warehouse/Warehouse.java"
  },
  "거래이력조회|작업자": {
   "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 기록이 없다",
@@ -617,7 +617,7 @@
    "balance",
    "outstanding"
   ],
-  "in": "trade/dto/PartnerDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/partner/dto/PartnerDtos.java"
  },
  "매출계획비교표|기준일자": {
   "claim": "계획이 연·월 단위라 날짜 구간으로 자를 것이 없다",
@@ -632,7 +632,7 @@
    "partner",
    "Partner"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "거래처그룹2": {
   "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
@@ -712,7 +712,7 @@
    "adjustStatus",
    "StockAdjustmentStatus"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "불량처리현황|진행상태": {
   "claim": "기타이동에는 상태 칸이 없다",
@@ -720,7 +720,7 @@
    "adjustStatus",
    "StockAdjustmentStatus"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "대체사용현황|진행상태": {
   "claim": "기타이동에는 상태 칸이 없다",
@@ -728,7 +728,7 @@
    "adjustStatus",
    "StockAdjustmentStatus"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "폐기현황|진행상태": {
   "claim": "기타이동에는 상태 칸이 없다",
@@ -736,7 +736,7 @@
    "adjustStatus",
    "StockAdjustmentStatus"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "단가요청현황|오더관리번호": {
   "claim": "발주·기타이동 전표에는 오더 번호 칸이 없다(수주에는 오더관리유형이 붙는다)",
@@ -792,7 +792,7 @@
    "adjustPartner",
    "partner_id"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "불량처리현황|거래처": {
   "claim": "기타이동에는 거래처가 없다",
@@ -800,7 +800,7 @@
    "adjustPartner",
    "partner_id"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "대체사용현황|거래처": {
   "claim": "기타이동에는 거래처가 없다",
@@ -808,7 +808,7 @@
    "adjustPartner",
    "partner_id"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "폐기현황|거래처": {
   "claim": "기타이동에는 거래처가 없다",
@@ -816,7 +816,7 @@
    "adjustPartner",
    "partner_id"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "재고조정현황|거래처": {
   "claim": "기타이동에는 거래처가 없다",
@@ -824,7 +824,7 @@
    "adjustPartner",
    "partner_id"
   ],
-  "in": "inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "출/퇴근현황(ID)|내/외근구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -833,7 +833,7 @@
    "holidayKind",
    "workType"
   ],
-  "in": "hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "출/퇴근현황(ID)|업무일/휴일구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -842,7 +842,7 @@
    "holidayKind",
    "workType"
   ],
-  "in": "hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "지각현황(ID)|내/외근구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -851,7 +851,7 @@
    "holidayKind",
    "workType"
   ],
-  "in": "hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "지각현황(ID)|업무일/휴일구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -860,7 +860,7 @@
    "holidayKind",
    "workType"
   ],
-  "in": "hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "출퇴근/근태/일정현황(ID)|내/외근구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -869,7 +869,7 @@
    "holidayKind",
    "workType"
   ],
-  "in": "hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "월별채권증감내역|기준일자": {
   "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
@@ -1067,7 +1067,7 @@
  },
  "단가A": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1075,7 +1075,7 @@
  },
  "단가B": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1083,7 +1083,7 @@
  },
  "단가C": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1091,7 +1091,7 @@
  },
  "단가D": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1099,7 +1099,7 @@
  },
  "단가E": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1107,7 +1107,7 @@
  },
  "단가F": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1115,7 +1115,7 @@
  },
  "단가G": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1123,7 +1123,7 @@
  },
  "단가H": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1131,7 +1131,7 @@
  },
  "단가I": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1139,7 +1139,7 @@
  },
  "단가J": {
   "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "priceA",
    "priceGrade"
@@ -1147,7 +1147,7 @@
  },
  "안전재고관리-주문서": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1155,7 +1155,7 @@
  },
  "안전재고관리-판매": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1163,7 +1163,7 @@
  },
  "안전재고관리-생산불출": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1171,7 +1171,7 @@
  },
  "안전재고관리-생산입고": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1179,7 +1179,7 @@
  },
  "안전재고관리-창고이동": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1187,7 +1187,7 @@
  },
  "안전재고관리-자가사용": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1195,7 +1195,7 @@
  },
  "안전재고관리-불량처리": {
   "claim": "안전재고는 숫자 하나다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "safetyStockCheck",
    "safetyStockUse"
@@ -1203,7 +1203,7 @@
  },
  "재료비표준원가": {
   "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "materialCost",
    "laborCost",
@@ -1212,7 +1212,7 @@
  },
  "노무비표준원가": {
   "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "materialCost",
    "laborCost",
@@ -1221,7 +1221,7 @@
  },
  "경비표준원가": {
   "claim": "표준원가는 품목이 아니라 기간별 원가에 둔다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java",
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
   "absent": [
    "materialCost",
    "laborCost",
@@ -1303,7 +1303,7 @@
  },
  "출퇴근/근태/일정현황(ID)|근태항목": {
   "claim": "근태를 항목으로 등록하지 않는다",
-  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java",
   "absent": [
    "attendanceType",
    "workKind",
@@ -1312,7 +1312,7 @@
  },
  "출퇴근/근태/일정현황(ID)|근태그룹": {
   "claim": "근태를 항목으로 등록하지 않는다",
-  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java",
   "absent": [
    "attendanceType",
    "workKind",
@@ -1321,7 +1321,7 @@
  },
  "출퇴근/근태/일정현황(ID)|근태구분": {
   "claim": "근태를 항목으로 등록하지 않는다",
-  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java",
   "absent": [
    "attendanceType",
    "workKind",
@@ -1330,7 +1330,7 @@
  },
  "출퇴근/근태/일정현황(ID)|근무구분": {
   "claim": "근태를 항목으로 등록하지 않는다",
-  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java",
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java",
   "absent": [
    "attendanceType",
    "workKind",
@@ -1347,7 +1347,7 @@
  },
  "자가사용현황|거래처관리담당자": {
   "claim": "전표에 거래처가 없어 그 거래처의 담당자도 없다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java",
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java",
   "absent": [
    "adjustPartner",
    "partner_id",
@@ -1360,7 +1360,7 @@
    "ISSUE",
    "TRANSFER"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
+  "in": "backend/src/main/java/com/erp/inventory/stock/StockTransactionType.java"
  },
  "재고변동표|생산불출/창고이동포함": {
   "claim": "우리 재고거래는 생산불출·창고이동을 따로 표시하지 않는다",
@@ -1368,7 +1368,7 @@
    "ISSUE",
    "TRANSFER"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransactionType.java"
+  "in": "backend/src/main/java/com/erp/inventory/stock/StockTransactionType.java"
  },
  "거래처관리대장 II|거래처관계기준": {
   "claim": "거래처등록 화면이라 합칠 잔액 자체가 없다",
@@ -1406,7 +1406,7 @@
  },
  "출하조회|삭제구분": {
   "claim": "지운 전표를 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java",
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1414,7 +1414,7 @@
  },
  "발주서조회|삭제구분": {
   "claim": "지운 발주를 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java",
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1422,7 +1422,7 @@
  },
  "창고이동조회|삭제구분": {
   "claim": "지운 이동을 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java",
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1430,7 +1430,7 @@
  },
  "창고이동조회|오더관리번호": {
   "claim": "창고이동은 사내 이동이라 근거가 될 오더가 없다",
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java",
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java",
   "absent": [
    "salesOrder",
    "purchaseOrder",
@@ -1439,14 +1439,14 @@
  },
  "생산불출조회|최초작성자": {
   "claim": "만든 사람을 안 남긴다 — MaterialIssue 에 createdBy 칸이 없다",
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java",
   "absent": [
    "createdBy"
   ]
  },
  "생산불출조회|삭제구분": {
   "claim": "지운 불출을 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1454,7 +1454,7 @@
  },
  "생산불출조회|오더관리번호": {
   "claim": "사내 불출이라 근거가 될 오더가 없다",
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java",
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java",
   "absent": [
    "salesOrder",
    "purchaseOrder",
@@ -1463,7 +1463,7 @@
  },
  "생산입고조회|채무번호": {
   "claim": "생산입고에 채무가 붙지 않는다",
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java",
+  "in": "backend/src/main/java/com/erp/production/production/Production.java",
   "absent": [
    "payable",
    "debtNo",
@@ -1472,7 +1472,7 @@
  },
  "생산입고조회|삭제구분": {
   "claim": "지운 입고를 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java",
+  "in": "backend/src/main/java/com/erp/production/production/Production.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1480,7 +1480,7 @@
  },
  "생산입고조회|오더관리번호": {
   "claim": "사내 입고라 근거가 될 오더가 없다",
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java",
+  "in": "backend/src/main/java/com/erp/production/production/Production.java",
   "absent": [
    "salesOrder",
    "purchaseOrder",
@@ -1489,7 +1489,7 @@
  },
  "작업지시서조회|오더관리번호": {
   "claim": "작업지시가 무는 것은 수주가 아니라 품목·창고다",
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java",
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java",
   "absent": [
    "salesOrder",
    "purchaseOrder",
@@ -1498,7 +1498,7 @@
  },
  "작업지시서조회|삭제구분": {
   "claim": "지운 지시를 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java",
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1506,7 +1506,7 @@
  },
  "결제내역조회|결제요청일자": {
   "claim": "결제에 요청 단계가 없다 — 요청한 날을 적을 칸이 없다",
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java",
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java",
   "absent": [
    "requestedAt",
    "requestDate",
@@ -1515,14 +1515,14 @@
  },
  "작업내역조회|최초작성자": {
   "claim": "만든 사람을 안 남긴다 — WorkResult 에 createdBy 칸이 없다",
-  "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java",
+  "in": "backend/src/main/java/com/erp/production/workresult/WorkResult.java",
   "absent": [
    "createdBy"
   ]
  },
  "A/S접수조회|삭제구분": {
   "claim": "지운 접수를 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1530,7 +1530,7 @@
  },
  "매출계획조회|삭제구분": {
   "claim": "지운 계획을 남기지 않는다 — 소프트 삭제가 아니다",
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java",
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java",
   "absent": [
    "deletedAt",
    "deleted"
@@ -1538,14 +1538,14 @@
  },
  "판매현황|외화종류": {
   "claim": "판매 전표에 통화 칸이 없다",
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java",
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java",
   "absent": [
    "currency"
   ]
  },
  "구매현황|외화종류": {
   "claim": "구매 전표에 통화 칸이 없다",
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java",
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java",
   "absent": [
    "currency"
   ]
@@ -1555,21 +1555,21 @@
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "작업내역현황|최초작성자": {
   "claim": "만든 사람을 안 남긴다 — WorkResult 에 createdBy 칸이 없다(생산불출과 같다)",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkResult.java"
+  "in": "backend/src/main/java/com/erp/production/workresult/WorkResult.java"
  },
  "품질검사현황|최초작성자": {
   "claim": "만든 사람을 안 남긴다 — QualityInspection 에 createdBy 칸이 없다(검사자와 다른 사람이다)",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "작업지시서현황|오더관리번호": {
   "claim": "작업지시가 수주를 근거로 끊어지지 않는다 — WorkOrder 에 근거 전표 칸이 없다(출하는 있다)",
@@ -1577,7 +1577,7 @@
    "sourceOrder",
    "salesOrder"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "미출하현황|연락처": {
   "claim": "수주에 배송지 칸이 없다 — 연락처·주소는 출하지시서가 든다",
@@ -1585,7 +1585,7 @@
    "contact",
    "address"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
  },
  "미출하현황|주소": {
   "claim": "수주(SalesOrder)에 배송지 칸이 없다 — 연락처·주소는 출하지시서가 든다. 미출하에는 아직 지시가 안 난 줄도 섞여 있어 붙일 데가 없다 — 수주에 배송지 칸이 없다",
@@ -1593,7 +1593,7 @@
    "contact",
    "address"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
  },
  "비용내역현황|기준일자": {
   "claim": "비용 전표에 날짜가 expenseDate 하나뿐이다 — 기준일자를 따로 두지 않는다",
@@ -1601,7 +1601,7 @@
    "baseDate",
    "slipDate"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/Expense.java"
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  },
  "비용내역현황|비고": {
   "claim": "글자 칸이 content(적요) 하나뿐이라 비고에 담을 자리가 없다",
@@ -1609,7 +1609,7 @@
    "remark",
    "note"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/Expense.java"
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  },
  "비용내역현황|결제구분": {
   "claim": "개인비용·회사비용을 가르는 칸이 없다 — 우리가 든 것은 결제수단이다",
@@ -1617,7 +1617,7 @@
    "personalExpense",
    "expenseOwner"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/Expense.java"
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  },
  "판매구매집계표|외화종류": {
   "claim": "판매·구매 전표에 통화 칸이 없다 — 원화 하나로 본다",
@@ -1625,7 +1625,7 @@
    "currency",
    "exchangeRate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/dto/SalesDtos.java"
  },
  "집계표|외화종류": {
   "claim": "판매 전표에 통화 칸이 없다 — 원화 하나로 본다",
@@ -1633,7 +1633,7 @@
    "currency",
    "exchangeRate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/dto/SalesDtos.java"
  },
  "집계표|채권번호": {
   "claim": "판매 전표가 채권을 물지 않는다 — 정산이 전표를 문다",
@@ -1641,7 +1641,7 @@
    "receivableNo",
    "settlementId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/dto/SalesDtos.java"
  },
  "주문서현황|외화종류": {
   "claim": "수주에 통화 칸이 없다",
@@ -1649,7 +1649,7 @@
    "currency",
    "exchangeRate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/dto/SalesOrderDtos.java"
  },
  "주문서현황|결제조건": {
   "claim": "수주에 결제조건 칸이 없다",
@@ -1657,7 +1657,7 @@
    "paymentTerm",
    "paymentTerms"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/dto/SalesOrderDtos.java"
  },
  "주문서현황|유효기간": {
   "claim": "유효기간은 견적의 개념이라 수주에 없다",
@@ -1665,7 +1665,7 @@
    "validUntil",
    "validDate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/SalesOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/dto/SalesOrderDtos.java"
  },
  "견적서현황|시리얼/로트No.": {
   "claim": "견적 라인에 시리얼/로트 칸이 없다",
@@ -1673,7 +1673,7 @@
    "lotNo",
    "serialNo"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|담당자": {
   "claim": "견적 전표에 담당자를 안 붙인다",
@@ -1681,7 +1681,7 @@
    "employeeId",
    "employeeName"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|외화종류": {
   "claim": "견적에 통화 칸이 없다",
@@ -1689,7 +1689,7 @@
    "currency",
    "exchangeRate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|결제조건": {
   "claim": "견적에 결제조건 칸이 없다",
@@ -1697,14 +1697,14 @@
    "paymentTerm",
    "paymentTerms"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|제목": {
   "claim": "견적에 제목 칸이 없다",
   "absent": [
    "String title"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|오더관리번호": {
   "claim": "견적에 오더관리 유형·진행단계를 걸지 않는다",
@@ -1712,7 +1712,7 @@
    "orderTypeId",
    "stageId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|참조": {
   "claim": "견적은 시작점이라 근거전표를 달지 않는다",
@@ -1720,7 +1720,7 @@
    "sourceOrderId",
    "refNo"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|추가수량": {
   "claim": "견적 라인에 추가수량 칸이 없다",
@@ -1728,7 +1728,7 @@
    "extraQty",
    "addQty"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|단가(vat포함)": {
   "claim": "vat 포함 단가를 따로 저장하지 않는다",
@@ -1736,7 +1736,7 @@
    "priceWithVat",
    "unitPriceVat"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|금액1": {
   "claim": "견적 라인에 추가 금액 칸이 없다",
@@ -1744,7 +1744,7 @@
    "amount1",
    "amount2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|적요1": {
   "claim": "견적 라인에 추가 적요 칸이 없다",
@@ -1753,7 +1753,7 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "발주요청현황|오더관리번호": {
   "claim": "발주에 오더관리 유형·진행단계를 걸지 않는다",
@@ -1761,7 +1761,7 @@
    "orderTypeId",
    "stageId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|추가수량": {
   "claim": "발주 라인에 추가수량 칸이 없다",
@@ -1769,7 +1769,7 @@
    "extraQty",
    "addQty"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|단가(vat포함)": {
   "claim": "vat 포함 단가를 따로 저장하지 않는다",
@@ -1777,7 +1777,7 @@
    "priceWithVat",
    "unitPriceVat"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|금액1": {
   "claim": "발주 라인에 추가 금액 칸이 없다",
@@ -1785,7 +1785,7 @@
    "amount1",
    "amount2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|적요1": {
   "claim": "발주 라인에 추가 적요 칸이 없다",
@@ -1794,14 +1794,14 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|제목": {
   "claim": "발주에 제목 칸이 없다",
   "absent": [
    "String title"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "미구매현황|오더관리번호": {
   "claim": "발주에 오더관리를 걸지 않는다",
@@ -1809,7 +1809,7 @@
    "orderTypeId",
    "stageId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "미구매현황|참조": {
   "claim": "발주는 시작점이라 근거전표를 달지 않는다",
@@ -1817,7 +1817,7 @@
    "sourceOrderId",
    "refNo"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "판매조회|입력경로": {
   "claim": "어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다",
@@ -1997,91 +1997,91 @@
   "absent": [
    "parent"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
  "작업내역현황|작업품목:품목계층그룹": {
   "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",
   "absent": [
    "parent"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
  "판매조회|삭제구분": {
   "claim": "지운 전표를 남기지 않는다 — 지우면 사라진다",
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "구매조회|삭제구분": {
   "claim": "지운 전표를 남기지 않는다 — 지우면 사라진다",
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "창고이동조회|결재중": {
   "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
  "창고이동조회|미확인": {
   "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
  "창고이동조회|확인": {
   "claim": "창고이동 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
  "생산불출|전체": {
   "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산불출|결재중": {
   "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산불출|미확인": {
   "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산불출|확인": {
   "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "매출계획|전체": {
   "claim": "매출계획에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획조회|전체": {
   "claim": "매출계획에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "A/S접수조회|전체": {
   "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
@@ -2089,7 +2089,7 @@
    "CONFIRMED",
    "APPROVED"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsStatus.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsStatus.java"
  },
  "A/S접수조회|확인": {
   "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
@@ -2097,42 +2097,42 @@
    "CONFIRMED",
    "APPROVED"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsStatus.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsStatus.java"
  },
  "결제내역조회|품목": {
   "claim": "정산 전표에 품목이 없다 — 수금·지급 한 건이다",
   "absent": [
    "Item"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|품목명": {
   "claim": "정산 전표에 품목이 없다",
   "absent": [
    "Item"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|재고전표": {
   "claim": "정산에서 재고전표가 나오지 않는다",
   "absent": [
    "Stock"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|창고명": {
   "claim": "정산은 돈이라 창고를 타지 않는다",
   "absent": [
    "Warehouse"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|결제상태": {
   "claim": "결제 자체의 단계를 두지 않는다 — 우리 상태는 회계반영 여부뿐이다",
   "absent": [
    "PaymentStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java",
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java",
   "present": [
    "회계반영"
   ]
@@ -2142,7 +2142,7 @@
   "absent": [
    "PaymentStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|강제회계반영": {
   "claim": "강제로 만든 전표인지 구분해 두지 않는다 — 반영/미반영뿐이다",
@@ -2150,7 +2150,7 @@
    "forceReflect",
    "forced"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "결제내역조회|카드/식별번호": {
   "claim": "PG 카드번호를 정산에 남기지 않는다",
@@ -2158,7 +2158,7 @@
    "cardNo",
    "identifyNo"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "특별단가등록|품목설정": {
   "claim": "우리 특별단가는 늘 품목 하나에 붙는다",
@@ -2166,7 +2166,7 @@
    "Warehouse",
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|특별단가그룹": {
   "claim": "우리는 품목별 단가 한 축이다",
@@ -2174,7 +2174,7 @@
    "Warehouse",
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|품목별": {
   "claim": "우리는 품목별 단가 한 축이다",
@@ -2182,7 +2182,7 @@
    "Warehouse",
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|품목그룹별": {
   "claim": "우리는 품목별 단가 한 축이다",
@@ -2190,7 +2190,7 @@
    "Warehouse",
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "특별단가등록|적용단가": {
   "claim": "우리는 품목별 단가 한 축이다",
@@ -2198,7 +2198,7 @@
    "Warehouse",
    "ItemGroup"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SpecialPrice.java"
+  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "카드등록|카드관리자": {
   "claim": "우리 카드는 명의자(ownerName)만 든다",
@@ -2207,7 +2207,7 @@
    "Manager",
    "Employee"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/CreditCard.java"
+  "in": "backend/src/main/java/com/erp/accounting/bankcard/CreditCard.java"
  },
  "카드등록|검색창내용": {
   "claim": "카드 마스터에 찾기용 별칭 칸이 없다",
@@ -2216,7 +2216,7 @@
    "nickname",
    "searchKeyword"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/CreditCard.java"
+  "in": "backend/src/main/java/com/erp/accounting/bankcard/CreditCard.java"
  },
  "계좌등록|이체정보": {
   "claim": "자동이체 설정을 들지 않는다",
@@ -2225,7 +2225,7 @@
    "transfer",
    "autoDebit"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/BankAccount.java"
+  "in": "backend/src/main/java/com/erp/accounting/bankcard/BankAccount.java"
  },
  "발주서입력|추가수량": {
   "claim": "수량을 둘로 나눠 적지 않는다",
@@ -2233,14 +2233,14 @@
    "extraQty",
    "addQty"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "발주서입력|시리얼/로트": {
   "claim": "발주 줄에 로트를 달지 않는다 — 로트는 입고할 때 정해진다",
   "absent": [
    "Lot"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "판매현황|채권번호": {
   "claim": "채권에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다",
@@ -2277,7 +2277,7 @@
    "salesKind",
    "salesDivision"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "판매조회|판매구분": {
   "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
@@ -2286,7 +2286,7 @@
    "salesKind",
    "salesDivision"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "집계표|판매구분": {
   "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
@@ -2295,7 +2295,7 @@
    "salesKind",
    "salesDivision"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "집계표|오더관리번호": {
   "claim": "오더관리에 번호를 매기지 않는다",
@@ -2363,49 +2363,49 @@
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/BusinessPartner.java"
+  "in": "backend/src/main/java/com/erp/trade/partner/BusinessPartner.java"
  },
  "품목등록|최초작성자": {
   "claim": "품목 마스터에는 만든 사람을 남기지 않는다",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "수집데이터등록|최초작성자": {
   "claim": "수집 소스에는 만든 사람을 남기지 않는다",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "수집데이터등록|진행상태": {
   "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "주문서현황|품목별납기일자": {
   "claim": "수주의 납기는 전표 단위 하나다 — 라인마다 따로 두지 않는다",
   "absent": [
    "dueDate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrderLine.java"
  },
  "주문서현황|거래구분": {
   "claim": "수주에 반품 갈래가 없다 — 반품은 판매(returnSlip)에서 생긴다",
   "absent": [
    "returnSlip"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
  },
  "발주서현황|거래구분": {
   "claim": "발주에 반품이 없다 — 되돌려 보내는 것은 구매 전표에서 잡는다",
   "absent": [
    "returnSlip"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "구매조회|세금계산서구분": {
   "claim": "구매 전표에 세금계산서 청구 상태를 남기지 않는다",
@@ -2413,42 +2413,42 @@
    "taxInvoice",
    "TaxInvoice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "창고이동현황|진행상태": {
   "claim": "이동 전표에 확인 상태가 없다 — 넣는 순간 재고가 움직이고 끝이다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockTransfer.java"
+  "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
  "근태조회|프로젝트": {
   "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다",
   "absent": [
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain"
+  "in": "backend/src/main/java/com/erp/hr"
  },
  "출하조회|미확인": {
   "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "생산불출조회|미확인": {
   "claim": "생산 전표에 확인 상태가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산불출현황|진행상태": {
   "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산입고현황|진행상태": {
   "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
@@ -2456,28 +2456,28 @@
    "confirmStatus",
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "출하조회|결재중": {
   "claim": "출하 전표를 전자결재에 올리지 않는다",
   "absent": [
    "Approval"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "생산불출조회|결재중": {
   "claim": "생산 전표를 전자결재에 올리지 않는다",
   "absent": [
    "Approval"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산입고조회|전자결재": {
   "claim": "생산 전표를 결재에 올리지 않는다",
   "absent": [
    "Approval"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "생산불출현황|오더관리번호": {
   "claim": "오더관리에 번호를 매기지 않는다 — 사내 전표는 오더를 물지도 않는다",
@@ -2518,21 +2518,21 @@
   "absent": [
    "returnSlip"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "수금현황|부서": {
   "claim": "정산에 부서가 없다 — 붙일 값이 없다",
   "absent": [
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "수금현황|부서계층그룹": {
   "claim": "부서를 붙일 자리가 없으니 그 위의 계층도 없다",
   "absent": [
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "거래처관리대장 II|거래처그룹2": {
   "claim": "거래처그룹이 하나다 — [거래처그룹1] 만 있다",
@@ -2540,42 +2540,42 @@
    "group2",
    "partnerGroup2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/BusinessPartner.java"
+  "in": "backend/src/main/java/com/erp/trade/partner/BusinessPartner.java"
  },
  "건설예정공정표|거래처": {
   "claim": "프로젝트에 거래처를 달지 않는다",
   "absent": [
    "BusinessPartner"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "건설예정공정표|삭제구분": {
   "claim": "지운 것을 남겨 두지 않는다 — 지우면 없어진다",
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "건설예정공정표|게시글번호": {
   "claim": "게시글이 아니라 번호가 없다",
   "absent": [
    "postNo"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "건설예정공정표|입력경로": {
   "claim": "어디서 넣었는지 기록하지 않는다",
   "absent": [
    "inputChannel"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "휴가사용실적현황|프로젝트": {
   "claim": "휴가에 프로젝트를 달지 않는다",
   "absent": [
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain"
+  "in": "backend/src/main/java/com/erp/hr"
  },
  "판매조회|발송여부": {
   "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다",
@@ -2584,7 +2584,7 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "구매조회|발송여부": {
   "claim": "전표를 거래처로 내보내는 기능이 없다 — 보낸 기록 자체가 없다",
@@ -2593,7 +2593,7 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "생산불출조회|미발송": {
   "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다",
@@ -2602,7 +2602,7 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산불출조회|발송여부": {
   "claim": "불출 전표를 어디로 내보내는 기능이 없다",
@@ -2611,7 +2611,7 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "내자": {
   "claim": "국내/수입 구분을 전표에 두지 않는다",
@@ -2636,7 +2636,7 @@
   "absent": [
    "Approval"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "품목등록|원가": {
   "claim": "표준원가 넷 중 셋(재료비·노무비·경비)이 우리 품목에 없다",
@@ -2645,7 +2645,7 @@
    "laborCost",
    "overheadCost"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "의료기기공급내역보고|전체": {
   "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
@@ -2654,7 +2654,7 @@
    "transmit",
    "HIRA"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+  "in": "backend/src/main/java/com/erp/accounting/medicaldevice/MedicalDeviceReport.java"
  },
  "의료기기공급내역보고|미전송": {
   "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
@@ -2663,7 +2663,7 @@
    "transmit",
    "HIRA"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+  "in": "backend/src/main/java/com/erp/accounting/medicaldevice/MedicalDeviceReport.java"
  },
  "의료기기공급내역보고|전송": {
   "claim": "대외 전송을 하지 않는다 — 산출·보관·이력까지가 범위다",
@@ -2672,14 +2672,14 @@
    "transmit",
    "HIRA"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/MedicalDeviceReport.java"
+  "in": "backend/src/main/java/com/erp/accounting/medicaldevice/MedicalDeviceReport.java"
  },
  "근태입력|저장/전표(F7)": {
   "claim": "근태를 회계전표로 넘기지 않는다",
   "absent": [
    "JournalEntry"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain/Attendance.java"
+  "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
  },
  "수율차이": {
   "claim": "공정별 투입·산출을 쌓지 않아 수율을 못 낸다",
@@ -2688,7 +2688,7 @@
    "outputQty",
    "yield"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/ProductionProcess.java"
+  "in": "backend/src/main/java/com/erp/production/process/ProductionProcess.java"
  },
  "거래이력조회|작업일자": {
   "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
@@ -2772,14 +2772,14 @@
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain"
+  "in": "backend/src/main/java/com/erp/trade"
  },
  "건설예정공정표|담당자구분": {
   "claim": "담당은 이름 한 칸이다 — 갈래가 없다",
   "absent": [
    "managerType"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "거래처관리대장 II|검색(F8)": {
   "claim": "거래처등록은 검색상자로 찾는다",
@@ -2829,7 +2829,7 @@
    "group2",
    "itemGroup2"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역조회|생산품목:품목그룹2": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다",
@@ -2837,7 +2837,7 @@
    "group2",
    "itemGroup2"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역현황|작업품목:품목그룹2": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다",
@@ -2845,7 +2845,7 @@
    "group2",
    "itemGroup2"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역현황|생산품목:품목그룹2": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다",
@@ -2853,14 +2853,14 @@
    "group2",
    "itemGroup2"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "비용내역현황|최초작성자": {
   "claim": "쓴 사람과 만든 사람을 따로 두지 않는다 — Expense.createdBy 하나가 그 자리를 겸한다",
   "absent": [
    "Employee"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/domain/Expense.java"
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  },
  "생산입고조회|생산입고구분": {
   "claim": "입력 화면이 하나라 나눌 갈래가 없다",
@@ -2869,7 +2869,7 @@
    "productionKind",
    "inboundKind"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "불량률파악보고서|정렬/소계기준": {
   "claim": "원본이 실제로 쓰는 축(창고)으로 소계를 둔다 — 고르게 하는 [설정] 팝업의 후보는 아직 못 쟀다",
@@ -2884,14 +2884,14 @@
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain/VacationRequest.java"
+  "in": "backend/src/main/java/com/erp/hr/vacation/VacationRequest.java"
  },
  "미판매현황|품목별납기일자": {
   "claim": "수주의 납기는 전표 단위 하나다 — 라인마다 납기를 따로 두지 않는다",
   "absent": [
    "dueDate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrderLine.java"
  },
  "의료기기공급내역보고|납품일자": {
   "claim": "공급내역 줄에 날짜가 하나뿐이다 — 납품한 날을 따로 두지 않는다",
@@ -2914,21 +2914,21 @@
   "absent": [
    "BusinessPartner"
   ],
-  "in": "backend/src/main/java/com/erp/groupware/domain/ApprovalDocument.java"
+  "in": "backend/src/main/java/com/erp/groupware/approval/ApprovalDocument.java"
  },
  "내결재관리|품목": {
   "claim": "기안서에 품목을 달지 않는다",
   "absent": [
    "Item"
   ],
-  "in": "backend/src/main/java/com/erp/groupware/domain/ApprovalDocument.java"
+  "in": "backend/src/main/java/com/erp/groupware/approval/ApprovalDocument.java"
  },
  "근태현황|최초작성자": {
   "claim": "휴가 신청에 만든 사람을 따로 남기지 않는다 — 신청자(user)가 곰 [사원] 이다",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain/VacationRequest.java"
+  "in": "backend/src/main/java/com/erp/hr/vacation/VacationRequest.java"
  },
  "작업지시서별진행현황|오더관리번호": {
   "claim": "작업지시가 무는 것은 수주가 아니라 품목·창고다 — 오더 참조 칸이 없다(작업지시서조회와 같음)",
@@ -2937,7 +2937,7 @@
    "purchaseOrder",
    "sourceOrder"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "채권현황|청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
@@ -2946,7 +2946,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "채권현황|미청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
@@ -2955,7 +2955,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "채무현황|청구금액": {
   "claim": "지급이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
@@ -2964,7 +2964,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "채무현황|미청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
@@ -2973,7 +2973,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "미주문현황|수량": {
   "claim": "우리 견적은 통째로 수주 전환된다 - 부분 전환을 남기지 않는다",
@@ -2981,7 +2981,7 @@
    "orderedQuantity",
    "convertedQuantity"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/QuotationLine.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/QuotationLine.java"
  },
  "품질검사현황|검사방법": {
   "claim": "샘플링·전수를 갈라 적지 않는다",
@@ -2990,7 +2990,7 @@
    "inspectionMethod",
    "samplingType"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "품질검사현황|시료": {
   "claim": "뽑은 시료 수를 따로 안 든다",
@@ -2999,7 +2999,7 @@
    "inspectionMethod",
    "samplingType"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "생산불출현황|생산금액": {
   "claim": "불출에 단가를 안 매긴다 - 수량만 든다",
@@ -3008,7 +3008,7 @@
    "amount",
    "supplyAmount"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "자가사용현황|거래처명": {
   "claim": "기타이동은 사내에서 재고만 움직이는 전표라 상대가 없다",
@@ -3017,7 +3017,7 @@
    "businessPartner",
    "partnerId"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "대체사용현황|불량수량": {
   "claim": "기타이동 전표는 증감 한 수만 든다",
@@ -3026,7 +3026,7 @@
    "goodQty",
    "normalQty"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "대체사용현황|정상수량": {
   "claim": "기타이동 전표는 증감 한 수만 든다 - 불량분과 정상분을 갈라 적지 않는다",
@@ -3035,7 +3035,7 @@
    "goodQty",
    "normalQty"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/StockAdjustment.java"
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
  },
  "미구매현황|수량": {
   "claim": "우리 발주는 통째로 구매로 넘어간다 - 부분 입고를 남기지 않는다",
@@ -3043,14 +3043,14 @@
    "receivedQuantity",
    "convertedQuantity"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "미구매현황|품목별납기일자": {
   "claim": "납기를 줄에 안 적는다 - 전표 단위다",
   "absent": [
    "dueDate"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "A/S접수현황|수량": {
   "claim": "A/S 접수에 수량 칸이 없다",
@@ -3058,7 +3058,7 @@
    "quantity",
    "qty"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "채권/채무현황|청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
@@ -3067,7 +3067,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "채권/채무현황|미청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
@@ -3076,7 +3076,7 @@
    "taxInvoice",
    "invoiceId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "단가요청현황|단가(요청단가)": {
   "claim": "발주 줄에 단가가 하나뿐이다",
@@ -3085,7 +3085,7 @@
    "receivedPrice",
    "confirmedPrice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "단가요청현황|단가(수취단가)": {
   "claim": "발주 줄에 단가가 하나뿐이다",
@@ -3094,7 +3094,7 @@
    "receivedPrice",
    "confirmedPrice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "단가요청현황|단가(확정단가)": {
   "claim": "발주 줄에 단가가 하나뿐이다",
@@ -3103,7 +3103,7 @@
    "receivedPrice",
    "confirmedPrice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrderLine.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "발주계획현황|진행상태": {
   "claim": "우리 표는 위 카드로 고른 한 상태만 편다",
@@ -3120,7 +3120,7 @@
    "salesId",
    "salesNo"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsPart.java"
  },
  "A/S소모현황|부가세": {
   "claim": "소모부품 줄에 부가세 칸이 없다",
@@ -3128,7 +3128,7 @@
    "vatAmount",
    "getVat"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsPart.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsPart.java"
  },
  "불량률파악보고서|불량수량": {
   "claim": "우리 것은 검사에서 나온 [검사불량]이다",
@@ -3208,7 +3208,7 @@
    "purchaseOrder",
    "sourceOrder"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "품질검사요청조회|품목명(요약)": {
   "claim": "요청 한 건이 품목 하나짜리라 요약할 것이 없다",
@@ -3216,7 +3216,7 @@
    "lines",
    "List<"
   ],
-  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
  },
  "품질검사요청조회|수량합계": {
   "claim": "요청 한 건이 품목 하나짜리라 합칠 줄이 없다 — [수량] 이 곰 그 값이다",
@@ -3224,7 +3224,7 @@
    "lines",
    "List<"
   ],
-  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
  },
  "품질검사요청조회|연결전표": {
   "claim": "검사요청이 근거 전표를 물지 않는다",
@@ -3233,7 +3233,7 @@
    "purchase",
    "salesOrder"
   ],
-  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
  },
  "품질검사요청조회|생성한전표": {
   "claim": "요청에서 검사 전표를 자동으로 만들지 않는다",
@@ -3241,7 +3241,7 @@
    "inspection",
    "createdSlip"
   ],
-  "in": "backend/src/main/java/com/erp/quality/dto/QualityRequestDtos.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
  },
  "품질검사요청조회|창고": {
   "claim": "검사요청이 창고를 안 든다",
@@ -3249,7 +3249,7 @@
    "warehouse",
    "Warehouse"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|거래처": {
   "claim": "검사요청이 거래처를 안 든다",
@@ -3257,7 +3257,7 @@
    "partner",
    "Partner"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|관리항목": {
   "claim": "검사요청에 관리항목을 걸지 않는다",
@@ -3265,7 +3265,7 @@
    "manageItem",
    "ManagementItem"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|거래처관리담당자": {
   "claim": "거래처 자체를 안 드니 그 담당자도 없다",
@@ -3273,7 +3273,7 @@
    "partner",
    "Partner"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|발송여부": {
   "claim": "검사요청을 보내는 자리가 없다",
@@ -3281,7 +3281,7 @@
    "sent",
    "sendYn"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|오더관리번호": {
   "claim": "검사요청이 근거 오더를 물지 않는다",
@@ -3289,28 +3289,28 @@
    "orderMgmtNo",
    "sourceDoc"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|작성자": {
   "claim": "만든 계정을 안 남긴다",
   "absent": [
    "createdBy"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|최초작성일자": {
   "claim": "만든 때로 거르지 않는다",
   "absent": [
    "createdAt"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|최종작업일자": {
   "claim": "만든 때로 거르지 않는다 - 응답이 createdAt 을 안 싣는다",
   "absent": [
    "updatedAt"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|삭제구분": {
   "claim": "지운 요청을 남겨 두지 않는다",
@@ -3318,7 +3318,7 @@
    "deleted",
    "deletedAt"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|제목": {
   "claim": "검사요청에 제목이 없다",
@@ -3326,7 +3326,7 @@
    "title",
    "subject"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식1": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3335,7 +3335,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식2": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3344,7 +3344,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식3": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3353,7 +3353,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식4": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3362,7 +3362,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식5": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3371,7 +3371,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|문자형식6": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3380,7 +3380,7 @@
    "customField",
    "userField"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspectionRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
  "품질검사요청조회|품질검사요청No.": {
   "claim": "원본 입력 화면은 같은 칸을 [일자-No.] 라 부른다",
@@ -3395,14 +3395,14 @@
    "orderTypeId",
    "stageId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|담당자": {
   "claim": "견적에 담당 사원을 달지 않는다",
   "absent": [
    "employeeId"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|거래유형": {
   "claim": "견적에 거래유형(부가세율 묶음)을 걸지 않는다",
@@ -3410,7 +3410,7 @@
    "tradeType",
    "vatType"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|적요1": {
   "claim": "줄마다 적는 적요가 없다",
@@ -3418,7 +3418,7 @@
    "lineRemark",
    "remark1"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|적요2": {
   "claim": "줄마다 적는 적요가 없다 - 전표 적요 한 칸이다",
@@ -3426,7 +3426,7 @@
    "lineRemark",
    "remark2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|적요3": {
   "claim": "줄마다 적는 적요가 없다 - 전표 적요 한 칸이다",
@@ -3434,7 +3434,7 @@
    "lineRemark",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|문자형식1": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다",
@@ -3442,7 +3442,7 @@
    "text1",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|문자형식2": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)",
@@ -3450,7 +3450,7 @@
    "text2",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|문자형식3": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)",
@@ -3458,7 +3458,7 @@
    "text3",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|문자형식4": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)",
@@ -3466,7 +3466,7 @@
    "text4",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|문자형식5": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)",
@@ -3474,7 +3474,7 @@
    "text5",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|장문형식1": {
   "claim": "추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)",
@@ -3482,14 +3482,14 @@
    "longText",
    "customField"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|참조": {
   "claim": "견적에 참조 칸이 없다",
   "absent": [
    "reference"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|결제조건": {
   "claim": "견적에 결제조건 칸이 없다",
@@ -3497,14 +3497,14 @@
    "paymentTerms",
    "payTerm"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|최초작성일자": {
   "claim": "만든 때로 거르지 않는다",
   "absent": [
    "createdAt"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "견적서조회|입력경로": {
   "claim": "어느 길로 넣었는지 안 남긴다",
@@ -3512,7 +3512,7 @@
    "inputPath",
    "channel"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|삭제구분": {
   "claim": "지운 견적을 남겨 두지 않는다",
@@ -3520,7 +3520,7 @@
    "deleted",
    "deletedAt"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "견적서조회|제목": {
   "claim": "견적에 제목이 없다",
@@ -3528,7 +3528,7 @@
    "title",
    "subject"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Quotation.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/Quotation.java"
  },
  "원가생성_수정|계산기준": {
   "claim": "원본에서도 표의 열이 아니라 조건이다 — 우리도 조건으로 있다",
@@ -3647,7 +3647,7 @@
    "partner",
    "Partner"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "품질검사현황|오더관리번호": {
   "claim": "검사를 전표에 이어 두지 않아 근거가 될 오더가 없다",
@@ -3655,21 +3655,21 @@
    "orderNo",
    "OrderManage"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "품질검사현황|출처(검사)구분": {
   "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
   "absent": [
    "sourceDoc"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "휴가잔여일수현황|적요": {
   "claim": "잔여일수 응답에 적요가 없다 — 적요로 거르는 칸을 아직 안 만들었다",
   "absent": [
    "remark"
   ],
-  "in": "backend/src/main/java/com/erp/hr/dto/HrDtos.java"
+  "in": "backend/src/main/java/com/erp/hr/vacation/dto/HrDtos.java"
  },
  "건설예정공정표|사용자": {
   "claim": "작성자만 남기고 조건으로 거르지는 않는다",
@@ -3684,7 +3684,7 @@
    "quotation",
    "Quotation"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
  },
  "작업지시서효율현황|규격": {
   "claim": "효율 화면은 품목이 아니라 지시 단위로 센다",
@@ -3727,7 +3727,7 @@
    "deliveryPartner",
    "shipToPartner"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Sales.java"
+  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
  },
  "소요시간계산|내역": {
   "claim": "계산한 것을 남겨 두지 않는다 — 물을 때마다 다시 센다",
@@ -3742,7 +3742,7 @@
    "status",
    "Status"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/QualityInspection.java"
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "생산입고II-소모품목 선택|생산": {
   "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다",
@@ -3771,7 +3771,7 @@
    "confirmStatus",
    "ConfirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
  },
  "판매현황|진행상태": {
   "claim": "판매현황은 줄 단위로 펴 보는 화면이라 전표의 확인 상태를 줄에 붙이지 않는다 — 그 상태로 거르는 자리는 판매조회에 있다",
@@ -3795,7 +3795,7 @@
    "group3",
    "itemGroup3"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역조회|생산품목:품목그룹3": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역조회|생산품목:품목그룹2] 과 같은 사실이다)",
@@ -3805,7 +3805,7 @@
    "group3",
    "itemGroup3"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역현황|작업품목:품목그룹3": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역현황|작업품목:품목그룹2] 과 같은 사실이다)",
@@ -3815,7 +3815,7 @@
    "group3",
    "itemGroup3"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "작업내역현황|생산품목:품목그룹3": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(위 [작업내역현황|생산품목:품목그룹2] 과 같은 사실이다)",
@@ -3825,7 +3825,7 @@
    "group3",
    "itemGroup3"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Item.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "발주요청현황|금액2": {
   "claim": "발주 라인에 추가 금액 칸이 없다(위 [발주요청현황|금액1] 과 같은 사실이다)",
@@ -3833,7 +3833,7 @@
    "amount1",
    "amount2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "발주요청현황|적요2": {
   "claim": "발주 라인에 추가 적요 칸이 없다(위 [발주요청현황|적요1] 과 같은 사실이다)",
@@ -3842,7 +3842,7 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "미주문현황|금액2": {
   "claim": "견적 라인에 추가 금액 칸이 없다(위 [미주문현황|금액1] 과 같은 사실이다)",
@@ -3850,7 +3850,7 @@
    "amount1",
    "amount2"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "미주문현황|적요2": {
   "claim": "견적 라인에 추가 적요 칸이 없다(위 [미주문현황|적요1] 과 같은 사실이다)",
@@ -3859,14 +3859,14 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "근태현황|프로젝트": {
   "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다(위 [근태조회|프로젝트] 과 같은 사실이다)",
   "absent": [
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain"
+  "in": "backend/src/main/java/com/erp/hr"
  },
  "발주서조회|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서|발송여부] 과 같은 사실이다)",
@@ -3875,7 +3875,7 @@
    "sentDate",
    "sendMail"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "판매단가일괄변경|프로젝트": {
   "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다(위 [구매단가일괄변경|프로젝트] 과 같은 사실이다)",
@@ -3883,28 +3883,28 @@
    "project",
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PriceBulkDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/price/dto/PriceBulkDtos.java"
  },
  "지급현황|부서": {
   "claim": "정산에 부서가 없다 — 붙일 값이 없다(위 [수금현황|부서] 과 같은 사실이다)",
   "absent": [
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "지급현황|부서계층그룹": {
   "claim": "부서를 붙일 자리가 없으니 그 위의 계층도 없다(위 [수금현황|부서계층그룹] 과 같은 사실이다)",
   "absent": [
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Settlement.java"
+  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "휴가잔여일수현황|프로젝트": {
   "claim": "휴가에 프로젝트를 달지 않는다(위 [휴가사용실적현황|프로젝트] 과 같은 사실이다)",
   "absent": [
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/hr/domain"
+  "in": "backend/src/main/java/com/erp/hr"
  },
  "SW개발일정관리|게시일": {
   "claim": "프로젝트는 게시글이 아니라 올린 날이 없다(위 [건설예정공정표|게시일] 과 같은 사실이다)",
@@ -3932,42 +3932,42 @@
   "absent": [
    "BusinessPartner"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "SW개발일정관리|담당자구분": {
   "claim": "담당은 이름 한 칸이다 — 갈래가 없다(위 [건설예정공정표|담당자구분] 과 같은 사실이다)",
   "absent": [
    "managerType"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "SW개발일정관리|게시글번호": {
   "claim": "게시글이 아니라 번호가 없다(위 [건설예정공정표|게시글번호] 과 같은 사실이다)",
   "absent": [
    "postNo"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "SW개발일정관리|삭제구분": {
   "claim": "지운 것을 남겨 두지 않는다 — 지우면 없어진다(위 [건설예정공정표|삭제구분] 과 같은 사실이다)",
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "SW개발일정관리|입력경로": {
   "claim": "어디서 넣었는지 기록하지 않는다(위 [건설예정공정표|입력경로] 과 같은 사실이다)",
   "absent": [
    "inputChannel"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/Project.java"
+  "in": "backend/src/main/java/com/erp/inventory/project/Project.java"
  },
  "매출계획조회|이력": {
   "claim": "결재 이력 탭이다 — 매출계획을 결재에 올리지 않는다(위 [매출계획|이력] 과 같은 사실이다)",
   "absent": [
    "Approval"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "발주요청현황|적요3": {
   "claim": "발주 라인에 추가 적요 칸이 없다(위 [발주요청현황|적요2] 과 같은 사실이다)",
@@ -3976,7 +3976,7 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/PurchaseOrderDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/dto/PurchaseOrderDtos.java"
  },
  "미주문현황|적요3": {
   "claim": "견적 라인에 추가 적요 칸이 없다(위 [미주문현황|적요2] 과 같은 사실이다)",
@@ -3985,7 +3985,7 @@
    "remark2",
    "remark3"
   ],
-  "in": "backend/src/main/java/com/erp/trade/dto/QuotationDtos.java"
+  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
  "생산입고조회|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서조회|발송여부] 과 같은 사실이다)",
@@ -3994,7 +3994,7 @@
    "sentDate",
    "sendMail"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "매출계획조회|금액": {
   "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다(위 [매출계획|금액] 과 같은 사실이다)",
@@ -4068,7 +4068,7 @@
   "absent": [
    "deleted"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain"
+  "in": "backend/src/main/java/com/erp/trade"
  },
  "외자": {
   "claim": "국내/수입 구분을 전표에 두지 않는다(위 [내자] 과 같은 사실이다)",
@@ -4086,21 +4086,21 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "출하조회|확인": {
   "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)(위 [출하조회|미확인] 과 같은 사실이다)",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "생산불출조회|확인": {
   "claim": "생산 전표에 확인 상태가 없다(위 [생산불출조회|미확인] 과 같은 사실이다)",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "발주서조회|완료": {
   "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서조회|진행중] 과 같은 사실이다)",
@@ -4201,14 +4201,14 @@
    "sentDate",
    "sendMail"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/PurchaseOrder.java"
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "수집데이터등록|조건": {
   "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다(위 [수집데이터등록|진행상태] 과 같은 사실이다)",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "구매일괄회계반영|환율": {
   "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|조정] 과 같은 사실이다)",
@@ -4240,7 +4240,7 @@
    "sentAt",
    "mailSent"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산계획_MRP리스트|신규(F2)": {
   "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다(위 [생산계획_MRP리스트|H] 과 같은 사실이다)",
@@ -4270,14 +4270,14 @@
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "매출계획입력|&nbsp;": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "거래처관리대장 II|적용(F8)": {
   "claim": "조건을 바꾸면 바로 반영된다 — 따로 적용하지 않는다",
@@ -4555,161 +4555,161 @@
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|적요": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|수량": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|거래처": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|품목코드": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|금액1": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|금액2": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|적요1": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|적요2": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "매출계획입력|적요3": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/SalesPlan.java"
+  "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
  "A/S접수입력|품목코드": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|품목명": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|규격": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|추가수량": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|단위": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|관리항목": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|금액1": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|금액2": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|적요1": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|적요2": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|적요3": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "A/S접수입력|시리얼/로트No.": {
   "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
   "absent": [
    "OneToMany"
   ],
-  "in": "backend/src/main/java/com/erp/quality/domain/AsRequest.java"
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  },
  "수집데이터등록|연결업무": {
   "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다",
   "absent": [
    "status"
   ],
-  "in": "backend/src/main/java/com/erp/settings/domain/CollectSource.java"
+  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "설문조사조회|보기항목1": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",
@@ -4779,70 +4779,70 @@
   "absent": [
    "parent"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
  "작업내역현황|생산품목:품목계층그룹": {
   "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",
   "absent": [
    "parent"
   ],
-  "in": "backend/src/main/java/com/erp/inventory/domain/ItemGroup.java"
+  "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
  "생산불출조회|전체": {
   "claim": "생산불출 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/MaterialIssue.java"
+  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산입고조회|결재중": {
   "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "생산입고조회|미확인": {
   "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "생산입고조회|확인": {
   "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "생산입고조회|전체": {
   "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/Production.java"
+  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "작업지시서조회|결재중": {
   "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "작업지시서조회|미확인": {
   "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "작업지시서조회|확인": {
   "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
   "absent": [
    "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/production/domain/WorkOrder.java"
+  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "출하지시서조회|결재중": {
   "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
@@ -4850,7 +4850,7 @@
    "confirmStatus",
    "ApprovalDocument"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "출하현황|정렬기준": {
   "claim": "[구분]이 내역·집계로 그 축을 고른다",
@@ -4879,7 +4879,7 @@
    "confirmStatus",
    "ApprovalDocument"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "출하지시서조회|확인": {
   "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
@@ -4887,7 +4887,7 @@
    "confirmStatus",
    "ApprovalDocument"
   ],
-  "in": "backend/src/main/java/com/erp/trade/domain/Shipment.java"
+  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "생산입고 III-소모품목 선택|소모": {
   "claim": "원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다",

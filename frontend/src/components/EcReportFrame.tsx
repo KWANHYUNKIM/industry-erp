@@ -1,4 +1,4 @@
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../features/auth/AuthContext'
 
 /**
  * 원본 <b>[출력물]</b>의 머리글과 꼬리 — 2026-09-21 getComputedStyle 실측(재고현황 E040701).

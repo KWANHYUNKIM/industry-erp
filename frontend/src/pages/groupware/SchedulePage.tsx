@@ -5,7 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
-import { useAuth } from '../../auth/AuthContext'
+import { useAuth } from '../../features/auth/AuthContext'
 import { isMyEvent } from '../../utils/myCalendar'
 import { dateText } from '../../utils/dateText'
 

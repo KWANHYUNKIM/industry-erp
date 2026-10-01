@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../api/types'
+import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

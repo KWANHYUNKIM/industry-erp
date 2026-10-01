@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { JournalEntry } from '../../api/types'
+import type { JournalEntry } from '../../types/api'
 
 interface JournalListResponse {
   rows: JournalEntry[]

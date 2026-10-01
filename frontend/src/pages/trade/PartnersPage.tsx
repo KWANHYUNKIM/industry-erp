@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, GroupMaster, Partner } from '../../api/types'
+import type { CodeOption, GroupMaster, Partner } from '../../types/api'
 import { useSearchParams } from 'react-router-dom'
 import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'

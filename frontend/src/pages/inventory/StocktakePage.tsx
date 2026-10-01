@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { StockRow, Warehouse } from '../../api/types'
+import type { StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { ymd } from '../../components/EcPeriodPicks'
 

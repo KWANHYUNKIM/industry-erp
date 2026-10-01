@@ -7,7 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PartnerBalance } from '../../api/types'
+import type { PartnerBalance } from '../../types/api'
 import EcPeriodPicks, { periodOf, BALANCE_PICKS } from '../../components/EcPeriodPicks'
 import type { LedgerBasis } from '../../utils/partnerRollup'
 

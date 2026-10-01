@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { aggregate, groupValue, weekOfYear, type AggregatableRow } from './statusAggregate.ts'
-import { periodOf } from '../components/periods.ts'
+import { periodOf } from './periods.ts'
 
 const row = (over: Partial<AggregatableRow> = {}): AggregatableRow => ({
   date: '2026-08-26',

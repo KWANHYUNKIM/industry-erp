@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { ProfitSummary } from '../../api/types'
+import type { ProfitSummary } from '../../types/api'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef} from 'react'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Partner } from '../../api/types'
+import type { Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 

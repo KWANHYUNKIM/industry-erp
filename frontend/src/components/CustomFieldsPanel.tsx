@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { EntityCustomFields } from '../api/types'
+import type { EntityCustomFields } from '../types/api'
 
 /**
  * 특정 전표(entityType, entityId)의 사용자정의(추가 형식) 필드를 조회·편집·저장하는 재사용 패널.

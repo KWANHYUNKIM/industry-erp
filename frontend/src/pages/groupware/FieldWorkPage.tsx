@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import { useAuth } from '../../auth/AuthContext'
-import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../api/types'
+import { useAuth } from '../../features/auth/AuthContext'
+import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

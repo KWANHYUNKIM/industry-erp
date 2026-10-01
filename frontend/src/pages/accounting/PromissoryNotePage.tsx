@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../api/types'
+import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

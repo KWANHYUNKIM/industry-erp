@@ -2,8 +2,8 @@ import { useEffect, useState, type CSSProperties, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { useAuth } from '../../auth/AuthContext'
-import type { Mail, SharedMailBox, User } from '../../api/types'
+import { useAuth } from '../../features/auth/AuthContext'
+import type { Mail, SharedMailBox, User } from '../../types/api'
 
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 

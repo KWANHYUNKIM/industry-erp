@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, PayGroup, Payslip } from '../../api/types'
+import type { EmployeeMaster, PayGroup, Payslip } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')

@@ -1,0 +1,142 @@
+package com.erp.quality.asrequest.dto;
+
+import com.erp.inventory.item.ItemCategory;
+import com.erp.quality.asrequest.AsPart;
+import com.erp.quality.asrequest.AsRequest;
+import com.erp.quality.asrequest.AsStatus;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+public final class AsDtos {
+
+    private AsDtos() {}
+
+    /** A/S 소모부품 등록 요청. 등록 시 창고 재고를 차감한다. */
+    public record CreateAsPartRequest(
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @NotNull(message = "창고를 선택하세요.") Long warehouseId,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
+            String remark
+    ) {}
+
+    public record AsPartResponse(
+            Long id, Long asRequestId, String asNo,
+            Long itemId, String itemName,
+            Long warehouseId, String warehouseName,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
+            String remark, String createdBy
+    ) {
+        public static AsPartResponse from(AsPart p) {
+            BigDecimal amount = p.getUnitPrice() != null ? p.getUnitPrice().multiply(p.getQuantity()) : null;
+            return new AsPartResponse(
+                    p.getId(), p.getAsRequest().getId(), p.getAsRequest().getAsNo(),
+                    p.getItem().getId(), p.getItem().getName(),
+                    p.getWarehouse().getId(), p.getWarehouse().getName(),
+                    p.getQuantity(), p.getUnitPrice(), amount,
+                    p.getRemark(), p.getCreatedBy());
+        }
+    }
+
+    /** A/S소모현황 — 품목별 소모 집계. 원본 [구분]의 <b>[집계]</b> 쪽이다. */
+    public record AsConsumptionRow(
+            Long itemId, String itemName,
+            long asCount, BigDecimal totalQty, BigDecimal totalAmount
+    ) {}
+
+    /**
+     * A/S소모현황의 <b>[내역]</b> — 소모부품 한 줄이 표의 한 줄이다.
+     *
+     * <p>원본(E040641)의 [구분] 기본은 <b>내역</b>이고 격자가
+     * [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 ·
+     * 공급가액 · 부가세] 다(2026-09-09 실측). 우리는 <b>집계만</b> 내고 있어서
+     * "어느 수리에 무엇이 몇 개 들어갔나" 를 이 화면에서 볼 수 없었다.
+     */
+    public record AsConsumptionLine(
+            Long partId, String asNo, String repairItemName, String charge,
+            Long itemId, String itemName,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount
+    ) {}
+
+    public record CreateAsRequest(
+            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            LocalDate receiptDate,
+            /* 원본 조건의 [창고]·[프로젝트]. 접수 시점에 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String title,
+            LocalDate scheduledDate,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
+            String symptom,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String charge
+    ) {}
+
+    public record UpdateAsRequest(
+            AsStatus status,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String charge,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String title,
+            LocalDate scheduledDate,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
+            String repairNote,
+            LocalDate doneDate
+    ) {}
+
+    public record AsResponse(
+            Long id, String asNo,
+            Long partnerId, String partnerName,
+            Long itemId, String itemName,
+            /**
+             * 품목코드와 규격. A/S접수현황(E040610)의 격자가 <b>[품목코드]</b> 와
+             * <b>[품목명[규격]]</b> 을 나란히 둔다(2026-09-09 실측) - 품목 마스터가 진작
+             * 들고 있는 값인데 응답이 안 싣고 있었다.
+             */
+            String itemCode, String itemSpec,
+            /** 원본 조건 <b>[품목구분]</b>. 품목 마스터의 값이라 실어 주기만 한다. */
+            ItemCategory itemCategory, String itemCategoryName,
+            LocalDate receiptDate,
+            String title, LocalDate scheduledDate,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            String symptom, String charge,
+            AsStatus status, String statusName,
+            LocalDate doneDate, String repairNote,
+            /**
+             * 원본 조건 [최초작성자] · [최초작성일자] · [최종작업일자], 그리고 [기타]의
+             * <b>수정일자순(정렬)</b>. AsRequest 는 createdBy 를 들고 BaseTimeEntity 도
+             * 물려받는데 응답이 셋 다 안 실었다.
+             */
+            String createdBy, LocalDateTime createdAt, LocalDateTime updatedAt
+    ) {
+        public static AsResponse from(AsRequest a) {
+            return new AsResponse(
+                    a.getId(), a.getAsNo(),
+                    a.getPartner().getId(), a.getPartner().getName(),
+                    a.getItem().getId(), a.getItem().getName(),
+                    a.getItem().getCode(), a.getItem().getSpec(),
+                    a.getItem().getCategory(),
+                    a.getItem().getCategory() != null ? a.getItem().getCategory().getDisplayName() : null,
+                    a.getReceiptDate(),
+                    a.getTitle(), a.getScheduledDate(),
+                    a.getWarehouse() != null ? a.getWarehouse().getId() : null,
+                    a.getWarehouse() != null ? a.getWarehouse().getName() : null,
+                    a.getProject() != null ? a.getProject().getId() : null,
+                    a.getProject() != null ? a.getProject().getName() : null,
+                    a.getSymptom(), a.getCharge(),
+                    a.getStatus(), a.getStatus().getDisplayName(),
+                    a.getDoneDate(), a.getRepairNote(),
+                    a.getCreatedBy(), a.getCreatedAt(), a.getUpdatedAt());
+        }
+    }
+}

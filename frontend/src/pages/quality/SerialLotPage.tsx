@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Lot, LotStatus, LotTransaction, Warehouse } from '../../api/types'
+import type { Item, Lot, LotStatus, LotTransaction, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeGroup, CommonCode } from '../../api/types'
+import type { CodeGroup, CommonCode } from '../../types/api'
 
 /**
  * Self-Customizing > 기타관리 > 공통코드 — 카드사·결제대행사·추가항목유형·결제수단처럼

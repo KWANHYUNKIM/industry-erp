@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../api/types'
+import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'

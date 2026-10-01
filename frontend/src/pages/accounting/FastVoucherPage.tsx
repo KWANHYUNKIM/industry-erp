@@ -5,7 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../api/types'
+import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMethod } from '../../types/api'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

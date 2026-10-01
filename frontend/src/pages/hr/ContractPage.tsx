@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../api/types'
+import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

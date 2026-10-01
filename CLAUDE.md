@@ -1,11 +1,12 @@
 # 아키텍처 규칙
 
-이 문서는 **백엔드 패키지 구조와 의존 규칙**을 정의합니다. 새 코드는 이 규칙을 따르고,
+이 문서는 **백엔드·프론트엔드 패키지 구조와 의존 규칙**을 정의합니다. 새 코드는 이 규칙을 따르고,
 기존 코드를 만질 때 규칙에서 벗어난 부분이 보이면 그 자리에서 고칩니다.
 
-**2026-07-16 모듈 우선 구조 이행 완료.** 백엔드는 `com/erp/<module>/<layer>/` 구조입니다
-(예: `com/erp/trade/service/SalesService.java`). 옛 계층 우선 평면 구조(`controller/`, `service/`, …)는
-더 이상 없습니다. 아래 의존 규칙을 계속 적용하세요.
+**2026-10-01 기능 패키지 구조로 이행 완료.** 백엔드는 `com/erp/<module>/<feature>/` 구조입니다
+(예: `com/erp/trade/sales/SalesService.java`, DTO 는 `com/erp/trade/sales/dto/SalesDtos.java`).
+계층 폴더(`controller/`, `service/`, `domain/` …)는 더 이상 없습니다. 계층은 **클래스 이름 접미사**로
+구분하고(`…Controller`·`…Service`·`…Repository`), 아래 의존 규칙은 그대로 적용합니다.
 
 ---
 
@@ -26,7 +27,7 @@
 | `groupware` | 전자결재·업무일지·게시판·CRM·메일·드라이브·일정·공용품·E Note | `ApprovalDocument`, `WorkJournal`, `WorkPost`, `Mail`, `SupplyItem` |
 | `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode` |
 
-> `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 계층 없이 평면 유지합니다.
+> `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 기능 없이 평면 유지합니다.
 > HR/급여/근태는 원래 groupware의 근태만 있었으나 사원·부서·급여까지 커지며 `hr` 모듈로 분리했습니다(2026-07-16).
 
 새 클래스는 **자신이 다루는 주 엔티티가 속한 모듈**에 둡니다.
@@ -34,30 +35,35 @@
 
 ---
 
-## 2. 목표 패키지 구조
+## 2. 패키지 구조
 
-모듈 안에 MVC 계층을 둡니다. 계층 안에 모듈을 두지 않습니다.
+모듈 안에 **기능(feature) 패키지**를 두고, 기능 하나의 Controller·Service·Repository·엔티티·enum 을
+그 폴더에 평평하게 둡니다. DTO 만 `dto/` 하위 폴더로 뺍니다. 계층 폴더를 다시 만들지 마세요.
 
 ```
 com/erp/
 ├─ BackendApplication.java
-├─ common/            # 전역 예외, BaseTimeEntity
-├─ security/          # JWT 필터, SecurityConfig  (인프라)
-├─ auth/
-│  ├─ controller/     AuthController, UserController, RoleController
-│  ├─ service/
-│  ├─ repository/
-│  ├─ domain/         User, Role
-│  └─ dto/
-├─ inventory/
-│  ├─ controller/     ItemController, WarehouseController, StockController
-│  ├─ service/
-│  ├─ repository/
-│  ├─ domain/         Item, Warehouse, Stock, StockTransaction
-│  │  └─ enums/       StockTransactionType, LotStatus
-│  └─ dto/            ItemDtos, StockDtos
-├─ trade/  production/  accounting/  quality/  groupware/  settings/
+├─ common/  config/  security/  tenant/      # 인프라 (평면)
+├─ trade/
+│  ├─ TradeMasters.java  VatAllocator.java   # 모듈 안 여러 기능이 같이 쓰는 것만 모듈 루트에
+│  ├─ sales/
+│  │  ├─ SalesController.java
+│  │  ├─ SalesService.java
+│  │  ├─ SalesRepository.java  SalesLineRepository.java
+│  │  ├─ Sales.java  SalesLine.java          # 엔티티
+│  │  ├─ SalesConfirmStatus.java             # enum
+│  │  └─ dto/SalesDtos.java
+│  └─ salesorder/  purchase/  partner/  shipment/ …
+├─ inventory/   item/ stock/ warehouse/ lot/ project/ …
+└─ auth/  production/  accounting/  quality/  hr/  groupware/  settings/
 ```
+
+- **기능 이름은 주 엔티티 이름을 소문자로 붙여 씁니다** (`SalesOrder` → `salesorder`).
+  같은 기능의 줄·이력 엔티티와 enum 도 그 폴더에 둡니다(`SalesLine`, `PurchaseOrderHistory`).
+- 모듈 루트에는 **여러 기능이 공유하는 것만** 둡니다
+  (`trade/TradeMasters`, `accounting/StandardAccounts`, `accounting/PaymentMethod`).
+  기능이 하위 패키지라 package-private 은 안 보입니다 — 공유하는 것은 `public` 이어야 합니다.
+- 새 클래스가 어느 기능 소속인지 애매하면 **같은 테이블 묶음을 다루는 쪽**에 넣습니다.
 
 `@SpringBootApplication`이 `com.erp`에 있고 `@EntityScan`/`@EnableJpaRepositories`를
 하드코딩한 곳이 없으므로, 하위 패키지는 자동으로 스캔됩니다. **스캔 설정을 추가하지 마세요.**
@@ -138,10 +144,10 @@ public class WorkOrderService {
 DB 스키마도 바뀌지 않습니다.
 
 ```java
-// trade/domain/Sales.java
+// trade/sales/Sales.java
 @ManyToOne(fetch = FetchType.LAZY, optional = false)
 @JoinColumn(name = "warehouse_id")
-private Warehouse warehouse;              // inventory.domain.Warehouse — 허용
+private Warehouse warehouse;              // inventory.warehouse.Warehouse — 허용
 ```
 
 단, **읽기만 허용합니다.** 다른 모듈 엔티티의 상태를 바꾸는 것은 그 모듈의 `service`를 통해서만 합니다.
@@ -161,11 +167,11 @@ stockService.decrease(itemId, warehouseId, qty);
 조회해서 연관관계에 붙이려는 목적입니다.
 
 한 번에 고치지 말고, **해당 서비스를 수정할 일이 생겼을 때 그 서비스만** 규칙에 맞게 바꿉니다.
-어떤 서비스가 어떤 리포지토리를 주입하는지는 아래로 확인하고, 1번 모듈 표와 대조해
-교차 여부를 판단하세요.
+어떤 서비스가 어떤 리포지토리를 주입하는지는 아래로 확인하고, import 경로의 모듈(`com.erp.<모듈>.`)을
+그 서비스의 모듈과 대조해 교차 여부를 판단하세요.
 
 ```bash
-grep -rn 'import com\.erp\.repository\.' backend/src/main/java/com/erp/service/
+grep -rn --include='*Service.java' -E 'import com.erp.w+.w+.w+Repository;' backend/src/main/java/com/erp/
 ```
 
 대표적인 교차 지점: `SalesService → ItemRepository/WarehouseRepository`,
@@ -179,8 +185,8 @@ grep -rn 'import com\.erp\.repository\.' backend/src/main/java/com/erp/service/
 
 ### 5.1 enum
 
-`domain/`에 엔티티와 enum을 섞지 않습니다. enum은 해당 모듈의 `domain/enums/`에 둡니다.
-(현재 `domain/` 75개 중 20개가 enum입니다.)
+enum 은 그것을 쓰는 엔티티의 기능 폴더에 둡니다(`trade/sales/SalesConfirmStatus.java`).
+여러 기능이 같이 쓰는 enum 만 모듈 루트에 둡니다(`accounting/PaymentMethod`·`ReceiptMethod` — 지출·수입·빠른전표).
 
 ### 5.2 지연 로딩
 
@@ -300,7 +306,7 @@ docker compose down -v && docker compose up -d
 
 ## 8. DTO
 
-- 요청/응답 DTO는 자기 모듈의 `dto/` 아래 둡니다.
+- 요청/응답 DTO는 자기 기능의 `dto/` 아래 둡니다(`trade/sales/dto/SalesDtos.java`).
 - 여러 DTO를 한 파일에 중첩 record로 묶는 기존 패턴(`ItemDtos`, `ProductionDtos`)을 유지합니다.
 - 다른 모듈의 DTO를 재사용하지 마세요. 필드가 같아도 각자 정의합니다. 그래야 한쪽 API 변경이
   다른 모듈로 번지지 않습니다.
@@ -337,7 +343,7 @@ cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
 cd frontend && npm run test:unit    # node --test, src/**/*.test.ts
 ```
 
-기간 계산(`components/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
+기간 계산(`utils/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
 정하는데 여기가 하루 밀리면 **모든 현황 화면이 조용히 틀린 기간을 봅니다.**
 테스트 파일은 `tsconfig.app.json` 의 `exclude` 로 앱 빌드에서 빼 뒀습니다(node 타입이 없어
 넣어 두면 typecheck·build 가 깨집니다).
@@ -367,9 +373,45 @@ record 에 없는 필드는 JSON 에서 그냥 무시되므로 컴파일도 타�
 
 ---
 
-## 10. 패키지 이동 (완료됨 · 2026-07-16)
+## 10. 프론트엔드 구조
 
-계층 우선 → 모듈 우선 이동을 **이미 완료**했습니다. 558개 파일을 `com/erp/<module>/<layer>/`로
+```
+frontend/src/
+├─ main.tsx                 # 렌더만 한다
+├─ app/
+│  ├─ App.tsx               # BrowserRouter · AuthProvider 로 감싼다
+│  ├─ router.tsx            # 라우트 표 (lazy import)
+│  └─ layout/               # EcountLayout(상단 메뉴, FLAT_MENU 단일 소스), Layout
+├─ pages/<모듈>/             # URL 하나 = 화면 하나
+├─ features/<기능>/          # 기능 전용: components/ · api/ · hooks/ · types.ts
+│  ├─ auth/                 # AuthContext, menuPermissions, components/ProtectedRoute
+│  └─ approval/components/  # 결재 상세·양식 필드
+├─ components/              # 공통 UI (Ec*·Modal·패널)
+├─ api/client.ts            # 공통 API 클라이언트
+├─ types/api.ts             # 서버 요청·응답 타입
+├─ utils/                   # 순수 함수 (periods 등). *.test.ts 는 같은 자리에
+└─ styles/index.css
+```
+
+- **한 화면만 쓰는 컴포넌트·API 호출은 아직 `pages/` 파일 안에 있습니다.** 한 번에 빼지 말고,
+  그 화면을 고칠 일이 생겼을 때 `features/<기능>/` 로 옮깁니다(4.4 와 같은 방식).
+- 공통인데 UI 가 아닌 것(계산·포맷)은 `components/` 가 아니라 `utils/` 에 둡니다.
+- `app/router.tsx`·`app/layout/EcountLayout.tsx`·`features/auth/menuPermissions.ts`·`utils/periods.ts` 는
+  `qa/ui-check.mjs` 가 경로로 읽습니다. 옮기면 그쪽 경로도 같이 고치세요.
+
+---
+
+## 11. 패키지 이동 기록
+
+**2026-10-01 · 계층 폴더 → 기능 폴더.** `com/erp/<module>/<layer>/` 의 691개 파일을 `com/erp/<module>/<feature>/` 로
+옮겼습니다. 패키지 선언·import·본문 FQN 을 다시 쓰고, 같은 계층 폴더라 import 없이 쓰던 참조에 import 를 넣었습니다.
+`rm -rf target && ./mvnw -o compile` + 앱 기동(Bean 스캔·JPA `validate`) + qa.mjs 1821 · schema-check 93 · dto-check · ui-check 107
+전부 통과로 검증했습니다. 이때 `qa/fixtures/reason-witnesses.json` 의 파일 경로 54곳이 옛 위치를 가리켜 증거 검사가
+**조용히 빈 채로 통과**하고 있었습니다(셋은 옮기기 전부터 틀려 있었음). 지금은 경로가 없으면 실패합니다.
+
+### 2026-07-16 · 계층 우선 → 모듈 우선
+
+계층 우선 → 모듈 우선 이동을 완료했습니다. 558개 파일을 `com/erp/<module>/<layer>/`로
 옮기고, 패키지 선언·import·본문 FQN을 재작성했으며, `rm -rf target && ./mvnw -o compile` 통과 +
 앱 기동(Bean 스캔·JPA `validate`) + QA 하네스 405개 전부 통과로 검증했습니다.
 아래는 그때 확인한 전제조건이며, 이후 유사 이동 시 참고용으로 남깁니다.

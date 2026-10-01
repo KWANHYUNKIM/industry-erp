@@ -1,17 +1,17 @@
 package com.erp.tenant;
 
 import com.erp.accounting.StandardAccounts;
-import com.erp.accounting.domain.Account;
-import com.erp.accounting.repository.AccountRepository;
+import com.erp.accounting.account.Account;
+import com.erp.accounting.account.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
-import com.erp.settings.domain.CompanyInfo;
-import com.erp.settings.repository.CompanyInfoRepository;
-import com.erp.auth.domain.Permission;
-import com.erp.auth.domain.Role;
-import com.erp.auth.domain.User;
-import com.erp.auth.repository.PermissionRepository;
-import com.erp.auth.repository.RoleRepository;
-import com.erp.auth.repository.UserRepository;
+import com.erp.settings.companyinfo.CompanyInfo;
+import com.erp.settings.companyinfo.CompanyInfoRepository;
+import com.erp.auth.role.Permission;
+import com.erp.auth.role.Role;
+import com.erp.auth.user.User;
+import com.erp.auth.role.PermissionRepository;
+import com.erp.auth.role.RoleRepository;
+import com.erp.auth.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;

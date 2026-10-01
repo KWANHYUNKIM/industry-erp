@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { LotTransaction, LotTxType } from '../../api/types'
+import type { LotTransaction, LotTxType } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, ShortMessage, User } from '../../api/types'
+import type { Partner, ShortMessage, User } from '../../types/api'
 import { shiftMonths, ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { BoardPost } from '../../api/types'
+import type { BoardPost } from '../../types/api'
 
 const when = (s: string) => s.replace('T', ' ').slice(0, 16)
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StockRow } from '../../api/types'
+import type { Item, StockRow } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
+import type { Partner, PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'

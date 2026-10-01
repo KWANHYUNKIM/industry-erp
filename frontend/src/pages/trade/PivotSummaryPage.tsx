@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { PurchaseDoc, SalesDoc } from '../../api/types'
+import type { PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'

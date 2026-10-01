@@ -7,7 +7,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
 import { amountVariance, priceVariance, qtyVariance, weightedAvgPrice } from '../../utils/costVariance'
-import type { Item, PurchaseDoc } from '../../api/types'
+import type { Item, PurchaseDoc } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 

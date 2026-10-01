@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Department, EmployeeMaster } from '../../api/types'
+import type { Department, EmployeeMaster } from '../../types/api'
 
 /** 부서 트리 노드 (children 은 sortOrder → 이름 순) */
 interface Node extends Department {

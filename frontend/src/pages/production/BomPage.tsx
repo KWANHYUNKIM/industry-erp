@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Bom, Item } from '../../api/types'
+import type { Bom, Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 

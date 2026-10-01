@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
-import type { Warehouse } from '../../api/types'
+import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
-import { useAuth } from '../../auth/AuthContext'
+import { useAuth } from '../../features/auth/AuthContext'
 import { useTableSort } from '../../utils/useTableSort'
 
 const inputCls = 'ec-input w-full'

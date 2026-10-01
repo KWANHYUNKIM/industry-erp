@@ -8,7 +8,7 @@ import {
   type BomLine, type PriceOf,
 } from '../../utils/woEfficiency'
 import { stockCostMapFromLast } from '../../utils/stockValue'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'

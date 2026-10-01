@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type {
   CustomFieldDef, EmployeeMaster, Item, ItemCost, MyItem, Partner, Project, PurchaseDoc,
   PurchaseOrder, SalesDoc, StockRow, Warehouse,
-} from '../../api/types'
+} from '../../types/api'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'

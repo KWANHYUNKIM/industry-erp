@@ -1,0 +1,89 @@
+package com.erp.trade.quotation.dto;
+
+import com.erp.trade.quotation.Quotation;
+import com.erp.trade.quotation.QuotationLine;
+import com.erp.trade.quotation.QuotationStatus;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public final class QuotationDtos {
+
+    private QuotationDtos() {}
+
+    public record QuoteLineRequest(
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
+    ) {}
+
+    public record CreateQuotationRequest(
+            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
+            Long warehouseId,
+            Long projectId,
+            LocalDate quoteDate,
+            LocalDate validUntil,
+            Boolean taxable,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
+            String remark,
+            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<QuoteLineRequest> lines
+    ) {}
+
+    public record QuoteLineResponse(
+            Long id, int lineNo,
+            Long itemId, String itemCode, String itemName, String unit,
+            /**
+             * 규격. 미주문현황(E040211)의 열 이름이 <b>[품목명(규격)]</b> 이라 이 값이 없으면
+             * 그 열을 지어내야 한다 - 품목 마스터가 진작 들고 있는데 응답이 안 싣고 있었다.
+             */
+            String spec,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+    ) {
+        public static QuoteLineResponse from(QuotationLine l) {
+            return new QuoteLineResponse(
+                    l.getId(), l.getLineNo(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getSpec(),
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+        }
+    }
+
+    public record QuotationResponse(
+            Long id, String quoteNo, LocalDate quoteDate, LocalDate validUntil,
+            Long partnerId, String partnerName,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            QuotationStatus status, String statusName,
+            BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
+            Long convertedOrderId, String remark, String createdBy,
+            /**
+             * 원본 견적서조회 조건 판 [기타]의 <b>[수정일자순(정렬)]</b> 이 쓰는 축.
+             * BaseTimeEntity 가 이미 들고 있는 값이라 싣기만 하면 된다
+             * (판매조회·구매조회와 같은 자리다).
+             */
+            java.time.LocalDateTime updatedAt,
+            List<QuoteLineResponse> lines
+    ) {
+        public static QuotationResponse from(Quotation q) {
+            return new QuotationResponse(
+                    q.getId(), q.getQuoteNo(), q.getQuoteDate(), q.getValidUntil(),
+                    q.getPartner().getId(), q.getPartner().getName(),
+                    q.getWarehouse() != null ? q.getWarehouse().getId() : null,
+                    q.getWarehouse() != null ? q.getWarehouse().getName() : null,
+                    q.getProject() != null ? q.getProject().getId() : null,
+                    q.getProject() != null ? q.getProject().getName() : null,
+                    q.getStatus(), q.getStatus().getDisplayName(),
+                    q.getSupplyAmount(), q.getVatAmount(), q.getTotalAmount(),
+                    q.getConvertedOrderId(), q.getRemark(), q.getCreatedBy(),
+                    q.getUpdatedAt(),
+                    q.getLines().stream().map(QuoteLineResponse::from).toList());
+        }
+    }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../api/types'
+import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
 import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'

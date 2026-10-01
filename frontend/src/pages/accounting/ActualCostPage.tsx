@@ -7,7 +7,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { groupByCategory } from '../../utils/costGroup'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../features/auth/AuthContext'
 import { extractErrorMessage } from '../api/client'
 
 export default function LoginPage() {

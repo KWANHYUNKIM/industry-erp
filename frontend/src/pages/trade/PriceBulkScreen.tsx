@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import { INQUIRY_PICKS, periodOf, ymd } from '../../components/periods'
+import { INQUIRY_PICKS, periodOf, ymd } from '../../utils/periods'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Partner, Item, Warehouse } from '../../api/types'
+import type { Partner, Item, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 
 /**

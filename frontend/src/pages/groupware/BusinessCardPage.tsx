@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { BusinessCard, Partner, User } from '../../api/types'
+import type { BusinessCard, Partner, User } from '../../types/api'
 
 /** 그룹웨어 > 고객관리 > 명함관리 — 거래처 담당자 연락처를 회사 자산으로 남긴다 */
 export default function BusinessCardPage() {

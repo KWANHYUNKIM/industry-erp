@@ -1,0 +1,91 @@
+package com.erp.trade.settlement;
+
+import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
+import com.erp.trade.partner.BusinessPartner;
+import com.erp.trade.settlement.dto.SettlementDtos.CreateSettlementRequest;
+import com.erp.trade.settlement.dto.SettlementDtos.SettlementResponse;
+import com.erp.trade.partner.BusinessPartnerRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import com.erp.trade.settlement.dto.SettlementDtos;
+
+@Service
+@RequiredArgsConstructor
+public class SettlementService {
+
+    private final SettlementRepository settlementRepository;
+    private final com.erp.inventory.project.ProjectService projectService;
+    private final BusinessPartnerRepository partnerRepository;
+    private final DocumentNoGenerator docNoGenerator;
+
+    /**
+     * 기간 안의 정산 전표를 <b>줄 단위로</b> 낸다(유형별).
+     * 거래처관리대장 I 의 [전표별] 원장이 수금·지급을 세울 때 쓰는 자리다 —
+     * 회계(accounting)가 이 서비스를 거쳐 부른다(다른 모듈의 리포지토리를 직접 안 쓴다).
+     */
+    @Transactional(readOnly = true)
+    public List<SettlementResponse> findBetween(SettlementType type, LocalDate from, LocalDate to) {
+        return settlementRepository.findByTypeAndSettleDateBetweenWithPartner(type, from, to)
+                .stream().map(SettlementResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SettlementResponse> findAll() {
+        return settlementRepository.findAllWithPartner().stream()
+                .map(SettlementResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public SettlementResponse create(CreateSettlementRequest req, String username) {
+        BusinessPartner partner = partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+
+        LocalDate date = req.settleDate() != null ? req.settleDate() : LocalDate.now();
+
+        Settlement s = Settlement.builder()
+                .docNo(generateDocNo(req.type(), date))
+                .type(req.type())
+                .partner(partner)
+                .settleDate(date)
+                .amount(req.amount())
+                .method(req.method())
+                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
+                .note(req.note())
+                .createdBy(username)
+                .build();
+
+        return SettlementResponse.from(settlementRepository.save(s));
+    }
+
+    /**
+     * 정산 전표 삭제.
+     *
+     * <p>없어서 잘못 넣은 수금·지급을 지울 방법이 아예 없었다. 정산은 거래처 채권·채무 잔액에
+     * 그대로 반영되므로, 못 지우면 오타 하나가 잔액을 영구히 틀리게 만든다.
+     *
+     * <p>재고처럼 되돌릴 것이 없다(정산은 금액만 남긴다). 잔액은 정산 목록을 합쳐서 내므로
+     * 행을 지우면 그대로 맞아 들어간다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Settlement s = settlementRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("정산 전표를 찾을 수 없습니다. id=" + id));
+        // 판매·구매와 같은 규칙이다. 지우면 분개만 남아 원장이 전표를 잃는다.
+        if (s.isAccountingReflected()) {
+            throw ApiException.badRequest(
+                    "회계반영된 결제전표는 삭제할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
+        settlementRepository.delete(s);
+    }
+
+    private String generateDocNo(SettlementType type, LocalDate date) {
+        String prefix = type == SettlementType.RECEIPT ? "RC-" : "PY-";
+        return docNoGenerator.next(prefix, "settlements", "doc_no", "settle_date", date);
+    }
+}

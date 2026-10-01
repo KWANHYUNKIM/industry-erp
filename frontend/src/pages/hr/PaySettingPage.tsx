@@ -4,7 +4,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   BankAccountRow, PayGroup, PayItem, Payslip, PayrollTransfer, PayslipLineKind,
-} from '../../api/types'
+} from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { EvidenceAttachment, EvidenceMethod } from '../api/types'
+import type { EvidenceAttachment, EvidenceMethod } from '../types/api'
 import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
 import EcFileDrop from './EcFileDrop'
 import { ymd } from './EcPeriodPicks'

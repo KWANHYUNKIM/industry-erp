@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableSort } from '../../utils/useTableSort'
-import type { DriveDocument } from '../../api/types'
+import type { DriveDocument } from '../../types/api'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import { useShortcut } from '../../utils/useShortcut'
 import EcFileDrop from '../../components/EcFileDrop'

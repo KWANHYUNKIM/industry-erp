@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
+import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../types/api'
 import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

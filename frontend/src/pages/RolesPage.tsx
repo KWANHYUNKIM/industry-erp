@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { Permission, Role } from '../api/types'
+import type { Permission, Role } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
 import Modal from '../components/Modal'

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PriceOrderLine } from '../../api/types'
+import type { PriceOrderLine } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 
 type Cat = 'SALES' | 'PURCHASE'

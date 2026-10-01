@@ -1,0 +1,113 @@
+package com.erp.hr.employee;
+
+import com.erp.hr.employee.dto.EmployeeDtos.AssignDepartmentRequest;
+import com.erp.hr.employee.dto.EmployeeDtos.AssignmentResponse;
+import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
+import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
+import com.erp.hr.employee.dto.EmployeeDtos.UpdateSalaryRequest;
+import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceSummary;
+import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
+import java.util.List;
+import com.erp.hr.employee.dto.EmployeeDtos;
+import com.erp.hr.employee.dto.EmployeePerformanceDtos;
+
+/**
+ * 사원 마스터. 급여관리 기초등록의 사원등록에 대응.
+ * (HrController 의 /hr/employees 는 로그인 User 기반이라 별개다)
+ */
+@RestController
+@RequestMapping("/api/employees")
+@RequiredArgsConstructor
+public class EmployeeController {
+
+    private final EmployeeService employeeService;
+    private final EmployeePerformanceService performanceService;
+
+    /** 담당자별 실적: 전표에 붙은 담당 사원으로 판매·구매를 집계한다(입력 계정이 아니다). */
+    @GetMapping("/performance")
+    public PerformanceSummary performance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return performanceService.performance(from, to);
+    }
+
+    @GetMapping
+    public List<EmployeeResponse> list(@AuthenticationPrincipal UserPrincipal principal) {
+        return maskIfNeeded(employeeService.findAll(), principal);
+    }
+
+    /** 퇴사자를 포함한 전 사원 (인사관리) */
+    @GetMapping("/all")
+    public List<EmployeeResponse> listAll(@AuthenticationPrincipal UserPrincipal principal) {
+        return maskIfNeeded(employeeService.findAllIncludingResigned(), principal);
+    }
+
+    /**
+     * 기본급은 인사·급여 권한이 있는 사람에게만 보낸다.
+     *
+     * <p>사원 목록 자체는 막을 수 없다 — 담당자 드롭다운으로 여기저기서 쓰기 때문이다.
+     * 그래서 목록은 열어 두고 <b>급여 칸만</b> 가린다. 이걸 안 하면 급여명세를 막아 놔도
+     * 사원 목록으로 기본급이 그대로 새어 나간다(실제로 그랬다).
+     */
+    private List<EmployeeResponse> maskIfNeeded(List<EmployeeResponse> rows, UserPrincipal principal) {
+        if (canSeeSalary(principal)) {
+            return rows;
+        }
+        return rows.stream().map(EmployeeResponse::maskSalary).toList();
+    }
+
+    private boolean canSeeSalary(UserPrincipal principal) {
+        if (principal == null) return false;
+        if (principal.isAdmin()) return true;
+        return principal.getPermissionCodes().contains("PAYROLL")
+                || principal.getPermissionCodes().contains("HR");
+    }
+
+    /** 사원별 발령이력 */
+    @GetMapping("/{id}/assignments")
+    public List<AssignmentResponse> assignments(@PathVariable Long id) {
+        return employeeService.findAssignments(id);
+    }
+
+    /** 인사발령 (입사·전보·승진·퇴사·재입사). 사원의 현재 부서·직위·재직상태가 함께 갱신된다. */
+    @PostMapping("/{id}/assignments")
+    public AssignmentResponse assign(@PathVariable Long id,
+                                     @Valid @RequestBody CreateAssignmentRequest req,
+                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return employeeService.createAssignment(id, req, principal.getUsername());
+    }
+
+    /** 사원 기본급 수정 */
+    /** 원본 사원(담당)등록의 [신규]. */
+    @PostMapping
+    public EmployeeDtos.EmployeeResponse create(
+            @Valid @RequestBody EmployeeDtos.CreateEmployeeRequest req) {
+        return employeeService.create(req);
+    }
+
+    /** 사원 수정. 퇴사·사용중단도 여기서 한다 — 사원은 지우지 않는다. */
+    @PutMapping("/{id}")
+    public EmployeeDtos.EmployeeResponse update(
+            @PathVariable Long id, @Valid @RequestBody EmployeeDtos.UpdateEmployeeRequest req) {
+        return employeeService.update(id, req);
+    }
+
+    @PutMapping("/{id}/base-salary")
+    public EmployeeResponse updateBaseSalary(@PathVariable Long id, @Valid @RequestBody UpdateSalaryRequest req) {
+        return employeeService.updateBaseSalary(id, req);
+    }
+
+    /** 부서 배치 (조직도에서 사원을 부서로 옮길 때) */
+    @PutMapping("/{id}/department")
+    public EmployeeResponse assignDepartment(@PathVariable Long id, @RequestBody AssignDepartmentRequest req) {
+        return employeeService.assignDepartment(id, req);
+    }
+}

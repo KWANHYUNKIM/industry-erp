@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { groupPreservingOrder } from '../../utils/costGroup'
 import CodePickerField from '../../components/CodePickerField'
-import type { Warehouse } from '../../api/types'
+import type { Warehouse } from '../../types/api'
 
 /**
  * 노무비/경비등록 — 원가계산 전 사전작업.

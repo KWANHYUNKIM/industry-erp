@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
-import type { MyItem } from '../api/types'
+import type { MyItem } from '../types/api'
 
 /**
  * 원본 격자 입력 화면 공통 툴바의 <b>[My품목]</b> — 부르는 쪽 로직만 나눠 갖는 훅.

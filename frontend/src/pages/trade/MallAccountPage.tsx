@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { MallAccount, MallAccountType, Partner } from '../../api/types'
+import type { MallAccount, MallAccountType, Partner } from '../../types/api'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰등록 (이카운트 C000664)

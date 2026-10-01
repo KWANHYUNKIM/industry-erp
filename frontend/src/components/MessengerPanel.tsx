@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { ChatMessage, ChatRoom, User } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import type { ChatMessage, ChatRoom, User } from '../types/api'
+import { useAuth } from '../features/auth/AuthContext'
 import { ymd } from './EcPeriodPicks'
 
 /** 폴링 주기(ms). 소켓 대신 증분 폴링(afterId)이라 새 메시지만 내려온다. */

@@ -8,9 +8,9 @@
  * <p>날짜 계산 자체는 `periods.ts` 에 있다 — 테스트로 못 박으려고 JSX 없는 파일로 뺐다.
  * 여기서 다시 내보내므로 `EcPeriodPicks` 에서 import 하던 곳은 그대로 두면 된다.
  */
-export * from './periods'
-import { periodOf, type PeriodRange } from './periods'
-import { JOURNAL_PICKS } from './periods'
+export * from '../utils/periods'
+import { periodOf, type PeriodRange } from '../utils/periods'
+import { JOURNAL_PICKS } from '../utils/periods'
 
 export default function EcPeriodPicks({
   onPick,

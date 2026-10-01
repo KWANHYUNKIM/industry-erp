@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../api/types'
+import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

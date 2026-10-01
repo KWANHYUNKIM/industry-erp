@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SalesDoc } from '../../api/types'
+import type { SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import { ymd } from '../../components/EcPeriodPicks'

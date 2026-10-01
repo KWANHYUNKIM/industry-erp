@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { FLAT_MENU } from '../../components/EcountLayout'
+import { FLAT_MENU } from '../../app/layout/EcountLayout'
 import CodePickerField from '../../components/CodePickerField'
 
 /**

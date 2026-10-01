@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, StockAdjustment } from '../../api/types'
+import type { CommonCode, Item, QualityInspection, StockAdjustment } from '../../types/api'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcListShell from '../../components/EcListShell'
 import { periodOf } from '../../components/EcPeriodPicks'

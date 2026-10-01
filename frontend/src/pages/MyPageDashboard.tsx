@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
-import type { PartnerBalance, ProfitSummary, PurchaseDoc, SalesDoc, StockRow, VatSummary } from '../api/types'
+import { useAuth } from '../features/auth/AuthContext'
+import type { PartnerBalance, ProfitSummary, PurchaseDoc, SalesDoc, StockRow, VatSummary } from '../types/api'
 import { dateText } from '../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')

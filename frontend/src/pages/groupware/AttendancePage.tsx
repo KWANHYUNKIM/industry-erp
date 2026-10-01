@@ -5,7 +5,7 @@ import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { Attendance } from '../../api/types'
+import type { Attendance } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 
 const TITLE = '출/퇴근기록부(ID)'

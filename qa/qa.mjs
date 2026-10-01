@@ -3437,7 +3437,9 @@ function scenarioSourceRules() {
 
   // §6 — @Transactional 은 service 에만. controller/repository 에 붙으면
   // 트랜잭션 경계가 두 군데가 되어 롤백 범위를 아무도 설명할 수 없게 된다.
-  const inLayer = (f, layer) => f.split(sep).includes(layer)
+  // 기능 패키지 구조(com/erp/<모듈>/<기능>/)라 계층 폴더가 없다 — 파일명 접미사로 가른다.
+  const LAYER_SUFFIX = { controller: 'Controller.java', service: 'Service.java', repository: 'Repository.java' }
+  const inLayer = (f, layer) => baseName(f).endsWith(LAYER_SUFFIX[layer])
   const strayTx = sources
     .filter(([f, src]) =>
       (inLayer(f, 'controller') || inLayer(f, 'repository')) && src.includes('@Transactional'))

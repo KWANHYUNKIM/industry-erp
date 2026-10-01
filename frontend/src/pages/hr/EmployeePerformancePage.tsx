@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PerformanceSummary } from '../../api/types'
+import type { PerformanceSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')

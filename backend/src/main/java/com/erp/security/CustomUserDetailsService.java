@@ -1,7 +1,7 @@
 package com.erp.security;
 
-import com.erp.auth.domain.User;
-import com.erp.auth.repository.UserRepository;
+import com.erp.auth.user.User;
+import com.erp.auth.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

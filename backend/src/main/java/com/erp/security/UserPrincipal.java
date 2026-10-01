@@ -1,7 +1,7 @@
 package com.erp.security;
 
-import com.erp.auth.domain.Permission;
-import com.erp.auth.domain.User;
+import com.erp.auth.role.Permission;
+import com.erp.auth.user.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

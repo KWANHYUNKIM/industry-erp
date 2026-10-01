@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Partner, SpecialPrice, SpecialPriceResolve, SpecialPriceType } from '../../api/types'
+import type { Item, Partner, SpecialPrice, SpecialPriceResolve, SpecialPriceType } from '../../types/api'
 
 /**
  * 회계/재고 기초등록 > 특별단가등록 (이카운트 E040124)

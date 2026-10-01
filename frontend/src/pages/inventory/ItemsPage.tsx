@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, GroupMaster, Item, ManagementItem, Partner } from '../../api/types'
+import type { CodeOption, GroupMaster, Item, ManagementItem, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'

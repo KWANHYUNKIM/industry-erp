@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { ManagementItem } from '../../api/types'
+import type { ManagementItem } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'

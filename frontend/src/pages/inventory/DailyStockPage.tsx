@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StockRow, Warehouse } from '../../api/types'
+import type { Item, StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { costOf as pickCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'

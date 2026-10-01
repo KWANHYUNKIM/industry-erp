@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { TaxAdjustmentType, TaxReturn } from '../../api/types'
+import type { TaxAdjustmentType, TaxReturn } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const thisYear = () => new Date().getFullYear()

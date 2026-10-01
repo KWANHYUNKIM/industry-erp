@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import type { ItemProfit } from '../../api/types'
+import type { ItemProfit } from '../../types/api'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 

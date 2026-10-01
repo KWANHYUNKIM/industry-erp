@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../api/types'
+import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

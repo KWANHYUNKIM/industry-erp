@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
-} from '../../api/types'
+} from '../../types/api'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

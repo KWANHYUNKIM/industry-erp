@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../api/types'
+import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../types/api'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

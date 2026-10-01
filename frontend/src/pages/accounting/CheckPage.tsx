@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../api/types'
+import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/api'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

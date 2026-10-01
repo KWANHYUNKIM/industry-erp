@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
+import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../types/api'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 

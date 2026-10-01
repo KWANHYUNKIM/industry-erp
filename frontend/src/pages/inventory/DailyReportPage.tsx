@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SalesDoc, PurchaseDoc } from '../../api/types'
+import type { SalesDoc, PurchaseDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { GroupMaster } from '../api/types'
+import type { GroupMaster } from '../types/api'
 
 /**
  * 계층그룹 모달 — 품목그룹·거래처그룹 마스터를 만들고 소속을 확인한다.

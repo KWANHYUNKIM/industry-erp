@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import Modal from '../../components/Modal'
-import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../api/types'
+import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
 
 /**

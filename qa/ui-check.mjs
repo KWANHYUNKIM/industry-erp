@@ -110,9 +110,10 @@ const withLocalDeps = (file, depth = 2, seen = new Set()) => {
   seen.add(file)
   let text = readFileSync(file, 'utf8')
   const dir = file.split(sep).slice(0, -1).join(sep)
-  for (const m of text.matchAll(/from\s+'\.\/([\w-]+)'/g)) {
+  // 곁 파일('./x')과 공통 유틸('../utils/x', '../../utils/x' …)만 따라간다. periods.ts 가 utils 에 있다.
+  for (const m of text.matchAll(/from\s+'((?:\.\/)|(?:\.\.\/)+utils\/)([\w-]+)'/g)) {
     for (const ext of ['.ts', '.tsx']) {
-      const dep = join(dir, m[1] + ext)
+      const dep = join(dir, m[1] + m[2] + ext)
       // 두 단계까지 따라간다 — 패널 → EcPeriodPicks → periods 가 실제 깊이다.
       if (existsSync(dep)) { text += withLocalDeps(dep, depth - 1, seen); break }
     }
@@ -134,7 +135,7 @@ const shellSrcFor = (src) => [...SHELL_FILES]
  * 조용히 어긋난다.
  */
 const COMPARE_PERIOD_NAMES = (() => {
-  const f = join('frontend', 'src', 'components', 'periods.ts')
+  const f = join('frontend', 'src', 'utils', 'periods.ts')
   if (!existsSync(f)) return []
   const m = readFileSync(f, 'utf8').match(/COMPARE_PERIODS[^\n=]*=\s*\[([^\]]*)\]/)
   return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : []
@@ -1017,8 +1018,8 @@ console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 
-const app = readFileSync('frontend/src/App.tsx', 'utf8')
-const menu = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
+const app = readFileSync('frontend/src/app/router.tsx', 'utf8')
+const menu = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
 
 const routes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]))
 const menuTargets = new Map()
@@ -1093,8 +1094,9 @@ console.log('\n■ 메뉴 이름 ↔ 화면이 여는 자리')
   const routeComp = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp.set(m[1], m[2])
   const compFile = new Map()
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile.set(m[1], m[2])
+  // 라우터가 src/app/ 에 있어서 화면은 '../pages/...' 로 불린다 — src 기준 경로를 뽑는다.
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile.set(m[1], m[2])
 
   const bad = []
   for (const [to, labels] of byTo) {
@@ -1133,8 +1135,8 @@ console.log('\n■ 형제 메뉴는 같은 종류인가')
   const routeComp2 = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp2.set(m[1], m[2])
   const compFile2 = new Map()
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
 
   /** 뒤에 붙은 (…) 와 로마숫자·번호를 떼고 남는 줄기. 줄기가 같으면 형제다. */
   const stem = (s) => s.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*(I{1,3}|IV|V|\d+)\s*$/, '').trim()
@@ -1627,8 +1629,8 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
  * 실제로 새로 만든 재고현황 8개가 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다.
  */
 {
-  const menuSrc = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
-  const permSrc = readFileSync('frontend/src/auth/menuPermissions.ts', 'utf8')
+  const menuSrc = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
+  const permSrc = readFileSync('frontend/src/features/auth/menuPermissions.ts', 'utf8')
 
   // menuPermissions 의 규칙을 그대로 읽어 같은 방식(최장 접두어)으로 푼다.
   const rules = [...permSrc.matchAll(/\['(\/[^']*)',\s*(?:'(\w+)'|null)\]/g)]
@@ -7029,7 +7031,7 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
   /* 1) 엔티티마다 글자 칸 길이 */
   const ent = new Map()
   for (const f of walk(join('backend', 'src', 'main', 'java'))) {
-    if (!f.endsWith('.java') || !f.includes('domain')) continue
+    if (!f.endsWith('.java')) continue
     const src = readFileSync(f, 'utf8')
     if (!/@Entity\b/.test(src)) continue
     const m2 = new Map()
@@ -7047,7 +7049,8 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
   for (const f of walk(join('backend', 'src', 'main', 'java'))) {
     if (!f.endsWith('.java') || !f.includes('dto')) continue
     const src = readFileSync(f, 'utf8')
-    const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*domain\.(\w+);/g)]
+    // 엔티티는 기능 패키지(com.erp.<모듈>.<기능>.X)에 있다 — 클래스 import 를 다 모아 엔티티만 남긴다.
+    const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*\.([A-Z]\w*);/g)]
       .map((m) => m[1]).filter((c) => ent.has(c))
     for (const m of src.matchAll(/record\s+(\w+Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
       const parts = []
@@ -7676,6 +7679,11 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 {
   const witnesses = JSON.parse(readFileSync(join('qa', 'fixtures', 'reason-witnesses.json'), 'utf8'))
   const cache = new Map()
+  /*
+   * package·import 줄은 뺀다. 기능 패키지로 옮긴 뒤 com.erp.quality.inspectionrequest 라는
+   * <b>패키지 이름</b>에 든 'inspection' 이 '검사 전표를 만든다' 는 증거인 척했다.
+   */
+  const code = (f) => readFileSync(f, 'utf8').replace(/^(?:package|import)\s[^\n]*$/gm, '')
   const treeText = (where) => {
     if (cache.has(where)) return cache.get(where)
     const roots = where === 'backend' ? ['backend/src/main/java']
@@ -7686,10 +7694,10 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
     for (const r of roots) {
       if (!existsSync(r)) continue
       /* 파일 하나를 가리켜도 된다 — 그 화면에만 있으면 되는 이름이 있다. */
-      if (!statSync(r).isDirectory()) { all += readFileSync(r, 'utf8'); continue }
+      if (!statSync(r).isDirectory()) { all += code(r); continue }
       for (const f of walk(r)) {
         if (!/[.](java|ts|tsx)$/.test(f)) continue
-        all += readFileSync(f, 'utf8')
+        all += code(f)
       }
     }
     cache.set(where, all)
@@ -7709,6 +7717,14 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
   const stale = []
   let checked = 0
   for (const [key, w] of Object.entries(witnesses)) {
+    /*
+     * 가리키는 파일이 없으면 읽을 글이 없어 '없음' 이 저절로 참이 된다 — 패키지를 옮겼을 때
+     * 이렇게 54건이 조용히 통과했다(그중 셋은 옮기기 전부터 경로가 틀려 있었다).
+     */
+    if (w.in && !['backend', 'frontend', 'both'].includes(w.in) && !existsSync(w.in)) {
+      stale.push(`[${key}] — 증거 자리 ${w.in} 가 없다. 파일을 옮겼으면 경로를 고치세요`)
+      continue
+    }
     for (const name of w.absent ?? []) {
       checked++
       if (treeText(w.in).includes(name)) {

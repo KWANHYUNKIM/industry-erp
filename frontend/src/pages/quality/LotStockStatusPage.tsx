@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Lot } from '../../api/types'
+import type { Lot } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 
 /**

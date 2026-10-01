@@ -5,7 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
-} from '../../api/types'
+} from '../../types/api'
 
 // 원본 전자결재 > 기초자료등록 아래의 두 화면 이름 그대로다(공통양식등록 · 결재설정).
 const TABS = ['공통양식등록', '결재설정'] as const

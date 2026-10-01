@@ -1,6 +1,6 @@
 package com.erp.accounting;
 
-import com.erp.accounting.domain.AccountDivision;
+import com.erp.accounting.account.AccountDivision;
 
 import java.util.List;
 

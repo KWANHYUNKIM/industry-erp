@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CollectSource } from '../../api/types'
+import type { CollectSource } from '../../types/api'
 
 /**
  * 데이터센터 > 수집데이터등록 (이카운트 E100000)

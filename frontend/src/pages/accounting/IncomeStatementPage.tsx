@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { IncomeStatement, StatementRow } from '../../api/types'
+import type { IncomeStatement, StatementRow } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')

@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../api/types'
+import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 
 /**

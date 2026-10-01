@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { CrmActivity, CrmStage, Partner } from '../../api/types'
+import type { CrmActivity, CrmStage, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'

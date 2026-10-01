@@ -6,7 +6,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 
 /**

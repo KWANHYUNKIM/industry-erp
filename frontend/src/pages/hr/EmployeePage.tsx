@@ -6,7 +6,7 @@ import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster } from '../../api/types'
+import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SignLine, SignSlot } from '../../api/types'
+import type { SignLine, SignSlot } from '../../types/api'
 
 interface SlotForm { title: string; signerName: string }
 const emptySlot = (): SlotForm => ({ title: '', signerName: '' })

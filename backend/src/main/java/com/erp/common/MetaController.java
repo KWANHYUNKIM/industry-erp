@@ -1,9 +1,9 @@
 package com.erp.common;
 
-import com.erp.inventory.domain.ItemCategory;
-import com.erp.trade.domain.PartnerType;
-import com.erp.inventory.domain.StockTransactionType;
-import com.erp.auth.repository.UserRepository;
+import com.erp.inventory.item.ItemCategory;
+import com.erp.trade.partner.PartnerType;
+import com.erp.inventory.stock.StockTransactionType;
+import com.erp.auth.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;

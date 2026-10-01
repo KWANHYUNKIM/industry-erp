@@ -5,7 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { mergeLoadedLines } from '../../utils/mergeLines'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 
 /**
  * 생산관리 > 소요시간계산.

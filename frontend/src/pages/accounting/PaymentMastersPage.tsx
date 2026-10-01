@@ -3,7 +3,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Account, CardIssuer, PaymentAgency } from '../../api/types'
+import type { Account, CardIssuer, PaymentAgency } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 
 /**

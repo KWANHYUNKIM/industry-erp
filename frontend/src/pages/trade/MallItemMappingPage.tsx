@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, MallItemMapping } from '../../api/types'
+import type { Item, MallItemMapping } from '../../types/api'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰품목코드연결 (이카운트 E041004)

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Page, StockTransaction, Warehouse } from '../../api/types'
+import type { Item, Page, StockTransaction, Warehouse } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 import { dateText } from '../../utils/dateText'

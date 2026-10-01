@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../api/client'
-import type { NotificationResponse, UserNote, WorkspaceSearch } from '../api/types'
+import type { NotificationResponse, UserNote, WorkspaceSearch } from '../types/api'
 import MessengerPanel from './MessengerPanel'
 
 export type PanelKind = 'search' | 'notifications' | 'notes' | 'messenger'

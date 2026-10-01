@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { STATUS_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
-import type { SurveyDoc } from '../../api/types'
+import type { SurveyDoc } from '../../types/api'
 import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
