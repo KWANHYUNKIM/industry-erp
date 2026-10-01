@@ -55,6 +55,8 @@ export default function StagedAdjustmentPage() {
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /* 저장한 조정요청 번호를 남겨 둔다 — 번호는 서버가 매긴다 */
+  const [ok, setOk] = useState('')
   /*
    * 품목등록에서 <b>고른 품목을 물고</b> 넘어온다(?item=id). 원본 품목등록의 [재고조정]이
    * 그 자리에서 조정 화면을 여는데, 우리는 메뉴로 옮겨 가 품목을 다시 찾아야 했다.
@@ -85,17 +87,19 @@ export default function StagedAdjustmentPage() {
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
   async function submit() {
-    setError('')
+    setError(''); setOk('')
     if (!form.itemId) return setError('품목을 선택하세요.')
     if (!form.warehouseId) return setError('창고를 선택하세요.')
     if (form.actualQty === '') return setError('실사수량을 입력하세요.')
     try {
-      await api.post('/staged-adjustments', {
+      const res = await api.post<StagedAdjustment>('/staged-adjustments', {
         itemId: Number(form.itemId), warehouseId: Number(form.warehouseId),
         actualQty: Number(form.actualQty), requestDate: form.requestDate, reason: form.reason || undefined,
       })
       setForm((f) => ({ ...f, itemId: '', warehouseId: '', actualQty: '', reason: '' }))
       setShowForm(false); load()
+      const d = res.data
+      setOk(`${d.adjustNo} 조정요청 등록 완료 · ${d.itemName} · ${d.warehouseName} · 장부 ${num(d.bookQty)} → 실사 ${num(d.actualQty)}`)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
@@ -135,6 +139,7 @@ export default function StagedAdjustmentPage() {
     >
       <p className="mb-2 text-xs text-slate-500">실사수량을 요청 → 승인(반영)/반려. 반영 시 재고가 실사수량으로 조정됩니다(기타이동 재고조정 탭에도 기록).</p>
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal open={showForm} title="단계별재고조정 요청" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>

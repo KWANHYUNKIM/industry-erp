@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useAuth } from '../../features/auth/AuthContext'
@@ -94,6 +94,8 @@ export default function ApprovalListPage({
   const colCount = 12 + (scope === 'all' ? 2 : 0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 기안서 작성 화면이 넘겨준 저장 결과(번호). 넘어오자마자 보여 줄 자리가 여기뿐이다. */
+  const passedNotice = (useLocation().state as { notice?: string } | null)?.notice ?? ''
   const [detail, setDetail] = useState<ApprovalDoc | null>(null)
   // 상세에서 formData 의 키를 사람이 읽는 라벨로 바꾸기 위해 양식 스키마를 받아둔다.
   const [schemas, setSchemas] = useState<Record<number, ApprovalField[]>>({})
@@ -381,6 +383,7 @@ export default function ApprovalListPage({
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {passedNotice && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{passedNotice}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}

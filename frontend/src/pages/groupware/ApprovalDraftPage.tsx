@@ -199,7 +199,7 @@ export default function ApprovalDraftPage() {
     }
     setSaving(true)
     try {
-      await api.post('/approvals', {
+      const res = await api.post<ApprovalDoc>('/approvals', {
         formTemplateId: selected!.id,
         title,
         content: body,
@@ -215,7 +215,11 @@ export default function ApprovalDraftPage() {
         shareUserIds: shareIds,
         temporary,
       })
-      navigate('/groupware/approval/my')
+      /* 곧바로 목록으로 넘어가 이 화면의 안내는 못 본다 — 번호는 목록 화면이 받아 띄운다(창을 띄우지 않는다). */
+      const d = res.data
+      navigate('/groupware/approval/my', { state: { notice: temporary
+        ? `${d.docNo} 기안서 임시저장 완료 · ${d.title}`
+        : `${d.docNo} 기안서 상신 완료 · ${d.title} · 결재자 ${approverIds.length}명` } })
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

@@ -62,7 +62,8 @@ export default function ExportPage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+  /* 짧은 안내는 2.5초 뒤 지운다 — 그사이 다른 안내로 바뀌었으면 그대로 둔다 */
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice((cur) => (cur === m ? '' : cur)), 2500) }
 
   function load() {
     setError('')
@@ -309,7 +310,7 @@ export default function ExportPage() {
           currencies={currencies}
           items={items}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); flash('인보이스를 발행했습니다.'); load() }}
+          onSaved={(r) => { setShowForm(false); setNotice(`${r.invoiceNo} 인보이스 발행 완료 · ${r.buyerName} · ${fx(r.foreignAmount, r.currencySymbol)} ${r.currencyCode} (원화 ${won(r.krwAmount)})`); load() }}
         />
       )}</Modal>
     </EcListShell>
@@ -330,7 +331,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
   currencies: Currency[]
   items: Item[]
   onClose: () => void
-  onSaved: () => void
+  onSaved: (r: ExportOrder) => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [currencyId, setCurrencyId] = useState('')
@@ -359,11 +360,11 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
     setSaving(true)
     try {
-      await api.post('/exports', {
+      const res = await api.post<ExportOrder>('/exports', {
         partnerId: Number(partnerId), currencyId: Number(currencyId), invoiceDate,
         incoterms: incoterms || undefined, destination: destination || undefined, lines: payload,
       })
-      onSaved()
+      onSaved(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

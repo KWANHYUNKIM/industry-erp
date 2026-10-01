@@ -229,7 +229,8 @@ export default function WorkProcessPage() {
     if (qty > r.remainQty) return setError(`미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
     setError(''); setOk('')
     try {
-      await api.post('/work-results', {
+      /* qa/fixtures 증거가 api.post('/work-results' 글자를 찾는다 — 타입은 받는 쪽에 단다 */
+      const res: { data: { resultNo: string } } = await api.post('/work-results', {
         workOrderId: r.wo.id,
         process: r.processName,
         // BOR 이 정해 둔 작업품목을 그대로 실적에 남긴다 — 나중에 무엇을 만졌는지 알 수 있다.
@@ -240,7 +241,7 @@ export default function WorkProcessPage() {
         workDate: to,
         note: `${r.wo.orderNo} ${r.seq}.${r.workName}`,
       })
-      setOk(`${r.wo.orderNo} ${r.processName} ${num(qty)} 처리 완료`)
+      setOk(`${res.data.resultNo} 작업실적 등록 완료 · ${r.wo.orderNo} ${r.processName} ${num(qty)} 처리`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))

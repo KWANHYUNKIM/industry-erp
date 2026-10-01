@@ -35,7 +35,8 @@ export default function ContractPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+  /* 짧은 안내는 2.5초 뒤 지운다 — 그사이 다른 안내로 바뀌었으면 그대로 둔다 */
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice((cur) => (cur === m ? '' : cur)), 2500) }
 
   async function load() {
     setError('')
@@ -164,7 +165,7 @@ export default function ContractPage() {
           employees={employees}
           departments={departments}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); flash('근로계약을 작성했습니다.'); load() }}
+          onSaved={(c) => { setShowForm(false); setNotice(`${c.contractNo} 근로계약 작성 완료 · ${c.employeeName} · ${c.typeName} · 월 ${won(c.monthlySalary)}원`); load() }}
         />
       )}</Modal>
       {viewing && <ContractSheet contract={viewing} onClose={() => setViewing(null)} />}
@@ -224,7 +225,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
   employees: EmployeeMaster[]
   departments: Department[]
   onClose: () => void
-  onSaved: () => void
+  onSaved: (c: EmploymentContract) => void
 }) {
   const [employeeId, setEmployeeId] = useState('')
   const [type, setType] = useState<ContractType>('PERMANENT')
@@ -257,7 +258,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
     if (type !== 'PERMANENT' && !endDate) return setError(`${TYPES.find((t) => t.value === type)?.label} 계약은 종료일이 있어야 합니다.`)
     setSaving(true)
     try {
-      await api.post('/employment-contracts', {
+      const res = await api.post<EmploymentContract>('/employment-contracts', {
         employeeId: Number(employeeId),
         type,
         startDate,
@@ -270,7 +271,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
         duty: duty.trim() || null,
         remark: remark.trim() || null,
       })
-      onSaved()
+      onSaved(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

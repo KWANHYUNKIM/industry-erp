@@ -4,6 +4,7 @@ import type { CommonCode, Item, QualityInspection, QualityInspectionType, Qualit
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
@@ -30,6 +31,8 @@ export default function QualityInspectionPage() {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /* 저장한 검사번호를 남겨 둔다 — 번호는 서버가 매긴다 */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
@@ -64,11 +67,11 @@ export default function QualityInspectionPage() {
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
   async function submit() {
-    setError('')
+    setError(''); setOk('')
     if (!form.itemId) return setError('품목을 선택하세요.')
     if (form.inspectedQty === '') return setError('검사수량을 입력하세요.')
     try {
-      await api.post('/quality-inspections', {
+      const res = await api.post<QualityInspection>('/quality-inspections', {
         inspectionDate: form.inspectionDate,
         type: form.type,
         itemId: Number(form.itemId),
@@ -83,6 +86,8 @@ export default function QualityInspectionPage() {
       setForm((f) => ({ ...f, itemId: '', lotNo: '', inspectedQty: '', defectQty: '0', defectType: '', result: '', inspector: '', projectId: '' }))
       setShowForm(false)
       load()
+      const d = res.data
+      setOk(`${d.inspectionNo} 품질검사 등록 완료 · ${d.itemName} · 검사 ${d.inspectedQty.toLocaleString()} / 불량 ${d.defectQty.toLocaleString()} · ${d.resultName}`)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -122,6 +127,7 @@ export default function QualityInspectionPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal open={showForm} title="품질관리 (검사성적) 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
@@ -133,11 +139,11 @@ export default function QualityInspectionPage() {
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
                 {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
-              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다(QA 11회차). 코드도움은 <label> 로 감싸면 팝업의 클릭이 먹히지 않아 div 로 둔다. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+              <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => set('itemId', v)}
+                               items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No.</div>
               <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사수량 *</div>
@@ -165,11 +171,10 @@ export default function QualityInspectionPage() {
               이 화면이 정할 데도, 보여 줄 데도 두지 않았다 — 불량률파악보고서는 그 값으로
               거르고 있었으니 늘 빈 채로 걸렸다.
             */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
-              <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 140 }}>
-                <option value="">(없음)</option>
-                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.name}</option>)}
-              </select></label>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
+              <CodePickerField label="프로젝트" hideLabel width={160} placeholder="(없음)" emptyLabel="선택 해제"
+                               value={form.projectId} onChange={(v) => set('projectId', v)}
+                               items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사자</div>
               <input className={inputCls} value={form.inspector} onChange={(e) => set('inspector', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>

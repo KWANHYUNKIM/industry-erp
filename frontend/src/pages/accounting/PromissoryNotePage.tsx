@@ -33,7 +33,8 @@ export default function PromissoryNotePage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+  /* 짧은 안내는 2.5초 뒤 지운다 — 그사이 다른 안내로 바뀌었으면 그대로 둔다 */
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice((cur) => (cur === m ? '' : cur)), 2500) }
 
   /*
    * <b>넓게 물으면 앞 5천 장만 받는다.</b> 어음이 쌓이면 목록이 통째로 내려와 몇 MB 가 된다 —
@@ -198,7 +199,7 @@ export default function PromissoryNotePage() {
         </tbody>
       </table>
 
-      {showForm && <NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('어음을 등록했습니다. 분개가 생성되었습니다.'); load() }} />}
+      {showForm && <NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={(n) => { setShowForm(false); setNotice(`${n.noteNo} 어음 등록 완료 · ${n.typeName} · ${n.partnerName} · ${won(n.amount)}원 — 분개 생성`); load() }} />}
     </EcListShell>
   )
 }
@@ -212,7 +213,7 @@ function Tile({ label, value, strong }: { label: string; value: string; strong?:
   )
 }
 
-function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose: () => void; onSaved: () => void }) {
+function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose: () => void; onSaved: (n: PromissoryNote) => void }) {
   const [type, setType] = useState<'RECEIVABLE' | 'PAYABLE'>('RECEIVABLE')
   const [partnerId, setPartnerId] = useState('')
   const [issueDate, setIssueDate] = useState(today())
@@ -232,11 +233,11 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
     if (!(Number(amount) > 0)) return setError('어음 금액을 입력하세요.')
     setSaving(true)
     try {
-      await api.post('/notes', {
+      const res = await api.post<PromissoryNote>('/notes', {
         type, partnerId: Number(partnerId), issueDate, dueDate,
         amount: Number(amount), bankName: bankName || undefined, remark: remark || undefined,
       })
-      onSaved()
+      onSaved(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

@@ -85,10 +85,12 @@ export default function StocktakePage() {
     if (warehouseId === '') return
     if (targets.length === 0) { setError('차이가 있는 실사수량이 없습니다.'); return }
     setSaving(true); setError(''); setOk('')
+    /* 조정 전표 번호는 서버가 매긴다 — 받아 두었다가 안내에 붙인다 */
+    const nos: string[] = []
     try {
       const date = today()
       for (const r of targets) {
-        await api.post('/stock-adjustments', {
+        const res = await api.post<{ adjustNo: string }>('/stock-adjustments', {
           type: 'ADJUST',
           itemId: r.itemId,
           warehouseId,
@@ -96,11 +98,14 @@ export default function StocktakePage() {
           adjustDate: date,
           reason: `재고실사 (${date})`,
         })
+        nos.push(res.data.adjustNo)
       }
-      setOk(`${targets.length}개 품목 실사 조정 반영 완료`)
       await loadStock(warehouseId)      // 반영 후 장부수량 재조회(=실사수량으로 맞춰짐)
+      // loadStock 이 ok 를 지우므로 그 뒤에 남긴다
+      const range = nos.length > 1 ? `${nos[0]} ~ ${nos[nos.length - 1]}` : nos[0]
+      setOk(`${range} 실사 조정 반영 완료 · ${nos.length}개 품목`)
     } catch (e) {
-      setError(extractErrorMessage(e))
+      setError(extractErrorMessage(e) + (nos.length > 0 ? ` — 앞서 ${nos.length}건은 이미 반영됨(${nos.join(', ')})` : ''))
     } finally {
       setSaving(false)
     }
