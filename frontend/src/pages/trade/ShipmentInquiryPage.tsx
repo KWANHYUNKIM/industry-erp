@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import { EcCond } from '../../components/EcStatusPanel'
-import { periodOf } from '../../components/EcPeriodPicks'
+import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
@@ -254,16 +254,10 @@ export default function ShipmentInquiryPage() {
       */
       onNew={() => navigate('/sales/shipment-order')}
       actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>기준일자</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</span>
-      </div>
 
       {/* 원본 조건 차례: 기준일자 · 출하No. · 창고 · 프로젝트 · 거래처 · 품목 · 발송여부 */}
-      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+      {/* 기준일자는 조건 판 안 첫 줄이다 — 2회차 #12. 다른 현황 화면과 같이 빠른선택(금일·전월…)도 붙는다. */}
+      <EcStatusPanel from={from} to={to} onPeriod={(r) => { setFrom(r.from); setTo(r.to) }} picks={INQUIRY_PICKS}>
         <EcCond label="출하No.">
           <input className="ec-input" value={shipNoCond} onChange={(e) => setShipNoCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
@@ -352,7 +346,8 @@ export default function ShipmentInquiryPage() {
             수정일자순(정렬)
           </label>
         </EcCond>
-      </ul>
+      </EcStatusPanel>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#9aa1ab', textAlign: 'right' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

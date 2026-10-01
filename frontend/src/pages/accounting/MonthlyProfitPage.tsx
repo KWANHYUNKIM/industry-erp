@@ -191,6 +191,8 @@ export default function MonthlyProfitPage() {
         month: d.saleDate.slice(0, 7),
         partnerId: d.partnerId, partnerName: d.partnerName,
         itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName,
+        /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
+        itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
         quantity: l.quantity, revenue, cost,
         profit: cost === null ? null : revenue - cost,
         /**
@@ -214,10 +216,10 @@ export default function MonthlyProfitPage() {
               : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
       mode === '월별' ? [`${Number(l.month.slice(5))}월`, '', '']
-        : mode === '품목별' ? [l.itemCode, l.itemName, '']
+        : mode === '품목별' ? [l.itemCode, l.itemLabel, '']
           : mode === '거래처별' ? [l.partnerName, '', '']
-            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName]
-              : [l.itemCode, l.itemName, l.partnerName]
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemLabel]
+              : [l.itemCode, l.itemLabel, l.partnerName]
 
     const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
     lines.forEach((l) => {

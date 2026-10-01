@@ -485,7 +485,7 @@ export default function SalesOrderStatusPage() {
       <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
         건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        미출하수량 <b style={{ color: '#c07a00', fontSize: 14 }}>{totals.unshipped.toLocaleString()}</b>
+        <span title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하수량(출하완료 기준)</span> <b style={{ color: '#c07a00', fontSize: 14 }}>{totals.unshipped.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
         공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
         <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
@@ -525,8 +525,8 @@ export default function SalesOrderStatusPage() {
               <th>거래처</th>
               <th style={{ textAlign: 'right' }}>건수</th>
               <th style={{ textAlign: 'right' }}>주문수량</th>
-              <th style={{ textAlign: 'right' }}>출하수량</th>
-              <th style={{ textAlign: 'right' }}>미출하</th>
+              <th style={{ textAlign: 'right' }} title="출하완료된 수량. 출하지시만 낸 것은 넣지 않는다.">출하완료수량</th>
+              <th style={{ textAlign: 'right' }} title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하(완료기준)</th>
               <th style={{ textAlign: 'right' }}>공급가액</th>
               <th style={{ textAlign: 'right' }}>부가세</th>
             </tr>
@@ -565,8 +565,8 @@ export default function SalesOrderStatusPage() {
             <th style={{ textAlign: 'center' }}>진행</th>
             <th>품목명(규격)</th>
             <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>출하수량</th>
-            <th style={{ textAlign: 'right' }}>미출하</th>
+            <th style={{ textAlign: 'right' }} title="출하완료된 수량. 출하지시만 낸 것은 넣지 않는다.">출하완료수량</th>
+            <th style={{ textAlign: 'right' }} title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하(완료기준)</th>
             <th style={{ textAlign: 'right' }}>단가</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
             {/* 원본은 [거래처명]이 <b>공급가액 뒤</b>에 온다 — 우리는 앞쪽에 두고 있었다. */}

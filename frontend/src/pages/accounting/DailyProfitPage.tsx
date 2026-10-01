@@ -219,6 +219,8 @@ export default function DailyProfitPage() {
           date: d.saleDate, docNo: d.docNo,
           partnerId: d.partnerId, partnerName: d.partnerName,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+          /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
+          itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
           quantity: l.quantity, revenue, cost,
           profit: cost === null ? null : revenue - cost,
           /** 판매부대비용. 원본 [판매부대비용] 열. 안 적었으면 0 이다. */
@@ -232,7 +234,7 @@ export default function DailyProfitPage() {
   const rows = useMemo(() => {
     if (mode === '라인별') {
       return lines.map((l) => ({
-        key: l.key, c1: l.date.replace(/-/g, '/'), c2: l.docNo, c3: l.partnerName, c4: l.itemName,
+        key: l.key, c1: l.date.replace(/-/g, '/'), c2: l.docNo, c3: l.partnerName, c4: l.itemLabel,
         qty: l.quantity, revenue: l.revenue, cost: l.cost, profit: l.profit, count: 1,
         extra: l.extraCost,
       }))
@@ -245,10 +247,10 @@ export default function DailyProfitPage() {
               : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
       mode === '일자별' ? [l.date.replace(/-/g, '/'), '', '', '']
-        : mode === '품목별' ? [l.itemCode, l.itemName, '', '']
+        : mode === '품목별' ? [l.itemCode, l.itemLabel, '', '']
           : mode === '거래처별' ? [l.partnerName, '', '', '']
-            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName, '']
-              : [l.itemCode, l.itemName, l.partnerName, '']
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemLabel, '']
+              : [l.itemCode, l.itemLabel, l.partnerName, '']
 
     const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
     lines.forEach((l) => {
