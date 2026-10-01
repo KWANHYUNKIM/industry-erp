@@ -82,6 +82,12 @@ interface UnshippedLine {
   createdBy: string | null
 }
 
+/**
+ * 열 이름이 [품목명(규격)] 인데 이름만 찍고 있었다 — 응답은 규격을 진작 싣는다.
+ * 이름이 같고 규격만 다른 품목이 나란히 서면 어느 줄이 어느 것인지 볼 길이 없었다.
+ */
+const nameSpec = (r: { itemName: string; spec: string | null }) => r.itemName + (r.spec ? ` (${r.spec})` : '')
+
 const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b6791b' : '#1c6fb5')
 
 export default function UnshippedPage() {
@@ -223,7 +229,7 @@ export default function UnshippedPage() {
    */
   const sort = useTableSort(shownRows, {
     '일자-No.': (r) => `${r.orderDate} ${r.orderNo}`,
-    '품목명(규격)': (r) => r.itemName,
+    '품목명(규격)': (r) => nameSpec(r),
     거래처명: (r) => r.partnerName,
     출하예정일: (r) => r.dueDate,
     상태: (r) => r.statusName,
@@ -235,14 +241,14 @@ export default function UnshippedPage() {
   /** 품목별 — 주문서를 가로질러 같은 품목을 모은다. */
   const byItem = useMemo(() => {
     const m = new Map<number, {
-      itemId: number; itemCode: string; itemName: string; unit: string
+      itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
       orderQty: number; unshippedQty: number; orderCount: number
     }>()
     for (const r of shown) {
       const cur = m.get(r.itemId)
       if (!cur) {
         m.set(r.itemId, {
-          itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName, unit: r.unit,
+          itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName, spec: r.spec, unit: r.unit,
           orderQty: r.orderQty, unshippedQty: r.unshippedQty, orderCount: 1,
         })
       } else {
@@ -259,8 +265,8 @@ export default function UnshippedPage() {
   /* 원본 [데이터 보기형식] · [그래프로 보기]. 미출하는 '어느 품목이 밀렸나' 를 보는 화면이다. */
   const chartRows = useMemo(() =>
     mode === '품목별'
-      ? byItem.map((r) => ({ label: r.itemName, value: r.unshippedQty }))
-      : shown.map((r) => ({ label: `${r.itemName}`, value: r.unshippedQty })),
+      ? byItem.map((r) => ({ label: nameSpec(r), value: r.unshippedQty }))
+      : shown.map((r) => ({ label: nameSpec(r), value: r.unshippedQty })),
     [mode, byItem, shown])
 
   const reset = () => {
@@ -462,7 +468,7 @@ export default function UnshippedPage() {
               <tr key={g.itemId}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
-                <td>{g.itemName}</td>
+                <td>{nameSpec(g)}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.orderCount.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.orderQty.toLocaleString()} {g.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>
@@ -511,7 +517,7 @@ export default function UnshippedPage() {
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
-              <td>[{r.itemCode}] {r.itemName}</td>
+              <td>[{r.itemCode}] {nameSpec(r)}</td>
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? ''}</td>

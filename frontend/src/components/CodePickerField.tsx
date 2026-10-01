@@ -78,11 +78,22 @@ export default function CodePickerField({
   const picked = values ?? []
   const selected = items.find((i) => i.value === value) ?? null
   const pickedItems = items.filter((i) => picked.includes(i.value))
+  /**
+   * 고른 뒤 칸에 적는 이름. 같은 이름의 후보가 또 있으면 <b>규격(sub)이나 코드를 덧붙인다.</b>
+   * 조건 값이 id 라 거르는 건 정확한데, 칸에는 이름만 남아 '어느 QA동명상사를 골랐는지'
+   * 다시 볼 길이 없었다(이름이 같고 규격만 다른 품목이 제조업에선 정상이다).
+   */
+  const labelOf = (i: CodeItem) => {
+    const twins = items.filter((x) => x.name === i.name && x.value !== i.value)
+    if (!twins.length) return i.name
+    const subUnique = i.sub && twins.every((x) => x.sub !== i.sub)
+    return subUnique ? `${i.name} [${i.sub}]` : `${i.name} (${i.code ?? i.value})`
+  }
   const display = multiple
     ? (pickedItems.length === 0 ? ''
-      : pickedItems.length === 1 ? pickedItems[0].name
-      : `${pickedItems[0].name} 외 ${pickedItems.length - 1}명`)
-    : (selected ? selected.name : '')
+      : pickedItems.length === 1 ? labelOf(pickedItems[0])
+      : `${labelOf(pickedItems[0])} 외 ${pickedItems.length - 1}명`)
+    : (selected ? labelOf(selected) : '')
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     if (!needle) return items

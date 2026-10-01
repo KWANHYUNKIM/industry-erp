@@ -35,6 +35,8 @@ interface Transfer {
   itemId: number
   itemCode: string
   itemName: string
+  /** 열이 [품목명[규격]] 이다 — 응답이 진작 싣는데 받지 않아 이름만 찍었다. */
+  spec: string | null
   unit: string
   fromWarehouseId: number
   fromWarehouseName: string
@@ -442,7 +444,7 @@ export default function TransferStatusPage() {
                   </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
                   <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
+                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
                   </td>
