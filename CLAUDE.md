@@ -359,6 +359,14 @@ node qa/ui-check.mjs     # 표 헤더 ↔ 합계행 열 수, 메뉴 ↔ 라우�
 node qa/dto-check.mjs    # 응답에는 있는데 등록·수정 요청에 빠진 필드
 ```
 
+그려진 화면은 헤드리스 Chrome 으로 봅니다(앱이 떠 있어야 합니다 — 백엔드 8081, 프론트 5180):
+
+```bash
+node qa/screen-check.mjs          # 라우트 전부(약 8분) — 빈 화면, '품목명(규격)' 열에 규격을 안 찍는 칸
+node qa/screen-check.mjs sales    # 접두사(/sales)만. Git Bash 는 '/sales' 를 윈도 경로로 바꾸므로 슬래시 없이
+node qa/shot.mjs <시나리오.json>   # QA 기록용 캡처(조건 코드도움 고르기 step 지원)
+```
+
 `dto-check` 는 **볼 수는 있는데 정할 수 없는 값**을 잡습니다. 엔티티에 필드를 만들고 응답 DTO 에도
 실었는데 `Create…Request`·`Update…Request` 에만 빠뜨리면, 화면이 값을 보내도 **서버가 조용히 버립니다.**
 record 에 없는 필드는 JSON 에서 그냥 무시되므로 컴파일도 타입체크도 통과합니다.
