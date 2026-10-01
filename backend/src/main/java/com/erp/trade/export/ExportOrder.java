@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import com.erp.accounting.currency.Currency;
+import com.erp.settings.currency.Currency;
 import com.erp.common.BaseTimeEntity;
 
 /**

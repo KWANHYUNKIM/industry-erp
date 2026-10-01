@@ -45,7 +45,7 @@ public class BankCardService {
     private final BusinessPartnerRepository partnerRepository;
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
-    private final com.erp.accounting.currency.CurrencyRepository currencyRepository;
+    private final com.erp.settings.currency.CurrencyService currencyService;
 
     // ── 계좌 마스터 ────────────────────────────────────────────────────
 
@@ -330,9 +330,8 @@ public class BankCardService {
     }
 
     /** 원본 [외화통장환종]. 안 주면 null — 원화 통장이다. */
-    private com.erp.accounting.currency.Currency currency(Long id) {
+    private com.erp.settings.currency.Currency currency(Long id) {
         if (id == null) return null;
-        return currencyRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("통화를 찾을 수 없습니다. id=" + id));
+        return currencyService.get(id);
     }
 }

@@ -1,7 +1,7 @@
-package com.erp.accounting.currency.dto;
+package com.erp.settings.currency.dto;
 
-import com.erp.accounting.currency.Currency;
-import com.erp.accounting.currency.ExchangeRate;
+import com.erp.settings.currency.Currency;
+import com.erp.settings.currency.ExchangeRate;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

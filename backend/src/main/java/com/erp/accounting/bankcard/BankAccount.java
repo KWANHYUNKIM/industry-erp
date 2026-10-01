@@ -1,7 +1,7 @@
 package com.erp.accounting.bankcard;
 
 import com.erp.accounting.account.Account;
-import com.erp.accounting.currency.Currency;
+import com.erp.settings.currency.Currency;
 import jakarta.persistence.*;
 import lombok.*;
 

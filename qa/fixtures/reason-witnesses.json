@@ -277,7 +277,7 @@
    "decimal",
    "Scale"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/currency/Currency.java"
+  "in": "backend/src/main/java/com/erp/settings/currency/Currency.java"
  },
  "계좌등록|검색창내용": {
   "claim": "계좌 마스터에 찾기용 별칭 칸이 없다",

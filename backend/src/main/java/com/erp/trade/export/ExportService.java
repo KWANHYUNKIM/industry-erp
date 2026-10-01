@@ -4,9 +4,9 @@ import com.erp.trade.TradeMasters;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.BusinessPartner;
-import com.erp.accounting.currency.Currency;
+import com.erp.settings.currency.Currency;
 import com.erp.inventory.item.Item;
-import com.erp.accounting.currency.dto.CurrencyDtos.ConversionResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.ConversionResponse;
 import com.erp.trade.export.dto.ExportDtos.CreateExportRequest;
 import com.erp.trade.export.dto.ExportDtos.CustomsRequest;
 import com.erp.trade.export.dto.ExportDtos.ExportLineRequest;
@@ -15,7 +15,6 @@ import com.erp.trade.export.dto.ExportDtos.ExportSummary;
 import com.erp.trade.export.dto.ExportDtos.PayRequest;
 import com.erp.trade.export.dto.ExportDtos.ShipRequest;
 import com.erp.trade.partner.BusinessPartnerRepository;
-import com.erp.accounting.currency.CurrencyRepository;
 import com.erp.inventory.item.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import com.erp.accounting.currency.dto.CurrencyDtos;
-import com.erp.accounting.currency.CurrencyService;
+import com.erp.settings.currency.dto.CurrencyDtos;
+import com.erp.settings.currency.CurrencyService;
 import com.erp.trade.export.dto.ExportDtos;
 
 /**
@@ -43,7 +42,6 @@ public class ExportService {
 
     private final ExportOrderRepository exportRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final CurrencyRepository currencyRepository;
     private final ItemService itemService;
     private final CurrencyService currencyService;
     private final DocumentNoGenerator docNoGenerator;
@@ -93,8 +91,7 @@ public class ExportService {
         if (!buyer.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 수출할 수 없습니다: " + buyer.getName());
         }
-        Currency currency = currencyRepository.findById(req.currencyId())
-                .orElseThrow(() -> ApiException.notFound("통화를 찾을 수 없습니다. id=" + req.currencyId()));
+        Currency currency = currencyService.get(req.currencyId());
         LocalDate invoiceDate = req.invoiceDate() != null ? req.invoiceDate() : LocalDate.now();
 
         ExportOrder e = ExportOrder.builder()

@@ -1,11 +1,11 @@
-package com.erp.accounting.currency;
+package com.erp.settings.currency;
 
 import com.erp.common.ApiException;
-import com.erp.accounting.currency.dto.CurrencyDtos.ConversionResponse;
-import com.erp.accounting.currency.dto.CurrencyDtos.CurrencyRequest;
-import com.erp.accounting.currency.dto.CurrencyDtos.CurrencyResponse;
-import com.erp.accounting.currency.dto.CurrencyDtos.RateRequest;
-import com.erp.accounting.currency.dto.CurrencyDtos.RateResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.ConversionResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.CurrencyRequest;
+import com.erp.settings.currency.dto.CurrencyDtos.CurrencyResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.RateRequest;
+import com.erp.settings.currency.dto.CurrencyDtos.RateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
-import com.erp.accounting.currency.dto.CurrencyDtos;
+import com.erp.settings.currency.dto.CurrencyDtos;
 
 /**
  * 외화 관리 — 통화 마스터와 일자별 고시환율.
@@ -108,6 +108,12 @@ public class CurrencyService {
                 c.getId(), c.getCode(), date,
                 r.getRateDate(), r.getRate(), c.getUnit(),
                 amount, krw);
+    }
+
+    /** 다른 모듈(수출·은행계좌)이 통화를 붙일 때 쓴다 — 리포지토리를 직접 주입하지 않게(CLAUDE.md 4.2). */
+    @Transactional(readOnly = true)
+    public Currency get(Long id) {
+        return currency(id);
     }
 
     private Currency currency(Long id) {

@@ -21,11 +21,11 @@
 | `inventory` | 품목·창고·재고·프로젝트 (기초 마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem`, `Project` |
 | `trade` | 판매·구매·거래처·정산·출하·세금계산서·단가일괄 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment`, `TaxInvoice` |
 | `production` | BOM·작업지시·생산실적·생산계획·공정·자원 | `Bom`, `WorkOrder`, `Production`, `ProductionPlan`, `MaterialIssue` |
-| `accounting` | 계정·비용·원가·손익 + 자금(은행·카드·어음)·자산·감가상각·세무·통화 | `Account`, `Expense`, `ItemCost`, `BankAccount`, `FixedAsset`, `Currency`, `CorporateTaxReturn` |
+| `accounting` | 계정·비용·원가·손익 + 자금(은행·카드·어음)·자산·감가상각·세무 | `Account`, `Expense`, `ItemCost`, `BankAccount`, `FixedAsset`, `CorporateTaxReturn` |
 | `quality` | 품질검사·A/S | `QualityInspection`, `AsRequest` |
 | `hr` | 사원·부서·근태·급여·근로계약·휴가 | `Employee`, `Department`, `Attendance`, `Payslip`, `EmploymentContract` |
 | `groupware` | 전자결재·업무일지·게시판·CRM·메일·드라이브·일정·공용품·E Note | `ApprovalDocument`, `WorkJournal`, `WorkPost`, `Mail`, `SupplyItem` |
-| `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode` |
+| `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정·통화) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode`, `Currency` |
 
 > `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 기능 없이 평면 유지합니다.
 > HR/급여/근태는 원래 groupware의 근태만 있었으나 사원·부서·급여까지 커지며 `hr` 모듈로 분리했습니다(2026-07-16).
@@ -97,16 +97,15 @@ controller  →  service  →  repository  →  domain
 > **2026-10-01(QA 13회차) 실측 — 표 밖의 간선이 아직 있습니다(부채).** 이 문서는 한동안 "순환이 없다"고 했지만
 > 실제로는 순환이 넷이었습니다. 어음 enum 이 groupware 에 잘못 놓여 생긴 accounting↔groupware 와
 > common 이 다른 모듈을 참조하던 것(MetaController → config 로)은 그날 끊었고, 남은 것은 `qa/arch-check.mjs` 의
-> `KNOWN` 에 적어 두었습니다: `trade→accounting`(수출의 통화), `trade→hr`·`hr→trade`(담당자 Employee · 사원 실적),
-> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting↔trade · accounting↔hr ·
-> hr↔trade 순환이 남아 있습니다.** 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
+> `KNOWN` 에 적어 두었습니다(14회차에 통화를 settings 로 옮겨 accounting↔trade 를 끊었습니다): `trade→hr`·`hr→trade`(담당자 Employee · 사원 실적),
+> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting↔hr · hr↔trade 순환이 남아 있습니다.** 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
 
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
-| `trade` | `inventory` |
+| `trade` | `inventory`, `settings` (수출의 통화) |
 | `production` | `inventory`, `trade` (작업지시서의 납품처가 `PartnerService` 를 참조) |
 | `quality` | `inventory`, `trade` |
-| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
+| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조), `settings` (은행계좌의 통화) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
 | `auth` | `settings` (회사코드 로그인이 `CompanyRepository` 로 회사를 찾는다) |

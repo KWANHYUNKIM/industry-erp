@@ -1,10 +1,10 @@
-package com.erp.accounting.currency;
+package com.erp.settings.currency;
 
-import com.erp.accounting.currency.dto.CurrencyDtos.ConversionResponse;
-import com.erp.accounting.currency.dto.CurrencyDtos.CurrencyRequest;
-import com.erp.accounting.currency.dto.CurrencyDtos.CurrencyResponse;
-import com.erp.accounting.currency.dto.CurrencyDtos.RateRequest;
-import com.erp.accounting.currency.dto.CurrencyDtos.RateResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.ConversionResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.CurrencyRequest;
+import com.erp.settings.currency.dto.CurrencyDtos.CurrencyResponse;
+import com.erp.settings.currency.dto.CurrencyDtos.RateRequest;
+import com.erp.settings.currency.dto.CurrencyDtos.RateResponse;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import com.erp.accounting.currency.dto.CurrencyDtos;
+import com.erp.settings.currency.dto.CurrencyDtos;
 
 /** 기초등록 > 외화 — 통화 마스터·일자별 고시환율·원화 환산 */
 @RestController
