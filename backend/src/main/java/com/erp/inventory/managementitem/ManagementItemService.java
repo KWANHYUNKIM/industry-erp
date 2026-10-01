@@ -1,5 +1,6 @@
 package com.erp.inventory.managementitem;
 
+import com.erp.common.DocumentNoGenerator;
 import com.erp.common.ApiException;
 import com.erp.inventory.managementitem.dto.ManagementItemDtos.CreateManagementItemRequest;
 import com.erp.inventory.managementitem.dto.ManagementItemDtos.ManagementItemResponse;
@@ -18,6 +19,7 @@ import com.erp.inventory.managementitem.dto.ManagementItemDtos;
 public class ManagementItemService {
 
     private final ManagementItemRepository managementItemRepository;
+    private final DocumentNoGenerator documentNoGenerator;
 
     /** 새로 고르는 자리에서 쓴다. 사용중지한 관리항목을 품목에 새로 붙일 수는 없다. */
     @Transactional(readOnly = true)
@@ -82,6 +84,6 @@ public class ManagementItemService {
 
     /** 코드 미입력 시 MG### 자동채번 */
     private String generateCode() {
-        return "MG" + String.format("%03d", managementItemRepository.countByCodeStartingWith("MG") + 1);
+        return documentNoGenerator.nextMasterCode("MG", "management_items", "code", 3);
     }
 }

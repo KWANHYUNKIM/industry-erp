@@ -1,5 +1,6 @@
 package com.erp.accounting.paymentagency;
 
+import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.CreatePaymentAgencyRequest;
 import com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.PaymentAgencyResponse;
 import com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.UpdatePaymentAgencyRequest;
@@ -20,6 +21,7 @@ import java.util.List;
 public class PaymentAgencyService {
 
     private final AccountRepository accountRepository;
+    private final DocumentNoGenerator documentNoGenerator;
     private final PaymentAgencyRepository repository;
 
     @Transactional(readOnly = true)
@@ -114,6 +116,6 @@ public class PaymentAgencyService {
     }
 
     private String generateCode() {
-        return "PA" + String.format("%03d", repository.countByCodeStartingWith("PA") + 1);
+        return documentNoGenerator.nextMasterCode("PA", "payment_agencies", "code", 3);
     }
 }

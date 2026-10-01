@@ -6,5 +6,4 @@ public interface ManagementItemRepository extends JpaRepository<ManagementItem, 
 
     boolean existsByCode(String code);
 
-    long countByCodeStartingWith(String prefix);
 }

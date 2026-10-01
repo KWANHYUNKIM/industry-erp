@@ -12,5 +12,4 @@ public interface MallAccountRepository extends JpaRepository<MallAccount, Long> 
 
     boolean existsByCode(String code);
 
-    long countByCodeStartingWith(String prefix);
 }

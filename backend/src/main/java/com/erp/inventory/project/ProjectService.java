@@ -1,6 +1,7 @@
 package com.erp.inventory.project;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.project.dto.ProjectDtos.CreateProjectRequest;
 import com.erp.inventory.project.dto.ProjectDtos.ProjectResponse;
 import com.erp.inventory.project.dto.ProjectDtos.UpdateProjectRequest;
@@ -19,6 +20,7 @@ import com.erp.inventory.project.dto.ProjectDtos;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final DocumentNoGenerator documentNoGenerator;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> findAll() {
@@ -87,9 +89,13 @@ public class ProjectService {
         }
     }
 
+    /*
+     * PRJ-26 + 일련번호. 예전엔 countByCodeStartingWith + 1 이라, QA 가 쌓은 같은 이름 프로젝트
+     * 460개를 정리하자 다음 번호가 PRJ-2605 로 되돌아갔다 — 프로젝트 수가 462 에 닿으면 이미 있는
+     * PRJ-26462 를 다시 준다. 공용 nextMasterCode(가장 큰 번호 + 1, 락)로 바꿨다.
+     */
     private String generateCode(LocalDate date) {
         String prefix = "PRJ-" + String.format("%02d", date.getYear() % 100);
-        long seq = projectRepository.countByCodeStartingWith(prefix) + 1;
-        return prefix + String.format("%02d", seq);
+        return documentNoGenerator.nextMasterCode(prefix, "projects", "code", 2);
     }
 }

@@ -171,8 +171,14 @@ public class ShipmentService {
                 .salesOrder(order)
                 .shipDate(shipDate)
                 .status(ShipmentStatus.READY)
-                // 주문에서 만든 출하는 프로젝트가 비어 나간다 — 주문서에 프로젝트 칸이 없어
-                // 이어받을 것이 없다. 지어내지 않고 출하 화면에서 고르게 둔다.
+                /*
+                 * 주문의 프로젝트·창고를 이어받는다. 예전 주석은 "주문서에 프로젝트 칸이 없어 이어받을
+                 * 것이 없다" 였는데, 그 뒤 주문서에 칸이 생겼는데도 여기만 그대로라 주문에서 만든 출하가
+                 * 늘 프로젝트 없이 나갔다 — 출하조회·프로젝트별 손익에서 그 출하가 빠졌다(2026-10-01,
+                 * 프로젝트 여러 개로 시연 자료를 넣어 보다 발견). 출하 화면에서 바꿀 수는 있다.
+                 */
+                .project(order.getProject())
+                .warehouse(order.getWarehouse())
                 .remark("주문 " + order.getOrderNo() + " 출하")
                 .createdBy(username)
                 .build();

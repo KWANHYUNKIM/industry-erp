@@ -57,6 +57,8 @@ public final class AccountingReflectionDtos {
             Long partnerId,
             String partnerName,
             String warehouseName,
+            /** 프로젝트 조건이 id 로 거른다 — 이름은 겹칠 수 있다. */
+            Long projectId,
             String projectName,
             /** 전표를 친 사람. 원본 조건 판의 [담당자]. */
             String employeeName,
@@ -98,7 +100,7 @@ public final class AccountingReflectionDtos {
         /** 반영된 줄에 분개를 붙인다. 목록을 만든 뒤 한 번에 채운다(N+1 방지). */
         public SlipResponse withJournal(Long entryId, String docNo) {
             return new SlipResponse(id, kind, this.docNo, slipDate, partnerId, partnerName,
-                    warehouseName, projectName, employeeName, partnerManager, itemSummary,
+                    warehouseName, projectId, projectName, employeeName, partnerManager, itemSummary,
                     supplyAmount, vatAmount, totalAmount, vatType, tradeKind, reflected,
                     entryId, docNo, createdBy, createdAt, note, lines);
         }
@@ -107,6 +109,7 @@ public final class AccountingReflectionDtos {
                     s.getId(), SlipKind.SALES, s.getDocNo(), s.getSaleDate(),
                     s.getPartner().getId(), s.getPartner().getName(),
                     s.getWarehouse() != null ? s.getWarehouse().getName() : null,
+                    s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getPartner().getManager(),
@@ -130,6 +133,7 @@ public final class AccountingReflectionDtos {
                     p.getId(), SlipKind.PURCHASE, p.getDocNo(), p.getPurchaseDate(),
                     p.getPartner().getId(), p.getPartner().getName(),
                     p.getWarehouse() != null ? p.getWarehouse().getName() : null,
+                    p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getPartner().getManager(),
@@ -159,7 +163,9 @@ public final class AccountingReflectionDtos {
             return new SlipResponse(
                     st.getId(), SlipKind.SETTLEMENT, st.getDocNo(), st.getSettleDate(),
                     st.getPartner().getId(), st.getPartner().getName(),
-                    null, st.getProject() != null ? st.getProject().getName() : null,
+                    null,
+                    st.getProject() != null ? st.getProject().getId() : null,
+                    st.getProject() != null ? st.getProject().getName() : null,
                     null,
                     st.getPartner().getManager(),
                     st.getMethod() != null ? st.getMethod() : "",

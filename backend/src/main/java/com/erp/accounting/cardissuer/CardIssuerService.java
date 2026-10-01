@@ -1,5 +1,6 @@
 package com.erp.accounting.cardissuer;
 
+import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.CardIssuerResponse;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.CreateCardIssuerRequest;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.UpdateCardIssuerRequest;
@@ -21,6 +22,7 @@ import java.util.List;
 public class CardIssuerService {
 
     private final AccountRepository accountRepository;
+    private final DocumentNoGenerator documentNoGenerator;
     private final CardIssuerRepository repository;
 
     @Transactional(readOnly = true)
@@ -84,6 +86,6 @@ public class CardIssuerService {
     }
 
     private String generateCode() {
-        return "CI" + String.format("%03d", repository.countByCodeStartingWith("CI") + 1);
+        return documentNoGenerator.nextMasterCode("CI", "card_issuers", "code", 3);
     }
 }

@@ -1,5 +1,6 @@
 package com.erp.trade.mall;
 
+import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.PartnerService;
 import com.erp.common.ApiException;
 import com.erp.trade.mall.dto.MallAccountDtos.CreateMallAccountRequest;
@@ -18,6 +19,7 @@ import java.util.List;
 public class MallAccountService {
 
     private final MallAccountRepository repository;
+    private final DocumentNoGenerator documentNoGenerator;
     private final PartnerService partnerService;   // 같은 모듈(trade)
 
     @Transactional(readOnly = true)
@@ -68,6 +70,6 @@ public class MallAccountService {
     }
 
     private String generateCode() {
-        return "MA" + String.format("%03d", repository.countByCodeStartingWith("MA") + 1);
+        return documentNoGenerator.nextMasterCode("MA", "mall_accounts", "code", 3);
     }
 }
