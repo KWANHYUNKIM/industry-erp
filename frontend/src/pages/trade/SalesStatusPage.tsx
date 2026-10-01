@@ -35,6 +35,7 @@ interface Row {
   // 원본 조건이 거르는 값들. 화면이 이미 받아 온 전표에서 뽑아 둔다(추가 요청 없음).
   partnerId: number
   itemId: number
+  warehouseId: number
   warehouseName: string
   projectName: string | null
   lotNo: string | null
@@ -145,6 +146,7 @@ export default function SalesStatusPage() {
           vat: l.vatAmount,
           partnerId: d.partnerId,
           itemId: l.itemId,
+          warehouseId: d.warehouseId,
           warehouseName: d.warehouseName,
           projectName: d.projectName,
           lotNo: l.lotNo,
@@ -189,9 +191,10 @@ export default function SalesStatusPage() {
 
   const shown = rows
     .filter((r) => (!from || r.date >= from) && (!to || r.date <= to))
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
     .filter((r) => !partnerId || String(r.partnerId) === partnerId)
     .filter((r) => !itemId || String(r.itemId) === itemId)
-    .filter((r) => !warehouse || r.warehouseName === warehouse)
+    .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !project || r.projectName === project)
     .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
     .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
@@ -329,7 +332,7 @@ export default function SalesStatusPage() {
       .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
       .filter((r) => !partnerId || String(r.partnerId) === partnerId)
       .filter((r) => !itemId || String(r.itemId) === itemId)
-      .filter((r) => !warehouse || r.warehouseName === warehouse)
+      .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
       .filter((r) => !project || r.projectName === project)
       .filter((r) => !lotNo || (r.lotNo ?? '').includes(lotNo))
         .filter((r) => taxType === '전체' || (taxType === '과세' ? r.taxable : !r.taxable))
@@ -404,7 +407,7 @@ export default function SalesStatusPage() {
           <CodePickerField
             label="창고" hideLabel width={220} emptyLabel="전체"
             value={warehouse} onChange={setWarehouse}
-            items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name, sub: w.location }))}
+            items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))}
           />
         </EcCond>
         <EcCond label="프로젝트" pick>

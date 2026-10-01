@@ -1,0 +1,29 @@
+{
+  "about": "수금 입력, 주문 → 미출하현황에서 출하지시. node qa/shot.mjs qa/flows/settle-ship.json — 만든 전표는 끝에 지운다.",
+  "shots": [
+    { "name": "수금 입력 — 거래처를 코드도움으로 골라 저장하면 번호와 함께 '저장 완료'", "path": "/sales/settlement", "steps": [
+      "click:거래처 * 선택", "pickrow:QA-CUST",
+      "set:form input[type=number]|12345",
+      "click:저장(F8)",
+      "expect:/RC-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
+      "apidel:/settlements|RC-[0-9]{8}-[0-9]{4}|docNo"
+    ] },
+    { "name": "주문 등록(다음 화면에서 출하지시할 주문)", "path": "/sales/orders", "steps": [
+      "click:수주등록", "click:매출처 선택", "pickrow:QA-CUST",
+      "click:품목 선택", "pickrow:QA-PROD",
+      "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#0|3",
+      "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#1|1000",
+      "click:저장(F8)",
+      "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
+      "js:sessionStorage.setItem('qaOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 수주 등록 완료)/)[0]); true"
+    ] },
+    { "name": "미출하현황 — 방금 주문이 보이고, [출하지시] 를 누르면 출하지시서가 생긴다", "path": "/sales/unshipped", "steps": [
+      "expect:document.body.innerText.includes(sessionStorage.getItem('qaOrder'))",
+      "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaOrder'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '출하지시') b.click() }); true",
+      "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
+      "js:sessionStorage.setItem('qaShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true",
+      "apidel:/shipments|@qaShip|shipNo",
+      "apidel:/sales-orders|@qaOrder|orderNo"
+    ] }
+  ]
+}

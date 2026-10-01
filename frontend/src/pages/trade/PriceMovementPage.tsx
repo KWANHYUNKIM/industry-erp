@@ -247,7 +247,8 @@ export default function PriceMovementPage() {
     }
     return out
       .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
-      .filter((r) => !pickedItem || r.itemName === pickedItem)
+      /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+      .filter((r) => !pickedItem || String(r.itemId) === pickedItem)
       /*
        * 원본 [기타]의 <b>변동없는단가포함</b> — 기본은 꺼짐이라 안 변한 품목은 뺀다.
        * [전체]에서는 최저·최고를 안 내므로(갈래가 섞인다) 이 거르기도 걸지 않는다.
@@ -278,7 +279,7 @@ export default function PriceMovementPage() {
       for (const l of d.lines) {
         if (l.unitPrice == null) continue
         if (kw && !l.itemName.includes(kw)) continue
-        if (pickedItem && l.itemName !== pickedItem) continue
+        if (pickedItem && String(l.itemId) !== pickedItem) continue
         if (!keepLine(l)) continue
         out.push({
           key: `${d.kind}-${d.no}-${l.itemId}-${out.length}`,
@@ -353,7 +354,7 @@ export default function PriceMovementPage() {
           <span style={label}>품목</span>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{ ...label, width: 60 }}>품목구분</span>

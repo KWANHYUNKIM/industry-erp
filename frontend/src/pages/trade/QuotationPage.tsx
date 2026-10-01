@@ -172,9 +172,10 @@ export default function QuotationPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
     .filter((r) => !noCond || r.quoteNo.includes(noCond))
-    .filter((r) => !whCond || r.warehouseName === whCond)
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !authorCond || (r.createdBy ?? '').includes(authorCond))
     .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '').includes(specCond)))
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
@@ -184,7 +185,7 @@ export default function QuotationPage() {
     /* 안 고친 건은 updatedAt 이 없을 수 있다 — 구간을 걸면 그런 줄은 빠진다(원본도 같다). */
     .filter((r) => !upFrom || (r.updatedAt ?? '').slice(0, 10) >= upFrom)
     .filter((r) => !upTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= upTo))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     .filter((r) => sentCond === '전체'
       || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED'))
@@ -207,9 +208,9 @@ export default function QuotationPage() {
       .filter((r) => r.quoteDate >= prevRange.from && r.quoteDate <= prevRange.to)
       .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
       .filter((r) => !noCond || r.quoteNo.includes(noCond))
-      .filter((r) => !whCond || r.warehouseName === whCond)
+      .filter((r) => !whCond || String(r.warehouseId) === whCond)
       .filter((r) => !projCond || String(r.projectId) === projCond)
-      .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+      .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
       .reduce((a, r) => ({ count: a.count + 1, supply: a.supply + r.supplyAmount }), { count: 0, supply: 0 })
   }, [rows, prevRange, tab, noCond, whCond, projCond, itemCond])
 
@@ -387,7 +388,7 @@ export default function QuotationPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
-                           items={warehouses.map((w) => ({ value: w.name, code: w.code, name: w.name }))} />
+                           items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
@@ -408,12 +409,12 @@ export default function QuotationPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond}
-                           items={partners.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </EcCond>
         <EcCond label="발송여부">
           <select className="ec-input" value={sentCond} style={{ width: 100 }}

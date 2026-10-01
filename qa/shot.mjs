@@ -15,6 +15,7 @@
  *               expect:<식>         참이 아니면 실패로 끝낸다 — 화면을 사람처럼 써 보는 시험에 쓴다
  *               apidel:<목록주소>|<번호정규식>|<번호필드>  화면에 뜬 전표번호를 목록에서 찾아 API 로 지운다
  *                                   — 화면 시험이 전표를 쌓지 않게 끝에 둔다(예: apidel:/sales|SO-[0-9]{8}-[0-9]{4}|docNo)
+ *                                   번호정규식 자리에 @키 를 주면 sessionStorage[키] 의 번호를 쓴다(화면을 옮겨 다니는 시험)
  *
  * out 을 빼면 캡처 없이 단계만 돈다(qa/flows/*.json — 화면 회귀 시험).
  *
@@ -75,7 +76,9 @@ try {
         if (!okv) { failed = true; console.log('  ❌ 기대와 다름:', expr) } else console.log('  ✅', expr)
       } else if (kind === 'apidel') {
         const [list, re, field] = rest.join(':').split('|')
-        const no = (await b.evaluate('document.body.innerText')).match(new RegExp(re))?.[0]
+        const no = re.startsWith('@')
+          ? await b.evaluate(`sessionStorage.getItem(${JSON.stringify(re.slice(1))})`)
+          : (await b.evaluate('document.body.innerText')).match(new RegExp(re))?.[0]
         if (!no) { failed = true; console.log('  ❌ 지울 번호를 화면에서 못 찾음:', re); continue }
         const H = { Authorization: `Bearer ${b.token}` }
         const doc = (await (await fetch(API + list, { headers: H })).json()).find((d) => d[field] === no)

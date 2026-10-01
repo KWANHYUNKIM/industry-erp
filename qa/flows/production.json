@@ -1,0 +1,30 @@
+{
+  "about": "생산 화면 회귀 시험. node qa/shot.mjs qa/flows/production.json — 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "작업지시 등록 — 제품·창고를 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'",
+      "path": "/production/work-orders",
+      "steps": [
+        "click:신규",
+        "click:제품 선택",
+        "pickrow:QA-PROD",
+        "click:창고 * 선택",
+        "pickrow:QA-WH",
+        "set:form input[type=number]|5",
+        "click:등록",
+        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료/.test(document.body.innerText)",
+        "apidel:/work-orders|WO-[0-9]{8}-[0-9]{4}|orderNo"
+      ]
+    },
+    {
+      "name": "작업지시 등록 — 제품을 안 고르면 그 말을 하고 저장하지 않는다(창고는 첫 창고가 기본값)",
+      "path": "/production/work-orders",
+      "steps": [
+        "click:신규",
+        "set:form input[type=number]|5",
+        "click:등록",
+        "expect:document.body.innerText.includes('제품을 선택하세요.')"
+      ]
+    }
+  ]
+}

@@ -94,7 +94,8 @@ export default function MallItemMappingPage() {
   const inputCls = 'ec-input'
 
   const shown = rows
-    .filter((m) => !itemCond || m.itemName === itemCond)
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    .filter((m) => !itemCond || String(m.itemId) === itemCond)
     .filter((m) => !mallCond || m.mall === mallCond)
     .filter((m) => !keyCond || m.mallProductCode.includes(keyCond))
 
@@ -161,7 +162,7 @@ export default function MallItemMappingPage() {
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={190} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </EcCond>
         <EcCond label="쇼핑몰">
           <select className="ec-input" value={mallCond} onChange={(e) => setMallCond(e.target.value)} style={{ width: 150 }}>

@@ -92,6 +92,8 @@ export default function WorkOrderPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 등록 결과 안내. 예전엔 창이 닫히고 목록만 다시 떠서 어느 번호로 들어갔는지 볼 길이 없었다(QA 9회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     productId: '', warehouseId: '', plannedQty: '', orderDate: today(), dueDate: '',
@@ -200,10 +202,11 @@ export default function WorkOrderPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    setError(''); setOk('')
     if (!form.productId) return setError('제품을 선택하세요.')
+    if (!form.warehouseId) return setError('창고를 선택하세요.')
     try {
-      await api.post('/work-orders', {
+      const res = await api.post<{ orderNo: string; productName: string; plannedQty: number }>('/work-orders', {
         productId: Number(form.productId),
         warehouseId: Number(form.warehouseId),
         plannedQty: Number(form.plannedQty),
@@ -215,6 +218,7 @@ export default function WorkOrderPage() {
       })
       setForm((f) => ({ ...f, productId: '', plannedQty: '', dueDate: '', partnerId: '', employeeId: '', remark: '' }))
       setShowForm(false)
+      setOk(`${res.data.orderNo} 작업지시 등록 완료 · ${res.data.productName} ${res.data.plannedQty.toLocaleString()}`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -239,6 +243,7 @@ export default function WorkOrderPage() {
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (

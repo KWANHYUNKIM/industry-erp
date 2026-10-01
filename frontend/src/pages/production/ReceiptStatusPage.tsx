@@ -179,8 +179,9 @@ export default function ReceiptStatusPage() {
     /* [창고] — 보내는·받는 어느 쪽이든 걸린다(생산불출현황과 같은 규칙). */
     if (warehouseId && String(r.warehouseId) !== warehouseId
         && String(r.fromWarehouseId ?? '') !== warehouseId) return false
-    if (fromWh && (r.fromWarehouseName ?? '') !== fromWh) return false
-    if (toWh && (r.warehouseName ?? '') !== toWh) return false
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    if (fromWh && String(r.fromWarehouseId ?? '') !== fromWh) return false
+    if (toWh && String(r.warehouseId) !== toWh) return false
     if (item && String(r.productId) !== item) return false
     /* [담당자]는 전표의 담당 사원이다 — 만든 계정([최초작성자])과 다른 사람이다. */
     if (worker && !empName(r.employeeId).includes(worker)) return false
@@ -282,12 +283,12 @@ export default function ReceiptStatusPage() {
         <EcCond label="보내는창고" pick>
           <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
                            value={fromWh} onChange={setFromWh}
-                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="받는창고" pick>
           <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
                            value={toWh} onChange={setToWh}
-                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"

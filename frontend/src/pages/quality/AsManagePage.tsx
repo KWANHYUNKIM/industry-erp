@@ -273,13 +273,14 @@ export default function AsManagePage() {
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
-    .filter((r) => !whCond || r.warehouseName === whCond)
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
     /* 원본 첫 줄 [기준일자] — 접수한 날이다. 둘째 줄 [수리예정일자]와 다르다. */
     .filter((r) => !from || r.receiptDate >= from)
     .filter((r) => !to || r.receiptDate <= to)
-    .filter((r) => !partnerCond || r.partnerName === partnerCond)
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
     .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
     .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
@@ -435,12 +436,13 @@ export default function AsManagePage() {
         <span style={{ marginLeft: 8 }}>창고</span>
         <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
                          value={whCond} onChange={setWhCond}
-                         items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                         items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         {/* 원본 차례: 창고 · (창고계층그룹) · <b>거래처 · 거래처그룹1</b> · 품목 · 품목구분 · 품목그룹1 · 프로젝트 … */}
         <span style={{ marginLeft: 8 }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={150} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond}
-                         items={[...new Set(rows.map((r) => r.partnerName))].sort().map((n) => ({ value: n, name: n }))} />
+                         items={[...new Map(rows.map((r) => [r.partnerId, r.partnerName])).entries()]
+                           .sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, n]) => ({ value: String(id), name: n }))} />
         <span style={{ marginLeft: 8 }}>거래처그룹1</span>
         <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
                          value={partnerGroupCond} onChange={setPartnerGroupCond}

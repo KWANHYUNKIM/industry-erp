@@ -52,6 +52,7 @@ interface MaterialIssue {
   warehouseId: number
   warehouseName: string
   /** 원본 생산불출조회 열은 [보내는창고명]과 [받는공장명] 둘이다. */
+  toWarehouseId: number | null
   toWarehouseName: string | null
   workOrderId: number
   workOrderNo: string
@@ -162,10 +163,11 @@ export default function IssueStatusPage() {
   const shown = useMemo(() => rows.filter((r) => {
     if (r.issueDate < from || r.issueDate > to) return false
     /* [창고] — 보내는·받는 어느 쪽이든 걸린다(생산불출조회와 같은 규칙). */
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
     if (warehouseId && String(r.warehouseId) !== warehouseId
-        && (r.toWarehouseName ?? '') !== (warehouses.find((w) => String(w.id) === warehouseId)?.name ?? '\u0000')) return false
-    if (fromWh && (r.warehouseName ?? '') !== fromWh) return false
-    if (toWh && (r.toWarehouseName ?? '') !== toWh) return false
+        && String(r.toWarehouseId) !== warehouseId) return false
+    if (fromWh && String(r.warehouseId) !== fromWh) return false
+    if (toWh && String(r.toWarehouseId) !== toWh) return false
     if (itemCategory && (r.itemCategoryName ?? '') !== itemCategory) return false
     if (itemGroup && mgmt.groupOf(r.itemId) !== itemGroup) return false
     if (item && String(r.itemId) !== item) return false
@@ -274,12 +276,12 @@ export default function IssueStatusPage() {
         <EcCond label="보내는창고" pick>
           <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
                            value={fromWh} onChange={setFromWh}
-                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="받는창고" pick>
           <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
                            value={toWh} onChange={setToWh}
-                           items={warehouses.map((w) => ({ value: w.name, name: w.name }))} />
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"

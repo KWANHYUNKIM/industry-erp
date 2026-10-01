@@ -26,7 +26,9 @@ interface ComparisonRow {
   itemId: number
   itemName: string
   /** 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 그 축을 안 나눈다. */
+  warehouseId: number | null
   warehouseName: string | null
+  partnerId: number | null
   partnerName: string | null
   projectId: number | null
   projectName: string | null
@@ -239,9 +241,10 @@ export default function SalesPlanPage() {
   }
 
   const shown = useMemo(() => rows
-    .filter((r) => !itemCond || r.itemName === itemCond)
-    .filter((r) => !whCond || r.warehouseName === whCond)
-    .filter((r) => !partnerCond || r.partnerName === partnerCond)
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    .filter((r) => !itemCond || String(r.itemId) === itemCond)
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || r.employeeName === empCond)
     .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
@@ -357,12 +360,12 @@ export default function SalesPlanPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
-                           items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond}
-                           items={partners.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         {/* 원본 매출계획조회 차례: 창고 · (창고계층) · 거래처 · <b>거래처그룹1</b> · (그룹2·계층) · 품목 · <b>품목구분 · 품목그룹1</b> … */}
         <EcCond label="거래처그룹1" pick>
@@ -374,7 +377,7 @@ export default function SalesPlanPage() {
           {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={items.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </EcCond>
         <EcCond label="품목구분" pick>
           <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
