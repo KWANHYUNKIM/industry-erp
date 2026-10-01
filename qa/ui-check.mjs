@@ -6294,11 +6294,15 @@ console.log('\n■ 코드도움이 주는 값으로 화면이 실제로 거르�
   /*
    * 각 목록이 무엇을 value 로 담는지 본다. 이름이어야 한다 —
    * 화면들이 전부 '이름 부분일치' 로 거르기 때문이다.
+   *
+   * <p><b>프로젝트만 id 다.</b> 같은 이름의 프로젝트가 여럿이면(QA 가 만든
+   * 'QA견적프로젝트' 수백 건) 이름으로 고르면 전부 걸려 하나를 고를 수가 없었다.
+   * 화면들은 <code>String(x.projectId) === cond</code> 로 거른다.
    */
   for (const [name, want] of [['warehouses', 'w.name'], ['items', 'x.name'],
-    ['projects', 'p.name'], ['employees', 'e.name']]) {
-    const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.]+)`))
-    if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — 이름이어야 한다`)
+    ['projects', 'String(p.id)'], ['employees', 'e.name']]) {
+    const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.()]+)`))
+    if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — ${want} 여야 한다`)
   }
   // 거래처는 partnerCodeItems(값이 id) 를 쓰므로 이름으로 바꿔 담는지 본다
   if (!/partners: partnerCodeItems\([\s\S]{0,120}?value: x\.name/.test(src)) {
@@ -6329,8 +6333,10 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
       const val = block.match(/value=\{([\w.]+)\}/)
       if (!val) continue
       const path = val[1]
-      const shared = /items=\{pickers\.\w+\}/.test(block)   // 공용 목록 = 이름
-      const byId = /value: String\(/.test(block)
+      // 공용 목록은 이름 — 프로젝트만 id 다(1-o 참고)
+      const sharedProjects = /items=\{\w+\.projects\}/.test(block)
+      const shared = /items=\{pickers\.\w+\}/.test(block) && !sharedProjects
+      const byId = /value: String\(/.test(block) || sharedProjects
       if (!byId && !shared) continue
       const lines = src.split('\n')
         .filter((l) => new RegExp(escRe(path) + '\\b').test(l) && /filter|includes|===/.test(l))
@@ -6679,6 +6685,12 @@ console.log('\n■ 표에 찍는 날짜가 원본 모양인가')
       if (/dateText|replace|dateNo|slice|format|toLocale/.test(L)) return
       for (const m of L.matchAll(/\{([A-Za-z0-9_.?\s]*[Dd]ate[A-Za-z0-9_]*)\s*(?:(?:\?\?|\|\|)\s*'[^']*')?\}/g)) {
         if (!/(date|Date)$/.test(m[1].trim())) continue
+        /*
+         * 속성값(value={quoteDate})은 화면에 찍는 글자가 아니다. 예전엔 이것도 걸어서,
+         * 누군가 이 검사를 넘기려고 <input type="date" value={dateText(…)}> 로 바꿨고 —
+         * 날짜 입력칸 30곳이 2026/07/16 을 못 알아듣고 빈칸으로 떴다(2026-10-01 발견).
+         */
+        if (L[m.index - 1] === '=') continue
         checked += 1
         bad.push(`${f.split(/[\\/]/).slice(-2).join('/')}:${i + 1}  ${m[0]}`)
       }
@@ -7599,6 +7611,26 @@ console.log('\n■ 원본에 없는 조건을 우리가 만들지 않았나')
   eq(`적어 둔 우리 조건 ${ghosts.length ? '' : Object.keys(mine).length - 1 + '개가 '}다 실제로 그려진다`,
     ghosts.join(', ') || '없음', '없음')
 }
+// ── 1-r') 날짜 입력칸에 화면용 날짜를 넣는 자리 ──────────────────────────
+console.log('\n■ 날짜 입력칸이 기본 날짜를 그리나')
+
+/*
+ * <b>&lt;input type="date"&gt; 의 value 는 2026-07-16 꼴이라야 한다.</b> dateText() 는 화면에
+ * 찍는 2026/07/16 을 만든다 — 그걸 넣으면 브라우저가 못 알아듣고 <b>빈칸(연도-월-일)</b>으로 그린다.
+ * 저장하면 서버가 오늘로 채워 넣어 아무 오류도 안 나서, 견적서·발주서·수주·프로젝트 등 22개 화면
+ * 30칸이 기본 날짜를 안 보여 주고 있었다(2026-10-01, 유저처럼 써 보다 발견).
+ */
+{
+  const bad = []
+  for (const f of walk(join('frontend', 'src')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const el of src.match(/<input\b[\s\S]*?\/>/g) ?? []) {
+      if (/type="date"/.test(el) && /value=\{dateText\(/.test(el)) bad.push(f.split(sep).pop())
+    }
+  }
+  eq('날짜 입력칸 value 에 dateText 를 안 쓴다', [...new Set(bad)].join(', ') || '없음', '없음')
+}
+
 // ── 1-s) 고정 이름을 표현식에 담은 머리 ──────────────────────────────────
 console.log('\n■ 머리에 적힌 이름을 검사가 읽을 수 있나')
 

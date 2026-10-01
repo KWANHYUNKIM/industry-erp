@@ -962,8 +962,13 @@ async function scenarioSalesPlanScope(f) {
 async function scenarioQuotationWarehouseProject(f) {
   section('■ 시나리오. 견적서가 창고·프로젝트를 기억한다')
 
-  const proj = await ensure('/projects', 'code', `${P}PRJQ`, null, {
-    code: `${P}PRJQ`, name: 'QA견적프로젝트', startDate: '2026-01-01',
+  /*
+   * 이름으로 찾는다. 프로젝트 코드는 서버가 매긴다(PRJ-NNNNN) — 보낸 code 는 버려져서
+   * code 로 찾으면 늘 못 찾고 <b>돌 때마다 새로 만들었다</b>. 같은 이름 프로젝트가 461개 쌓여
+   * 이름으로 거르는 화면이 전부 잡히는 버그(2026-10-01)를 덮고 있었다.
+   */
+  const proj = await ensure('/projects', 'name', 'QA견적프로젝트', null, {
+    name: 'QA견적프로젝트', startDate: '2026-01-01',
   })
   const q = await must('POST', '/quotations', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, projectId: proj.id,
@@ -991,6 +996,14 @@ async function scenarioQuotationWarehouseProject(f) {
   const ord = (await must('GET', '/sales-orders')).find((x) => x.id === conv.id)
   eq('견적을 수주로 바꾸면 <b>창고가 따라간다</b>', ord?.warehouseName, f.warehouse.name)
   eq('견적을 수주로 바꾸면 <b>프로젝트가 따라간다</b>', ord?.projectName, proj.name)
+
+  /*
+   * <b>수주 → 출하로도 이어지는가.</b> 출하 생성이 "주문서에 프로젝트 칸이 없다" 는 옛 주석대로
+   * 프로젝트를 비워 내보내서, 주문에서 만든 출하가 출하조회·프로젝트별 손익에서 빠졌다(2026-10-01).
+   */
+  const shp = await must('POST', `/sales-orders/${conv.id}/ship`, {})
+  eq('수주에서 출하를 만들면 <b>프로젝트가 따라간다</b>', shp.projectName, proj.name)
+  eq('수주에서 출하를 만들면 <b>창고가 따라간다</b>', shp.warehouseName, f.warehouse.name)
 
   const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
@@ -3429,7 +3442,9 @@ function scenarioSourceRules() {
   // 채번을 count()+1 로 하면 중간 것을 지웠을 때 이미 쓰는 번호를 가리키고,
   // 동시에 부르면 같은 번호를 준다. 번호 공간 락 없이 쓰면 안 된다.
   const unlockedCounting = sources
-    .filter(([, src]) => /count\(\)\s*\+\s*1/.test(src) && !src.includes('lockNumberSpace'))
+    // count() 만 보던 정규식이 countByCodeStartingWith(..) + 1 다섯 곳(프로젝트·카드사·결제대행·
+    // 관리항목·쇼핑몰계정)을 놓쳤다 — count 로 시작하는 메서드 호출 + 1 을 다 본다.
+    .filter(([, src]) => /\bcount\w*\([^()]*\)\s*\+\s*1/.test(src) && !src.includes('lockNumberSpace'))
     .map(([f]) => baseName(f))
     .sort()
   eq('count()+1 채번은 번호 공간을 잠근 곳만',
@@ -8757,7 +8772,11 @@ async function scenarioIssueNoAndRequestProject(f) {
     mi4.issueNo !== mi.issueNo && mi4.issueNo !== mi3.issueNo, true)
   for (const x of [mi, mi3, mi4]) await must('DELETE', `/material-issues/${x.id}`)
 
-  const pj = (await must('GET', '/projects'))[0]
+  /*
+   * QA 전용 프로젝트에 붙인다. 예전엔 목록 맨 앞([0] — 가장 최근에 만든 것)을 집어서
+   * <b>사람이 방금 만든 실제 프로젝트에 QA 검사요청이 붙었다</b> — 그 프로젝트는 지울 수도 없게 됐다(2026-10-01).
+   */
+  const pj = (await must('GET', '/projects')).find((x) => x.name === 'QA견적프로젝트')
   const req = await must('POST', '/quality-inspection-requests', {
     requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 10,
     projectId: pj ? pj.id : undefined, requester: 'QA',
