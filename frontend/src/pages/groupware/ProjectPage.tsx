@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, useRef} from 'react'
+import { useEffect, useState, type FormEvent, useRef, useMemo } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
@@ -43,6 +43,16 @@ export default function ProjectPage() {
   const [endDate, setEndDate] = useState('')
   const [status, setStatus] = useState<ProjectStatus>('PLANNING')
   const [remark, setRemark] = useState('')
+  /*
+   * 같은 이름 경고. 이름 겹침은 막지 않는다 — 해마다 '2026 정기점검' 처럼 같은 이름을 쓰는 게
+   * 정상이다. 대신 이미 있다는 걸 보여 주고, 한 번 더 눌러야 등록한다(마스터 중복 관리의 흔한 방식:
+   * 고유키는 코드, 이름 일치는 '같은 것일 수도 있는 후보' 로 알린다).
+   */
+  const sameName = useMemo(() => {
+    const n = name.trim().toLowerCase()
+    return n ? rows.filter((r) => r.name.trim().toLowerCase() === n) : []
+  }, [rows, name])
+  const [dupAcked, setDupAcked] = useState('')
 
   async function load() {
     try {
@@ -56,6 +66,10 @@ export default function ProjectPage() {
     e.preventDefault()
     setError(''); setOk('')
     if (!name.trim()) return setError('프로젝트명을 입력하세요.')
+    if (sameName.length && dupAcked !== name.trim()) {
+      setDupAcked(name.trim())
+      return setError(`같은 이름의 프로젝트가 이미 ${sameName.length}개 있습니다 — 그래도 등록하려면 한 번 더 누르세요.`)
+    }
     try {
       const res = await api.post<Project>('/projects', {
         name, manager: manager || undefined, startDate,
@@ -123,15 +137,20 @@ export default function ProjectPage() {
             <tbody>
               <tr>
                 <th style={th}>프로젝트명 *</th>
-                <td><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} placeholder="프로젝트명을 입력하세요" /></td>
+                <td><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} placeholder="프로젝트명을 입력하세요" />
+                  {sameName.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#b45309' }}>
+                      같은 이름: {sameName.map((r) => `${r.code}${r.remark ? ` (${r.remark})` : ''}`).join(' · ')}
+                    </div>
+                  )}</td>
                 <th style={th}>PM</th>
                 <td><input className={inputCls} value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>종료(예정)</th>
-                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>상태</th>

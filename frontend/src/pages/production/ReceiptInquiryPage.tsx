@@ -32,6 +32,7 @@ interface Row {
    */
   fromWarehouseKind: string | null
   /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면이 안 받아 조건으로 쓸 수 없었다. */
+  projectId: number | null
   projectName: string | null
   producedQty: number
   productionDate: string
@@ -173,7 +174,7 @@ export default function ReceiptInquiryPage() {
     || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
     && (!warehouseCond || r.warehouseName.includes(warehouseCond)
       || (r.fromWarehouseName ?? '').includes(warehouseCond))
-    && (!projectCond || (r.projectName ?? '').includes(projectCond))
+    && (!projectCond || String(r.projectId) === projectCond)
     && (!itemCond || r.productName.includes(itemCond))
     && (!from || r.productionDate >= from) && (!to || r.productionDate <= to)
     /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */

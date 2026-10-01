@@ -69,6 +69,7 @@ interface Adjustment {
   /** 원본 조건 [규격]. 서버가 이제 실어 준다. */
   spec: string | null
   /** 원본 조건 [프로젝트]. 서버는 진작 보내는데 화면이 받아 두지 않았다. */
+  projectId: number | null
   projectName: string | null
   /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
   itemCategory: string | null
@@ -220,7 +221,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     /* 원본 조건 [규격]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */
     .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
     /* 원본 조건 [프로젝트]. 어느 현장에 나간 자재인지로 좁힌다. */
-    .filter((r) => !cond.project || (r.projectName ?? '') === cond.project)
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     /* 원본 조건 [불량유형](불량처리·대체사용·폐기) · [사용유형](자가사용) — 같은 자리다. */
     .filter((r) => !cond.kind || (r.kind ?? '') === cond.kind)
     /* 원본 조건 [처리방법] — 불량처리에만 있다. */

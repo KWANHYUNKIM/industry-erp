@@ -18,6 +18,7 @@ interface ProductionRow {
   productId: number; productCode: string; productName: string; productUnit: string
   warehouseName: string
   producedQty: number; productionDate: string
+  projectId: number | null
   projectName: string | null
 }
 
@@ -188,7 +189,7 @@ export default function DefectReportPage() {
        */
       if (defectTypeCond && q.defectType !== defectTypeCond) continue
       if (whCond && (q.warehouseName ?? '') !== whCond) continue
-      if (projCond && (q.projectName ?? '') !== projCond) continue
+      if (projCond && String(q.projectId) !== projCond) continue
       const r = get(q.warehouseName, q.itemId, q.itemCode, q.itemName, q.unit)
       r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
     }
@@ -199,7 +200,7 @@ export default function DefectReportPage() {
       if (handleCond === '불량' && a.type !== 'DEFECT') continue
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
       if (whCond && a.warehouseName !== whCond) continue
-      if (projCond && (a.projectName ?? '') !== projCond) continue
+      if (projCond && String(a.projectId) !== projCond) continue
       const r = get(a.warehouseName, a.itemId, a.itemCode, a.itemName, a.unit)
       const qty = Math.abs(a.quantityChange)
       if (a.type === 'DEFECT') r.defectHandled += qty
@@ -219,7 +220,7 @@ export default function DefectReportPage() {
       if (!inPeriod(p.productionDate)) continue
       if (defectTypeCond || inspectorCond) continue
       if (whCond && p.warehouseName !== whCond) continue
-      if (projCond && (p.projectName ?? '') !== projCond) continue
+      if (projCond && String(p.projectId) !== projCond) continue
       const r = get(p.warehouseName, p.productId, p.productCode, p.productName, p.productUnit)
       r.producedQty += p.producedQty
     }

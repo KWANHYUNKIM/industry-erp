@@ -51,6 +51,7 @@ interface Expense {
   paymentMethod: string | null
   department: string | null
   /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면 형이 안 받아 조건으로 쓸 수 없었다. */
+  projectId: number | null
   projectName: string | null
   createdBy: string | null
 }
@@ -131,7 +132,7 @@ export default function ExpenseDetailPage() {
     .filter((r) => !empCond || (r.createdBy ?? '').includes(empCond))
     .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
     .filter((r) => !partnerGroupCond || pgroup.groupOfName(r.partnerName ?? '') === partnerGroupCond)
-    .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
+    .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !remarkCond || (r.content ?? '').includes(remarkCond))
     .filter((r) => !payCond || (r.paymentMethod ?? '') === payCond)
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])

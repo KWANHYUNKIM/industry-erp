@@ -47,13 +47,13 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  */
 interface ProductionRow {
   productionDate: string; producedQty: number
-  warehouseName: string; projectName: string | null
+  warehouseName: string; projectId: number | null
   productId: number; productName: string; productCategoryName: string | null
 }
 /** 창고이동 한 줄. 이쪽도 수량만 있다(옮기는 것이라 값이 붙지 않는다). */
 interface TransferRow {
   transferDate: string; quantity: number
-  fromWarehouseName: string; toWarehouseName: string; projectName: string | null
+  fromWarehouseName: string; toWarehouseName: string; projectId: number | null
   itemId: number; itemName: string; itemCategoryName: string | null
 }
 
@@ -153,12 +153,12 @@ export default function MonthlyCumulativePage() {
   const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
     (!category || (l.itemCategoryName ?? '') === category)
     && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
-  const keepDoc = (d: { warehouseName: string; partnerName: string; projectName: string | null;
+  const keepDoc = (d: { warehouseName: string; partnerName: string; projectId: number | null;
                         lines: { itemName: string; itemId: number; itemCategoryName: string | null }[] }) =>
     (!warehouse || d.warehouseName.includes(warehouse))
     && (!partner || d.partnerName.includes(partner))
     && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
-    && (!project || (d.projectName ?? '').includes(project))
+    && (!project || String(d.projectId) === project)
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
     && d.lines.some(lineHit)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
@@ -208,11 +208,11 @@ export default function MonthlyCumulativePage() {
      * 위 <code>keepDoc</code> 과 <b>같은 조건을 같은 뜻으로</b> 건다 — 창고·프로젝트·
      * 품목·품목구분·품목그룹·관리항목. 거래처 조건이 걸려 있으면 아예 빠진다.
      */
-    const keepStock = (r: { warehouse: string; project: string | null;
+    const keepStock = (r: { warehouse: string; projectId: number | null;
                             itemId: number; itemName: string; category: string | null }) =>
       !partner && !partnerGroup
       && (!warehouse || r.warehouse.includes(warehouse))
-      && (!project || (r.project ?? '').includes(project))
+      && (!project || String(r.projectId) === project)
       && (!item || r.itemName.includes(item))
       && (!category || (r.category ?? '') === category)
       && (!itemGroup || mgmt.groupOf(r.itemId) === itemGroup)
@@ -228,15 +228,15 @@ export default function MonthlyCumulativePage() {
         qty: d.lines.reduce((n, l) => n + l.quantity, 0),
       }))],
       ['생산입고현황', productions.filter((p2) => keepStock({
-        warehouse: p2.warehouseName, project: p2.projectName,
+        warehouse: p2.warehouseName, projectId: p2.projectId,
         itemId: p2.productId, itemName: p2.productName, category: p2.productCategoryName,
       })).map((p2) => ({ date: p2.productionDate, supply: 0, vat: 0, qty: p2.producedQty }))],
       /* 이동은 창고가 둘이다 — 나가는 쪽이든 들어오는 쪽이든 걸리면 센다. */
       ['창고이동현황', transfers.filter((t) => keepStock({
-        warehouse: t.fromWarehouseName, project: t.projectName,
+        warehouse: t.fromWarehouseName, projectId: t.projectId,
         itemId: t.itemId, itemName: t.itemName, category: t.itemCategoryName,
       }) || keepStock({
-        warehouse: t.toWarehouseName, project: t.projectName,
+        warehouse: t.toWarehouseName, projectId: t.projectId,
         itemId: t.itemId, itemName: t.itemName, category: t.itemCategoryName,
       })).map((t) => ({ date: t.transferDate, supply: 0, vat: 0, qty: t.quantity }))],
     ].map(([name, docs]) => ({

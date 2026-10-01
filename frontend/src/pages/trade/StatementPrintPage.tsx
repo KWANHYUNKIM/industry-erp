@@ -146,7 +146,7 @@ export default function StatementPrintPage() {
     if (keyword && !(d.partnerName.includes(keyword) || d.docNo.includes(keyword))) return false
     if (warehouse && !(d.warehouseName ?? '').includes(warehouse)) return false
     if (partnerManager && !(partners.find((p) => p.id === d.partnerId)?.manager ?? '').includes(partnerManager)) return false
-    if (project && !(d.projectName ?? '').includes(project)) return false
+    if (project && String(d.projectId) !== project) return false
     if (employee && !(d.employeeName ?? '').includes(employee)) return false
     if (item && !d.lines.some((l) => `${l.itemCode ?? ''} ${l.itemName}`.includes(item))) return false
     /* 품목 쪽 조건은 <b>줄 하나라도</b> 걸리면 그 명세서를 남긴다 — 명세서는 여러 품목을 싣는다. */

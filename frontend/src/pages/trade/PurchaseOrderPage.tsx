@@ -176,7 +176,7 @@ export default function PurchaseOrderPage() {
     .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
     .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
     /* 줄이 여럿이면 <b>한 줄이라도 걸리면</b> 그 발주를 남긴다 — 품목 조건과 같은 규칙이다. */
@@ -385,7 +385,7 @@ export default function PurchaseOrderPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
-                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
@@ -890,13 +890,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
-                <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
                     목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
                 <th style={{ background: '#f5f7fa' }}>납기일자</th>
-                <td><input type="date" className="ec-input" value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}

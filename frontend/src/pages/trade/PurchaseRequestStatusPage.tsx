@@ -62,6 +62,7 @@ interface Row {
   employee: string
   /** 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
   project: string
+  projectId: number | null
   itemName: string
   /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
   category: string
@@ -212,6 +213,7 @@ export default function PurchaseRequestStatusPage({
           warehouse: o.warehouseName ?? '',
           employee: o.employeeName ?? '',
           project: o.projectName ?? '',
+          projectId: o.projectId,
           itemName: l.itemName,
           itemId: l.itemId,
           category: l.itemCategory ?? '',
@@ -256,7 +258,7 @@ export default function PurchaseRequestStatusPage({
     && (!c.item || r.itemName.includes(c.item))
     && (!c.warehouse || r.warehouse.includes(c.warehouse))
     /* 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 거를 수가 없었다. */
-    && (!c.project || r.project === c.project)
+    && (!c.project || String(r.projectId) === c.project)
     /* 원본 조건 [규격]·[적요]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */
     && (!c.spec || r.spec.includes(c.spec))
     && (!c.remark || r.remark.includes(c.remark))

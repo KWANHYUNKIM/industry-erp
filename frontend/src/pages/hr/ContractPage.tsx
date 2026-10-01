@@ -306,7 +306,7 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>계약 시작일</th>
-                <td><input type="date" className="ec-input" value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ background: '#f5f7fa' }}>종료일</th>
                 <td>
                   <input type="date" className="ec-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} disabled={type === 'PERMANENT'} />

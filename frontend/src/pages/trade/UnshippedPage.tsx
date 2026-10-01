@@ -62,6 +62,7 @@ interface UnshippedLine {
   unit: string
   /** 원본 조건의 [창고]·[프로젝트]·[담당자]. 수주에 이번에 만든 칸이다. */
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   employeeName: string | null
   orderQty: number
@@ -195,7 +196,7 @@ export default function UnshippedPage() {
     .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
     .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
     .filter((r) => !cond.warehouse || (r.warehouseName ?? '') === cond.warehouse)
-    .filter((r) => !cond.project || (r.projectName ?? '') === cond.project)
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
     .filter((r) => !cond.partnerMgr || partnerMgrs.get(r.partnerName) === cond.partnerMgr)
     .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))

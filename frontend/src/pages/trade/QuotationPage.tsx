@@ -10,7 +10,6 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
-import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
@@ -173,7 +172,7 @@ export default function QuotationPage() {
     .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
     .filter((r) => !noCond || r.quoteNo.includes(noCond))
     .filter((r) => !whCond || r.warehouseName === whCond)
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !authorCond || (r.createdBy ?? '').includes(authorCond))
     .filter((r) => !specCond || r.lines.some((l) => (l.spec ?? '').includes(specCond)))
@@ -208,7 +207,7 @@ export default function QuotationPage() {
       .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
       .filter((r) => !noCond || r.quoteNo.includes(noCond))
       .filter((r) => !whCond || r.warehouseName === whCond)
-      .filter((r) => !projCond || r.projectName === projCond)
+      .filter((r) => !projCond || String(r.projectId) === projCond)
       .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
       .reduce((a, r) => ({ count: a.count + 1, supply: a.supply + r.supplyAmount }), { count: 0, supply: 0 })
   }, [rows, prevRange, tab, noCond, whCond, projCond, itemCond])
@@ -392,7 +391,7 @@ export default function QuotationPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
-                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         {/*
           원본 [관리항목] — 차례는 [프로젝트] 다음, [거래처] 앞이다(사본 실측).
@@ -704,7 +703,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                   </select>
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>견적일</th>
-                <td><input type="date" className="ec-input" value={dateText(quoteDate)} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>유효기한</th>

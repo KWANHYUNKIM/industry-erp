@@ -192,7 +192,7 @@ export default function SalesOrderPage() {
                 <td>
                   <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="선택 안 함"
                                    value={fProject} onChange={setFProject}
-                                   items={pickers.projects.map((x) => ({ ...x, value: String(x.id) }))} />
+                                   items={pickers.projects} />
                 </td>
               </tr>
               <tr>
@@ -206,9 +206,9 @@ export default function SalesOrderPage() {
               </tr>
               <tr>
                 <th style={th}>수주일자</th>
-                <td><input type="date" className={inputCls} value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>납기일자</th>
-                <td><input type="date" className={inputCls} value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
             </tbody>
           </table>

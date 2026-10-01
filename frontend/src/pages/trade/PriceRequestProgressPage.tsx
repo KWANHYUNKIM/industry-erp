@@ -150,7 +150,7 @@ export default function PriceRequestProgressPage() {
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
     .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))

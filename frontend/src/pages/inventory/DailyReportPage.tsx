@@ -78,13 +78,13 @@ export default function DailyReportPage() {
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
     && (!warehouse || d.warehouseName.includes(warehouse))
-    && (!project || (d.projectName ?? '').includes(project))
+    && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
   const hitPurch = (d: PurchaseDoc) =>
     (!partner || d.partnerName.includes(partner))
     && (!item || d.lines.some((l) => l.itemName.includes(item)))
     && (!warehouse || d.warehouseName.includes(warehouse))
-    && (!project || (d.projectName ?? '').includes(project))
+    && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
 
   const inRange = (d: string) => (!from || d >= from) && (!to || d <= to)

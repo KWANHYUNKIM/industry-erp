@@ -234,7 +234,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>수입일</th>
-                <td><input type="date" className="ec-input" value={dateText(incomeDate)} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 130 }} /></td>
               </tr>

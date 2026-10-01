@@ -56,6 +56,7 @@ interface Shipment {
   totalQuantity: number
   warehouseName: string | null
   /** 귀속 프로젝트. 서버가 이미 주고 있는데 이 화면이 안 받고 있었다. */
+  projectId: number | null
   projectName: string | null
   contact: string | null
   remark: string | null
@@ -149,7 +150,7 @@ export default function ShipmentOrderStatusPage() {
     if (dueDate && (r.dueDate ?? '') !== dueDate) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
     if (partner && !r.partnerName.includes(partner)) return false
-    if (project && !(r.projectName ?? '').includes(project)) return false
+    if (project && String(r.projectId) !== project) return false
     if (item && !r.lines.some((l) => (l.itemCode + ' ' + l.itemName).includes(item))) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false

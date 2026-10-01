@@ -80,6 +80,7 @@ interface SalesOrderResponse {
    * 화면 형이 안 받아 두었을 뿐이다(2026-09-08 확인).
    */
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   employeeName: string | null
   status: OrderStatus
@@ -97,6 +98,7 @@ interface Row {
   /** 원본 [창고]·[프로젝트]·[담당자]. 서버가 진작 싣던 값이다. */
   warehouse: string | null
   project: string | null
+  projectId: number | null
   employee: string | null
   /** 원본 [적요]. 응답이 진작 싣는데 줄에 안 받아 두어 거를 수가 없었다. */
   remark: string | null
@@ -207,6 +209,7 @@ export default function SalesOrderStatusPage() {
             spec: l.spec,
             warehouse: d.warehouseName,
             project: d.projectName,
+            projectId: d.projectId,
             employee: d.employeeName,
             remark: d.remark,
             createdBy: d.createdBy,
@@ -253,7 +256,7 @@ export default function SalesOrderStatusPage() {
       if (f.status && r.status !== f.status) return false
       if (f.unshippedOnly && r.unshipped <= 0) return false
       if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
-      if (f.project && !(r.project ?? '').includes(f.project)) return false
+      if (f.project && String(r.projectId) !== f.project) return false
       if (f.employee && (r.employee ?? '') !== f.employee) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
       if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false

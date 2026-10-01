@@ -275,7 +275,7 @@ export default function ProductionResultPage() {
               </tr>
               <tr>
                 <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}

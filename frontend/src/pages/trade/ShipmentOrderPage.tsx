@@ -28,6 +28,7 @@ interface Shipment {
   dueDate: string | null
   warehouseId: number | null; warehouseName: string | null
   /** 응답에 이미 오던 값. 원본 조건의 [프로젝트]를 걸려면 화면이 받아 둬야 한다. */
+  projectId: number | null
   projectName: string | null
   employeeId: number | null; employeeName: string | null
   contact: string | null; postalCode: string | null; address: string | null
@@ -282,7 +283,7 @@ export default function ShipmentOrderPage() {
     .filter((s) => !condTo || s.shipDate <= condTo)
     .filter((s) => !shipNoCond || s.shipNo.includes(shipNoCond))
     .filter((s) => !warehouseCond || (s.warehouseName ?? '').includes(warehouseCond))
-    .filter((s) => !projectCond || (s.projectName ?? '').includes(projectCond))
+    .filter((s) => !projectCond || String(s.projectId) === projectCond)
     .filter((s) => !partnerCond || s.partnerName.includes(partnerCond))
     .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
     .filter((s) => mgmt.hits(s.lines.map((l) => l.itemId), mgmtCond))

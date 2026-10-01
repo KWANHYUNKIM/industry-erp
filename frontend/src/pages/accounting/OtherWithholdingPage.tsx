@@ -251,7 +251,7 @@ function WithholdingForm({ partners, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>지급일</th>
-                <td><input type="date" className="ec-input" value={dateText(payDate)} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={payDate} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>지급액<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td><input className="ec-input" type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} /></td>
               </tr>

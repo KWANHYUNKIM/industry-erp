@@ -53,6 +53,7 @@ interface UnsoldLine {
   unsoldAmount: number
   /* 2026-09-08 에 응답을 넓혀 받은 것들 — 수주 전표와 품목 마스터가 진작 들던 값이다. */
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   employeeName: string | null
   remark: string | null
@@ -126,7 +127,7 @@ export default function UnsoldStatusPage() {
     .filter((r) => !cond.qtyTo || r.unsoldQty <= Number(cond.qtyTo))
     /* 2026-09-08 실측으로 만든 것들. 응답을 넓혀 받은 값을 그대로 건다. */
     .filter((r) => !cond.warehouse || (r.warehouseName ?? '').includes(cond.warehouse))
-    .filter((r) => !cond.project || (r.projectName ?? '').includes(cond.project))
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
     .filter((r) => !cond.partnerMgr || pmgr.managerOfName(r.partnerName) === cond.partnerMgr)
     .filter((r) => !cond.remark || (r.remark ?? '').includes(cond.remark))

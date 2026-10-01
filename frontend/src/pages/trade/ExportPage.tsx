@@ -394,7 +394,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
                   </select>
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={dateText(invoiceDate)} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>통화<span style={{ color: '#c60a2e' }}>*</span></th>

@@ -210,7 +210,7 @@ export default function WorkLogPage() {
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>업무보고일</th>
-                <td><input className="ec-input" type="date" value={dateText(form.reportDate)} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
+                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
                 <th style={{ width: 90, background: '#f5f7fa' }}>부서</th>
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>

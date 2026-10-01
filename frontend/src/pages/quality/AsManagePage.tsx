@@ -274,7 +274,7 @@ export default function AsManagePage() {
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
     .filter((r) => !whCond || r.warehouseName === whCond)
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
     /* 원본 첫 줄 [기준일자] — 접수한 날이다. 둘째 줄 [수리예정일자]와 다르다. */
     .filter((r) => !from || r.receiptDate >= from)
@@ -330,7 +330,7 @@ export default function AsManagePage() {
                 </td>
                 {/* 원본 A/S접수입력의 이름은 [접수일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th style={th}>일자</th>
-                <td><input type="date" className={inputCls} value={dateText(receiptDate)} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>품목 *</th>
@@ -361,7 +361,7 @@ export default function AsManagePage() {
                 <th style={th}>제목</th>
                 <td><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} placeholder="무슨 건인지 한 줄로" /></td>
                 <th style={th}>수리예정일자</th>
-                <td><input type="date" className={inputCls} value={dateText(scheduledDate)} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>증상</th>
@@ -448,7 +448,7 @@ export default function AsManagePage() {
         <span style={{ marginLeft: 8 }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                          value={projCond} onChange={setProjCond}
-                         items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                         items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         <span style={{ marginLeft: 8 }}>품목</span>
         <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
                placeholder="품목" style={{ width: 150 }} />

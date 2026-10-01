@@ -74,6 +74,7 @@ interface Shipment {
   /** 창고명. 원본 출하현황의 [창고명] 열 — 어느 창고에서 나갔는지가 안 보였다. */
   warehouseName: string | null
   /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
+  projectId: number | null
   projectName: string | null
   remark: string | null
   createdBy: string | null
@@ -158,7 +159,7 @@ export default function ShipmentPage() {
     if (partner && !r.partnerName.includes(partner)) return false
     if (item && !r.lines.some((l) => `${l.itemCode} ${l.itemName}`.includes(item))) return false
     if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
-    if (project && !(r.projectName ?? '').includes(project)) return false
+    if (project && String(r.projectId) !== project) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false
     if (specCond && !r.lines.some((l) => (l.spec ?? '') === specCond)) return false

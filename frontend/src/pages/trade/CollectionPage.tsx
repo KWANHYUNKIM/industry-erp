@@ -38,6 +38,7 @@ interface Settlement {
   amount: number
   method: string | null
   /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
+  projectId: number | null
   projectName: string | null
   note: string | null
   /** 원본 조건의 [최초작성자]. 응답이 진작 싣던 값인데 화면이 안 받고 있었다. */
@@ -129,7 +130,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
     .filter((r) => !cond.manager
       || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
-    .filter((r) => !cond.project || (r.projectName ?? '').includes(cond.project))
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])

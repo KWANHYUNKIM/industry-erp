@@ -63,6 +63,7 @@ interface Production {
   warehouseName: string
   fromWarehouseId: number | null
   fromWarehouseName: string | null
+  projectId: number | null
   projectName: string | null
   producedQty: number
   productionDate: string
@@ -187,7 +188,7 @@ export default function ReceiptStatusPage() {
     if (itemCategory && (r.productCategoryName ?? '') !== itemCategory) return false
     if (itemGroup && mgmt.groupOf(r.productId) !== itemGroup) return false
     if (specCond && !(r.productSpec ?? '').includes(specCond)) return false
-    if (project && !(r.projectName ?? '').includes(project)) return false
+    if (project && String(r.projectId) !== project) return false
     if (note && !(r.note ?? '').includes(note)) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps

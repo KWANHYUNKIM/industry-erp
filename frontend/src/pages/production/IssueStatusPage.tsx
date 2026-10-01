@@ -61,6 +61,7 @@ interface MaterialIssue {
   issueDate: string
   note: string | null
   /** 원본 조건 판의 [프로젝트]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  projectId: number | null
   projectName: string | null
   /** 원본 [품목구분]. 품목 마스터의 값이고 응답이 진작 싣는다. */
   itemCategoryName: string | null
@@ -170,7 +171,7 @@ export default function IssueStatusPage() {
     if (item && !`${r.itemCode} ${r.itemName}`.includes(item)) return false
     if (note && !(r.note ?? '').includes(note)) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
-    if (project && (r.projectName ?? '') !== project) return false
+    if (project && String(r.projectId) !== project) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [rows, from, to, warehouseId, item, note, emp, project, employees,

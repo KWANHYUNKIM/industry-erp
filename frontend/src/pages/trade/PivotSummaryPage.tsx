@@ -170,7 +170,7 @@ export default function PivotSummaryPage() {
 
   const rows = useMemo<PivotRow[]>(() => {
     const flat = (d: SalesDoc | PurchaseDoc, date: string) => ({
-      date, partnerId: d.partnerId, partnerName: d.partnerName, projectName: d.projectName,
+      date, partnerId: d.partnerId, partnerName: d.partnerName, projectId: d.projectId,
       warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName,
       employeeName: d.employeeName, remark: d.remark, lines: d.lines,
       /*
@@ -197,7 +197,7 @@ export default function PivotSummaryPage() {
       if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
       if (partnerCond && !d.partnerName.includes(partnerCond)) continue
       if (warehouseCond && !d.warehouseName.includes(warehouseCond)) continue
-      if (projectCond && !(d.projectName ?? '').includes(projectCond)) continue
+      if (projectCond && String(d.projectId) !== projectCond) continue
       if (empCond && (d.employeeName ?? '') !== empCond) continue
       if (partnerGroupCond && pgroup.groupOfName(d.partnerName) !== partnerGroupCond) continue
       if (partnerMgrCond && pmgr.managerOfName(d.partnerName) !== partnerMgrCond) continue

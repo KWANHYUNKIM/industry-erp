@@ -155,7 +155,7 @@ export default function StockIoPage() {
               </tr>
               <tr>
                 <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={dateText(form.transactionDate)} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={form.transactionDate} onChange={(e) => set('transactionDate', e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>비고</th>

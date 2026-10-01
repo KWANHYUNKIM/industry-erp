@@ -132,7 +132,7 @@ export default function SalesPurchaseSummaryPage() {
    * [품목별] 로 볼 때 아무것도 안 걸린다(그 줄의 이름은 품목명이다).
    */
   const keepPartner = (name: string) => !partnerCond || name.includes(partnerCond)
-  const keepProject = (name: string | null) => !projectCond || (name ?? '').includes(projectCond)
+  const keepProject = (id: number | null) => !projectCond || String(id) === projectCond
   const keepWarehouse = (name: string) => !warehouseCond || name.includes(warehouseCond)
   const keepEmp = (name: string | null) => !empCond || (name ?? '').includes(empCond)
   const keepRemark = (t: string | null) => !remarkCond || (t ?? '').includes(remarkCond)
@@ -170,7 +170,7 @@ export default function SalesPurchaseSummaryPage() {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
         if (!keepPartner(d.partnerName)) continue
-        if (!keepProject(d.projectName)) continue
+        if (!keepProject(d.projectId)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
@@ -186,7 +186,7 @@ export default function SalesPurchaseSummaryPage() {
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
         if (!keepPartner(d.partnerName)) continue
-        if (!keepProject(d.projectName)) continue
+        if (!keepProject(d.projectId)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
@@ -203,7 +203,7 @@ export default function SalesPurchaseSummaryPage() {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
         if (!keepPartner(d.partnerName)) continue
-        if (!keepProject(d.projectName)) continue
+        if (!keepProject(d.projectId)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
@@ -222,7 +222,7 @@ export default function SalesPurchaseSummaryPage() {
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
         if (!keepPartner(d.partnerName)) continue
-        if (!keepProject(d.projectName)) continue
+        if (!keepProject(d.projectId)) continue
         if (!keepWarehouse(d.warehouseName)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue

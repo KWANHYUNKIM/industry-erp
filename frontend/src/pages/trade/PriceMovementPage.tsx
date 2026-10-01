@@ -172,7 +172,7 @@ export default function PriceMovementPage() {
     && (!partner || d.partnerName.includes(partner))
     && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
     && (!partnerMgr || pmgr.managerOfName(d.partnerName) === partnerMgr)
-    && (!project || (d.projectName ?? '').includes(project))
+    && (!project || String(d.projectId) === project)
     && (!employee || (d.employeeName ?? '') === employee)
   /** 라인 하나가 품목 조건을 지나는가. */
   const keepLine = (l: { itemId: number; itemCategoryName: string | null }) =>

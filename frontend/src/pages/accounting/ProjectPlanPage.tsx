@@ -153,7 +153,7 @@ export default function ProjectPlanPage() {
   }
 
   const shown = rows
-    .filter((r) => !projectCond || r.projectName === projectCond)
+    .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !startFrom || (r.startDate != null && r.startDate >= startFrom))
     .filter((r) => !startTo || (r.startDate != null && r.startDate <= startTo))
     .filter((r) => !endFrom || (r.endDate != null && r.endDate >= endFrom))
@@ -229,7 +229,7 @@ export default function ProjectPlanPage() {
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond}
-                         items={projects.map((p) => ({ value: p.name, code: p.code, name: p.name }))} />
+                         items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         {/* 원본 [시작일]·[종료일] 은 구간이다 — 한 칸씩만 두어 어느 달에 시작한 계획인지 못 좁혔다. */}
         <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>시작일</span>
         <input type="date" className={inputCls} value={startFrom}

@@ -39,6 +39,7 @@ interface Row {
   warehouse: string | null
   employee: string | null
   project: string | null
+  projectId: number | null
   /** 전표 공급가액 합(판매·구매·외주). */
   orgAmount: number
   /** 그중 회계로 넘어간 금액 */
@@ -146,7 +147,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
       const key = `${date}|${d.partnerName}`
       const cur = m.get(key) ?? {
         date, partner: d.partnerName,
-        warehouse: d.warehouseName, employee: d.employeeName, project: d.projectName ?? null,
+        warehouse: d.warehouseName, employee: d.employeeName, project: d.projectName ?? null, projectId: d.projectId ?? null,
         orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
       }
       cur.orgAmount += d.supplyAmount
@@ -164,7 +165,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     if (keyword && !r.partner.includes(keyword)) return false
     if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
     if (employee && !(r.employee ?? '').includes(employee)) return false
-    if (project && (r.project ?? '') !== project) return false
+    if (project && String(r.projectId) !== project) return false
     if (discFrom && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
     if (discTo && !Number.isNaN(max) && r.orgAmount - r.reflectedAmount > max) return false
     if (partnerGroup && pgroup.groupOfName(r.partner) !== partnerGroup) return false

@@ -242,7 +242,7 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>근무일</th>
-                <td><input type="date" className="ec-input" value={dateText(workDate)} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 80, background: '#f5f7fa' }}>근무시간</th>
                 <td><input className="ec-input" type="number" value={workHours} onChange={(e) => setWorkHours(e.target.value)} style={{ width: 70, textAlign: 'right' }} /></td>
               </tr>

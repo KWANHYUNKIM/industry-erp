@@ -28,6 +28,7 @@ interface ComparisonRow {
   /** 원본 매출계획의 [창고]·[거래처]·[프로젝트]. 안 고르면 그 축을 안 나눈다. */
   warehouseName: string | null
   partnerName: string | null
+  projectId: number | null
   projectName: string | null
   /** 원본 매출계획비교표의 [담당자]. 위 셋과 같은 성질의 축이다. */
   employeeName: string | null
@@ -241,7 +242,7 @@ export default function SalesPlanPage() {
     .filter((r) => !itemCond || r.itemName === itemCond)
     .filter((r) => !whCond || r.warehouseName === whCond)
     .filter((r) => !partnerCond || r.partnerName === partnerCond)
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || r.employeeName === empCond)
     .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
     .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
@@ -394,7 +395,7 @@ export default function SalesPlanPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
-                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="반품구분">
           <div className="ec-pills">

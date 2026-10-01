@@ -34,11 +34,15 @@ export interface CondPickerItem {
 export interface CondPickers {
   /** 거래처. 값은 <b>거래처명</b>이다 — 조건이 이름 부분일치로 걸리기 때문이다. */
   partners: PartnerCodeItem[]
-  /** 창고. 값은 창고명. */
+  /** 창고. 값은 창고명. id 도 싣는다 — 전표 입력칸은 id 로 보낸다. */
   warehouses: CondPickerItem[]
   /** 품목. 값은 품목명. */
   items: CondPickerItem[]
-  /** 프로젝트. 값은 프로젝트명. */
+  /**
+   * 프로젝트. 값은 <b>프로젝트 id</b>(문자열)다 — 이름이 아니다. 프로젝트는 이름이 겹치는 게
+   * 정상이라(해마다 '2026 정기점검') 이름으로 거르면 같은 이름이 전부 잡혔다(2026-10-01).
+   * 화면은 String(row.projectId) === 값 으로 거른다.
+   */
   projects: CondPickerItem[]
   /** 사원(담당자·거래처관리담당자). 값은 사원명. */
   employees: CondPickerItem[]
@@ -80,7 +84,7 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
         .then((r) => ({
           // 사용중단한 창고는 새로 거를 일이 없다 — 목록이 길어지기만 한다.
           warehouses: r.data.filter((w) => w.active !== false)
-            .map((w) => ({ value: w.name, code: w.code, name: w.name })),
+            .map((w) => ({ value: w.name, id: w.id, code: w.code, name: w.name })),
         }))
         .catch(() => ({})))
     }
@@ -88,13 +92,13 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
       jobs.push(api.get<{ id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }[]>('/items')
         .then((r) => ({
           items: r.data.filter((x) => x.active !== false)
-            .map((x) => ({ value: x.name, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword })),
+            .map((x) => ({ value: x.name, id: x.id, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword })),
         }))
         .catch(() => ({})))
     }
     if (need.has('projects')) {
       jobs.push(api.get<{ id: number; code: string; name: string }[]>('/projects')
-        .then((r) => ({ projects: r.data.map((p) => ({ value: p.name, code: p.code, name: p.name })) }))
+        .then((r) => ({ projects: r.data.map((p) => ({ value: String(p.id), id: p.id, code: p.code, name: p.name })) }))
         .catch(() => ({})))
     }
 

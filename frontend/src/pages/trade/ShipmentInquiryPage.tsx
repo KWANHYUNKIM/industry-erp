@@ -45,6 +45,7 @@ interface Shipment {
    * 원본 출하조회는 둘 다 조회 조건이다. 값이 오는데 못 거르고 있었던 셈이다.
    */
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   /**
    * 출하 <b>담당자</b>. 목록의 [담당] 칸이 이제까지 <code>createdBy</code>(전표를 친 계정)를
@@ -199,7 +200,7 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !to || r.shipDate <= to)
     .filter((r) => !shipNoCond || r.shipNo.includes(shipNoCond))
     .filter((r) => !warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
-    .filter((r) => !projectCond || (r.projectName ?? '').includes(projectCond))
+    .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
     .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond) || l.itemCode.includes(itemCond)))
     .filter((r) => !mgmtCond || r.lines.some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))

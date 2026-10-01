@@ -232,7 +232,7 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>발령일</th>
-                <td><input type="date" className="ec-input" value={dateText(assignDate)} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>부서</th>

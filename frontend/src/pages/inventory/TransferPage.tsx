@@ -136,7 +136,7 @@ export default function TransferPage() {
   const shownTransfers = transfers
     .filter((r) => (!from || r.transferDate >= from) && (!to || r.transferDate <= to))
     .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || empName(r.employeeId) === empCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
@@ -144,7 +144,7 @@ export default function TransferPage() {
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!from || r.adjustDate >= from) && (!to || r.adjustDate <= to) &&
     (!whCond || r.warehouseName === whCond) &&
-    (!projCond || r.projectName === projCond) &&
+    (!projCond || String(r.projectId) === projCond) &&
     (!empCond || empName(r.employeeId) === empCond) &&
     (!reasonCond || (r.reason ?? '').includes(reasonCond)) &&
     (!keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword)))
@@ -205,7 +205,7 @@ export default function TransferPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
-                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"

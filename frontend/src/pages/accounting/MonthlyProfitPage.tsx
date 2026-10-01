@@ -170,7 +170,7 @@ export default function MonthlyProfitPage() {
       return m >= Number(fromMonth) && m <= Number(toMonth)
     })
     .filter((d) => !cond.warehouse || (d.warehouseName ?? '').includes(cond.warehouse))
-    .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
+    .filter((d) => !cond.project || String(d.projectId) === cond.project)
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
     .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
     .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)

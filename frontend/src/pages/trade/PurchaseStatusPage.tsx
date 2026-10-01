@@ -34,6 +34,7 @@ interface Row {
   supply: number
   vat: number
   // 집계(utils/statusAggregate)가 읽는 값들. 화면이 이미 받아 온 전표에서 뽑는다.
+  projectId: number | null
   projectName: string | null
   taxable: boolean
   /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
@@ -151,6 +152,7 @@ export default function PurchaseStatusPage() {
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
           vat: l.vatAmount,
+          projectId: d.projectId,
           projectName: d.projectName,
           // 전표가 과세 여부를 들고 있다. 예전에는 부가세 > 0 인지로 되짚어서,
           // 반올림으로 부가세가 0 이 된 과세 전표가 면세로 섞였다.
@@ -188,7 +190,7 @@ export default function PurchaseStatusPage() {
       if (f.partner && !r.partner.includes(f.partner)) return false
       if (f.warehouse && !r.warehouse.includes(f.warehouse)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
-      if (f.project && !(r.projectName ?? '').includes(f.project)) return false
+      if (f.project && String(r.projectId) !== f.project) return false
       if (f.taxType && (f.taxType === '면세' ? r.taxable : !r.taxable)) return false
       if (f.tradeKind && (f.tradeKind === '반품' ? !r.returnSlip : r.returnSlip)) return false
       if (f.orderNo && (r.sourceDocNo ?? '') !== f.orderNo) return false

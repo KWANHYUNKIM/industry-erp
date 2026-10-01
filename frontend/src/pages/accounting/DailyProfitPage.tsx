@@ -196,7 +196,7 @@ export default function DailyProfitPage() {
     .filter((d) => !cond.from || d.saleDate >= cond.from)
     .filter((d) => !cond.to || d.saleDate <= cond.to)
     .filter((d) => !cond.warehouseId || String(d.warehouseId) === cond.warehouseId)
-    .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
+    .filter((d) => !cond.project || String(d.projectId) === cond.project)
     .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
     .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
     .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)

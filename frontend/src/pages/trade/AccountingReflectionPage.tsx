@@ -74,6 +74,7 @@ interface Slip {
   partnerId: number
   partnerName: string
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   /** 전표를 친 사람. 원본 조건 판의 [담당자]. */
   employeeName: string | null
@@ -229,7 +230,7 @@ export default function AccountingReflectionPage() {
     // 원본 [거래구분]·[구매구분]. 반품 전표는 금액이 음수라 반영 금액도 반대로 간다.
     .filter((s) => !cond.tradeKind || s.tradeKind === cond.tradeKind)
     .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
-    .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
+    .filter((s) => !cond.project || String(s.projectId) === cond.project)
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
     .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
     .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))

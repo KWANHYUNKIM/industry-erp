@@ -29,6 +29,7 @@ interface Transfer {
   transferNo: string
   transferDate: string
   /** 원본 조건의 [프로젝트]·[담당자]. 담당자는 id 만 온다 — 이름은 화면이 붙인다. */
+  projectId: number | null
   projectName: string | null
   employeeId: number | null
   itemId: number
@@ -168,7 +169,7 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.warehouseId
       || String(r.fromWarehouseId) === cond.warehouseId
       || String(r.toWarehouseId) === cond.warehouseId)
-    .filter((r) => !cond.project || r.projectName === cond.project)
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))

@@ -201,7 +201,7 @@ function FieldWorkForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             <tbody>
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>외근일<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td><input type="date" className="ec-input" value={dateText(workDate)} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>시간</th>
                 <td>
                   <input type="time" className="ec-input" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: 100 }} />

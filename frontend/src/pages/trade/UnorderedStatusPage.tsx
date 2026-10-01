@@ -52,6 +52,7 @@ interface Row {
   /** 원본 [창고]·[프로젝트]·[적요]·[작성자]. 응답이 진작 싣던 값이다. */
   warehouse: string | null
   project: string | null
+  projectId: number | null
   remark: string | null
   createdBy: string | null
   itemId: number
@@ -170,6 +171,7 @@ export default function UnorderedStatusPage() {
           partner: q.partnerName,
           warehouse: q.warehouseName,
           project: q.projectName,
+          projectId: q.projectId,
           remark: q.remark,
           createdBy: q.createdBy,
           itemId: l.itemId,
@@ -207,7 +209,7 @@ export default function UnorderedStatusPage() {
       if (f.quoteNo && !r.quoteNo.includes(f.quoteNo)) return false
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
-      if (f.project && !(r.project ?? '').includes(f.project)) return false
+      if (f.project && String(r.projectId) !== f.project) return false
       if (f.mgmt && mgmt.nameOf(r.itemId) !== f.mgmt) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
       if (f.validFrom && !(r.validUntil && r.validUntil >= f.validFrom)) return false
