@@ -135,7 +135,7 @@ export default function TransferPage() {
 
   const shownTransfers = transfers
     .filter((r) => (!from || r.transferDate >= from) && (!to || r.transferDate <= to))
-    .filter((r) => !whCond || r.fromWarehouseName === whCond || r.toWarehouseName === whCond)
+    .filter((r) => !whCond || String(r.fromWarehouseId) === whCond || String(r.toWarehouseId) === whCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || empName(r.employeeId) === empCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
@@ -143,7 +143,7 @@ export default function TransferPage() {
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!from || r.adjustDate >= from) && (!to || r.adjustDate <= to) &&
-    (!whCond || r.warehouseName === whCond) &&
+    (!whCond || String(r.warehouseId) === whCond) &&
     (!projCond || String(r.projectId) === projCond) &&
     (!empCond || empName(r.employeeId) === empCond) &&
     (!reasonCond || (r.reason ?? '').includes(reasonCond)) &&

@@ -29,6 +29,10 @@ interface Row {
   warehouse: string
   partner: string
   itemName: string
+  /** 창고·거래처·품목 조건(코드도움)은 id 로 견준다 — 이름은 겹칠 수 있다. */
+  warehouseId: number
+  partnerId: number
+  itemId: number
   qty: number
   unitPrice: number
   supply: number
@@ -148,6 +152,9 @@ export default function PurchaseStatusPage() {
           warehouse: d.warehouseName,
           partner: d.partnerName,
           itemName: l.itemName,
+          warehouseId: d.warehouseId,
+          partnerId: d.partnerId,
+          itemId: l.itemId,
           qty: l.quantity,
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
@@ -187,9 +194,9 @@ export default function PurchaseStatusPage() {
       if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.docNo.includes(kw)) return false
       if (f.dateFrom && r.date < f.dateFrom) return false
       if (f.dateTo && r.date > f.dateTo) return false
-      if (f.partner && !r.partner.includes(f.partner)) return false
-      if (f.warehouse && !r.warehouse.includes(f.warehouse)) return false
-      if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.partner && String(r.partnerId) !== f.partner) return false
+      if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
+      if (f.item && String(r.itemId) !== f.item) return false
       if (f.project && String(r.projectId) !== f.project) return false
       if (f.taxType && (f.taxType === '면세' ? r.taxable : !r.taxable)) return false
       if (f.tradeKind && (f.tradeKind === '반품' ? !r.returnSlip : r.returnSlip)) return false
@@ -317,9 +324,9 @@ export default function PurchaseStatusPage() {
     const kw = keyword.trim()
     return rows
       .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
-      .filter((r) => !f.partner || r.partner.includes(f.partner))
-      .filter((r) => !f.warehouse || r.warehouse.includes(f.warehouse))
-      .filter((r) => !f.item || r.itemName.includes(f.item))
+      .filter((r) => !f.partner || String(r.partnerId) === f.partner)
+      .filter((r) => !f.warehouse || String(r.warehouseId) === f.warehouse)
+      .filter((r) => !f.item || String(r.itemId) === f.item)
       .filter((r) => !kw || r.partner.includes(kw) || r.itemName.includes(kw))
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
   }, [rows, prevRange, filters, keyword])

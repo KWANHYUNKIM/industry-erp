@@ -24,7 +24,9 @@ interface Row {
   productCode: string
   productName: string
   productUnit: string
+  warehouseId: number
   warehouseName: string
+  fromWarehouseId: number | null
   fromWarehouseName: string | null
   /**
    * 만든 자리의 구분 — 창고 · 공장 · <b>외주</b>. 원본 [기타]의 [외주공장만] 이 이 값을 본다.
@@ -172,14 +174,14 @@ export default function ReceiptInquiryPage() {
 
   const shown = rows.filter((r) => (!keyword
     || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
-    && (!warehouseCond || r.warehouseName.includes(warehouseCond)
-      || (r.fromWarehouseName ?? '').includes(warehouseCond))
+    && (!warehouseCond || String(r.warehouseId) === warehouseCond
+      || String(r.fromWarehouseId) === warehouseCond)
     && (!projectCond || String(r.projectId) === projectCond)
-    && (!itemCond || r.productName.includes(itemCond))
+    && (!itemCond || String(r.productId) === itemCond)
     && (!from || r.productionDate >= from) && (!to || r.productionDate <= to)
     /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
-    && (!fromWhCond || (r.fromWarehouseName ?? '').includes(fromWhCond))
-    && (!toWhCond || r.warehouseName.includes(toWhCond))
+    && (!fromWhCond || String(r.fromWarehouseId) === fromWhCond)
+    && (!toWhCond || String(r.warehouseId) === toWhCond)
     && (!categoryCond || (r.productCategoryName ?? '') === categoryCond)
     && (!itemGroupCond || mgmt.groupOf(r.productId) === itemGroupCond)
     && (!empCond || empName(r.employeeId).includes(empCond))

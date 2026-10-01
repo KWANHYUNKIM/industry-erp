@@ -155,7 +155,7 @@ export default function DailyStockPage() {
 
   const shown = stock
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => withInactive || !inactive.has(r.itemId))
     .filter((r) => withUntracked || !untracked.has(r.itemId))
     .filter((r) => !cond.category || (catOf.get(r.itemId) ?? '') === cond.category)

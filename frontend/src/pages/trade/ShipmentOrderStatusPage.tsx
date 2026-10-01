@@ -43,6 +43,7 @@ interface ShipLine {
 interface Shipment {
   id: number
   shipNo: string
+  partnerId: number
   partnerName: string
   /** 근거 주문번호. 원본 조건의 [오더관리번호]다. 직접 등록한 지시면 null. */
   salesOrderNo: string | null
@@ -54,6 +55,7 @@ interface Shipment {
   status: 'READY' | 'SHIPPED' | 'CANCELED'
   statusName: string
   totalQuantity: number
+  warehouseId: number | null
   warehouseName: string | null
   /** 귀속 프로젝트. 서버가 이미 주고 있는데 이 화면이 안 받고 있었다. */
   projectId: number | null
@@ -148,10 +150,10 @@ export default function ShipmentOrderStatusPage() {
     if (r.shipDate < from || r.shipDate > to) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
     if (dueDate && (r.dueDate ?? '') !== dueDate) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
-    if (partner && !r.partnerName.includes(partner)) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
+    if (partner && String(r.partnerId) !== partner) return false
     if (project && String(r.projectId) !== project) return false
-    if (item && !r.lines.some((l) => (l.itemCode + ' ' + l.itemName).includes(item))) return false
+    if (item && !r.lines.some((l) => String(l.itemId) === item)) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false
     if (specCond && !r.lines.some((l) => (l.spec ?? '') === specCond)) return false

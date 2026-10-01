@@ -53,6 +53,7 @@ const MODES = ['거래처별', '전표별', '품목별'] as const
 type Mode = typeof MODES[number]
 
 interface SlipLine {
+  itemId: number
   itemCode: string
   itemName: string
   quantity: number
@@ -73,6 +74,7 @@ interface Slip {
   slipDate: string
   partnerId: number
   partnerName: string
+  warehouseId: number | null
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
@@ -222,18 +224,19 @@ export default function AccountingReflectionPage() {
     .filter((s) => !onlyUnreflected || !s.reflected)
     .filter((s) => !cond.from || s.slipDate >= cond.from)
     .filter((s) => !cond.to || s.slipDate <= cond.to)
-    .filter((s) => !cond.partner || s.partnerName.includes(cond.partner))
+    .filter((s) => !cond.partner || String(s.partnerId) === cond.partner)
     .filter((s) => !cond.docNo || s.docNo.includes(cond.docNo))
     .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
     .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
     .filter((s) => !cond.vatType || s.vatType === cond.vatType)
     // 원본 [거래구분]·[구매구분]. 반품 전표는 금액이 음수라 반영 금액도 반대로 간다.
     .filter((s) => !cond.tradeKind || s.tradeKind === cond.tradeKind)
-    .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
+    .filter((s) => !cond.warehouse || String(s.warehouseId) === cond.warehouse)
     .filter((s) => !cond.project || String(s.projectId) === cond.project)
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
     .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
-    .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
+    // itemSummary 는 "첫 품목 외 N건" 이라 둘째 품목부터는 못 걸렀다 — 줄의 id 로 본다.
+    .filter((s) => !cond.item || (s.lines ?? []).some((l) => String(l.itemId) === cond.item))
     /* 이 화면의 줄은 itemCode 만 든다(itemId 가 없다) — 코드로 잇는다. */
     .filter((s) => !mgmtCond || (s.lines ?? []).some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
     .filter((s) => !partnerGroup || pgroup.groupOfName(s.partnerName) === partnerGroup)

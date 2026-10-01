@@ -61,6 +61,7 @@ interface UnshippedLine {
   itemName: string
   unit: string
   /** 원본 조건의 [창고]·[프로젝트]·[담당자]. 수주에 이번에 만든 칸이다. */
+  warehouseId: number | null
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
@@ -195,12 +196,12 @@ export default function UnshippedPage() {
     .filter((r) => !cond.to || r.orderDate <= cond.to)
     .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
     .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
-    .filter((r) => !cond.warehouse || (r.warehouseName ?? '') === cond.warehouse)
+    .filter((r) => !cond.warehouse || String(r.warehouseId) === cond.warehouse)
     .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
     .filter((r) => !cond.partnerMgr || partnerMgrs.get(r.partnerName) === cond.partnerMgr)
-    .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
-    .filter((r) => !cond.item || r.itemName.includes(cond.item))
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !mgmtCond || mgmt.nameOf(r.itemId) === mgmtCond)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.ordQtyFrom || r.orderQty >= Number(cond.ordQtyFrom))

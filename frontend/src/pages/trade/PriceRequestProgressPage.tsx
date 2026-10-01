@@ -148,8 +148,8 @@ export default function PriceRequestProgressPage() {
   const shown = useMemo(() => rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
     .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)

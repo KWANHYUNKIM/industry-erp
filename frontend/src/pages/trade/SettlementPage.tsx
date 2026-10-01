@@ -70,6 +70,21 @@ export default function SettlementPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  /*
+   * 고른 거래처의 지금 채권·채무 잔액. 넘게 받거나 넘게 줘도 막지는 않는다(선수금·선급금일 수 있다).
+   * 다만 알려 준다 — 0 하나를 더 쳐서 300,000 을 3,000,000 으로 받아도 아무 말 없이 저장되고
+   * 채권이 음수가 됐다(2026-10-01, 수금을 넣어 보다 발견).
+   */
+  const [balances, setBalances] = useState<Record<string, { receivable: number; payable: number }>>({})
+  useEffect(() => {
+    api.get<{ partnerId: number; receivable: number; payable: number }[]>('/ledger/partner-balances', { params: { asOf: date } })
+      .then((r) => setBalances(Object.fromEntries(r.data.map((b) => [String(b.partnerId), { receivable: Number(b.receivable), payable: Number(b.payable) }]))))
+      .catch(() => setBalances({}))
+  }, [date, ok])
+  const balance = partnerId ? balances[partnerId] : undefined
+  const open = balance ? (type === 'RECEIPT' ? balance.receivable : balance.payable) : undefined
+  const over = open != null && Number(amount) > 0 && Number(amount) > Math.max(open, 0)
   useEffect(() => { setPartnerId('') }, [type])
 
   async function submit(e: FormEvent) {
@@ -143,6 +158,12 @@ export default function SettlementPage() {
             <div>
               <label className="mb-1 block text-xs text-slate-600">금액 *</label>
               <input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={amount} onChange={(e) => setAmount(e.target.value)} />
+              {open != null && (
+                <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : '#8a929c' }}>
+                  {type === 'RECEIPT' ? '받을 돈(채권)' : '줄 돈(채무)'} {won(open)}원
+                  {over && ` — ${won(Number(amount) - Math.max(open, 0))}원 넘습니다(${type === 'RECEIPT' ? '선수금' : '선급금'}으로 남음)`}
+                </div>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-600">결제수단</label>

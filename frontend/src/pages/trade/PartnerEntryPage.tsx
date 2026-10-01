@@ -46,8 +46,9 @@ const LINKS: { label: string; to: (p: Partner) => string }[] = [
   { label: '구매조회', to: (p) => `/sales/purchase-list?partner=${encodeURIComponent(p.name)}` },
   { label: '채권현황', to: (p) => `/sales/receivable-status?partner=${encodeURIComponent(p.name)}` },
   { label: '채무현황', to: (p) => `/sales/payable-status?partner=${encodeURIComponent(p.name)}` },
-  { label: '거래처관리대장1(채권)', to: (p) => `/sales/partner-ledger-receivable?partner=${encodeURIComponent(p.name)}` },
-  { label: '거래처관리대장1(채무)', to: (p) => `/sales/partner-ledger-payable?partner=${encodeURIComponent(p.name)}` },
+  // 대장은 거래처 조건이 id 다(코드도움 값) — 이름이 겹치는 거래처가 섞이지 않게 id 로 문다.
+  { label: '거래처관리대장1(채권)', to: (p) => `/sales/partner-ledger-receivable?partnerId=${p.id}` },
+  { label: '거래처관리대장1(채무)', to: (p) => `/sales/partner-ledger-payable?partnerId=${p.id}` },
   { label: '전표입력', to: (p) => `/sales/sell?partnerId=${p.id}` },
 ]
 

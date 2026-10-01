@@ -59,6 +59,8 @@ export default function StockMovementPage() {
   const [to, setTo] = useState(today())
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
+  // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
+  const [itemCond, setItemCond] = useState('')
   const [hideZero, setHideZero] = useState(false)
   /*
    * 원본 재고변동표(E040719) [기타]는 <b>일곱</b>이다(2026-09-02 실측):
@@ -167,7 +169,7 @@ export default function StockMovementPage() {
 
   const reset = () => {
     setFrom(firstOfMonth()); setTo(today())
-    setWarehouseId(''); setKeyword(''); setHideZero(false); setMode('집계'); setRollUp(false)
+    setWarehouseId(''); setKeyword(''); setItemCond(''); setHideZero(false); setMode('집계'); setRollUp(false)
     setCategory(''); setItemGroup(''); setMgmtCond(''); setWithInactive(true)
   }
 
@@ -179,6 +181,10 @@ export default function StockMovementPage() {
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
+    // 대표로 모으면 줄의 id 가 대표 품목이 된다 — 고른 품목도 그 대표로 바꿔 견준다.
+    const picked = itemCond ? Number(itemCond) : null
+    const pickedId = picked != null && rollUp
+      ? (items.find((it) => it.id === picked)?.parentItemId ?? picked) : picked
     /*
      * 대표로 모을 때는 <b>더한 뒤에 거른다.</b> 먼저 거르면 형제 하나가 검색어에 안 걸려
      * 빠지고, 그러면 대표 줄의 수량이 조용히 모자란다.
@@ -210,6 +216,7 @@ export default function StockMovementPage() {
       if (itemGroup && groupOf(r.itemId) !== itemGroup) return false
       if (mgmtCond && mgmt.nameOf(r.itemId) !== mgmtCond) return false
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
+      if (pickedId != null && r.itemId !== pickedId) return false
       if (hideZero && r.inQty === 0 && r.outQty === 0) return false
       return true
     })
@@ -217,7 +224,7 @@ export default function StockMovementPage() {
     return byItemName
       ? [...filtered].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
       : filtered
-  }, [rows, keyword, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive,
+  }, [rows, keyword, itemCond, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive,
     category, itemGroup, categoryOf, groupOf, mgmtCond, mgmt])
 
   const totals = useMemo(() => shown.reduce((s, r) => ({
@@ -262,7 +269,7 @@ export default function StockMovementPage() {
         {mode === '집계' && (
           <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={itemCond} onChange={(v) => setItemCond(v)}
                            items={pickers.items} />
         </EcCond>
         )}

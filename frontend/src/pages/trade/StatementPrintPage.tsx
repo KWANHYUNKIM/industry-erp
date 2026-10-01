@@ -144,11 +144,11 @@ export default function StatementPrintPage() {
     if (fromDate && d.saleDate < fromDate) return false
     if (toDate && d.saleDate > toDate) return false
     if (keyword && !(d.partnerName.includes(keyword) || d.docNo.includes(keyword))) return false
-    if (warehouse && !(d.warehouseName ?? '').includes(warehouse)) return false
+    if (warehouse && String(d.warehouseId) !== warehouse) return false
     if (partnerManager && !(partners.find((p) => p.id === d.partnerId)?.manager ?? '').includes(partnerManager)) return false
     if (project && String(d.projectId) !== project) return false
     if (employee && !(d.employeeName ?? '').includes(employee)) return false
-    if (item && !d.lines.some((l) => `${l.itemCode ?? ''} ${l.itemName}`.includes(item))) return false
+    if (item && !d.lines.some((l) => String(l.itemId) === item)) return false
     /* 품목 쪽 조건은 <b>줄 하나라도</b> 걸리면 그 명세서를 남긴다 — 명세서는 여러 품목을 싣는다. */
     if (itemCat && !d.lines.some((l) => categoryOf(l.itemId) === itemCat)) return false
     if (itemGroup && !d.lines.some((l) => groupOf(l.itemId) === itemGroup)) return false

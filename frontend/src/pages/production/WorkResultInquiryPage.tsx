@@ -36,6 +36,7 @@ interface Row {
   workItemCode: string | null
   workItemName: string | null
   workItemSpec: string | null
+  warehouseId: number | null
   warehouseName: string | null
   productCode: string | null
   productName: string | null
@@ -151,10 +152,10 @@ export default function WorkResultInquiryPage() {
   const shown = useMemo(() => rows.filter((r) => {
     if (r.workDate < from || r.workDate > to) return false
     if (process && !r.process.includes(process)) return false
-    if (product && !(r.productName ?? '').includes(product)) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (product && String(r.productId) !== product) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (worker && !(r.worker ?? '').includes(worker)) return false
-    if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
+    if (workItem && String(r.workItemId) !== workItem) return false
     if (workItemCategory && (r.workItemCategoryName ?? '') !== workItemCategory) return false
     if (workItemGroup && mgmt.groupOf(r.workItemId) !== workItemGroup) return false
     if (productCategory && (r.productCategoryName ?? '') !== productCategory) return false

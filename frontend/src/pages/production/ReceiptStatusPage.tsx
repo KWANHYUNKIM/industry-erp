@@ -181,7 +181,7 @@ export default function ReceiptStatusPage() {
         && String(r.fromWarehouseId ?? '') !== warehouseId) return false
     if (fromWh && (r.fromWarehouseName ?? '') !== fromWh) return false
     if (toWh && (r.warehouseName ?? '') !== toWh) return false
-    if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
+    if (item && String(r.productId) !== item) return false
     /* [담당자]는 전표의 담당 사원이다 — 만든 계정([최초작성자])과 다른 사람이다. */
     if (worker && !empName(r.employeeId).includes(worker)) return false
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false

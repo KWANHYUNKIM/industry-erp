@@ -53,6 +53,8 @@ export default function StockAnalysisPage() {
 
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
+  // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
+  const [itemCond, setItemCond] = useState('')
   const [shortageOnly, setShortageOnly] = useState(false)
   /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
   const [includeZero, setIncludeZero] = useState(false)
@@ -163,16 +165,17 @@ export default function StockAnalysisPage() {
       .filter((a) => withUntracked || !untracked.has(a.itemId))
       .filter((a) => withInactive || !inactive.has(a.itemId))
       .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
+      .filter((a) => !itemCond || String(a.itemId) === itemCond)
       .filter((a) => !category || (itemById.get(a.itemId)?.categoryName ?? '') === category)
       .filter((a) => !itemGroup || (itemById.get(a.itemId)?.itemGroupName ?? '') === itemGroup)
       .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
       // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
       .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, category, itemGroup, itemById, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
+  }, [stocks, priceById, warehouseId, keyword, itemCond, category, itemGroup, itemById, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
 
   const reset = () => {
-    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
+    setWarehouseId(''); setKeyword(''); setItemCond(''); setShortageOnly(false); setIncludeZero(false)
     setWithUntracked(false); setWithInactive(true); setCategory(''); setItemGroup('')
     setSubtotal('없음'); setDate(today)
   }
@@ -208,7 +211,7 @@ export default function StockAnalysisPage() {
       >
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={itemCond} onChange={(v) => setItemCond(v)}
                            items={pickers.items} />
         </EcCond>
         {/*

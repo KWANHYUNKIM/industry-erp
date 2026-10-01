@@ -170,7 +170,7 @@ export default function TransferStatusPage() {
       || String(r.fromWarehouseId) === cond.warehouseId
       || String(r.toWarehouseId) === cond.warehouseId)
     .filter((r) => !cond.project || String(r.projectId) === cond.project)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */

@@ -44,6 +44,7 @@ interface WorkResult {
   processId: number | null
   process: string
   warehouseName: string | null
+  productId: number | null
   productCode: string | null
   productName: string | null
   /** 원본 라인 열의 [품목명[규격]] — 작업품목. 생산품목명과 다른 열이다. */
@@ -161,7 +162,7 @@ export default function WorkResultListPage() {
     if (process && !r.process.includes(process)) return false
     if (worker && !(r.worker ?? '').includes(worker)) return false
     if (orderNo && !(r.workOrderNo ?? '').includes(orderNo)) return false
-    if (product && !(r.productName ?? '').includes(product)) return false
+    if (product && String(r.productId) !== product) return false
     if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
     if (plant && !(r.warehouseName ?? '').includes(plant)) return false
     if (workItemCategory && (r.workItemCategoryName ?? '') !== workItemCategory) return false

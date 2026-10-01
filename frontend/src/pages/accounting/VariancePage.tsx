@@ -122,6 +122,8 @@ export default function VariancePage() {
   const [boms, setBoms] = useState<BomRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [keyword, setKeyword] = useState('')
+  // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
+  const [itemCond, setItemCond] = useState('')
   const [period, setPeriod] = useState('전체')
   const [withInactive, setWithInactive] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -187,6 +189,7 @@ export default function VariancePage() {
     if (!withUntracked && untracked.has(itemId)) return false
     if (categoryCond && (catOf.get(itemId) ?? '') !== categoryCond) return false
     if (itemGroupCond && mgmt.groupOf(itemId) !== itemGroupCond) return false
+    if (itemCond && String(itemId) !== itemCond) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -260,7 +263,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0))
-  }, [purchases, period, keyword, withInactive, inactive, withUntracked, untracked,
+  }, [purchases, period, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
       categoryCond, itemGroupCond, nameOf, stdPriceOf])
 
   // ── 소모수량차이: BOM 표준소모 vs 실제 투입 (자재별 집계)
@@ -287,7 +290,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0) || Math.abs(b.diffQty) - Math.abs(a.diffQty))
-  }, [productions, boms, period, keyword, withInactive, inactive, withUntracked, untracked,
+  }, [productions, boms, period, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
       categoryCond, itemGroupCond, nameOf, stdPriceOf, evalPriceOf])
 
   // ── 노무비·경비차이
@@ -314,7 +317,7 @@ export default function VariancePage() {
            */
           label: '다시 작성',
           onClick: () => {
-            setPeriod('전체'); setKeyword('')
+            setPeriod('전체'); setKeyword(''); setItemCond('')
             setWithInactive(true); setWithUntracked(false)
             setCategoryCond(''); setItemGroupCond('')
           },
@@ -342,7 +345,7 @@ export default function VariancePage() {
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={itemCond} onChange={(v) => setItemCond(v)}
                            items={pickers.items} />
         </EcCond>
         {/*

@@ -131,9 +131,10 @@ export default function SalesPurchaseSummaryPage() {
    * 집계 화면이라 <b>합치기 전</b>에 걸러야 한다 — 합쳐 놓은 줄을 이름으로 거르면
    * [품목별] 로 볼 때 아무것도 안 걸린다(그 줄의 이름은 품목명이다).
    */
-  const keepPartner = (name: string) => !partnerCond || name.includes(partnerCond)
+  /* 거래처·창고·품목 조건은 코드도움의 id 로 견준다 — 이름은 겹칠 수 있다. */
+  const keepPartner = (id: number) => !partnerCond || String(id) === partnerCond
   const keepProject = (id: number | null) => !projectCond || String(id) === projectCond
-  const keepWarehouse = (name: string) => !warehouseCond || name.includes(warehouseCond)
+  const keepWarehouse = (id: number | null) => !warehouseCond || String(id) === warehouseCond
   const keepEmp = (name: string | null) => !empCond || (name ?? '').includes(empCond)
   const keepRemark = (t: string | null) => !remarkCond || (t ?? '').includes(remarkCond)
   const keepGroup = (name: string) => !partnerGroupCond || pgroup.groupOfName(name) === partnerGroupCond
@@ -169,9 +170,9 @@ export default function SalesPurchaseSummaryPage() {
     if (groupBy === 'partner') {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
-        if (!keepPartner(d.partnerName)) continue
+        if (!keepPartner(d.partnerId)) continue
         if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepWarehouse(d.warehouseId)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
         if (!keepGroup(d.partnerName)) continue
@@ -185,9 +186,9 @@ export default function SalesPurchaseSummaryPage() {
       }
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
-        if (!keepPartner(d.partnerName)) continue
+        if (!keepPartner(d.partnerId)) continue
         if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepWarehouse(d.warehouseId)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
         if (!keepGroup(d.partnerName)) continue
@@ -202,9 +203,9 @@ export default function SalesPurchaseSummaryPage() {
     } else {
       for (const d of sales) {
         if (!inPeriod(d.saleDate)) continue
-        if (!keepPartner(d.partnerName)) continue
+        if (!keepPartner(d.partnerId)) continue
         if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepWarehouse(d.warehouseId)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
         if (!keepGroup(d.partnerName)) continue
@@ -212,7 +213,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepTax(d.taxable)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
-          if (itemCond && l.itemCode !== itemCond) continue
+          if (itemCond && String(l.itemId) !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           if (!lineHit(l)) continue
           const a = bump(`I${l.itemId}`, l.itemName)
@@ -221,9 +222,9 @@ export default function SalesPurchaseSummaryPage() {
       }
       for (const d of purchases) {
         if (!inPeriod(d.purchaseDate)) continue
-        if (!keepPartner(d.partnerName)) continue
+        if (!keepPartner(d.partnerId)) continue
         if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseName)) continue
+        if (!keepWarehouse(d.warehouseId)) continue
         if (!keepEmp(d.employeeName)) continue
         if (!keepRemark(d.remark)) continue
         if (!keepGroup(d.partnerName)) continue
@@ -231,7 +232,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!keepTax(d.taxable)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         for (const l of d.lines) {
-          if (itemCond && l.itemCode !== itemCond) continue
+          if (itemCond && String(l.itemId) !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           if (!lineHit(l)) continue
           const a = bump(`I${l.itemId}`, l.itemName)
@@ -332,7 +333,7 @@ export default function SalesPurchaseSummaryPage() {
           <span style={label}>품목코드</span>
           <CodePickerField label="품목코드" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={partnerPick.items.map((x) => ({ ...x, value: x.code ?? x.value }))} />
+                           items={partnerPick.items} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{ ...label, width: 66 }}>품목구분</span>

@@ -168,7 +168,7 @@ export default function IssueStatusPage() {
     if (toWh && (r.toWarehouseName ?? '') !== toWh) return false
     if (itemCategory && (r.itemCategoryName ?? '') !== itemCategory) return false
     if (itemGroup && mgmt.groupOf(r.itemId) !== itemGroup) return false
-    if (item && !`${r.itemCode} ${r.itemName}`.includes(item)) return false
+    if (item && String(r.itemId) !== item) return false
     if (note && !(r.note ?? '').includes(note)) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
     if (project && String(r.projectId) !== project) return false

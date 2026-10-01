@@ -16,6 +16,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 /** 원본 [생산수량]의 재료. 이 화면이 쓰는 칸만 든다. */
 interface ProductionRow {
   productId: number; productCode: string; productName: string; productUnit: string
+  warehouseId: number
   warehouseName: string
   producedQty: number; productionDate: string
   projectId: number | null
@@ -162,7 +163,7 @@ export default function DefectReportPage() {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
     /* 창고코드는 줄에 없다 — 조건 목록(창고 마스터)에서 이름으로 되짚는다. */
     const codeOfWarehouse = (name: string) =>
-      pickers.warehouses.find((w) => w.value === name)?.code ?? ''
+      pickers.warehouses.find((w) => w.name === name)?.code ?? ''
     const map = new Map<string, Row>()
     const get = (wh: string | null, itemId: number, code: string, name: string, unit: string): Row => {
       const w = wh || '(미지정)'
@@ -188,7 +189,7 @@ export default function DefectReportPage() {
        * 유형 없는 것을 끼워 주면 무엇으로 걸린 표인지 알 수 없다.
        */
       if (defectTypeCond && q.defectType !== defectTypeCond) continue
-      if (whCond && (q.warehouseName ?? '') !== whCond) continue
+      if (whCond && String(q.warehouseId) !== whCond) continue
       if (projCond && String(q.projectId) !== projCond) continue
       const r = get(q.warehouseName, q.itemId, q.itemCode, q.itemName, q.unit)
       r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
@@ -199,7 +200,7 @@ export default function DefectReportPage() {
       if (defectTypeCond) continue   // 조정에는 불량유형이 없다 — 위 주석 참고
       if (handleCond === '불량' && a.type !== 'DEFECT') continue
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
-      if (whCond && a.warehouseName !== whCond) continue
+      if (whCond && String(a.warehouseId) !== whCond) continue
       if (projCond && String(a.projectId) !== projCond) continue
       const r = get(a.warehouseName, a.itemId, a.itemCode, a.itemName, a.unit)
       const qty = Math.abs(a.quantityChange)
@@ -219,7 +220,7 @@ export default function DefectReportPage() {
     for (const p of productions) {
       if (!inPeriod(p.productionDate)) continue
       if (defectTypeCond || inspectorCond) continue
-      if (whCond && p.warehouseName !== whCond) continue
+      if (whCond && String(p.warehouseId) !== whCond) continue
       if (projCond && String(p.projectId) !== projCond) continue
       const r = get(p.warehouseName, p.productId, p.productCode, p.productName, p.productUnit)
       r.producedQty += p.producedQty
@@ -228,7 +229,8 @@ export default function DefectReportPage() {
     const out = [...map.values()]
     for (const r of out) r.defectRate = r.inspectedQty > 0 ? (r.inspectDefect / r.inspectedQty) * 100 : 0
     return out
-      .filter((r) => !kw || r.itemName.includes(kw) || r.itemCode.includes(kw))
+      // 품목 코드도움은 id 를 준다 — 이름이 같고 규격만 다른 품목이 섞이지 않게.
+      .filter((r) => !kw || String(r.itemId) === kw)
       /* 품목구분·품목그룹1·규격은 <b>품목 마스터</b>의 값이라 itemId 로 이어 거른다. */
       .filter((r) => !categoryCond || (itemById.get(r.itemId)?.categoryName ?? '') === categoryCond)
       .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)

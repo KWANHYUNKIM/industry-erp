@@ -36,14 +36,15 @@ type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
 
 /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
-interface ShipLine { itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
+interface ShipLine { itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
 interface Shipment {
-  id: number; shipNo: string; partnerName: string; shipDate: string
+  id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
   salesOrderNo: string | null
   /**
    * 창고·프로젝트는 <b>응답에 이미 오고 있었는데</b> 이 화면이 받아 두지 않았다 —
    * 원본 출하조회는 둘 다 조회 조건이다. 값이 오는데 못 거르고 있었던 셈이다.
    */
+  warehouseId: number | null
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
@@ -199,10 +200,10 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !from || r.shipDate >= from)
     .filter((r) => !to || r.shipDate <= to)
     .filter((r) => !shipNoCond || r.shipNo.includes(shipNoCond))
-    .filter((r) => !warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
+    .filter((r) => !warehouseCond || String(r.warehouseId) === warehouseCond)
     .filter((r) => !projectCond || String(r.projectId) === projectCond)
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond) || l.itemCode.includes(itemCond)))
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     .filter((r) => !mgmtCond || r.lines.some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
     .filter((r) => !orderNoCond || (r.salesOrderNo ?? '') === orderNoCond)

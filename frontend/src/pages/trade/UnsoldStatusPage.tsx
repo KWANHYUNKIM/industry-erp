@@ -52,6 +52,7 @@ interface UnsoldLine {
   unitPrice: number
   unsoldAmount: number
   /* 2026-09-08 에 응답을 넓혀 받은 것들 — 수주 전표와 품목 마스터가 진작 들던 값이다. */
+  warehouseId: number | null
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
@@ -120,13 +121,13 @@ export default function UnsoldStatusPage() {
     // 기준일자는 납기일로 본다 — '언제까지 매출을 잡아야 했나'가 이 화면의 질문이다.
     .filter((r) => !cond.from || (r.dueDate ?? r.orderDate) >= cond.from)
     .filter((r) => !cond.to || (r.dueDate ?? r.orderDate) <= cond.to)
-    .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.qtyFrom || r.unsoldQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unsoldQty <= Number(cond.qtyTo))
     /* 2026-09-08 실측으로 만든 것들. 응답을 넓혀 받은 값을 그대로 건다. */
-    .filter((r) => !cond.warehouse || (r.warehouseName ?? '').includes(cond.warehouse))
+    .filter((r) => !cond.warehouse || String(r.warehouseId) === cond.warehouse)
     .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
     .filter((r) => !cond.partnerMgr || pmgr.managerOfName(r.partnerName) === cond.partnerMgr)

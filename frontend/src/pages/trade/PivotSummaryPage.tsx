@@ -171,7 +171,7 @@ export default function PivotSummaryPage() {
   const rows = useMemo<PivotRow[]>(() => {
     const flat = (d: SalesDoc | PurchaseDoc, date: string) => ({
       date, partnerId: d.partnerId, partnerName: d.partnerName, projectId: d.projectId,
-      warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName,
+      warehouseId: d.warehouseId, warehouseName: d.warehouseName, taxable: d.taxable, tradeKindName: d.tradeKindName,
       employeeName: d.employeeName, remark: d.remark, lines: d.lines,
       /*
        * 원본 [진행상태]. <b>판매 전표에만 있다</b> — 구매 전표(PurchaseDoc)에는
@@ -195,8 +195,8 @@ export default function PivotSummaryPage() {
     for (const d of docs) {
       if (taxCond !== '전체' && (taxCond === '과세') !== d.taxable) continue
       if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
-      if (partnerCond && !d.partnerName.includes(partnerCond)) continue
-      if (warehouseCond && !d.warehouseName.includes(warehouseCond)) continue
+      if (partnerCond && String(d.partnerId) !== partnerCond) continue
+      if (warehouseCond && String(d.warehouseId) !== warehouseCond) continue
       if (projectCond && String(d.projectId) !== projectCond) continue
       if (empCond && (d.employeeName ?? '') !== empCond) continue
       if (partnerGroupCond && pgroup.groupOfName(d.partnerName) !== partnerGroupCond) continue
@@ -204,7 +204,7 @@ export default function PivotSummaryPage() {
       if (remarkCond && !(d.remark ?? '').includes(remarkCond)) continue
       if (statusCond && (d.confirmStatusName ?? '') !== statusCond) continue
       if (authorCond && (d.createdBy ?? '') !== authorCond) continue
-      if (itemCond && !d.lines.some((l) => l.itemName.includes(itemCond))) continue
+      if (itemCond && !d.lines.some((l) => String(l.itemId) === itemCond)) continue
       /*
        * 원본 [품목구분]·[품목그룹1]. [거래처별]로 더할 때는 라인을 자르지 않고
        * <b>그 조건에 맞는 줄을 하나라도 가진 전표</b>만 센다 — 라인을 자르면
@@ -222,7 +222,7 @@ export default function PivotSummaryPage() {
         r.vat += d.lines.reduce((a, l) => a + (l.vatAmount ?? 0), 0)
       } else {
         for (const l of d.lines) {
-          if (itemCond && !l.itemName.includes(itemCond)) continue
+          if (itemCond && String(l.itemId) !== itemCond) continue
           if (!lineHit(l)) continue
           const r = bump(`I${l.itemId}`, l.itemName)
           r.months[m] += l.supplyAmount; r.total += l.supplyAmount

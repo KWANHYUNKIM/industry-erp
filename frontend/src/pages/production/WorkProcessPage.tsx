@@ -189,7 +189,7 @@ export default function WorkProcessPage() {
     for (const wo of orders) {
       if (wo.orderDate < from || wo.orderDate > to) continue
       if (orderNo && !wo.orderNo.includes(orderNo)) continue
-      if (item && !`${wo.productCode} ${wo.productName}`.includes(item)) continue
+      if (item && String(wo.productId) !== item) continue
       if (dueDate && (wo.dueDate ?? '') !== dueDate) continue
       if (plant && !(wo.warehouseName ?? '').includes(plant)) continue
       const ops = opsOf.get(wo.productId) ?? []
@@ -213,7 +213,7 @@ export default function WorkProcessPage() {
     return out
       .filter((r) => !work || `${r.processName} ${r.workName}`.includes(work))
       // 작업품목은 BOR 줄에 붙는다 — 생산품목(작업지시가 만드는 물건)과 다른 축이다.
-      .filter((r) => !workItem || r.workItemLabel.includes(workItem))
+      .filter((r) => !workItem || String(r.workItemId) === workItem)
       // 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 사원 목록으로 이름과 잇는다.
       .filter((r) => !manager || (nameOfEmployee.get(r.wo.employeeId ?? -1) ?? '') === manager)
       .filter((r) => (minRemain && !Number.isNaN(min) ? r.remainQty >= min : r.remainQty > 0))

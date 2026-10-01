@@ -36,7 +36,10 @@ const docDate = (d: Doc) => ('saleDate' in d ? d.saleDate : d.purchaseDate)
 interface Row {
   date: string
   partner: string
+  /** 코드도움 조건은 id 로 견준다 — 거래처·창고 이름은 겹칠 수 있다. */
+  partnerId: number
   warehouse: string | null
+  warehouseId: number | null
   employee: string | null
   project: string | null
   projectId: number | null
@@ -74,6 +77,8 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  // 거래처 코드도움은 id 를 준다 — 검색창(이름 일부)과 칸을 나눈다.
+  const [partnerCond, setPartnerCond] = useState('')
   /*
    * <b>[직전기수]는 회계연도 시작월을 모르면 계산할 수 없다</b>(periodOf 가 null 을 준다).
    * 처음엔 periodOf(...)! 로 눌러 뒀는데, 구매할인현황이 그 기본값이라 화면이 <b>통째로
@@ -144,10 +149,10 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
       const date = docDate(d)
       if (date < from || date > to) continue
       if (tradeType !== '전체' && (d.taxable ? '과세' : '면세') !== tradeType) continue
-      const key = `${date}|${d.partnerName}`
+      const key = `${date}|${d.partnerId}`
       const cur = m.get(key) ?? {
-        date, partner: d.partnerName,
-        warehouse: d.warehouseName, employee: d.employeeName, project: d.projectName ?? null, projectId: d.projectId ?? null,
+        date, partner: d.partnerName, partnerId: d.partnerId,
+        warehouse: d.warehouseName, warehouseId: d.warehouseId ?? null, employee: d.employeeName, project: d.projectName ?? null, projectId: d.projectId ?? null,
         orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
       }
       cur.orgAmount += d.supplyAmount
@@ -163,7 +168,8 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const max = Number(discTo)
   const shown = rows.filter((r) => {
     if (keyword && !r.partner.includes(keyword)) return false
-    if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
+    if (partnerCond && String(r.partnerId) !== partnerCond) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (employee && !(r.employee ?? '').includes(employee)) return false
     if (project && String(r.projectId) !== project) return false
     if (discFrom && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
@@ -212,7 +218,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to)
-          setKeyword(''); setWarehouse(''); setEmployee('')
+          setKeyword(''); setPartnerCond(''); setWarehouse(''); setEmployee('')
           setDiscFrom(''); setDiscTo(''); setRemarkCond(''); setPartnerGroup(''); setProject('')
         } },
         { label: '인쇄' },
@@ -247,7 +253,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={partnerCond} onChange={(v) => setPartnerCond(v)}
                            items={pickers.partners} />
         </EcCond>
         {/*

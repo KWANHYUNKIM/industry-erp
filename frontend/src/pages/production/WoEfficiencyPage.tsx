@@ -48,10 +48,12 @@ interface WorkOrderRow {
   orderDate: string
   dueDate: string | null
   /** 원본 조건 판의 [창고]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  warehouseId: number | null
   warehouseName: string | null
   /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   employeeId: number | null
   /** 원본 조건 판의 [거래처] — 작업지시의 납품처. 위와 같이 안 받고 있었다. */
+  partnerId: number | null
   partnerName: string | null
   /** 원본 조건 판의 [적요]. 위와 같음. */
   remark: string | null
@@ -304,11 +306,11 @@ export default function WoEfficiencyPage() {
       if (r.dueDate < dueFrom || r.dueDate > dueTo) return false
     }
     if (orderNo && !r.orderNo.includes(orderNo)) return false
-    if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (item && String(r.productId) !== item) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
-    if (partner && (r.partnerName ?? '') !== partner) return false
+    if (partner && String(r.partnerId) !== partner) return false
     if (partnerMgr && pmgr.managerOfName(r.partnerName ?? '') !== partnerMgr) return false
     if (author && (r.createdBy ?? '') !== author) return false
     if (status !== '전체' && r.statusName !== status) return false

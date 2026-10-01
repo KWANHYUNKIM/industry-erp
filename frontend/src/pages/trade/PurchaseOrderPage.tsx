@@ -176,10 +176,10 @@ export default function PurchaseOrderPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
-    .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     /* 줄이 여럿이면 <b>한 줄이라도 걸리면</b> 그 발주를 남긴다 — 품목 조건과 같은 규칙이다. */
     .filter((r) => !categoryCond || r.lines.some((l) => (l.itemCategoryName ?? '') === categoryCond))
     .filter((r) => mgmt.groupHits(r.lines.map((l) => l.itemId), itemGroupCond))

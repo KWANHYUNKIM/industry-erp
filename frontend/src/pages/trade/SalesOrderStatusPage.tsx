@@ -79,6 +79,7 @@ interface SalesOrderResponse {
    * <code>SalesOrderDtos.SalesOrderResponse</code> 는 셋을 진작 싣고 있고,
    * 화면 형이 안 받아 두었을 뿐이다(2026-09-08 확인).
    */
+  warehouseId: number | null
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
@@ -97,6 +98,10 @@ interface Row {
   key: string
   /** 원본 [창고]·[프로젝트]·[담당자]. 서버가 진작 싣던 값이다. */
   warehouse: string | null
+  /** 창고·거래처·품목 조건(코드도움)은 id 로 견준다 — 이름은 겹칠 수 있다. */
+  warehouseId: number | null
+  partnerId: number
+  itemId: number
   project: string | null
   projectId: number | null
   employee: string | null
@@ -208,6 +213,9 @@ export default function SalesOrderStatusPage() {
             key: `${d.id}-${l.lineId ?? idx}`,
             spec: l.spec,
             warehouse: d.warehouseName,
+            warehouseId: d.warehouseId ?? null,
+            partnerId: d.partnerId,
+            itemId: l.itemId,
             project: d.projectName,
             projectId: d.projectId,
             employee: d.employeeName,
@@ -251,11 +259,11 @@ export default function SalesOrderStatusPage() {
       if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.orderNo.includes(kw)) return false
       if (f.dateFrom && r.date < f.dateFrom) return false
       if (f.dateTo && r.date > f.dateTo) return false
-      if (f.partner && !r.partner.includes(f.partner)) return false
-      if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.partner && String(r.partnerId) !== f.partner) return false
+      if (f.item && String(r.itemId) !== f.item) return false
       if (f.status && r.status !== f.status) return false
       if (f.unshippedOnly && r.unshipped <= 0) return false
-      if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
+      if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
       if (f.project && String(r.projectId) !== f.project) return false
       if (f.employee && (r.employee ?? '') !== f.employee) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
@@ -293,8 +301,8 @@ export default function SalesOrderStatusPage() {
     const f = filters
     return rows
       .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
-      .filter((r) => !f.partner || r.partner.includes(f.partner))
-      .filter((r) => !f.item || r.itemName.includes(f.item))
+      .filter((r) => !f.partner || String(r.partnerId) === f.partner)
+      .filter((r) => !f.item || String(r.itemId) === f.item)
       .filter((r) => !f.status || r.status === f.status)
       .filter((r) => !f.unshippedOnly || r.unshipped > 0)
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, qty: s2.qty + r.qty, count: s2.count + 1 }),

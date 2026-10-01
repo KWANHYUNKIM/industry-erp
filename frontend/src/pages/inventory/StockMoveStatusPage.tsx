@@ -201,7 +201,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.from || r.adjustDate >= cond.from)
     .filter((r) => !cond.to || r.adjustDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     /*
      * 원본 조건 <b>[품목구분]</b>. 원자재가 나갔는지 제품이 나갔는지는 사유보다 먼저 묻는
      * 것인데, 다섯 화면 어디에도 그 칸이 없어 <b>표를 눈으로 훑는</b> 수밖에 없었다.

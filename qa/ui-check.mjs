@@ -6280,35 +6280,30 @@ console.log('\n■ 코드도움 칸이 무엇을 고르는 자리인지 스스�
 console.log('\n■ 코드도움이 주는 값으로 화면이 실제로 거르나')
 
 /*
- * <b>고른 값과 거르는 값이 같은 종류여야 한다.</b> useCondPickers 의 창고·품목·
- * 프로젝트·담당자는 <b>이름</b>을 주는데 거래처만 <b>id</b> 를 줬다. 그래서 조회조건에서
- * 거래처를 고르면 <code>partnerName.includes('12')</code> 가 되어 <b>목록이 통째로 비었다</b> —
- * 고른 사람은 "그 거래처는 거래가 없구나" 로 읽는다. 일곱 화면이 그 상태였다.
+ * <b>고른 값과 거르는 값이 같은 종류여야 한다.</b> 예전엔 useCondPickers 가 창고·품목·
+ * 담당자는 <b>이름</b>을, 거래처만 <b>id</b> 를 줬다. 그래서 조회조건에서 거래처를 고르면
+ * <code>partnerName.includes('12')</code> 가 되어 <b>목록이 통째로 비었다</b> — 일곱 화면이 그 상태였다.
+ * 그 뒤 거래처를 이름으로 맞췄더니 이번엔 <b>이름이 겹치는 거래처·창고·품목이 한데 섞였다</b>
+ * (제조업에선 이름이 같고 규격만 다른 품목이 정상이다). 그래서 지금은 거꾸로
+ * <b>거래처·창고·품목·프로젝트는 id</b>, 담당자만 이름이다(사원 이름은 화면이 id 로 붙인다).
  *
  * <p>타입은 둘 다 string 이라 타입체크가 못 잡는다. 그래서 여기서 잡는다:
- * 코드도움이 주는 값이 이름인지, 그리고 화면이 그 값을 이름과 견주는지.
+ * 코드도움이 주는 값의 종류, 그리고 화면이 그 값을 같은 종류와 견주는지(1-p).
  */
 {
   const src = readFileSync(join('frontend', 'src', 'utils', 'useCondPickers.ts'), 'utf8')
   const bad = []
-  /*
-   * 각 목록이 무엇을 value 로 담는지 본다. 이름이어야 한다 —
-   * 화면들이 전부 '이름 부분일치' 로 거르기 때문이다.
-   *
-   * <p><b>프로젝트만 id 다.</b> 같은 이름의 프로젝트가 여럿이면(QA 가 만든
-   * 'QA견적프로젝트' 수백 건) 이름으로 고르면 전부 걸려 하나를 고를 수가 없었다.
-   * 화면들은 <code>String(x.projectId) === cond</code> 로 거른다.
-   */
-  for (const [name, want] of [['warehouses', 'w.name'], ['items', 'x.name'],
+  for (const [name, want] of [['warehouses', 'String(w.id)'], ['items', 'String(x.id)'],
     ['projects', 'String(p.id)'], ['employees', 'e.name']]) {
     const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.()]+)`))
     if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — ${want} 여야 한다`)
   }
-  // 거래처는 partnerCodeItems(값이 id) 를 쓰므로 이름으로 바꿔 담는지 본다
-  if (!/partners: partnerCodeItems\([\s\S]{0,120}?value: x\.name/.test(src)) {
-    bad.push('partners 의 value 가 이름이 아니다 — 거래처를 고르면 목록이 빈다')
+  // 거래처는 partnerCodeItem(값이 String(p.id)) 을 그대로 담아야 한다 — 이름으로 바꿔 담으면 안 된다
+  if (!/partners: r\.data\.map\(\(p\) => \(\{ \.\.\.partnerCodeItem\(p\)/.test(src)
+      || /partners:[\s\S]{0,200}?value: \w+\.name/.test(src)) {
+    bad.push('partners 의 value 가 id 가 아니다 — 이름이 겹치는 거래처가 한데 걸린다')
   }
-  eq('코드도움이 이름을 주고 화면이 이름으로 거른다', bad.join('\n') || '없음', '없음')
+  eq('코드도움이 id 를 주고(담당자만 이름) 화면이 같은 종류로 거른다', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-p) 코드도움이 주는 값 ↔ 화면이 거르는 값 (화면별) ──────────────────
@@ -6333,10 +6328,10 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
       const val = block.match(/value=\{([\w.]+)\}/)
       if (!val) continue
       const path = val[1]
-      // 공용 목록은 이름 — 프로젝트만 id 다(1-o 참고)
-      const sharedProjects = /items=\{\w+\.projects\}/.test(block)
-      const shared = /items=\{pickers\.\w+\}/.test(block) && !sharedProjects
-      const byId = /value: String\(/.test(block) || sharedProjects
+      // 공용 목록은 id — 담당자만 이름이다(1-o 참고)
+      const sharedById = /items=\{\w+\.(partners|warehouses|items|projects)\}/.test(block)
+      const shared = /items=\{\w+\.employees\}/.test(block)
+      const byId = /value: String\(/.test(block) || sharedById
       if (!byId && !shared) continue
       const lines = src.split('\n')
         .filter((l) => new RegExp(escRe(path) + '\\b').test(l) && /filter|includes|===/.test(l))

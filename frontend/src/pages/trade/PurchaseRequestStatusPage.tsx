@@ -58,7 +58,10 @@ interface Row {
   dueDate: string | null
   orderNo: string
   partner: string
+  /** 거래처·창고 조건(코드도움)은 id 로 견준다 — 이름은 겹칠 수 있다. */
+  partnerId: number
   warehouse: string
+  warehouseId: number | null
   employee: string
   /** 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 화면이 안 받아 뒀다. */
   project: string
@@ -210,7 +213,9 @@ export default function PurchaseRequestStatusPage({
           dueDate: o.dueDate,
           orderNo: o.orderNo,
           partner: o.partnerName,
+          partnerId: o.partnerId,
           warehouse: o.warehouseName ?? '',
+          warehouseId: o.warehouseId ?? null,
           employee: o.employeeName ?? '',
           project: o.projectName ?? '',
           projectId: o.projectId,
@@ -254,9 +259,9 @@ export default function PurchaseRequestStatusPage({
   const matches = (r: Row, c: typeof cond, kw: string) =>
     (!kw || r.partner.includes(kw) || r.itemName.includes(kw) || r.orderNo.includes(kw))
     && (!c.orderNo || r.orderNo.includes(c.orderNo))
-    && (!c.partner || r.partner.includes(c.partner))
-    && (!c.item || r.itemName.includes(c.item))
-    && (!c.warehouse || r.warehouse.includes(c.warehouse))
+    && (!c.partner || String(r.partnerId) === c.partner)
+    && (!c.item || String(r.itemId) === c.item)
+    && (!c.warehouse || String(r.warehouseId) === c.warehouse)
     /* 원본 조건 [프로젝트]. 응답에 진작 실려 오는데 거를 수가 없었다. */
     && (!c.project || String(r.projectId) === c.project)
     /* 원본 조건 [규격]·[적요]. 같은 품목이라도 규격이 갈리면 다른 물건이다. */

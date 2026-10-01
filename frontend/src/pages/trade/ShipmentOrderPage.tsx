@@ -282,10 +282,10 @@ export default function ShipmentOrderPage() {
     .filter((s) => !condFrom || s.shipDate >= condFrom)
     .filter((s) => !condTo || s.shipDate <= condTo)
     .filter((s) => !shipNoCond || s.shipNo.includes(shipNoCond))
-    .filter((s) => !warehouseCond || (s.warehouseName ?? '').includes(warehouseCond))
+    .filter((s) => !warehouseCond || String(s.warehouseId) === warehouseCond)
     .filter((s) => !projectCond || String(s.projectId) === projectCond)
-    .filter((s) => !partnerCond || s.partnerName.includes(partnerCond))
-    .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((s) => !partnerCond || String(s.partnerId) === partnerCond)
+    .filter((s) => !itemCond || s.lines.some((l) => String(l.itemId) === itemCond))
     .filter((s) => mgmt.hits(s.lines.map((l) => l.itemId), mgmtCond))
     .filter((s) => !sendCond || s.status === sendCond)
     /* 원본 [출하예정일] — 기준일자(출하지시일)와 다른 날이다. */

@@ -220,7 +220,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   }, [oneSide, byDoc, side, from, to])
 
   const shown = useMemo(() => rows.filter((r) => {
-    if (partner && !(r.name.includes(partner) || r.code.includes(partner))) return false
+    if (partner && String(r.partnerId) !== partner) return false
     if (manager && !(r.manager ?? '').includes(manager)) return false
     if (!withInactive && !r.active) return false
     if (onlyOpen) {
@@ -264,7 +264,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
 
   /** 조건(거래처·담당자)을 움직임 표에도 그대로 건다. */
   const shownMoves = useMemo(() => moves.filter((m) => {
-    if (partner && !(m.name.includes(partner) || m.code.includes(partner))) return false
+    if (partner && String(m.partnerId) !== partner) return false
     if (manager && !(m.manager ?? '').includes(manager)) return false
     if (onlyOpen && m.closing === 0) return false
     return true
@@ -288,7 +288,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   const nameOf = useMemo(() => new Map(moves.map((m) => [m.partnerId, m.name])), [moves])
   const entryRows = useMemo(() => {
     const kept = entries.filter((e) => {
-      if (partner && !((nameOf.get(e.partnerId) ?? e.partnerName).includes(partner))) return false
+      if (partner && String(e.partnerId) !== partner) return false
       if (manager && !(managerOf.get(e.partnerId) ?? '').includes(manager)) return false
       return true
     })
@@ -364,9 +364,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
          * 만들므로 그 화면으로 넘긴다. 거래처를 골라 뒀으면 물고 간다.
          */
         { label: '전표입력', onClick: () => {
-          // 판매입력은 ?partnerId= 로 거래처를 문다. 조건은 이름이라 id 를 찾아 넘긴다.
-          const picked = rows.find((r) => r.name === partner)
-          navigate(picked ? `/sales/sell?partnerId=${picked.partnerId}` : '/sales/sell')
+          // 판매입력은 ?partnerId= 로 거래처를 문다. 조건이 곧 거래처 id 다.
+          navigate(partner ? `/sales/sell?partnerId=${partner}` : '/sales/sell')
         } },
         { label: '다시 작성', onClick: () => {
           setGroup('거래처별'); setPartner(''); setManager(''); setWithInactive(false); setOnlyOpen(false)

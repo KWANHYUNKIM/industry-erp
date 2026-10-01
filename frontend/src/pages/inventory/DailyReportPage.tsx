@@ -75,15 +75,15 @@ export default function DailyReportPage() {
 
   /** 조건(거래처·품목)은 두 표에 같은 규칙으로 걸려야 한다 — 한 곳에 적는다. */
   const hitSales = (d: SalesDoc) =>
-    (!partner || d.partnerName.includes(partner))
-    && (!item || d.lines.some((l) => l.itemName.includes(item)))
-    && (!warehouse || d.warehouseName.includes(warehouse))
+    (!partner || String(d.partnerId) === partner)
+    && (!item || d.lines.some((l) => String(l.itemId) === item))
+    && (!warehouse || String(d.warehouseId) === warehouse)
     && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
   const hitPurch = (d: PurchaseDoc) =>
-    (!partner || d.partnerName.includes(partner))
-    && (!item || d.lines.some((l) => l.itemName.includes(item)))
-    && (!warehouse || d.warehouseName.includes(warehouse))
+    (!partner || String(d.partnerId) === partner)
+    && (!item || d.lines.some((l) => String(l.itemId) === item))
+    && (!warehouse || String(d.warehouseId) === warehouse)
     && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
 

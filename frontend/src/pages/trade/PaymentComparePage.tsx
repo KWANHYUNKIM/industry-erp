@@ -28,6 +28,7 @@ interface SettlementRow {
   id: number
   docNo: string
   typeName: string
+  partnerId: number
   partnerName: string
   settleDate: string
   amount: number
@@ -37,6 +38,7 @@ interface SettlementRow {
 interface SalesDoc {
   id: number
   docNo: string
+  partnerId: number
   partnerName: string
   saleDate: string
   supplyAmount: number
@@ -48,6 +50,8 @@ interface SalesDoc {
 interface CompareRow {
   key: string
   date: string
+  /** 줄을 묶고 거래처 조건을 거는 축. 이름은 겹칠 수 있어 id 로 묶는다. */
+  partnerId: number
   partnerName: string
   saleDocNos: string[]
   supplyAmount: number
@@ -154,10 +158,10 @@ export default function PaymentComparePage() {
    */
   const compared = useMemo(() => {
     const m = new Map<string, CompareRow>()
-    const at = (date: string, partnerName: string) => {
-      const key = `${date}|${partnerName}`
+    const at = (date: string, partnerId: number, partnerName: string) => {
+      const key = `${date}|${partnerId}`
       const cur = m.get(key) ?? {
-        key, date, partnerName,
+        key, date, partnerId, partnerName,
         saleDocNos: [], supplyAmount: 0, vatAmount: 0, saleTotal: 0,
         payDocNos: [], payTotal: 0,
       }
@@ -166,7 +170,7 @@ export default function PaymentComparePage() {
     }
     for (const d of sales) {
       if (d.saleDate < from || d.saleDate > to) continue
-      const r = at(d.saleDate, d.partnerName)
+      const r = at(d.saleDate, d.partnerId, d.partnerName)
       r.saleDocNos.push(d.docNo)
       r.supplyAmount += d.supplyAmount
       r.vatAmount += d.vatAmount
@@ -176,7 +180,7 @@ export default function PaymentComparePage() {
       if (p.settleDate < from || p.settleDate > to) continue
       // 지급(구매 대금)은 판매와 맞댈 것이 아니다 — 수금만 본다.
       if (p.typeName !== '수금') continue
-      const r = at(p.settleDate, p.partnerName)
+      const r = at(p.settleDate, p.partnerId, p.partnerName)
       r.payDocNos.push(p.docNo)
       r.payTotal += p.amount
     }
@@ -191,9 +195,7 @@ export default function PaymentComparePage() {
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
 
   const shown = useMemo(() => compared.filter((r) => {
-    if (partner && !(r.partnerName.includes(partner)
-      || r.saleDocNos.some((n) => n.includes(partner))
-      || r.payDocNos.some((n) => n.includes(partner)))) return false
+    if (partner && String(r.partnerId) !== partner) return false
     if (partnerGroup && groupOfName(r.partnerName) !== partnerGroup) return false
     if (basis !== '전체') {
       const same = Math.abs(r.saleTotal - r.payTotal) < 0.005

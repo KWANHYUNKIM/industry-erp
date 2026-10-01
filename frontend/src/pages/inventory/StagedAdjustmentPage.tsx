@@ -113,7 +113,7 @@ export default function StagedAdjustmentPage() {
   const shown = useMemo(() => rows
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.adjustNo.includes(keyword) || r.warehouseName.includes(keyword))
-    .filter((r) => !whCond || r.warehouseName === whCond)
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond)),
   [rows, tab, keyword, reasonCond, whCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)

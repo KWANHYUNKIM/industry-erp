@@ -36,13 +36,16 @@ const STATUS_COLOR: Record<WoStatus, string> = {
 interface Row {
   id: number
   orderNo: string
+  productId: number
   productCode: string
   productName: string
   /** 원본 열 이름이 [품목명[규격명]] 이다. */
   productSpec: string | null
   productUnit: string
+  warehouseId: number
   warehouseName: string
   /** 납품처. 원본 [거래처명] 열. */
+  partnerId: number | null
   partnerName: string | null
   /** 담당자(사원) id. 이름은 화면이 붙인다. */
   employeeId: number | null
@@ -173,9 +176,9 @@ export default function WoStatusPage() {
 
   const shown = rows.filter((r) => (!keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
     && (!orderNoCond || r.orderNo.includes(orderNoCond))
-    && (!warehouseCond || (r.warehouseName ?? '').includes(warehouseCond))
-    && (!partnerCond || (r.partnerName ?? '').includes(partnerCond))
-    && (!itemCond || r.productName.includes(itemCond))
+    && (!warehouseCond || String(r.warehouseId) === warehouseCond)
+    && (!partnerCond || String(r.partnerId) === partnerCond)
+    && (!itemCond || String(r.productId) === itemCond)
     && (!from || r.orderDate >= from) && (!to || r.orderDate <= to)
     && (!dueFrom || (r.dueDate ?? '') >= dueFrom)
     && (!dueTo || ((r.dueDate ?? '') !== '' && (r.dueDate ?? '') <= dueTo))

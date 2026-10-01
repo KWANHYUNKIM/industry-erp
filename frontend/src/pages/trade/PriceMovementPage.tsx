@@ -168,8 +168,8 @@ export default function PriceMovementPage() {
 
   /** 전표 하나가 조건을 지나는가. 두 표(요약·전표별)가 같은 규칙을 써야 서로 짚을 수 있다. */
   const keepDoc = (d: SalesDoc | PurchaseDoc) =>
-    (!warehouse || d.warehouseName.includes(warehouse))
-    && (!partner || d.partnerName.includes(partner))
+    (!warehouse || String(d.warehouseId) === warehouse)
+    && (!partner || String(d.partnerId) === partner)
     && (!partnerGroup || pgroup.groupOfName(d.partnerName) === partnerGroup)
     && (!partnerMgr || pmgr.managerOfName(d.partnerName) === partnerMgr)
     && (!project || String(d.projectId) === project)

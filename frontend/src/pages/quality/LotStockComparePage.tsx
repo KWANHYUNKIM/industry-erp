@@ -69,7 +69,7 @@ export default function LotStockComparePage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [asOf])
 
   const rows = useMemo<Row[]>(() => {
-    const keep = (name: string | null) => !warehouse || (name ?? '').includes(warehouse)
+    const keep = (id: number | null) => !warehouse || String(id) === warehouse
     const map = new Map<number, Row>()
     const ensure = (itemId: number, code: string, name: string, unit: string): Row => {
       let r = map.get(itemId)
@@ -78,14 +78,14 @@ export default function LotStockComparePage() {
     }
     // 로트가 있는 품목만 대상(로트 추적 품목)
     for (const lot of lots) {
-      if (!keep(lot.warehouseName)) continue
+      if (!keep(lot.warehouseId)) continue
       const r = ensure(lot.itemId, lot.itemCode, lot.itemName, lot.unit)
       r.lotStock += lot.stockQty
       if (lot.stockQty > 0) r.lotCount += 1
     }
     // 품목재고(창고 합계)를 로트 추적 품목에만 더한다
     for (const st of stocks) {
-      if (!keep(st.warehouseName)) continue
+      if (!keep(st.warehouseId)) continue
       const r = map.get(st.itemId)
       if (r) r.itemStock += st.quantity
     }
@@ -97,7 +97,7 @@ export default function LotStockComparePage() {
     const kw = keyword.trim()
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
-      if (item && !r.itemName.includes(item)) return false
+      if (item && String(r.itemId) !== item) return false
       if (diffOnly && r.diff === 0) return false
       return true
     })

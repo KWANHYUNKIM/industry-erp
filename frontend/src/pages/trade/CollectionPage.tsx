@@ -124,7 +124,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const shown = rows
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
-    .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
     .filter((r) => !cond.partnerGroup || pgroup.groupOfName(r.partnerName) === cond.partnerGroup)
     .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.

@@ -46,6 +46,7 @@ interface Expense {
   accountName: string
   accountGroupName: string | null
   content: string | null
+  partnerId: number | null
   partnerName: string | null
   amount: number
   paymentMethod: string | null
@@ -130,7 +131,7 @@ export default function ExpenseDetailPage() {
     .filter((r) => !keyword || r.accountName.includes(keyword) || (r.content ?? '').includes(keyword) || (r.department ?? '').includes(keyword))
     .filter((r) => groupCond === '전체' || r.accountGroupName === groupCond)
     .filter((r) => !empCond || (r.createdBy ?? '').includes(empCond))
-    .filter((r) => !partnerCond || (r.partnerName ?? '').includes(partnerCond))
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !partnerGroupCond || pgroup.groupOfName(r.partnerName ?? '') === partnerGroupCond)
     .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !remarkCond || (r.content ?? '').includes(remarkCond))

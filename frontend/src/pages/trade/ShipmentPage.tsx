@@ -72,6 +72,7 @@ interface Shipment {
   totalAmount: number
   salesOrderNo: string | null
   /** 창고명. 원본 출하현황의 [창고명] 열 — 어느 창고에서 나갔는지가 안 보였다. */
+  warehouseId: number | null
   warehouseName: string | null
   /** 귀속 프로젝트. 원본 출하현황 조건의 [프로젝트]. */
   projectId: number | null
@@ -156,9 +157,9 @@ export default function ShipmentPage() {
   const matches = (r: Shipment) => {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
-    if (partner && !r.partnerName.includes(partner)) return false
-    if (item && !r.lines.some((l) => `${l.itemCode} ${l.itemName}`.includes(item))) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (partner && String(r.partnerId) !== partner) return false
+    if (item && !r.lines.some((l) => String(l.itemId) === item)) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (project && String(r.projectId) !== project) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
     if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false

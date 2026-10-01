@@ -127,7 +127,7 @@ export default function StocktakeStatusPage() {
     .filter((r) => !cond.from || r.requestDate >= cond.from)
     .filter((r) => !cond.to || r.requestDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     /* 원본 재고실사현황 차례: 구분 · 창고 · 품목 · <b>담당자</b> · 적요.
        실사를 누가 맞췄는지가 자료에는 있는데 거를 수가 없었다. */
     .filter((r) => !cond.handler || (r.handler ?? '') === cond.handler)

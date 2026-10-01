@@ -63,6 +63,7 @@ interface WorkOrder {
    * 예전에는 작업지시에 그 값이 없어 두 조건을 만들 수 없었다.
    * 담당자 <b>이름</b>은 서버가 못 붙인다 — production 은 hr 을 참조할 수 없다.
    */
+  partnerId: number | null
   partnerName: string | null
   employeeId: number | null
   plannedQty: number
@@ -230,9 +231,10 @@ export default function WoProgressPage() {
 
   /** 품목 → 그 품목의 BOM 자재 이름들. [품목코드(하위품목)] 이 이 값을 본다. */
   const bomOf = useMemo(() => {
-    const m = new Map<number, string>()
+    // 소모품목 조건은 코드도움의 id 로 걸린다 — 이름이 같은 자재가 섞이지 않게 id 를 모아 둔다.
+    const m = new Map<number, Set<string>>()
     for (const b of boms) {
-      m.set(b.productId, b.lines.map((l) => `${l.componentCode} ${l.componentName}`).join(' | '))
+      m.set(b.productId, new Set(b.lines.map((l) => String(l.componentId))))
     }
     return m
   }, [boms])
@@ -244,16 +246,16 @@ export default function WoProgressPage() {
   const shown = useMemo(() => orders.filter((o) => {
     if (o.orderDate < from || o.orderDate > to) return false
     if (orderNo && !o.orderNo.includes(orderNo)) return false
-    if (item && !`${o.productCode} ${o.productName}`.includes(item)) return false
-    if (warehouse && !(o.warehouseName ?? '').includes(warehouse)) return false
-    if (partner && !(o.partnerName ?? '').includes(partner)) return false
+    if (item && String(o.productId) !== item) return false
+    if (warehouse && String(o.warehouseId) !== warehouse) return false
+    if (partner && String(o.partnerId) !== partner) return false
     if (partnerManager
       && !(managerOf.get(o.partnerName ?? '') ?? '').includes(partnerManager)) return false
     if (emp && !empName(o.employeeId).includes(emp)) return false
     if (partnerGroup && pgroup.groupOfName(o.partnerName) !== partnerGroup) return false
     if (category && (o.productCategoryName ?? categoryOf(o.productId)) !== category) return false
     if (itemGroup && groupOf(o.productId) !== itemGroup) return false
-    if (component && !(bomOf.get(o.productId) ?? '').includes(component)) return false
+    if (component && !bomOf.get(o.productId)?.has(component)) return false
     if (dueFrom && (!o.dueDate || o.dueDate < dueFrom)) return false
     if (dueTo && (!o.dueDate || o.dueDate > dueTo)) return false
     if (remarkCond && !(o.remark ?? '').includes(remarkCond)) return false

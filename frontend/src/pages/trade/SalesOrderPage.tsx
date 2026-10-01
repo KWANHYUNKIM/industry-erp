@@ -186,7 +186,7 @@ export default function SalesOrderPage() {
                 <td>
                   <CodePickerField label="창고" hideLabel width={170} emptyLabel="선택 안 함"
                                    value={fWarehouse} onChange={setFWarehouse}
-                                   items={pickers.warehouses.map((x) => ({ ...x, value: String(x.id) }))} />
+                                   items={pickers.warehouses} />
                 </td>
                 <th style={th}>프로젝트</th>
                 <td>

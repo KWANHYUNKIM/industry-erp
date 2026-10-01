@@ -49,6 +49,9 @@ interface Row {
   validUntil: string | null
   quoteNo: string
   partner: string
+  /** 거래처·창고 조건(코드도움)은 id 로 견준다 — 이름은 겹칠 수 있다. */
+  partnerId: number
+  warehouseId: number | null
   /** 원본 [창고]·[프로젝트]·[적요]·[작성자]. 응답이 진작 싣던 값이다. */
   warehouse: string | null
   project: string | null
@@ -169,7 +172,9 @@ export default function UnorderedStatusPage() {
           validUntil: q.validUntil,
           quoteNo: q.quoteNo,
           partner: q.partnerName,
+          partnerId: q.partnerId,
           warehouse: q.warehouseName,
+          warehouseId: q.warehouseId ?? null,
           project: q.projectName,
           projectId: q.projectId,
           remark: q.remark,
@@ -205,10 +210,10 @@ export default function UnorderedStatusPage() {
       if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.quoteNo.includes(kw)) return false
       if (f.dateFrom && r.date < f.dateFrom) return false
       if (f.dateTo && r.date > f.dateTo) return false
-      if (f.partner && !r.partner.includes(f.partner)) return false
+      if (f.partner && String(r.partnerId) !== f.partner) return false
       if (f.quoteNo && !r.quoteNo.includes(f.quoteNo)) return false
-      if (f.item && !r.itemName.includes(f.item)) return false
-      if (f.warehouse && !(r.warehouse ?? '').includes(f.warehouse)) return false
+      if (f.item && String(r.itemId) !== f.item) return false
+      if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
       if (f.project && String(r.projectId) !== f.project) return false
       if (f.mgmt && mgmt.nameOf(r.itemId) !== f.mgmt) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false

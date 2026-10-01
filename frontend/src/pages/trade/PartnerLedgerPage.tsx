@@ -127,12 +127,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
    */
   const [basis, setBasis] = useState<LedgerBasis>('거래처관계기준')
   /**
- * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partner=거래처명).
+ * 거래처중심입력에서 넘어올 때 <b>그 거래처를 물고</b> 열린다(?partnerId=거래처id).
+ * 코드도움 값이 id 라서 이름이 아니라 id 로 문다 — 이름은 겹칠 수 있다.
  * 허브에서 골라 놓고 넘어왔는데 전체 목록이 나오면 다시 거르게 되고,
  * 그러면 허브가 있으나 마나다.
  */
   const [searchParams] = useSearchParams()
-  const [partner, setPartner] = useState(searchParams.get('partner') ?? '')
+  const [partner, setPartner] = useState(searchParams.get('partnerId') ?? '')
   /** 원본 [거래처그룹1] — 거래처 마스터에서 잇는다(하나뿐인 그룹에 원본의 1 을 붙인다). */
   const pgroups = usePartnerGroups()
   const [partnerGroup, setPartnerGroup] = useState('')
@@ -224,7 +225,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
 
   const bySide = useMemo(
     () => all.filter((e) => (side === '전체' || e.side === side)
-      && (!partner || e.partnerName.includes(partner))
+      && (!partner || String(e.partnerId) === partner)
       /* 원본 [거래처그룹1]. 거래처 마스터에 붙는 값이라 전표에서는 이름으로 잇는다. */
       && (!partnerGroup || pgroups.groupOfName(e.partnerName) === partnerGroup)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */

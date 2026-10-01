@@ -108,55 +108,51 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     // 증가/감소 소스: 채권=매출/수금, 채무=매입/지급
     /* 거래처를 고르면 <b>증가·감소 양쪽</b>을 같이 좁힌다 — 한쪽만 좁히면 잔액이 거짓말이 된다. */
     /*
-     * 고른 거래처의 <b>이름 집합</b>을 먼저 만든다. [대표거래처로 합산]을 켜면 그 회사를
-     * 대표로 둔 거래처의 이름을 함께 넣는다 — 전표는 이름으로만 이어져 있어서다.
+     * 고른 거래처의 <b>id 집합</b>을 먼저 만든다(코드도움 값이 id 다 — 거래처명은 겹칠 수 있다).
+     * [대표거래처로 합산]을 켜면 그 회사를 대표로 둔 거래처를 함께 넣는다.
      */
-    const 고른이름 = new Set<string>()
+    const 고른id = new Set<number>()
     if (partner) {
-      고른이름.add(partner)
-      if (rollUp) {
-        const 머리 = partnerRows.find((p) => p.name === partner)
-        if (머리) for (const p of partnerRows) if (p.parentId === 머리.id) 고른이름.add(p.name)
-      }
+      고른id.add(Number(partner))
+      if (rollUp) for (const p of partnerRows) if (String(p.parentId) === partner) 고른id.add(p.id)
     }
     /*
      * 원본 [거래처그룹1] — 담당자와 같은 성질이다. 거래처 마스터에 붙는 값이라
      * 전표에서는 이름으로 잇는다. 하나뿐인 그룹에 원본의 '1' 을 붙인다(거래처등록과 같다).
      */
-    const 그룹이름 = partnerGroup
-      ? new Set(partnerRows.filter((p) => (p.partnerGroupName ?? '') === partnerGroup).map((p) => p.name))
+    const 그룹id = partnerGroup
+      ? new Set(partnerRows.filter((p) => (p.partnerGroupName ?? '') === partnerGroup).map((p) => p.id))
       : null
-    /* 담당자로 좁힐 때 쓸 이름 집합. 거래처 마스터의 값이라 전표에서는 이름으로 잇는다. */
-    const 담당이름 = manager
-      ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.name))
+    /* 담당자로 좁힐 때 쓸 거래처 id 집합. 거래처 마스터의 값이라 전표에서는 거래처 id 로 잇는다. */
+    const 담당id = manager
+      ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.id))
       : null
-    const mine = (name: string | null | undefined) => {
-      const n = name ?? ''
-      if (고른이름.size && !고른이름.has(n)) return false
-      if (담당이름 && !담당이름.has(n)) return false
-      if (그룹이름 && !그룹이름.has(n)) return false
+    const keep = (id: number) => {
+      if (고른id.size && !고른id.has(id)) return false
+      if (담당id && !담당id.has(id)) return false
+      if (그룹id && !그룹id.has(id)) return false
       return true
     }
     /* 거래처 축을 세우려면 이름을 버리면 안 된다 - 원본 격자가 거래처별 두 줄이다. */
     const incDocs = mode === 'AR'
-      ? sales.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.saleDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
-      : purchases.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
+      ? sales.filter((d) => keep(d.partnerId)).map((d) => ({ date: d.saleDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
+      : purchases.filter((d) => keep(d.partnerId)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
     const decType: SettlementType = mode === 'AR' ? 'RECEIPT' : 'PAYMENT'
-    const decDocs = settlements.filter((s) => s.type === decType && mine(s.partnerName))
+    const decDocs = settlements.filter((s) => s.type === decType && keep(s.partnerId))
       .map((s) => ({ date: s.settleDate, amt: s.amount, name: s.partnerName ?? '' }))
 
     /*
-     * <b>거르는 잣대를 함께 낸다.</b> 이월(서버가 낸 기초잔액)도 줄과 <b>같은 잣대</b>로
-     * 걸러야 한다 — 그 해에 거래가 없던 거래처도 이월은 있을 수 있어서,
-     * '그 해 전표에 나온 이름' 으로 거르면 그런 거래처의 이월이 조용히 빠진다.
+     * 이월(서버가 낸 기초잔액)도 줄과 <b>같은 잣대</b>로 여기서 거른다 — 그 해에 거래가
+     * 없던 거래처도 이월은 있을 수 있어서, '그 해 전표에 나온 거래처' 로 거르면 그런
+     * 거래처의 이월이 조용히 빠진다. 다 거른 뒤라 셈(monthlyArAp)의 mine 은 전부 통과시킨다.
      */
-    return { inc: incDocs, dec: decDocs, mine }
-  }, [sales, purchases, settlements, mode, partner, manager, rollUp, partnerRows, partnerGroup])
+    return { inc: incDocs, dec: decDocs, openings: openings.filter((b) => keep(b.partnerId)), mine: () => true }
+  }, [sales, purchases, settlements, openings, mode, partner, manager, rollUp, partnerRows, partnerGroup])
 
   /* 셈은 utils/monthlyArAp 에 있다 — 거래처별 표와 늘 맞아야 해서 테스트로 못 박았다. */
   const rows = useMemo<MonthRow[]>(
-    () => monthRows(docs.inc, docs.dec, openings, docs.mine, mode, year),
-    [docs, openings, mode, year])
+    () => monthRows(docs.inc, docs.dec, docs.openings, docs.mine, mode, year),
+    [docs, mode, year])
 
   /**
    * 원본 격자 - <b>거래처별 × 달</b>. 우리는 온 회사를 달마다 한 줄로만 보여 주고 있어서
@@ -170,8 +166,8 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
    */
   const byPartner = useMemo<PartnerYearRow[]>(() => {
     const codeOf = new Map(partnerRows.map((p) => [p.name, p.code]))
-    return partnerYearRows(docs.inc, docs.dec, openings, docs.mine, mode, year, (n) => codeOf.get(n) ?? '')
-  }, [docs, partnerRows, year, openings, mode])
+    return partnerYearRows(docs.inc, docs.dec, docs.openings, docs.mine, mode, year, (n) => codeOf.get(n) ?? '')
+  }, [docs, partnerRows, year, mode])
 
   /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
   const managers = useMemo(

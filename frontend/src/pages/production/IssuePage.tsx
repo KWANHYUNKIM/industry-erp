@@ -339,12 +339,11 @@ export default function IssuePage() {
   const shown = rows
     .filter((r) => (!from || r.issueDate >= from) && (!to || r.issueDate <= to))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
-    .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond)
-      || (r.toWarehouseName ?? '').includes(whCond))
-    .filter((r) => !itemCond || r.itemName.includes(itemCond))
+    .filter((r) => !whCond || String(r.warehouseId) === whCond || String(r.toWarehouseId) === whCond)
+    .filter((r) => !itemCond || String(r.itemId) === itemCond)
     /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
-    .filter((r) => !fromWhCond || (r.warehouseName ?? '').includes(fromWhCond))
-    .filter((r) => !toWhCond || (r.toWarehouseName ?? '').includes(toWhCond))
+    .filter((r) => !fromWhCond || String(r.warehouseId) === fromWhCond)
+    .filter((r) => !toWhCond || String(r.toWarehouseId) === toWhCond)
     .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
     .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
     .filter((r) => !projectCond || (r.projectName ?? '') === projectCond)

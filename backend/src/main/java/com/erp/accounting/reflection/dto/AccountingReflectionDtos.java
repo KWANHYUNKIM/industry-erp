@@ -36,6 +36,8 @@ public final class AccountingReflectionDtos {
      * 요약("첫 품목 외 N건")만으로는 <b>어느 품목이 회계로 안 넘어갔는지</b> 알 수 없다.
      */
     public record SlipLine(
+            /** 품목 조건이 id 로 거른다 — 이름이 같고 규격만 다른 품목이 정상이다. */
+            Long itemId,
             String itemCode, String itemName,
             /**
              * 규격 · 품목구분 · 근거 전표번호 — 2026-09-08 원본 회계미반영현황(판매)
@@ -56,6 +58,8 @@ public final class AccountingReflectionDtos {
             LocalDate slipDate,
             Long partnerId,
             String partnerName,
+            /** 창고 조건이 id 로 거른다 — 창고명은 유일하지 않다. */
+            Long warehouseId,
             String warehouseName,
             /** 프로젝트 조건이 id 로 거른다 — 이름은 겹칠 수 있다. */
             Long projectId,
@@ -100,7 +104,7 @@ public final class AccountingReflectionDtos {
         /** 반영된 줄에 분개를 붙인다. 목록을 만든 뒤 한 번에 채운다(N+1 방지). */
         public SlipResponse withJournal(Long entryId, String docNo) {
             return new SlipResponse(id, kind, this.docNo, slipDate, partnerId, partnerName,
-                    warehouseName, projectId, projectName, employeeName, partnerManager, itemSummary,
+                    warehouseId, warehouseName, projectId, projectName, employeeName, partnerManager, itemSummary,
                     supplyAmount, vatAmount, totalAmount, vatType, tradeKind, reflected,
                     entryId, docNo, createdBy, createdAt, note, lines);
         }
@@ -108,6 +112,7 @@ public final class AccountingReflectionDtos {
             return new SlipResponse(
                     s.getId(), SlipKind.SALES, s.getDocNo(), s.getSaleDate(),
                     s.getPartner().getId(), s.getPartner().getName(),
+                    s.getWarehouse() != null ? s.getWarehouse().getId() : null,
                     s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
@@ -120,7 +125,7 @@ public final class AccountingReflectionDtos {
                     s.isAccountingReflected(),
                     null, null, s.getCreatedBy(), s.getCreatedAt(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
-                            l.getItem().getCode(), l.getItem().getName(),
+                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
                             l.getItem().getSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
@@ -132,6 +137,7 @@ public final class AccountingReflectionDtos {
             return new SlipResponse(
                     p.getId(), SlipKind.PURCHASE, p.getDocNo(), p.getPurchaseDate(),
                     p.getPartner().getId(), p.getPartner().getName(),
+                    p.getWarehouse() != null ? p.getWarehouse().getId() : null,
                     p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,
@@ -144,7 +150,7 @@ public final class AccountingReflectionDtos {
                     p.isAccountingReflected(),
                     null, null, p.getCreatedBy(), p.getCreatedAt(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
-                            l.getItem().getCode(), l.getItem().getName(),
+                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
                             l.getItem().getSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
@@ -163,7 +169,7 @@ public final class AccountingReflectionDtos {
             return new SlipResponse(
                     st.getId(), SlipKind.SETTLEMENT, st.getDocNo(), st.getSettleDate(),
                     st.getPartner().getId(), st.getPartner().getName(),
-                    null,
+                    null, null,
                     st.getProject() != null ? st.getProject().getId() : null,
                     st.getProject() != null ? st.getProject().getName() : null,
                     null,

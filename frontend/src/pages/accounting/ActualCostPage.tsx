@@ -151,6 +151,8 @@ export default function ActualCostPage() {
   const [mode, setMode] = useState<Mode>('원가집계표')
   const [period, setPeriod] = useState(thisMonth())
   const [keyword, setKeyword] = useState('')
+  // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
+  const [itemCond, setItemCond] = useState('')
   const [withInactive, setWithInactive] = useState(true)
   const [movement, setMovement] = useState<MovementRow[]>([])
   const [ledger, setLedger] = useState<LedgerRow[]>([])
@@ -248,6 +250,7 @@ export default function ActualCostPage() {
     if (!withUntracked && untracked.has(itemId)) return false
     if (categoryCond && (categoryOf.get(itemId) ?? '') !== categoryCond) return false
     if (itemGroupCond && mgmt.groupOf(itemId) !== itemGroupCond) return false
+    if (itemCond && String(itemId) !== itemCond) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
@@ -263,7 +266,7 @@ export default function ActualCostPage() {
       }
     })
     .sort((a, b) => a.itemCode.localeCompare(b.itemCode)),
-  [movement, priceOf, categoryOf, keyword, withInactive, inactive, withUntracked, untracked])
+  [movement, priceOf, categoryOf, keyword, itemCond, withInactive, inactive, withUntracked, untracked])
 
   /**
    * 원본 원가집계표의 <b>품목구분별 소계</b>(원재료 계 · 부재료 계 · … · 누계).
@@ -295,7 +298,7 @@ export default function ActualCostPage() {
     .filter((r) => (mode === '증가내역' ? r.quantityChange > 0 : r.quantityChange < 0))
     .filter((r) => hit(r.itemCode, r.itemName, r.itemId))
     .sort((a, b) => (a.transactionDate < b.transactionDate ? 1 : a.transactionDate > b.transactionDate ? -1 : b.id - a.id)),
-  [ledger, mode, keyword, withInactive, inactive, withUntracked, untracked])
+  [ledger, mode, keyword, itemCond, withInactive, inactive, withUntracked, untracked])
 
   /*
    * <b>그리는 줄만 자른다.</b> 아래 합계는 <code>detail</code> 전부를 더하므로 숫자는 안 변한다 —
@@ -358,7 +361,7 @@ export default function ActualCostPage() {
       onSearch={load}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setPeriod(thisMonth()); setKeyword(''); setWithInactive(false) } },
+        { label: '다시 작성', onClick: () => { setPeriod(thisMonth()); setKeyword(''); setItemCond(''); setWithInactive(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -379,7 +382,7 @@ export default function ActualCostPage() {
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={itemCond} onChange={(v) => setItemCond(v)}
                            items={pickers.items} />
         </EcCond>
         {/*

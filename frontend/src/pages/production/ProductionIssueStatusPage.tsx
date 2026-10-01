@@ -206,8 +206,8 @@ export default function ProductionIssueStatusPage() {
    * 한쪽만 보면 "그 자재가 어디에 쓰였나"를 못 찾는다.
    */
   const hitItem = (p: Production) => !cond.item
-    || p.productName.includes(cond.item) || p.productCode.includes(cond.item)
-    || p.materials.some((m) => m.componentName.includes(cond.item) || m.componentCode.includes(cond.item))
+    || String(p.productId) === cond.item
+    || p.materials.some((m) => String(m.componentId) === cond.item)
 
   /** 품목 id → 품목구분. 원본 [생산품목구분]·[소모품목구분]이 쓰는 축이다. */
   const catOf = useMemo(
@@ -232,10 +232,8 @@ export default function ProductionIssueStatusPage() {
     .filter((p) => !cond.manager || (nameOfEmployee.get(p.employeeId ?? -1) ?? '') === cond.manager)
     .filter(hitItem)
     // 원본 조건의 [생산품목]·[소모품목] — 둘을 함께 걸면 그 조합만 남는다.
-    .filter((p) => !cond.product
-      || p.productName.includes(cond.product) || p.productCode.includes(cond.product))
-    .filter((p) => !cond.material
-      || p.materials.some((m) => m.componentName.includes(cond.material) || m.componentCode.includes(cond.material)))
+    .filter((p) => !cond.product || String(p.productId) === cond.product)
+    .filter((p) => !cond.material || p.materials.some((m) => String(m.componentId) === cond.material))
     /* 원본 [생산품목구분]·[소모품목구분]. 품목 마스터의 품목구분으로 거른다. */
     .filter((p) => !cond.productCat || catOf.get(p.productId) === cond.productCat)
     .filter((p) => !cond.materialCat

@@ -162,7 +162,9 @@ export default function WarehouseStockPage() {
       .filter((it) => !cond.rollUp || it.parentItemId == null)
       .filter((it) => cond.withUntracked || !untracked.has(it.id))
       .filter((it) => cond.inactiveItem || it.active)
-      .filter((it) => !cond.item || it.name.includes(cond.item) || it.code.includes(cond.item))
+      // 합산이면 형제를 고른 것도 대표 줄로 잡는다 — 형제 줄은 대표 줄에 들어가 있다.
+      .filter((it) => !cond.item || String(it.id) === cond.item
+        || (cond.rollUp && String(it.id) === String(items.find((x) => String(x.id) === cond.item)?.parentItemId)))
       .filter((it) => !cond.category || categoryOf(it.id) === cond.category)
       .filter((it) => !cond.itemGroup || groupOf(it.id) === cond.itemGroup)
       .filter((it) => cond.zeroItem || total(it.id) !== 0)

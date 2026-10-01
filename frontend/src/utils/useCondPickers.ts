@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { partnerCodeItems, type PartnerLike, type PartnerCodeItem } from './codeItems'
+import { partnerCodeItem, type PartnerLike, type PartnerCodeItem } from './codeItems'
 
 /**
  * 조회조건에 쓰는 <b>코드도움 후보</b>를 한 번에 받아 둔다.
@@ -32,11 +32,18 @@ export interface CondPickerItem {
 }
 
 export interface CondPickers {
-  /** 거래처. 값은 <b>거래처명</b>이다 — 조건이 이름 부분일치로 걸리기 때문이다. */
-  partners: PartnerCodeItem[]
-  /** 창고. 값은 창고명. id 도 싣는다 — 전표 입력칸은 id 로 보낸다. */
+  /**
+   * 거래처. 값은 <b>거래처 id</b>(문자열)다. DB 에서 유일한 건 코드뿐이고 이름은 겹칠 수 있다.
+   * 화면은 String(row.partnerId) === 값 으로 거른다 — 예전처럼 partnerName.includes(값) 으로
+   * 거르면 목록이 통째로 빈다.
+   */
+  partners: (PartnerCodeItem & { id: number })[]
+  /** 창고. 값은 <b>창고 id</b>(문자열). 이름은 유일하지 않다. 화면은 String(row.warehouseId) === 값. */
   warehouses: CondPickerItem[]
-  /** 품목. 값은 품목명. */
+  /**
+   * 품목. 값은 <b>품목 id</b>(문자열). 제조업에선 이름이 같고 규격만 다른 품목이 정상이라
+   * 이름으로 거르면 다른 품목이 한데 섞인다. 화면은 String(line.itemId) === 값.
+   */
   items: CondPickerItem[]
   /**
    * 프로젝트. 값은 <b>프로젝트 id</b>(문자열)다 — 이름이 아니다. 프로젝트는 이름이 겹치는 게
@@ -66,17 +73,11 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
     if (need.has('partners')) {
       jobs.push(api.get<PartnerLike[]>('/partners')
         /*
-         * 값은 <b>거래처명</b>이다 — 창고·품목·프로젝트와 같다. 조회조건은 이름
-         * 부분일치로 거르기 때문이다.
-         *
-         * <p>예전에는 여기만 partnerCodeItems 를 그대로 써서 값이 <b>id</b> 였다.
-         * 그러면 거래처를 고르는 순간 partnerName.includes('12') 가 되어
-         * <b>목록이 통째로 비었다</b> — 고른 사람은 '그 거래처는 거래가 없구나' 로 읽는다.
-         * 대장·이익현황·회계반영·수금현황 등 일곱 화면이 그 상태였다.
+         * 값은 <b>id</b> 다(partnerCodeItem 그대로). 예전엔 이름으로 바꿔 담았는데, 이름이 겹치는
+         * 거래처가 한데 잡혔다. 그보다 전엔 id 를 주면서 화면이 partnerName.includes(id) 로
+         * 걸러 목록이 통째로 비었다 — 그래서 화면 쪽을 id 비교로 바꾼 것이다.
          */
-        .then((r) => ({
-          partners: partnerCodeItems(r.data).map((x) => ({ ...x, value: x.name })),
-        }))
+        .then((r) => ({ partners: r.data.map((p) => ({ ...partnerCodeItem(p), id: p.id })) }))
         .catch(() => ({})))
     }
     if (need.has('warehouses')) {
@@ -84,7 +85,7 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
         .then((r) => ({
           // 사용중단한 창고는 새로 거를 일이 없다 — 목록이 길어지기만 한다.
           warehouses: r.data.filter((w) => w.active !== false)
-            .map((w) => ({ value: w.name, id: w.id, code: w.code, name: w.name })),
+            .map((w) => ({ value: String(w.id), id: w.id, code: w.code, name: w.name })),
         }))
         .catch(() => ({})))
     }
@@ -92,7 +93,7 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
       jobs.push(api.get<{ id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }[]>('/items')
         .then((r) => ({
           items: r.data.filter((x) => x.active !== false)
-            .map((x) => ({ value: x.name, id: x.id, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword })),
+            .map((x) => ({ value: String(x.id), id: x.id, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword })),
         }))
         .catch(() => ({})))
     }

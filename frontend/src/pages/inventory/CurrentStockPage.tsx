@@ -141,7 +141,7 @@ export default function CurrentStockPage() {
     .filter((r) => !cond.itemGroup || groupOf(r.itemId) === cond.itemGroup)
     .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
     .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
 
