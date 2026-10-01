@@ -811,7 +811,6 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
     ['trade/PartnersPage.tsx|세무신고거래처', '위와 같음 — 거래처를 고르는 칸이 아니라 <b>대상/제외</b> 두 값이다'],
     ['production/ResourcePage.tsx|자원명 *', '남의 자원을 고르는 칸이 아니라 <b>이 자원의 이름</b>이다'],
     ['groupware/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
-    ['groupware/ApprovalListPage.tsx|프로젝트', '위와 같음'],
     /*
      * 이름 안에 마스터 낱말이 <b>들어 있을 뿐</b>인 칸들. '품목공유여부'에 '품목'이,
      * '생산전표생성-창고이동'에 '창고'가 들어 있어 걸렸다 — 둘 다 고를 값이 둘뿐이다.
@@ -6386,6 +6385,23 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
     }
   }
   eq(`화면 오류가 창 ${checked}개 안에도 뜬다`, bad.join('\n') || '없음', '없음')
+}
+
+/*
+ * 마스터(품목·거래처·사원·프로젝트·작업지시 …)를 고르는 칸은 드롭다운이 아니라 코드도움이다.
+ * 드롭다운은 항목이 수백이면 찾을 수가 없다 — 4·9·17·21회차에 화면마다 따로 고치다 21회차에 한꺼번에 바꿨다.
+ * 창고는 수가 적어 아직 드롭다운을 허용한다(바꾸면 이 목록에서 뺄 것).
+ */
+{
+  const bad = []
+  const MASTER = /^(items|products|materials|partners|customers|suppliers|users|employees|members|projects|workOrders|orders|selectable)$/
+  for (const f of walk(join('frontend', 'src')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/<select\b[\s\S]{0,400}?\{\s*(\w+)(?:\.filter\([^)]*\))?\.map\(\((\w+)\)\s*=>\s*<option/g)) {
+      if (MASTER.test(m[1])) bad.push(`${f.split(sep).pop()}  ${src.slice(0, m.index).split('\n').length}행 — ${m[1]} 를 드롭다운으로 고른다`)
+    }
+  }
+  eq('마스터를 고르는 칸은 코드도움이다(창고 제외)', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-q) 고를 수는 있는데 아무 일도 안 하는 조건 ─────────────────────────

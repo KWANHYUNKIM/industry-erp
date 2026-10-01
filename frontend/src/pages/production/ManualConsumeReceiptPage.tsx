@@ -245,10 +245,10 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업지시 *</label>
-              <select className={inputCls} value={form.workOrderId} onChange={(e) => setForm({ ...form, workOrderId: e.target.value })}>
-                <option value="">선택</option>
-                {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName}, 잔여 {w.remainingQty})</option>)}
-              </select>
+              {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+              <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 해제"
+                               value={form.workOrderId} onChange={(v) => setForm({ ...form, workOrderId: v })}
+                               items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName, sub: `잔여 ${w.remainingQty}` }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">입고수량 *</label>

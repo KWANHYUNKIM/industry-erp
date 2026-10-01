@@ -10,6 +10,7 @@ import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate, ApprovalStatus } from '../../types/api'
 import ApprovalDetailModal, { STATUS_LABEL, VOUCHER_LABEL, statusColor } from '../../features/approval/components/ApprovalDetailModal'
 import { ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
 
 /**
@@ -177,7 +178,7 @@ export default function ApprovalListPage({
   const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
     .filter((r) => !formType || r.formTypeName === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
-    .filter((r) => !project || (r.projectName ?? '') === project)
+    .filter((r) => !project || String(r.projectId ?? '') === project)
     .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
     .filter((r) => !drafterCond || r.drafterName.includes(drafterCond))
     .filter((r) => !contentCond || (r.content ?? '').includes(contentCond))
@@ -206,7 +207,10 @@ export default function ApprovalListPage({
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
   const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort() as string[]
-  const projects = [...new Set(rows.map((r) => r.projectName).filter(Boolean))].sort() as string[]
+  /* 프로젝트는 이름이 겹칠 수 있어 id 로 고르고 거른다(코드도움). */
+  const projects = [...new Map(rows.filter((r) => r.projectId != null)
+    .map((r) => [r.projectId, { value: String(r.projectId), name: r.projectName ?? '' }])).values()]
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   const labels = [...new Set(rows.map((r) => r.labelText).filter(Boolean))].sort() as string[]
   const approvers = [...new Set(rows.flatMap((r) => (r.lines ?? []).map((l) => l.approverName)))].sort()
 
@@ -439,10 +443,9 @@ export default function ApprovalListPage({
           {depts.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>프로젝트</label>
-        <select className="ec-input" value={project} onChange={(e) => setProject(e.target.value)} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {projects.map((x) => <option key={x} value={x}>{x}</option>)}
-        </select>
+        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+        <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="전체"
+                         value={project} onChange={setProject} items={projects} />
         <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>기안서No.</label>
         <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
                style={{ width: 140 }} placeholder="문서번호 일부" />

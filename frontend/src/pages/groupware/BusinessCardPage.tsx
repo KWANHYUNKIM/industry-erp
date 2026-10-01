@@ -233,10 +233,10 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>보유자</th>
                 <td>
-                  <select className="ec-input" value={ownerUserId} onChange={(e) => setOwnerUserId(e.target.value)} style={{ width: 150 }}>
-                    <option value="">(미지정)</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="보유자" hideLabel width={150} placeholder="보유자" emptyLabel="선택 안 함"
+                                   value={ownerUserId} onChange={setOwnerUserId}
+                                   items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
                 </td>
               </tr>
               <tr>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction, LotTxType } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
 
@@ -78,7 +79,12 @@ export default function LotLedgerPage() {
   const lotNos = useMemo(() => [...new Set(rows.map((r) => r.lotNo))].sort(), [rows])
   const warehouses = useMemo(
     () => [...new Set(rows.map((r) => r.warehouseName).filter(Boolean) as string[])].sort(), [rows])
-  const items = useMemo(() => [...new Set(rows.map((r) => r.itemName))].sort(), [rows])
+  /* 품목은 이름이 겹칠 수 있어(규격만 다른 품목) id 로 고르고 거른다. */
+  const items = useMemo(() => {
+    const m = new Map<number, { value: string; code: string; name: string }>()
+    for (const r of rows) if (!m.has(r.itemId)) m.set(r.itemId, { value: String(r.itemId), code: r.itemCode, name: r.itemName })
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [rows])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -88,7 +94,7 @@ export default function LotLedgerPage() {
       /* [입출고수량0제외] — 움직이지 않은 줄(조정으로 0 이 찍힌 것)을 뺀다. */
       if (hideZero && r.quantityChange === 0) return false
       if (warehouse && r.warehouseName !== warehouse) return false
-      if (item && r.itemName !== item) return false
+      if (item && String(r.itemId) !== item) return false
       if (lotNo && r.lotNo !== lotNo) return false
       if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
@@ -179,10 +185,9 @@ export default function LotLedgerPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>품목</span>
-          <select className="ec-input" value={item} onChange={(e) => setItem(e.target.value)} style={{ width: 200 }}>
-            <option value="">전체</option>
-            {items.map((it) => <option key={it} value={it}>{it}</option>)}
-          </select>
+          {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+          <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="전체"
+                           value={item} onChange={setItem} items={items} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>로트</span>

@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
 
@@ -28,7 +29,7 @@ import ProcessExpenseModal from './ProcessExpenseModal'
  * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록에
  * 적힌 실제 발생액에서 나온다. 우리는 표준만 있었고 실제원가는 사람이 손으로 넣어야 했다.
  */
-interface Item { id: number; code: string; name: string }
+interface Item { id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }
 interface Cost {
   id: number
   itemId: number
@@ -242,16 +243,16 @@ export default function CostBuildPage() {
             {editId ? `원가 수정 — ${editItemName}` : '원가 등록'}
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
               {editId ? (
                 <input className="ec-input" value={editItemName ?? ''} disabled style={{ width: 180 }} />
               ) : (
-                <select className="ec-input" value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 180 }}>
-                  <option value="">선택하세요</option>
-                  {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                </select>
+                <CodePickerField label="품목" hideLabel width={180} placeholder="품목" emptyLabel="선택 해제"
+                                 value={form.itemId} onChange={(v) => set('itemId', v)}
+                                 items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
               )}
-            </label>
+            </div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적용기간 *</div>
               <input className="ec-input" placeholder="2026-06" value={form.period} onChange={(e) => set('period', e.target.value)} disabled={!!editId} style={{ width: 110 }} /></label>
           </div>

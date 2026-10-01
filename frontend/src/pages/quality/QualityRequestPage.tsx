@@ -220,11 +220,11 @@ export default function QualityRequestPage() {
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
                 {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
-              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+              <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => set('itemId', v)}
+                               items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No.</div>
               <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청수량 *</div>
@@ -253,11 +253,10 @@ export default function QualityRequestPage() {
                      onChange={(e) => set('samplePercent', e.target.value)}
                      style={{ width: 90, textAlign: 'right' }} /></label>
             {/* 원본 격자의 마지막이 [프로젝트] 다. 여기서 안 받으면 그 열이 늘 빈칸이다. */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
-              <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 150 }}>
-                <option value="">(없음)</option>
-                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.name}</option>)}
-              </select></label>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
+              <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="선택 안 함"
+                               value={form.projectId} onChange={(v) => set('projectId', v)}
+                               items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>

@@ -8,6 +8,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
@@ -472,10 +473,9 @@ export default function ShipmentOrderPage() {
               <tr>
                 <th style={th}>매출처 *</th>
                 <td>
-                  <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택하세요</option>
-                    {customers.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="매출처" hideLabel width={220} placeholder="매출처" emptyLabel="선택 해제"
+                                   value={partnerId} onChange={setPartnerId} items={partnerCodeItems(customers)} />
                 </td>
                 {/*
                   원본 출하입력의 머리 항목은 <b>[일자-No.]</b> 한 칸이다 — 일자와 전표번호를
@@ -556,10 +556,9 @@ export default function ShipmentOrderPage() {
                 <tr key={idx}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td>
-                    <select className={inputCls} style={{ width: '100%' }} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)}>
-                      <option value="">선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                    </select>
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
+                                     items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                   </td>
                   {/* 고른 품목의 이름·규격 — 읽기만 한다. 품목 마스터가 가진 값이다. */}
                   <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.name ?? ''}</td>

@@ -293,10 +293,10 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
               <tr>
                 <th style={{ width: 100, background: '#f5f7fa' }}>사원<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
-                  <select className="ec-input" value={employeeId} onChange={(e) => pickEmployee(e.target.value)} style={{ width: 220 }}>
-                    <option value="">재직 사원 선택</option>
-                    {employees.map((e) => <option key={e.id} value={e.id}>{e.code} {e.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="사원" hideLabel width={220} placeholder="사원" emptyLabel="선택 해제"
+                                   value={employeeId} onChange={(v) => pickEmployee(v)}
+                                   items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department || null }))} />
                 </td>
                 <th style={{ width: 90, background: '#f5f7fa' }}>계약 유형</th>
                 <td>

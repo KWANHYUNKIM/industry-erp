@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -234,10 +235,10 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>사원<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td colSpan={3}>
-                  <select className="ec-input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">재직 사원 선택</option>
-                    {employees.map((e) => <option key={e.id} value={e.id}>{e.code} {e.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="사원" hideLabel width={240} placeholder="사원" emptyLabel="선택 해제"
+                                   value={employeeId} onChange={setEmployeeId}
+                                   items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department || null }))} />
                 </td>
               </tr>
               <tr>

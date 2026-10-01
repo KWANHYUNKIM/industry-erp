@@ -754,12 +754,12 @@ function PlanForm({
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 360 }}>
       <div style={{ fontSize: 12, color: '#8a929c' }}>계획연도 <b style={{ color: '#3c4553' }}>{year}년</b></div>
       <div style={{ display: 'flex', gap: 10 }}>
-        <label style={{ flex: 2 }}><span style={lbl}>품목 *</span>
-          <select className={cls} value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ width: '100%' }}>
-            <option value="">품목 선택</option>
-            {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-          </select>
-        </label>
+        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+        <div style={{ flex: 2 }}><span style={lbl}>품목 *</span>
+          <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
+                           value={itemId} onChange={setItemId}
+                           items={items.filter((it) => it.active !== false || String(it.id) === itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
+        </div>
         {/* 정하면 <b>계획연월과 같은 달</b>이어야 한다 — 어긋나면 서버가 막는다. */}
         <label style={{ flex: 1 }}><span style={lbl}>예상매출일자</span>
           <input className={cls} type="date" value={expectedDate}

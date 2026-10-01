@@ -380,10 +380,10 @@ export default function AsManagePage() {
         <div style={{ padding: 4, minWidth: 560 }}>
           <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
-            <select className="ec-input" value={partForm.itemId} onChange={(e) => setPartForm((f) => ({ ...f, itemId: e.target.value }))} style={{ minWidth: 180 }}>
-              <option value="">부품(품목) 선택</option>
-              {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-            </select>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+            <CodePickerField label="부품(품목)" hideLabel width={180} placeholder="부품(품목)" emptyLabel="선택 해제"
+                             value={partForm.itemId} onChange={(v) => setPartForm((f) => ({ ...f, itemId: v }))}
+                             items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
             <select className="ec-input" value={partForm.warehouseId} onChange={(e) => setPartForm((f) => ({ ...f, warehouseId: e.target.value }))} style={{ minWidth: 130 }}>
               <option value="">창고</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}

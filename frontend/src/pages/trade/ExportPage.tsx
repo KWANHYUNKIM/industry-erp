@@ -441,10 +441,10 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
                 <tr key={i}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td>
-                    <select className="ec-input" value={l.itemId} onChange={(e) => setLine(i, { itemId: e.target.value })} style={{ width: '100%' }}>
-                      <option value="">품목 선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
+                    {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => setLine(i, { itemId: v })}
+                                     items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                   </td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>

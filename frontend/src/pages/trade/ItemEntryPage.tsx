@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc } from '../../types/api'
 import { dateText } from '../../utils/dateText'
@@ -87,10 +88,10 @@ export default function ItemEntryPage() {
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, color: '#5a626e' }}>품목</span>
-        <select className="ec-input" style={{ width: 240 }} value={itemId} onChange={(e) => setItemId(e.target.value ? Number(e.target.value) : '')}>
-          <option value="">전체</option>
-          {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-        </select>
+        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). 지난 전표를 보는 자리라 중단 품목도 남긴다. */}
+        <CodePickerField label="품목" hideLabel width={240} placeholder="품목" emptyLabel="전체"
+                         value={String(itemId)} onChange={(v) => setItemId(v ? Number(v) : '')}
+                         items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
         {selectedItem && (
           <span style={{ fontSize: 12.5, color: '#8a929c' }}>
             {selectedItem.spec ? `${selectedItem.spec} · ` : ''}{selectedItem.unit} · 표준단가 {selectedItem.unitPrice.toLocaleString()}

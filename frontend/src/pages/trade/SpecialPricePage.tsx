@@ -185,10 +185,10 @@ export default function SpecialPricePage() {
         <select className={inputCls} value={rv.tradeType} onChange={(e) => setRv((s) => ({ ...s, tradeType: e.target.value as SpecialPriceType }))} style={{ width: 90 }}>
           <option value="SALES">판매</option><option value="PURCHASE">구매</option>
         </select>
-        <select className={inputCls} value={rv.itemId} onChange={(e) => setRv((s) => ({ ...s, itemId: e.target.value }))} style={{ width: 200 }}>
-          <option value="">품목 선택</option>
-          {items.map((i) => <option key={i.id} value={i.id}>[{i.code}] {i.name}</option>)}
-        </select>
+        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+        <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="선택 해제"
+                         value={rv.itemId} onChange={(v) => setRv((s) => ({ ...s, itemId: v }))}
+                         items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))} />
         <CodePickerField label="거래처" hideLabel width={200} emptyLabel="선택 안 함" placeholder="거래처 선택"
                          value={rv.partnerId} onChange={(v) => setRv((s) => ({ ...s, partnerId: v }))}
                          items={partnerCodeItems(partners)} />
@@ -210,11 +210,10 @@ export default function SpecialPricePage() {
               <select className={inputCls} value={form.tradeType} onChange={(e) => { set('tradeType', e.target.value); set('priceGroup', '') }} style={{ width: 100 }}>
                 <option value="SALES">판매</option><option value="PURCHASE">구매</option>
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
-              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((i) => <option key={i.id} value={i.id}>[{i.code}] {i.name}</option>)}
-              </select></label>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+              <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => set('itemId', v)}
+                               items={items.filter((i) => i.active !== false || String(i.id) === form.itemId).map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적용범위 *</div>
               <select className={inputCls} value={form.scope} onChange={(e) => set('scope', e.target.value)} style={{ width: 120 }}>
                 <option value="partner">거래처별</option><option value="group">그룹별</option>

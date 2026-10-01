@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
@@ -481,10 +482,10 @@ function ComposeForm({ mode, initial, users, onClose, onSaved }: {
                 </th>
                 <td>
                   {mode === 'internal' ? (
-                    <select className="ec-input" value={recipientId} onChange={(e) => setRecipientId(e.target.value)} style={{ width: 240 }}>
-                      <option value="">사용자 선택</option>
-                      {users.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}
-                    </select>
+                    /* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */
+                    <CodePickerField label="받는 사람" hideLabel width={240} placeholder="받는 사람" emptyLabel="선택 해제"
+                                     value={recipientId} onChange={setRecipientId}
+                                     items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
                   ) : (
                     <input className="ec-input" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)}
                       style={{ width: 260 }} placeholder="예: buyer@partner.co.kr" />

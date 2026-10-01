@@ -4,6 +4,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Bom, Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 
 const inputCls = 'ec-input'
 
@@ -82,7 +83,10 @@ export default function BomPage() {
     }
   }
 
-  const itemLabel = (it: Item) => `[${it.code}] ${it.name}`
+  // 중단 품목은 빼되, 수정 중인 BOM 이 이미 쓰고 있는 것은 남긴다(안 남기면 칸이 비어 보인다)
+  const itemCodes = items.filter((it) => it.active !== false || String(it.id) === productId
+      || lines.some((l) => l.componentId === String(it.id)))
+    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -105,10 +109,9 @@ export default function BomPage() {
               <tr>
                 <th style={{ background: '#f5f7fa', fontWeight: 700, width: 120 }}>제품(생산 대상) *</th>
                 <td>
-                  <select className={inputCls} value={productId} onChange={(e) => setProductId(e.target.value)} style={{ minWidth: 240 }}>
-                    <option value="">선택하세요</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>{itemLabel(it)}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="제품" hideLabel width={240} placeholder="제품" emptyLabel="선택 해제"
+                                   value={productId} onChange={setProductId} items={itemCodes} />
                 </td>
                 <th style={{ background: '#f5f7fa', fontWeight: 700, width: 60 }}>비고</th>
                 <td><input className={inputCls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ minWidth: 200 }} /></td>
@@ -125,12 +128,9 @@ export default function BomPage() {
               {lines.map((l, idx) => (
                 <tr key={idx}>
                   <td>
-                    <select className={inputCls} value={l.componentId} onChange={(e) => updateLine(idx, 'componentId', e.target.value)} style={{ width: '100%' }}>
-                      <option value="">선택</option>
-                      {items.filter((it) => String(it.id) !== productId).map((it) => (
-                        <option key={it.id} value={it.id}>{itemLabel(it)}</option>
-                      ))}
-                    </select>
+                    <CodePickerField label="자재" hideLabel fill placeholder="자재" emptyLabel="선택 해제"
+                                     value={l.componentId} onChange={(v) => updateLine(idx, 'componentId', v)}
+                                     items={itemCodes.filter((c) => c.value !== productId)} />
                   </td>
                   <td><input type="number" step="any" className={inputCls} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'center' }}>

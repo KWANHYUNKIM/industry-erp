@@ -242,12 +242,10 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
           </Field>
         ) : (
           <Field label={conf.debit === 'expense' ? '비용계정(차변) *' : '차변계정 *'}>
-            <select className="ec-input" value={debitAccountId} onChange={(e) => setDebitAccountId(e.target.value)} style={{ width: 180 }}>
-              <option value="">선택하세요</option>
-              {(conf.debit === 'expense' ? expenses : selectable).map((a) => (
-                <option key={a.id} value={a.id}>{a.code} {a.name}</option>
-              ))}
-            </select>
+            {/* 긴 드롭다운이었다(계정과목 전체) — 코드도움으로(QA 21회차). */}
+            <CodePickerField label="차변계정" hideLabel width={180} placeholder="계정" emptyLabel="선택 해제"
+                             value={debitAccountId} onChange={setDebitAccountId}
+                             items={(conf.debit === 'expense' ? expenses : selectable).map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
           </Field>
         )}
 
@@ -259,10 +257,9 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
           </Field>
         ) : (
           <Field label="대변계정 *">
-            <select className="ec-input" value={creditAccountId} onChange={(e) => setCreditAccountId(e.target.value)} style={{ width: 180 }}>
-              <option value="">선택하세요</option>
-              {selectable.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-            </select>
+            <CodePickerField label="대변계정" hideLabel width={180} placeholder="계정" emptyLabel="선택 해제"
+                             value={creditAccountId} onChange={setCreditAccountId}
+                             items={selectable.map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
           </Field>
         )}
 
@@ -286,11 +283,12 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
   )
 }
 
+/* label 이 아니라 div — 안에 코드도움이 들어가는데 label 로 감싸면 팝업 행 클릭이 안 먹는다. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
+    <div style={{ fontSize: 12.5 }}>
       <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
       {children}
-    </label>
+    </div>
   )
 }

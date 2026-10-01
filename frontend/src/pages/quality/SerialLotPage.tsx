@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -161,11 +162,11 @@ export default function SerialLotPage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No. *</div>
               <input className="ec-input" value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} placeholder="LOT-260707-01" style={{ width: 160 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
-              <select className="ec-input" value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+              <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => set('itemId', v)}
+                               items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>창고</div>
               <select className="ec-input" value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 140 }}>
                 <option value="">(미지정)</option>

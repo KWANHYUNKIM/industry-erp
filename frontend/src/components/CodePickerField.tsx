@@ -209,7 +209,8 @@ export default function CodePickerField({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && shown.length === 1) pick(shown[0]) }}
+            // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (shown.length === 1) pick(shown[0]) } }}
             placeholder={items.some((i) => i.extra) ? '코드·이름 외에 대표자·전화·주소로도 찾습니다' : '코드 또는 이름으로 검색'}
             style={{ flex: 1 }}
           />

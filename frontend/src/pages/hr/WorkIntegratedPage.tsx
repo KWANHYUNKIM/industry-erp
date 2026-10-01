@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableSort } from '../../utils/useTableSort'
 import { useAuth } from '../../features/auth/AuthContext'
 import { dateText } from '../../utils/dateText'
@@ -137,7 +138,7 @@ export default function WorkIntegratedPage() {
       /* 일정의 공유·프로젝트는 <b>그 줄에</b> 모아 둔다 — 한 줄에 일정이 여럿일 수 있다. */
       if (ev.shared) row.hasShared = true
       else row.hasPrivate = true
-      if (ev.projectName) row.projects.add(ev.projectName)
+      if (ev.projectId != null) row.projects.add(String(ev.projectId))
     }
     return [...map.values()]
       .filter((r) => !keyword || r.name.includes(keyword) || (r.department ?? '').includes(keyword))
@@ -181,7 +182,10 @@ export default function WorkIntegratedPage() {
   const statuses = [...new Set(att.map((a) => a.status).filter(Boolean))].sort()
   const categories = [...new Set(events.map((e) => e.category ?? '').filter(Boolean))].sort()
   /* 고를 값은 지금 받아 온 일정에서 모은다 — 안 쓰는 프로젝트를 늘어놓지 않는다. */
-  const projects = [...new Set(events.map((e) => e.projectName ?? '').filter(Boolean))].sort()
+  /* 프로젝트는 이름이 겹칠 수 있어 id 로 고르고 거른다(코드도움). */
+  const projects = [...new Map(events.filter((e) => e.projectId != null)
+    .map((e) => [e.projectId, { value: String(e.projectId), name: e.projectName ?? '' }])).values()]
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -225,11 +229,9 @@ export default function WorkIntegratedPage() {
         </select>
         {/* 원본 차례: 사원명 · 부서 · <b>프로젝트</b> · 적요 (사본 실측). */}
         <span style={{ marginLeft: 8 }}>프로젝트</span>
-        <select className="ec-input" value={projectCond} style={{ width: 130 }}
-                onChange={(e) => setProjectCond(e.target.value)}>
-          <option value="">전체</option>
-          {projects.map((v) => <option key={v} value={v}>{v}</option>)}
-        </select>
+        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+        <CodePickerField label="프로젝트" hideLabel width={130} placeholder="프로젝트" emptyLabel="전체"
+                         value={projectCond} onChange={setProjectCond} items={projects} />
         {/* 원본 조건 [적요] — 근태 메모로 좁힌다. */}
         <span style={{ marginLeft: 8 }}>적요</span>
         <input className="ec-input" placeholder="적요 일부" value={noteCond}

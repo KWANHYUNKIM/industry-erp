@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -430,10 +431,10 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {i > 0 && <span style={{ color: 'var(--ec-blue)' }}>→</span>}
             <span style={{ fontSize: 11.5, color: '#8a929c' }}>{i + 1}차</span>
-            <select className="ec-input" value={id} onChange={(e) => setApprover(i, e.target.value)} style={{ width: 170 }}>
-              <option value="">결재자 선택</option>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.name} {m.department ? `(${m.department})` : ''}</option>)}
-            </select>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+            <CodePickerField label={`${i + 1}차 결재자`} hideLabel width={170} placeholder="결재자" emptyLabel="선택 해제"
+                             value={id} onChange={(v) => setApprover(i, v)}
+                             items={members.map((m) => ({ value: String(m.id), name: m.name, sub: m.department || null }))} />
             {approverIds.length > 1 && (
               <button className="ec-btn" onClick={() => setApproverIds((ids) => ids.filter((_, idx) => idx !== i))}>×</button>
             )}

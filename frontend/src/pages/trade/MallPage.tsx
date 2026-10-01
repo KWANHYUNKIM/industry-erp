@@ -183,15 +183,12 @@ export default function MallPage() {
                 <td style={{ color: '#5a626e' }}>{o.productName}</td>
                 <td>
                   {open ? (
-                    <select
-                      className="ec-input"
-                      value={o.itemId ?? ''}
-                      onChange={(e) => mapItem(o, e.target.value)}
-                      style={{ width: '100%', borderColor: o.itemId ? undefined : '#c60a2e' }}
-                    >
-                      <option value="">(미매핑)</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
+                    /* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). 미매핑이면 빨간 테두리는 감싼 칸이 맡는다. */
+                    <div style={{ outline: o.itemId ? undefined : '1px solid #c60a2e' }}>
+                      <CodePickerField label="품목" hideLabel fill placeholder="품목(미매핑)" emptyLabel="선택 안 함"
+                                       value={String(o.itemId ?? '')} onChange={(v) => mapItem(o, v)}
+                                       items={items.filter((it) => it.active !== false || it.id === o.itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
+                    </div>
                   ) : (
                     <span>{o.itemName ?? '-'}</span>
                   )}

@@ -292,11 +292,11 @@ export default function ProjectPlanPage() {
       <Modal error={error} open={showForm} title={`프로젝트계획 등록 (${year}년)`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트 *</div>
-              <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 240 }}>
-                <option value="">선택하세요</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트 *</div>
+              <CodePickerField label="프로젝트" hideLabel width={240} placeholder="프로젝트" emptyLabel="선택 해제"
+                               value={form.projectId} onChange={(v) => set('projectId', v)}
+                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} /></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계획매출</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planRevenue} onChange={(e) => set('planRevenue', e.target.value)} style={{ width: 150 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계획원가</div>

@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import type { CommonCode, Project } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
@@ -144,11 +145,11 @@ export default function ExpensePage() {
               </select></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>부서</div>
               <input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} style={{ width: 100 }} /></label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>프로젝트
-              <select className="ec-input" value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 160 }}>
-                <option value="">(없음)</option>
-                {projects.map((pj) => <option key={pj.id} value={pj.id}>{pj.code} {pj.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>프로젝트
+              <CodePickerField label="프로젝트" hideLabel width={160} placeholder="프로젝트" emptyLabel="선택 안 함"
+                               value={form.projectId} onChange={(v) => set('projectId', v)}
+                               items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>

@@ -297,10 +297,10 @@ export default function WorkResultPage() {
                 <tr key={l.key}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td>
-                    <select className={inputCls} value={l.workOrderId} onChange={(e) => setWrLine(l.key, { workOrderId: e.target.value })}>
-                      <option value="">선택</option>
-                      {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
-                    </select>
+                    {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                    <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 해제"
+                                     value={l.workOrderId} onChange={(v) => setWrLine(l.key, { workOrderId: v })}
+                                     items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
                   </td>
                   {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
                   <td style={{ fontFamily: 'monospace', color: '#6b7280' }}>

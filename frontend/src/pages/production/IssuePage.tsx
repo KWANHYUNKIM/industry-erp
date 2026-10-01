@@ -408,10 +408,10 @@ export default function IssuePage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-slate-600">작업지시</label>
-              <select className={inputCls} value={form.workOrderId} onChange={(e) => setForm({ ...form, workOrderId: e.target.value })}>
-                <option value="">선택</option>
-                {workOrders.map((w) => <option key={w.id} value={w.id}>{w.orderNo} ({w.productName})</option>)}
-              </select>
+              {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+              <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 안 함"
+                               value={form.workOrderId} onChange={(v) => setForm({ ...form, workOrderId: v })}
+                               items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
             </div>
             <div>
               {/* 원본 생산불출입력 머리의 [프로젝트]. 프로젝트별 원가에 이 불출이 잡힌다. */}

@@ -146,11 +146,11 @@ export default function MallItemMappingPage() {
               <input className={inputCls} value={form.mallProductCode} disabled={!!editId} onChange={(e) => set('mallProductCode', e.target.value)} style={{ width: 160 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰상품명</div>
               <input className={inputCls} value={form.mallProductName} onChange={(e) => set('mallProductName', e.target.value)} style={{ width: 200 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>연결 품목 *</div>
-              <select className={inputCls} value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 220 }}>
-                <option value="">선택하세요</option>
-                {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-              </select></label>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>연결 품목 *</div>
+              <CodePickerField label="연결 품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
+                               value={form.itemId} onChange={(v) => set('itemId', v)}
+                               items={items.filter((it) => it.active !== false || String(it.id) === form.itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
           {editId && <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 8 }}>쇼핑몰·몰품목코드는 키라 수정할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</p>}
