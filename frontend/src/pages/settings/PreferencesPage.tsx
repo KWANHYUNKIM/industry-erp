@@ -101,12 +101,12 @@ export default function PreferencesPage() {
             <label style={{ fontSize: 12.5 }}>기준통화&nbsp;
               <select className="ec-input" value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
                 <option>KRW</option><option>USD</option><option>EUR</option><option>JPY</option>
-              </select>
+              </select><span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
             <label style={{ fontSize: 12.5 }}>금액 소수자리&nbsp;
               <select className="ec-input" value={String(form.decimals)} onChange={(e) => setField('decimals', Number(e.target.value))}>
                 <option>0</option><option>1</option><option>2</option>
-              </select>
+              </select><span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
           </div>
 
@@ -122,7 +122,14 @@ export default function PreferencesPage() {
             <tbody>
               {TOGGLES.map((t) => (
                 <tr key={t.key}>
-                  <td style={{ fontWeight: 600 }}>{t.label}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    {t.label}
+                    {/*
+                      QA 20회차: 이 다섯은 저장만 되고 아무 데서도 쓰지 않았다(설명은 그렇게 동작하는 것처럼 적혀 있었다).
+                      적용하기 전까지 (미적용) 으로 밝힌다 — 특히 '단가 열람 권한 제한' 은 기본이 켜짐이라 숨겨지는 줄 알기 쉽다.
+                    */}
+                    <span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00', fontWeight: 400 }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+                  </td>
                   <td style={{ color: '#5a626e' }}>{t.desc}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button
