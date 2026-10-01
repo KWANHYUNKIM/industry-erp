@@ -6347,6 +6347,22 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
   eq(`코드도움 ${checked}곳이 받은 값 그대로 거른다`, bad.join('\n') || '없음', '없음')
 }
 
+/*
+ * 1-p 는 '담는 값과 거르는 값이 같은 종류인가' 만 본다 — 화면이 직접 만든 목록이 이름을 담고 이름으로
+ * 거르면 둘이 맞아서 통과해 버린다. 9회차에 그런 곳이 9화면 15곳 남아 있었다(견적서조회 거래처는 부분일치였다).
+ * 거래처·품목·창고는 이름이 겹칠 수 있으므로 <b>목록이 이름을 담는 것 자체</b>를 막는다. 담당자는 이름이 맞다.
+ */
+{
+  const bad = []
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/\b(partners|items|warehouses|customers|suppliers|products)\b[^=\n]*\.map\(\((\w+)\) => \(\{[^}\n]*value: \2\.name\b/g)) {
+      bad.push(`${f.split(sep).pop()}  ${m[1]} 코드도움이 이름을 담는다 — String(${m[2]}.id) 로`)
+    }
+  }
+  eq('거래처·품목·창고 코드도움은 이름이 아니라 id 를 담는다', bad.join('\n') || '없음', '없음')
+}
+
 // ── 1-q) 고를 수는 있는데 아무 일도 안 하는 조건 ─────────────────────────
 console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
 
