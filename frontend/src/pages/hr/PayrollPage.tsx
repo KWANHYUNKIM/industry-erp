@@ -49,10 +49,18 @@ export default function PayrollPage() {
     const targets = employees.filter((e) => !byEmp.has(e.id))
     if (targets.length === 0) return flash('모든 사원의 급여명세가 이미 있습니다.')
     if (!window.confirm(`미작성 ${targets.length}명의 급여명세를 일괄 생성할까요?`)) return
+    /*
+     * 개별 실패는 멈추지 않고 넘어가되 <b>센다</b>. 예전엔 실패를 버리고 늘 'N명 급여계산 완료' 라고 해서,
+     * 기본급이 없는 사원 등에서 실패해도 다 된 줄 알았다(QA 18회차).
+     */
+    const failed: string[] = []
     for (const e of targets) {
-      try { await api.post('/payslips', { employeeId: e.id, payMonth: month, payGroupId: payGroupId ? Number(payGroupId) : undefined, lines: [] }) } catch { /* 개별 실패 무시 */ }
+      try { await api.post('/payslips', { employeeId: e.id, payMonth: month, payGroupId: payGroupId ? Number(payGroupId) : undefined, lines: [] }) }
+      catch (err) { failed.push(`${e.name}(${extractErrorMessage(err)})`) }
     }
-    flash(`${targets.length}명 급여계산 완료`)
+    const done = targets.length - failed.length
+    if (failed.length) setError(`${done}명 계산, ${failed.length}명 실패 — ${failed.join(', ')}`)
+    else flash(`${done}명 급여계산 완료`)
     load()
   }
 
