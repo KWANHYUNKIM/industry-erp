@@ -26,6 +26,8 @@ export default function WarehousesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   /** 원본 창고등록리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -98,6 +100,7 @@ export default function WarehousesPage() {
       } else {
         await api.post('/warehouses', { code: form.code, ...body })
       }
+      setOk(`${form.kind} [${form.code}] ${form.name} ${editId ? '수정' : '등록'} 완료`)
       setEditId(null)
       setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
       setShowForm(false)
@@ -169,6 +172,7 @@ export default function WarehousesPage() {
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>

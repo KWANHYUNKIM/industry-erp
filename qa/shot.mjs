@@ -81,7 +81,8 @@ try {
       } else if (kind === 'setnear') {
         const [label, ...v] = rest.join(':').split('|')
         const ok = await b.evaluate(`(() => { const t = ${JSON.stringify(label)};
-          const head = [...document.querySelectorAll('th, label, td, div, span')].find((x) => [...x.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim().split('*')[0].trim() === t);
+          const scope = [...document.querySelectorAll('[role=dialog]')].pop() ?? document; /* 창이 열려 있으면 창 안부터 — 조건 판에 같은 이름표가 있다 */
+          const head = [...scope.querySelectorAll('th, label, td, div, span')].find((x) => [...x.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim().split('*')[0].trim() === t);
           if (!head) return false;
           let box = head.closest('tr') ?? head.parentElement;
           let el = null;

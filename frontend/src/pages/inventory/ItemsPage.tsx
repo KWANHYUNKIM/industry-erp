@@ -74,6 +74,8 @@ export default function ItemsPage() {
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
@@ -215,6 +217,7 @@ export default function ItemsPage() {
       } else {
         await api.post('/items', payload)
       }
+      setOk(`품목 [${form.code}] ${form.name} ${editId ? '수정' : '등록'} 완료`)
       setShowForm(false)
       load()
     } catch (err) {
@@ -414,6 +417,7 @@ export default function ItemsPage() {
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {/* 원본 조건 차례: 품목명 · 규격명 · 단위 · 품목구분 · 구매처 · … · 검색창내용 (사본 실측) */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>

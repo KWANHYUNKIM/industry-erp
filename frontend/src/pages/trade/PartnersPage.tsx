@@ -141,6 +141,8 @@ export default function PartnersPage() {
   const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
+  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   /**
    * 수정 대상 거래처 id. null 이면 신규.
@@ -243,6 +245,7 @@ export default function PartnersPage() {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
       if (editId != null) await api.put(`/partners/${editId}`, body)
       else await api.post('/partners', body)
+      setOk(`거래처 [${form.code}] ${form.name} ${editId != null ? '수정' : '등록'} 완료`)
       setForm({ ...empty })
       setShowForm(false)
       load()
@@ -383,6 +386,7 @@ export default function PartnersPage() {
       ]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />

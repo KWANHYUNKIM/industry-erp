@@ -1,0 +1,34 @@
+{
+  "about": "기초등록 화면 회귀 시험 — 품목·거래처를 화면으로 등록하면 '등록 완료' 안내(19회차까지 창이 닫히기만 했다), 끝에 지운다. 앞 실행이 남긴 같은 코드가 있으면 먼저 지운다. node qa/shot.mjs qa/flows/masters.json",
+  "shots": [
+    {
+      "name": "품목등록 — 코드·품명·단위·품목분류를 넣고 저장하면 '품목 [코드] 이름 등록 완료'",
+      "path": "/inventory/items",
+      "steps": [
+        "js:fetch('/api/items', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { for (const x of d.filter((i) => i.code === 'QA-R19')) await fetch('/api/items/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return true })",
+        "click:신규",
+        "setnear:품목코드|QA-R19",
+        "setnear:품명|QA19회차품목",
+        "setnear:단위|EA",
+        "click:품목분류 * 선택",
+        "pickrow:상품",
+        "clicklast:등록",
+        "expect:document.body.innerText.includes('품목 [QA-R19] QA19회차품목 등록 완료')",
+        "apidel:/items|QA-R19|code"
+      ]
+    },
+    {
+      "name": "거래처등록 — 코드·상호를 넣고 저장하면 '거래처 [코드] 이름 등록 완료'",
+      "path": "/sales/partners",
+      "steps": [
+        "js:fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { for (const x of d.filter((p) => p.code === 'QA-R19P')) await fetch('/api/partners/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return true })",
+        "click:신규",
+        "setnear:거래처코드|QA-R19P",
+        "setnear:상호(이름)|QA19회차거래처",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('거래처 [QA-R19P] QA19회차거래처 등록 완료')",
+        "apidel:/partners|QA-R19P|code"
+      ]
+    }
+  ]
+}
