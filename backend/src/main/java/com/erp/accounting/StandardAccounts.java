@@ -46,6 +46,10 @@ public final class StandardAccounts {
             required("134", "가지급금", AccountDivision.ASSET, "유동자산"),
             required("135", "부가세대급금", AccountDivision.ASSET, "유동자산"),
             required("146", "상품", AccountDivision.ASSET, "재고자산"),
+            // 매입 회계반영이 품목구분으로 가른다(JournalService.stockAccountOf) — 없으면 그 구분의 매입을 반영 못 한다.
+            required("150", "제품", AccountDivision.ASSET, "재고자산"),
+            required("153", "원재료", AccountDivision.ASSET, "재고자산"),
+            required("162", "부재료", AccountDivision.ASSET, "재고자산"),
             required("203", "감가상각누계액", AccountDivision.ASSET, "유형자산"),   // 자산 차감계정
             of("206", "기계장치", AccountDivision.ASSET, "유형자산"),
             of("208", "차량운반구", AccountDivision.ASSET, "유형자산"),
@@ -60,6 +64,7 @@ public final class StandardAccounts {
             of("331", "자본금", AccountDivision.EQUITY, "자본금"),
             // ── 수익
             required("401", "상품매출", AccountDivision.REVENUE, "매출액"),
+            required("404", "제품매출", AccountDivision.REVENUE, "매출액"),
             of("901", "이자수익", AccountDivision.REVENUE, "영업외수익"),
             of("904", "임대료수입", AccountDivision.REVENUE, "영업외수익"),
             of("930", "잡이익", AccountDivision.REVENUE, "영업외수익"),

@@ -472,6 +472,41 @@ async function scenarioPurchaseOrderClosesByPurchases(f) {
 }
 
 /**
+ * <b>회계반영 분개의 매출·재고 계정은 품목구분으로 가른다</b> (QA 11회차).
+ * 예전엔 무엇을 팔든 상품매출(401), 무엇을 사든 상품(146) 이었다 — 제조업체가 만든 제품을 팔아도
+ * 상품매출, 원재료를 사도 상품으로 잡혀 손익계산서·재무상태표의 구분이 늘 한쪽이었다.
+ */
+async function scenarioReflectionAccounts(f) {
+  section('■ 회계반영 계정 — 제품매출 · 원재료 · 섞인 전표는 나눠서')
+  const day = '2026-07-13'
+  const linesOf = async (kind, id) => {
+    const row = (await must('GET', `/accounting-reflection?kind=${kind}`)).find((r) => r.id === id)
+    return (await must('GET', `/journals/${row.journalEntryId}`)).lines
+  }
+  const amt = (ls, code, side) => Number(ls.find((l) => l.accountCode === code)?.[side] ?? 0)
+  const sale = await must('POST', '/sales', { saleDate: day, partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 100000 }, { itemId: f.material.id, quantity: 1, unitPrice: 20000 }] })
+  const buy = await must('POST', '/purchases', { purchaseDate: day, partnerId: f.supplier.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 30000 }] })
+  try {
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [sale.id] })
+    await must('POST', '/accounting-reflection/reflect', { kind: 'PURCHASE', ids: [buy.id] })
+    const s = await linesOf('SALES', sale.id)
+    eq('제품을 팔면 제품매출(404)', amt(s, '404', 'credit'), 100000)
+    eq('원재료를 팔면 상품매출(401)', amt(s, '401', 'credit'), 20000)
+    eq('섞인 판매도 대차가 맞는다', s.reduce((n, l) => n + Number(l.debit), 0), s.reduce((n, l) => n + Number(l.credit), 0))
+    const p = await linesOf('PURCHASE', buy.id)
+    eq('원재료를 사면 원재료(153)', amt(p, '153', 'debit'), 60000)
+    eq('상품(146)으로는 안 잡힌다', amt(p, '146', 'debit'), 0)
+  } finally {
+    await call('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [sale.id] })
+    await call('POST', '/accounting-reflection/unreflect', { kind: 'PURCHASE', ids: [buy.id] })
+    await must('DELETE', `/sales/${sale.id}`)
+    await must('DELETE', `/purchases/${buy.id}`)
+  }
+}
+
+/**
  * <b>미출하현황이 말하는 미출하수량 = 실제로 낼 수 있는 잔량.</b>
  *
  * 예전에는 미출하수량을 "주문 − 출하<b>완료</b>" 로 냈다. 출하지시(READY)만 낸 수량은
@@ -9248,6 +9283,7 @@ async function main() {
   await scenarioSaleWithinOrder(fixtures)
   await scenarioOrderClosesBySales(fixtures)
   await scenarioPurchaseOrderClosesByPurchases(fixtures)
+  await scenarioReflectionAccounts(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPriceBulkField(fixtures)
   await scenarioSpecialPrice(fixtures)

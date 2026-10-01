@@ -21,7 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import com.erp.inventory.item.ItemCategory;
 import com.erp.accounting.bankcard.AccountTransfer;
 import com.erp.accounting.bankcheck.BankCheck;
 import com.erp.accounting.bankcard.BankTransaction;
@@ -41,8 +45,9 @@ import com.erp.hr.payroll.PayrollTransfer;
  * 회계전표(분개) 생성. 판매/매입/지출 업무전표를 복식부기 분개로 옮긴다.
  *
  * 표준 계정코드(한국 상거래 관행):
- *   108 외상매출금 · 401 상품매출 · 255 부가세예수금
- *   146 상품 · 135 부가세대급금 · 251 외상매입금
+ *   108 외상매출금 · 401 상품매출 / 404 제품매출 · 255 부가세예수금
+ *   146 상품 / 150 제품 / 153 원재료 / 162 부재료 · 135 부가세대급금 · 251 외상매입금
+ *   (매출·재고 계정은 줄의 품목구분으로 가른다 — salesAccountOf · stockAccountOf)
  *   101 현금 · 253 미지급금
  */
 @Service
@@ -131,7 +136,51 @@ public class JournalService {
         return v != null ? v : BigDecimal.ZERO;
     }
 
-    /** 판매 → 분개. 차)외상매출금 / 대)상품매출·부가세예수금 */
+    /**
+     * 품목구분 → 매출 계정. 제품·반제품을 팔면 제품매출(404), 그 밖(상품·원재료를 판 것)은 상품매출(401).
+     *
+     * <p>예전엔 무엇을 팔든 상품매출 하나였다 — 제조업체가 만든 제품을 팔아도 상품매출로 잡혀
+     * 손익계산서의 매출 구분(상품/제품)이 늘 한쪽이었다(QA 11회차, 회계반영 분개를 대조하다 발견).
+     */
+    static String salesAccountOf(ItemCategory c) {
+        return c == ItemCategory.FINISHED || c == ItemCategory.SEMI_FINISHED ? "404" : "401";
+    }
+
+    /** 품목구분 → 재고(매입) 계정. 원재료 153 · 부재료 162 · 제품·반제품 150 · 상품(과 미지정) 146. */
+    static String stockAccountOf(ItemCategory c) {
+        if (c == null) return "146";
+        return switch (c) {
+            case RAW_MATERIAL -> "153";
+            case SUB_MATERIAL -> "162";
+            case FINISHED, SEMI_FINISHED -> "150";
+            case MERCHANDISE -> "146";
+        };
+    }
+
+    private static final Map<String, String> ACCOUNT_NAMES = Map.of(
+            "401", "상품매출", "404", "제품매출", "146", "상품", "150", "제품", "153", "원재료", "162", "부재료");
+
+    /**
+     * 줄의 공급가액을 계정별로 모은다. 합계가 머리 공급가액과 다르면(옛 자료·반올림) 차이를
+     * 가장 큰 묶음에 얹어 머리와 맞춘다 — 분개 대차는 머리 금액으로 맞추기 때문이다.
+     */
+    private static <T> Map<String, BigDecimal> byAccount(List<T> lines, Function<T, String> accountOf,
+                                                         Function<T, BigDecimal> amountOf,
+                                                         BigDecimal headerSupply, String fallback) {
+        Map<String, BigDecimal> m = new LinkedHashMap<>();
+        for (T l : lines) m.merge(accountOf.apply(l), nz(amountOf.apply(l)), BigDecimal::add);
+        if (m.isEmpty()) m.put(fallback, BigDecimal.ZERO);
+        BigDecimal sum = m.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal diff = nz(headerSupply).subtract(sum);
+        if (diff.signum() != 0) {
+            String biggest = m.entrySet().stream().max(Map.Entry.comparingByValue()).get().getKey();
+            m.merge(biggest, diff, BigDecimal::add);
+        }
+        m.values().removeIf(v -> v.signum() == 0);
+        return m;
+    }
+
+    /** 판매 → 분개. 차)외상매출금 / 대)상품매출·제품매출(품목구분별)·부가세예수금 */
     @Transactional
     public JournalEntry createFromSales(Sales s) {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SALES, s.getId())) {
@@ -141,14 +190,17 @@ public class JournalService {
                 "판매 " + s.getDocNo(), s.getPartner(), s.getCreatedBy());
 
         addDebit(e, "108", s.getTotalAmount(), "외상매출금");
-        addCredit(e, "401", s.getSupplyAmount(), "상품매출");
+        byAccount(s.getLines(),
+                l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
+                s.getSupplyAmount(), "401")
+                .forEach((code, amt) -> addCredit(e, code, amt, ACCOUNT_NAMES.get(code)));
         if (isPositive(s.getVatAmount())) {
             addCredit(e, "255", s.getVatAmount(), "부가세예수금");
         }
         return save(e);
     }
 
-    /** 매입 → 분개. 차)상품·부가세대급금 / 대)외상매입금 */
+    /** 매입 → 분개. 차)상품·제품·원재료·부재료(품목구분별)·부가세대급금 / 대)외상매입금 */
     @Transactional
     public JournalEntry createFromPurchase(Purchase p) {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.PURCHASE, p.getId())) {
@@ -157,7 +209,10 @@ public class JournalService {
         JournalEntry e = newEntry(JournalSourceType.PURCHASE, p.getId(), p.getPurchaseDate(),
                 "구매 " + p.getDocNo(), p.getPartner(), p.getCreatedBy());
 
-        addDebit(e, "146", p.getSupplyAmount(), "상품");
+        byAccount(p.getLines(),
+                l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
+                p.getSupplyAmount(), "146")
+                .forEach((code, amt) -> addDebit(e, code, amt, ACCOUNT_NAMES.get(code)));
         if (isPositive(p.getVatAmount())) {
             addDebit(e, "135", p.getVatAmount(), "부가세대급금");
         }
