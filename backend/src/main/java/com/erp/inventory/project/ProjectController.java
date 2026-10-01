@@ -4,18 +4,13 @@ import com.erp.inventory.project.dto.ProjectDtos.CreateProjectRequest;
 import com.erp.inventory.project.dto.ProjectDtos.ProjectResponse;
 import com.erp.inventory.project.dto.ProjectDtos.UpdateProjectRequest;
 import com.erp.security.UserPrincipal;
-import com.erp.accounting.project.dto.ProjectProfitDtos.ProjectProfitSummary;
-import org.springframework.format.annotation.DateTimeFormat;
-import com.erp.accounting.project.ProjectProfitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
-import com.erp.accounting.project.dto.ProjectProfitDtos;
 import com.erp.inventory.project.dto.ProjectDtos;
 
 @RestController
@@ -24,15 +19,6 @@ import com.erp.inventory.project.dto.ProjectDtos;
 public class ProjectController {
 
     private final ProjectService projectService;
-    private final ProjectProfitService projectProfitService;
-
-    /** 프로젝트별 손익 (매출=판매전표 공급가액, 원가=구매전표, 비용=비용전표) */
-    @GetMapping("/profit")
-    public ProjectProfitSummary profit(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return projectProfitService.profit(from, to);
-    }
 
     @GetMapping
     public List<ProjectResponse> list() {

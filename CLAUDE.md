@@ -102,6 +102,7 @@ controller  →  service  →  repository  →  domain
 | `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
+| `auth` | `settings` (회사코드 로그인이 `CompanyRepository` 로 회사를 찾는다) |
 
 - `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
   (`trade` → `groupware`) `groupware → trade` 와 맞물려 순환이 되므로 기초 마스터(`inventory`)로 옮겼습니다.
@@ -110,10 +111,13 @@ controller  →  service  →  repository  →  domain
   맞물리면 순환이 됩니다. 작업지시서의 [담당자]가 그래서 `@ManyToOne` 이 아니라 평범한 `Long employeeId` 입니다.
   `inventory.Warehouse` 의 공정·외주거래처, `auth.User` 의 사원도 같은 이유로 id 만 듭니다.
   이름은 화면이 각자 목록에서 붙입니다.
-- `inventory`와 `auth`는 **아무 모듈에도 의존하지 않는 기반층입니다.**
-  여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
+- `inventory`는 **아무 모듈에도 의존하지 않는 기반층입니다.** 여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
+  (2026-10-01 까지 `ProjectController` 가 `accounting.ProjectProfitService` 를 불렀다 — `/api/projects/profit` 은
+  주소는 그대로 두고 `accounting/project/ProjectProfitController` 로 옮겼다.)
+- `auth`는 `settings` 하나에만 의존합니다(로그인 시 회사코드 → 회사). 그래서 **`settings`는 `auth`를 참조할 수 없습니다.**
+  회사를 만들 때 관리자 계정을 심는 일은 인프라 패키지 `tenant`(`TenantSeeder`)가 맡습니다.
 - `common`은 모두가 의존하고 아무것도 의존하지 않습니다.
-- `settings`는 아직 다른 모듈에 의존하지 않습니다. 그대로 유지하세요.
+- `settings`는 다른 모듈에 의존하지 않습니다. 그대로 유지하세요.
 - 새 의존을 추가하기 전에 위 표에서 반대 방향 간선이 이미 있는지 확인하세요.
   예를 들어 `inventory`가 `trade`를 참조하면 `trade → inventory`와 맞물려 순환이 됩니다.
 
