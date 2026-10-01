@@ -217,7 +217,7 @@ export default function CostBuildPage() {
           <input type="month" className="ec-input" value={periodCond}
                  onChange={(e) => setPeriodCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="계산기준">
+        <EcCond label="계산기준" span="full">
           <div className="ec-pills">
             {BASES.map((b) => (
               <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}

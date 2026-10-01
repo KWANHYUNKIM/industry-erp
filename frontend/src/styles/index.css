@@ -500,26 +500,67 @@ main table,
   padding: 2px 4px;
 }
 /*
- * 현황 화면의 조회 조건 패널. 전표입력의 `.ec-form`(2열)과 다르다 — 원본 현황류는
- * 라벨을 **한 열로 세로로 쌓고** 라벨 칸이 134px 다(주문서현황 실측: 라벨 x=255, 폭 134, 행 24, 간격 38).
+ * 현황 화면의 조회 조건 패널. 전표입력의 `.ec-form`(2열)과 다르다.
+ *
+ * <p><b>한 줄에 여러 조건, 길면 다음 줄로</b> (2026-10-01). 원본처럼 조건 하나에 한 줄씩 세로로
+ * 쌓았더니 조건이 8개만 돼도 패널이 화면 절반을 먹고, 넓은 모니터에서는 오른쪽이 텅 빈 채
+ * 눈이 위아래로만 오갔다. 그래서 칸 폭이 같은 격자(auto-fill + minmax)로 깐다 — 화면이 넓으면
+ * 칸이 늘고 좁으면 줄어들며, 칸 폭이 같아서 세로로 줄이 맞아 훑어 읽기 쉽다.
+ *  - 범위 조건(입력칸 둘: 일자 ~ 일자)은 한 칸에 안 들어가서 두 칸을 쓴다(:has 로 자동).
+ *  - 그래도 긴 조건(기간 빠른선택 버튼줄 등)은 li.full 로 한 줄을 통째로 쓴다.
+ *  - 칸 안에서 넘치면 밖으로 삐져나가지 않고 칸 안에서 줄을 바꾼다(.form 의 flex-wrap).
  * 코드도움으로 고르는 조건(창고·프로젝트·거래처·품목)은 라벨이 파랗다 — 원본이 그렇게 구분한다.
  */
 .ec-cond {
   list-style: none;
   margin: 0;
-  padding: 6px 0;
+  padding: 6px 8px 6px 0;
   background: #fff;
   border: 1px solid var(--ec-border);
+  display: grid;
+  /*
+   * 칸 최소 380, 남는 폭은 칸끼리 나눈다(1fr). 최대폭(440)을 두어 봤더니 auto-fill 이 칸 수를
+   * <b>최대폭</b>으로 세서 칸이 하나씩 모자랐고(1366 에서 2칸 + 오른쪽 230px 빈 띠),
+   * 한 줄 통째 조건(기간 빠른선택)도 그 빈 띠 때문에 두 줄로 접혔다. 2560 에서도 칸이 6개라 한 칸
+   * 400 남짓이다. min() 은 380 보다 좁은 화면에서 칸이 패널 밖으로 나가지 않게 한다.
+   */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  column-gap: 8px;
 }
 .ec-cond > li {
   display: flex;
   align-items: center;
-  /* 2026-09-21 재고현황 실측: 행 간격 38(기준일자 줄만 41). 34 로 두어 줄이 원본보다 촘촘했다. */
+  /* 2026-09-21 재고현황 실측: 행 간격 38(기준일자 줄만 41). */
   min-height: 38px;
+  min-width: 0;
+}
+/* 화면이 좁아 한 칸뿐이면 두 칸짜리를 만들면 안 된다 — 없는 칸을 새로 만들어 옆으로 넘친다. */
+@media (min-width: 900px) {
+  /* 일자~일자(140+140)는 한 칸(최소 260)에 안 들어간다. 금액·수량 범위(이상~이하)는 들어가니 두지 않는다. */
+  /* 화면마다 div 로 한 번 더 감싸기도 해서 깊이를 묻지 않는다. */
+  .ec-cond > li:has(input:is([type="date"], [type="week"], [type="month"]) ~ input:is([type="date"], [type="week"], [type="month"])),
+  /* 고르기 버튼이 넷 이상(내역·집계·라인별·월별 …)이거나 버튼 묶음이 둘이면 한 칸에 안 들어간다. */
+  .ec-cond > li:has(.ec-pill:nth-child(4)),
+  .ec-cond > li:has(.ec-pills ~ .ec-pills),
+  /* 체크·라디오가 셋 이상인 묶음(결재방표시·…품목포함). 한 칸이면 서너 줄로 접혀 읽기 어렵다. */
+  .ec-cond > li:has(label:nth-of-type(3)),
+  .ec-cond > li.wide {
+    grid-column: span 2;
+  }
+}
+/* 기간 빠른선택([금일][전일][금월] …)이 붙은 일자는 두 칸에도 안 들어간다 — 한 줄을 통째로. */
+.ec-cond > li:has(.ec-btn-pick),
+.ec-cond > li.full {
+  /* 위 두 칸 규칙(:has 안의 선택자가 더 구체적)에 지지 않게 — 일자 줄은 두 칸 조건도 함께 맞는다. */
+  grid-column: 1 / -1 !important;
+}
+/* 칸이 모자라면 버튼줄도 칸 밖으로 나가지 말고 칸 안에서 접힌다. */
+.ec-cond .ec-pills {
+  flex-wrap: wrap;
 }
 .ec-cond > li > .title {
-  flex: 0 0 134px;
-  /* 원본 라벨 여백 3px 3px 3px 10px — 전표 폼(.ec-form)과 같다. */
+  /* 가로로 늘어놓으니 134 는 칸마다 빈 띠가 됐다. 가장 긴 라벨(거래처관리담당자 8자)이 들어가는 폭. */
+  flex: 0 0 112px;
   padding: 3px 3px 3px 10px;
   font-size: 12px;
   color: var(--ec-label);
@@ -815,3 +856,4 @@ main table,
   padding: 0 5px;
   margin-left: -1px;
 }
+

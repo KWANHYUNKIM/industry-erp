@@ -271,7 +271,7 @@ export default function BorPage() {
           원본은 이 칸을 <b>[생산수량]</b> 이라 부른다 — 우리 표의 열 이름도 [생산수량] 인데
           조건에서만 [로트수량] 이라 불러 같은 값이 두 이름으로 서 있었다.
         */}
-        <EcCond label="생산수량">
+        <EcCond label="생산수량" span={2}>
           <input className="ec-input text-right" type="number" value={lotSize}
                  onChange={(e) => setLotSize(e.target.value)} style={{ width: 100 }} />
           <span style={{ fontSize: 11.5, color: '#8a929c' }}>이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>

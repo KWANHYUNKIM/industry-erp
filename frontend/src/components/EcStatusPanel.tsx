@@ -18,10 +18,19 @@ import EcPeriodPicks, {
  * 우리는 EcListShell 의 actions 가 그 자리다.
  */
 
-/** 조건 한 줄. `pick` 이면 코드도움 조건이라 라벨이 파랗다(원본 규칙). */
-export function EcCond({ label, pick, children }: { label: string; pick?: boolean; children: ReactNode }) {
+/**
+ * 조건 한 칸. `pick` 이면 코드도움 조건이라 라벨이 파랗다(원본 규칙).
+ *
+ * <p>조건 판은 칸 폭이 같은 격자다(index.css .ec-cond). 한 칸에 안 들어가는 조건은
+ * `span={2}`(두 칸) 또는 `span="full"`(한 줄 통째)로 넓힌다. 입력칸 둘짜리 범위(일자~일자)는
+ * CSS 가 알아서 두 칸으로 잡으니 따로 줄 필요 없다.
+ */
+export function EcCond({ label, pick, span, children }: {
+  label: string; pick?: boolean; span?: 2 | 'full'; children: ReactNode
+}) {
+  const cls = [pick && 'pick', span === 2 && 'wide', span === 'full' && 'full'].filter(Boolean).join(' ')
   return (
-    <li className={pick ? 'pick' : undefined}>
+    <li className={cls || undefined}>
       <div className="title">{label}</div>
       <div className="form">{children}</div>
     </li>
@@ -132,7 +141,11 @@ export default function EcStatusPanel({
         </EcCond>
       )}
 
-      <EcCond label={dateLabel}>
+      {/*
+        기간 빠른선택([금일][전일][금월] …)은 기준일자와 한 줄에 둔다. 예전엔 라벨 없는 줄을 따로
+        썼는데, 조건을 가로로 늘어놓자 그 줄이 엉뚱한 칸에 끼어 어느 조건의 버튼인지 알 수 없었다.
+      */}
+      <EcCond label={dateLabel} span="full">
         {pickedLabel && (
           <span style={{ fontSize: 12, color: 'var(--ec-blue)', marginRight: 6 }}>{pickedLabel}</span>
         )}
@@ -148,9 +161,6 @@ export default function EcStatusPanel({
                    onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
           </>
         )}
-      </EcCond>
-
-      <EcCond label="">
         <EcPeriodPicks
           labels={picks} currentFrom={from} fiscalStart={fiscalStart}
           // 한 날짜짜리 화면은 구간을 받아도 시작일만 쓴다 — 끝을 같이 맞춰 돌려준다.

@@ -196,7 +196,7 @@ export default function TimeCalcPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="일자">
+        <EcCond label="일자" span="full">
           <input className="ec-input" type="date" value={baseDate}
                  onChange={(e) => setBaseDate(e.target.value)} style={{ width: 150 }} />
           <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>

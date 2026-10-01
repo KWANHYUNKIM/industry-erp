@@ -411,7 +411,7 @@ export default function SalesPlanPage() {
           원본은 축을 겹쳐 접어 보여 주고, 우리는 <b>고른 축을 한 묶음</b>으로 낸다 —
           같은 숫자를 같은 자리에 내되 접었다 폈다 하지는 않는다.
         */}
-        <EcCond label="표시조건">
+        <EcCond label="표시조건" span="full">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {axes.map((ax, i) => (
               <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
