@@ -1096,7 +1096,6 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           flash(`입고검사 요청 ${okCount}건을 만들었습니다.`)
         }
       }
-      setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
       deleteTemp()
       if (editing) {
@@ -1105,6 +1104,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         setSearchParams({}, { replace: true })
       }
       reset(true)
+      // 완료 안내는 reset <b>뒤에</b> 띄운다 — reset 이 setOk('') 로 지워서, 저장하고 나면 화면이 말없이
+      // 비기만 했다(어느 번호로 저장됐는지 볼 길이 없었다. QA 9회차, 화면으로 판매를 넣어 보다 발견).
+      setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       /* 목록을 아직 안 받았으면 저장했다고 새로 받을 까닭이 없다 — 볼 자리가 안 열려 있다. */
       if (docsAsked.current) void loadDocs()
       if (afterSaveTo) { const to = afterSaveTo; setAfterSaveTo(null); navigate(to) }

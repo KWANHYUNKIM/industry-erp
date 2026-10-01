@@ -1,0 +1,54 @@
+{
+  "about": "화면을 사람처럼 써 보는 회귀 시험 — node qa/shot.mjs qa/flows/trade-entry.json. QA 하네스 기본자료(QA-CUST·QA-SUPP·QA-WH·QA-PROD·QA-MAT)를 쓰고, 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "판매입력 — 거래처·창고·품목을 코드도움으로 골라 저장하면 번호와 함께 '저장 완료' 가 뜬다",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input[type=number]|1",
+        "click:저장(F8)",
+        "expect:/SO-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
+        "apidel:/sales|SO-[0-9]{8}-[0-9]{4}|docNo"
+      ]
+    },
+    {
+      "name": "구매입력 — 같은 흐름(QA-MAT 은 구매단가가 0 이라 단가를 직접 넣는다)",
+      "path": "/sales/buy",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-SUPP",
+        "click:입고창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-MAT",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input[type=number]#0|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input[type=number]#1|500",
+        "click:저장(F8)",
+        "expect:/PO-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
+        "apidel:/purchases|PO-[0-9]{8}-[0-9]{4}|docNo"
+      ]
+    },
+    {
+      "name": "주문서 등록 — 매출처·품목을 코드도움으로(9회차까지 긴 드롭다운이었다)",
+      "path": "/sales/orders",
+      "steps": [
+        "click:수주등록",
+        "click:매출처 선택",
+        "pickrow:QA-CUST",
+        "click:품목 선택",
+        "pickrow:QA-PROD",
+        "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#0|2",
+        "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#1|1000",
+        "click:저장(F8)",
+        "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
+        "apidel:/sales-orders|SN-[0-9]{8}-[0-9]{4}|orderNo"
+      ]
+    }
+  ]
+}

@@ -13,6 +13,10 @@
  *     어느 줄이 어느 것인지 볼 길이 없다(5회차 #23 — 미출하현황·창고이동현황이 그랬다).
  *     소스를 읽어 열과 칸을 짝짓는 방식은 조건부 열·map 때문에 50개 표 중 3개만 짝지어져 버렸다.
  *
+ *  3. 눌러 봐도 깨지지 않는가 — 화면마다 알약 버튼(보기형식·정렬·진행상태 …)을 차례로 누르고
+ *     [검색]을 누른 뒤, 그동안 난 <b>JS 예외 · 실패한 API(4xx/5xx) · 빈 화면</b>을 모은다.
+ *     저장·삭제처럼 자료를 바꾸는 버튼은 누르지 않는다.
+ *
  * 자료가 없는 화면은 2번을 볼 수 없다 — 결과에 '본 표' 수를 같이 찍는다.
  */
 import { readFileSync } from 'node:fs'
@@ -58,7 +62,22 @@ const scan = `(() => {
   return out;
 })()`
 
+/* 알약을 차례로 누르고 [검색] — 자료를 바꾸지 않는 버튼만 */
+const poke = `(async () => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let clicked = 0;
+  for (const p of [...document.querySelectorAll('.ec-pill')].slice(0, 20)) {
+    if (!p.isConnected) continue;
+    p.click(); clicked++; await sleep(120);
+  }
+  const search = [...document.querySelectorAll('button')].find((b) => /^(검색|Search)/.test(b.textContent.trim()));
+  if (search) { search.click(); clicked++; await sleep(700); }
+  const root = document.getElementById('root');
+  return { clicked, blank: !root || root.innerText.trim().length < 20 };
+})()`
+
 const problems = []
+let clicks = 0
 let tablesSeen = 0
 try {
   for (const r of routes) {
@@ -66,6 +85,11 @@ try {
     try {
       await b.goto(r, 1200)
       res = await b.evaluate(scan)
+      for (const e of b.takeErrors()) problems.push(`${r}  열 때 ${e}`)
+      const poked = await b.evaluate(poke)
+      clicks += poked.clicked
+      for (const e of b.takeErrors()) problems.push(`${r}  눌러 보니 ${e}`)
+      if (poked.blank && !res.blank) problems.push(`${r}  눌러 보니 빈 화면`)
     } catch (e) {
       problems.push(`${r}  열지 못함: ${e.message.slice(0, 80)}`)
       continue
@@ -78,7 +102,7 @@ try {
   await b.close()
 }
 
-console.log(`라우트 ${routes.length}개 · 품목(규격) 열이 있는 표 ${tablesSeen}개를 봤다`)
+console.log(`라우트 ${routes.length}개 · 품목(규격) 열이 있는 표 ${tablesSeen}개 · 버튼 ${clicks}번 눌러 봤다`)
 if (problems.length) {
   console.log(problems.map((p) => '  ❌ ' + p).join('\n'))
   process.exit(1)

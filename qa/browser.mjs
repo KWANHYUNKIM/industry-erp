@@ -44,9 +44,18 @@ export async function openBrowser({ port = 9333, width = 1600, height = 900 } = 
   await new Promise((r) => ws.addEventListener('open', r, { once: true }))
   let seq = 0
   const pending = new Map()
+  /** 화면에서 난 JS 예외와 실패한 API 응답. takeErrors() 로 꺼내 비운다. */
+  let errors = []
   ws.addEventListener('message', (e) => {
     const m = JSON.parse(e.data)
-    if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
+    if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); return }
+    if (m.method === 'Runtime.exceptionThrown') {
+      const d = m.params.exceptionDetails
+      errors.push('JS 예외: ' + (d.exception?.description ?? d.text ?? '').split('\n')[0].slice(0, 160))
+    } else if (m.method === 'Network.responseReceived') {
+      const r = m.params.response
+      if (r.status >= 400 && r.url.includes('/api/')) errors.push(`API ${r.status}: ${r.url.replace(/^https?:\/\/[^/]+/, '')}`)
+    }
   })
   const send = (method, params = {}) => new Promise((res, rej) => {
     const id = ++seq
@@ -69,6 +78,8 @@ export async function openBrowser({ port = 9333, width = 1600, height = 900 } = 
   }
 
   await send('Page.enable')
+  await send('Runtime.enable')
+  await send('Network.enable')
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
   // 같은 origin 에서 토큰을 심는다
   await send('Page.navigate', { url: `${WEB}/login` })
@@ -81,5 +92,6 @@ export async function openBrowser({ port = 9333, width = 1600, height = 900 } = 
     await sleep(500)
     try { rmSync(profile, { recursive: true, force: true }) } catch { /* Chrome 이 아직 잡고 있으면 남겨 둔다 */ }
   }
-  return { send, evaluate, waitFor, goto, close, token }
+  const takeErrors = () => { const e = errors; errors = []; return e }
+  return { send, evaluate, waitFor, goto, close, token, takeErrors }
 }

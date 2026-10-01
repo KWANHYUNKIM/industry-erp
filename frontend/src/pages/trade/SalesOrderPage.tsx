@@ -5,6 +5,7 @@ import type { Item, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -53,6 +54,9 @@ export default function SalesOrderPage() {
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
+  /** 줄의 품목 코드도움 — 코드·이름·검색어로 찾고 규격을 옆에 보인다. 사용중단 품목은 뺀다. */
+  const itemPicks = useMemo(() => items.filter((it) => it.active !== false)
+    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
 
   async function load() {
@@ -165,10 +169,10 @@ export default function SalesOrderPage() {
               <tr>
                 <th style={th}>매출처 *</th>
                 <td>
-                  <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택하세요</option>
-                    {customers.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 4회차에 다른 입력 화면 15곳은 코드도움으로 바꿨는데 여기만 남아 있었다(9회차). */}
+                  <CodePickerField label="매출처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                                   value={partnerId} onChange={setPartnerId}
+                                   items={partnerCodeItems(customers)} />
                 </td>
                 <th style={th}>부가세</th>
                 <td>
@@ -228,10 +232,9 @@ export default function SalesOrderPage() {
                 <tr key={idx}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
                   <td>
-                    <select className={inputCls} style={{ width: '100%' }} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)}>
-                      <option value="">선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                    </select>
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
+                                     value={String(l.itemId)} onChange={(v) => updateLine(idx, 'itemId', v)}
+                                     items={itemPicks} />
                   </td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
