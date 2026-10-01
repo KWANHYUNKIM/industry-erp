@@ -294,8 +294,11 @@ public class PurchaseOrderService {
                 lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
-        trace(po, po.getStatus(), PurchaseOrderStatus.RECEIVED, username, "구매전표 " + purchase.docNo());
-        po.setStatus(PurchaseOrderStatus.RECEIVED);
+        // 구매 전표가 발주 전량을 끊었으면 PurchaseOrderProgress 가 이미 입고전환으로 닫았다 — 이력을 두 번 남기지 않는다.
+        if (po.getStatus() != PurchaseOrderStatus.RECEIVED) {
+            trace(po, po.getStatus(), PurchaseOrderStatus.RECEIVED, username, "구매전표 " + purchase.docNo());
+            po.setStatus(PurchaseOrderStatus.RECEIVED);
+        }
         po.setConvertedPurchaseId(purchase.id());
         return purchase;
     }

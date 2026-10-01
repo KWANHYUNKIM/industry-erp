@@ -17,6 +17,7 @@ import com.erp.trade.purchase.dto.PurchaseDtos.PurchaseResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.trade.purchaseorder.PurchaseOrderStatus;
 import com.erp.trade.purchaseorder.PurchaseOrderRepository;
+import com.erp.trade.purchaseorder.PurchaseOrderProgress;
 import com.erp.trade.taxinvoice.TaxInvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +30,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
@@ -59,6 +62,7 @@ public class PurchaseService {
     private final TaxInvoiceRepository taxInvoiceRepository;
     // 명세 라인의 근거전표(발주서). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
     private final PurchaseOrderRepository purchaseOrderRepository;
+    private final PurchaseOrderProgress purchaseOrderProgress;
     private final PurchaseLineRepository purchaseLineRepository;
 
     /**
@@ -161,7 +165,9 @@ public class PurchaseService {
                 .build();
 
         applyContent(purchase, req, username);
-        return PurchaseResponse.from(purchaseRepository.save(purchase));
+        Purchase saved = purchaseRepository.save(purchase);
+        refreshOrders(sourceOrders(saved), username);
+        return PurchaseResponse.from(saved);
     }
 
     /**
@@ -177,6 +183,8 @@ public class PurchaseService {
         requireWithinOrderQty(req, id);
 
         revertStock(purchase, "구매수정 원복", username);
+        // 근거 발주를 바꾸는 수정이면 옛 발주도 다시 봐야 한다.
+        Set<PurchaseOrder> touchedOrders = new HashSet<>(sourceOrders(purchase));
         purchase.getLines().clear();
 
         purchase.setPartner(resolvePartner(req.partnerId()));
@@ -184,6 +192,8 @@ public class PurchaseService {
         if (req.purchaseDate() != null) purchase.setPurchaseDate(req.purchaseDate());
 
         applyContent(purchase, req, username);
+        touchedOrders.addAll(sourceOrders(purchase));
+        refreshOrders(touchedOrders, username);
         return PurchaseResponse.from(purchase);
     }
 
@@ -194,6 +204,7 @@ public class PurchaseService {
         ensureEditable(purchase, "삭제");
 
         revertStock(purchase, "구매삭제 원복", username);
+        Set<PurchaseOrder> touchedOrders = sourceOrders(purchase);
 
         // 발주 입고전환으로 생긴 전표라면 발주서의 입고 연결을 풀고 '발주확정'으로 되돌린다.
         // 이게 곧 입고취소다 — 이카운트에도 별도의 [입고취소] 버튼은 없고, 입고전표를 지우는 것이 취소다.
@@ -208,6 +219,21 @@ public class PurchaseService {
         } catch (DataIntegrityViolationException e) {
             throw ApiException.badRequest("다른 문서(전자결재 등)가 참조 중이라 삭제할 수 없습니다: " + purchase.getDocNo());
         }
+        refreshOrders(touchedOrders, username);
+    }
+
+    /** 이 전표의 줄들이 근거로 삼은 발주들. */
+    private static Set<PurchaseOrder> sourceOrders(Purchase purchase) {
+        Set<PurchaseOrder> out = new HashSet<>();
+        for (PurchaseLine l : purchase.getLines()) if (l.getSourceOrder() != null) out.add(l.getSourceOrder());
+        return out;
+    }
+
+    /** 구매로 발주가 다 끊겼는지 다시 본다(PurchaseOrderProgress). 합계 쿼리가 방금 바꾼 줄을 보도록 먼저 flush. */
+    private void refreshOrders(Set<PurchaseOrder> orders, String username) {
+        if (orders.isEmpty()) return;
+        purchaseRepository.flush();
+        orders.forEach(po -> purchaseOrderProgress.refresh(po, username));
     }
 
     private Purchase getPurchase(Long id) {

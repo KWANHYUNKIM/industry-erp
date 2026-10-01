@@ -443,6 +443,35 @@ async function scenarioOrderClosesBySales(f) {
 }
 
 /**
+ * <b>발주를 구매로 다 끊으면 발주도 닫힌다</b> (QA 9회차). 주문(#19)과 같은 규칙.
+ * 예전엔 [입고전환] 버튼으로만 닫혀, 구매입력에서 발주를 불러와 전량을 사도 '발주요청' 그대로였다.
+ * 구매를 지우면 닫히기 직전 단계로 돌아가고, 바뀔 때마다 이력이 남는다.
+ */
+async function scenarioPurchaseOrderClosesByPurchases(f) {
+  section('■ 구매로 다 끊은 발주는 입고전환')
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-13', warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 10, unitPrice: 500 }],
+  })
+  const statusOf = async () => (await must('GET', '/purchase-orders')).find((o) => o.id === po.id).statusName
+  const buy = (qty) => must('POST', '/purchases', {
+    purchaseDate: '2026-07-13', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: qty, unitPrice: 500, sourceOrderId: po.id }],
+  })
+  const before = await statusOf()
+  const b1 = await buy(6)
+  eq('일부만 사면 그대로', await statusOf(), before)
+  const b2 = await buy(4)
+  eq('발주수량만큼 사면 입고전환', await statusOf(), '입고전환')
+  const hist = await must('GET', `/purchase-orders/${po.id}/history`)
+  eq('닫힌 까닭이 이력에 남는다', hist.some((h) => (h.note ?? '').includes('구매입력으로 전량 입고')), true)
+  await must('DELETE', `/purchases/${b2.id}`)
+  eq('구매를 지우면 닫히기 직전 단계로', await statusOf(), before)
+  await must('DELETE', `/purchases/${b1.id}`)
+  await must('DELETE', `/purchase-orders/${po.id}`)
+}
+
+/**
  * <b>미출하현황이 말하는 미출하수량 = 실제로 낼 수 있는 잔량.</b>
  *
  * 예전에는 미출하수량을 "주문 − 출하<b>완료</b>" 로 냈다. 출하지시(READY)만 낸 수량은
@@ -9205,6 +9234,7 @@ async function main() {
   await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioSaleWithinOrder(fixtures)
   await scenarioOrderClosesBySales(fixtures)
+  await scenarioPurchaseOrderClosesByPurchases(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPriceBulkField(fixtures)
   await scenarioSpecialPrice(fixtures)
