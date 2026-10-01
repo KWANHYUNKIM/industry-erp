@@ -303,7 +303,7 @@ export default function SuppliesPage() {
         </form>
       )}</Modal>
 
-      <Modal open={showMaster} title="공용품 등록·관리" width={560} onClose={() => setShowMaster(false)}>{(
+      <Modal error={error} open={showMaster} title="공용품 등록·관리" width={560} onClose={() => setShowMaster(false)}>{(
         <div>
           <form onSubmit={addSupply} style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
             <input className="ec-input" placeholder="품목코드" value={mCode} onChange={(e) => setMCode(e.target.value)} style={{ width: 110 }} />

@@ -245,7 +245,7 @@ export default function TransferPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
-      <Modal open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
+      <Modal error={error} open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
         ? <TransferForm items={items} warehouses={warehouses} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
 

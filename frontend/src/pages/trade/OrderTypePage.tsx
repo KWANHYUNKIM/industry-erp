@@ -215,7 +215,7 @@ export default function OrderTypePage() {
           <option>전체</option><option>사용</option><option>중단</option>
         </select>
       </div>
-      <Modal open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '160px 200px 1fr 110px', gap: 10 }}>

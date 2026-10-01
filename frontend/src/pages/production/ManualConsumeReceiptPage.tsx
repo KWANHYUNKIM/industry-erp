@@ -239,7 +239,7 @@ export default function ManualConsumeReceiptPage({ withQualityRequest = false }:
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <Modal open={showForm} title={`${title} 등록`} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={`${title} 등록`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>생산입고 등록 (소모품목 직접 선택)</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

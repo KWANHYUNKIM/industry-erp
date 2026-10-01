@@ -14,12 +14,14 @@
  *               pickrow:<코드|@키>  열린 코드도움 팝업에서 칸 하나가 그 코드인 행을 고른다
  *               set:<선택자>[#n]|<값>  입력칸에 값을 넣는다(React 가 알아채도록 input 이벤트까지). #n 은 n 번째(0부터)
  *               choose:<선택자>[#n]|<보이는 글자>  드롭다운에서 그 글자의 항목을 고른다(id 는 환경마다 달라서)
+ *               setnear:<이름표>|<값>  이름표(th·label·칸 이름) 글자가 그것인 칸 옆의 입력칸에 넣는다
  *               expect:<식>         참이 아니면 실패로 끝낸다 — 화면을 사람처럼 써 보는 시험에 쓴다
  *               apidel:<목록주소>|<번호정규식>|<번호필드>  화면에 뜬 전표번호를 목록에서 찾아 API 로 지운다
  *                                   — 화면 시험이 전표를 쌓지 않게 끝에 둔다(예: apidel:/sales|SO-[0-9]{8}-[0-9]{4}|docNo)
  *                                   번호정규식 자리에 @키 를 주면 sessionStorage[키] 의 번호를 쓴다(화면을 옮겨 다니는 시험)
  *
  * out 을 빼면 캡처 없이 단계만 돈다(qa/flows/*.json — 화면 회귀 시험).
+ * "as": "아이디|비번" 을 주면 그 화면은 그 계정으로 연다(결재자 등). 다음 화면부터 다시 admin.
  *
  * 실행 중 난 JS 예외·실패한 API 응답(4xx/5xx)은 찍어 주고, 있으면 실패로 끝낸다.
  *
@@ -39,6 +41,8 @@ let failed = false
 try {
   for (const shot of scenario.shots) {
     if (shot.name) console.log('■', shot.name)
+    const [asUser, asPass] = (shot.as ?? `${process.env.ERP_USER ?? 'admin'}|${process.env.ERP_PASS ?? 'admin1234'}`).split('|')
+    await b.loginAs(asUser, asPass)
     await b.goto(shot.path)
     for (const step of shot.steps ?? []) {
       const [kind, ...rest] = step.split(':')
@@ -73,6 +77,20 @@ try {
           Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(v.join('|'))});
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
         if (!ok) throw new Error('입력칸이 없다: ' + sel)
+        await sleep(200)
+      } else if (kind === 'setnear') {
+        const [label, ...v] = rest.join(':').split('|')
+        const ok = await b.evaluate(`(() => { const t = ${JSON.stringify(label)};
+          const head = [...document.querySelectorAll('th, label, td, div, span')].find((x) => [...x.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim().split('*')[0].trim() === t);
+          if (!head) return false;
+          let box = head.closest('tr') ?? head.parentElement;
+          let el = null;
+          for (let up = 0; up < 3 && box && !el; up++, box = box.parentElement) el = box.querySelector('input:not([readonly]):not([type=checkbox]):not([type=radio]), textarea');
+          if (!el) return false;
+          const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(v.join('|'))});
+          el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
+        if (!ok) throw new Error('이름표 옆 입력칸이 없다: ' + label)
         await sleep(200)
       } else if (kind === 'choose') {
         const [selN, ...v] = rest.join(':').split('|')

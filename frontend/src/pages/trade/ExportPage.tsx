@@ -304,7 +304,7 @@ export default function ExportPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="수출 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="수출 등록" onClose={() => setShowForm(false)}>{(
         <ExportForm
           partners={partners}
           currencies={currencies}

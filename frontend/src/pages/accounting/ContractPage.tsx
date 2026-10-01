@@ -147,7 +147,7 @@ export default function ContractPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={showForm} title="계약관리 · 전자계약 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="계약관리 · 전자계약 등록" onClose={() => setShowForm(false)}>{(
         <ContractForm partners={partners} onError={setError}
           onSaved={(c) => { setShowForm(false); flash(`${c.contractNo} 작성 — 서명요청을 보내면 상대가 전자서명할 수 있습니다.`); load() }} />
       )}</Modal>

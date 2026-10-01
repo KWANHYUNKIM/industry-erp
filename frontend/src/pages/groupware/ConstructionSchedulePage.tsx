@@ -238,7 +238,7 @@ export default function ConstructionSchedulePage() {
         </form>
       )}</Modal>
 
-      <Modal open={statusOpen} title={`진행상태변경 (${checked.size}건)`} onClose={() => setStatusOpen(false)}>{(
+      <Modal error={error} open={statusOpen} title={`진행상태변경 (${checked.size}건)`} onClose={() => setStatusOpen(false)}>{(
         <div style={{ padding: 6, minWidth: 300 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {STATUSES.map(([v, l]) => (

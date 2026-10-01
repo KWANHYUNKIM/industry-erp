@@ -149,7 +149,7 @@ export default function LeaveInputPage() {
         { label: '다시 작성', onClick: () => setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)]) },
       ]}
     >
-      <Modal open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
+      <Modal error={error} open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
         <div style={{ padding: 4, minWidth: 460 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>근태항목</div>

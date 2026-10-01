@@ -620,7 +620,7 @@ export default function DailyProfitPage() {
           )}
         </table>
       </div>
-      <Modal open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
+      <Modal error={error} open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나
           판매액과 같아집니다. 아래를 차례로 보세요.

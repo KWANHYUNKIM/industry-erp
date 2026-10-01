@@ -182,7 +182,7 @@ export default function BorPage() {
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <Modal open={showForm} title={editId ? '작업 수정' : '작업 등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '작업 수정' : '작업 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <CodePickerField

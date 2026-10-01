@@ -369,7 +369,7 @@ export default function IssuePage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <Modal open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 불출 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

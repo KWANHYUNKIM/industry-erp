@@ -58,7 +58,7 @@ export default function RolesPage() {
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <Modal
+      <Modal error={error}
         open={editing !== null}
         title={editing === 'new' ? '새 역할 등록' : '역할 편집'}
         width={880}

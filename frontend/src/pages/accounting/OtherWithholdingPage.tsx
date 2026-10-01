@@ -154,7 +154,7 @@ export default function OtherWithholdingPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="기타원천세 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="기타원천세 등록" onClose={() => setShowForm(false)}>{(
         <WithholdingForm
           partners={partners}
           onClose={() => setShowForm(false)}

@@ -161,7 +161,7 @@ export default function FixedAssetPage() {
         </div>
       )}
 
-      <Modal open={showForm && tab === '자산목록'} title="고정자산 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '자산목록'} title="고정자산 등록" onClose={() => setShowForm(false)}>{(
         <AssetForm accounts={accounts} onError={setError} onSaved={() => { setShowForm(false); flash('자산을 등록했습니다.'); load() }} />
       )}</Modal>
 

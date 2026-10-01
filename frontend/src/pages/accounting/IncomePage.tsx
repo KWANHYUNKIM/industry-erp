@@ -122,7 +122,7 @@ export default function IncomePage() {
         </>
       )}
 
-      <Modal open={showForm} title="수입비용 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="수입비용 등록" onClose={() => setShowForm(false)}>{(
         <IncomeForm
           accounts={accounts.filter((a) => a.division === 'REVENUE')}
           banks={banks}

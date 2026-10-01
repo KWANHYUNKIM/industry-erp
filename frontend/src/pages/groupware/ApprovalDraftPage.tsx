@@ -297,7 +297,7 @@ export default function ApprovalDraftPage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !selected && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       {/*
@@ -534,6 +534,12 @@ export default function ApprovalDraftPage() {
                   }}
                 />
               </div>
+
+              {/*
+                작성창이 열려 있으면 오류도 창 안에 띄운다. 예전엔 창 뒤(목록 위)에만 떠서, 필수 항목을 빠뜨리고
+                [저장/결재] 를 누르면 아무 일도 안 일어나는 것처럼 보였다(QA 15회차, 화면으로 기안해 보다 발견).
+              */}
+              {error && <p style={{ marginTop: 10, marginBottom: 0, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
               <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5', alignItems: 'center' }}>
                 {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}

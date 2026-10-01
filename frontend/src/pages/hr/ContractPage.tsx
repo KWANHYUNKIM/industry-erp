@@ -160,7 +160,7 @@ export default function ContractPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="전자근로계약 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="전자근로계약 등록" onClose={() => setShowForm(false)}>{(
         <ContractForm
           employees={employees}
           departments={departments}

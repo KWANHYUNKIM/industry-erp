@@ -281,7 +281,7 @@ export default function SurveyInputPage() {
         )}
       </div>
 
-      <Modal open={preview} title="미리보기" width={640} onClose={() => setPreview(false)}>{(
+      <Modal error={error} open={preview} title="미리보기" width={640} onClose={() => setPreview(false)}>{(
         <div style={{ fontSize: 13 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{title || '(제목 없음)'}</div>
           {useHeader && headerText && (

@@ -92,7 +92,7 @@ export default function CashPlanPage() {
         <PlanTable title="지출 계획" rows={outflows} onRemove={remove} />
       </div>
 
-      <Modal open={showForm} title="자금계획 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="자금계획 등록" onClose={() => setShowForm(false)}>{(
         <CashPlanForm
           period={period}
           onClose={() => setShowForm(false)}

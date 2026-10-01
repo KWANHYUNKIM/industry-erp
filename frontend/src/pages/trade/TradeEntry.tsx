@@ -1850,7 +1850,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </EcSlipShell>
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
-      <Modal open={colPickerOpen} title="열 선택" width={360} onClose={() => setColPickerOpen(false)}>
+      <Modal error={error} open={colPickerOpen} title="열 선택" width={360} onClose={() => setColPickerOpen(false)}>
         <p style={{ fontSize: 12, color: '#5a626e', marginTop: 0 }}>
           원본에서 기본 숨김으로 깔려 있는 열입니다. 켜면 그리드에 나타납니다.
         </p>
@@ -1869,7 +1869,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </Modal>
 
       {/* ── 거래내역보기 ─────────────────────────────────── */}
-      <Modal open={historyOpen} title={`거래내역보기 (${cfg.lineTab})`} width={720} onClose={() => setHistoryOpen(false)}>
+      <Modal error={error} open={historyOpen} title={`거래내역보기 (${cfg.lineTab})`} width={720} onClose={() => setHistoryOpen(false)}>
         <p style={{ fontSize: 12, color: '#5a626e', marginTop: 0 }}>
           이 거래처의 최근 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져옵니다.
         </p>
@@ -1902,7 +1902,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </Modal>
 
       {/* ── 전표불러오기 (원본 slip_load) — 거래처 상관없이 지난 전표를 복사 ── */}
-      <Modal open={slipLoadOpen} title={`전표불러오기 (${cfg.lineTab})`} width={760} onClose={() => setSlipLoadOpen(false)}>
+      <Modal error={error} open={slipLoadOpen} title={`전표불러오기 (${cfg.lineTab})`} width={760} onClose={() => setSlipLoadOpen(false)}>
         <p style={{ fontSize: 12, color: '#5a626e', marginTop: 0 }}>
           지난 {cfg.lineTab} 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져오고,
           거래처도 그 전표의 것으로 맞춰집니다. (거래처별로 보려면 툴바 [거래내역보기]를 쓰세요.)
@@ -1937,7 +1937,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </Modal>
 
       {/* ── 근거전표 불러오기 (원본 [주문]/[발주]) ────────── */}
-      <Modal open={loadOpen} title={cfg.loadTitle} width={840} onClose={() => setLoadOpen(false)}>
+      <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={840} onClose={() => setLoadOpen(false)}>
         {loadRows === null ? (
           <p style={{ fontSize: 12.5, color: '#8a929c', margin: 0 }}>불러오는 중…</p>
         ) : loadRows.length === 0 ? (
@@ -2004,7 +2004,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </Modal>
 
       {/* ── 재고 ─────────────────────────────────────────── */}
-      <Modal open={stockOpen} title="재고 (명세 품목)" width={620} onClose={() => setStockOpen(false)}>
+      <Modal error={error} open={stockOpen} title="재고 (명세 품목)" width={620} onClose={() => setStockOpen(false)}>
         <table className="w-full text-left">
           <thead>
             <tr><th>품목</th><th>창고</th><th style={{ textAlign: 'right' }}>재고</th><th style={{ textAlign: 'right' }}>이 전표 수량</th></tr>
@@ -2030,7 +2030,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       {/* ── 검증 결과 ────────────────────────────────────── */}
       {/* 이익계산 — 원본 profitCalc. 원가는 회계(item_costs)가 소유하므로 화면에서 읽어 계산한다. */}
-      <Modal open={profitOpen} title="이익계산" width={780} onClose={() => setProfitOpen(false)}>
+      <Modal error={error} open={profitOpen} title="이익계산" width={780} onClose={() => setProfitOpen(false)}>
         {costs === null ? (
           <div style={{ padding: 20, textAlign: 'center', color: '#9aa1ab' }}>원가를 불러오는 중…</div>
         ) : profitRows.length === 0 ? (
@@ -2099,7 +2099,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         )}
       </Modal>
 
-      <Modal open={verifyResult !== null} title="검증 결과" width={520} onClose={() => setVerifyResult(null)}>
+      <Modal error={error} open={verifyResult !== null} title="검증 결과" width={520} onClose={() => setVerifyResult(null)}>
         {verifyResult && verifyResult.length === 0 ? (
           <p style={{ color: '#1c7c3c', fontSize: 13, margin: 0 }}>문제가 없습니다. 저장할 수 있습니다.</p>
         ) : (

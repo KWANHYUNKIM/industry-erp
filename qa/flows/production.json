@@ -17,13 +17,13 @@
       ]
     },
     {
-      "name": "작업지시 등록 — 제품을 안 고르면 그 말을 하고 저장하지 않는다(창고는 첫 창고가 기본값)",
+      "name": "작업지시 등록 — 제품을 안 고르면 그 말을 <창 안에> 하고 저장하지 않는다(15회차까지 창 뒤에 떠서 안 보였다)",
       "path": "/production/work-orders",
       "steps": [
         "click:신규",
         "set:form input[type=number]|5",
         "click:등록",
-        "expect:document.body.innerText.includes('제품을 선택하세요.')"
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('제품을 선택하세요.')"
       ]
     },
     {

@@ -109,10 +109,10 @@ export default function CurrencyPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={showForm && tab === '통화등록'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '통화등록'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <CurrencyForm onError={setError} onSaved={() => { setShowForm(false); flash('통화를 등록했습니다.'); load() }} />
       )}</Modal>
-      <Modal open={showForm && tab === '고시환율'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '고시환율'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <RateForm currencies={currencies} onError={setError}
           onSaved={(r) => { setShowForm(false); flash(`${r.currencyCode} ${r.rateDate} 환율 ${rateText(r.rate)}원 등록`); load() }} />
       )}</Modal>

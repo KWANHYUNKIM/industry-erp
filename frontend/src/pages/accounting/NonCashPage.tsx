@@ -131,7 +131,7 @@ export default function NonCashPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
         <NonCashForm
           accounts={accounts} partners={partners} onError={setError}
           onSaved={(t) => { setShowForm(false); flash(`${t.txnNo} 저장 · 회계전표 ${t.journalDocNo} 생성`); load() }}

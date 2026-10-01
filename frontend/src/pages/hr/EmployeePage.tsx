@@ -235,7 +235,7 @@ export default function EmployeePage() {
         </EcCond>
       </ul>
 
-      <Modal open={showForm} title={editId ? '사원 수정' : '사원 등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '사원 수정' : '사원 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>

@@ -236,7 +236,7 @@ export default function CostBuildPage() {
       )}
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-      <Modal open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
             {editId ? `원가 수정 — ${editItemName}` : '원가 등록'}
@@ -313,7 +313,7 @@ export default function CostBuildPage() {
           ))}
         </tbody>
       </table>
-      <Modal open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
+      <Modal error={error} open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
           원가가 0 이거나 일부 품목만 생깁니다.

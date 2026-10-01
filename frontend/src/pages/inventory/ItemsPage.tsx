@@ -467,7 +467,7 @@ export default function ItemsPage() {
         사용중단포함
       </label>
 
-      <Modal open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '품목 수정' : '새 품목 등록'}</div>
           {/*
@@ -851,7 +851,7 @@ export default function ItemsPage() {
         원본 [변경] — 고른 품목의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고
         새 값을 정한다. 비우면 그 칸을 비운다(그룹 미지정 · 구매처 없음).
       */}
-      <Modal open={bulkOpen} title={`품목 일괄변경 (${selected.size}건)`} onClose={() => setBulkOpen(false)}>{(
+      <Modal error={error} open={bulkOpen} title={`품목 일괄변경 (${selected.size}건)`} onClose={() => setBulkOpen(false)}>{(
         <div style={{ padding: 4 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>

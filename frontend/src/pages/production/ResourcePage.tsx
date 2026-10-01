@@ -210,7 +210,7 @@ export default function ResourcePage() {
         ))}
       </div>
 
-      <Modal open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 자원 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">

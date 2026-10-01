@@ -168,7 +168,7 @@ export default function ProcessPage() {
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <Modal open={showForm} title={editId ? '공정수정' : '공정등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
+      <Modal error={error} open={showForm} title={editId ? '공정수정' : '공정등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '공정 수정' : '새 공정 등록'}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">

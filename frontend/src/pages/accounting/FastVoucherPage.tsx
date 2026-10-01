@@ -151,7 +151,7 @@ export default function FastVoucherPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={showForm} title="FastEntry (지출결의서·입금보고서·가지급금정산서) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="FastEntry (지출결의서·입금보고서·가지급금정산서) 등록" onClose={() => setShowForm(false)}>{(
         <VoucherForm
           type={type} accounts={accounts} banks={banks} partners={partners}
           onError={setError}

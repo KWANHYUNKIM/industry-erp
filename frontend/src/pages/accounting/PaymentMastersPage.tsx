@@ -196,7 +196,7 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
-      <Modal open={showForm} title={`${tab === 'card' ? '카드사' : '결제대행사'} ${editId ? '수정' : '등록'}`} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={`${tab === 'card' ? '카드사' : '결제대행사'} ${editId ? '수정' : '등록'}`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             {tab === 'card' ? (

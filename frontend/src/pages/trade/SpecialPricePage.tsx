@@ -203,7 +203,7 @@ export default function SpecialPricePage() {
         )}
       </div>
 
-      <Modal open={showForm} title="특별단가 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="특별단가 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>

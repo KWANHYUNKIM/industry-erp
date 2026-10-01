@@ -351,7 +351,7 @@ export default function WorkOrderPage() {
         </EcCond>
       </ul>
 
-      <Modal open={showForm} title="작업지시 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="작업지시 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업지시</div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">

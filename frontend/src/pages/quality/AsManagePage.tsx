@@ -376,7 +376,7 @@ export default function AsManagePage() {
         </form>
       )}</Modal>
 
-      <Modal open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
+      <Modal error={error} open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
         <div style={{ padding: 4, minWidth: 560 }}>
           <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>

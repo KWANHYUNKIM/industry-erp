@@ -217,7 +217,7 @@ export default function WorkResultPage() {
         격자가 열두 칸이라 기본 폭(640)으로는 팝업 밖으로 넘친다 — 브라우저로 열어 보고 알았다.
         Modal 은 maxWidth 96vw 라 좁은 화면에서는 알아서 줄어든다.
       */}
-      <Modal open={showForm} title="작업내역입력" width={1180} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="작업내역입력" width={1180} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">

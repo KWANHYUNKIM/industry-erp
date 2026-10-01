@@ -97,7 +97,7 @@ export default function BomPage() {
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <Modal open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>BOM 등록 / 수정</div>
           <table className="w-full text-left" style={{ marginBottom: 10, maxWidth: 720 }}>

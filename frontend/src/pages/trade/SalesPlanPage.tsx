@@ -334,7 +334,7 @@ export default function SalesPlanPage() {
         </div>
       </div>
 
-      <Modal open={showForm} title="매출계획 등록" onClose={() => setShowForm(false)}>
+      <Modal error={error} open={showForm} title="매출계획 등록" onClose={() => setShowForm(false)}>
         <PlanForm year={year} items={items} warehouses={warehouses} partners={partners} projects={projects} employees={employees} onError={setError} onSaved={() => { setShowForm(false); setOk('매출계획 등록 완료'); load() }} />
       </Modal>
 

@@ -422,7 +422,7 @@ export default function PartnersPage() {
         })}>조건 지우기</button>
       </div>
 
-      <Modal open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '거래처 수정' : '새 거래처 등록'}</div>
           <ul className="ec-tabs" style={{ marginBottom: 10 }}>
@@ -823,7 +823,7 @@ export default function PartnersPage() {
         원본 [변경] — 고른 거래처의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고
         새 값을 정한다. 비우면 그 칸을 비운다(담당자 없음 · 그룹 미지정).
       */}
-      <Modal open={bulkOpen} title={`거래처 일괄변경 (${checked.size}건)`} onClose={() => setBulkOpen(false)}>{(
+      <Modal error={error} open={bulkOpen} title={`거래처 일괄변경 (${checked.size}건)`} onClose={() => setBulkOpen(false)}>{(
         <div style={{ padding: 4 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>

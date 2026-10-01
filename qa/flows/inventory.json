@@ -42,6 +42,20 @@
         "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD2',String(x?x.quantity:0));return true})",
         "expect:Number(sessionStorage.getItem('qaD2')) === Number(sessionStorage.getItem('qaD0'))"
       ]
+    },
+    {
+      "name": "창고이동 — 출고·입고 창고를 같게 하면 그 말을 창 안에(15회차까지 창 뒤)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "click:창고이동 등록",
+        "click:품목 선택",
+        "pickrow:QA-MAT",
+        "choose:[role=dialog] select#0|QA창고",
+        "choose:[role=dialog] select#1|QA창고",
+        "set:[role=dialog] input[type=number]|1",
+        "click:이동처리",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('출고창고와 입고창고가 같을 수 없습니다.')"
+      ]
     }
   ]
 }

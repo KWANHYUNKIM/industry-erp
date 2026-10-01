@@ -158,7 +158,7 @@ export default function DailyWagePage() {
         )}
       </table>
 
-      <Modal open={showForm} title="일용근로급여 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="일용근로급여 등록" onClose={() => setShowForm(false)}>{(
         <DailyWorkForm
           employees={employees}
           onClose={() => setShowForm(false)}

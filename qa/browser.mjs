@@ -17,10 +17,10 @@ export const WEB = process.env.ERP_WEB ?? 'http://localhost:5180'
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-export async function login() {
+export async function login(username = process.env.ERP_USER ?? 'admin', password = process.env.ERP_PASS ?? 'admin1234') {
   const r = await (await fetch(`${API}/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: process.env.ERP_USER ?? 'admin', password: process.env.ERP_PASS ?? 'admin1234' }),
+    body: JSON.stringify({ username, password }),
   })).json()
   const token = r.token ?? r.accessToken
   if (!token) throw new Error('로그인 실패: ' + JSON.stringify(r))
@@ -93,5 +93,11 @@ export async function openBrowser({ port = 9333, width = 1600, height = 900 } = 
     try { rmSync(profile, { recursive: true, force: true }) } catch { /* Chrome 이 아직 잡고 있으면 남겨 둔다 */ }
   }
   const takeErrors = () => { const e = errors; errors = []; return e }
-  return { send, evaluate, waitFor, goto, close, token, takeErrors }
+  /** 다른 계정으로 갈아탄다(결재자처럼 두 사람이 필요한 시험). 다음 goto 부터 그 계정이다. */
+  const loginAs = async (username, password) => {
+    const t = await login(username, password)
+    await evaluate(`localStorage.setItem('erp_token', ${JSON.stringify(t)}); true`)
+    return t
+  }
+  return { send, evaluate, waitFor, goto, close, token, takeErrors, loginAs }
 }

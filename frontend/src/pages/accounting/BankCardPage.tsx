@@ -256,25 +256,25 @@ export default function BankCardPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
-      <Modal open={(showForm || !!editAccount) && tab === '계좌등록'}
+      <Modal error={error} open={(showForm || !!editAccount) && tab === '계좌등록'}
              title={editAccount ? '계좌 수정' : '계좌/카드 등록'}
              onClose={() => { setShowForm(false); setEditAccount(null) }}>{(
         <BankAccountForm key={editAccount?.id ?? 'new'} edit={editAccount}
           glAccounts={glAccounts} currencies={currencies} onError={setError}
           onSaved={() => { setEditAccount(null); saved(editAccount ? '계좌를 수정했습니다.' : '계좌를 등록했습니다.') }} />
       )}</Modal>
-      <Modal open={(showForm || !!editCard) && tab === '카드등록'}
+      <Modal error={error} open={(showForm || !!editCard) && tab === '카드등록'}
              title={editCard ? '카드 수정' : '계좌/카드 등록'}
              onClose={() => { setShowForm(false); setEditCard(null) }}>{(
         <CardForm key={editCard?.id ?? 'new'} edit={editCard}
           accounts={accounts} onError={setError}
           onSaved={() => { setEditCard(null); saved(editCard ? '카드를 수정했습니다.' : '카드를 등록했습니다.') }} />
       )}</Modal>
-      <Modal open={showForm && tab === '계좌입출금'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '계좌입출금'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <BankTxnForm accounts={accounts} glAccounts={glAccounts} partners={partners}
           onError={setError} onSaved={() => saved('입출금을 처리하고 회계전표를 생성했습니다.')} />
       )}</Modal>
-      <Modal open={showForm && tab === '카드사용'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '카드사용'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
         <CardUsageForm cards={cards} glAccounts={glAccounts}
           onError={setError} onSaved={() => saved('카드사용을 등록하고 회계전표를 생성했습니다.')} />
       )}</Modal>

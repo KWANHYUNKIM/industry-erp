@@ -170,7 +170,7 @@ export default function WarehousesPage() {
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <Modal open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
+      <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>
             {editId ? '창고 수정' : '새 창고 등록'}
