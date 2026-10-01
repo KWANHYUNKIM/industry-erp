@@ -244,7 +244,7 @@ export default function LeaveInputPage() {
                 </td>
                 <td>
                   {/* 드롭다운이었다 — 근태입력처럼 코드도움으로(원본도 사원 칸은 코드도움이다). QA 17회차 */}
-                  <CodePickerField label="사원" hideLabel fill placeholder="선택" emptyLabel="선택 해제"
+                  <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
                                    value={l.userId} onChange={(v) => setLine(l.key, { userId: v })}
                                    items={users.map((u) => ({ value: String(u.id), name: u.name, sub: u.department }))} />
                 </td>
