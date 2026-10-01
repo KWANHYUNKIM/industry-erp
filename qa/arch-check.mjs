@@ -66,7 +66,27 @@ for (const [k, ex] of [...edges].sort()) {
 for (const k of Object.keys(KNOWN)) {
   if (!edges.has(k)) { fail++; console.log(`  ❌ ${k} 는 이제 없다 — KNOWN 에서 지우세요(래칫을 조인다)`) }
 }
-const cycles = [...edges.keys()].filter((k) => { const [a, b] = k.split('→'); return edges.has(`${b}→${a}`) && a < b })
-console.log(`  순환: ${cycles.length ? cycles.map((k) => k.replace('→', '↔')).join(', ') : '없음'}`)
+/*
+ * 순환은 둘 사이(A↔B)만이 아니다 — hr→accounting→trade→hr 같은 셋 이상의 고리도 있다.
+ * 서로 닿는 모듈 묶음(강한 연결 요소, Tarjan)으로 센다. 묶음이 하나라도 두 모듈 이상이면 순환이다.
+ */
+const adj = new Map(MODULES.map((m) => [m, []]))
+for (const k of edges.keys()) { const [a, b] = k.split('→'); adj.get(a).push(b) }
+let idx = 0
+const index = new Map(), low = new Map(), onStack = new Set(), stack = [], sccs = []
+const strong = (v) => {
+  index.set(v, idx); low.set(v, idx); idx++; stack.push(v); onStack.add(v)
+  for (const w of adj.get(v)) {
+    if (!index.has(w)) { strong(w); low.set(v, Math.min(low.get(v), low.get(w))) }
+    else if (onStack.has(w)) low.set(v, Math.min(low.get(v), index.get(w)))
+  }
+  if (low.get(v) === index.get(v)) {
+    const c = []; let w
+    do { w = stack.pop(); onStack.delete(w); c.push(w) } while (w !== v)
+    if (c.length > 1) sccs.push(c.sort())
+  }
+}
+for (const m of MODULES) if (!index.has(m)) strong(m)
+console.log(`  순환(서로 닿는 묶음): ${sccs.length ? sccs.map((c) => '{' + c.join(', ') + '}').join(' ') : '없음'}`)
 console.log(fail ? `\n실패 ${fail}` : '\n새 의존 없음')
 process.exit(fail ? 1 : 0)

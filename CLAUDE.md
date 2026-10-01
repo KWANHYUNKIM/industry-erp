@@ -98,7 +98,9 @@ controller  →  service  →  repository  →  domain
 > 실제로는 순환이 넷이었습니다. 어음 enum 이 groupware 에 잘못 놓여 생긴 accounting↔groupware 와
 > common 이 다른 모듈을 참조하던 것(MetaController → config 로)은 그날 끊었고, 남은 것은 `qa/arch-check.mjs` 의
 > `KNOWN` 에 적어 두었습니다(14회차에 통화를 settings 로 옮겨 accounting↔trade 를 끊었습니다): `trade→hr`·`hr→trade`(담당자 Employee · 사원 실적),
-> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting↔hr · hr↔trade 순환이 남아 있습니다.** 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
+> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting·hr·production·trade 넷이 서로 닿는 고리가 남아 있습니다**
+> (예: hr→accounting→trade→hr). 결정적인 간선은 `trade→hr`(판매·구매·주문의 담당자가 `Employee` 엔티티 —
+> production 처럼 `Long employeeId` 로 바꾸면 끊긴다)와 `accounting→hr`(급여이체 분개가 `PayrollTransfer` 를 받는다) 둘입니다. 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
 
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
