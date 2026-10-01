@@ -4,6 +4,7 @@ import type { Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
 const COLOR: Record<PlanStatus, string> = { REVIEW: '#c07a00', CONFIRMED: 'var(--ec-blue)', ORDERED: '#1c7c3c' }
@@ -96,10 +97,10 @@ export default function PlanningPage() {
               <tr>
                 <th style={th}>제품 *</th>
                 <td>
-                  <select className={inputCls} value={productId} onChange={(e) => setProductId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택하세요</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다(QA 21회차) — 품목이 늘면 못 찾는다. */}
+                  <CodePickerField label="제품" hideLabel width={240} placeholder="제품" emptyLabel="선택 해제"
+                                   value={productId} onChange={setProductId}
+                                   items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                 </td>
                 <th style={th}>계획주차</th>
                 <td><input className={inputCls} value={planWeek} onChange={(e) => setPlanWeek(e.target.value)} style={{ width: 130 }} placeholder="2026-W28" /></td>

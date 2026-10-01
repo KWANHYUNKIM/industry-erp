@@ -59,6 +59,29 @@
         "expect:Number(sessionStorage.getItem('qaStock2')) === Number(sessionStorage.getItem('qaStock0'))",
         "apidel:/work-orders|@qaWO|orderNo"
       ]
+    },
+    {
+      "name": "생산계획 — 제품을 코드도움으로 골라 등록(21회차까지 긴 드롭다운) → [확정] → [작업지시 생성] → 번호 안내, 끝에 작업지시·계획을 지운다",
+      "path": "/production/planning",
+      "steps": [
+        "js:fetch('/api/production-plans', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { for (const x of (d.rows ?? d).filter((p) => p.planWeek === '2039-W01')) await fetch('/api/production-plans/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return true })",
+        "click:계획등록",
+        "click:제품 선택",
+        "pickrow:QA-PROD",
+        "setnear:계획주차|2039-W01",
+        "set:[role=dialog] input[type=number]#0|5",
+        "set:[role=dialog] input[type=number]#1|5",
+        "click:저장(F8)",
+        "expect:/2039-W01 QA완제품 계획 등록/.test(document.body.innerText)",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('2039-W01') && tr.innerText.includes('QA완제품'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('2039-W01') && tr.innerText.includes('QA완제품')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '확정') b.click() }); true",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('2039-W01') && tr.innerText.includes('QA완제품'))?.innerText.includes('작업지시 생성')",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('2039-W01') && tr.innerText.includes('QA완제품')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '작업지시 생성') b.click() }); true",
+        "expect:/작업지시 WO-[0-9]{8}-[0-9]{4} 생성 완료/.test(document.body.innerText)",
+        "apidel:/work-orders|WO-[0-9]{8}-[0-9]{4}|orderNo",
+        "js:fetch('/api/production-plans', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { const xs = (d.rows ?? d).filter((p) => p.planWeek === '2039-W01'); for (const x of xs) await fetch('/api/production-plans/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); sessionStorage.setItem('qaPlanDel', String(xs.length)); return true })",
+        "expect:sessionStorage.getItem('qaPlanDel') === '1'"
+      ]
     }
   ]
 }
