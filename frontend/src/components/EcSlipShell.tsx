@@ -144,6 +144,19 @@ export default function EcSlipShell({
   const [bookmarked, setBookmarked] = useState(true)   // 원본은 page-bookmark-added 상태로 뜬다
   const footerRef = useRef<HTMLDivElement>(null)
 
+  /*
+   * 저장 = 이 화면을 감싼 form 을 제출. 저장 단추에 ▲ 메뉴(저장/결제·임시저장 …)를 달면서 MenuButton 으로
+   * 그리게 됐는데, MenuButton 의 큰 단추는 onClick 만 불렀고 저장 동작은 onClick 이 아니라 submit 이라서
+   * <b>판매입력·구매입력에서 [저장(F8)]을 눌러도 아무 일도 안 일어났다</b>(메뉴만 열렸다). F8 도
+   * type="submit" 단추를 찾다가 못 찾고 조용히 끝났다(2026-10-01, 주문을 불러와 저장하다 발견).
+   * requestSubmit 은 form 의 검증과 onSubmit 을 그대로 태운다.
+   */
+  const submitForm = () => {
+    const form = footerRef.current?.closest('form')
+    if (form) form.requestSubmit()
+    else footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+  }
+
   // 저장(F8)·저장/전표(F7) — 원본과 같은 단축키. 입력칸 안에서도 먹어야 하므로 window 에 건다.
   // F7 은 라벨에 적혀만 있고 안 걸려 있었다(F8 만 잡고 있었다).
   useEffect(() => {
@@ -152,8 +165,7 @@ export default function EcSlipShell({
       if (e.key === 'F8') {
         if (!actions.some((a) => a.submit && !a.disabled)) return
         e.preventDefault()
-        // submit 버튼을 실제로 눌러 form 의 검증·onSubmit 을 그대로 태운다
-        footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+        submitForm()
         return
       }
       if (e.key === 'F7') {
@@ -239,7 +251,7 @@ export default function EcSlipShell({
                 items={a.menu}
                 className={cls}
                 up
-                onMain={a.onClick}
+                onMain={a.submit ? submitForm : a.onClick}
                 disabled={a.disabled}
                 title={a.disabled ? a.disabledReason : undefined}
               />

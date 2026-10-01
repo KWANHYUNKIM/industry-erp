@@ -153,6 +153,8 @@ interface SalesOrderLite {
   orderDate: string
   partnerId: number
   partnerName: string
+  warehouseId: number | null
+  projectId: number | null
   status: 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
   statusName: string
   lines: {
@@ -178,6 +180,9 @@ interface LoadableLine {
   date: string
   partnerId: number
   partnerName: string
+  /** 근거전표의 창고·프로젝트 — 담을 때 전표 머리에 이어받는다(없으면 null). */
+  warehouseId: number | null
+  projectId: number | null
   statusName: string
   itemId: number
   itemCode: string
@@ -683,6 +688,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               key: `${o.id}-${l.lineId ?? i}`, orderId: o.id, docType: '주문서',
               docNo: o.orderNo, date: o.orderDate,
               partnerId: o.partnerId, partnerName: o.partnerName, statusName: o.statusName,
+              warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null,
               itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
               orderedQty: l.quantity, doneQty: l.shippedQty ?? 0, restQty: rest, unitPrice: l.unitPrice,
             })
@@ -696,6 +702,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               key: `${o.id}-${l.id}`, orderId: o.id, docType: '발주서',
               docNo: o.orderNo, date: o.orderDate,
               partnerId: o.partnerId, partnerName: o.partnerName, statusName: o.statusName,
+              warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null,
               itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
               orderedQty: l.quantity, doneQty: 0, restQty: l.quantity, unitPrice: l.unitPrice,
             })
@@ -739,6 +746,27 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     }
     if (!partnerId) setPartnerId(String(partnerIds[0]))
 
+    /*
+     * 근거전표의 프로젝트·창고도 이어받는다. 예전엔 거래처만 받아서, 수주를 불러와 만든 판매가
+     * 프로젝트 없이 저장되고 <b>프로젝트별 손익에서 매출이 빠졌다</b>(2026-10-01, 프로젝트 여러 개로
+     * 시연하다 발견). 프로젝트가 다른 주문을 한 전표에 섞으면 어느 프로젝트 매출인지 갈 수 없어 막는다.
+     */
+    const projIds = [...new Set(picked.map((r) => r.projectId).filter((x): x is number => x != null))]
+    if (projIds.length > 1) return flash('프로젝트가 다른 주문은 한 전표에 담을 수 없습니다. 프로젝트별로 나눠 담으세요.')
+    if (projIds.length === 1) {
+      if (projectId && projectId !== String(projIds[0])) {
+        return flash('지금 전표의 프로젝트와 다른 주문입니다. 프로젝트를 비우거나 같은 프로젝트 행을 고르세요.')
+      }
+      if (!projectId) setProjectId(String(projIds[0]))
+    }
+    /*
+     * 창고는 화면을 열 때 기본값(마지막에 쓴 창고 등)이 이미 차 있어서 "비었으면 채운다" 로는 안 바뀐다 —
+     * 주문은 본사창고인데 QA창고에서 출하하는 판매가 만들어졌다. 주문들의 창고가 하나면 그것으로 바꾸고 알린다.
+     */
+    const whIds = [...new Set(picked.map((r) => r.warehouseId).filter((x): x is number => x != null))]
+    const whNote = whIds.length === 1 && warehouseId !== String(whIds[0])
+    if (whNote) setWarehouseId(String(whIds[0]))
+
     setLines((ls) => {
       const kept = ls.filter((l) => l.itemId)
       const added = picked.map((r) => ({
@@ -757,7 +785,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     // 근거전표 열은 기본으로 숨어 있다(원본도 그렇다). 담은 순간에는 보여줘야 뭘 담았는지 안다.
     setCols((c) => ({ ...c, srcNo: true }))
     setLoadOpen(false)
-    flash(`${picked.length}건을 명세에 담았습니다.`)
+    flash(`${picked.length}건을 명세에 담았습니다.${whNote ? ' 창고를 주문의 창고로 맞췄습니다.' : ''}`)
   }
 
   const checkedIdx = lines.map((l, i) => (l.checked && l.itemId ? i : -1)).filter((i) => i >= 0)
@@ -1538,13 +1566,18 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         )}
 
         {/* ── 명세 그리드 (원본 #gridESD006Msubmain) ─────────── */}
-        <div ref={gridRef}>
+        {/*
+          품목명 열은 폭을 안 줘서 남는 자리만 받았다 — [불러온 전표No.] 같은 선택 열이 켜지면 60px 로
+          줄어 🔍·× 단추가 자리를 다 먹고 <b>품목명이 안 보였다</b>(2026-10-01, 주문을 불러오다 발견).
+          최소 200 을 주고, 열이 많아 넘치면 표를 가로로 굴린다.
+        */}
+        <div ref={gridRef} style={{ overflowX: 'auto' }}>
           <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: 26 }} />
               <col style={{ width: 26 }} />
               <col style={{ width: 100 }} />
-              <col />
+              <col style={{ width: 200 }} />
               <col style={{ width: 110 }} />
               <col style={{ width: 110 }} />
               {cols.stockAll && <col style={{ width: 70 }} />}
