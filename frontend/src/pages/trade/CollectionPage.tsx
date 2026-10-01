@@ -119,8 +119,10 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
    * 원본 [정렬/소계기준]. 수금은 한 거래처에서 여러 번 들어오고 방법도 섞인다 —
    * 어느 거래처에서 얼마가 들어왔는지, 어느 방법으로 들어왔는지를 눈으로 더해야 했다.
    */
-  const SUBTOTALS = ['거래처', '수금방법', '거래처관리담당자'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+  // 지급현황도 이 화면을 쓴다 — '수금방법' 을 박아 두면 지급현황의 알약이 수금방법으로 나왔다.
+  const methodLabel = `${moneyLabel}방법`
+  const SUBTOTALS = ['거래처', methodLabel, '거래처관리담당자']
+  const [subtotal, setSubtotal] = useState<string>('거래처')
   const shown = rows
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
@@ -180,7 +182,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         fiscalStart={fiscalStart}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
-        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+        onSubtotalChange={(v) => setSubtotal(v)}
       >
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
@@ -284,7 +286,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
 
       {view === '표' && shown.length > 0 && (() => {
         const groups = subtotalBy(shown,
-          (r) => (subtotal === '수금방법' ? r.method
+          (r) => (subtotal === methodLabel ? r.method
             : subtotal === '거래처관리담당자' ? (managerOf.get(r.partnerId) || null)
               : r.partnerName),
           { amount: (r) => r.amount })
