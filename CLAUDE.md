@@ -375,6 +375,7 @@ node qa/screen-check.mjs          # 라우트 전부(약 8분) — 빈 화면, '
 node qa/screen-check.mjs sales    # 접두사(/sales)만. Git Bash 는 '/sales' 를 윈도 경로로 바꾸므로 슬래시 없이
 node qa/shot.mjs <시나리오.json>   # QA 기록용 캡처(조건 코드도움 고르기 step 지원)
 for f in qa/flows/*.json; do node qa/shot.mjs $f; done   # 화면을 사람처럼 써 보는 회귀 시험(입력→저장→안내, 만든 전표는 지움)
+bash qa/precommit.sh               # 커밋 전 — typecheck·test:unit·ui-check·dto-check·arch-check, 하나라도 실패하면 exit 1
 ```
 
 `screen-check` 는 화면마다 알약 버튼과 [검색]을 눌러 JS 예외·실패한 API(4xx/5xx)도 모읍니다.
