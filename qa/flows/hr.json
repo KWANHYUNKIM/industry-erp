@@ -1,0 +1,23 @@
+{
+  "about": "인사 화면 회귀 시험. node qa/shot.mjs qa/flows/hr.json — 넣은 근태는 화면의 [삭제]로 지운다(16회차까지 지울 길이 없었다).",
+  "shots": [
+    {
+      "name": "근태입력 — 사원을 코드도움으로 골라 출·퇴근을 넣고 저장하면 '근태 저장', 그 기록을 지울 수 있다(16회차까지 지울 길이 없었다). 미래 날짜(2027-01-04)로 넣는다 — 같은 사원·날짜는 덮어쓰므로 실제 근태를 건드리지 않게",
+      "path": "/hr/attendance-input",
+      "steps": [
+        "click:신규",
+        "click:사원 * 선택",
+        "pickrow:이사원",
+        "set:[role=dialog] input[type=date]|2027-01-04",
+        "set:[role=dialog] input[type=time]#0|09:00",
+        "set:[role=dialog] input[type=time]#1|18:00",
+        "click:저장",
+        "expect:document.body.innerText.includes('이사원 2027/01/04 근태 저장') || document.body.innerText.includes('이사원 2027-01-04 근태 저장')",
+        "js:fetch('/api/hr/attendance?from=2027-01-01&to=2027-01-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { const x = (d.rows ?? d).find((a) => a.empName === '이사원' && a.date === '2027-01-04'); sessionStorage.setItem('qaAtt', x ? JSON.stringify(x) : ''); return true })",
+        "expect:sessionStorage.getItem('qaAtt') && JSON.parse(sessionStorage.getItem('qaAtt')).clockIn?.startsWith('09:00')",
+        "js:window.confirm = () => true; window.__del = () => fetch('/api/hr/attendance/' + JSON.parse(sessionStorage.getItem('qaAtt')).id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.status); window.__del().then((s) => sessionStorage.setItem('qaAttDel', String(s))); true",
+        "expect:sessionStorage.getItem('qaAttDel') === '204'"
+      ]
+    }
+  ]
+}

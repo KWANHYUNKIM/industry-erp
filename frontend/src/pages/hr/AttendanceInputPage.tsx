@@ -41,6 +41,8 @@ export default function AttendanceInputPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 저장·삭제 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 16회차). */
+  const [ok, setOk] = useState('')
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -65,13 +67,13 @@ export default function AttendanceInputPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    setError(''); setOk('')
     if (!form.userId) {
       setError('사원을 선택하세요.')
       return
     }
     try {
-      await api.post('/hr/attendance', {
+      const res = await api.post<{ empName: string; date: string; status: string }>('/hr/attendance', {
         userId: Number(form.userId),
         date: form.date,
         clockIn: form.clockIn || null,
@@ -80,6 +82,19 @@ export default function AttendanceInputPage() {
       })
       setForm(emptyForm)
       setShowForm(false)
+      setOk(`${res.data.empName} ${dateText(res.data.date)} 근태 저장 · ${res.data.status}`)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /** 날짜를 잘못 골라 넣은 기록을 지운다 — 출·퇴근을 비워도 그 날이 근무일·결근으로 집계됐다. */
+  async function remove(r: { id: number; date: string; empName: string }) {
+    if (!confirm(`${r.empName} ${dateText(r.date)} 근태를 삭제할까요?`)) return
+    try {
+      await api.delete(`/hr/attendance/${r.id}`)
+      setOk(`${r.empName} ${dateText(r.date)} 근태 삭제`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -98,6 +113,7 @@ export default function AttendanceInputPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="근태입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -144,13 +160,14 @@ export default function AttendanceInputPage() {
             <th>퇴근</th>
             <th style={{ textAlign: 'right' }}>근무시간</th>
             <th style={{ textAlign: 'center' }}>상태</th>
+            <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -160,6 +177,9 @@ export default function AttendanceInputPage() {
               <td style={mono}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString()}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
             </tr>
           ))}
         </tbody>

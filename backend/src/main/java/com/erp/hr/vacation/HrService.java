@@ -120,6 +120,17 @@ public class HrService {
         return AttendanceRow.from(attendanceRepository.save(att));
     }
 
+    /**
+     * 근태 삭제. 예전엔 지울 길이 없어, 날짜를 잘못 골라 넣으면 출·퇴근을 비워도 그 날 기록이 남아
+     * 근무일·결근으로 집계됐다(QA 16회차).
+     */
+    @Transactional
+    public void deleteAttendance(Long id) {
+        Attendance att = attendanceRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("근태 기록을 찾을 수 없습니다. id=" + id));
+        attendanceRepository.delete(att);
+    }
+
     // -------------------------------------------------------------- 휴가
 
     @Transactional(readOnly = true)

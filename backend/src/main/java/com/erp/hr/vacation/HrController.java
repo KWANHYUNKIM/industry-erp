@@ -57,6 +57,12 @@ public class HrController {
         return ResponseEntity.ok(hrService.upsertAttendance(req));
     }
 
+    @DeleteMapping("/attendance/{id}")
+    public ResponseEntity<Void> deleteAttendance(@PathVariable Long id) {
+        hrService.deleteAttendance(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // -------------------------------------------------------------- 휴가
 
     @GetMapping("/vacations")
