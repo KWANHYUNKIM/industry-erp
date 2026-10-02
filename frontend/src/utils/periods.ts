@@ -85,13 +85,11 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
      *
      * <p>앞으로 할 일을 고르는 화면이라 <b>미래가 들어간다</b> — 오늘까지만 보면
      * 아직 안 온 납기의 작업지시가 목록에서 빠져 "할 일이 없다" 로 보인다.
-     * 한 달 뒤는 <b>같은 날</b>이다(월말 보정 없이 setMonth +1) — 3/31 의 한 달 뒤는 4/30 이 아니라
-     * 5/1 이 되지만, 원본도 그 자리를 '(+1개월)' 이라고만 부르고 하루 이틀 차이를 따지지 않는다.
+     * '(+1개월)' 이라 부르지만 실제로는 <b>오늘 + 30일</b>이다 — 2026-10-03 수령수표조회(E060603)의 기본이
+     * 2026/09/03 ~ 2026/11/02 였다(같은 날로 한 달이면 11/03). 9/1 에 잰 2026/08/02 ~ 10/01 도 +30일과 맞는다.
      */
-    case '최근30일(+1개월)': {
-      const end = new Date(t.getFullYear(), t.getMonth() + 1, t.getDate())
-      return { from: ymd(addDays(t, -30)), to: ymd(end) }
-    }
+    case '최근30일(+1개월)':
+      return { from: ymd(addDays(t, -30)), to: ymd(addDays(t, 30)) }
     // 현황 화면에서 쓰는 것들. '금월' 과 달리 월말이 아니라 **오늘**까지다.
     case '금월(~오늘)':
       return { from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) }
