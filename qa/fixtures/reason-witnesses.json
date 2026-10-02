@@ -355,20 +355,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
- "입고단가(VAT포함)": {
-  "claim": "생산실적에 단가 칸이 없다",
-  "absent": [
-   "unitPrice"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
- "입고단가": {
-  "claim": "생산실적에 단가 칸이 없다",
-  "absent": [
-   "unitPrice"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
  "선입선출(판매)": {
   "claim": "입고 레이어를 남기지 않아 선입선출로 못 센다",
   "absent": [

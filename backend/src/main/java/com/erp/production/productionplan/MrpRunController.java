@@ -49,7 +49,7 @@ public class MrpRunController {
     }
 
     @GetMapping("/{id}/lines")
-    public List<LineResponse> lines(@PathVariable Long id, @RequestParam MrpRunKind kind) {
+    public List<LineResponse> lines(@PathVariable Long id, @RequestParam(defaultValue = "PLAN") MrpRunKind kind) {
         return mrpRunService.lines(id, kind);
     }
 
