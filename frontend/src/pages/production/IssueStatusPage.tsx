@@ -95,7 +95,7 @@ export default function IssueStatusPage() {
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
   /** 원본 ◉내역 아래 선택상자 — 라인별(기본, 자재 줄마다) · 전표별(불출 전표 한 장이 한 줄). */
-  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별'>('라인별')
+  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
   /** 원본 조건 판의 [프로젝트]. */
@@ -248,10 +248,14 @@ export default function IssueStatusPage() {
   /** 내역 [전표별] — 불출번호 하나가 한 줄(첫 자재 외 n건, 수량 합). 생산금액은 줄마다 단가로 센 것을 더한다. */
   const listRows = lineView === '라인별' ? shown : (() => {
     /* 품목별 — 같은 품목(보내는창고·받는공장도 같은 것)을 한 줄로, 일자-No. 는 처음 것을 둔다(원본 실측: 9/3 · 9/7 의 같은 자재가 9/3 줄에 합쳐진다). */
-    const keyOf = (r: typeof shown[number]) => lineView === '품목별' ? `${r.itemId}|${r.warehouseId}|${r.toWarehouseId}` : r.issueNo
+    /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
+       (원본 실측 2026-10-02: 9/3 줄 인텔 코어 270 · 43,110,000 = 그날 세 자재의 합). */
+    const keyOf = (r: typeof shown[number]) => lineView === '품목별' ? `${r.itemId}|${r.warehouseId}|${r.toWarehouseId}`
+      : lineView === '일별' ? r.issueDate : lineView === '월별' ? r.issueDate.slice(0, 7) : r.issueNo
     const m = new Map<string, typeof shown>()
     shown.forEach((r) => m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]))
     return [...m.values()].map((ls) => ({ ...ls[0],
+      ...(lineView === '일별' || lineView === '월별' ? { issueNo: '', issueDate: lineView === '월별' ? ls[0].issueDate.slice(0, 7).replace('-', '/') : ls[0].issueDate } : {}),
       itemName: lineView === '전표별' && ls.length > 1 ? `${ls[0].itemName} 외 ${ls.length - 1}건` : ls[0].itemName,
       itemSpec: lineView === '전표별' && ls.length > 1 ? null : ls[0].itemSpec,
       qty: ls.reduce((n, r) => n + r.qty, 0),
@@ -290,11 +294,13 @@ export default function IssueStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '내역' ? (
-          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별')}
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
             <option value="전표별">전표별</option>
             <option value="품목별">품목별</option>
+            <option value="일별">일별</option>
+            <option value="월별">월별</option>
           </select>
         ) : undefined}
         view={view} onViewChange={setView}

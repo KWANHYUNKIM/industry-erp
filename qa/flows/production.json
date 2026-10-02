@@ -262,6 +262,38 @@
         "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='품목별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'품목별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
         "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText));const keys=rows.map((t)=>[...t.cells].slice(2,5).map((c)=>c.innerText.trim()).join('|'));return rows.length<=Number(sessionStorage.getItem('qaLineRows'))&&new Set(keys).size===keys.length})()"
       ]
+    },
+    {
+      "name": "생산불출현황 — 내역 [일별]: 날짜 하나가 한 줄(No. 없이 일자만, 수량은 그날 합)",
+      "path": "/production/issue-status",
+      "steps": [
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='일별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'일별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const ds=[...document.querySelectorAll('table tbody tr')].map((t)=>t.innerText.match(/^\\s*[0-9]*\\s*(20[0-9]{2}[\\/-][0-9]{2}[\\/-][0-9]{2})/)).filter(Boolean).map((m)=>m[1]);return new Set(ds).size===ds.length&&![...document.querySelectorAll('table tbody tr')].some((t)=>/[A-Z]{2}-[0-9]{8}-[0-9]{4}/.test(t.cells[1]?.innerText??''))})()"
+      ]
+    },
+    {
+      "name": "생산입고현황 — 내역 [일별]: 날짜 하나가 한 줄(No. 없이 일자만, 수량은 그날 합)",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='일별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'일별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const ds=[...document.querySelectorAll('table tbody tr')].map((t)=>t.innerText.match(/^\\s*[0-9]*\\s*(20[0-9]{2}[\\/-][0-9]{2}[\\/-][0-9]{2})/)).filter(Boolean).map((m)=>m[1]);return new Set(ds).size===ds.length&&![...document.querySelectorAll('table tbody tr')].some((t)=>/[A-Z]{2}-[0-9]{8}-[0-9]{4}/.test(t.cells[1]?.innerText??''))})()"
+      ]
+    },
+    {
+      "name": "작업지시서현황 — 내역 [일별]: 날짜 하나가 한 줄(No. 없이 일자만, 수량은 그날 합)",
+      "path": "/production/wo-status",
+      "steps": [
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='일별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'일별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const ds=[...document.querySelectorAll('table tbody tr')].map((t)=>t.innerText.match(/^\\s*[0-9]*\\s*(20[0-9]{2}[\\/-][0-9]{2}[\\/-][0-9]{2})/)).filter(Boolean).map((m)=>m[1]);return new Set(ds).size===ds.length&&![...document.querySelectorAll('table tbody tr')].some((t)=>/[A-Z]{2}-[0-9]{8}-[0-9]{4}/.test(t.cells[1]?.innerText??''))})()"
+      ]
+    },
+    {
+      "name": "작업내역현황 — 내역 [일별]: 날짜 하나가 한 줄(No. 없이 일자만, 수량은 그날 합)",
+      "path": "/production/work-result-status",
+      "steps": [
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='일별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'일별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const ds=[...document.querySelectorAll('table tbody tr')].map((t)=>t.innerText.match(/^\\s*[0-9]*\\s*(20[0-9]{2}[\\/-][0-9]{2}[\\/-][0-9]{2})/)).filter(Boolean).map((m)=>m[1]);return new Set(ds).size===ds.length&&![...document.querySelectorAll('table tbody tr')].some((t)=>/[A-Z]{2}-[0-9]{8}-[0-9]{4}/.test(t.cells[1]?.innerText??''))})()"
+      ]
     }
   ]
 }
