@@ -99,6 +99,19 @@ public final class PurchaseOrderDtos {
         }
     }
 
+    /**
+     * 아직 구매로 안 끊은 발주 줄(발주 − 구매). 구매입력 [발주] 불러오기가 쓴다.
+     * 예전엔 발주수량 전체를 담아, 100 중 60 을 입고한 뒤 다시 불러오면 또 100 이 떴다(42회차).
+     * 판매 쪽 /sales-orders/unsold 와 같은 잣대.
+     */
+    public record UnpurchasedLineResponse(
+            Long orderId, String orderNo, Long orderLineId, LocalDate orderDate,
+            Long partnerId, String partnerName, String statusName,
+            Long warehouseId, Long projectId,
+            Long itemId, String itemCode, String itemName, String unit,
+            BigDecimal orderQty, BigDecimal boughtQty, BigDecimal restQty, BigDecimal unitPrice
+    ) {}
+
     public record PurchaseOrderResponse(
             Long id, String orderNo, LocalDate orderDate, LocalDate dueDate,
             /** 원본 [유효기간]. 안 정했으면 null. 납기일과 다른 값이다. */

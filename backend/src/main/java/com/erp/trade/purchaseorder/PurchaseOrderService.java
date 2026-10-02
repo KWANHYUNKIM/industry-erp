@@ -57,6 +57,42 @@ public class PurchaseOrderService {
     private final PurchaseLineRepository purchaseLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
+    /**
+     * 미구매 발주 줄 — 발주수량에서 이미 구매로 끊은 수량을 뺀 잔량이 남은 줄만.
+     * 같은 품목이 한 발주에 여러 줄이면 앞 줄부터 채운다(구매 줄은 발주 헤더만 가리켜 품목으로 맞춘다).
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderDtos.UnpurchasedLineResponse> findUnpurchased(LocalDate from, LocalDate to) {
+        java.util.Map<String, BigDecimal> bought = new java.util.HashMap<>();
+        for (var a : purchaseLineRepository.aggregateBoughtAll()) {
+            bought.merge(a.getOrderId() + ":" + a.getItemId(), a.getQty(), BigDecimal::add);
+        }
+        List<PurchaseOrderDtos.UnpurchasedLineResponse> out = new java.util.ArrayList<>();
+        for (PurchaseOrder po : orderRepository.findAllWithRefs()) {
+            if (po.getStatus() == PurchaseOrderStatus.CANCELLED || po.getStatus() == PurchaseOrderStatus.RECEIVED
+                    || po.getConvertedPurchaseId() != null) continue;
+            if (from != null && po.getOrderDate().isBefore(from)) continue;   // 기간을 주면 그 기간에 낸 발주만
+            if (to != null && po.getOrderDate().isAfter(to)) continue;
+            java.util.Map<Long, BigDecimal> left = new java.util.HashMap<>();
+            for (PurchaseOrderLine l : po.getLines()) {
+                Long itemId = l.getItem().getId();
+                BigDecimal pool = left.computeIfAbsent(itemId, k -> bought.getOrDefault(po.getId() + ":" + k, BigDecimal.ZERO));
+                BigDecimal used = pool.min(l.getQuantity()).max(BigDecimal.ZERO);
+                left.put(itemId, pool.subtract(used));
+                BigDecimal rest = l.getQuantity().subtract(used);
+                if (rest.signum() <= 0) continue;
+                out.add(new PurchaseOrderDtos.UnpurchasedLineResponse(
+                        po.getId(), po.getOrderNo(), l.getId(), po.getOrderDate(),
+                        po.getPartner().getId(), po.getPartner().getName(), po.getStatus().getDisplayName(),
+                        po.getWarehouse() != null ? po.getWarehouse().getId() : null,
+                        po.getProject() != null ? po.getProject().getId() : null,
+                        itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                        l.getQuantity(), used, rest, l.getUnitPrice()));
+            }
+        }
+        return out;
+    }
+
     @Transactional(readOnly = true)
     public List<PurchaseOrderResponse> findAll() {
         return findAll(null, null);

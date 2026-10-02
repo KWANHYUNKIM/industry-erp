@@ -42,6 +42,14 @@ public class PurchaseOrderController {
         return service.findAll(status, from, to);
     }
 
+    /** 미구매 발주 줄(발주 − 구매). 구매입력 [발주] 불러오기. */
+    @GetMapping("/unpurchased")
+    public List<PurchaseOrderDtos.UnpurchasedLineResponse> unpurchased(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findUnpurchased(from, to);
+    }
+
     /** 발주 파이프라인 상태별 집계(건수·금액). 발주요청현황 상단 요약에 사용. */
     @GetMapping("/summary")
     public List<PurchaseOrderDtos.PurchaseOrderSummaryRow> summary() {

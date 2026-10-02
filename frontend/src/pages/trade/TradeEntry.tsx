@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type {
   CustomFieldDef, EmployeeMaster, Item, ItemCost, MyItem, Partner, Project, PurchaseDoc,
-  PurchaseOrder, SalesDoc, StockRow, Warehouse,
+  SalesDoc, StockRow, Warehouse,
 } from '../../types/api'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
@@ -136,7 +136,7 @@ const CFG = {
     counterpartLabel: '판매',
     /** 근거전표 불러오기 — 구매는 발주서 */
     loadLabel: '발주',
-    loadTitle: '발주 불러오기 (미입고 발주서)',
+    loadTitle: '발주 불러오기 (미입고 잔량)',
     cashLabel: '현금지급',
     cashTo: '/sales/payment',
     listTo: '/sales/purchase-list',
@@ -696,19 +696,25 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           orderedQty: l.orderQty, doneQty: l.soldQty, restQty: l.unsoldQty, unitPrice: l.unitPrice,
         }))
       } else {
-        const r = await api.get<PurchaseOrder[]>('/purchase-orders')
-        r.data
-          .filter((o) => o.status !== 'RECEIVED' && o.status !== 'CANCELLED')
-          .forEach((o) => o.lines.forEach((l) => {
-            rows.push({
-              key: `${o.id}-${l.id}`, orderId: o.id, docType: '발주서',
-              docNo: o.orderNo, date: o.orderDate,
-              partnerId: o.partnerId, partnerName: o.partnerName, statusName: o.statusName,
-              warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null,
-              itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
-              orderedQty: l.quantity, doneQty: 0, restQty: l.quantity, unitPrice: l.unitPrice,
-            })
-          }))
+        /*
+         * 미구매 잔량(발주 − 이미 구매)으로 담는다. 예전엔 발주수량 전체를 담아 100 중 60 을 입고한 뒤
+         * 다시 불러오면 또 100 이 떴다(42회차) — 판매의 '주문 − 판매'(23회차 #70)와 같은 잣대.
+         */
+        const r = await api.get<{
+          orderId: number; orderNo: string; orderLineId: number; orderDate: string
+          partnerId: number; partnerName: string; statusName: string
+          warehouseId: number | null; projectId: number | null
+          itemId: number; itemCode: string; itemName: string; unit: string
+          orderQty: number; boughtQty: number; restQty: number; unitPrice: number
+        }[]>('/purchase-orders/unpurchased')
+        r.data.forEach((l) => rows.push({
+          key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '발주서',
+          docNo: l.orderNo, date: l.orderDate,
+          partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+          orderedQty: l.orderQty, doneQty: l.boughtQty, restQty: l.restQty, unitPrice: l.unitPrice,
+        }))
       }
       rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))
       setLoadRows(rows)
@@ -1957,7 +1963,6 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           <>
             <p style={{ fontSize: 12, color: '#5a626e', marginTop: 0 }}>
               담을 행을 체크하고 [선택 담기]를 누르면 품목·수량·단가가 명세로 들어갑니다.
-              {mode === 'purchase' && ' 우리 발주서는 통짜로 입고 전환되므로 발주수량 전체를 담습니다.'}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <input className="ec-input" style={{ width: 260 }} placeholder={`${mode === 'sales' ? '주문No.' : '발주No.'} · 거래처 · 품목 찾기`}
@@ -1980,7 +1985,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     <th>거래처</th>
                     <th>품목</th>
                     <th style={{ width: 70, textAlign: 'right' }}>{mode === 'sales' ? '주문' : '발주'}</th>
-                    {mode === 'sales' && <th style={{ width: 60, textAlign: 'right' }}>판매</th>}
+                    <th style={{ width: 60, textAlign: 'right' }}>{mode === 'sales' ? '판매' : '입고'}</th>
                     <th style={{ width: 70, textAlign: 'right' }}>담을수량</th>
                     <th style={{ width: 80, textAlign: 'right' }}>단가</th>
                     <th style={{ width: 70 }}>상태</th>
@@ -2001,7 +2006,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       <td>{r.partnerName}</td>
                       <td>{r.itemName}</td>
                       <td style={{ textAlign: 'right' }}>{won(r.orderedQty)}</td>
-                      {mode === 'sales' && <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.doneQty)}</td>}
+                      <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.doneQty)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.restQty)}</td>
                       <td style={{ textAlign: 'right' }}>{won(r.unitPrice)}</td>
                       <td style={{ color: '#8a929c' }}>{r.statusName}</td>

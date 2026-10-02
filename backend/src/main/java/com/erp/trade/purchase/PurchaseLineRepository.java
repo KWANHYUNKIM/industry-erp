@@ -29,6 +29,11 @@ public interface PurchaseLineRepository extends JpaRepository<PurchaseLine, Long
     List<OrderItemAggregate> aggregateBoughtByOrder(@Param("orderId") Long orderId,
                                                     @Param("excludePurchaseId") Long excludePurchaseId);
 
+    /** 모든 발주의 품목별 구매 전환수량 — 구매입력 [발주] 불러오기의 잔량(발주 − 구매)을 낼 때(42회차). */
+    @Query("select l.sourceOrder.id as orderId, l.item.id as itemId, coalesce(sum(l.quantity),0) as qty " +
+            "from PurchaseLine l where l.sourceOrder is not null group by l.sourceOrder.id, l.item.id")
+    List<OrderItemAggregate> aggregateBoughtAll();
+
     interface OrderItemAggregate {
         Long getOrderId();
         Long getItemId();

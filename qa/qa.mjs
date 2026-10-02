@@ -395,6 +395,9 @@ async function scenarioSaleWithinOrder(f) {
     /근거발주의 잔량을 초과합니다/.test(String(overBuy.data?.message ?? '')), true)
   eq('구매도 수량 그대로 수정은 통과',
     (await call('PUT', `/purchases/${bought.id}`, { ...buy(7), remark: 'QA 그대로' })).status, 200)
+  /* 구매입력 [발주] 불러오기는 잔량(10 − 7 = 3)을 내야 한다 — 발주수량 전체(10)를 또 담았다(42회차). */
+  const un = (await must('GET', '/purchase-orders/unpurchased')).find((r) => r.orderId === po.id)
+  eq('미구매 발주 줄: 발주 10 · 구매 7 · 잔량 3', [Number(un?.orderQty), Number(un?.boughtQty), Number(un?.restQty)].join('/'), '10/7/3')
   await must('DELETE', `/purchases/${bought.id}`)
   await must('DELETE', `/purchase-orders/${po.id}`)
 }
