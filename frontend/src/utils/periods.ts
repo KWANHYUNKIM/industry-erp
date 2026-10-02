@@ -259,6 +259,9 @@ export const ORDER_DOC_PICKS = [
 
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
 
+/** 자가사용조회(E040504) — 발주서 묶음([말일] 포함) 끝에 <b>최근30일(+1개월)</b>이 붙는다(2026-10-03 원본 실측). */
+export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
+
 /**
  * 품질검사요청조회(E040629) — 조회 묶음이 <b>[종료일] 다음에 [최근30일(+1개월)]</b> 이고
  * 기본도 <b>최근30일(+1개월)</b> 이다(2026-09-01 원본 실측: 조건판이 2026/08/02 ~ 2026/10/01).

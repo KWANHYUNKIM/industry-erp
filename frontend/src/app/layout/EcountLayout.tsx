@@ -275,6 +275,7 @@ const MENU: TopMenu[] = [
             label: '기타이동현황',
             children: [
               { label: '창고이동현황', to: '/inventory/transfer-status' },
+              { label: '자가사용조회', to: '/inventory/self-use' },
               { label: '자가사용현황', to: '/inventory/self-use-status' },
               { label: '불량처리현황', to: '/inventory/defect-status' },
               { label: '대체사용현황', to: '/inventory/substitute-status' },

@@ -1374,6 +1374,8 @@ export interface StockAdjustment {
   itemCode: string
   itemName: string
   unit: string
+  /** 규격 — 원본 [품목] 열이 '이름 [규격]' 으로 찍는다. */
+  spec?: string | null
   warehouseId: number
   warehouseName: string
   beforeQty: number

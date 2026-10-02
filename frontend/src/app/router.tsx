@@ -124,6 +124,7 @@ const ExportPage = lazy(() => import('../pages/trade/ExportPage'))
 const MallPage = lazy(() => import('../pages/trade/MallPage'))
 const PlanningPage = lazy(() => import('../pages/production/PlanningPage'))
 const TransferPage = lazy(() => import('../pages/inventory/TransferPage'))
+const SelfUseListPage = lazy(() => import('../pages/inventory/SelfUseListPage'))
 const StocktakePage = lazy(() => import('../pages/inventory/StocktakePage'))
 const WmsPage = lazy(() => import('../pages/inventory/WmsPage'))
 const ReportsPage = lazy(() => import('../pages/inventory/ReportsPage'))
@@ -268,6 +269,7 @@ export default function AppRouter() {
         <Route path="/inventory/daily-stock" element={<DailyStockPage />} />
         <Route path="/inventory/stocktake-status" element={<StocktakeStatusPage />} />
         <Route path="/production/receipt-issue-status" element={<ProductionIssueStatusPage />} />
+        <Route path="/inventory/self-use" element={<SelfUseListPage />} />
         <Route path="/inventory/self-use-status" element={<StockMoveStatusPage kind="SELF_USE" />} />
         <Route path="/inventory/defect-status" element={<StockMoveStatusPage kind="DEFECT" />} />
         <Route path="/inventory/substitute-status" element={<StockMoveStatusPage kind="SUBSTITUTE" />} />

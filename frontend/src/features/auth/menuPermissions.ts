@@ -30,6 +30,7 @@ const RULES: Rule[] = [
   ['/inventory/daily-stock', 'STOCK_MOVE'],
   ['/inventory/stocktake-status', 'STOCK_MOVE'],
   ['/inventory/transfer-status', 'STOCK_MOVE'],
+  ['/inventory/self-use', 'STOCK_MOVE'],
   ['/inventory/self-use-status', 'STOCK_MOVE'],
   ['/inventory/defect-status', 'STOCK_MOVE'],
   ['/inventory/substitute-status', 'STOCK_MOVE'],

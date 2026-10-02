@@ -1,0 +1,17 @@
+{
+  "about": "자가사용조회(E040504) — 재고가 있는 품목 1개를 자가사용으로 내보내고(API) 목록에 뜨는지 본 뒤 지운다.",
+  "shots": [
+    {
+      "name": "자가사용조회 — 오늘 자가사용 1건이 '입력일자 · 창고 · 품목 · 수량 · 담당자' 줄로 뜬다, 끝나면 지운다",
+      "path": "/inventory/self-use",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/stock-adjustments',{type:'SELF_USE',itemId:st.itemId,warehouseId:st.warehouseId,quantity:1,adjustDate:today,reason:'QA 자가사용'});sessionStorage.setItem('suId',r.body&&r.body.id);sessionStorage.setItem('suNo',r.body&&r.body.adjustNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('suNo')));return h==='|입력일자|창고|품목|수량|담당자'&&!!tr&&tr.cells[4].innerText.trim()==='1'})()",
+        "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('suId'))).status)()"
+      ]
+    }
+  ]
+}

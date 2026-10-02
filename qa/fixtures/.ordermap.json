@@ -854,5 +854,9 @@
  [
   "품질검사조회",
   "quality/QualityInspectionPage.tsx"
+ ],
+ [
+  "자가사용조회",
+  "inventory/SelfUseListPage.tsx"
  ]
 ]
