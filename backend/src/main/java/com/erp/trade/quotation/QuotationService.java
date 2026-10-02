@@ -146,8 +146,14 @@ public class QuotationService {
          * 견적 → 수주 → 판매로 이어질 때 맨 앞에서 정한 것이 <b>중간에 끊기면</b>
          * 같은 것을 다시 골라야 하고, 프로젝트별 손익에서도 수주 단계가 빠진다.
          */
+        /*
+         * 수주일은 <b>전환한 날</b>이다 — 주문은 견적을 받아들인 날 생긴다. 예전엔 견적일을 그대로 써서
+         * 9/25 견적을 10/2 에 전환하면 수주가 9/25 로, 번호도 SN-20260925-… 로 앞 날짜에 끼어들었다
+         * (30회차 — 이미 닫은 달 장부에 주문이 새로 생긴다). 견적의 [유효기한] 은 "이 값에 언제까지 팔겠다" 이지
+         * 납기가 아니어서 수주 납기로 옮기지 않는다 — 납기는 수주에서 정한다.
+         */
         CreateSalesOrderRequest orderReq = new CreateSalesOrderRequest(
-                q.getPartner().getId(), q.getQuoteDate(), q.getValidUntil(),
+                q.getPartner().getId(), LocalDate.now(), null,
                 q.getWarehouse() != null ? q.getWarehouse().getId() : null,
                 q.getProject() != null ? q.getProject().getId() : null,
                 null,

@@ -1272,6 +1272,9 @@ async function scenarioQuotation(f) {
   eq('전환된 수주는 접수 상태', order.statusName, '접수')
   eq('수주에 견적 거래처가 승계됨', order.partnerId, f.customer.id)
   eq('수주 합계가 견적 합계와 일치', Number(order.totalAmount), 55000)
+  /* 수주일은 전환한 날, 납기는 비운다 — 견적일·유효기한을 옮기면 지난 날짜에 주문이 생겼다(30회차). */
+  eq('전환한 수주의 일자는 오늘(견적일이 아니다)', order.orderDate, new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10))
+  isNull('견적 유효기한을 납기로 옮기지 않는다', order.dueDate)
 
   const converted = (await must('GET', '/quotations')).find((q) => q.id === quote.id)
   eq('전환 후 견적 상태는 수주전환', converted.statusName, '수주전환')
