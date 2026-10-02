@@ -1070,5 +1070,9 @@
  [
   "월별매출집계표",
   "accounting/MonthlyVatSummaryPage.tsx"
+ ],
+ [
+  "지출결의서집계",
+  "accounting/ExpenseSlipSummaryPage.tsx"
  ]
 ]

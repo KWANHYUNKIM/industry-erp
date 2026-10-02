@@ -82,6 +82,7 @@ const ArApBalancePage = lazy(() => import('../pages/accounting/ArApBalancePage')
 const ManagementSummaryPage = lazy(() => import('../pages/accounting/ManagementSummaryPage'))
 const AccountAggregatePage = lazy(() => import('../pages/accounting/AccountAggregatePage'))
 const MonthlyVatSummaryPage = lazy(() => import('../pages/accounting/MonthlyVatSummaryPage'))
+const ExpenseSlipSummaryPage = lazy(() => import('../pages/accounting/ExpenseSlipSummaryPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -495,6 +496,7 @@ export default function AppRouter() {
         <Route path="/accounting/monthly-sales-summary" element={<MonthlyVatSummaryPage side="매출" />} />
         <Route path="/accounting/monthly-purchase-summary" element={<MonthlyVatSummaryPage side="매입" />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
+        <Route path="/accounting/expense-slip-summary" element={<ExpenseSlipSummaryPage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
         <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />

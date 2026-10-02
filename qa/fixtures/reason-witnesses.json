@@ -6393,5 +6393,35 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
+ },
+ "지출결의서집계|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "지출결의서집계|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "지출결의서집계|기 타": {
+  "claim": "결재 칸을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+ },
+ "지출결의서집계|데이터 보기형식": {
+  "claim": "지출 한 줄이 한 줄인 집계다",
+  "present": [
+   "OUT_CODES.includes(l.accountCode)"
+  ]
  }
 }

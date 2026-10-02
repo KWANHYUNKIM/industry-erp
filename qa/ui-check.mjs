@@ -1362,6 +1362,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['회계집계표', 'accounting/AccountAggregatePage.tsx'],
     ['월별매출집계표', 'accounting/MonthlyVatSummaryPage.tsx'],
     ['월별매입집계표', 'accounting/MonthlyVatSummaryPage.tsx'],
+    ['지출결의서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
     ['현금흐름(입출금내역)', 'accounting/CashFlowListPage.tsx'],
     ['자금현황표', 'accounting/FundStatusPage.tsx'],
     ['자금증감내역', 'accounting/FundDailyPage.tsx'],
@@ -4178,6 +4179,11 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
     /* <b>월별매출집계표(E010839) · 월별매입집계표(E010838)</b> — 2026-10-03 원본 실측(MonthlyVatSummaryPage). */
+    /* <b>지출결의서집계(E010835)</b> — 2026-10-03 원본 실측(ExpenseSlipSummaryPage). */
+    ['지출결의서집계|부서', '회계전표(JournalEntry)에 부서가 없다 — 지출결의서이체리스트와 같은 사실'],
+    ['지출결의서집계|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['지출결의서집계|기 타', '[기 타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['지출결의서집계|데이터 보기형식', '그래프로 볼 축이 없다 — 지출 한 줄이 한 줄인 집계다'],
     ['월별매출집계표|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계집계표와 같은 사실'],
     ['월별매출집계표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
     ['월별매출집계표|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
