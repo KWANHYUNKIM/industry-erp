@@ -1058,5 +1058,9 @@
  [
   "경영요약보고서",
   "accounting/ManagementSummaryPage.tsx"
+ ],
+ [
+  "회계집계표",
+  "accounting/AccountAggregatePage.tsx"
  ]
 ]

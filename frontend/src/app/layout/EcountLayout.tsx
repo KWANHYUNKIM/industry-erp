@@ -459,6 +459,7 @@ const MENU: TopMenu[] = [
               { label: '채권/채무회수기간표', to: '/accounting/arap-aging' },
               { label: '채권/채무잔액분석표', to: '/accounting/arap-balance' },
               { label: '경영요약보고서', to: '/accounting/management-summary' },
+              { label: '회계집계표', to: '/accounting/account-aggregate' },
             ],
           },
           {

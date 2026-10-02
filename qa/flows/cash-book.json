@@ -265,6 +265,14 @@
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정명|계좌명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|실제통장잔액[외화]|차이[외화]|연결여부'&&document.body.innerText.includes('1. 통장잔액비교표')})()"
       ]
+    },
+    {
+      "name": "회계집계표 — 기본 계정 · 이월잔액 · 차변 · 대변 · 금액, 끝 [합계]의 차변 = 대변(처음부터 쌓았으니)",
+      "path": "/accounting/account-aggregate",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='계정|이월잔액|차변|대변|금액'&&last.cells[0].innerText.trim()==='합계'&&last.cells[2].innerText===last.cells[3].innerText})()"
+      ]
     }
   ]
 }
