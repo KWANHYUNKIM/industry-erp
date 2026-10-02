@@ -21,4 +21,9 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
             "where w.orderDate between :from and :to " +
             "order by w.orderDate desc, w.id desc")
     List<WorkOrder> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표 하나의 줄들(줄 차례대로). */
+    @org.springframework.data.jpa.repository.Query("select w from WorkOrder w join fetch w.product join fetch w.warehouse " +
+            "left join fetch w.partner left join fetch w.project where w.orderNo = :orderNo order by w.lineNo, w.id")
+    java.util.List<WorkOrder> findSlip(@org.springframework.data.repository.query.Param("orderNo") String orderNo);
 }

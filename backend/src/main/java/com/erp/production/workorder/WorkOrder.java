@@ -26,8 +26,22 @@ public class WorkOrder extends BaseTimeEntity {
     private Long id;
 
     /** 지시번호 (예: WO-20260706-0001) */
-    @Column(nullable = false, unique = true, length = 30)
+    /**
+     * 전표번호. <b>전표 하나에 하나</b>다 — 원본 작업지시서입력은 품목을 여러 줄 넣어도 번호가 하나다.
+     * 같은 번호를 가진 행들이 한 전표이고, 그 안의 차례가 {@link #lineNo} 다.
+     */
+    @Column(nullable = false, length = 30)
     private String orderNo;
+
+    /** 전표 안 줄 차례(1부터). */
+    @Column(name = "line_no", nullable = false)
+    @Builder.Default
+    private Integer lineNo = 1;
+
+    /** 원본 작업지시서입력 머리의 [프로젝트]. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.project.Project project;
 
     /** 생산 제품 */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

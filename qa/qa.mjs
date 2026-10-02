@@ -4886,6 +4886,66 @@ async function scenarioProductionSlip(f) {
   eq('지우면 자재 재고가 처음으로(넣어 둔 500 을 빼고)', await stockOf(comp.componentId), c0 - 500)
 }
 
+/**
+ * 작업지시서 <b>전표</b> — 원본 작업지시서입력. 품목 여러 줄이 번호 하나를 나눠 갖고,
+ * 줄마다 생산공장이 있다. 고칠 때는 같은 줄 차례의 행을 고친다(생산입고가 그 id 를 가리킨다) —
+ * 이미 생산한 줄은 품목을 못 바꾸고 기생산 밑으로 못 줄인다.
+ */
+async function scenarioWorkOrderSlip(f) {
+  section('■ 작업지시서 전표 — 여러 품목, 번호 하나')
+
+  const D = '2087-05-05'
+  const clear = async () => {
+    const pnos = new Set((await must('GET', '/productions')).filter((x) => x.productionDate === D).map((x) => x.prodNo))
+    for (const no of pnos) await call('DELETE', `/productions/slips/${no}`)
+    const wnos = new Set((await must('GET', '/work-orders')).filter((x) => x.orderDate === D).map((x) => x.orderNo))
+    for (const no of wnos) await call('DELETE', `/work-orders/slips/${no}`)
+  }
+  await clear()
+  const bom = (await must('GET', '/boms')).find((b) => b.productId === f.product.id)
+  const comp = bom.lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 100,
+  })
+
+  const made = await must('POST', '/work-orders/slips', {
+    orderDate: D, lines: [
+      { productId: f.product.id, plannedQty: 5, warehouseId: f.warehouse.id },
+      { productId: comp.componentId, plannedQty: 3, warehouseId: f.warehouse.id },
+    ],
+  })
+  eq('작업지시서: 두 줄이 번호 하나', new Set(made.map((x) => x.orderNo)).size, 1)
+  eq('작업지시서: 줄 차례 1·2', made.map((x) => x.lineNo).join(','), '1,2')
+  const no = made[0].orderNo
+
+  // 첫 줄에서 2 를 생산한다.
+  await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, workOrderId: made[0].id, producedQty: 2 }],
+  })
+  const body = (lines) => ({ orderDate: D, lines })
+  eq('생산한 줄의 품목은 못 바꾼다', (await call('PUT', `/work-orders/slips/${no}`, body([
+    { productId: comp.componentId, plannedQty: 5, warehouseId: f.warehouse.id },
+  ]))).status, 400)
+  eq('생산한 줄은 기생산 밑으로 못 줄인다', (await call('PUT', `/work-orders/slips/${no}`, body([
+    { productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id },
+  ]))).status, 400)
+  const fixed = await must('PUT', `/work-orders/slips/${no}`, body([
+    { productId: f.product.id, plannedQty: 2, warehouseId: f.warehouse.id },
+  ]))
+  eq('고쳐도 같은 행을 고친다(생산입고 연결이 남는다)', fixed[0].id, made[0].id)
+  eq('줄을 빼면 그 지시가 지워진다', (await must('GET', `/work-orders/slips/${no}`)).length, 1)
+  eq('지시수량 = 기생산이 되면 완료', fixed[0].status, 'COMPLETED')
+  eq('생산실적이 있으면 전표째 못 지운다', (await call('DELETE', `/work-orders/slips/${no}`)).status, 400)
+
+  await clear()
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 100,
+  })
+  eq('시험한 작업지시서는 남기지 않는다',
+    (await must('GET', '/work-orders')).filter((x) => x.orderDate === D).length, 0)
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9422,6 +9482,7 @@ async function main() {
     await scenarioProductionLaborMinutes(fixtures)
     await scenarioProductionBatch(fixtures)
     await scenarioProductionSlip(fixtures)
+    await scenarioWorkOrderSlip(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9539,6 +9600,7 @@ async function main() {
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioProductionBatch(fixtures)
   await scenarioProductionSlip(fixtures)
+  await scenarioWorkOrderSlip(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()

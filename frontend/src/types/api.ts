@@ -469,6 +469,11 @@ export interface WorkOrder {
   /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
   createdAt: string | null
   updatedAt: string | null
+  /** 전표 안 줄 차례. 같은 orderNo 를 가진 줄들이 한 작업지시서다. */
+  lineNo: number
+  /** 원본 작업지시서입력 머리의 [프로젝트]. */
+  projectId: number | null
+  projectName: string | null
 }
 
 export interface ProductionMaterial {

@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent, useRef} from 'react'
+import { useEffect, useState, useRef } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Warehouse, WorkOrder } from '../../types/api'
+import type { WorkOrder } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -10,13 +10,11 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import Modal from '../../components/Modal'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
-import EcPeriodPicks, { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
-const inputCls = 'ec-input'
 
 /**
  * 원본 작업지시서조회의 탭 실측(사본): 전체 · 결재중 · 미확인 · 확인 · 진행중 · 완료.
@@ -38,7 +36,6 @@ const LINKS = [
   { label: '작업', to: '/production/work-result-status', title: '작업지시서별작업현황' },
 ]
 
-const today = () => ymd(new Date())
 
 /**
  * 원본 작업지시서조회 격자의 마지막 열 <b>[인쇄]</b> — 그 지시 한 건을 작업지시서로 찍는다.
@@ -88,17 +85,10 @@ const initP = periodOf('최근30일(+1개월)')!
 
 export default function WorkOrderPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([])
-  const [items, setItems] = useState<Item[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /** 등록 결과 안내. 예전엔 창이 닫히고 목록만 다시 떠서 어느 번호로 들어갔는지 볼 길이 없었다(QA 9회차). */
-  const [ok, setOk] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({
-    productId: '', warehouseId: '', plannedQty: '', orderDate: today(), dueDate: '',
-    partnerId: '', employeeId: '', remark: '',
-  })
+  /* 입력은 원본처럼 따로 있는 [작업지시서입력] 화면이 맡는다(여러 품목 한 전표). */
+  const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('전체')
   /*
    * 원본 작업지시서조회의 조건 차례는 <b>작업지시No. · 창고 · 거래처 · 품목</b> 이다
@@ -137,26 +127,18 @@ export default function WorkOrderPage() {
   const mgmt = useItemMgmt()
   const pgroups = usePartnerGroups()
   const pmgr = usePartnerManagers()
-  /** 납품처·담당자. 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
-  const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
+  /** 담당자 이름은 서버가 못 붙여서 여기서 붙인다. */
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
 
   async function load() {
     setLoading(true)
     try {
-      const [o, i, w, pt, emp] = await Promise.all([
+      const [o, emp] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders', { params: { from: from || undefined, to: to || undefined } }),
-        api.get<Item[]>('/items'),
-        api.get<Warehouse[]>('/warehouses'),
-        api.get<{ id: number; code: string; name: string }[]>('/partners'),
         api.get<{ id: number; code: string; name: string }[]>('/employees'),
       ])
       setOrders(o.data)
-      setItems(i.data)
-      setWarehouses(w.data)
-      setPartners(pt.data)
       setEmployees(emp.data)
-      setForm((f) => ({ ...f, warehouseId: f.warehouseId || (w.data[0] ? String(w.data[0].id) : '') }))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -196,36 +178,6 @@ export default function WorkOrderPage() {
     /* 원본 [기타]의 수정일자순(정렬). */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
-  function set(k: keyof typeof form, v: string) {
-    setForm((f) => ({ ...f, [k]: v }))
-  }
-
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(''); setOk('')
-    if (!form.productId) return setError('제품을 선택하세요.')
-    if (!form.warehouseId) return setError('창고를 선택하세요.')
-    try {
-      const res = await api.post<{ orderNo: string; productName: string; plannedQty: number }>('/work-orders', {
-        productId: Number(form.productId),
-        warehouseId: Number(form.warehouseId),
-        plannedQty: Number(form.plannedQty),
-        orderDate: form.orderDate,
-        dueDate: form.dueDate || undefined,
-        partnerId: form.partnerId ? Number(form.partnerId) : null,
-        employeeId: form.employeeId ? Number(form.employeeId) : null,
-        remark: form.remark || undefined,
-      })
-      setForm((f) => ({ ...f, productId: '', plannedQty: '', dueDate: '', partnerId: '', employeeId: '', remark: '' }))
-      setShowForm(false)
-      setOk(`${res.data.orderNo} 작업지시 등록 완료 · ${res.data.productName} ${res.data.plannedQty.toLocaleString()}`)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-
-
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
   const sort = useTableSort(shown, {
     지시번호: (o) => o.orderNo,
@@ -239,11 +191,10 @@ export default function WorkOrderPage() {
   return (
     <EcListShell
       title="작업지시서조회"
-      onNew={() => setShowForm(true)}
+      onNew={() => navigate('/production/work-order-entry')}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
@@ -351,63 +302,7 @@ export default function WorkOrderPage() {
         </EcCond>
       </ul>
 
-      <Modal error={error} open={showForm} title="작업지시 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업지시</div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">제품 *</label>
-              <CodePickerField label="제품" hideLabel fill placeholder="선택하세요" emptyLabel="선택 해제"
-                               value={form.productId} onChange={(v) => set('productId', v)}
-                               items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">창고 *</label>
-              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
-              <CodePickerField label="창고 *" hideLabel fill placeholder="창고"
-                               emptyLabel="선택"
-                               value={form.warehouseId} onChange={(v) => set('warehouseId', v)}
-                               items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">지시수량 *</label>
-              <input type="number" step="any" className={inputCls} value={form.plannedQty} onChange={(e) => set('plannedQty', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">일자</label>
-              <input type="date" className={inputCls} value={form.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
-            </div>
-            {/* 원본 작업지시서입력 머리: 작업지시No. · 일자 · 납품처 · 담당자 · 납기일자 */}
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">납품처</label>
-              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
-                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
-              <CodePickerField label="납품처" hideLabel fill placeholder="납품처" emptyLabel="선택 안 함"
-                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
-                               items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
-              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
-                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
-              <CodePickerField label="담당자" hideLabel fill placeholder="담당자" emptyLabel="선택 안 함"
-                               value={form.employeeId} onChange={(v) => set('employeeId', v)}
-                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">납기일자</label>
-              <input type="date" className={inputCls} value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">비고</label>
-              <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
-            </div>
-          </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
-          </div>
-        </form>
-      )}</Modal>
+
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -459,7 +354,10 @@ export default function WorkOrderPage() {
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateNo(o)}</td>
+                {/* 원본처럼 번호를 누르면 작업지시서입력으로 열어 고친다. */}
+                <td style={{ fontFamily: 'monospace' }}>
+                  <Link to={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} style={{ color: 'var(--ec-blue)' }}>{dateNo(o)}</Link>
+                </td>
                 <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? ''}</td>
                 <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}

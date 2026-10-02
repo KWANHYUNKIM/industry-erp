@@ -370,13 +370,6 @@
   ],
   "file": "trade/PartnersPage.tsx"
  },
- "작업지시서입력": {
-  "claim": "우리 작업지시서는 품목 하나짜리 폼이라 더할 줄이 없다",
-  "absent": [
-   "WorkOrderLine"
-  ],
-  "in": "backend"
- },
  "구매단가일괄변경|환율변경": {
   "claim": "매입 전표에 통화 칸이 없어 바꿀 환율이 없다(수출오더에는 있다)",
   "absent": [

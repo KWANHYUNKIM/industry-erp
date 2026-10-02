@@ -167,6 +167,8 @@ const OWNED_HERE = new Map([
   ['Lot|stockQty', '입출고가 쌓아 올린다'],
   ['Lot|held', '보류는 전용 자리에서 바꾼다'],
   ['MaterialIssue|issueNo', 'DocumentNoGenerator 가 매긴다'],
+  ['WorkOrder|lineNo', '전표 안 줄 차례 — 서버가 보낸 줄 순서대로 매긴다'],
+  ['WorkOrder|project', 'POST·PUT /work-orders/slips 의 SaveWorkOrderSlipRequest.projectId 가 정한다(CreateWorkOrderRequest 는 품목 하나짜리 옛 자리)'],
   ['Production|lineNo', '전표 안 줄 차례 — 서버가 보낸 줄 순서대로 매긴다'],
   ['Production|entryType', 'POST·PUT /productions/slips 의 SaveProductionSlipRequest 가 정한다(CreateProductionRequest 는 작업지시 하나짜리 옛 자리라 소모 유무로 I·II 를 서버가 정한다)'],
   ['Production|subcontractUnitPrice', 'SaveProductionSlipRequest.lines[] 가 정한다 — 옛 CreateProductionRequest 는 외주처 품목단가로 서버가 깐다'],

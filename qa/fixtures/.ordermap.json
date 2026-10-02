@@ -289,7 +289,7 @@
  ],
  [
   "작업지시서입력",
-  "production/WorkOrderPage.tsx"
+  "production/WorkOrderEntryPage.tsx"
  ],
  [
   "출하지시서입력",

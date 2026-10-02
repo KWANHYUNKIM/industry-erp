@@ -48,6 +48,30 @@ public final class ProductionDtos {
     }
 
     /**
+     * 원본 <b>작업지시서입력</b>의 전표 하나. 머리 아래 품목 여러 줄이 번호 하나를 나눠 가진다.
+     * 줄의 [생산공장]이 그 지시의 창고다(생산입고가 받는창고 기본값으로 쓴다).
+     */
+    public record SaveWorkOrderSlipRequest(
+            LocalDate orderDate,
+            LocalDate dueDate,
+            /** 납품처. */
+            Long partnerId,
+            Long projectId,
+            Long employeeId,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
+            String remark,
+            @NotEmpty(message = "품목을 한 줄 이상 넣으세요.")
+            List<@Valid WorkOrderSlipLine> lines
+    ) {}
+
+    public record WorkOrderSlipLine(
+            @NotNull(message = "품목을 선택하세요.") Long productId,
+            @NotNull(message = "수량을 입력하세요.")
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal plannedQty,
+            @NotNull(message = "생산공장을 선택하세요.") Long warehouseId
+    ) {}
+
+    /**
      * <b>고르는 칸에 쓸 작업지시.</b> 화면이 <code>&lt;select&gt;</code> 에 그리는 것은
      * 지시번호와 품목뿐인데, 그걸 그리려고 작업지시 목록을 통째로 받고 있었다
      * (2026-09-24 실측 937KB — 작업내역입력·생산불출 두 화면이 열 때마다).
@@ -81,7 +105,11 @@ public final class ProductionDtos {
              * <b>수정일자순(정렬)</b>. WorkOrder 는 BaseTimeEntity 를 물려받아
              * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
              */
-            LocalDateTime createdAt, LocalDateTime updatedAt
+            LocalDateTime createdAt, LocalDateTime updatedAt,
+            /** 전표 안 줄 차례. 같은 orderNo 를 가진 줄들이 한 전표다. */
+            Integer lineNo,
+            /** 원본 머리의 [프로젝트]. */
+            Long projectId, String projectName
     ) {
         public static WorkOrderResponse from(WorkOrder w) {
             BigDecimal remaining = w.getPlannedQty().subtract(w.getProducedQty());
@@ -98,7 +126,10 @@ public final class ProductionDtos {
                     w.getPlannedQty(), w.getProducedQty(), remaining,
                     w.getStatus(), w.getStatus().getDisplayName(),
                     w.getOrderDate(), w.getDueDate(), w.getRemark(), w.getCreatedBy(),
-                    w.getCreatedAt(), w.getUpdatedAt());
+                    w.getCreatedAt(), w.getUpdatedAt(),
+                    w.getLineNo(),
+                    w.getProject() != null ? w.getProject().getId() : null,
+                    w.getProject() != null ? w.getProject().getName() : null);
         }
     }
 

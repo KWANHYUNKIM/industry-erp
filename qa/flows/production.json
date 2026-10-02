@@ -2,42 +2,38 @@
   "about": "생산 화면 회귀 시험. node qa/shot.mjs qa/flows/production.json — 만든 전표는 끝에 지운다.",
   "shots": [
     {
-      "name": "작업지시 등록 — 제품·창고를 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'",
-      "path": "/production/work-orders",
+      "name": "작업지시서입력 — 품목·생산공장을 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'(원본처럼 여러 품목 한 전표)",
+      "path": "/production/work-order-entry",
       "steps": [
-        "click:신규",
-        "click:제품 선택",
+        "click:품목 선택",
         "pickrow:QA-PROD",
-        "click:창고 * 선택",
+        "click:생산공장 선택",
         "pickrow:QA-WH",
-        "set:form input[type=number]|5",
-        "click:등록",
-        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료/.test(document.body.innerText)",
+        "set:table.ec-grid-input input[type=number]#0|5",
+        "click:저장(F8)",
+        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료 · 1줄/.test(document.body.innerText)",
         "apidel:/work-orders|WO-[0-9]{8}-[0-9]{4}|orderNo"
       ]
     },
     {
-      "name": "작업지시 등록 — 제품을 안 고르면 그 말을 <창 안에> 하고 저장하지 않는다(15회차까지 창 뒤에 떠서 안 보였다)",
-      "path": "/production/work-orders",
+      "name": "작업지시서입력 — 품목을 안 넣고 저장하면 그 말을 하고 저장하지 않는다",
+      "path": "/production/work-order-entry",
       "steps": [
-        "click:신규",
-        "set:form input[type=number]|5",
-        "click:등록",
-        "expect:document.querySelector('[role=dialog]')?.innerText.includes('제품을 선택하세요.')"
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('품목을 한 줄 이상 넣으세요.')"
       ]
     },
     {
-      "name": "생산 흐름 ① 작업지시 2개 등록(다음 화면에서 생산할 것)",
-      "path": "/production/work-orders",
+      "name": "생산 흐름 ① 작업지시서입력으로 작업지시 등록(다음 화면에서 생산할 것)",
+      "path": "/production/work-order-entry",
       "steps": [
         "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock0',String(x?x.quantity:0));return true})",
-        "click:신규",
-        "click:제품 선택",
+        "click:품목 선택",
         "pickrow:QA-PROD",
-        "click:창고 * 선택",
+        "click:생산공장 선택",
         "pickrow:QA-WH",
-        "set:form input[type=number]|2",
-        "click:등록",
+        "set:table.ec-grid-input input[type=number]#0|2",
+        "click:저장(F8)",
         "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료/.test(document.body.innerText)",
         "js:sessionStorage.setItem('qaWO', document.body.innerText.match(/WO-[0-9]{8}-[0-9]{4}(?= 작업지시 등록 완료)/)[0]); true"
       ]
