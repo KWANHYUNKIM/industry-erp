@@ -38,6 +38,8 @@ type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
 
 interface WorkResult {
+  /** 작업내역 전표번호 — 한 전표의 줄들이 같은 번호를 나눠 가진다. */
+  resultNo: string
   /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 작업내역은 비어 있다). */
   createdBy?: string | null
   id: number
@@ -98,6 +100,8 @@ export default function WorkResultListPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
+  /** 원본 ◉내역 아래 선택상자 — 라인별(기본, 작업 줄마다) · 전표별(작업내역 전표 한 장이 한 줄)(2026-10-02 loginaa 실측). */
+  const [lineView, setLineView] = useState<'라인별' | '전표별'>('라인별')
   const [process, setProcess] = useState('')
   const [worker, setWorker] = useState('')
   const [orderNo, setOrderNo] = useState('')
@@ -186,6 +190,19 @@ export default function WorkResultListPage() {
        workItemCategory, workItemGroup, productCategory, productGroup, projectCond,
        resourceCond, qtyFrom, qtyTo, timeFrom, timeTo, noteCond, authorCond, mgmt.groupOptions])
 
+  /** 내역 [전표별] — 작업내역 번호 하나가 한 줄(첫 작업 외 n건, 수량·시간 합; 표준이 빈 줄이 있으면 표준은 모름). */
+  const listRows = useMemo(() => {
+    if (lineView === '라인별') return shown
+    const m = new Map<string, WorkResult[]>()
+    shown.forEach((r) => m.set(r.resultNo, [...(m.get(r.resultNo) ?? []), r]))
+    return [...m.values()].map((ls) => ({ ...ls[0],
+      process: ls.length > 1 ? `${ls[0].process} 외 ${ls.length - 1}건` : ls[0].process,
+      goodQty: ls.reduce((n, r) => n + r.goodQty, 0),
+      defectQty: ls.reduce((n, r) => n + r.defectQty, 0),
+      workTimeMin: ls.reduce((n, r) => n + r.workTimeMin, 0),
+      standardTimeMin: ls.some((r) => r.standardTimeMin == null) ? null : ls.reduce((n, r) => n + (r.standardTimeMin ?? 0), 0),
+    }))
+  }, [shown, lineView])
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workTimeMin }),
     { good: 0, defect: 0, time: 0 },
@@ -245,6 +262,13 @@ export default function WorkResultListPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        modeExtra={mode === '내역' ? (
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별')}
+                  style={{ width: 110, marginLeft: 6 }}>
+            <option value="라인별">라인별</option>
+            <option value="전표별">전표별</option>
+          </select>
+        ) : undefined}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
@@ -444,13 +468,14 @@ export default function WorkResultListPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
+            ) : listRows.length === 0 ? (
               <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
+            ) : listRows.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
-                  {r.workDate}{r.workOrderNo ? ' ' + r.workOrderNo : ''}
+                  {/* 원본 [일자-No.] 는 작업내역 전표 번호다(작업지시서 번호가 아니다). */}
+                  {r.workDate} {r.resultNo}
                 </td>
                 <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
                 {/*
