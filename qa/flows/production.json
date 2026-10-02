@@ -494,6 +494,15 @@
         "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='작업품목그룹1'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'자원');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());return h[1]==='월별 · 작업(공정) · 자원'})()"
       ]
+    },
+    {
+      "name": "외주비할인현황 — 구매전표가 아니라 생산입고 외주비 줄(외주비일괄회계반영과 같은 자료)을 기간을 실어 받는다 · 머리는 원본 월/일 · 거래처명 · 생산금액 · 회계반영금액 · 차액 · 적요",
+      "path": "/sales/outsourcing-discount",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>r(true),2500))",
+        "expect:performance.getEntriesByType('resource').some((e)=>/accounting-reflection\\/subcontract\\?from=\\d{4}-\\d{2}-\\d{2}&to=/.test(e.name))&&!performance.getEntriesByType('resource').some((e)=>/\\/api\\/purchases(\\?|$)/.test(e.name))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return ['월/일','거래처명','생산금액','회계반영금액','차액','적요'].every((x)=>h.includes(x))})()"
+      ]
     }
   ]
 }

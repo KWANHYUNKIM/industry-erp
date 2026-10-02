@@ -7,8 +7,8 @@ import DiscountStatusPage from './DiscountStatusPage'
  * 금액 · 회계반영금액 · 차액 · 적요). 한 화면으로 두고 종류만 바꾼다 —
  * 두 벌로 두면 조건 하나 고칠 때 한쪽만 고치게 된다.
  *
- * <p>외주 전용 도메인이 없어 외주비는 구매전표로 본다.
+ * <p>외주비는 생산입고의 외주비 줄(외주비일괄회계반영과 같은 자료)로 본다 — 예전엔 외주 도메인이 없어 구매전표로 봤다.
  */
 export default function OutsourcingDiscountPage() {
-  return <DiscountStatusPage kind="PURCHASE" title="외주비할인현황" amountLabel="생산금액" />
+  return <DiscountStatusPage kind="SUBCONTRACT" title="외주비할인현황" amountLabel="생산금액" />
 }

@@ -31,7 +31,32 @@ import { useCondPickers } from '../../utils/useCondPickers'
  */
 /** 판매·구매 전표는 일자 이름만 다르고 이 화면이 쓰는 칸은 같다. */
 type Doc = (SalesDoc | PurchaseDoc)
-const docDate = (d: Doc) => ('saleDate' in d ? d.saleDate : d.purchaseDate)
+
+/**
+ * 외주비 한 줄 — <code>GET /api/accounting-reflection/subcontract</code>(외주비일괄회계반영과 같은 자료).
+ * 외주공장 생산입고의 외주비(공급가액)와, 반영했으면 그 회계전표 번호를 준다.
+ */
+interface SubcontractRow {
+  productionId: number; prodNo: string; productionDate: string
+  amount: number; fromWarehouseId: number | null; fromWarehouseName: string | null
+  partnerId: number | null; partnerName: string | null
+  projectId: number | null; employeeId: number | null; note: string | null
+  journalId: number | null
+}
+
+/** 세 화면이 읽는 한 장 — 판매·구매 전표와 외주비 줄을 같은 모양으로 맞춘다. */
+interface Src {
+  date: string; docNo: string; partnerId: number; partnerName: string
+  warehouseId: number | null; warehouseName: string | null
+  employeeName: string | null; projectId: number | null; projectName: string | null
+  supplyAmount: number; reflected: boolean; remark: string | null; taxable: boolean
+}
+const fromDoc = (d: Doc): Src => ({
+  date: 'saleDate' in d ? d.saleDate : d.purchaseDate, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName,
+  warehouseId: d.warehouseId ?? null, warehouseName: d.warehouseName, employeeName: d.employeeName,
+  projectId: d.projectId ?? null, projectName: d.projectName ?? null,
+  supplyAmount: d.supplyAmount, reflected: !!d.accountingReflected, remark: d.remark ?? null, taxable: !!d.taxable,
+})
 
 interface Row {
   date: string
@@ -52,8 +77,11 @@ interface Row {
 }
 
 export default function DiscountStatusPage({ kind, title, amountLabel, defaultPick, withTradeType }: {
-  /** 어느 전표를 보나. 외주비는 구매전표로 본다 — 외주 전용 도메인이 없다. */
-  kind: 'SALES' | 'PURCHASE'
+  /**
+   * 어느 전표를 보나. 외주비는 예전엔 구매전표로 봤다(외주 도메인이 없었다) — 2026-10-02 에 외주비일괄회계반영
+   * (생산입고 외주비 → 매입전표)이 생겨 이제 그 줄을 본다: 생산금액 = 외주비 공급가액, 회계반영금액 = 반영한 줄의 금액.
+   */
+  kind: 'SALES' | 'PURCHASE' | 'SUBCONTRACT'
   title: string
   /** 원본 금액 열 이름 — 판매금액 · 구매금액 · 생산금액. */
   amountLabel: string
@@ -73,7 +101,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
    * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
    */
   const [signBox, setSignBox] = useState(false)
-  const [docs, setDocs] = useState<Doc[]>([])
+  const [docs, setDocs] = useState<Src[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -115,8 +143,19 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Doc[]>(kind === 'SALES' ? '/sales' : '/purchases')
-      setDocs(res.data)
+      if (kind === 'SUBCONTRACT') {
+        const res = await api.get<SubcontractRow[]>('/accounting-reflection/subcontract', { params: { from, to } })
+        setDocs(res.data.map((r) => ({
+          date: r.productionDate, docNo: r.prodNo, partnerId: r.partnerId ?? 0, partnerName: r.partnerName ?? '(외주처 없음)',
+          warehouseId: r.fromWarehouseId, warehouseName: r.fromWarehouseName,
+          employeeName: pickers.employees.find((e) => e.id === r.employeeId)?.name ?? null,
+          projectId: r.projectId, projectName: pickers.projects.find((p) => p.id === r.projectId)?.name ?? null,
+          supplyAmount: Number(r.amount), reflected: r.journalId != null, remark: r.note, taxable: true,
+        })))
+      } else {
+        const res = await api.get<Doc[]>(kind === 'SALES' ? '/sales' : '/purchases')
+        setDocs(res.data.map(fromDoc))
+      }
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -124,7 +163,9 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     }
   }
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind])
+  /* 외주비 줄은 담당자 · 프로젝트를 id 로만 준다 — 목록이 오면 이름을 다시 붙인다. */
+  const reloadKey = kind === 'SUBCONTRACT' ? [from, to, pickers.employees.length, pickers.projects.length].join('|') : ''
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind, reloadKey])
 
   useEffect(() => {
     // 회계 기수 계산에 쓸 시작월. 못 받으면 [이번기수]·[직전기수] 는 눌러도 아무 일이 없다
@@ -146,7 +187,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const rows = useMemo(() => {
     const m = new Map<string, Row>()
     for (const d of docs) {
-      const date = docDate(d)
+      const date = d.date
       if (date < from || date > to) continue
       if (tradeType !== '전체' && (d.taxable ? '과세' : '면세') !== tradeType) continue
       const key = `${date}|${d.partnerId}`
@@ -156,7 +197,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
       }
       cur.orgAmount += d.supplyAmount
-      if (d.accountingReflected) cur.reflectedAmount += d.supplyAmount
+      if (d.reflected) cur.reflectedAmount += d.supplyAmount
       if (d.remark) cur.remarks.push(d.remark)
       cur.docNos.push(d.docNo)
       m.set(key, cur)
