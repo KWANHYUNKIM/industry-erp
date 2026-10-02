@@ -148,7 +148,9 @@ export default function ReceiptStatusPage() {
    * 원본 ○집계 — [집계조건1]·[집계조건2](2026-10-02 loginaa 실측, 생산불출현황과 같은 판). 조건1 품목별 · 조건2 없음이면
    * 예전 품목별 표를 그대로 쓴다.
    */
-  const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '창고별', '프로젝트별', '전표별'] as const
+  /* 원본 후보(2026-10-02 실측)는 생산불출현황과 같다: 일별 … 연별 · 생산입고 · 담당자 · 보낸창고명(생산공장) · 받는창고명(입고창고) ·
+     관리항목 · 품목 · 품목그룹1·2·3 · 프로젝트 · 프로젝트그룹1·2. 관리항목·품목그룹2·3·프로젝트그룹은 전역 예외. */
+  const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '전표별', '담당자별', '보낸창고별', '받는창고별', '품목그룹1별', '프로젝트별'] as const
   /** 원본 ○집계의 [비교기간] — 그 기간의 생산입고를 따로 받아 수량·생산금액을 견준다(생산불출현황과 같은 판). */
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [prevRows, setPrevRows] = useState<Production[] | null>(null)
@@ -279,16 +281,19 @@ export default function ReceiptStatusPage() {
   const toAgg = (r: typeof shown[number]): AggregatableRow => ({
     date: r.productionDate, docNo: r.prodNo, partner: '', itemName: r.productName, qty: r.producedQty,
     supply: cost.get(r.productId) == null ? 0 : r.producedQty * cost.get(r.productId)!, vat: 0,
-    warehouseName: r.warehouseName ?? '', projectName: r.projectName ?? null,
+    /* 집계의 warehouseName 은 '보낸' 쪽이다 — 생산입고에선 생산공장, 받는 쪽(입고창고)은 toWarehouseName. */
+    warehouseName: r.fromWarehouseName ?? '', projectName: r.projectName ?? null,
     taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
+    toWarehouseName: r.warehouseName, itemGroupName: mgmt.groupOf(r.productId) || null,
   })
   const aggRows = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [shown, agg1, agg2, cost, employees])
+  [shown, agg1, agg2, cost, employees, mgmt.groupOptions])
   /** 묶음의 코드 — 품목은 생산품 코드, 창고는 받는창고 코드, 담당자·프로젝트는 마스터 코드. */
   const codeOf = (r: typeof shown[number], key: GroupKey) =>
     key === '품목별' ? r.productCode
-      : key === '창고별' ? (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code
+      : key === '보낸창고별' ? (warehouses.find((w) => w.id === r.fromWarehouseId) as { code?: string } | undefined)?.code
+      : key === '받는창고별' ? (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code
       : key === '담당자별' ? pickers.employees.find((e) => e.id === r.employeeId)?.code
       : key === '프로젝트별' ? pickers.projects.find((p) => p.id === r.projectId)?.code
       : ''
