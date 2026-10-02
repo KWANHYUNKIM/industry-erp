@@ -1289,7 +1289,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               </select>
               {returnSlip && (
                 <span style={{ marginLeft: 8, fontSize: 11.5, color: '#c60a2e' }}>
-                  되돌려받는 수량을 양수로 적으세요. 재고와 {mode === 'sales' ? '채권' : '채무'}이 반대로 움직입니다.
+                  {mode === 'sales' ? '되돌려받는' : '되돌려보내는'} 수량을 양수로 적으세요. {mode === 'sales' ? '재고가 늘고 채권이 줄어듭니다.' : '재고가 줄고 채무가 줄어듭니다.'}
                 </span>
               )}
             </div>
