@@ -153,6 +153,24 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
    * [주문] 과 같은 규칙으로 생산할 수 있는 품목(제품·반제품)만, 수량은 그 전표의 수량이다.
    */
   const [slipLoadOpen, setSlipLoadOpen] = useState(false)
+  /**
+   * 작업내역입력 [연결전표] → [신규] 로 열렸으면 그 작업내역 번호. 저장할 때 실려 생산입고연결전표에 잡힌다.
+   * 원본처럼 작업 줄의 작업지시서 · 생산품목 · 양품수량이 생산 줄로 채워져 열린다(한 번 쓰고 지운다).
+   */
+  const [workResultNo, setWorkResultNo] = useState('')
+  useEffect(() => {
+    if (editNo) return
+    let raw: string | null = null
+    try { raw = sessionStorage.getItem('receiptPrefill'); sessionStorage.removeItem('receiptPrefill') } catch { /* 없음 */ }
+    if (!raw) return
+    const p = JSON.parse(raw) as { workResultNo: string; date: string; lines: { productId: number; qty: number; workOrderId: number | null }[] }
+    setWorkResultNo(p.workResultNo)
+    if (p.date) setDate(p.date)
+    setLines([...p.lines.map((l) => ({ ...blankLine(), productId: String(l.productId), qty: String(l.qty),
+      workOrderId: l.workOrderId != null ? String(l.workOrderId) : '' })), blankLine()])
+    setOk(`작업내역 ${p.workResultNo} 의 연결전표를 만듭니다 — 생산된공장·받는창고를 고르고 저장하세요.`)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   function applyLoadedSlips(slips: LoadedSlip[]) {
     const cat = new Map(items.map((i) => [i.id, i.category]))
     const added = slips.flatMap((x) => x.lines)
@@ -335,7 +353,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   }
 
   function reset() {
-    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId(''); setAttachment(null)
+    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId(''); setAttachment(null); setWorkResultNo('')
     setLines(Array.from({ length: BLANK_ROWS }, blankLine))
     setMats(Array.from({ length: BLANK_ROWS }, () => blankMat()))
     setTab('생산'); setError(''); setOk('')
@@ -361,6 +379,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
       employeeId: employeeId ? Number(employeeId) : null,
       projectId: projectId ? Number(projectId) : null,
       attachmentId: attachment ? attachment.id : null,
+      workResultNo: workResultNo || null,
       fromWarehouseId: type !== 'III' && fromWarehouseId ? Number(fromWarehouseId) : null,
       warehouseId: type !== 'III' && warehouseId ? Number(warehouseId) : null,
       lines: filled.map((l) => ({

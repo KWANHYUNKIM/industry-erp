@@ -43,4 +43,9 @@ public interface ProductionRepository extends JpaRepository<Production, Long> {
             "left join fetch p.fromWarehouse left join fetch p.process " +
             "where p.prodNo = :prodNo order by p.lineNo, p.id")
     List<Production> findSlip(@Param("prodNo") String prodNo);
+
+    /** 작업내역 전표에서 [연결전표] 로 만든 생산입고 줄들. */
+    @Query("select p from Production p join fetch p.product join fetch p.warehouse left join fetch p.workOrder " +
+            "where p.workResultNo = :no order by p.prodNo, p.lineNo")
+    List<Production> findByWorkResultNo(@Param("no") String no);
 }

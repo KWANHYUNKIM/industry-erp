@@ -5343,6 +5343,15 @@ async function scenarioWorkResultBatch(f) {
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
   // 원본 작업내역조회·현황 [최초작성자] — 넣은 계정이 줄마다 남는다(2026-10-02 전엔 칸이 없었다).
   eq('작업내역에 넣은 계정이 남는다', made.map((x) => x.createdBy).join(','), `${USER},${USER}`)
+  // 원본 작업내역입력 [연결전표] → 생산입고연결전표 — 그 작업내역 번호로 만든 생산입고가 잡힌다.
+  const linkedRec = await must('POST', '/productions/slips', {
+    // II 로 넣는다 — 소모를 안 적으면 자재를 안 빼서 재고에 기대지 않는다.
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    workResultNo: made[0].resultNo, lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('[연결전표]: 생산입고가 작업내역 번호를 든다', linkedRec[0].workResultNo, made[0].resultNo)
+  eq('[연결전표]: 생산입고연결전표에 잡힌다', (await must('GET', `/productions/by-work-result/${made[0].resultNo}`)).map((x) => x.prodNo).join(','), linkedRec[0].prodNo)
+  await must('DELETE', `/productions/slips/${linkedRec[0].prodNo}`)
   eq('머리의 일자가 모든 줄에 붙는다', made.map((x) => x.workDate).join(','), `${D},${D}`)
   eq('머리의 생산공장이 모든 줄에 붙는다',
     made.every((x) => x.warehouseId === f.warehouse.id), true)

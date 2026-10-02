@@ -29,6 +29,12 @@ public class ProductionController {
      * 목록. <b>from·to 는 생산일</b>, <b>woFrom·woTo 는 지시일</b>이다 —
      * 작업지시별로 묶어 세는 화면이 뒤를 쓴다. 함께 주면 거절한다(ProductionService 참고).
      */
+    /** 원본 작업내역입력 [연결전표] → 생산입고연결전표. */
+    @GetMapping("/by-work-result/{resultNo}")
+    public List<ProductionResponse> byWorkResult(@PathVariable String resultNo) {
+        return productionService.findByWorkResult(resultNo);
+    }
+
     @GetMapping
     public List<ProductionResponse> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

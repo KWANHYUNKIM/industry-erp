@@ -169,6 +169,10 @@ public class Production extends BaseTimeEntity {
     @Column(name = "lot_no", length = 60)
     private String lotNo;
 
+    /** 원본 작업내역입력 [연결전표] — 이 생산입고를 낳은 작업내역 전표 번호. */
+    @Column(name = "work_result_no", length = 30)
+    private String workResultNo;
+
     /** 원본 생산입고입력 머리의 [첨부]. 한 전표의 줄들이 같은 파일을 가리킨다. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attachment_id")

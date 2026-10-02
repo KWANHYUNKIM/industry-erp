@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, useRef} from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
@@ -188,8 +189,42 @@ export default function WorkResultPage() {
     setShowForm(true)
   }, [])
 
+  /**
+   * 원본 툴바 <b>[연결전표]</b> → 생산입고연결전표(2026-10-02 loginaa 실측). 이 작업내역 전표에서 만든 생산입고를 보이고
+   * [신규(F2)] 로 생산입고 I 을 연다 — 작업 줄의 작업지시서 · 생산품목 · 양품수량이 생산 줄로 채워지고, 저장하면
+   * 그 생산입고가 이 번호를 든다. 아직 저장 전이면 원본처럼 "먼저 저장해야 합니다" 를 묻고 저장부터 한다.
+   */
+  const navigate = useNavigate()
+  const [linked, setLinked] = useState<{ resultNo: string; workDate: string; lines: { productId: number; goodQty: number; workOrderId: number | null }[] } | null>(null)
+  const [linkRows, setLinkRows] = useState<{ id: number; prodNo: string; productionDate: string; productName: string; producedQty: number; warehouseName: string }[] | null>(null)
+  async function openLinked(target = linked) {
+    if (!target) return
+    try {
+      setLinkRows((await api.get<NonNullable<typeof linkRows>>(`/productions/by-work-result/${encodeURIComponent(target.resultNo)}`)).data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  async function linkSlip() {
+    if (linked) return void openLinked()
+    if (!window.confirm('연결전표를 생성하려면 먼저 저장해야 합니다.\n계속 진행하겠습니까?')) return
+    const saved = await save()
+    if (saved) await openLinked(saved)
+  }
+  function newLinkedReceipt() {
+    if (!linked) return
+    const prefill = { workResultNo: linked.resultNo, date: linked.workDate,
+      lines: linked.lines.filter((l) => l.goodQty > 0).map((l) => ({ productId: l.productId, qty: l.goodQty, workOrderId: l.workOrderId })) }
+    try { sessionStorage.setItem('receiptPrefill', JSON.stringify(prefill)) } catch { /* 저장소가 막혀 있으면 빈 창 */ }
+    navigate('/production/receipt-bom')
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
+    await save()
+  }
+
+  async function save(): Promise<NonNullable<typeof linked> | null> {
     setError('')
     // 아무것도 안 적은 빈 줄은 보내지 않는다. 줄 추가만 눌러 두고 지우지 않은 경우다.
     const lines = wrLines.filter(
@@ -197,10 +232,10 @@ export default function WorkResultPage() {
     )
     if (lines.length === 0) {
       setError('작업을 한 줄 이상 넣으세요.')
-      return
+      return null
     }
     try {
-      await api.post('/work-results/batch', {
+      const res = await api.post<{ resultNo: string; workDate: string; productId: number; goodQty: number; workOrderId: number | null }[]>('/work-results/batch', {
         workDate: form.workDate || null,
         warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         projectId: form.projectId === '' ? null : Number(form.projectId),
@@ -216,12 +251,17 @@ export default function WorkResultPage() {
           note: l.note || null,
         })),
       })
+      const saved = { resultNo: res.data[0]?.resultNo ?? '', workDate: res.data[0]?.workDate ?? form.workDate,
+        lines: res.data.map((r) => ({ productId: r.productId, goodQty: Number(r.goodQty), workOrderId: r.workOrderId })) }
+      setLinked(saved)
       setForm(emptyForm)
       setWrLines([emptyLine()])
       setShowForm(false)
       load()
+      return saved
     } catch (err) {
       setError(extractErrorMessage(err))
+      return null
     }
   }
 
@@ -297,6 +337,7 @@ export default function WorkResultPage() {
             <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
             <MyItemsNote note={myItems.note} />
+            <button type="button" className="ec-btn" onClick={() => void linkSlip()}>연결전표</button>
             <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
           </div>
           {woPickOpen && (
@@ -518,6 +559,30 @@ export default function WorkResultPage() {
           </tfoot>
         )}
       </table>
+      <Modal open={linkRows != null} title="생산입고연결전표" error={error} width={720} onClose={() => setLinkRows(null)}>
+        <p style={{ fontSize: 12.5, margin: '0 0 6px' }}>작업내역전표 : {linked ? `${dateText(linked.workDate)} ${linked.resultNo}` : ''}</p>
+        <table className="w-full text-left">
+          <thead>
+            <tr><th>생산입고연결전표</th><th>생산품목</th><th style={{ textAlign: 'right' }}>수량</th><th>받는창고</th></tr>
+          </thead>
+          <tbody>
+            {(linkRows ?? []).length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : (linkRows ?? []).map((r) => (
+              <tr key={r.id}>
+                <td>{dateText(r.productionDate)} {r.prodNo}</td>
+                <td>{r.productName}</td>
+                <td style={{ textAlign: 'right' }}>{Number(r.producedQty).toLocaleString()}</td>
+                <td>{r.warehouseName}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={newLinkedReceipt}>신규(F2)</button>
+          <button type="button" className="ec-btn" onClick={() => setLinkRows(null)}>닫기</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

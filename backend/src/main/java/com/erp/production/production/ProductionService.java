@@ -58,6 +58,12 @@ public class ProductionService {
      * <p>응답 모양은 <b>그대로 둔다.</b> 여러 화면이 알몸 배열을 기대하고 있어,
      * 자르는 껍데기를 씌우면 안 고친 곳이 조용히 빈 표가 된다.
      */
+    /** 원본 생산입고연결전표 — 그 작업내역 전표에서 만든 생산입고. */
+    @Transactional(readOnly = true)
+    public List<ProductionResponse> findByWorkResult(String resultNo) {
+        return productionRepository.findByWorkResultNo(resultNo).stream().map(ProductionResponse::from).toList();
+    }
+
     @Transactional(readOnly = true)
     public List<ProductionResponse> findAll(LocalDate from, LocalDate to) {
         return findAll(from, to, null, null);
@@ -205,6 +211,7 @@ public class ProductionService {
             p.setEntryType(req.entryType());
             p.setLotNo(blankToNull(line.lotNo()));
             p.setAttachment(attachment);
+            p.setWorkResultNo(req.workResultNo() == null || req.workResultNo().isBlank() ? null : req.workResultNo().trim());
             if (line.processId() != null) p.setProcess(processService.getUsable(line.processId()));
             if (manual != null && line.materials() != null) {
                 for (int i = 0; i < p.getMaterials().size(); i++) {

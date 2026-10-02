@@ -238,6 +238,8 @@ public final class ProductionDtos {
             Long warehouseId,
             /** 원본 머리의 [첨부] — POST /files 로 먼저 올린 파일 id. */
             Long attachmentId,
+            /** 작업내역입력 [연결전표] 에서 만들면 그 작업내역 번호. */
+            @Size(max = 30) String workResultNo,
             @NotEmpty(message = "생산품목을 한 줄 이상 넣으세요.")
             List<@Valid SlipLine> lines
     ) {}
@@ -381,7 +383,9 @@ public final class ProductionDtos {
             /** 원본 [BOM버전]. 비었으면 기본 BOM 으로 소모했다. */
             Long bomId, String bomVersionName,
             /** 원본 머리의 [첨부]. */
-            Long attachmentId, String attachmentName
+            Long attachmentId, String attachmentName,
+            /** 이 생산입고를 낳은 작업내역 번호([연결전표]). */
+            String workResultNo
     ) {
         public static ProductionResponse from(Production p) {
             var wo = p.getWorkOrder();
@@ -412,7 +416,8 @@ public final class ProductionDtos {
                     p.getBom() != null ? p.getBom().getId() : null,
                     p.getBom() != null ? p.getBom().getVersionName() : null,
                     p.getAttachment() != null ? p.getAttachment().getId() : null,
-                    p.getAttachment() != null ? p.getAttachment().getName() : null);
+                    p.getAttachment() != null ? p.getAttachment().getName() : null,
+                    p.getWorkResultNo());
         }
     }
 }
