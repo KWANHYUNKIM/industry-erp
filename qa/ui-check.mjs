@@ -3275,7 +3275,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     '생산입고II-소모품목 선택|작업지시서', '생산입고II-소모품목 선택|저장(F8)', '생산입고II-소모품목 선택|리스트',
     '생산입고 III-소모품목 선택|작업지시서', '생산입고 III-소모품목 선택|저장(F8)', '생산입고 III-소모품목 선택|리스트',
     '생산불출입력|작업지시서', '생산불출조회|작업지시서',
-    '작업지시서입력|My품목', '작업지시서입력|저장(F8)', '작업지시서입력|리스트']) NO_BUTTON.delete(k)
+    '작업지시서입력|My품목', '작업지시서입력|저장(F8)', '작업지시서입력|리스트', '작업지시서입력|주문']) NO_BUTTON.delete(k)
 
   /*
    * <b>의료기기공급내역보고 — 심평원 전송 연동을 붙이지 않았다.</b>
@@ -7014,6 +7014,7 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
   const 예외 = {
     'CreateVacationRequest.days': '서비스가 0 초과인지도 보고 기간 일수보다 많은지도 본다(HrService.createVacation)',
     'CreateAssetRequest.declineRate': '정률법일 때만 뜻이 있다 — 그때만 0 초과를 본다(FixedAssetService)',
+    'CreateSettlementRequest.amount': '음수는 되돌린 돈(수금 − = 매출처 환불, 지급 − = 매입처 환급)이라 받는다 — 0 만 서비스가 막는다(SettlementService.create, 27회차)',
   }
   const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/
   const 이름 = /(qty|quantity|price|amount|rate|cost|total|unit|stock|days|hours|count|weight|discount)/i

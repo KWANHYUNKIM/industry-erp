@@ -4,7 +4,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell from '../../components/EcSlipShell'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import Modal from '../../components/Modal'
+import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Item, Warehouse, WorkOrder } from '../../types/api'
@@ -30,6 +32,16 @@ let seq = 1
 const blank = (warehouseId = ''): Line => ({ key: seq++, productId: '', qty: '', warehouseId, produced: 0 })
 const BLANK_ROWS = 5
 
+/** GET /sales-orders 한 건 — [주문] 창이 쓰는 것만. */
+interface SalesOrderLite {
+  id: number; orderNo: string; orderDate: string; dueDate: string | null
+  partnerId: number | null; partnerName: string | null; employeeName: string | null
+  status: string; statusName: string; totalAmount: number
+  lines: { itemId: number; itemName: string; quantity: number }[]
+}
+/** 원본 주문서검색창의 기본 기간과 같다(전월 2일 ~ 다음 달 1일 무렵). */
+const ORDER_PERIOD = periodOf('최근30일(+1개월)')!
+
 export default function WorkOrderEntryPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -51,6 +63,41 @@ export default function WorkOrderEntryPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [saving, setSaving] = useState(false)
+  /*
+   * 원본 툴바의 <b>[주문]</b> — 주문서검색창(조회)에서 주문을 골라 [적용(F8)] 하면 납품처·납기일자가 그 주문으로
+   * 바뀌고 <b>생산할 수 있는 품목(제품·반제품)</b> 줄만 들어온다(2026-10-02 loginaa 실측: 상품만 든 주문은
+   * 머리만 바뀌고 줄은 안 들어왔다). 수량은 주문수량이다.
+   */
+  const [orderOpen, setOrderOpen] = useState(false)
+  const [salesOrders, setSalesOrders] = useState<SalesOrderLite[]>([])
+  const [orderPicked, setOrderPicked] = useState<number[]>([])
+  const [orderTab, setOrderTab] = useState<'전체' | '진행중' | '완료'>('진행중')
+  async function openOrders() {
+    setError('')
+    try {
+      const r = await api.get<SalesOrderLite[]>('/sales-orders', { params: { from: ORDER_PERIOD.from, to: ORDER_PERIOD.to } })
+      setSalesOrders(r.data); setOrderPicked([]); setOrderOpen(true)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  function applyOrders() {
+    const picked = salesOrders.filter((o) => orderPicked.includes(o.id))
+    if (picked.length === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+    const first = picked[0]
+    if (first.partnerId != null) setPartnerId(String(first.partnerId))
+    if (first.dueDate) setDueDate(first.dueDate)
+    const factory = lastFactory()
+    const makeable = picked.flatMap((o) => o.lines)
+      .filter((l) => { const c = itemById.get(String(l.itemId))?.category; return c === 'FINISHED' || c === 'SEMI_FINISHED' })
+    setLines((ls) => {
+      const kept = [...ls.filter((l) => l.productId),
+        ...makeable.map((l) => ({ ...blank(factory), productId: String(l.itemId), qty: String(l.quantity) }))]
+      return [...kept, ...Array.from({ length: Math.max(1, BLANK_ROWS - kept.length) }, () => blank())]
+    })
+    setOk(makeable.length === 0 ? '고른 주문에 생산할 품목(제품·반제품)이 없어 납품처·납기일자만 바꿨습니다.' : '')
+    setOrderOpen(false)
+  }
 
   useEffect(() => {
     void Promise.all([
@@ -217,6 +264,7 @@ export default function WorkOrderEntryPage() {
 
         <div className="ec-toolbar" style={{ marginTop: 10 }}>
           <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openOrders()}>주문</button>
           <MyItemsNote note={myItems.note} />
         </div>
 
@@ -280,6 +328,51 @@ export default function WorkOrderEntryPage() {
         {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
         {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
       </EcSlipShell>
+      <Modal open={orderOpen} title="주문서검색창(조회)" error={error} width={980} onClose={() => setOrderOpen(false)}>
+        <div className="ec-pills" style={{ marginBottom: 6 }}>
+          {(['전체', '진행중', '완료'] as const).map((t) => (
+            <button key={t} type="button" className={`ec-pill no-ec${orderTab === t ? ' active' : ''}`} onClick={() => setOrderTab(t)}>{t}</button>
+          ))}
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>{dateText(ORDER_PERIOD.from)} ~ {dateText(ORDER_PERIOD.to)}</span>
+        </div>
+        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 30 }} />
+                <th>일자-No.</th>
+                <th>거래처명</th>
+                <th>사원(담당)명</th>
+                <th>품목명</th>
+                <th>납기일자</th>
+                <th style={{ textAlign: 'right' }}>주문금액합계</th>
+                <th>진행상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {salesOrders.filter((o) => orderTab === '전체' || (orderTab === '완료') === (o.status === 'COMPLETED')).length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : salesOrders.filter((o) => orderTab === '전체' || (orderTab === '완료') === (o.status === 'COMPLETED')).map((o) => (
+                <tr key={o.id} style={{ cursor: 'pointer' }}
+                    onClick={() => setOrderPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
+                  <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={orderPicked.includes(o.id)} /></td>
+                  <td>{dateText(o.orderDate)} {o.orderNo}</td>
+                  <td>{o.partnerName ?? ''}</td>
+                  <td>{o.employeeName ?? ''}</td>
+                  <td>{o.lines[0]?.itemName ?? ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
+                  <td>{dateText(o.dueDate) || ''}</td>
+                  <td style={{ textAlign: 'right' }}>{won(Number(o.totalAmount))}</td>
+                  <td>{o.statusName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={applyOrders}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setOrderOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </form>
   )
 }
