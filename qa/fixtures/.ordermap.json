@@ -830,5 +830,13 @@
  [
   "발행수표거래내역",
   "accounting/CheckLedgerPage.tsx"
+ ],
+ [
+  "수령수표조회",
+  "accounting/CheckListPage.tsx"
+ ],
+ [
+  "발행수표조회",
+  "accounting/CheckListPage.tsx"
  ]
 ]

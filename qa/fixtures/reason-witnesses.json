@@ -5053,5 +5053,37 @@
   "present": [
    "g.lines.map"
   ]
+ },
+ "수령수표조회|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "수령수표조회|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표조회|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표조회|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
  }
 }

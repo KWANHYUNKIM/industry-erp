@@ -50,6 +50,22 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|수표번호|발행수표계좌코드|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
       ]
+    },
+    {
+      "name": "수령수표조회 — 받은 날 '수령수표증가' · 입금한 날 '수령수표감소' 두 줄, 머리는 원본 그대로",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('ckNo');const tr=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no)).map((t)=>t.cells[2].innerText.trim());return h==='일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'&&tr.includes('수령수표증가')&&tr.includes('수령수표감소')})()"
+      ]
+    },
+    {
+      "name": "발행수표조회 — 받은수표는 여기 안 뜬다",
+      "path": "/accounting/checks-issued-list",
+      "steps": [
+        "wait:2000",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))"
+      ]
     }
   ]
 }

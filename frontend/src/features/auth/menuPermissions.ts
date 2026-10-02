@@ -93,6 +93,8 @@ const RULES: Rule[] = [
   ['/accounting/checks', 'BANK'],
   ['/accounting/checks-held', 'BANK'],
   ['/accounting/checks-ledger', 'BANK'],
+  ['/accounting/checks-list', 'BANK'],
+  ['/accounting/checks-issued-list', 'BANK'],
   ['/accounting/checks-issued-ledger', 'BANK'],
   ['/accounting/checks-issued', 'BANK'],
   ['/accounting/checks-in', 'BANK'],
