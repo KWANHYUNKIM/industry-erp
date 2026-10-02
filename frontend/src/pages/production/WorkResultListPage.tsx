@@ -9,6 +9,7 @@ import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { weekOfYear } from '../../utils/statusAggregate'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -229,15 +230,39 @@ export default function WorkResultListPage() {
    */
   const SUBTOTALS = ['작업(공정)', '생산품목', '작업자', '생산공장'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('작업(공정)')
-  /** 원본 ○집계의 [집계조건2] — 두 번째 묶음(2026-10-02 실측). 첫째는 [정렬/소계기준] 이 맡는다. */
-  const [sub2, setSub2] = useState<typeof SUBTOTALS[number] | '월별' | ''>('')
-  const keyBy = (k: typeof SUBTOTALS[number] | '월별', r: WorkResult) => (
-    k === '생산품목' ? (r.productName ?? '')
-      : k === '작업자' ? (r.worker ?? '')
-        : k === '생산공장' ? (r.warehouseName ?? '')
-          : k === '월별' ? r.workDate.slice(0, 7).replace('-', '/')
-            : r.process)
-  const keyOf = (r: WorkResult) => (sub2 ? `${keyBy(subtotal, r)} · ${keyBy(sub2, r)}` : keyBy(subtotal, r))
+  /*
+   * 원본 ○집계의 [집계조건1] · [집계조건2] 후보(2026-10-02 loginaa 실측): 기간(일별 · 주차별 · 월별 · 분기별 · 반기별 · 연별) ·
+   * 생산품목(품목명[규격] · 품목그룹1·2·3) · 작업품목(품목명[규격] · 품목그룹1·2·3) · 작업내역(담당자 · 창고 · 작업 · 자원 · 프로젝트).
+   * 우리는 [정렬/소계기준] 넷(작업 · 생산품목 · 작업자 · 생산공장)을 조건1 로 겸하고 조건2 에 월별 하나를 더 두었었다.
+   * 이제 집계 판에 조건1 을 따로 둔다 — [정렬/소계기준] 은 원본처럼 내역 판의 것이다. 품목그룹2·3 은 전역 예외.
+   */
+  const AGG_AXES = ['작업(공정)', '일별', '주차별', '월별', '분기별', '반기별', '연별', '생산품목', '생산품목그룹1',
+    '작업품목', '작업품목그룹1', '작업자', '생산공장', '자원', '프로젝트'] as const
+  type AggAxis = typeof AGG_AXES[number]
+  const [agg1, setAgg1] = useState<AggAxis>('작업(공정)')
+  const [sub2, setSub2] = useState<AggAxis | ''>('')
+  const keyBy = (k: AggAxis, r: WorkResult): string => {
+    const d = r.workDate
+    const m = Number(d.slice(5, 7))
+    switch (k) {
+      case '일별': return d.replace(/-/g, '/')
+      case '주차별': return `${d.slice(0, 4)}년 ${weekOfYear(d)}주`
+      case '월별': return d.slice(0, 7).replace('-', '/')
+      case '분기별': return `${d.slice(0, 4)} ${Math.floor((m - 1) / 3) + 1}분기`
+      case '반기별': return `${d.slice(0, 4)} ${m <= 6 ? '상' : '하'}반기`
+      case '연별': return d.slice(0, 4)
+      case '생산품목': return r.productName ?? '(없음)'
+      case '생산품목그룹1': return mgmt.groupOfCode(r.productCode) || '(없음)'
+      case '작업품목': return r.workItemName ?? '(없음)'
+      case '작업품목그룹1': return mgmt.groupOfCode(r.workItemCode) || '(없음)'
+      case '작업자': return r.worker || '(미지정)'
+      case '생산공장': return r.warehouseName ?? '(없음)'
+      case '자원': return r.resourceName ?? '(없음)'
+      case '프로젝트': return r.projectName ?? '(없음)'
+      default: return r.process
+    }
+  }
+  const keyOf = (r: WorkResult) => (sub2 ? `${keyBy(agg1, r)} · ${keyBy(sub2, r)}` : keyBy(agg1, r))
 
   const byProcess = useMemo(() => {
     return subtotalBy(shown, keyOf, {
@@ -246,7 +271,7 @@ export default function WorkResultListPage() {
       .map((g) => ({ process: g.label, count: g.count, good: g.sums.good, defect: g.sums.defect, time: g.sums.time }))
       .sort((a, b) => b.good - a.good)
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shown, subtotal, sub2])
+  }, [shown, agg1, sub2, mgmt.groupOptions])
   const [view, setView] = useState<'표' | '그래프'>('표')
   /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
   const chartRows = useMemo(() =>
@@ -274,10 +299,14 @@ export default function WorkResultListPage() {
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '집계' ? (
           <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+            집계조건1
+            <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as AggAxis)} style={{ width: 110 }}>
+              {AGG_AXES.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
             집계조건2
-            <select className="ec-input" value={sub2} onChange={(e) => setSub2(e.target.value as typeof SUBTOTALS[number] | '월별' | '')} style={{ width: 110 }}>
+            <select className="ec-input" value={sub2} onChange={(e) => setSub2(e.target.value as AggAxis | '')} style={{ width: 110 }}>
               <option value="">없음</option>
-              {([...SUBTOTALS, '월별'] as const).filter((k) => k !== subtotal).map((k) => <option key={k} value={k}>{k}</option>)}
+              {AGG_AXES.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
           </span>
         ) : mode === '내역' ? (
@@ -292,7 +321,8 @@ export default function WorkResultListPage() {
         ) : undefined}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
-        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+        /* [정렬/소계기준] 은 이 화면에서 집계 묶음만 정해 왔다 — 고르면 집계조건1 도 같이 따라간다(죽은 칸이 되지 않게). */
+        onSubtotalChange={(v) => { setSubtotal(v as typeof SUBTOTALS[number]); setAgg1(v as AggAxis) }}
       >
         {/*
           원본 차례(2026-09-08 실측, 서른둘): 구분 · 기준일자 · 생산공장 ·
@@ -422,7 +452,7 @@ export default function WorkResultListPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>{sub2 ? `${subtotal} · ${sub2}` : subtotal}</th>
+              <th>{sub2 ? `${agg1} · ${sub2}` : agg1}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 110, textAlign: 'right' }}>양품</th>
               <th style={{ width: 110, textAlign: 'right' }}>불량</th>
