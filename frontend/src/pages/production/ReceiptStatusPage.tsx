@@ -142,7 +142,7 @@ export default function ReceiptStatusPage() {
     id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
   const [mode, setMode] = useState<Mode>('내역')
   /** ◉내역 아래 선택상자 — 라인별(기본, 생산 줄마다) · 전표별(전표 한 장이 한 줄). */
-  const [lineView, setLineView] = useState<'라인별' | '전표별'>('라인별')
+  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   async function load() {
@@ -253,11 +253,13 @@ export default function ReceiptStatusPage() {
     const amt = (r: Production) => { const c = cost.get(r.productId); return c == null ? null : r.producedQty * c }
     const one = (r: Production) => ({ ...r, slipAmount: amt(r), matCount: r.materials.length })
     if (lineView === '라인별') return shown.map(one)
+    /* 품목별 — 같은 품목(생산된공장·받는창고도 같은 것)을 한 줄로, 일자-No. 는 처음 것(원본 생산불출현황 품목별과 같은 모양). */
+    const keyOf = (r: Production) => lineView === '품목별' ? `${r.productId}|${r.fromWarehouseId}|${r.warehouseId}` : r.prodNo
     const m = new Map<string, Production[]>()
-    shown.forEach((r) => m.set(r.prodNo, [...(m.get(r.prodNo) ?? []), r]))
+    shown.forEach((r) => m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]))
     return [...m.values()].map((ls) => ({ ...ls[0],
-      productName: ls.length > 1 ? `${ls[0].productName} 외 ${ls.length - 1}건` : ls[0].productName,
-      productSpec: ls.length > 1 ? null : ls[0].productSpec,
+      productName: lineView === '전표별' && ls.length > 1 ? `${ls[0].productName} 외 ${ls.length - 1}건` : ls[0].productName,
+      productSpec: lineView === '전표별' && ls.length > 1 ? null : ls[0].productSpec,
       producedQty: ls.reduce((n, r) => n + r.producedQty, 0),
       slipAmount: ls.some((r) => amt(r) == null) ? null : ls.reduce((n, r) => n + (amt(r) ?? 0), 0),
       matCount: ls.reduce((n, r) => n + r.materials.length, 0),
@@ -289,10 +291,11 @@ export default function ReceiptStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '내역' ? (
-          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별')}
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
             <option value="전표별">전표별</option>
+            <option value="품목별">품목별</option>
           </select>
         ) : undefined}
         view={view} onViewChange={setView}
