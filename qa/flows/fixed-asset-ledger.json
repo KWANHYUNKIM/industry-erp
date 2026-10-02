@@ -8,6 +8,22 @@
         "wait:2500",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const data=tr.some((t)=>t.cells.length===9);return h==='고정자산계정명|고정자산코드|고정자산명|취득일자|취득원가|감가상각충당금|적요|상태|감가상각계산여부'&&(!data||(tr.some((t)=>/ 계$/.test(t.cells[0].innerText.trim()))&&document.querySelector('tfoot').innerText.includes('합계')))})()"
       ]
+    },
+    {
+      "name": "고정자산증가내역 — 머리 계정코드 · 계정명 · 자산코드 · 자산명 · 취득일자 · 취득원가 · 적요",
+      "path": "/accounting/fixed-asset-in",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='계정코드|계정명|자산코드|자산명|취득일자|취득원가|적요'"
+      ]
+    },
+    {
+      "name": "고정자산감소내역 — 머리 … 감소일자 · 취득원가 · 감가상각충당금 · 매매가액",
+      "path": "/accounting/fixed-asset-out",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='계정코드|계정명|자산코드|자산명|감소일자|취득원가|감가상각충당금|매매가액'"
+      ]
     }
   ]
 }

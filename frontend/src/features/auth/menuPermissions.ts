@@ -121,6 +121,8 @@ const RULES: Rule[] = [
   ['/accounting/notes-pay-out', 'BANK'],
   ['/accounting/fixed-assets', 'FIXED_ASSET'],
   ['/accounting/fixed-asset-ledger', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-in', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-out', 'FIXED_ASSET'],
   ['/accounting/budget', 'FINANCE'],
   ['/accounting/contracts', 'FINANCE'],
   ['/accounting/income', 'FINANCE'],

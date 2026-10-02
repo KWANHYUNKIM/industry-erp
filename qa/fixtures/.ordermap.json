@@ -930,5 +930,13 @@
  [
   "고정자산대장",
   "accounting/FixedAssetLedgerPage.tsx"
+ ],
+ [
+  "고정자산증가내역",
+  "accounting/FixedAssetFlowPage.tsx"
+ ],
+ [
+  "고정자산감소내역",
+  "accounting/FixedAssetFlowPage.tsx"
  ]
 ]

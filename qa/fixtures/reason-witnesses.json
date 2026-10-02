@@ -5503,5 +5503,61 @@
   "present": [
    "key={a.id}"
   ]
+ },
+ "고정자산증가내역|부서": {
+  "claim": "고정자산에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fixedasset/FixedAsset.java"
+ },
+ "고정자산증가내역|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/FixedAssetFlowPage.tsx"
+ },
+ "고정자산증가내역|정렬/소계기준": {
+  "claim": "계정마다 소계를 고정으로 넣는다",
+  "present": [
+   "by.set(a.assetAccountCode"
+  ]
+ },
+ "고정자산증가내역|데이터 보기형식": {
+  "claim": "자산 한 건이 한 줄인 내역이다",
+  "present": [
+   "key={a.id}"
+  ]
+ },
+ "고정자산감소내역|부서": {
+  "claim": "고정자산에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fixedasset/FixedAsset.java"
+ },
+ "고정자산감소내역|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/FixedAssetFlowPage.tsx"
+ },
+ "고정자산감소내역|정렬/소계기준": {
+  "claim": "계정마다 소계를 고정으로 넣는다",
+  "present": [
+   "by.set(a.assetAccountCode"
+  ]
+ },
+ "고정자산감소내역|데이터 보기형식": {
+  "claim": "자산 한 건이 한 줄인 내역이다",
+  "present": [
+   "key={a.id}"
+  ]
  }
 }
