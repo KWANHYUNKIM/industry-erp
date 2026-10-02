@@ -1042,5 +1042,9 @@
  [
   "월별손익분석",
   "accounting/MonthlyPnlPage.tsx"
+ ],
+ [
+  "월별원가분석",
+  "accounting/MonthlyCostPage.tsx"
  ]
 ]

@@ -455,6 +455,7 @@ const MENU: TopMenu[] = [
               { label: '자금현황표', to: '/accounting/fund-status' },
               { label: '자금증감내역', to: '/accounting/fund-flow' },
               { label: '월별손익분석', to: '/accounting/monthly-pnl' },
+              { label: '월별원가분석', to: '/accounting/monthly-cost' },
             ],
           },
           {
