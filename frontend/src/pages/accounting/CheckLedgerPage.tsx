@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import type { BankAccountRow, BankCheck } from '../../types/api'
+import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 누계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -26,8 +26,14 @@ interface Move { date: string; kind: '증가' | '감소'; inc: number; dec: numb
  *
  * <p>부서 · 프로젝트는 수표에 없어 조건도 열(부서명 · 프로젝트명)도 두지 않는다 — 열만 세우면 늘 빈칸이다.
  * 계정명은 우리 분개가 쓰는 받을수표(104). 수령수표계좌코드는 입금한 계좌의 계좌번호다.
+ *
+ * <p><b>발행수표거래내역</b>(E060614)도 조건 · 열이 같다([발행수표계좌] · [발행수표계좌코드]). 발행한 날 증가, 은행에서 빠져나간(결제완료)
+ * 날 감소. 계정명은 끊은 계좌의 총계정, 계좌코드는 그 계좌번호다.
  */
-export default function CheckLedgerPage() {
+export default function CheckLedgerPage({ type }: { type: CheckType }) {
+  const received = type === 'RECEIVED'
+  const title = received ? '수령수표거래내역' : '발행수표거래내역'
+  const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
   const account = '받을수표'
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
@@ -38,6 +44,7 @@ export default function CheckLedgerPage() {
   const [withZero, setWithZero] = useState(true)
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [acctNo, setAcctNo] = useState<Map<number, string>>(new Map())
+  const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -52,6 +59,7 @@ export default function CheckLedgerPage() {
       ])
       setChecks(r.data)
       setAcctNo(new Map(a.data.map((x) => [x.id, x.accountNo])))
+      setGlByAccount(new Map(a.data.map((x) => [x.id, x.glAccountName])))
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -59,10 +67,10 @@ export default function CheckLedgerPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { void load() }, [from, to, type])
 
   const groups = useMemo(() => checks
-    .filter((c) => c.type === 'RECEIVED')
+    .filter((c) => c.type === type)
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
     .map((c) => {
@@ -78,15 +86,15 @@ export default function CheckLedgerPage() {
     .filter((g) => g.opening !== 0 || g.lines.length > 0)
     .filter((g) => withZero || g.bal !== 0)
     .sort((a, b) => a.c.checkNo.localeCompare(b.c.checkNo)),
-  [checks, from, to, checkNo, bankAccount, withZero])
+  [checks, type, from, to, checkNo, bankAccount, withZero])
   const total = groups.reduce((a, g) => ({ inc: a.inc + g.inc, dec: a.dec + g.dec }), { inc: 0, dec: 0 })
-  const accounts = useMemo(() => [...new Set(checks.filter((c) => c.type === 'RECEIVED').map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks])
+  const accounts = useMemo(() => [...new Set(checks.filter((c) => c.type === type).map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks, type])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '수령수표거래내역', [groups.length])
+  useTableColumnCheck(tableRef, title, [groups.length])
 
   return (
     <EcListShell
-      title="수령수표거래내역"
+      title={title}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -105,17 +113,17 @@ export default function CheckLedgerPage() {
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
-        {/* 원본 [계정] — 받은수표가 쓰는 계정은 받을수표 하나다. */}
+        {/* 원본 [계정] — 받은수표는 받을수표 하나, 발행수표는 끊은 계좌의 계정이라 계좌 조건이 그 몫을 한다. */}
         <EcCond label="계정">
-          <select className="ec-input" value={account} disabled style={{ width: 140 }}>
-            <option value={account}>{account}</option>
+          <select className="ec-input" value={received ? account : ''} disabled style={{ width: 140 }}>
+            <option value={received ? account : ''}>{received ? account : '계좌의 계정'}</option>
           </select>
         </EcCond>
         <EcCond label="수표번호">
           <input className="ec-input" value={checkNo} onChange={(e) => setCheckNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
-        <EcCond label="수령수표계좌" pick>
-          <CodePickerField label="수령수표계좌" hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
+        <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
+          <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
                            items={accounts.map((a) => ({ value: a, name: a }))} />
         </EcCond>
         <EcCond label="잔액">
@@ -126,7 +134,7 @@ export default function CheckLedgerPage() {
       </ul>
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        수령수표거래내역 <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span>
+        {title} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -134,7 +142,7 @@ export default function CheckLedgerPage() {
             <th style={{ textAlign: 'center' }}>일자</th>
             <th style={{ textAlign: 'center' }}>증감구분</th>
             <th>수표번호</th>
-            <th>수령수표계좌코드</th>
+            <th>{received ? '수령수표계좌코드' : '발행수표계좌코드'}</th>
             <th>거래처명</th>
             <th>계정명</th>
             <th>적요</th>
@@ -162,7 +170,7 @@ export default function CheckLedgerPage() {
                 <td>{g.c.checkNo}</td>
                 <td>{g.c.bankAccountId != null ? acctNo.get(g.c.bankAccountId) ?? '' : ''}</td>
                 <td>{g.c.partnerName ?? ''}</td>
-                <td>{account}</td>
+                <td>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
                 <td>{g.c.remark ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(l.inc)}</td>
                 <td style={{ textAlign: 'right' }}>{won(l.dec)}</td>
@@ -170,7 +178,7 @@ export default function CheckLedgerPage() {
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
-              <td colSpan={7}>{account} / {g.c.checkNo} 계</td>
+              <td colSpan={7}>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
               <td style={{ textAlign: 'right' }}>{won(g.inc)}</td>
               <td style={{ textAlign: 'right' }}>{won(g.dec)}</td>
               <td></td>

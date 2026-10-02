@@ -826,5 +826,9 @@
  [
   "수령수표거래내역",
   "accounting/CheckLedgerPage.tsx"
+ ],
+ [
+  "발행수표거래내역",
+  "accounting/CheckLedgerPage.tsx"
  ]
 ]

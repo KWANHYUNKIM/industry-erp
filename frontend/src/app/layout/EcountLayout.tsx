@@ -459,6 +459,7 @@ const MENU: TopMenu[] = [
           { label: '수령수표현황', to: '/accounting/checks-held' },
           { label: '수령수표증가현황', to: '/accounting/checks-in' },
           { label: '수령수표감소현황', to: '/accounting/checks-out' },
+          { label: '발행수표거래내역', to: '/accounting/checks-issued-ledger' },
           { label: '발행수표현황', to: '/accounting/checks-issued' },
           { label: '발행수표증가현황', to: '/accounting/checks-issued-in' },
           { label: '발행수표감소현황', to: '/accounting/checks-issued-out' },

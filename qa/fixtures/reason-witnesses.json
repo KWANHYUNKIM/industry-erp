@@ -5031,5 +5031,27 @@
   "present": [
    "g.lines.map"
   ]
+ },
+ "발행수표거래내역|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표거래내역|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표거래내역|데이터 보기형식": {
+  "claim": "움직임 한 건이 한 줄인 원장이다",
+  "present": [
+   "g.lines.map"
+  ]
  }
 }

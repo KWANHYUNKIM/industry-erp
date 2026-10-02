@@ -42,6 +42,14 @@
         "wait:2000",
         "expect:(()=>{const no=sessionStorage.getItem('ckNo');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no));if(rows.length<3)return false;const kinds=rows.filter((t)=>t.cells.length===10).map((t)=>t.cells[1].innerText.trim());const last=rows.filter((t)=>t.cells.length===10).slice(-1)[0];const sub=rows.find((t)=>/계$/.test(t.cells[0].innerText.trim()));return kinds.join(',')==='증가,감소'&&last.cells[9].innerText.trim()==='0'&&!!sub})()"
       ]
+    },
+    {
+      "name": "발행수표거래내역 — 머리는 수령 쪽과 같고 계좌 열 이름만 [발행수표계좌코드], 받은수표는 여기 안 뜬다",
+      "path": "/accounting/checks-issued-ledger",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|수표번호|발행수표계좌코드|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
+      ]
     }
   ]
 }
