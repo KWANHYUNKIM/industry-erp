@@ -1090,5 +1090,9 @@
  [
   "인원현황",
   "hr/HeadcountPage.tsx"
+ ],
+ [
+  "고정자산수불부",
+  "accounting/FixedAssetStockPage.tsx"
  ]
 ]

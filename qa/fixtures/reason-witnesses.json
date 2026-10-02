@@ -6516,5 +6516,21 @@
    "career"
   ],
   "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
+ },
+ "고정자산수불부|부서": {
+  "claim": "고정자산에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fixedasset/FixedAsset.java"
+ },
+ "고정자산수불부|양식구분": {
+  "claim": "결재 칸을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/FixedAssetStockPage.tsx"
  }
 }
