@@ -26,6 +26,18 @@ public class BomController {
         return "all".equalsIgnoreCase(versions) ? bomService.findAllVersions() : bomService.findAll();
     }
 
+    /** 원본 BOM 정전개 — 제품에서 아래로 들여쓴 줄. bomId 로 첫 단 버전을 고른다(없으면 기본). */
+    @GetMapping("/tree")
+    public List<BomDtos.TreeNode> tree(@RequestParam Long productId, @RequestParam(required = false) Long bomId) {
+        return bomService.forwardTree(productId, bomId);
+    }
+
+    /** 원본 BOM 역전개 — 이 품목을 쓰는 제품들을 위로. */
+    @GetMapping("/where-used")
+    public List<BomDtos.TreeNode> whereUsed(@RequestParam Long itemId) {
+        return bomService.whereUsed(itemId);
+    }
+
     @PostMapping
     public ResponseEntity<BomResponse> save(@Valid @RequestBody SaveBomRequest req) {
         return ResponseEntity.ok(bomService.save(req));

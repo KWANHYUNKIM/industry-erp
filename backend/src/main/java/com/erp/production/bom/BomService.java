@@ -89,6 +89,78 @@ public class BomService {
         }
     }
 
+    /**
+     * 원본 BOM 정전개 — 제품에서 아래로 끝까지(반제품은 각자의 기본 BOM 으로) 들여쓴 줄. 첫 단은 고른 버전(없으면 기본).
+     * 순환이면 거절한다.
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public java.util.List<com.erp.production.bom.dto.BomDtos.TreeNode> forwardTree(Long productId, Long bomId) {
+        Bom top = bomId != null ? getVersion(bomId)
+                : bomRepository.findByProductIdWithProduct(productId)
+                    .orElseThrow(() -> ApiException.badRequest("BOM 이 등록되지 않은 품목입니다."));
+        var out = new java.util.ArrayList<com.erp.production.bom.dto.BomDtos.TreeNode>();
+        var p = top.getProduct();
+        out.add(new com.erp.production.bom.dto.BomDtos.TreeNode(0, p.getId(), p.getCode(), p.getName(), p.getSpec(), p.getUnit(),
+                java.math.BigDecimal.ONE, java.math.BigDecimal.ONE, top.getVersionName(), !top.getLines().isEmpty()));
+        java.util.Deque<Long> path = new java.util.ArrayDeque<>();
+        path.push(p.getId());
+        forward(top, 1, java.math.BigDecimal.ONE, path, out);
+        return out;
+    }
+
+    private void forward(Bom bom, int level, java.math.BigDecimal mult, java.util.Deque<Long> path,
+                         java.util.List<com.erp.production.bom.dto.BomDtos.TreeNode> out) {
+        for (var line : bom.getLines()) {
+            var c = line.getComponent();
+            if (path.contains(c.getId())) throw ApiException.badRequest("BOM 이 자기 자신을 다시 부릅니다(순환): " + c.getCode());
+            var child = bomRepository.findByProductIdWithProduct(c.getId()).orElse(null);
+            java.math.BigDecimal total = line.getQuantity().multiply(mult);
+            out.add(new com.erp.production.bom.dto.BomDtos.TreeNode(level, c.getId(), c.getCode(), c.getName(), c.getSpec(), c.getUnit(),
+                    line.getQuantity(), total, child != null ? child.getVersionName() : null, child != null));
+            if (child != null) {
+                path.push(c.getId());
+                forward(child, level + 1, total, path, out);
+                path.pop();
+            }
+        }
+    }
+
+    /**
+     * 원본 BOM 역전개 — 이 품목을 쓰는 제품들을 위로 끝까지(기본 BOM 기준). 0 단이 고른 품목이고,
+     * 그 아래 줄들이 "이 품목을 qty 개 쓰는 윗 품목" 이다(누적은 위로 올라가며 곱한다).
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public java.util.List<com.erp.production.bom.dto.BomDtos.TreeNode> whereUsed(Long itemId) {
+        var item = itemService.get(itemId);
+        java.util.Map<Long, java.util.List<java.util.Map.Entry<Bom, java.math.BigDecimal>>> parentsOf = new java.util.HashMap<>();
+        for (Bom b : bomRepository.findAllWithProduct()) {
+            for (var l : b.getLines()) parentsOf.computeIfAbsent(l.getComponent().getId(), k -> new java.util.ArrayList<>()).add(java.util.Map.entry(b, l.getQuantity()));
+        }
+        var out = new java.util.ArrayList<com.erp.production.bom.dto.BomDtos.TreeNode>();
+        out.add(new com.erp.production.bom.dto.BomDtos.TreeNode(0, item.getId(), item.getCode(), item.getName(), item.getSpec(), item.getUnit(),
+                java.math.BigDecimal.ONE, java.math.BigDecimal.ONE, null, parentsOf.containsKey(itemId)));
+        java.util.Deque<Long> path = new java.util.ArrayDeque<>();
+        path.push(itemId);
+        upward(itemId, 1, java.math.BigDecimal.ONE, parentsOf, path, out);
+        return out;
+    }
+
+    private void upward(Long itemId, int level, java.math.BigDecimal mult,
+                        java.util.Map<Long, java.util.List<java.util.Map.Entry<Bom, java.math.BigDecimal>>> parentsOf,
+                        java.util.Deque<Long> path, java.util.List<com.erp.production.bom.dto.BomDtos.TreeNode> out) {
+        for (var e : parentsOf.getOrDefault(itemId, java.util.List.of())) {
+            var p = e.getKey().getProduct();
+            if (path.contains(p.getId())) continue;
+            // 윗 품목 하나를 만들려면 이 품목이 qty 개 — 맨 아래 품목 하나는 윗 품목 1/qty 개 분이다(누적은 소요량을 곱해 둔다).
+            java.math.BigDecimal total = e.getValue().multiply(mult);
+            out.add(new com.erp.production.bom.dto.BomDtos.TreeNode(level, p.getId(), p.getCode(), p.getName(), p.getSpec(), p.getUnit(),
+                    e.getValue(), total, e.getKey().getVersionName(), parentsOf.containsKey(p.getId())));
+            path.push(p.getId());
+            upward(p.getId(), level + 1, total, parentsOf, path, out);
+            path.pop();
+        }
+    }
+
     /** BOM 을 푼 한 줄 — 자재와 그 양(생산수량을 곱한 뒤). */
     public record Exploded(com.erp.inventory.item.Item component, java.math.BigDecimal quantity) {}
 

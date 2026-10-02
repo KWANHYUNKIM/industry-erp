@@ -11,6 +11,12 @@ const inputCls = 'ec-input'
 interface LineInput { componentId: string; quantity: string }
 const emptyLine = (): LineInput => ({ componentId: '', quantity: '' })
 
+/** 원본 BOM 정전개·역전개 한 줄. */
+interface TreeRow {
+  level: number; itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
+  qty: number; totalQty: number; versionName: string | null; hasChildren: boolean
+}
+
 export default function BomPage() {
   const [boms, setBoms] = useState<Bom[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -18,6 +24,44 @@ export default function BomPage() {
   const [error, setError] = useState('')
   /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 22회차). */
   const [ok, setOk] = useState('')
+  /**
+   * 원본 BOM(소요량)조회 [조회] → <b>정전개 · 역전개 · 원재료리스트</b>.
+   * 정전개는 제품에서 아래로 들여쓴 줄(반제품은 각자의 기본 BOM), 역전개는 이 품목을 쓰는 제품들을 위로,
+   * 원재료리스트는 끝까지 푼 원재료만 합친 목록이다. [펼치기]·[접기]는 반제품 아래를 펴고 접는다.
+   */
+  const [tree, setTree] = useState<{ title: string; kind: 'F' | 'R' | 'L'; rows: TreeRow[] } | null>(null)
+  const [folded, setFolded] = useState<Set<number>>(new Set())
+  async function openTree(b: Bom, kind: 'F' | 'R' | 'L') {
+    setError('')
+    try {
+      let rows: TreeRow[]
+      if (kind === 'F') {
+        rows = (await api.get<TreeRow[]>('/boms/tree', { params: { productId: b.productId, bomId: b.id } })).data
+      } else if (kind === 'R') {
+        rows = (await api.get<TreeRow[]>('/boms/where-used', { params: { itemId: b.productId } })).data
+      } else {
+        const r = await api.get<{ componentId: number; componentCode: string; componentName: string; componentSpec: string | null; unit: string; quantity: number }[]>(
+          '/productions/bom-preview', { params: { productId: b.productId, qty: 1, level: 'ALL', bomId: b.id } })
+        rows = r.data.map((m) => ({ level: 1, itemId: m.componentId, itemCode: m.componentCode, itemName: m.componentName,
+          spec: m.componentSpec, unit: m.unit, qty: m.quantity, totalQty: m.quantity, versionName: null, hasChildren: false }))
+      }
+      setFolded(new Set())
+      setTree({ title: `${kind === 'F' ? '정전개' : kind === 'R' ? '역전개' : '원재료리스트'} — ${b.productCode} ${b.productName} [${b.versionName}]`, kind, rows })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  /** 접힌 줄 아래(더 깊은 줄)를 감춘다. */
+  const visibleRows = (rows: TreeRow[]) => {
+    const out: { r: TreeRow; i: number }[] = []
+    let hideBelow: number | null = null
+    rows.forEach((r, i) => {
+      if (hideBelow != null && r.level > hideBelow) return
+      hideBelow = folded.has(i) ? r.level : null
+      out.push({ r, i })
+    })
+    return out
+  }
   const [showForm, setShowForm] = useState(false)
   const [productId, setProductId] = useState('')
   const [remark, setRemark] = useState('')
@@ -191,6 +235,9 @@ export default function BomPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => void openTree(b, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
+                  <button onClick={() => void openTree(b, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
+                  <button onClick={() => void openTree(b, 'L')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>원재료리스트</button>
                   <button onClick={() => editBom(b)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>수정</button>
                   <button onClick={() => remove(b)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </div>
@@ -213,6 +260,60 @@ export default function BomPage() {
           ))
         )}
       </div>
+      <Modal open={tree != null} title={tree?.title ?? ''} error={error} width={760} onClose={() => setTree(null)}>
+        {tree && (
+          <>
+            {tree.kind !== 'L' && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFolded(new Set())}>펼치기</button>
+                <button type="button" className="ec-btn ec-btn-sm"
+                        onClick={() => setFolded(new Set(tree.rows.map((r, i) => (r.hasChildren && r.level > 0 ? i : -1)).filter((i) => i >= 0)))}>접기</button>
+              </div>
+            )}
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <table className="w-full text-left">
+                <thead>
+                  <tr>
+                    <th>품목코드(품명,규격,단위포함)</th>
+                    <th style={{ textAlign: 'right', width: 110 }}>{tree.kind === 'R' ? '윗 품목당 소요량' : '소요량'}</th>
+                    <th style={{ textAlign: 'right', width: 110 }}>{tree.kind === 'L' ? '' : '누적 소요량'}</th>
+                    <th style={{ width: 90 }}>비고</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tree.rows.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  ) : visibleRows(tree.rows).map(({ r, i }) => (
+                    <tr key={i}>
+                      <td style={{ paddingLeft: 8 + r.level * 18 }}>
+                        {r.hasChildren && r.level > 0 && tree.kind !== 'L' ? (
+                          <button type="button" className="no-ec" style={{ border: 0, background: 'none', cursor: 'pointer', width: 14, padding: 0 }}
+                                  onClick={() => setFolded((f) => { const n = new Set(f); if (n.has(i)) n.delete(i); else n.add(i); return n })}>
+                            {folded.has(i) ? '+' : '−'}
+                          </button>
+                        ) : <span style={{ display: 'inline-block', width: 14 }} />}
+                        {r.itemCode} : {r.itemName}{r.spec ? ` [${r.spec}]` : ''} - {r.unit}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{r.level === 0 ? '' : Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td style={{ textAlign: 'right' }}>{r.level === 0 || tree.kind === 'L' ? '' : Number(r.totalQty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td style={{ color: '#8a929c', fontSize: 12 }}>{r.versionName ? `BOM ${r.versionName}` : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {tree.kind === 'L' && (
+                  <tfoot>
+                    <tr>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{tree.rows.reduce((n, r) => n + Number(r.qty), 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </>
+        )}
+      </Modal>
     </EcListShell>
   )
 }

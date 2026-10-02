@@ -32,6 +32,15 @@ public final class BomDtos {
             Boolean defaultVersion
     ) {}
 
+    /**
+     * 원본 BOM 정전개 · 역전개의 한 줄 — 들여쓰기 깊이(level, 0 이 맨 위)와 품목, 윗줄 하나당 소요량(qty),
+     * 맨 위 하나당 누적 소요량(totalQty). 역전개에서는 qty 가 "이 품목이 윗줄 하나에 몇 개 드는가" 다.
+     */
+    public record TreeNode(
+            int level, Long itemId, String itemCode, String itemName, String spec, String unit,
+            BigDecimal qty, BigDecimal totalQty, String versionName, boolean hasChildren
+    ) {}
+
     public record BomLineResponse(
             Long componentId, String componentCode, String componentName, String unit, BigDecimal quantity
     ) {

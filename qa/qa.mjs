@@ -5164,6 +5164,20 @@ async function scenarioBomVersions(f) {
   eq('시험 버전을 지우면 남은 버전이 기본', back.length === 1 && back[0].defaultVersion, true)
 }
 
+/** BOM 정전개 · 역전개 — 원본 BOM(소요량)조회 [조회]. 다단 제품(제품 → 반제품 ×2 → 원재료 ×3)으로 잰다. */
+async function scenarioBomTree(f) {
+  section('■ BOM 정전개 · 역전개')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const t = await must('GET', `/boms/tree?productId=${top.id}`)
+  eq('정전개: 맨 위가 제품(0단)', t[0].itemId, top.id)
+  eq('정전개: 반제품이 1단 · 소요량 2', `${t[1].itemId}:${t[1].level}:${Number(t[1].qty)}`, `${semi.id}:1:2`)
+  eq('정전개: 원재료가 2단 · 누적 2×3', `${t[2].itemId}:${t[2].level}:${Number(t[2].totalQty)}`, `${f.material.id}:2:6`)
+  const w = await must('GET', `/boms/where-used?itemId=${semi.id}`)
+  eq('역전개: 반제품을 쓰는 제품이 위에(1단)', w.some((x) => x.level === 1 && x.itemId === top.id), true)
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9723,6 +9737,7 @@ async function main() {
     await scenarioWorkResultBatch(fixtures)
     await scenarioProductionConfirm(fixtures)
     await scenarioBomVersions(fixtures)
+    await scenarioBomTree(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9847,6 +9862,7 @@ async function main() {
   await scenarioWorkResultBatch(fixtures)
   await scenarioProductionConfirm(fixtures)
   await scenarioBomVersions(fixtures)
+  await scenarioBomTree(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()
