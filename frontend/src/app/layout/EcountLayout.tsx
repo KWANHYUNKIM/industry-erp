@@ -113,7 +113,7 @@ const MENU: TopMenu[] = [
         label: '구매관리',
         nodes: [
           { label: '발주요청', children: [{ label: '발주요청조회', to: '/sales/purchase-requests' }, { label: '발주요청현황', to: '/sales/purchase-request-status' }] },
-          { label: '발주계획', children: [{ label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
+          { label: '발주계획', children: [{ label: '발주계획조회', to: '/sales/purchase-plans' }, { label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
           {
             label: '단가요청',
             children: [

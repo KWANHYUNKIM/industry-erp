@@ -886,5 +886,9 @@
  [
   "발주요청조회",
   "trade/PurchaseRequestListPage.tsx"
+ ],
+ [
+  "발주계획조회",
+  "trade/PurchasePlanListPage.tsx"
  ]
 ]

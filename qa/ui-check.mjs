@@ -1330,6 +1330,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['시리얼/로트No.내역조회', 'quality/LotTxListPage.tsx'],
     ['주문서조회', 'trade/SalesOrderPage.tsx'],
     ['발주요청조회', 'trade/PurchaseRequestListPage.tsx'],
+    ['발주계획조회', 'trade/PurchasePlanListPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
