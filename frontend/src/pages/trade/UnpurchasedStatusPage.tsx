@@ -209,7 +209,7 @@ export default function UnpurchasedStatusPage() {
       if (f.dueTo && !(r.dueDate && r.dueDate <= f.dueTo)) return false
       if (f.project && !r.project.includes(f.project)) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
-      /* 우리 모델은 발주를 통짜로 입고 전환하므로 <b>미구매수량 = 발주수량</b> 이다(머리말 참고). */
+      /* r.qty 는 이미 줄별 잔량(발주 − 구매)이다(43회차, 머리말 참고). */
       if (!inRange(r.qty, f.unpurchasedFrom, f.unpurchasedTo)) return false
       if (f.currency && (r.currency ?? '') !== f.currency) return false
       if (f.taxType && (r.taxable ? '과세' : '면세') !== f.taxType) return false
