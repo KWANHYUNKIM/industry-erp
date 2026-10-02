@@ -1,0 +1,13 @@
+{
+  "about": "고정자산대장(E010613) — 원본 열 차례와, 자산이 있으면 계정마다 '… 계' · 합계 줄이 붙는지 본다.",
+  "shots": [
+    {
+      "name": "고정자산대장 — 머리 고정자산계정명 · 고정자산코드 · 고정자산명 · 취득일자 · 취득원가 · 감가상각충당금 · 적요 · 상태 · 감가상각계산여부, 줄이 있으면 '… 계' 와 합계",
+      "path": "/accounting/fixed-asset-ledger",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const data=tr.some((t)=>t.cells.length===9);return h==='고정자산계정명|고정자산코드|고정자산명|취득일자|취득원가|감가상각충당금|적요|상태|감가상각계산여부'&&(!data||(tr.some((t)=>/ 계$/.test(t.cells[0].innerText.trim()))&&document.querySelector('tfoot').innerText.includes('합계')))})()"
+      ]
+    }
+  ]
+}

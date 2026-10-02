@@ -409,7 +409,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '고정자산',
-        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }],
+        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }, { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }],
       },
       {
         label: '전자(세금)계산서',

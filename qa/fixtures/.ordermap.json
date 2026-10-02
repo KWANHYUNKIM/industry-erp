@@ -926,5 +926,9 @@
  [
   "지급어음조회",
   "accounting/NoteListPage.tsx"
+ ],
+ [
+  "고정자산대장",
+  "accounting/FixedAssetLedgerPage.tsx"
  ]
 ]
