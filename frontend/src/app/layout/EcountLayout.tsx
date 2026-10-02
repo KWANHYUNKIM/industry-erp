@@ -193,6 +193,7 @@ const MENU: TopMenu[] = [
           { label: '거래처별채무', to: '/sales/ledger-payable' },
           { label: '지급현황', to: '/sales/payment' },
           { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+          { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' },
           { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
         ],
       },

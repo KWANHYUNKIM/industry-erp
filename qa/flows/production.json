@@ -529,6 +529,14 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')&&![...document.querySelectorAll('tbody tr')].some((t)=>/ 계$/.test(t.cells[0]?.innerText.trim()||''))})()"
       ]
+    },
+    {
+      "name": "매입(세금)계산서조회(재고) — 매출 쪽과 같은 목록 판",
+      "path": "/production/purchase-tax-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')})()"
+      ]
     }
   ]
 }

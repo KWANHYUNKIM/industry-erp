@@ -38,7 +38,7 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /**
  * <p><b>매출(세금)계산서조회(재고)</b>(E040218, 같은 날 실측)는 같은 전표를 <b>목록</b>으로 본다(list) — 열 일자 - 번호 · 거래처명 · 공급가액 ·
  * 부가세 · 합 계 · 내역보기 · 인쇄, 달 소계 · 합계줄이 없고 기본은 최근30일(+1개월). 위 탭 전체 · 결재중 · 미확인 · 확인은
- * 회계전표에 결재 · 확인 상태가 없어 두지 않았다.
+ * 회계전표에 결재 · 확인 상태가 없어 두지 않았다. <b>매입(세금)계산서조회(재고)</b>(E040219)도 같은 판이다(조건에 [발송여부]만 없다).
  */
 export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }: { kind?: 'PURCHASE' | 'SALES'; list?: boolean }) {
   const sales = kind === 'SALES'
@@ -112,7 +112,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
 
   return (
     <EcListShell
-      title={list ? '매출(세금)계산서조회(재고)' : sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)'}
+      title={list ? (sales ? '매출(세금)계산서조회(재고)' : '매입(세금)계산서조회(재고)') : sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)'}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
