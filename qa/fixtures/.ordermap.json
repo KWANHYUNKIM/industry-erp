@@ -982,5 +982,9 @@
  [
   "거래처거래내역조회",
   "accounting/PartnerTxListPage.tsx"
+ ],
+ [
+  "합계잔액시산표",
+  "accounting/TrialBalancePage.tsx"
  ]
 ]

@@ -103,6 +103,14 @@
         "wait:800",
         "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='거래처코드|거래처명|차변금액|대변금액'"
       ]
+    },
+    {
+      "name": "합계잔액시산표 — 머리 기말잔액(차변) · 기말금액(차변) · 계정명 · 기말금액(대변) · 기말잔액(대변), 끝 [합계]의 기말금액 차 = 대",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='기말잔액(차변)|기말금액(차변)|계정명|기말금액(대변)|기말잔액(대변)'&&f.cells[2].innerText.trim()==='합계'&&f.cells[1].innerText===f.cells[3].innerText})()"
+      ]
     }
   ]
 }
