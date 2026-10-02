@@ -49,6 +49,12 @@ public class SpecialPriceController {
         return service.setActive(id, active);
     }
 
+    /** 단가적용순서설정에서 거래처별특별단가가 켜져 있나 — 특별단가 화면이 "등록해도 안 걸린다" 를 알린다(51회차). */
+    @GetMapping("/enabled")
+    public boolean enabled(@RequestParam SpecialPriceType tradeType) {
+        return service.partnerSpecialPriceEnabled(tradeType);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

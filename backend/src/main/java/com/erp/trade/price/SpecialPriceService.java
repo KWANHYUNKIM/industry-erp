@@ -27,6 +27,8 @@ public class SpecialPriceService {
     private final SpecialPriceRepository repository;
     private final ItemService itemService;         // inventory 공개 API
     private final PartnerService partnerService;    // 같은 모듈(trade)
+    /** 단가적용순서설정 — 거래처별특별단가를 '사용' 으로 둔 때만 특별단가를 쓴다(51회차). trade → settings 는 허용된 간선. */
+    private final com.erp.settings.priceorder.PriceOrderService priceOrderService;
 
     @Transactional(readOnly = true)
     public List<SpecialPriceResponse> findAll() {
@@ -80,6 +82,12 @@ public class SpecialPriceService {
      */
     @Transactional(readOnly = true)
     public ResolveResponse resolve(SpecialPriceType type, Long itemId, Long partnerId) {
+        /*
+         * 단가적용순서설정의 [거래처별특별단가] 가 '사용안함' 이면 특별단가를 쓰지 않는다. 예전엔 설정과 상관없이
+         * 늘 썼다 — 원본 기본값은 [출고단가]만 '사용' 이라, 설정 화면을 보면 특별단가가 안 걸려야 하는데 걸렸다(51회차).
+         * 우리 특별단가의 두 갈래(거래처 지정 · 거래처 단가그룹)는 둘 다 '거래처별' 이라 두 줄 중 하나라도 '사용' 이면 켠다.
+         */
+        if (!partnerSpecialPriceEnabled(type)) return ResolveResponse.none();
         List<SpecialPrice> byPartner = repository.findActiveByPartner(type, itemId, partnerId);
         if (!byPartner.isEmpty()) {
             SpecialPrice sp = byPartner.get(0);
@@ -97,5 +105,11 @@ public class SpecialPriceService {
             }
         }
         return ResolveResponse.none();
+    }
+
+    /** 단가적용순서설정에서 거래처별특별단가(품목별·품목그룹별) 중 하나라도 '사용' 인가. */
+    public boolean partnerSpecialPriceEnabled(SpecialPriceType type) {
+        return priceOrderService.get(type == SpecialPriceType.SALES ? "SALES" : "PURCHASE").stream()
+                .anyMatch(l -> l.active() && l.functionName().startsWith("거래처별특별단가"));
     }
 }

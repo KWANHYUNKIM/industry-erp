@@ -29,6 +29,16 @@ export default function SpecialPricePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  /*
+   * 단가적용순서설정에서 거래처별특별단가가 '사용' 인가(판매·구매). 꺼져 있으면 여기 등록한 단가가 전표에 안 걸린다 —
+   * 원본 기본값이 꺼짐이라, 등록하고 "왜 안 들어오지" 가 되기 쉬웠다(51회차). 그 사실을 이 화면에서 알린다.
+   */
+  const [enabled, setEnabled] = useState<{ SALES: boolean; PURCHASE: boolean } | null>(null)
+  useEffect(() => {
+    Promise.all((['SALES', 'PURCHASE'] as const).map((t) => api.get<boolean>('/special-prices/enabled', { params: { tradeType: t } })))
+      .then(([s, p]) => setEnabled({ SALES: s.data, PURCHASE: p.data }))
+      .catch(() => setEnabled(null))
+  }, [])
   const [tab, setTab] = useState<'ALL' | SpecialPriceType>('ALL')
   const [showForm, setShowForm] = useState(false)
 
@@ -177,6 +187,12 @@ export default function SpecialPricePage() {
       </div>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {enabled && (!enabled.SALES || !enabled.PURCHASE) && (
+        <p style={{ background: '#fdf7ec', color: '#8a6a1e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+          단가적용순서설정에서 [거래처별특별단가] 가 {!enabled.SALES && !enabled.PURCHASE ? '영업·구매 모두' : !enabled.SALES ? '영업관리' : '구매관리'} '사용안함' 입니다 —
+          여기 등록한 특별단가가 그쪽 전표에 걸리지 않습니다. <a href="/inventory/price-order" style={{ color: 'var(--ec-blue)' }}>단가적용순서설정</a> 에서 '사용' 으로 바꾸세요.
+        </p>
+      )}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/* 유효단가 조회(resolve) — 거래처별→그룹별 폴백 확인 */}

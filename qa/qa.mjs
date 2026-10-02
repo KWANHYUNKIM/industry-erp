@@ -166,6 +166,14 @@ async function scenarioSpecialPrice(f) {
     await call('DELETE', `/special-prices/${sp0.id}`)
   }
 
+  /*
+   * 단가적용순서설정에서 [거래처별특별단가] 가 '사용' 이어야 특별단가가 걸린다(51회차 — 설정과 상관없이 늘 걸렸다).
+   * 지금 설정을 받아 두고 켠 뒤 시험하고, 끝에 되돌린다.
+   */
+  const savedOrder = await must('GET', '/price-order-settings?category=SALES')
+  const withPartner = (on) => savedOrder.map((l) => (l.functionName === '거래처별특별단가(품목별)' ? { ...l, active: on } : l))
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
+
   const before = await ask()
   eq('등록 전에는 특별단가가 없다', before.found, false)
   eq('없을 때 단가는 null 이다(0 이 아니다)', before.unitPrice, null)
@@ -184,8 +192,14 @@ async function scenarioSpecialPrice(f) {
   await must('PATCH', `/special-prices/${sp.id}/active?active=true`)
   eq('다시 켜면 또 찾는다', (await ask()).found, true)
 
+  // 설정에서 거래처별특별단가를 '사용안함' 으로 두면 등록돼 있어도 안 건다 — 원본 기본값이 그렇다
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(false).map((l) => (l.functionName.startsWith('거래처별특별단가') ? { ...l, active: false } : l)) })
+  eq('단가적용순서설정에서 거래처별특별단가를 끄면 안 건다', (await ask()).found, false)
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
+
   await must('DELETE', `/special-prices/${sp.id}`)
   eq('지우면 표준단가로 돌아간다', (await ask()).found, false)
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: savedOrder })   // 설정 되돌림
 }
 
 /**
