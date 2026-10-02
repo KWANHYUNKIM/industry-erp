@@ -1350,6 +1350,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['계정별거래처별원장', 'accounting/AccountPartnerLedgerPage.tsx'],
     ['거래처별계정별원장', 'accounting/PartnerAccountLedgerPage.tsx'],
     ['계정별적요별원장', 'accounting/AccountRemarkLedgerPage.tsx'],
+    ['계정증감내역', 'accounting/AccountFlowPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4159,6 +4160,10 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>계정증감내역(E010857)</b> — 2026-10-03 원본 실측(AccountFlowPage). */
+    ['계정증감내역|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별적요별원장과 같은 사실'],
+    ['계정증감내역|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정증감내역|기타', '[기타]는 [결재방표시] 하나다 — 인쇄물에 결재란을 찍을지 고르는 칸인데 우리 장부 인쇄는 결재란을 그리지 않는다'],
     /* <b>계정별적요별원장(E010856)</b> — 2026-10-03 원본 실측(AccountRemarkLedgerPage). */
     ['계정별적요별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별거래처별원장과 같은 사실'],
     ['계정별적요별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],

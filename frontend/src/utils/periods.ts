@@ -322,6 +322,9 @@ export const EXPORT_PICKS = QUOTATION_PICKS
 
 export const PRICE_REQUEST_PICKS = [...BASE_PICKS, '금년', '전년', '종료일'] as const
 
+/** 계정증감내역(E010857) — 단가요청조회와 같은 묶음(금년 · 전년 · 종료일), 기본 금월(~오늘)(2026-10-03 실측). */
+export const ACCOUNT_FLOW_PICKS = PRICE_REQUEST_PICKS
+
 /**
  * 재고현황(E040701) — <b>금일·전일 둘뿐</b>이다.
  * 재고는 구간이 아니라 시점을 보는 것이라 '금주'·'금월' 같은 구간 버튼이 뜻이 없다.

@@ -970,5 +970,9 @@
  [
   "계정별적요별원장",
   "accounting/AccountRemarkLedgerPage.tsx"
+ ],
+ [
+  "계정증감내역",
+  "accounting/AccountFlowPage.tsx"
  ]
 ]

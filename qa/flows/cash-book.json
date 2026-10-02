@@ -70,6 +70,17 @@
         "wait:800",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='적요|차변|대변'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
       ]
+    },
+    {
+      "name": "계정증감내역 — 외상매출금(108)을 고르면 증가 · 감소 두 표(일자 · 적요 · 거래처코드 · 거래처명 · 금액, 끝 [합계])",
+      "path": "/accounting/account-flow",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:전월",
+        "wait:2500",
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|적요|거래처코드|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계')})()"
+      ]
     }
   ]
 }
