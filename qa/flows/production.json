@@ -401,6 +401,17 @@
         "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='품목그룹1별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'품목그룹1별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());return h[1]==='프로젝트별 · 품목그룹1별'&&h.includes('지시수량')})()"
       ]
+    },
+    {
+      "name": "작업지시서현황 — ○집계 [비율표시] · [코드포함]: 조건1 창고별이면 [창고코드] 열이 앞에 서고, 비율(%) 합이 100 에 가깝다(원본 기타)",
+      "path": "/production/wo-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>r(true),600)},1500))",
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='프로젝트별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'창고별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='비율표시').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='코드포함').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(h[1]!=='창고코드'||h[2]!=='창고별')return false;const i=h.indexOf('비율(%)');if(i<0)return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);if(rows.length===0)return true;if(rows.some((r)=>r.cells[1].innerText.trim()===''))return false;return Math.abs(rows.reduce((a,r)=>a+Number(r.cells[i].innerText),0)-100)<1})()"
+      ]
     }
   ]
 }

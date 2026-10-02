@@ -120,6 +120,16 @@ export default function WoStatusPage() {
   /** 원본 [집계조건2] — 두 번째 묶음(2026-10-02 loginaa 실측: 집계조건1 · 집계조건2). 없으면 한 단계. */
   const [axis2, setAxis2] = useState<typeof AXES[number] | ''>('')
   /*
+   * 원본 집계 [기타] 의 비율표시 · 코드포함과 조건 옆 정렬(코드순 기본 · 코드명순 · 수량 + 오름/내림) — 생산불출현황과 같은 판
+   * (2026-10-02 실측). 비율은 지시수량(원본 집계대상 [수량])으로 센다. 코드가 있는 축은 품목 · 창고 · 거래처뿐이다
+   * (담당자는 이 화면이 이름만 받고, 프로젝트는 줄에 코드가 없다).
+   */
+  const [ratio, setRatio] = useState(false)
+  const [codeIncl, setCodeIncl] = useState(false)
+  const [aggSort, setAggSort] = useState<'코드순' | '코드명순' | '수량'>('코드순')
+  const [aggDesc, setAggDesc] = useState(false)
+  const CODE_LABEL: Partial<Record<typeof AXES[number], string>> = { 품목별: '품목코드', 창고별: '창고코드', 거래처별: '거래처코드' }
+  /*
    * 원본 [데이터 보기형식]의 <b>[그래프로 보기]</b> — 기본은 꺼짐이라 표로 연다(사본 실측).
    * 그리는 값은 <b>잔량</b>이다. 이 화면을 보는 까닭이 "무엇이 아직 안 끝났나" 라서,
    * 막대가 긴 품목이 곧 밀린 일이다.
@@ -263,20 +273,31 @@ export default function WoStatusPage() {
           default: return empName(r.employeeId) || '(미지정)'
         }
       }
+      const codeBy = (a: typeof AXES[number] | '', r: Row): string => (
+        a === '품목별' ? r.productCode
+          : a === '창고별' ? (pickers.warehouses.find((w) => w.id === r.warehouseId)?.code ?? '')
+            : a === '거래처별' ? (pickers.partners.find((x) => x.id === r.partnerId)?.code ?? '')
+              : '')
       const keyOf = (r: Row) => (axis2 ? `${keyBy(axis, r)} · ${keyBy(axis2, r)}` : keyBy(axis, r))
-      const by = new Map<string, { key: string; count: number; planned: number; produced: number; remaining: number }>()
+      const by = new Map<string, { key: string; c1: string; c2: string; count: number; planned: number; produced: number; remaining: number }>()
       for (const r of shown) {
         const k = keyOf(r)
-        const cur = by.get(k) ?? { key: k, count: 0, planned: 0, produced: 0, remaining: 0 }
+        const cur = by.get(k) ?? { key: k, c1: codeBy(axis, r), c2: codeBy(axis2, r), count: 0, planned: 0, produced: 0, remaining: 0 }
         cur.count += 1
         cur.planned += r.plannedQty
         cur.produced += r.producedQty
         cur.remaining += r.remainingQty
         by.set(k, cur)
       }
-      return [...by.values()].sort((a, b) => a.key.localeCompare(b.key))
+      /* 코드순 — 코드가 없는 축(날짜 · 담당자 …)은 이름 그대로가 차례다. */
+      const sortKey = (g: { key: string; c1: string; c2: string }) => (aggSort === '코드순' ? `${g.c1 || g.key}\u0000${g.c2}` : g.key)
+      const out = [...by.values()].sort((a, b) => aggSort === '수량' ? a.planned - b.planned : sortKey(a).localeCompare(sortKey(b), 'ko'))
+      return aggDesc ? out.reverse() : out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shown, mode, axis, axis2, employees, pgroup.groupOptions, mgmt.groupOptions])
+    }, [shown, mode, axis, axis2, employees, pgroup.groupOptions, mgmt.groupOptions, aggSort, aggDesc, pickers.warehouses, pickers.partners])
+  const code1 = codeIncl ? CODE_LABEL[axis] : undefined
+  const code2 = codeIncl && axis2 ? CODE_LABEL[axis2] : undefined
+  const totalPlanned = grouped.reduce((a, g) => a + g.planned, 0)
 
   /* 축을 바꿔도 열 수는 그대로지만, 표가 통째로 갈리므로 머리와 칸을 함께 본다. */
   const chartRows = useMemo(() => (
@@ -285,7 +306,7 @@ export default function WoStatusPage() {
       : shown.map((r) => ({ label: r.productName, value: r.remainingQty }))
   ), [mode, grouped, shown])
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, grouped.length])
+  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, axis2, grouped.length, ratio, codeIncl])
 
   return (
     <EcListShell
@@ -325,12 +346,23 @@ export default function WoStatusPage() {
                       style={{ width: 110 }}>
                 {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
+              <select className="ec-input" value={aggSort} onChange={(e) => setAggSort(e.target.value as typeof aggSort)} style={{ width: 84 }} title="정렬">
+                {(['코드순', '코드명순', '수량'] as const).map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <button type="button" className="ec-btn" onClick={() => setAggDesc((d) => !d)} title={aggDesc ? '내림차순' : '오름차순'}
+                      style={{ padding: '0 6px', height: 24 }}>{aggDesc ? '↓' : '↑'}</button>
               집계조건2
               <select className="ec-input" value={axis2} onChange={(e) => setAxis2(e.target.value as typeof AXES[number] | '')}
                       style={{ width: 110 }}>
                 <option value="">없음</option>
                 {AXES.filter((a) => a !== axis).map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
+              </label>
             </span>
           )}
         </EcCond>
@@ -460,22 +492,28 @@ export default function WoStatusPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
+              {code1 && <th style={{ width: 110 }}>{code1}</th>}
+              {code2 && <th style={{ width: 110 }}>{code2}</th>}
               <th>{axis2 ? `${axis} · ${axis2}` : axis}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 120, textAlign: 'right' }}>지시수량</th>
+              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
               <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
               <th style={{ width: 120, textAlign: 'right' }}>잔량</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.key}>
                 <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
+                {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
                 <td>{g.key}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.planned.toLocaleString()}</td>
+                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totalPlanned ? (Math.round((g.planned / totalPlanned) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right' }}>{g.produced.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: g.remaining > 0 ? '#c60a2e' : '#8a929c' }}>{g.remaining.toLocaleString()}</td>
               </tr>
@@ -483,9 +521,10 @@ export default function WoStatusPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
+              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
               <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.planned, 0).toLocaleString()}</td>
+              <td style={{ textAlign: 'right' }}>{totalPlanned.toLocaleString()}</td>
+              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
               <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.produced, 0).toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.remaining, 0).toLocaleString()}</td>
             </tr>
