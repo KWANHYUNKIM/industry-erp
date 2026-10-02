@@ -108,7 +108,22 @@ export default function WorkOrderPage() {
     } catch (err) {
       setError(extractErrorMessage(err))
     }
+  }  /**
+   * 원본 [선택삭제] — 고른 줄의 <b>전표</b>를 지운다(같은 번호의 줄은 함께). 생산한 지시·확인한 지시는 서버가 막고
+   * 그 말을 그대로 보인다. 지운 지시에 걸려 있던 계획은 서버가 되돌린다.
+   */
+  async function removeChecked() {
+    const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
+    if (nos.length === 0) { setError('지울 작업지시서를 고르세요.'); return }
+    if (!confirm(`고른 작업지시서 ${nos.length}건을 삭제할까요?`)) return
+    setError('')
+    const results = await Promise.allSettled(nos.map((no) => api.delete(`/work-orders/slips/${encodeURIComponent(no)}`)))
+    const failed = results.flatMap((r) => (r.status === 'rejected' ? [extractErrorMessage(r.reason)] : []))
+    setChecked(new Set())
+    await load()
+    if (failed.length > 0) setError(`${nos.length - failed.length}건 삭제, ${failed.length}건 실패 — ${failed[0]}`)
   }
+
   /*
    * 원본 작업지시서조회의 조건 차례는 <b>작업지시No. · 창고 · 거래처 · 품목</b> 이다
    * (사본 실측). 거래처·품목이 없었는데 둘 다 이미 목록에 실려 오고 있었다.
@@ -213,7 +228,9 @@ export default function WorkOrderPage() {
       title="작업지시서조회"
       onNew={() => navigate('/production/work-order-entry')}
       actions={[{ label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
-                { label: 'Excel' }, { label: '인쇄' }]}
+                { label: '인쇄' },
+                { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
+                { label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
