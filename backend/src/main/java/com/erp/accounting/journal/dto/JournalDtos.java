@@ -78,7 +78,9 @@ public final class JournalDtos {
             Long partnerId, String partnerName,
             JournalSourceType sourceType, String sourceTypeName, Long sourceId,
             BigDecimal totalDebit, BigDecimal totalCredit, boolean balanced,
-            List<JournalLineResponse> lines
+            List<JournalLineResponse> lines,
+            /** 원본 거래이력조회(회계)의 [작업자] · [작업일자] — 만든 사람 · 만든 때 · 마지막으로 고친 때. */
+            String createdBy, java.time.LocalDateTime createdAt, java.time.LocalDateTime updatedAt
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -87,7 +89,8 @@ public final class JournalDtos {
                     e.getPartner() != null ? e.getPartner().getName() : null,
                     e.getSourceType(), e.getSourceType().getDisplayName(), e.getSourceId(),
                     e.totalDebit(), e.totalCredit(), e.isBalanced(),
-                    e.getLines().stream().map(JournalLineResponse::from).toList());
+                    e.getLines().stream().map(JournalLineResponse::from).toList(),
+                    e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt());
         }
     }
 

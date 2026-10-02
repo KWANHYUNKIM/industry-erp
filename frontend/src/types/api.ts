@@ -1565,6 +1565,10 @@ export interface JournalEntry {
   totalCredit: number
   balanced: boolean
   lines: JournalLine[]
+  /** 원본 거래이력조회(회계)의 [작업자] · [작업일자]. */
+  createdBy?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface LedgerRow {

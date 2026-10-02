@@ -167,6 +167,14 @@
         "wait:2500",
         "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|거래처명|공급가액|매입부가세|매입합계|내역보기'"
       ]
+    },
+    {
+      "name": "거래이력조회(회계) — 머리 작업일자 · 전표번호 · 거래유형 · 금액 · 행위 · 거래처코드 · 거래처명 · 적요 · 작업자 · 전표상태 · 이력",
+      "path": "/accounting/journal-history",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='작업일자|전표번호|거래유형|금액|행위|거래처코드|거래처명|적요|작업자|전표상태|이력'"
+      ]
     }
   ]
 }

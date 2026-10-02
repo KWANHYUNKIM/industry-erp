@@ -448,6 +448,7 @@ const MENU: TopMenu[] = [
               { label: '회계거래현황', to: '/accounting/journal-status' },
               { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
               { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
+              { label: '거래이력조회(회계)', to: '/accounting/journal-history' },
             ],
           },
           {

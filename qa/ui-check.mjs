@@ -1355,6 +1355,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['거래처거래내역조회', 'accounting/PartnerTxListPage.tsx'],
     ['합계잔액시산표', 'accounting/TrialBalancePage.tsx'],
     ['회계거래현황', 'accounting/JournalStatusPage.tsx'],
+    ['거래이력조회(회계)', 'accounting/JournalHistoryPage.tsx'],
     ['매출(세금)계산서현황', 'accounting/TaxInvoiceJournalPage.tsx'],
     ['매입(세금)계산서현황', 'accounting/TaxInvoiceJournalPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
@@ -4166,6 +4167,10 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>거래이력조회(회계)(E010712)</b> — 2026-10-03 원본 실측(JournalHistoryPage). */
+    ['거래이력조회(회계)|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계거래현황과 같은 사실'],
+    ['거래이력조회(회계)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['거래이력조회(회계)|전표일자', '원본 기본이 [사용안함]이다 — 우리는 작업일자 하나로 거르고 전표일자 구간은 아직 두지 않았다'],
     /* <b>매출(세금)계산서현황(E010845) · 매입(세금)계산서현황(E010846)</b> — 2026-10-03 원본 실측(TaxInvoiceJournalPage). */
     ['매출(세금)계산서현황|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계거래현황과 같은 사실'],
     ['매출(세금)계산서현황|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],

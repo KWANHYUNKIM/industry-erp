@@ -1014,5 +1014,9 @@
  [
   "매입(세금)계산서현황",
   "accounting/TaxInvoiceJournalPage.tsx"
+ ],
+ [
+  "거래이력조회(회계)",
+  "accounting/JournalHistoryPage.tsx"
  ]
 ]
