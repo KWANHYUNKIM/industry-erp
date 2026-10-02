@@ -5687,5 +5687,35 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
+ },
+ "계정별거래처별원장|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "계정별거래처별원장|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "계정별거래처별원장|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/AccountPartnerLedgerPage.tsx"
+ },
+ "계정별거래처별원장|데이터 보기형식": {
+  "claim": "거래처마다 표 하나인 장부다",
+  "present": [
+   "blocks.map(blockTable)"
+  ]
  }
 }

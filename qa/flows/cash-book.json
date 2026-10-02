@@ -28,6 +28,20 @@
         "wait:3000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=[...document.querySelectorAll('tfoot tr')];const last=f[2];return h==='차변합계|차변대체|차변현금(출금)|계정명|대변현금(입금)|대변대체|대변합계'&&f.map((t)=>t.cells[3].innerText.trim()).join('|')==='[월계]|[금일/전일]|[합계]'&&last.cells[0].innerText===last.cells[6].innerText})()"
       ]
+    },
+    {
+      "name": "계정별거래처별원장 — 외상매출금(108)을 고르면 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액 · 잔액, 끝 [합계]), 거래처별집계는 한 표에 끝 [합계]",
+      "path": "/accounting/account-partner-ledger",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|차변금액|대변금액|잔액'&&last.cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='거래처별집계').querySelector('input').click()",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='거래처코드|거래처명|이월잔액|차변|대변|잔액'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }

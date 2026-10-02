@@ -1577,6 +1577,8 @@ export interface LedgerRow {
   balance: number
   /** 원본 현금출납장의 [상대계정명] — 같은 전표의 다른 줄 계정. */
   counterAccountName?: string | null
+  /** 원본 계정별거래처별원장 — 거래처마다 원장을 가르는 열쇠. 전표에 거래처가 없으면 null. */
+  partnerId?: number | null
 }
 
 export interface AccountLedger {

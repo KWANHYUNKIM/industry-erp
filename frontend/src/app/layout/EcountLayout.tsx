@@ -436,6 +436,7 @@ const MENU: TopMenu[] = [
               { label: '분개장', to: '/accounting/journal-book' },
               { label: '일/월계표', to: '/accounting/day-month-sheet' },
               { label: '계정별원장', to: '/accounting/ledger-book' },
+              { label: '계정별거래처별원장', to: '/accounting/account-partner-ledger' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],
           },

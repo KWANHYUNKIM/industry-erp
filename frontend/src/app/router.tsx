@@ -60,6 +60,7 @@ const AccountLedgerPage = lazy(() => import('../pages/accounting/AccountLedgerPa
 const CashBookPage = lazy(() => import('../pages/accounting/CashBookPage'))
 const JournalBookPage = lazy(() => import('../pages/accounting/JournalBookPage'))
 const DayMonthSheetPage = lazy(() => import('../pages/accounting/DayMonthSheetPage'))
+const AccountPartnerLedgerPage = lazy(() => import('../pages/accounting/AccountPartnerLedgerPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -446,6 +447,7 @@ export default function AppRouter() {
         <Route path="/accounting/cash-book" element={<CashBookPage />} />
         <Route path="/accounting/journal-book" element={<JournalBookPage />} />
         <Route path="/accounting/day-month-sheet" element={<DayMonthSheetPage />} />
+        <Route path="/accounting/account-partner-ledger" element={<AccountPartnerLedgerPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

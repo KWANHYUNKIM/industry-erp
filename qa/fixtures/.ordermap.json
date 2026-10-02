@@ -958,5 +958,9 @@
  [
   "일/월계표",
   "accounting/DayMonthSheetPage.tsx"
+ ],
+ [
+  "계정별거래처별원장",
+  "accounting/AccountPartnerLedgerPage.tsx"
  ]
 ]

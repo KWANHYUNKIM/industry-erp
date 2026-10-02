@@ -100,7 +100,9 @@ public final class JournalDtos {
              * 원본 현금출납장의 [상대계정명] — 같은 전표의 다른 줄 계정. 둘 이상이면 첫 계정 '외 n'.
              * 계정별원장 화면은 이 칸을 쓰지 않는다.
              */
-            String counterAccountName
+            String counterAccountName,
+            /** 원본 계정별거래처별원장 — 거래처마다 원장을 가르려면 이름이 아니라 id 가 있어야 한다(이름은 겹칠 수 있다). */
+            Long partnerId
     ) {}
 
     public record AccountLedgerResponse(

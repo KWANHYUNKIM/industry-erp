@@ -85,7 +85,8 @@ public class JournalQueryService {
             rows.add(new LedgerRow(
                     l.getEntry().getEntryDate(), l.getEntry().getDocNo(), l.getDescription(),
                     l.getEntry().getPartner() != null ? l.getEntry().getPartner().getName() : null,
-                    l.getDebit(), l.getCredit(), running, counterOf(l)));
+                    l.getDebit(), l.getCredit(), running, counterOf(l),
+                    l.getEntry().getPartner() != null ? l.getEntry().getPartner().getId() : null));
         }
         return new AccountLedgerResponse(
                 account.getId(), account.getCode(), account.getName(), account.getDivision(),
