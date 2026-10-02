@@ -100,7 +100,8 @@ public class DailyWorkService {
         if (taxable.signum() <= 0) {
             return BigDecimal.ZERO;
         }
-        BigDecimal tax = taxable.multiply(EFFECTIVE_RATE).setScale(0, RoundingMode.DOWN);
+        // 10원 미만 버림(국고금관리법 제47조 — QA 67회차, 예전엔 원 미만만 버려 1,714 처럼 찍혔다).
+        BigDecimal tax = taxable.multiply(EFFECTIVE_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
         return tax.compareTo(MIN_TAX) < 0 ? BigDecimal.ZERO : tax;
     }
 

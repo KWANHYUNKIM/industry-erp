@@ -6822,6 +6822,21 @@ async function scenarioWithholdingTable() {
 }
 
 /**
+ * <b>일용근로소득세</b> = (일당 − 15만) × 6% × (1 − 55%) = 2.7%, 10원 미만 버림, 1,000원 미만 소액부징수(67회차).
+ * 쓰지 않는 먼 날짜(2091-05)에 넣고 지운다.
+ */
+async function scenarioDailyWorkTax() {
+  section('■ 일용근로소득세')
+  const emp = (await must('GET', '/employees')).find((e) => e.active !== false)
+  const cases = [['2091-05-02', 213_500, 1_710, 170], ['2091-05-03', 187_000, 0, 0], ['2091-05-04', 200_000, 1_350, 130]]
+  for (const [date, wage, tax, local] of cases) {
+    const r = await must('POST', '/daily-works', { employeeId: emp.id, workDate: date, dailyWage: wage, workHours: 8 })
+    eq(`일당 ${wage.toLocaleString()} → 소득세 ${tax.toLocaleString()} · 지방 ${local}`, `${Number(r.incomeTax)} ${Number(r.localIncomeTax)}`, `${tax} ${local}`)
+    await must('DELETE', `/daily-works/${r.id}`)
+  }
+}
+
+/**
  * <b>근무시간은 점심 휴게(12~13시)를 뺀 실근무여야 한다.</b>
  * 퇴근 − 출근을 그대로 써서 09:00~18:00 이 9시간이었다(37회차). 지각·조퇴 판정도 함께 본다.
  * 쓰지 않는 먼 날짜(2091-04)에 넣고 지운다.
@@ -10245,6 +10260,7 @@ async function main() {
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
   await scenarioLotRequired(fixtures)
+  await scenarioDailyWorkTax()
   await scenarioWithholding()
   await scenarioBankCard()
   await scenarioFixedAsset()
