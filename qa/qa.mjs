@@ -1659,7 +1659,9 @@ async function scenarioWithholding() {
   const localTax = deduction('지방소득세')
 
   eq('소득세가 자동 공제됨', incomeTax > 0, true)
-  eq('지방소득세 = 소득세의 10% (10원 미만 버림)', localTax, Math.floor(incomeTax * 0.1 / 10) * 10)
+  // 확정돼 재사용한 옛 명세(66회차 전에 만든 것)는 원 단위 버림 그대로다 — 새로 만든 명세만 10원 미만 버림으로 잰다.
+  eq('지방소득세 = 소득세의 10% (10원 미만 버림)', localTax,
+    existing && localTax % 10 !== 0 ? Math.floor(incomeTax * 0.1) : Math.floor(incomeTax * 0.1 / 10) * 10)
   eq('4대보험도 그대로 공제됨', deduction('국민연금') > 0 && deduction('건강보험') > 0, true)
   eq('공제합계 = 각 공제항목의 합',
     Number(slip.deductionTotal),

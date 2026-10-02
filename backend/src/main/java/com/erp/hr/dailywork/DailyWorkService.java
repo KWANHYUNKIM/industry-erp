@@ -73,7 +73,8 @@ public class DailyWorkService {
         }
 
         BigDecimal incomeTax = incomeTax(req.dailyWage());
-        BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).setScale(0, RoundingMode.DOWN);
+        // 지방소득세는 10원 미만 버림(QA 66회차 — 근로소득과 같은 규칙).
+        BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
 
         DailyWorkRecord r = DailyWorkRecord.builder()
                 .employee(e)

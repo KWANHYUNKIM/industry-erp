@@ -86,7 +86,8 @@ public class WithholdingTaxCalculator {
     /** 지방소득세 = 소득세의 10% (원 단위 절사) */
     public BigDecimal localIncomeTax(BigDecimal incomeTax) {
         if (incomeTax == null || incomeTax.signum() <= 0) return BigDecimal.ZERO;
-        return incomeTax.multiply(LOCAL_RATE).setScale(0, RoundingMode.DOWN);
+        // 지방소득세도 10원 미만 버림 — 소득세 91,460 이면 9,146 이 아니라 9,140(QA 66회차).
+        return incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
     }
 
     private static BigDecimal bd(String v) {

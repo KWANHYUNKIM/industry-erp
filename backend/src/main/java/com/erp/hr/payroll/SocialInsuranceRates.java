@@ -55,6 +55,8 @@ public final class SocialInsuranceRates {
         else { lo = 410_000; hi = 6_590_000; }
         BigDecimal v = taxableIncome.max(BigDecimal.valueOf(lo)).min(BigDecimal.valueOf(hi));
         // 소득이 0 이면(무급 달) 하한으로 올려 공제하지 않는다
-        return taxableIncome.signum() <= 0 ? BigDecimal.ZERO : v.setScale(0, RoundingMode.DOWN);
+        // 기준소득월액은 천원 미만을 버린다(국민연금법 시행령 — QA 66회차, 예전엔 원 미만만 버렸다).
+        return taxableIncome.signum() <= 0 ? BigDecimal.ZERO
+                : v.divide(BigDecimal.valueOf(1000), 0, RoundingMode.DOWN).multiply(BigDecimal.valueOf(1000));
     }
 }

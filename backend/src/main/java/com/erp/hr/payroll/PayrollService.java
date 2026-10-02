@@ -174,8 +174,12 @@ public class PayrollService {
     }
 
     private BigDecimal round(BigDecimal v) {
-        // 원 단위 절사(10원 미만 버림은 회사 정책마다 다르므로 원 단위 반올림으로 단순화)
-        return v.setScale(0, RoundingMode.HALF_UP);
+        /*
+         * <b>10원 미만 버림.</b> 주석은 '원 단위 절사' 라 해 놓고 원 단위 반올림을 하고 있었다(QA 66회차) —
+         * 장기요양 15,116.26 이 15,116 이 됐다. 4대보험료는 국고금관리법 제47조(10원 미만 끝수 버림)대로
+         * 공단 고지액이 10원 단위다. 급여에서 떼는 금액이 고지액과 1~9원씩 어긋나면 매달 차액이 남는다.
+         */
+        return v.divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
     }
 
     private Payslip getPayslip(Long id) {

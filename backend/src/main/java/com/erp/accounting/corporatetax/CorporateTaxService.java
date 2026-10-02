@@ -163,7 +163,8 @@ public class CorporateTaxService {
 
         BigDecimal calculated = progressiveTax(taxBase);
         r.setCalculatedTax(calculated);
-        r.setLocalIncomeTax(calculated.multiply(LOCAL_RATE).setScale(0, RoundingMode.DOWN));
+        // 지방소득세는 10원 미만 버림(QA 66회차 — 근로소득과 같은 규칙).
+        r.setLocalIncomeTax(calculated.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN));
 
         // 총부담세액은 음수가 될 수 없다. 세액공제가 산출세액보다 커도 0에서 멈춘다.
         BigDecimal total = calculated.subtract(r.getTaxCredit()).max(BigDecimal.ZERO).add(r.getPenaltyTax());

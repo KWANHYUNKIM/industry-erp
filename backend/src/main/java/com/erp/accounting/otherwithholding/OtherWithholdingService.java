@@ -81,7 +81,8 @@ public class OtherWithholdingService {
         BigDecimal expense = req.grossAmount().multiply(type.getExpenseRate()).setScale(0, RoundingMode.DOWN);
         BigDecimal taxable = req.grossAmount().subtract(expense);
         BigDecimal incomeTax = taxable.multiply(type.getTaxRate()).setScale(0, RoundingMode.DOWN);
-        BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).setScale(0, RoundingMode.DOWN);
+        // 지방소득세는 10원 미만 버림(QA 66회차 — 근로소득과 같은 규칙).
+        BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
 
         OtherWithholding w = OtherWithholding.builder()
                 .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
