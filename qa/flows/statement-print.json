@@ -11,7 +11,7 @@
         "wait:600",
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '거래명세서 인쇄').click(); true",
         "wait:2500",
-        "expect:(() => { const t = document.getElementById('pf')?.contentDocument?.body?.innerText ?? ''; return t.includes('거 래 명 세 서') && t.includes('공급자') && t.includes('공급받는자') && t.includes('합계금액') && t.includes('작성:') && /일금 .+원정/.test(t) })()",
+        "expect:(() => { const t = document.getElementById('pf')?.contentDocument?.body?.innerText ?? ''; return t.includes('거래명세서') && t.includes('공급자') && t.includes('공급받는자') && t.includes('합계금액') && t.includes('작성:') && /일금 .+원정/.test(t) })()",
         "expect:!(document.getElementById('pf')?.contentDocument?.body?.innerText ?? '').includes('회사정보 미등록')"
       ]
     }
