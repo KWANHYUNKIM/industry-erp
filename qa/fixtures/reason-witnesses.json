@@ -6395,20 +6395,20 @@
   "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
  },
  "지출결의서집계|부서": {
-  "claim": "회계전표에 부서가 없다",
+  "claim": "간편전표에 부서가 없다",
   "absent": [
    "department",
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
  },
  "지출결의서집계|프로젝트": {
-  "claim": "회계전표에 프로젝트가 없다",
+  "claim": "간편전표에 프로젝트가 없다",
   "absent": [
    "project",
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
  },
  "지출결의서집계|기 타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -6421,24 +6421,24 @@
  "지출결의서집계|데이터 보기형식": {
   "claim": "지출 한 줄이 한 줄인 집계다",
   "present": [
-   "OUT_CODES.includes(l.accountCode)"
+   "for (const l of v.lines)"
   ]
  },
  "입금보고서집계|부서": {
-  "claim": "회계전표에 부서가 없다",
+  "claim": "간편전표에 부서가 없다",
   "absent": [
    "department",
    "Department"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
  },
  "입금보고서집계|프로젝트": {
-  "claim": "회계전표에 프로젝트가 없다",
+  "claim": "간편전표에 프로젝트가 없다",
   "absent": [
    "project",
    "Project"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
  },
  "입금보고서집계|양식구분": {
   "claim": "결재 칸을 그리지 않는다",
@@ -6451,7 +6451,45 @@
  "입금보고서집계|데이터 보기형식": {
   "claim": "입금 한 줄이 한 줄인 집계다",
   "present": [
-   "OUT_CODES.includes(l.accountCode)"
+   "for (const l of v.lines)"
   ]
+ },
+ "가지급금정산서집계|부서": {
+  "claim": "간편전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
+ },
+ "가지급금정산서집계|프로젝트": {
+  "claim": "간편전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
+ },
+ "가지급금정산서집계|데이터 보기형식": {
+  "claim": "가지급금 정산 한 줄이 한 줄인 집계다",
+  "present": [
+   "for (const l of v.lines)"
+  ]
+ },
+ "가지급금정산서집계|사원": {
+  "claim": "간편전표에 사원이 없다",
+  "absent": [
+   "employee",
+   "Employee"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/fastvoucher/FastVoucher.java"
+ },
+ "가지급금정산서집계|기 타": {
+  "claim": "결재 칸을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
  }
 }

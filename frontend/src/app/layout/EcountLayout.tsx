@@ -464,6 +464,7 @@ const MENU: TopMenu[] = [
               { label: '월별매출집계표', to: '/accounting/monthly-sales-summary' },
               { label: '지출결의서집계', to: '/accounting/expense-slip-summary' },
               { label: '입금보고서집계', to: '/accounting/deposit-slip-summary' },
+              { label: '가지급금정산서집계', to: '/accounting/advance-slip-summary' },
             ],
           },
           {

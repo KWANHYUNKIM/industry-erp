@@ -305,6 +305,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|입금계좌명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
       ]
+    },
+    {
+      "name": "가지급금정산서집계 — 라인별: 일자-No. · 사원명 · 계정명 · 거래처명 · 적요 · 금액 · 수수료 · 부가세, 끝 [합계]",
+      "path": "/accounting/advance-slip-summary",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|사원명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
     }
   ]
 }

@@ -1078,5 +1078,9 @@
  [
   "입금보고서집계",
   "accounting/ExpenseSlipSummaryPage.tsx"
+ ],
+ [
+  "가지급금정산서집계",
+  "accounting/ExpenseSlipSummaryPage.tsx"
  ]
 ]
