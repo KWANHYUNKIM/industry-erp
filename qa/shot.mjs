@@ -48,7 +48,11 @@ try {
     for (const step of shot.steps ?? []) {
       const [kind, ...rest] = step.split(':')
       if (kind === 'wait') await sleep(Number(rest[0]))
-      else if (kind === 'js') await b.evaluate(rest.join(':'))
+      else if (kind === 'js') {
+        // true 가 아닌 값을 돌려주면 찍는다 — 화면이 띄운 안내·번호를 시나리오 출력에서 바로 보려고.
+        const v = await b.evaluate(rest.join(':'))
+        if (v !== true && v !== undefined && v !== null) console.log('  ↳', String(v).slice(0, 300))
+      }
       else if (kind === 'pick') {
         const [label, code] = rest
         await b.evaluate(`document.querySelector('button[title="${label} 선택"]').click(); true`)

@@ -179,15 +179,17 @@ export default function AccountingReflectionPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
 
-  async function load(k: Kind) {
+  async function load(k: Kind): Promise<Slip[]> {
     setLoading(true)
     setError('')
     try {
       const res = await api.get<Slip[]>(`/accounting-reflection?kind=${k.toUpperCase()}`)
       setSlips(res.data)
+      return res.data
     } catch (err) {
       setError(extractErrorMessage(err))
       setSlips([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -379,6 +381,17 @@ export default function AccountingReflectionPage() {
     return [...m.values()].sort((a, b) => a.partnerName.localeCompare(b.partnerName))
   }, [shown])
 
+  /**
+   * 반영 뒤 안내에 <b>만들어진 회계전표 번호</b>를 붙인다. "1건 회계반영 완료" 만으로는
+   * 어느 GL 전표를 찾아가 봐야 하는지 몰랐다(24회차). 다시 받은 목록에 번호가 실려 있다.
+   */
+  async function reflectedNote(count: number, ids: number[]) {
+    const rows = await load(kind)
+    const nos = rows.filter((r) => ids.includes(r.id) && r.journalDocNo).map((r) => r.journalDocNo as string)
+    const shown = nos.slice(0, 5).join(', ') + (nos.length > 5 ? ` 외 ${nos.length - 5}건` : '')
+    setOk(`${count}건 회계반영 완료${nos.length ? ` — 회계전표 ${shown}` : ''}`)
+  }
+
   /** 거래처 한 줄을 통째로 반영한다. 미반영 전표가 없으면 부를 일이 없다. */
   async function reflectPartner(ids: number[]) {
     if (ids.length === 0) return
@@ -386,8 +399,7 @@ export default function AccountingReflectionPage() {
     try {
       const res = await api.post<{ reflectedCount: number }>(
         '/accounting-reflection/reflect', { kind: kind.toUpperCase(), ids })
-      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
-      load(kind)
+      await reflectedNote(res.data.reflectedCount, ids)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -402,9 +414,9 @@ export default function AccountingReflectionPage() {
         kind: kind.toUpperCase(),
         ids: [...checked],
       })
-      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
+      const ids = [...checked]
       setChecked(new Set())
-      load(kind)
+      await reflectedNote(res.data.reflectedCount, ids)
     } catch (err) {
       setError(extractErrorMessage(err))
     }

@@ -4,7 +4,10 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ItemProfit } from '../../types/api'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
+/* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
+const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
+/** 수량·원가단가는 소수가 뜻이 있다(평균 단가) — 둘째 자리까지. */
+const dec = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
 
 const basisColor = (b: string) =>
   b === '제조원가' ? { bg: '#f3eefb', fg: '#6b3fb0' }
@@ -68,9 +71,9 @@ export default function ItemCostPage() {
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: basisColor(r.costBasis).bg, color: basisColor(r.costBasis).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.costBasis}</span>
                 </td>
-                <td style={{ textAlign: 'right' }}>{won(r.soldQty)}</td>
+                <td style={{ textAlign: 'right' }}>{dec(r.soldQty)}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.salesAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.unitCost)}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{dec(r.unitCost)}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.costAmount)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? 'var(--ec-blue)' : '#c60a2e' }}>{won(r.profit)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.profit >= 0 ? 'var(--ec-blue)' : '#c60a2e' }}>{r.marginRate}%</td>

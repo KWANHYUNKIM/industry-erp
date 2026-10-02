@@ -3,7 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ProfitSummary } from '../../types/api'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
+/* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
+const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function ProfitSummaryPage() {
   const [data, setData] = useState<ProfitSummary | null>(null)
