@@ -15,6 +15,12 @@ public interface SalesLineRepository extends JpaRepository<SalesLine, Long> {
             "from SalesLine l group by l.item.id")
     List<ItemAggregate> aggregateByItem();
 
+    /** 기간의 품목별 판매수량·매출액 — 손익은 기간으로 본다(48회차: 창업 이래 합계만 있었다). */
+    @Query("select l.item.id as itemId, coalesce(sum(l.quantity),0) as qty, " +
+            "coalesce(sum(l.supplyAmount),0) as amount " +
+            "from SalesLine l where l.sales.saleDate between :from and :to group by l.item.id")
+    List<ItemAggregate> aggregateByItemBetween(@Param("from") java.time.LocalDate from, @Param("to") java.time.LocalDate to);
+
     /**
      * 미판매현황: 근거전표(수주)별·품목별 판매 전환수량.
      * 판매 라인은 수주 <b>헤더</b>만 가리키므로(sourceOrder) 라인 대 라인이 아니라 품목으로 맞춘다.

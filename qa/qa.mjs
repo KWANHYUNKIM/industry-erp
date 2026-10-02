@@ -6657,6 +6657,25 @@ async function scenarioExpenseJournal() {
   await must('DELETE', `/expenses/${vx.id}`)
 }
 
+/**
+ * <b>손익요약·품목별 원가/이익은 기간으로 본다.</b> 창업 이래 합계만 있어 "이번 달 이익" 을 볼 수 없었다(48회차).
+ * 아무도 안 쓰는 먼 날짜에 판매 하나를 넣고, 그 날만 물으면 그 판매만 나오는지 본다. 끝에 지운다.
+ */
+async function scenarioProfitPeriod(f) {
+  section('■ 손익 기간')
+  const D = '2091-08-03'
+  const sale = await must('POST', '/sales', {
+    saleDate: D, partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 1_000 }],
+  })
+  const rows = await must('GET', `/accounting/item-profit?from=${D}&to=${D}`)
+  eq('그 날 품목별 이익에는 그 판매 한 품목만', rows.map((r) => r.itemId).join(','), String(f.product.id))
+  eq('그 날 판매수량·매출액 = 2 · 2,000', [Number(rows[0]?.soldQty), Number(rows[0]?.salesAmount)].join('/'), '2/2000')
+  const sum = await must('GET', `/accounting/profit-summary?from=${D}&to=${D}`)
+  eq('그 날 손익요약 총매출액 = 2,000', Number(sum.totalSales), 2_000)
+  await must('DELETE', `/sales/${sale.id}`)
+}
+
 async function scenarioLeaveApproval() {
   section('■ 휴가신청서 결재 → 근태')
   const form = (await must('GET', '/approval-form-templates')).find((t) => t.name === '휴가신청서')
@@ -10049,6 +10068,7 @@ async function main() {
   await scenarioWithholdingTable()
   await scenarioWorkHours()
   await scenarioExpenseJournal()
+  await scenarioProfitPeriod(fixtures)
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)

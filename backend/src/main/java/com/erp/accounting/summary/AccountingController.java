@@ -30,13 +30,21 @@ public class AccountingController {
 
     /** 품목별 원가·이익 */
     @GetMapping("/item-profit")
-    public List<ItemProfitResponse> itemProfit() {
-        return accountingService.itemProfit();
+    public List<ItemProfitResponse> itemProfit(
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return accountingService.itemProfit(from, to);
     }
 
     /** 손익 요약 */
     @GetMapping("/profit-summary")
-    public ProfitSummaryResponse profitSummary() {
-        return accountingService.profitSummary();
+    public ProfitSummaryResponse profitSummary(
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return accountingService.profitSummary(from, to);
     }
 }

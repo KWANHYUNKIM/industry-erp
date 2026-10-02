@@ -3,6 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ItemProfit } from '../../types/api'
+import EcPeriodPicks from '../../components/EcPeriodPicks'
+import { periodOf } from '../../utils/periods'
 
 /* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -18,14 +20,16 @@ export default function ItemCostPage() {
   const [rows, setRows] = useState<ItemProfit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [period, setPeriod] = useState(() => periodOf('금월(~오늘)')!)
 
   useEffect(() => {
+    setLoading(true)
     api
-      .get<ItemProfit[]>('/accounting/item-profit')
+      .get<ItemProfit[]>('/accounting/item-profit', { params: period })
       .then((res) => setRows(res.data))
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
-  }, [])
+  }, [period])
 
 
   /* 두 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
@@ -39,6 +43,16 @@ export default function ItemCostPage() {
       <p style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c' }}>
         품목별 매출·원가·이익 · 원가단가는 매입평균, 제조품은 BOM 소요자재 원가(제조원가)로 산정
       </p>
+      {/*
+        기간. 예전엔 창업 이래 전부를 더해 보여 줘 "이번 달 이익" 을 볼 수 없었다(48회차). 열면 금월(~오늘).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, flexWrap: 'wrap' }}>
+        <span style={{ color: '#5a626e' }}>기간</span>
+        <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
+        ~
+        <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
+        <EcPeriodPicks onPick={(r) => setPeriod(r)} currentFrom={period.from} />
+      </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 

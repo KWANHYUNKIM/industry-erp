@@ -72,10 +72,20 @@ public class AccountingService {
     /** 품목별 원가·이익 */
     @Transactional(readOnly = true)
     public List<ItemProfitResponse> itemProfit() {
+        return itemProfit(null, null);
+    }
+
+    /** 기간을 주면 그 기간 판매만 — 손익요약·품목별 원가/이익이 창업 이래 합계만 보였다(48회차). */
+    @Transactional(readOnly = true)
+    public List<ItemProfitResponse> itemProfit(LocalDate from, LocalDate to) {
         CostContext ctx = buildCostContext();
 
+        List<SalesLineRepository.ItemAggregate> aggs = (from == null && to == null)
+                ? salesLineRepository.aggregateByItem()
+                : salesLineRepository.aggregateByItemBetween(from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
         List<ItemProfitResponse> result = new ArrayList<>();
-        for (SalesLineRepository.ItemAggregate agg : salesLineRepository.aggregateByItem()) {
+        for (SalesLineRepository.ItemAggregate agg : aggs) {
             Item item = ctx.items.get(agg.getItemId());
             if (item == null) continue;
 
@@ -98,9 +108,14 @@ public class AccountingService {
     /** 손익 요약 */
     @Transactional(readOnly = true)
     public ProfitSummaryResponse profitSummary() {
+        return profitSummary(null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public ProfitSummaryResponse profitSummary(LocalDate from, LocalDate to) {
         BigDecimal totalSales = BigDecimal.ZERO;
         BigDecimal totalCost = BigDecimal.ZERO;
-        for (ItemProfitResponse p : itemProfit()) {
+        for (ItemProfitResponse p : itemProfit(from, to)) {
             totalSales = totalSales.add(p.salesAmount());
             totalCost = totalCost.add(p.costAmount());
         }

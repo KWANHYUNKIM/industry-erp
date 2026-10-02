@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ProfitSummary } from '../../types/api'
+import EcPeriodPicks from '../../components/EcPeriodPicks'
+import { periodOf } from '../../utils/periods'
 
 /* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -9,13 +11,14 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 export default function ProfitSummaryPage() {
   const [data, setData] = useState<ProfitSummary | null>(null)
   const [error, setError] = useState('')
+  const [period, setPeriod] = useState(() => periodOf('금월(~오늘)')!)
 
   useEffect(() => {
     api
-      .get<ProfitSummary>('/accounting/profit-summary')
+      .get<ProfitSummary>('/accounting/profit-summary', { params: period })
       .then((res) => setData(res.data))
       .catch((err) => setError(extractErrorMessage(err)))
-  }, [])
+  }, [period])
 
   if (error) return <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>
   if (!data) return <p style={{ color: '#9aa1ab', padding: 12 }}>불러오는 중…</p>
@@ -29,6 +32,16 @@ export default function ProfitSummaryPage() {
   return (
     <EcListShell title="손익요약" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <p style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c' }}>매출총이익 = 총매출액 − 총매출원가 (원가는 매입평균/BOM 제조원가 기준)</p>
+      {/*
+        기간. 예전엔 창업 이래 전부를 더해 보여 줘 "이번 달 이익" 을 볼 수 없었다(48회차). 열면 금월(~오늘).
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, flexWrap: 'wrap' }}>
+        <span style={{ color: '#5a626e' }}>기간</span>
+        <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
+        ~
+        <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
+        <EcPeriodPicks onPick={(r) => setPeriod(r)} currentFrom={period.from} />
+      </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {cards.map((c) => (
