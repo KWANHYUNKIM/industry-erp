@@ -230,6 +230,7 @@ const DailyWorkHoursPage = lazy(() => import('../pages/hr/DailyWorkHoursPage'))
 const WorkIntegratedPage = lazy(() => import('../pages/hr/WorkIntegratedPage'))
 const VacationUsePage = lazy(() => import('../pages/hr/VacationUsePage'))
 const VacationRemainPage = lazy(() => import('../pages/hr/VacationRemainPage'))
+const RetiredEmployeePage = lazy(() => import('../pages/hr/RetiredEmployeePage'))
 const EmployeePage = lazy(() => import('../pages/hr/EmployeePage'))
 const PayrollPage = lazy(() => import('../pages/hr/PayrollPage'))
 const EmployeePerformancePage = lazy(() => import('../pages/hr/EmployeePerformancePage'))
@@ -624,6 +625,7 @@ export default function AppRouter() {
         <Route path="/hr/daily-hours" element={<DailyWorkHoursPage />} />
         <Route path="/hr/work-integrated" element={<WorkIntegratedPage />} />
         <Route path="/hr/vacation-use" element={<VacationUsePage />} />
+        <Route path="/hr/retired" element={<RetiredEmployeePage />} />
         <Route path="/hr/vacation-remain" element={<VacationRemainPage />} />
         <Route path="/hr/employees" element={<EmployeePage />} />
         <Route path="/hr/payroll" element={<PayrollPage />} />

@@ -6491,5 +6491,13 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+ },
+ "퇴사자리스트|세무신고사업장": {
+  "claim": "회사 정보에 사업장 목록이 없다",
+  "absent": [
+   "businessPlace",
+   "BusinessPlace"
+  ],
+  "in": "backend/src/main/java/com/erp/settings/companyinfo/CompanyInfo.java"
  }
 }

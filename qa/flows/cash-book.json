@@ -313,6 +313,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|사원명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
       ]
+    },
+    {
+      "name": "퇴사자리스트 — 사번 · 성명 · 부서 · 입사일자 · 퇴사일자 · 중도정산귀속월 …, 퇴사일자가 있는 사원만",
+      "path": "/hr/retired",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='|사번|성명|부서|입사일자|퇴사일자|중도정산귀속월|중도정산원천징수연월|퇴직소득귀속월|퇴직소득원천징수연월|퇴직소득지급일자'})()"
+      ]
     }
   ]
 }

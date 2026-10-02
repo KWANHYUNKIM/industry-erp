@@ -1082,5 +1082,9 @@
  [
   "가지급금정산서집계",
   "accounting/ExpenseSlipSummaryPage.tsx"
+ ],
+ [
+  "퇴사자리스트",
+  "hr/RetiredEmployeePage.tsx"
  ]
 ]
