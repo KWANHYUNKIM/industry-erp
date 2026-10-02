@@ -998,5 +998,9 @@
  [
   "원가명세서",
   "accounting/CostStatementPage.tsx"
+ ],
+ [
+  "계정명세서",
+  "accounting/AccountDetailPage.tsx"
  ]
 ]

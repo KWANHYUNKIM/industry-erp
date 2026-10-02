@@ -135,6 +135,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');const body=t.innerText;return [...t.querySelectorAll('thead th')][0].innerText.trim()==='재무제표표시명'&&['Ⅳ. 당기총비용합계','기초재공품재고액','합 계','기말재공품재고액','당기제품제조원가'].every((x)=>body.includes(x))})()"
       ]
+    },
+    {
+      "name": "계정명세서 — 계정마다 표(계정명 · 거래처명 · 금액, 끝 [합계])",
+      "path": "/accounting/account-detail",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');return [...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='계정명|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }

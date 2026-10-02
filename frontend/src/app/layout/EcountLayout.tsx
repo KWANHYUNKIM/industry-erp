@@ -444,6 +444,7 @@ const MENU: TopMenu[] = [
               { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
               { label: '원가명세서', to: '/accounting/cost-statement' },
+              { label: '계정명세서', to: '/accounting/account-detail' },
             ],
           },
           {
