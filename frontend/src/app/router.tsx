@@ -167,6 +167,7 @@ const UnorderedStatusPage = lazy(() => import('../pages/trade/UnorderedStatusPag
 const UnpurchasedStatusPage = lazy(() => import('../pages/trade/UnpurchasedStatusPage'))
 const PurchaseOrderStatusPage = lazy(() => import('../pages/trade/PurchaseOrderStatusPage'))
 const PurchaseRequestStatusPage = lazy(() => import('../pages/trade/PurchaseRequestStatusPage'))
+const PurchaseRequestListPage = lazy(() => import('../pages/trade/PurchaseRequestListPage'))
 /* 이름표 묶음은 값이라 lazy 로 못 받는다 — 화면 파일에서 그대로 가져온다. */
 import { PLAN_LABELS } from '../pages/trade/PurchaseRequestStatusPage'
 const SalesDiscountPage = lazy(() => import('../pages/trade/SalesDiscountPage'))
@@ -362,6 +363,7 @@ export default function AppRouter() {
         <Route path="/sales/purchase-status" element={<PurchaseStatusPage />} />
         <Route path="/sales/unpurchased" element={<UnpurchasedStatusPage />} />
         <Route path="/sales/purchase-order-status" element={<PurchaseOrderStatusPage />} />
+        <Route path="/sales/purchase-requests" element={<PurchaseRequestListPage />} />
         <Route path="/sales/purchase-request-status" element={<PurchaseRequestStatusPage />} />
         {/*
           한 파일이 셋을 겸하는데 <b>조건 이름표가 화면마다 다르다</b>(2026-09-08 실측) —

@@ -112,7 +112,7 @@ const MENU: TopMenu[] = [
         // 원본 구매관리도 묶음이다(발주요청·발주계획·단가요청·발주서·구매·구매일괄회계반영).
         label: '구매관리',
         nodes: [
-          { label: '발주요청', children: [{ label: '발주요청현황', to: '/sales/purchase-request-status' }] },
+          { label: '발주요청', children: [{ label: '발주요청조회', to: '/sales/purchase-requests' }, { label: '발주요청현황', to: '/sales/purchase-request-status' }] },
           { label: '발주계획', children: [{ label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
           {
             label: '단가요청',

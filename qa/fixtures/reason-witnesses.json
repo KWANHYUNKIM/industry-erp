@@ -5290,5 +5290,22 @@
    "mailed"
   ],
   "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
+ },
+ "발주요청조회|관리항목": {
+  "claim": "발주서가 관리항목을 들지 않는다",
+  "absent": [
+   "manageItem",
+   "ManagementItem"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
+ },
+ "발주요청조회|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "mailed",
+   "sentAt",
+   "sendStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  }
 }

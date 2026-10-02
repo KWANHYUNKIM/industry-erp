@@ -882,5 +882,9 @@
  [
   "주문서조회",
   "trade/SalesOrderPage.tsx"
+ ],
+ [
+  "발주요청조회",
+  "trade/PurchaseRequestListPage.tsx"
  ]
 ]
