@@ -60,4 +60,43 @@ public class BomService {
                 .orElseThrow(() -> ApiException.notFound("BOM을 찾을 수 없습니다. id=" + id));
         bomRepository.delete(bom);
     }
+
+    /** BOM 을 푼 한 줄 — 자재와 그 양(생산수량을 곱한 뒤). */
+    public record Exploded(com.erp.inventory.item.Item component, java.math.BigDecimal quantity) {}
+
+    /**
+     * BOM 풀기. 원본 생산입고·생산불출의 [BOM풀기] 갈래 — <b>1단계</b>는 바로 아래 자재만,
+     * <b>전체</b>는 자재가 다시 BOM 을 가진 반제품이면 그 아래까지 끝까지 내려가 원재료로 바꾼다.
+     *
+     * <p>같은 자재가 여러 갈래에서 나오면 한 줄로 합친다. 제품이 돌고 돌아 자신을 다시 부르면(순환)
+     * 거절한다 — 끝없이 내려간다. BOM 이 없으면 빈 목록이다(부르는 쪽이 판단한다).
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public java.util.List<Exploded> explode(Long productId, java.math.BigDecimal qty, boolean all) {
+        java.util.Map<Long, Exploded> out = new java.util.LinkedHashMap<>();
+        explodeInto(productId, qty, all, new java.util.ArrayDeque<>(), out);
+        return new java.util.ArrayList<>(out.values());
+    }
+
+    private void explodeInto(Long productId, java.math.BigDecimal qty, boolean all,
+                             java.util.Deque<Long> path, java.util.Map<Long, Exploded> out) {
+        if (path.contains(productId)) {
+            throw com.erp.common.ApiException.badRequest("BOM 이 자기 자신을 다시 부릅니다(순환). 품목 id=" + productId);
+        }
+        var bom = bomRepository.findByProductIdWithProduct(productId).orElse(null);
+        if (bom == null) return;
+        path.push(productId);
+        for (var line : bom.getLines()) {
+            var c = line.getComponent();
+            java.math.BigDecimal need = line.getQuantity().multiply(qty);
+            boolean hasChild = all && bomRepository.findByProductIdWithProduct(c.getId()).isPresent();
+            if (hasChild) {
+                explodeInto(c.getId(), need, true, path, out);
+            } else {
+                out.merge(c.getId(), new Exploded(c, need),
+                        (a, b) -> new Exploded(a.component(), a.quantity().add(b.quantity())));
+            }
+        }
+        path.pop();
+    }
 }

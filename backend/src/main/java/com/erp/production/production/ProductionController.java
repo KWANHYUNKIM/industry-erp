@@ -40,8 +40,10 @@ public class ProductionController {
 
     /** 제품의 BOM 소요량(미저장). 원본 생산입고 II·III [소모] 탭의 [BOM풀기]. */
     @GetMapping("/bom-preview")
-    public List<ProductionMaterialResponse> bomPreview(@RequestParam Long productId, @RequestParam BigDecimal qty) {
-        return productionService.bomPreview(productId, qty);
+    public List<ProductionMaterialResponse> bomPreview(@RequestParam Long productId, @RequestParam BigDecimal qty,
+                                                       @RequestParam(defaultValue = "ONE") String level) {
+        // 원본 BOM풀기 갈래 — ONE(1단계, 기본) · ALL(전체: 반제품을 끝까지 푼다).
+        return productionService.bomPreview(productId, qty, "ALL".equalsIgnoreCase(level));
     }
 
     /** 전표 하나(같은 번호의 줄들). 원본 생산입고조회에서 번호를 눌러 여는 것. */

@@ -267,6 +267,8 @@ export default function IssuePage() {
   const [woPickOpen, setWoPickOpen] = useState(false)
   const [woList, setWoList] = useState<WorkOrderFull[]>([])
   const [woPicked, setWoPicked] = useState<number[]>([])
+  /** 원본 BOM풀기 갈래 — 1단계(바로 아래 자재) · 전체(반제품을 끝까지 풀어 원재료로). */
+  const [bomLevel, setBomLevel] = useState<'ONE' | 'ALL'>('ONE')
   async function openWoPick() {
     if (!form.toWarehouseId) { setError('받는공장을 입력바랍니다.'); return }
     setError('')
@@ -284,7 +286,7 @@ export default function IssuePage() {
     if (woPicked.length === 0) { setWoPickOpen(false); return }
     try {
       const r = await api.get<WoRequirement[]>('/material-issues/wo-requirements', {
-        params: { workOrderIds: woPicked.join(',') },
+        params: { workOrderIds: woPicked.join(','), level: bomLevel },
       })
       const added: FormLine[] = r.data
         .map((q) => ({ q, qty: remainOnly ? Number(q.remainingQty) : Number(q.requiredQty) }))
@@ -540,6 +542,11 @@ export default function IssuePage() {
               <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
                 <button type="button" className="ec-btn ec-btn-primary" onClick={() => void applyWo(true)}>잔량으로BOM풀기</button>
                 <button type="button" className="ec-btn" onClick={() => void applyWo(false)}>BOM풀기</button>
+                <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
+                        onChange={(e) => setBomLevel(e.target.value as 'ONE' | 'ALL')} style={{ width: 70 }}>
+                  <option value="ONE">1단계</option>
+                  <option value="ALL">전체</option>
+                </select>
                 <button type="button" className="ec-btn" onClick={() => setWoPickOpen(false)}>닫기</button>
               </div>
             </div>

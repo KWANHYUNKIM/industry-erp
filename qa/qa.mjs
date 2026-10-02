@@ -4446,8 +4446,9 @@ async function scenarioStockRecalc(f) {
 
   // 과거 일자 거래를 하나 넣으면 그 뒤 잔량이 어긋나는 것이 정상이다 —
   // 재집계가 필요한 상황을 만들어, 재집계가 그걸 실제로 잡는지 본다.
-  const item = (await must('GET', '/items')).find((i) => i.active)
-  const wh = (await must('GET', '/warehouses'))[0]
+  // 뒤에 거래가 <b>있는</b> 품목·창고여야 잔량이 어긋난다 — '첫 품목' 은 거래 없는 새 품목일 수 있다.
+  const item = f.material
+  const wh = f.warehouse
   await must('POST', '/stock/transactions', {
     itemId: item.id, warehouseId: wh.id, type: 'INBOUND',
     quantity: 7, unitPrice: 100, transactionDate: '2000-01-05', note: `${P} 과거일자`,
@@ -5001,6 +5002,31 @@ async function scenarioSubcontractReflection(f) {
   await clear()
   await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'OUTBOUND', quantity: 100 })
   eq('시험한 외주 생산입고는 남기지 않는다', (await listOf()).length, 0)
+}
+
+/**
+ * BOM풀기 갈래 — 원본 [1단계]·[전체]. 제품 → 반제품(BOM 있음) → 원재료 두 단을 만들어
+ * 1단계는 반제품을, 전체는 원재료(곱한 양)를 내는지 본다. 생산입고 II·III 과 생산불출이 같은 풀이를 쓴다.
+ */
+async function scenarioBomLevels(f) {
+  section('■ BOM풀기 — 1단계 · 전체(반제품을 끝까지)')
+
+  const item = (code, name, category) => ensure('/items', 'code', code, null, { code, name, unit: 'EA', category, unitPrice: 0, safetyStock: 0 })
+  const top = await item(`${P}ML-TOP`, 'QA다단제품', 'FINISHED')
+  const semi = await item(`${P}ML-SEMI`, 'QA다단반제품', 'SEMI_FINISHED')
+  await must('POST', '/boms', { productId: semi.id, lines: [{ componentId: f.material.id, quantity: 3 }] })
+  await must('POST', '/boms', { productId: top.id, lines: [{ componentId: semi.id, quantity: 2 }] })
+
+  const one = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ONE`)
+  eq('1단계: 바로 아래 반제품만', one.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${semi.id}:10`)
+  const all = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ALL`)
+  eq('전체: 반제품을 풀어 원재료 × 곱한 양', all.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${f.material.id}:30`)
+
+  const D = '2087-07-07'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 4, orderDate: D })
+  const reqAll = await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}&level=ALL`)
+  eq('생산불출 [전체]: 지시 4 × 2 × 3 = 원재료 24', Number(reqAll.find((x) => x.componentId === f.material.id)?.requiredQty), 24)
+  await call('DELETE', `/work-orders/${wo.id}`)
 }
 
 async function scenarioWorkResultBatch(f) {
@@ -6106,8 +6132,9 @@ async function scenarioIssueEmployee(f) {
   await must('POST', '/stock/transactions', {
     itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 6,
   })
+  // /stock 은 warehouseId 로 거르지 않는다 — 창고까지 맞춰 찾는다(외주 창고가 생기자 첫 줄이 그쪽 0 이 됐다).
   const before = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
 
   const batch = await must('POST', '/material-issues/batch', {
     warehouseId: f.warehouse.id, issueDate: '2091-07-08', note: null,
@@ -6119,7 +6146,7 @@ async function scenarioIssueEmployee(f) {
   eq('한 번에 두 줄이 들어간다', batch.length, 2)
   eq('줄마다 적요가 따로 남는다', batch.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
   const afterBatch = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
   eq('두 줄 합만큼 재고가 준다', Number(before) - Number(afterBatch), 3)
 
   // 둘째 줄이 재고를 넘으면 첫 줄도 들어가면 안 된다.
@@ -6129,7 +6156,7 @@ async function scenarioIssueEmployee(f) {
   })
   eq('한 줄이 막히면 거부한다', partial.status, 400)
   const afterFail = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
   eq('막히면 앞 줄도 안 들어간다(전부 되돌림)', Number(afterFail), Number(afterBatch))
 
   for (const x of batch) await must('DELETE', `/material-issues/${x.id}`)
@@ -9553,8 +9580,8 @@ async function main() {
     await scenarioProductionBatch(fixtures)
     await scenarioProductionSlip(fixtures)
     await scenarioWorkOrderSlip(fixtures)
-  await scenarioSubcontractReflection(fixtures)
     await scenarioSubcontractReflection(fixtures)
+    await scenarioBomLevels(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9673,6 +9700,8 @@ async function main() {
   await scenarioProductionBatch(fixtures)
   await scenarioProductionSlip(fixtures)
   await scenarioWorkOrderSlip(fixtures)
+  await scenarioSubcontractReflection(fixtures)
+  await scenarioBomLevels(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()

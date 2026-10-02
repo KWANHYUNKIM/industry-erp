@@ -40,6 +40,7 @@ public class ProductionService {
     private final com.erp.inventory.item.ItemService itemService;
     private final com.erp.inventory.warehouse.WarehouseService warehouseService;
     private final com.erp.production.process.ProcessService processService;
+    private final com.erp.production.bom.BomService bomService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
     /** 프로젝트는 inventory 의 공개 service 를 거친다(리포지토리 직접 주입 금지, 4.2). */
@@ -100,14 +101,13 @@ public class ProductionService {
 
     /** 제품 하나의 BOM 소요량(미저장). 원본 생산입고 II·III [BOM풀기]. */
     @Transactional(readOnly = true)
-    public List<ProductionMaterialResponse> bomPreview(Long productId, BigDecimal qty) {
+    public List<ProductionMaterialResponse> bomPreview(Long productId, BigDecimal qty, boolean all) {
         Item product = itemService.get(productId);
-        Bom bom = getBom(product);
-        return bom.getLines().stream()
-                .map(l -> new ProductionMaterialResponse(
-                        l.getComponent().getId(), l.getComponent().getCode(), l.getComponent().getName(),
-                        l.getComponent().getUnit(), l.getQuantity().multiply(qty),
-                        l.getComponent().getSpec(), null))
+        getBom(product);   // BOM 이 없으면 여기서 알린다
+        return bomService.explode(productId, qty, all).stream()
+                .map(x -> new ProductionMaterialResponse(
+                        x.component().getId(), x.component().getCode(), x.component().getName(),
+                        x.component().getUnit(), x.quantity(), x.component().getSpec(), null))
                 .toList();
     }
 

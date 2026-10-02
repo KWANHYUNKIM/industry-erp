@@ -106,6 +106,12 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const [lines, setLines] = useState<ProdLine[]>(() => Array.from({ length: BLANK_ROWS }, blankLine))
   const [mats, setMats] = useState<MatLine[]>(() => Array.from({ length: BLANK_ROWS }, () => blankMat()))
   const [tab, setTab] = useState<(typeof TABS)[number]>('생산')
+  /**
+   * 원본 [BOM풀기] 의 갈래 — <b>1단계</b>는 바로 아래 자재, <b>전체</b>는 반제품을 끝까지 풀어 원재료로 낸다
+   * (도움말 "생산입고 입력시 '1단계', '생산공정', '전체'의 차이점": 전표에 불러오는 BOM 값이 달라진다).
+   * [생산공정] 갈래는 공정별 BOM 이 없어 아직 없다.
+   */
+  const [bomLevel, setBomLevel] = useState<'ONE' | 'ALL'>('ONE')
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [woOpen, setWoOpen] = useState(false)
@@ -218,7 +224,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     for (const l of filled) {
       if (!(num(l.qty) > 0)) continue
       try {
-        const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}`)
+        const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}&level=${bomLevel}`)
         r.data.forEach((m) => out.push({
           key: nextKey(), lineKey: String(l.key), componentId: String(m.componentId),
           bomQty: String(m.quantity), extraQty: '', qty: String(m.quantity), note: '',
@@ -618,11 +624,21 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
               <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setWoChecked([]); setWoOpen(true) }}>작업지시서</button>
               {type !== 'I' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>}
+              {type !== 'I' && <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
+                        onChange={(e) => setBomLevel(e.target.value as 'ONE' | 'ALL')} style={{ width: 70, height: 23 }}>
+                  <option value="ONE">1단계</option>
+                  <option value="ALL">전체</option>
+                </select>}
               <MyItemsNote note={myItems.note} />
             </>
           ) : (
             <>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>
+              <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
+                      onChange={(e) => setBomLevel(e.target.value as 'ONE' | 'ALL')} style={{ width: 70, height: 23 }}>
+                <option value="ONE">1단계</option>
+                <option value="ALL">전체</option>
+              </select>
               <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
                 생산품목마다 BOM 소요량 × 수량으로 다시 채웁니다(지금 [소모] 줄은 지워집니다).
               </span>

@@ -38,7 +38,7 @@ public class MaterialIssueService {
     private final StockService stockService;
     private final ProjectService projectService;
     private final com.erp.common.DocumentNoGenerator docNoGenerator;
-    private final com.erp.production.bom.BomRepository bomRepository;
+    private final com.erp.production.bom.BomService bomService;
 
     @Transactional(readOnly = true)
     public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to) {
@@ -165,6 +165,12 @@ public class MaterialIssueService {
      */
     @Transactional(readOnly = true)
     public List<MaterialIssueDtos.WorkOrderRequirement> requirements(List<Long> workOrderIds) {
+        return requirements(workOrderIds, false);
+    }
+
+    /** all 이면 반제품을 끝까지 풀어 원재료로 낸다(원본 BOM풀기 [전체]). */
+    @Transactional(readOnly = true)
+    public List<MaterialIssueDtos.WorkOrderRequirement> requirements(List<Long> workOrderIds, boolean all) {
         List<MaterialIssueDtos.WorkOrderRequirement> out = new java.util.ArrayList<>();
         if (workOrderIds == null || workOrderIds.isEmpty()) return out;
         java.util.Map<String, java.math.BigDecimal> issued = new java.util.HashMap<>();
@@ -174,11 +180,9 @@ public class MaterialIssueService {
         for (Long woId : workOrderIds) {
             WorkOrder wo = workOrderRepository.findById(woId)
                     .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + woId));
-            var bom = bomRepository.findByProductIdWithProduct(wo.getProduct().getId()).orElse(null);
-            if (bom == null) continue;
-            for (var line : bom.getLines()) {
-                Item c = line.getComponent();
-                java.math.BigDecimal required = line.getQuantity().multiply(wo.getPlannedQty());
+            for (var x : bomService.explode(wo.getProduct().getId(), wo.getPlannedQty(), all)) {
+                Item c = x.component();
+                java.math.BigDecimal required = x.quantity();
                 java.math.BigDecimal done = issued.getOrDefault(wo.getId() + ":" + c.getId(), java.math.BigDecimal.ZERO);
                 java.math.BigDecimal remaining = required.subtract(done).max(java.math.BigDecimal.ZERO);
                 out.add(new MaterialIssueDtos.WorkOrderRequirement(
@@ -189,7 +193,9 @@ public class MaterialIssueService {
                         wo.getPartner() != null ? wo.getPartner().getName() : null,
                         wo.getEmployeeId(),
                         c.getId(), c.getCode(), c.getName(), c.getSpec(), c.getUnit(),
-                        line.getQuantity(), required, done, remaining));
+                        wo.getPlannedQty().signum() == 0 ? java.math.BigDecimal.ZERO
+                                : required.divide(wo.getPlannedQty(), 6, java.math.RoundingMode.HALF_UP).stripTrailingZeros(),
+                        required, done, remaining));
             }
         }
         return out;
